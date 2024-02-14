@@ -820,6 +820,7 @@ class DataScienceModel(Builder):
             )
         artifact_uploader.upload()
 
+        # todo: remove local dir and use model_description to keep artifact instead.
         self._remove_file_description_artifact()
 
     def _remove_file_description_artifact(self):
@@ -1155,6 +1156,17 @@ class DataScienceModel(Builder):
             artifact_info = self.dsc_model.get_artifact_info()
             _, file_name_info = cgi.parse_header(artifact_info["Content-Disposition"])
             self.set_spec(self.CONST_ARTIFACT, file_name_info["filename"])
+
+            # todo: move this check to a function in DataScienceModel.
+            if self.dsc_model.custom_metadata_list:
+                for metadata in self.dsc_model.custom_metadata_list:
+                    if (
+                        metadata.key == self.CONST_MODEL_FILE_DESCRIPTION
+                        and metadata.value.lower() == "true"
+                    ):
+                        _, file_extension = os.path.splitext(file_name_info["filename"])
+                        if file_extension.lower() == ".json":
+                            self._download_file_description_artifact()
         except:
             pass
 
@@ -1333,20 +1345,20 @@ class DataScienceModel(Builder):
         """
         if not self.model_file_description:
             # get model file description from model artifact json
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # self.local_copy_dir = tempfile.mkdtemp()
+                artifact_downloader = SmallArtifactDownloader(
+                    dsc_model=self.dsc_model,
+                    target_dir=temp_dir,
+                )
+                artifact_downloader.download()
 
-            self.local_copy_dir = tempfile.mkdtemp()
-            artifact_downloader = SmallArtifactDownloader(
-                dsc_model=self.dsc_model,
-                target_dir=self.local_copy_dir,
-            )
-            artifact_downloader.download()
-
-            # create temp directory for model description file
-            json_file_path = os.path.join(
-                self.local_copy_dir, MODEL_BY_REFERENCE_JSON_FILE_NAME
-            )
-            self.with_model_file_description(json_uri=json_file_path)
-            self._remove_file_description_artifact()
+                # create temp directory for model description file
+                json_file_path = os.path.join(
+                    temp_dir, MODEL_BY_REFERENCE_JSON_FILE_NAME
+                )
+                self.with_model_file_description(json_uri=json_file_path)
+                # self._remove_file_description_artifact()
 
         model_file_desc_dict = self.model_file_description
         # currently only supports downloading from the first model item
