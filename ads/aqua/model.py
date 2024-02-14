@@ -113,45 +113,40 @@ class AquaModelApp(AquaApp):
             The instance of DataScienceModel.
         """
         with tempfile.TemporaryDirectory() as temp_dir:
-            try:
-                target_model = DataScienceModel.from_id(model_id)
-                target_compartment = comparment_id or COMPARTMENT_OCID
-                target_project = project_id or PROJECT_OCID
+            target_model = DataScienceModel.from_id(model_id)
+            target_compartment = comparment_id or COMPARTMENT_OCID
+            target_project = project_id or PROJECT_OCID
 
-                if target_model.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
-                    logger.debug(
-                        f"Aqua Model {model_id} already exists in user's compartment. 
-                        Skipped copying."
-                    )
-                    return target_model
-
-                target_model.download_artifact(target_dir=temp_dir)
-                custom_model = (
-                    DataScienceModel()
-                    .with_compartment_id(target_compartment)
-                    .with_project_id(target_project)
-                    .with_artifact(temp_dir)
-                    .with_display_name(target_model.display_name)
-                    .with_description(target_model.description)
-                    .with_freeform_tags(**(target_model.freeform_tags or {}))
-                    .with_defined_tags(**(target_model.defined_tags or {}))
-                    .with_model_version_set_id(target_model.model_version_set_id)
-                    .with_version_label(target_model.version_label)
-                    .with_custom_metadata_list(target_model.custom_metadata_list)
-                    .with_defined_metadata_list(target_model.defined_metadata_list)
-                    .with_provenance_metadata(target_model.provenance_metadata)
-                    # TODO: decide what kwargs will be needed.
-                    .create(**kwargs)
-                )
+            if target_model.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
                 logger.debug(
-                    f"Aqua Model {custom_model.id} created with the service model {model_id}"
+                    f"Aqua Model {model_id} already exists in user's compartment."
+                    "Skipped copying."
                 )
+                return target_model
 
-                return custom_model
-            except Exception as e:
-                # TODO: adjust error raising
-                logger.error(f"Failed to create model from the given id {model_id}.")
-                raise e
+            target_model.download_artifact(target_dir=temp_dir)
+            custom_model = (
+                DataScienceModel()
+                .with_compartment_id(target_compartment)
+                .with_project_id(target_project)
+                .with_artifact(temp_dir)
+                .with_display_name(target_model.display_name)
+                .with_description(target_model.description)
+                .with_freeform_tags(**(target_model.freeform_tags or {}))
+                .with_defined_tags(**(target_model.defined_tags or {}))
+                .with_model_version_set_id(target_model.model_version_set_id)
+                .with_version_label(target_model.version_label)
+                .with_custom_metadata_list(target_model.custom_metadata_list)
+                .with_defined_metadata_list(target_model.defined_metadata_list)
+                .with_provenance_metadata(target_model.provenance_metadata)
+                # TODO: decide what kwargs will be needed.
+                .create(**kwargs)
+            )
+            logger.debug(
+                f"Aqua Model {custom_model.id} created with the service model {model_id}"
+            )
+
+            return custom_model
 
     def get(self, model_id) -> "AquaModel":
         """Gets the information of an Aqua model.

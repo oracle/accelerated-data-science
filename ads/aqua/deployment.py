@@ -4,13 +4,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
-import logging
 from dataclasses import dataclass, field
 from typing import Dict, List, Union
 
 from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 
-from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaError, AquaRuntimeError, AquaValueError
 from ads.aqua.model import AquaModelApp, Tags
@@ -32,7 +30,6 @@ from ads.model.deployment import (
 )
 from ads.common.utils import get_console_link
 from ads.common.serializer import DataClassSerializable
-from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.config import COMPARTMENT_OCID, AQUA_MODEL_DEPLOYMENT_IMAGE
 
 
@@ -374,12 +371,7 @@ class AquaDeploymentApp(AquaApp):
         Dict:
             A dict of allowed deployment configs.
         """
-        try:
-            oci_model = self.ds_client.get_model(model_id).data
-        except Exception as ex:
-            # TODO: adjust error raising
-            logger.error(f"Failed to retreive model from the given id {model_id}")
-            raise ex
+        oci_model = self.ds_client.get_model(model_id).data
 
         oci_aqua = (
             (
@@ -401,7 +393,8 @@ class AquaDeploymentApp(AquaApp):
         )
 
         if not shape_config:
-            # TODO: adjust the error raising
-            raise AquaError(f"Missing shape_config.", 500)
+            raise AquaError(
+                f"Deployment config file `deployment_config.json` is either empty or missing.", 500
+            )
 
         return shape_config
