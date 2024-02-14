@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import os
-import tempfile
+
 from dataclasses import dataclass
 from enum import Enum
 from typing import List
@@ -107,42 +106,39 @@ class AquaModelApp(AquaApp):
         AquaModel:
             The instance of AquaModel.
         """
-        with tempfile.TemporaryDirectory() as temp_dir:
-            try:
-                service_model = DataScienceModel.from_id(model_id)
-                service_model.download_artifact(target_dir=temp_dir)
-                custom_model = (
-                    DataScienceModel()
-                    .with_compartment_id(comparment_id or COMPARTMENT_OCID)
-                    .with_project_id(project_id)
-                    .with_artifact(temp_dir)
-                    .with_display_name(service_model.display_name)
-                    .with_description(service_model.description)
-                    .with_freeform_tags(**(service_model.freeform_tags or {}))
-                    .with_defined_tags(**(service_model.defined_tags or {}))
-                    .with_model_version_set_id(service_model.model_version_set_id)
-                    .with_version_label(service_model.version_label)
-                    .with_custom_metadata_list(service_model.custom_metadata_list)
-                    .with_defined_metadata_list(service_model.defined_metadata_list)
-                    .with_provenance_metadata(service_model.provenance_metadata)
-                    # TODO: decide what kwargs will be needed.
-                    .create(**kwargs)
-                )
-            except Exception as e:
-                # TODO: adjust error raising
-                logger.error(f"Failed to create model from the given id {model_id}.")
-                raise e
+        service_model = DataScienceModel.from_id(model_id)
+        custom_model = (
+            DataScienceModel()
+            .with_compartment_id(comparment_id or COMPARTMENT_OCID)
+            .with_project_id(project_id)
+            .with_model_file_description(
+                json_dict=service_model.model_file_description
+            )
+            .with_display_name(service_model.display_name)
+            .with_description(service_model.description)
+            .with_freeform_tags(**(service_model.freeform_tags or {}))
+            .with_defined_tags(**(service_model.defined_tags or {}))
+            .with_model_version_set_id(service_model.model_version_set_id)
+            .with_version_label(service_model.version_label)
+            .with_custom_metadata_list(service_model.custom_metadata_list)
+            .with_defined_metadata_list(service_model.defined_metadata_list)
+            .with_provenance_metadata(service_model.provenance_metadata)
+            # TODO: decide what kwargs will be needed.
+            .create(
+                model_by_reference=True, **kwargs
+            )
+        )
 
-            artifact_path = get_artifact_path(
-                custom_model.dsc_model.custom_metadata_list
-            )
-            return AquaModel(
-                **AquaModelApp.process_model(custom_model.dsc_model, self.region),
-                project_id=custom_model.project_id,
-                model_card=str(
-                    read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
-                ),
-            )
+        artifact_path = get_artifact_path(
+            custom_model.dsc_model.custom_metadata_list
+        )
+        return AquaModel(
+            **AquaModelApp.process_model(custom_model.dsc_model, self.region),
+            project_id=custom_model.project_id,
+            model_card=str(
+                read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
+            ),
+        )
 
     def get(self, model_id) -> "AquaModel":
         """Gets the information of an Aqua model.
