@@ -55,6 +55,14 @@ class ModelArtifactSizeError(Exception):  # pragma: no cover
         )
 
 
+class BucketNotVersionedError(Exception):  # pragma: no cover
+    def __init__(
+        self,
+        msg="Model artifact bucket is not versioned. Enable versioning on the bucket to proceed with model creation by reference.",
+    ):
+        super().__init__(msg)
+
+
 class ModelFileDescriptionError(Exception):  # pragma: no cover
     def __init__(self, msg="Model File Description file is not set up."):
         super().__init__(msg)
@@ -1217,11 +1225,9 @@ class DataScienceModel(Builder):
 
     def _validate_prepare_file_description_artifact(self, bucket_uri: str):
         if not ObjectStorageDetails.from_path(bucket_uri).is_bucket_versioned():
-            logger.error(
-                "Model artifact bucket is not versioned. "
-                "Enable versioning on the bucket to proceed with model creation by reference."
-            )
-            raise
+            message = f"Model artifact bucket {bucket_uri} is not versioned. Enable versioning on the bucket to proceed with model creation by reference."
+            logger.error(message)
+            raise BucketNotVersionedError(message)
 
         if not self.model_file_description:
             json_data = self._prepare_file_description_artifact()
