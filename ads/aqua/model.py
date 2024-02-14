@@ -53,6 +53,16 @@ class AquaModelSummary(DataClassSerializable):
     time_created: str
     console_link: str
 
+    @staticmethod
+    def load_icon(model_name) -> str:
+        """Loads icon."""
+        # TODO: switch to the official logo
+        try:
+            return create_word_icon(model_name, return_as_datauri=True)
+        except Exception as e:
+            logger.debug(f"Failed to load icon for the model={model_name}.")
+            return None
+
 
 @dataclass(repr=False)
 class AquaModel(AquaModelSummary, DataClassSerializable):
@@ -211,7 +221,7 @@ class AquaModelApp(AquaApp):
 
     @classmethod
     def process_model(cls, model, region) -> dict:
-        icon = cls()._load_icon(model.display_name)
+        icon = AquaModelSummary.load_icon(model.display_name)
         tags = {}
         tags.update(model.defined_tags or {})
         tags.update(model.freeform_tags or {})
@@ -257,16 +267,6 @@ class AquaModelApp(AquaApp):
             Tags.AQUA_TAG.value in TARGET_TAGS
             or Tags.AQUA_TAG.value.lower() in TARGET_TAGS
         )
-
-    def _load_icon(self, model_name) -> str:
-        """Loads icon."""
-
-        # TODO: switch to the official logo
-        try:
-            return create_word_icon(model_name, return_as_datauri=True)
-        except Exception as e:
-            logger.debug(f"Failed to load icon for the model={model_name}.")
-            return None
 
     def _rqs(self, compartment_id):
         """Use RQS to fetch models in the user tenancy."""
