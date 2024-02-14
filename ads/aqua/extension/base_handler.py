@@ -5,10 +5,16 @@
 
 
 import json
+import traceback
+import uuid
 from dataclasses import asdict, is_dataclass
+from http.client import responses
 from typing import Any
 
 from notebook.base.handlers import APIHandler
+from tornado.web import HTTPError
+
+from ads.aqua import logger
 
 
 class AquaAPIhandler(APIHandler):
@@ -41,6 +47,31 @@ class AquaAPIhandler(APIHandler):
         # Convert the payload to a JSON serializable object
         payload = json.loads(json.dumps(payload, default=self.serialize))
         return super().finish(payload)
+
+    def write_error(self, status_code, **kwargs):
+        """AquaAPIhandler errors are JSON, not human pages."""
+
+        self.set_header("Content-Type", "application/json")
+        message = responses.get(status_code, "Unknown HTTP Error")
+        reply = {
+            "status": status_code,
+            "message": message,
+            "service_payload": kwargs.get("service_payload", {}),
+            "reason": kwargs.get("reason"),
+        }
+        exc_info = kwargs.get("exc_info")
+        if exc_info:
+            logger.error("".join(traceback.format_exception(*exc_info)))
+            e = exc_info[1]
+            if isinstance(e, HTTPError):
+                reply["message"] = e.log_message or message
+                reply["reason"] = e.reason
+                reply["request_id"] = str(uuid.uuid4())
+            else:
+                reply["request_id"] = str(uuid.uuid4())
+
+        logger.warning(reply["message"])
+        self.finish(json.dumps(reply))
 
 
 # todo: remove after error handler is implemented

@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+
 import oci
-from ads.common.auth import default_signer
-from ads.aqua.exception import AquaServiceError, AquaClientError
-from oci.exceptions import ServiceError, ClientError
+
 from ads.common import oci_client as oc
+from ads.common.auth import default_signer
 from ads.common.utils import extract_region
 
 
@@ -40,14 +41,7 @@ class AquaApp:
         list
             A list of OCI Data Science resources.
         """
-        try:
-            items = oci.pagination.list_call_get_all_results(
-                list_func_ref,
-                **kwargs,
-            ).data
-
-            return items
-        except ServiceError as se:
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
-        except ClientError as ce:
-            raise AquaClientError(str(ce))
+        return oci.pagination.list_call_get_all_results(
+            list_func_ref,
+            **kwargs,
+        ).data
