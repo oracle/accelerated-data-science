@@ -3,17 +3,15 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA utils and constants."""
-import logging
-import sys
 import base64
+import logging
 import random
-import sys
 import re
+import sys
 from string import Template
 from typing import List
 
 import fsspec
-
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
@@ -22,6 +20,7 @@ UNKNOWN = ""
 README = "README.md"
 DEPLOYMENT_CONFIG = "deployment_config.json"
 UNKNOWN_JSON_STR = "{}"
+
 
 def get_logger():
     return logger
@@ -80,7 +79,8 @@ def create_word_icon(label: str, width: int = 150, return_as_datauri=True):
         return svg_to_base64_datauri(icon_svg)
     else:
         return icon_svg
-    
+
+
 def get_artifact_path(custom_metadata_list: List) -> str:
     """Get the artifact path from the custom metadata list of model.
 
@@ -100,11 +100,10 @@ def get_artifact_path(custom_metadata_list: List) -> str:
     logger.debug("Failed to get artifact path from custom metadata.")
     return UNKNOWN
 
+
 def read_file(file_path: str, **kwargs) -> str:
     try:
-        with fsspec.open(
-            file_path, "r", **kwargs.get("auth", {})
-        ) as f:
+        with fsspec.open(file_path, "r", **kwargs.get("auth", {})) as f:
             return f.read()
     except Exception as e:
         logger.error(f"Failed to read file {file_path}. {e}")
