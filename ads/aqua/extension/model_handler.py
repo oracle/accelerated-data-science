@@ -25,6 +25,11 @@ class AquaModelHandler(AquaAPIhandler):
         return self.finish(AquaModelApp().get(model_id))
 
     @handle_exceptions
+    def delete(self, id=""):
+        """Handles DELETE request for clearing cache"""
+        return self.finish(AquaModelApp().clear_model_list_cache())
+
+    @handle_exceptions
     def list(self):
         """List Aqua models."""
         compartment_id = self.get_argument("compartment_id", default=None)

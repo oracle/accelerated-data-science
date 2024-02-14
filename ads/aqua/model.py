@@ -7,9 +7,15 @@ import tempfile
 from dataclasses import dataclass
 from enum import Enum
 from typing import List
+from datetime import datetime, timedelta
+from threading import Lock
+
+import cachetools
+from cachetools import TTLCache
+from cachetools import cached
+from cachetools.keys import hashkey
 
 import oci
-
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaRuntimeError
@@ -172,8 +178,16 @@ class AquaModelApp(AquaApp):
             ),
         )
 
+    @cached(
+        cache=TTLCache(maxsize=10, ttl=timedelta(minutes=1), timer=datetime.now),
+        key=lambda _, compartment_id, project_id: hashkey(compartment_id, project_id),
+        lock=Lock(),
+        info=True,
+    )
     def list(
-        self, compartment_id: str = None, project_id: str = None, **kwargs
+        self,
+        compartment_id: str = None,
+        project_id: str = None,
     ) -> List["AquaModelSummary"]:
         """List Aqua models in a given compartment and under certain project.
 
@@ -183,8 +197,6 @@ class AquaModelApp(AquaApp):
             The compartment OCID.
         project_id: (str, optional). Defaults to `None`.
             The project OCID.
-        kwargs
-            Additional keyword arguments.
         Returns
         -------
         List[AquaModelSummary]:
@@ -218,6 +230,11 @@ class AquaModelApp(AquaApp):
             )
 
         return aqua_models
+
+    def clear_model_list_cache(self):
+        self.list.cache_clear()
+        logger.info(f"Cache usage: {self.list.cache_info()}")
+        return {"cache_deleted": True}
 
     @classmethod
     def process_model(cls, model, region) -> dict:
