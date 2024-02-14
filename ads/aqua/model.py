@@ -108,12 +108,9 @@ class AquaModelApp(AquaApp):
                 target_compartment = comparment_id or COMPARTMENT_OCID
                 target_project = project_id or PROJECT_OCID
 
-                if (
-                    target_model.compartment_id == target_compartment
-                    and target_model.project_id == target_project
-                ):
+                if target_model.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
                     logger.debug(
-                        f"Aqua Model {model_id} exists in user's compartment and project. 
+                        f"Aqua Model {model_id} already exists in user's compartment. 
                         Skipped copying."
                     )
                     return target_model
