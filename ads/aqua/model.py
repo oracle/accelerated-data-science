@@ -54,16 +54,6 @@ class AquaModelSummary(DataClassSerializable):
     console_link: str
     search_text: str
 
-    @staticmethod
-    def load_icon(model_name) -> str:
-        """Loads icon."""
-        # TODO: switch to the official logo
-        try:
-            return create_word_icon(model_name, return_as_datauri=True)
-        except Exception as e:
-            logger.debug(f"Failed to load icon for the model={model_name}.")
-            return None
-
 
 @dataclass(repr=False)
 class AquaModel(AquaModelSummary, DataClassSerializable):
