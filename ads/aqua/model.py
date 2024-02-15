@@ -6,7 +6,7 @@ import os
 import tempfile
 from dataclasses import dataclass
 from enum import Enum
-from typing import List
+from typing import List, Union
 
 import oci
 
@@ -52,6 +52,7 @@ class AquaModelSummary(DataClassSerializable):
     task: str
     time_created: str
     console_link: str
+    search_text: str
 
 
 @dataclass(repr=False)
@@ -62,19 +63,24 @@ class AquaModel(AquaModelSummary, DataClassSerializable):
 
 
 class AquaModelApp(AquaApp):
-    """Contains APIs for Aqua model.
+    """Provides a suite of APIs to interact with Aqua models within the Oracle
+    Cloud Infrastructure Data Science service, serving as an interface for
+    managing machine learning models.
 
-    Attributes
-    ----------
 
     Methods
     -------
-    create(self, **kwargs) -> "AquaModel"
-        Creates an instance of Aqua model.
-    get(..., **kwargs)
-        Gets the information of an Aqua model.
-    list(...) -> List["AquaModelSummary"]
-        List existing models created via Aqua.
+    create(model_id: str, project_id: str, comparment_id: str = None, **kwargs) -> "AquaModel"
+        Creates custom aqua model from service model.
+    get(model_id: str) -> AquaModel:
+        Retrieves details of an Aqua model by its unique identifier.
+    list(compartment_id: str = None, project_id: str = None, **kwargs) -> List[AquaModelSummary]:
+        Lists all Aqua models within a specified compartment and/or project.
+
+    Note:
+        This class is designed to work within the Oracle Cloud Infrastructure
+        and requires proper configuration and authentication set up to interact
+        with OCI services.
     """
 
     def create(
@@ -127,7 +133,7 @@ class AquaModelApp(AquaApp):
                 custom_model.dsc_model.custom_metadata_list
             )
             return AquaModel(
-                **AquaModelApp.process_model(custom_model.dsc_model, self.region),
+                **self._process_model(custom_model.dsc_model, self.region),
                 project_id=custom_model.project_id,
                 model_card=str(
                     read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
@@ -155,7 +161,7 @@ class AquaModelApp(AquaApp):
         artifact_path = get_artifact_path(oci_model.custom_metadata_list)
 
         return AquaModel(
-            **AquaModelApp.process_model(oci_model, self.region),
+            **self._process_model(oci_model, self.region),
             project_id=oci_model.project_id,
             model_card=str(
                 read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
@@ -165,7 +171,10 @@ class AquaModelApp(AquaApp):
     def list(
         self, compartment_id: str = None, project_id: str = None, **kwargs
     ) -> List["AquaModelSummary"]:
-        """List Aqua models in a given compartment and under certain project.
+        """Lists all Aqua models within a specified compartment and/or project.
+        If `compartment_id` is not specified, the method defaults to returning
+        the service models within the pre-configured default compartment.
+
 
         Parameters
         ----------
@@ -173,8 +182,9 @@ class AquaModelApp(AquaApp):
             The compartment OCID.
         project_id: (str, optional). Defaults to `None`.
             The project OCID.
-        kwargs
-            Additional keyword arguments.
+        **kwargs:
+            Additional keyword arguments that can be used to filter the results.
+
         Returns
         -------
         List[AquaModelSummary]:
@@ -186,10 +196,12 @@ class AquaModelApp(AquaApp):
             models = self._rqs(compartment_id)
         else:
             logger.info(
-                f"Fetching service model from compartment_id={ODSC_MODEL_COMPARTMENT_OCID}"
+                f"Fetching service models from compartment_id={ODSC_MODEL_COMPARTMENT_OCID}"
             )
             models = self.list_resource(
-                self.ds_client.list_models, compartment_id=ODSC_MODEL_COMPARTMENT_OCID
+                self.ds_client.list_models,
+                compartment_id=ODSC_MODEL_COMPARTMENT_OCID,
+                **kwargs,
             )
 
         logger.info(
@@ -202,16 +214,19 @@ class AquaModelApp(AquaApp):
         for model in models:
             aqua_models.append(
                 AquaModelSummary(
-                    **AquaModelApp.process_model(model=model, region=self.region),
+                    **self._process_model(model=model, region=self.region),
                     project_id=project_id or UNKNOWN,
                 )
             )
 
         return aqua_models
 
-    @classmethod
-    def process_model(cls, model, region) -> dict:
-        icon = cls()._load_icon(model.display_name)
+    def _process_model(
+        self, model: Union["ModelSummary", "Model", "ResourceSummary"], region: str
+    ) -> dict:
+        """Constructs required fields for AquaModelSummary."""
+
+        icon = self._load_icon(model.display_name)
         tags = {}
         tags.update(model.defined_tags or {})
         tags.update(model.freeform_tags or {})
@@ -232,6 +247,8 @@ class AquaModelApp(AquaApp):
             ),
         )
 
+        search_text = str(tags) if tags else UNKNOWN
+
         return dict(
             compartment_id=model.compartment_id,
             icon=icon or UNKNOWN,
@@ -248,6 +265,7 @@ class AquaModelApp(AquaApp):
             ),
             tags=tags,
             console_link=console_link,
+            search_text=search_text,
         )
 
     def _if_show(self, model: "AquaModel") -> bool:
@@ -258,25 +276,24 @@ class AquaModelApp(AquaApp):
             or Tags.AQUA_TAG.value.lower() in TARGET_TAGS
         )
 
-    def _load_icon(self, model_name) -> str:
+    def _load_icon(self, model_name: str) -> str:
         """Loads icon."""
 
         # TODO: switch to the official logo
         try:
             return create_word_icon(model_name, return_as_datauri=True)
         except Exception as e:
-            logger.debug(f"Failed to load icon for the model={model_name}.")
+            logger.debug(f"Failed to load icon for the model={model_name}: {str(e)}.")
             return None
 
-    def _rqs(self, compartment_id):
+    def _rqs(self, compartment_id: str, **kwargs):
         """Use RQS to fetch models in the user tenancy."""
+
         condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_TAG.value}' && freeformTags.key = '{Tags.AQUA_FINE_TUNED_MODEL_TAG.value}')"
         condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
         query = f"query datasciencemodel resources where (compartmentId = '{compartment_id}' {condition_lifecycle} {condition_tags})"
         logger.info(query)
         logger.info(f"tenant_id={TENANCY_OCID}")
         return OCIResource.search(
-            query,
-            type=SEARCH_TYPE.STRUCTURED,
-            tenant_id=TENANCY_OCID,
+            query, type=SEARCH_TYPE.STRUCTURED, tenant_id=TENANCY_OCID, **kwargs
         )
