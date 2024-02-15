@@ -16,8 +16,6 @@ from ads.common.utils import extract_region
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
 from ads.common.object_storage_details import ObjectStorageDetails
 
-MODEL_BY_REFERENCE_DESC = "modelDescription"
-
 
 class ArtifactDownloader(ABC):
     """The abstract class to download model artifacts."""
@@ -175,10 +173,10 @@ class LargeArtifactDownloader(ArtifactDownloader):
 
         bucket_uri = self.bucket_uri
 
-        if self._is_model_by_reference() and self.model_file_description:
+        if self.dsc_model.is_model_by_reference() and self.model_file_description:
             message = f"Copying model artifacts by reference from {bucket_uri} to {self.target_dir}"
             self.progress.update(message)
-            self._download_from_model_file_description()
+            self.download_from_model_file_description()
             self.progress.update()
             return
 
@@ -209,23 +207,7 @@ class LargeArtifactDownloader(ArtifactDownloader):
         else:
             self.progress.update()
 
-    def _is_model_by_reference(self):
-        """Checks if model is created by reference
-        Returns
-        -------
-            bool flag denoting whether model was created by reference.
-
-        """
-        if self.dsc_model.custom_metadata_list:
-            for metadata in self.dsc_model.custom_metadata_list:
-                if (
-                    metadata.key == MODEL_BY_REFERENCE_DESC
-                    and metadata.value.lower() == "true"
-                ):
-                    return True
-        return False
-
-    def _download_from_model_file_description(self):
+    def download_from_model_file_description(self):
         """Helper function to download the objects using model file description content to the target directory."""
 
         models = self.model_file_description["models"]

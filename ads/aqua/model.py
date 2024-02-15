@@ -22,7 +22,12 @@ from ads.aqua.utils import (
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
-from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID, TENANCY_OCID
+from ads.config import (
+    COMPARTMENT_OCID,
+    ODSC_MODEL_COMPARTMENT_OCID,
+    TENANCY_OCID,
+    PROJECT_OCID,
+)
 from ads.model.datascience_model import DataScienceModel
 
 
@@ -107,13 +112,12 @@ class AquaModelApp(AquaApp):
             The instance of AquaModel.
         """
         service_model = DataScienceModel.from_id(model_id)
+
         custom_model = (
             DataScienceModel()
             .with_compartment_id(comparment_id or COMPARTMENT_OCID)
-            .with_project_id(project_id)
-            .with_model_file_description(
-                json_dict=service_model.model_file_description
-            )
+            .with_project_id(project_id or PROJECT_OCID)
+            .with_model_file_description(json_dict=service_model.model_file_description)
             .with_display_name(service_model.display_name)
             .with_description(service_model.description)
             .with_freeform_tags(**(service_model.freeform_tags or {}))
@@ -124,20 +128,13 @@ class AquaModelApp(AquaApp):
             .with_defined_metadata_list(service_model.defined_metadata_list)
             .with_provenance_metadata(service_model.provenance_metadata)
             # TODO: decide what kwargs will be needed.
-            .create(
-                model_by_reference=True, **kwargs
-            )
-        )
-
-        artifact_path = get_artifact_path(
-            custom_model.dsc_model.custom_metadata_list
+            .create(model_by_reference=True, **kwargs)
         )
         return AquaModel(
             **AquaModelApp.process_model(custom_model.dsc_model, self.region),
             project_id=custom_model.project_id,
-            model_card=str(
-                read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
-            ),
+            # no need to send model_card
+            model_card="",
         )
 
     def get(self, model_id) -> "AquaModel":

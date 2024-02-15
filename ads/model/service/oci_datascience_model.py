@@ -38,6 +38,8 @@ MODEL_NEEDS_TO_BE_SAVED = (
     "Model needs to be saved to the Model Catalog before it can be accessed."
 )
 
+MODEL_BY_REFERENCE_DESC = "modelDescription"
+
 
 class ModelProvenanceNotFoundError(Exception):  # pragma: no cover
     pass
@@ -545,3 +547,19 @@ class OCIDataScienceModel(
         if not ocid:
             raise ValueError("Model OCID not provided.")
         return super().from_ocid(ocid)
+
+    def is_model_by_reference(self):
+        """Checks if model is created by reference
+        Returns
+        -------
+            bool flag denoting whether model was created by reference.
+
+        """
+        if self.custom_metadata_list:
+            for metadata in self.custom_metadata_list:
+                if (
+                    metadata.key == MODEL_BY_REFERENCE_DESC
+                    and metadata.value.lower() == "true"
+                ):
+                    return True
+        return False

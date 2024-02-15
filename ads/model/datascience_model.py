@@ -820,7 +820,6 @@ class DataScienceModel(Builder):
             )
         artifact_uploader.upload()
 
-        # todo: remove local dir and use model_description to keep artifact instead.
         self._remove_file_description_artifact()
 
     def _remove_file_description_artifact(self):
@@ -1155,18 +1154,14 @@ class DataScienceModel(Builder):
         try:
             artifact_info = self.dsc_model.get_artifact_info()
             _, file_name_info = cgi.parse_header(artifact_info["Content-Disposition"])
-            self.set_spec(self.CONST_ARTIFACT, file_name_info["filename"])
 
-            # todo: move this check to a function in DataScienceModel.
-            if self.dsc_model.custom_metadata_list:
-                for metadata in self.dsc_model.custom_metadata_list:
-                    if (
-                        metadata.key == self.CONST_MODEL_FILE_DESCRIPTION
-                        and metadata.value.lower() == "true"
-                    ):
-                        _, file_extension = os.path.splitext(file_name_info["filename"])
-                        if file_extension.lower() == ".json":
-                            self._download_file_description_artifact()
+            if self.dsc_model.is_model_by_reference():
+                _, file_extension = os.path.splitext(file_name_info["filename"])
+                if file_extension.lower() == ".json":
+                    bucket_uri, _ = self._download_file_description_artifact()
+                    self.set_spec(self.CONST_ARTIFACT, bucket_uri)
+            else:
+                self.set_spec(self.CONST_ARTIFACT, file_name_info["filename"])
         except:
             pass
 
@@ -1291,7 +1286,7 @@ class DataScienceModel(Builder):
 
         if len(objects) == 0:
             raise ModelFileDescriptionError(
-                f"No objects were found in the {oss_details.path} path. "
+                f"The path {oss_details.path} does not exist or no objects were found in the path. "
             )
 
         object_list = []
@@ -1314,23 +1309,6 @@ class DataScienceModel(Builder):
 
         return content
 
-    @staticmethod
-    def __load_model_file_description_schema__():
-        with open(
-            os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                "model_file_description_schema.json",
-            )
-        ) as schema_file:
-            schema = json.load(schema_file)
-
-        if not schema:
-            raise Exception(
-                f"Cannot load schema file to generate {MODEL_BY_REFERENCE_JSON_FILE_NAME} file for "
-                f"model creation using pass by reference."
-            )
-        return schema
-
     def _download_file_description_artifact(self):
         """Loads the json file from model artifact, updates the
         model file description property, and returns the bucket uri and artifact size details.
@@ -1346,19 +1324,16 @@ class DataScienceModel(Builder):
         if not self.model_file_description:
             # get model file description from model artifact json
             with tempfile.TemporaryDirectory() as temp_dir:
-                # self.local_copy_dir = tempfile.mkdtemp()
                 artifact_downloader = SmallArtifactDownloader(
                     dsc_model=self.dsc_model,
                     target_dir=temp_dir,
                 )
                 artifact_downloader.download()
-
                 # create temp directory for model description file
                 json_file_path = os.path.join(
                     temp_dir, MODEL_BY_REFERENCE_JSON_FILE_NAME
                 )
                 self.with_model_file_description(json_uri=json_file_path)
-                # self._remove_file_description_artifact()
 
         model_file_desc_dict = self.model_file_description
         # currently only supports downloading from the first model item
