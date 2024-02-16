@@ -247,7 +247,9 @@ class AquaModelApp(AquaApp):
             ),
         )
 
-        search_text = str(tags) if tags else UNKNOWN
+        search_text = (
+            self._build_search_text(tags, description="This is a") if tags else UNKNOWN
+        )
 
         return dict(
             compartment_id=model.compartment_id,
@@ -297,3 +299,10 @@ class AquaModelApp(AquaApp):
         return OCIResource.search(
             query, type=SEARCH_TYPE.STRUCTURED, tenant_id=TENANCY_OCID, **kwargs
         )
+
+    def _build_search_text(self, tags: dict, description: str = None) -> str:
+        """Constructs search_text field in response."""
+        description = description or ""
+        tags_text = ",".join(str(v) for v in tags.values())
+
+        return description + tags_text
