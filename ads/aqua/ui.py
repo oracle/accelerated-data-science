@@ -8,8 +8,6 @@ from oci.identity.models import Compartment
 from datetime import datetime, timedelta
 from threading import Lock
 from cachetools import TTLCache
-from cachetools import cached
-from cachetools.keys import hashkey
 
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
@@ -33,6 +31,11 @@ class AquaUIApp(AquaApp):
         Lists the compartments in a specified compartment.
 
     """
+
+    _compartments_cache = TTLCache(
+        maxsize=10, ttl=timedelta(hours=2), timer=datetime.now
+    )
+    _cache_lock = Lock()
 
     def list_log_groups(self, **kwargs) -> str:
         """Lists all log groups for the specified compartment or tenancy. This is a pass through the OCI list_log_groups
@@ -76,12 +79,6 @@ class AquaUIApp(AquaApp):
             log_group_id=log_group_id, **kwargs
         ).data.__repr__()
 
-    @cached(
-        cache=TTLCache(maxsize=5, ttl=timedelta(hours=2), timer=datetime.now),
-        key=lambda key: hashkey(TENANCY_OCID),
-        lock=Lock(),
-        info=True,
-    )
     def list_compartments(self) -> str:
         """Lists the compartments in a compartment specified by TENANCY_OCID env variable. This is a pass through the OCI list_compartments
         API.
@@ -97,6 +94,13 @@ class AquaUIApp(AquaApp):
                     f"TENANCY_OCID must be available in environment"
                     " variables to list the sub compartments."
                 )
+
+            if TENANCY_OCID in self._compartments_cache.keys():
+                logger.info(
+                    f"Returning compartments list in {TENANCY_OCID} from cache."
+                )
+                return self._compartments_cache.get(TENANCY_OCID)
+
             compartments = []
             # User may not have permissions to list compartment.
             try:
@@ -136,8 +140,10 @@ class AquaUIApp(AquaApp):
                     0,
                     Compartment(id=TENANCY_OCID, name=" ** Root - Name N/A **"),
                 )
+            res = compartments.__repr__()
+            self._compartments_cache.__setitem__(key=TENANCY_OCID, value=res)
 
-            return compartments.__repr__()
+            return res
 
         # todo : update this once exception handling is set up
         except ServiceError as se:
@@ -161,14 +167,15 @@ class AquaUIApp(AquaApp):
         -------
             dict with the key used, and True if cache has the key that needs to be deleted.
         """
-        logger.info(f"Cache usage: {self.list_compartments.cache_info()}")
-        with self.list_compartments.cache_lock:
-            key = self.list_compartments.cache_key(TENANCY_OCID)
-            cache_item = self.list_compartments.cache.pop(key, None)
-            deleted = False if not cache_item else True
-            return {
-                "key": {
-                    "tenancy_ocid": key,
-                },
-                "cache_deleted": deleted,
-            }
+        res = {}
+        logger.info(f"Clearing list_compartments cache")
+        with self._cache_lock:
+            if TENANCY_OCID in self._compartments_cache.keys():
+                self._compartments_cache.pop(key=TENANCY_OCID)
+                res = {
+                    "key": {
+                        "compartment_id": TENANCY_OCID,
+                    },
+                    "tenancy_ocid": True,
+                }
+        return res

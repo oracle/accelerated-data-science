@@ -9,8 +9,6 @@ from typing import List
 from datetime import datetime, timedelta
 from threading import Lock
 from cachetools import TTLCache
-from cachetools import cached
-from cachetools.keys import hashkey
 
 import oci
 from ads.aqua import logger
@@ -89,6 +87,11 @@ class AquaModelApp(AquaApp):
     list(...) -> List["AquaModelSummary"]
         List existing models created via Aqua.
     """
+
+    _service_models_cache = TTLCache(
+        maxsize=10, ttl=timedelta(hours=5), timer=datetime.now
+    )
+    _cache_lock = Lock()
 
     def create(
         self, model_id: str, project_id: str, comparment_id: str = None, **kwargs
@@ -175,12 +178,6 @@ class AquaModelApp(AquaApp):
             ),
         )
 
-    @cached(
-        cache=TTLCache(maxsize=10, ttl=timedelta(minutes=1), timer=datetime.now),
-        key=lambda _, compartment_id, project_id: hashkey(compartment_id, project_id),
-        lock=Lock(),
-        info=True,
-    )
     def list(
         self,
         compartment_id: str = None,
@@ -204,6 +201,11 @@ class AquaModelApp(AquaApp):
             logger.info(f"Fetching custom models from compartment_id={compartment_id}.")
             models = self._rqs(compartment_id)
         else:
+            if ODSC_MODEL_COMPARTMENT_OCID in self._service_models_cache.keys():
+                logger.info(
+                    f"Returning service models list in {ODSC_MODEL_COMPARTMENT_OCID} from cache."
+                )
+                return self._service_models_cache.get(ODSC_MODEL_COMPARTMENT_OCID)
             logger.info(
                 f"Fetching service model from compartment_id={ODSC_MODEL_COMPARTMENT_OCID}"
             )
@@ -226,37 +228,34 @@ class AquaModelApp(AquaApp):
                 )
             )
 
+        if not compartment_id:
+            self._service_models_cache.__setitem__(
+                key=ODSC_MODEL_COMPARTMENT_OCID, value=aqua_models
+            )
+
         return aqua_models
 
     def clear_model_list_cache(
         self,
-        compartment_id: str = None,
-        project_id: str = None,
     ):
         """
         Allows user to clear list model cache items for the given keys.
-        Parameters
-        ----------
-            compartment_id: (str, optional). Defaults to `None`.
-                The compartment OCID.
-            project_id: (str, optional). Defaults to `None`.
-                The project OCID.
         Returns
         -------
             dict with the key used, and True if cache has the key that needs to be deleted.
         """
-        logger.info(f"Cache usage: {self.list.cache_info()}")
-        with self.list.cache_lock:
-            key = self.list.cache_key(None, compartment_id, project_id)
-            cache_item = self.list.cache.pop(key, None)
-            deleted = False if not cache_item else True
-            return {
-                "key": {
-                    "compartment_id": key[0],
-                    "project_id": key[1],
-                },
-                "cache_deleted": deleted,
-            }
+        res = {}
+        logger.info(f"Clearing _service_models_cache")
+        with self._cache_lock:
+            if ODSC_MODEL_COMPARTMENT_OCID in self._service_models_cache.keys():
+                self._service_models_cache.pop(key=ODSC_MODEL_COMPARTMENT_OCID)
+                res = {
+                    "key": {
+                        "compartment_id": ODSC_MODEL_COMPARTMENT_OCID,
+                    },
+                    "cache_deleted": True,
+                }
+        return res
 
     @classmethod
     def process_model(cls, model, region) -> dict:

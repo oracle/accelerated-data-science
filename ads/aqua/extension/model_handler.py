@@ -31,13 +31,7 @@ class AquaModelHandler(AquaAPIhandler):
         url_parse = urlparse(self.request.path)
         paths = url_parse.path.strip("/")
         if paths.startswith("aqua/model/cache"):
-            compartment_id = self.get_argument("compartment_id", default=None)
-            project_id = self.get_argument("project_id", default=None)
-            return self.finish(
-                AquaModelApp().clear_model_list_cache(
-                    compartment_id=compartment_id, project_id=project_id
-                )
-            )
+            return self.finish(AquaModelApp().clear_model_list_cache())
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 

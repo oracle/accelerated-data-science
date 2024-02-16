@@ -75,10 +75,10 @@ class AquaUIHandler(AquaAPIhandler):
         except Exception as ex:
             raise HTTPError(500, str(ex))
 
-    def list_compartments(self, **kwargs):
+    def list_compartments(self):
         """Lists the compartments in a compartment specified by ODSC_MODEL_COMPARTMENT_OCID env variable."""
         try:
-            return self.finish(AquaUIApp().list_compartments(**kwargs))
+            return self.finish(AquaUIApp().list_compartments())
         except Exception as ex:
             raise HTTPError(500, str(ex))
 
