@@ -174,8 +174,8 @@ class AquaUIApp(AquaApp):
                 self._compartments_cache.pop(key=TENANCY_OCID)
                 res = {
                     "key": {
-                        "compartment_id": TENANCY_OCID,
+                        "tenancy_ocid": TENANCY_OCID,
                     },
-                    "tenancy_ocid": True,
+                    "cache_deleted": True,
                 }
         return res
