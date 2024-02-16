@@ -247,9 +247,7 @@ class AquaModelApp(AquaApp):
             ),
         )
 
-        search_text = (
-            self._build_search_text(tags, description="This is a") if tags else UNKNOWN
-        )
+        search_text = self._build_search_text(tags) if tags else UNKNOWN
 
         return dict(
             compartment_id=model.compartment_id,
