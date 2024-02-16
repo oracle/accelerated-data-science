@@ -5,6 +5,11 @@
 
 from oci.exceptions import ServiceError
 from oci.identity.models import Compartment
+from datetime import datetime, timedelta
+from threading import Lock
+from cachetools import TTLCache
+from cachetools import cached
+from cachetools.keys import hashkey
 
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
@@ -71,15 +76,15 @@ class AquaUIApp(AquaApp):
             log_group_id=log_group_id, **kwargs
         ).data.__repr__()
 
-    def list_compartments(self, **kwargs) -> str:
+    @cached(
+        cache=TTLCache(maxsize=5, ttl=timedelta(hours=2), timer=datetime.now),
+        key=lambda key: hashkey(TENANCY_OCID),
+        lock=Lock(),
+        info=True,
+    )
+    def list_compartments(self) -> str:
         """Lists the compartments in a compartment specified by TENANCY_OCID env variable. This is a pass through the OCI list_compartments
         API.
-
-        Parameters
-        ----------
-        kwargs
-            Keyword arguments, such as compartment_id,
-            for `list_compartments <https://docs.oracle.com/en-us/iaas/tools/python/2.119.1/api/logging/client/oci.identity.IdentityClient.html#oci.identity.IdentityClient.list_compartments>`_
 
         Returns
         -------
@@ -131,6 +136,7 @@ class AquaUIApp(AquaApp):
                     0,
                     Compartment(id=TENANCY_OCID, name=" ** Root - Name N/A **"),
                 )
+
             return compartments.__repr__()
 
         # todo : update this once exception handling is set up
@@ -148,3 +154,21 @@ class AquaUIApp(AquaApp):
         if not COMPARTMENT_OCID:
             logger.error("No compartment id found from environment variables.")
         return dict(compartment_id=COMPARTMENT_OCID)
+
+    def clear_compartments_list_cache(self) -> dict:
+        """Allows caller to clear compartments list cache
+        Returns
+        -------
+            dict with the key used, and True if cache has the key that needs to be deleted.
+        """
+        logger.info(f"Cache usage: {self.list_compartments.cache_info()}")
+        with self.list_compartments.cache_lock:
+            key = self.list_compartments.cache_key(TENANCY_OCID)
+            cache_item = self.list_compartments.cache.pop(key, None)
+            deleted = False if not cache_item else True
+            return {
+                "key": {
+                    "tenancy_ocid": key,
+                },
+                "cache_deleted": deleted,
+            }

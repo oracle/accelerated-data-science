@@ -5,6 +5,7 @@
 
 from urllib.parse import urlparse
 from tornado.web import HTTPError
+from ads.aqua.decorator import handle_exceptions
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.ui import AquaUIApp
 from ads.config import COMPARTMENT_OCID
@@ -42,6 +43,16 @@ class AquaUIHandler(AquaAPIhandler):
             return self.get_default_compartment()
         elif paths.startswith("aqua/compartments"):
             return self.list_compartments()
+        else:
+            raise HTTPError(400, f"The request {self.request.path} is invalid.")
+
+    @handle_exceptions
+    def delete(self, id=""):
+        """Handles DELETE request for clearing cache"""
+        url_parse = urlparse(self.request.path)
+        paths = url_parse.path.strip("/")
+        if paths.startswith("aqua/compartments/cache"):
+            return self.finish(AquaUIApp().clear_compartments_list_cache())
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 

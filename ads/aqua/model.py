@@ -8,7 +8,6 @@ from enum import Enum
 from typing import List
 from datetime import datetime, timedelta
 from threading import Lock
-
 from cachetools import TTLCache
 from cachetools import cached
 from cachetools.keys import hashkey
@@ -229,10 +228,35 @@ class AquaModelApp(AquaApp):
 
         return aqua_models
 
-    def clear_model_list_cache(self):
-        self.list.cache_clear()
+    def clear_model_list_cache(
+        self,
+        compartment_id: str = None,
+        project_id: str = None,
+    ):
+        """
+        Allows user to clear list model cache items for the given keys.
+        Parameters
+        ----------
+            compartment_id: (str, optional). Defaults to `None`.
+                The compartment OCID.
+            project_id: (str, optional). Defaults to `None`.
+                The project OCID.
+        Returns
+        -------
+            dict with the key used, and True if cache has the key that needs to be deleted.
+        """
         logger.info(f"Cache usage: {self.list.cache_info()}")
-        return {"cache_deleted": True}
+        with self.list.cache_lock:
+            key = self.list.cache_key(None, compartment_id, project_id)
+            cache_item = self.list.cache.pop(key, None)
+            deleted = False if not cache_item else True
+            return {
+                "key": {
+                    "compartment_id": key[0],
+                    "project_id": key[1],
+                },
+                "cache_deleted": deleted,
+            }
 
     @classmethod
     def process_model(cls, model, region) -> dict:
