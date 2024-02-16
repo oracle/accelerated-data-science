@@ -220,10 +220,6 @@ class AquaDeploymentApp(AquaApp):
         )
         logging.debug(aqua_model)
 
-        # todo: remove entrypoint, this will go in the image. For now, added for testing
-        #  the image iad.ocir.io/ociodscdev/aqua_deploy:1.0.0
-        entrypoint = ["python", "/opt/api/api.py"]
-
         tags = {}
         for tag in [
             Tags.AQUA_SERVICE_MODEL_TAG.value,
@@ -258,7 +254,6 @@ class AquaDeploymentApp(AquaApp):
         container_runtime = (
             ModelDeploymentContainerRuntime()
             .with_image(AQUA_MODEL_DEPLOYMENT_IMAGE)
-            .with_entrypoint(entrypoint)
             .with_server_port(server_port)
             .with_health_check_port(health_check_port)
             .with_env(env_var)

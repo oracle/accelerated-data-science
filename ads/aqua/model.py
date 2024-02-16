@@ -118,6 +118,7 @@ class AquaModelApp(AquaApp):
             .with_compartment_id(comparment_id or COMPARTMENT_OCID)
             .with_project_id(project_id or PROJECT_OCID)
             .with_model_file_description(json_dict=service_model.model_file_description)
+            .with_artifact(service_model.artifact)
             .with_display_name(service_model.display_name)
             .with_description(service_model.description)
             .with_freeform_tags(**(service_model.freeform_tags or {}))
