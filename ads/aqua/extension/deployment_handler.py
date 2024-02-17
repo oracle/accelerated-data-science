@@ -6,9 +6,10 @@
 from urllib.parse import urlparse
 from tornado.web import HTTPError
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
-from ads.aqua.deployment import AquaDeploymentApp, AquaDeploymentInferenceRequest
+from ads.aqua.deployment import AquaDeploymentApp, AquaDeploymentInferenceRequest, ModelParams
 from ads.config import PROJECT_OCID, COMPARTMENT_OCID
 from urllib.parse import urlparse
+
 
 class AquaDeploymentHandler(AquaAPIhandler):
     """
@@ -176,19 +177,24 @@ class AquaDeploymentInferenceHandler(AquaAPIhandler):
 
         endpoint = input_data.get("endpoint")
         if not endpoint:
-            raise HTTPError(400,Errors.MISSING_REQUIRED_PARAMETER.format('endpoint'))
+            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format('endpoint'))
 
         if not self.validate_predict_url(endpoint):
-            raise HTTPError(400,Errors.INVALID_INPUT_DATA_FORMAT.format('endpoint'))
+            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT.format('endpoint'))
 
         prompt = input_data.get("prompt")
         if not prompt:
-            raise HTTPError(400,Errors.MISSING_REQUIRED_PARAMETER.format('prompt'))
+            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format('prompt'))
 
         model_params = input_data.get("model_params") if input_data.get("model_params") else {}
         try:
+            model_params_obj = ModelParams(**model_params)
+        except:
+            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT.format('model_params'))
+
+        try:
             return self.finish(
-                AquaDeploymentInferenceRequest(prompt,model_params).get_model_deployment_response(endpoint)
+                AquaDeploymentInferenceRequest(prompt, model_params_obj).get_model_deployment_response(endpoint)
             )
         except Exception as e:
             raise HTTPError(500, str(e))

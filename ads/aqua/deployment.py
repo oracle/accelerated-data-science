@@ -12,7 +12,7 @@ from oci.data_science.models import (
     ModelDeploymentSummary
 )
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 
 from ads.aqua.base import AquaApp
 from ads.aqua import logger
@@ -389,7 +389,7 @@ class AquaDeploymentApp(AquaApp):
             Tags.AQUA_TAG.value in oci_model.freeform_tags 
             or Tags.AQUA_TAG.value.lower() in oci_model.freeform_tags
         ) if oci_model.freeform_tags else False
-        
+
         if not oci_aqua:
             raise AquaClientError(
                 f"Target model {oci_model.id} is not Aqua model."
@@ -412,8 +412,19 @@ class AquaDeploymentApp(AquaApp):
 
         return shape_config
 
+
+@dataclass
+class ModelParams:
+    max_tokens: int = None
+    temperature: float = None
+    top_k: float = None
+    top_p: float = None
+    model: str = None
+
+
+@dataclass
 class AquaDeploymentInferenceRequest(AquaApp):
-        """Contains APIs for Aqua Model deployments Inference.
+    """Contains APIs for Aqua Model deployments Inference.
 
         Attributes
         ----------
@@ -427,13 +438,11 @@ class AquaDeploymentInferenceRequest(AquaApp):
             Creates an instance of model deployment via Aqua
         """
 
-        def __init__(self, prompt, model_params):
-            super().__init__()
-            self.prompt = prompt
-            self.model_params = model_params
+    prompt:str = None
+    model_params: field(default_factory=ModelParams) = None
 
-        def get_model_deployment_response(self,endpoint):
-            """
+    def get_model_deployment_response(self, endpoint):
+        """
             Returns MD inference response
 
             Parameters
@@ -459,8 +468,10 @@ class AquaDeploymentInferenceRequest(AquaApp):
             -------
             model_response_content
             """
-            body = {"prompt": self.prompt, **self.model_params}
-            request_kwargs = {"json": body, "headers": {"Content-Type": "application/json"}}
-            response = requests.post(endpoint, auth=self._auth["signer"], **request_kwargs)
-            return json.loads(response.content)
 
+        params_dict = asdict(self.model_params)
+        params_dict = {key: value for key, value in params_dict.items() if value is not None}
+        body = {"prompt": self.prompt,**params_dict}
+        request_kwargs = {"json": body, "headers": {"Content-Type": "application/json"}}
+        response = requests.post(endpoint, auth=default_signer()["signer"], **request_kwargs)
+        return json.loads(response.content)
