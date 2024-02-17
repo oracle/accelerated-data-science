@@ -423,7 +423,7 @@ class ModelParams:
 
 
 @dataclass
-class AquaDeploymentInferenceRequest(AquaApp):
+class MDInferenceResponse(AquaApp):
     """Contains APIs for Aqua Model deployments Inference.
 
         Attributes
