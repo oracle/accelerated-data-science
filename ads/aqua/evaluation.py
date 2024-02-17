@@ -4,7 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import base64
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List
 from urllib.parse import urlparse
 
@@ -19,7 +19,7 @@ from ads.common.utils import get_console_link
 
 
 @dataclass(repr=False)
-class AquaEval(DataClassSerializable):
+class AquaResourceIdentifier(DataClassSerializable):
     id: str
     name: str
     url: str
@@ -52,9 +52,9 @@ class AquaEvaluationSummary(DataClassSerializable):
     lifecycle_state: str
     lifecycle_details: str
     time_created: str
-    experiment: AquaEval
-    source: AquaEval
-    job: AquaEval
+    experiment: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    source: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    job: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     tags: dict
 
 
@@ -62,8 +62,8 @@ class AquaEvaluationSummary(DataClassSerializable):
 class AquaEvaluationDetails(AquaEvaluationSummary):
     """Represents a detail of Aqua evalution."""
 
-    parameters: str
-    metrics: list
+    parameters: AquaEvalParams
+    metrics: List[dict] = field(default_factory=list)
 
 
 # TODO: Remove later
