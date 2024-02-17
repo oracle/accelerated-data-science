@@ -148,3 +148,23 @@ class AquaUIApp(AquaApp):
         if not COMPARTMENT_OCID:
             logger.error("No compartment id found from environment variables.")
         return dict(compartment_id=COMPARTMENT_OCID)
+
+    def list_model_version_sets(self, **kwargs) -> str:
+        """Lists all model version sets for the specified compartment or tenancy.
+
+        Parameters
+        ----------
+        **kwargs
+            Addtional arguments, such as `compartment_id`,
+            for `list_model_version_sets <https://docs.oracle.com/en-us/iaas/tools/python/2.121.0/api/data_science/client/oci.data_science.DataScienceClient.html#oci.data_science.DataScienceClient.list_model_version_sets>`_
+
+        Returns
+        -------
+            str has json representation of oci.logging.models.log_group.LogGroup
+        """
+
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+
+        return self.ds_client.list_model_version_sets(
+            compartment_id=compartment_id, **kwargs
+        ).data.__repr__()

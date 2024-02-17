@@ -4,7 +4,10 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from urllib.parse import urlparse
+
 from tornado.web import HTTPError
+
+from ads.aqua.decorator import handle_exceptions
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.ui import AquaUIApp
 from ads.config import COMPARTMENT_OCID
@@ -42,44 +45,48 @@ class AquaUIHandler(AquaAPIhandler):
             return self.get_default_compartment()
         elif paths.startswith("aqua/compartments"):
             return self.list_compartments()
+        elif paths.startswith("aqua/modelversionsets"):
+            return self.list_model_version_sets()
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
+    @handle_exceptions
     def list_log_groups(self, **kwargs):
         """Lists all log groups for the specified compartment or tenancy."""
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
-        try:
-            return self.finish(
-                AquaUIApp().list_log_groups(compartment_id=compartment_id, **kwargs)
-            )
-        except Exception as ex:
-            raise HTTPError(500, str(ex))
 
+        return self.finish(
+            AquaUIApp().list_log_groups(compartment_id=compartment_id, **kwargs)
+        )
+
+    @handle_exceptions
     def list_logs(self, log_group_id: str, **kwargs):
         """Lists the specified log group's log objects."""
-        try:
-            return self.finish(
-                AquaUIApp().list_logs(log_group_id=log_group_id, **kwargs)
-            )
-        except Exception as ex:
-            raise HTTPError(500, str(ex))
 
+        return self.finish(AquaUIApp().list_logs(log_group_id=log_group_id, **kwargs))
+
+    @handle_exceptions
     def list_compartments(self, **kwargs):
         """Lists the compartments in a compartment specified by ODSC_MODEL_COMPARTMENT_OCID env variable."""
-        try:
-            return self.finish(AquaUIApp().list_compartments(**kwargs))
-        except Exception as ex:
-            raise HTTPError(500, str(ex))
 
+        return self.finish(AquaUIApp().list_compartments(**kwargs))
+
+    @handle_exceptions
     def get_default_compartment(self):
         """Returns user compartment ocid."""
-        try:
-            return self.finish(AquaUIApp().get_default_compartment())
-        except Exception as ex:
-            raise HTTPError(500, str(ex))
+        return self.finish(AquaUIApp().get_default_compartment())
+
+    @handle_exceptions
+    def list_model_version_sets(self, **kwargs):
+        """Lists all model version sets for the specified compartment or tenancy."""
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
+        return self.finish(
+            AquaUIApp().list_model_version_sets(compartment_id=compartment_id, **kwargs)
+        )
 
 
 __handlers__ = [
     ("logging/?([^/]*)", AquaUIHandler),
     ("compartments/?([^/]*)", AquaUIHandler),
+    ("modelversionsets/?([^/]*)", AquaUIHandler),
 ]
