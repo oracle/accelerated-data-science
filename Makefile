@@ -11,8 +11,3 @@ clean:
 	@find ./ -name 'Thumbs.db' -exec rm -f {} \;
 	@find ./ -name '*~' -exec rm -f {} \;
 	@find ./ -name '.DS_Store' -exec rm -f {} \;
-
-install.ads:
-	pip install -e .
-	jupyter serverextension enable ads.aqua.extension
-	jupyter lab --NotebookApp.token='', --Notebook.password='', --NotebookApp.disable_check_xsrf=True --no-browser
