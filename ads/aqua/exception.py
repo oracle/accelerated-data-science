@@ -3,9 +3,12 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-"""Exception module."""
+"""
+aqua.exception
+~~~~~~~~~~~~~~
 
-from tornado.web import HTTPError
+This module contains the set of Aqua exceptions.
+"""
 
 
 class AquaError(Exception):
@@ -15,33 +18,44 @@ class AquaError(Exception):
     will inherit.
     """
 
-    pass
+    def __init__(
+        self,
+        reason: str,
+        status: int,
+        service_payload: dict = None,
+    ):
+        """Initializes an AquaError.
+
+        Parameters
+        ----------
+        reason: str
+            User friendly error message.
+        status: int
+            Http status code that are going to raise.
+        service_payload: dict
+            Payload to contain more details related to the error.
+        """
+        self.service_payload = service_payload or {}
+        self.status = status
+        self.reason = reason
 
 
-class AquaServiceError(AquaError):
-    """Exception raised for server side error."""
+class AquaValueError(AquaError, ValueError):
+    """Exception raised for unexpected values."""
 
-    def __init__(self, opc_request_id: str, status_code: int):
-        super().__init__(
-            f"Error occurred when invoking service. opc-request-id: {opc_request_id}. status code: {status_code}."
-        )
+    def __init__(self, reason, status=403, service_payload=None):
+        super().__init__(reason, status, service_payload)
 
 
-class AquaClientError(AquaError):
-    """Exception raised for client side error."""
+class AquaFileNotFoundError(AquaError, FileNotFoundError):
+    """Exception raised for missing target file."""
 
-    pass
+    def __init__(self, reason, status=404, service_payload=None):
+        super().__init__(reason, status, service_payload)
 
 
-def exception_handler(func):
-    def inner_function(*args, **kwargs):
-        try:
-            func(*args, **kwargs)
-        except AquaServiceError as service_error:
-            raise HTTPError(500, str(service_error))
-        except AquaClientError as client_error:
-            raise HTTPError(400, str(client_error))
-        except Exception as internal_error:
-            raise HTTPError(500, str(internal_error))
+class AquaRuntimeError(AquaError, RuntimeError):
+    """Exception raised for generic errors at runtime."""
 
-    return inner_function
+    def __init__(self, reason, status=400, service_payload=None):
+        super().__init__(reason, status, service_payload)

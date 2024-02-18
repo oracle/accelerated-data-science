@@ -12,7 +12,7 @@ import oci
 
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
-from ads.aqua.exception import AquaClientError, AquaServiceError
+from ads.aqua.exception import AquaRuntimeError
 from ads.aqua.utils import (
     README,
     UNKNOWN,
@@ -52,6 +52,16 @@ class AquaModelSummary(DataClassSerializable):
     task: str
     time_created: str
     console_link: str
+
+    @staticmethod
+    def load_icon(model_name) -> str:
+        """Loads icon."""
+        # TODO: switch to the official logo
+        try:
+            return create_word_icon(model_name, return_as_datauri=True)
+        except Exception as e:
+            logger.debug(f"Failed to load icon for the model={model_name}.")
+            return None
 
 
 @dataclass(repr=False)
@@ -118,12 +128,10 @@ class AquaModelApp(AquaApp):
                     # TODO: decide what kwargs will be needed.
                     .create(**kwargs)
                 )
-            except Exception as se:
+            except Exception as e:
                 # TODO: adjust error raising
                 logger.error(f"Failed to create model from the given id {model_id}.")
-                raise AquaServiceError(
-                    opc_request_id=se.request_id, status_code=se.code
-                )
+                raise e
 
             artifact_path = get_artifact_path(
                 custom_model.dsc_model.custom_metadata_list
@@ -149,15 +157,10 @@ class AquaModelApp(AquaApp):
         AquaModel:
             The instance of AquaModel.
         """
-        try:
-            oci_model = self.ds_client.get_model(model_id).data
-        except Exception as se:
-            # TODO: adjust error raising
-            logger.error(f"Failed to retreive model from the given id {model_id}")
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+        oci_model = self.ds_client.get_model(model_id).data
 
         if not self._if_show(oci_model):
-            raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
+            raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
 
         artifact_path = get_artifact_path(oci_model.custom_metadata_list)
 
@@ -218,7 +221,7 @@ class AquaModelApp(AquaApp):
 
     @classmethod
     def process_model(cls, model, region) -> dict:
-        icon = cls()._load_icon(model.display_name)
+        icon = AquaModelSummary.load_icon(model.display_name)
         tags = {}
         tags.update(model.defined_tags or {})
         tags.update(model.freeform_tags or {})
@@ -241,7 +244,7 @@ class AquaModelApp(AquaApp):
 
         return dict(
             compartment_id=model.compartment_id,
-            icon=icon,
+            icon=icon or UNKNOWN,
             id=model_id,
             license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
             name=model.display_name,
@@ -265,16 +268,6 @@ class AquaModelApp(AquaApp):
             or Tags.AQUA_TAG.value.lower() in TARGET_TAGS
         )
 
-    def _load_icon(self, model_name) -> str:
-        """Loads icon."""
-
-        # TODO: switch to the official logo
-        try:
-            return create_word_icon(model_name, return_as_datauri=True)
-        except Exception as e:
-            logger.error(f"Failed to load icon for the model={model_name}.")
-            return None
-
     def _rqs(self, compartment_id):
         """Use RQS to fetch models in the user tenancy."""
         condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_TAG.value}' && freeformTags.key = '{Tags.AQUA_FINE_TUNED_MODEL_TAG.value}')"
@@ -282,15 +275,8 @@ class AquaModelApp(AquaApp):
         query = f"query datasciencemodel resources where (compartmentId = '{compartment_id}' {condition_lifecycle} {condition_tags})"
         logger.info(query)
         logger.info(f"tenant_id={TENANCY_OCID}")
-        try:
-            return OCIResource.search(
-                query,
-                type=SEARCH_TYPE.STRUCTURED,
-                tenant_id=TENANCY_OCID,
-            )
-        except Exception as se:
-            # TODO: adjust error raising
-            logger.error(
-                f"Failed to retreive model from the given compartment {compartment_id}"
-            )
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+        return OCIResource.search(
+            query,
+            type=SEARCH_TYPE.STRUCTURED,
+            tenant_id=TENANCY_OCID,
+        )
