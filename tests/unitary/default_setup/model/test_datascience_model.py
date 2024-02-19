@@ -480,10 +480,14 @@ class TestDataScienceModel:
                 self.mock_dsc_model._to_oci_dsc_model(display_name="new_name").to_dict()
             )
 
+    @patch.object(OCIDataScienceModel, "is_model_by_reference")
     @patch.object(OCIDataScienceModel, "get_artifact_info")
     @patch.object(OCIDataScienceModel, "get_model_provenance")
     def test__update_from_oci_dsc_model(
-        self, mock_get_model_provenance, mock_get_artifact_info
+        self,
+        mock_get_model_provenance,
+        mock_get_artifact_info,
+        mock_is_model_by_reference,
     ):
         """Tests updating the properties from an OCIDataScienceModel object."""
         oci_model_payload = {
@@ -584,6 +588,7 @@ class TestDataScienceModel:
             mock_model_provenance = ModelProvenance(**OCI_MODEL_PROVENANCE_PAYLOAD)
             mock_get_model_provenance.return_value = mock_model_provenance
             mock_get_artifact_info.return_value = ARTIFACT_HEADER_INFO
+            mock_is_model_by_reference.return_value = False
             self.mock_dsc_model._update_from_oci_dsc_model(mock_oci_dsc_model)
             assert self.prepare_dict(
                 self.mock_dsc_model.to_dict()["spec"]
