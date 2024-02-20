@@ -52,22 +52,18 @@ class AquaEvaluationSummary(DataClassSerializable):
     lifecycle_state: str
     lifecycle_details: str
     time_created: str
+    tags: dict
     experiment: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     source: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     job: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-    tags: dict
 
 
 @dataclass(repr=False)
 class AquaEvaluationDetails(AquaEvaluationSummary):
     """Represents a detail of Aqua evalution."""
 
-    parameters: AquaEvalParams
+    parameters: AquaEvalParams = field(default_factory=AquaEvalParams)
     metrics: List[dict] = field(default_factory=list)
-
-
-# TODO: Remove later
-BUCKET_URI = "oci://ming-dev@ociodscdev/evaluation/sample_response"
 
 
 class AquaEvaluationApp(AquaApp):
