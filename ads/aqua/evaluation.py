@@ -66,6 +66,10 @@ class AquaEvaluationDetails(AquaEvaluationSummary):
     metrics: List[dict] = field(default_factory=list)
 
 
+# TODO: Remove later
+BUCKET_URI = "oci://ming-dev@ociodscdev/evaluation/sample_response"
+
+
 class AquaEvaluationApp(AquaApp):
     """Contains APIs for Aqua model evaluation.
 
