@@ -11,6 +11,7 @@ from importlib import reload
 from unittest.mock import MagicMock
 
 import oci
+from parameterized import parameterized
 
 import ads.aqua.model
 import ads.config
@@ -69,6 +70,9 @@ class TestDataset:
 class TestAquaModel(unittest.TestCase):
     """Contains unittests for AquaModelApp."""
 
+    def setUp(self):
+        self.app = AquaModelApp()
+
     @classmethod
     def setUpClass(cls):
         os.environ["ODSC_MODEL_COMPARTMENT_OCID"] = TestDataset.SERVICE_COMPARTMENT_ID
@@ -83,18 +87,17 @@ class TestAquaModel(unittest.TestCase):
 
     def test_list_service_models(self):
         """Tests listing service models succesfully."""
-        app = AquaModelApp()
 
-        app.list_resource = MagicMock(
+        self.app.list_resource = MagicMock(
             return_value=[
                 oci.data_science.models.ModelSummary(**item)
                 for item in TestDataset.model_summary_objects
             ]
         )
 
-        results = app.list()
+        results = self.app.list()
 
-        received_args = app.list_resource.call_args.kwargs
+        received_args = self.app.list_resource.call_args.kwargs
         assert received_args.get("compartment_id") == TestDataset.SERVICE_COMPARTMENT_ID
 
         assert len(results) == 1
@@ -110,18 +113,17 @@ class TestAquaModel(unittest.TestCase):
 
     def test_list_custom_models(self):
         """Tests list custom models succesfully."""
-        app = AquaModelApp()
 
-        app._rqs = MagicMock(
+        self.app._rqs = MagicMock(
             return_value=[
                 oci.resource_search.models.ResourceSummary(**item)
                 for item in TestDataset.resource_summary_objects
             ]
         )
 
-        results = app.list(TestDataset.COMPARTMENT_ID)
+        results = self.app.list(TestDataset.COMPARTMENT_ID)
 
-        app._rqs.assert_called_with(TestDataset.COMPARTMENT_ID)
+        self.app._rqs.assert_called_with(TestDataset.COMPARTMENT_ID)
 
         assert len(results) == 1
 
@@ -133,3 +135,23 @@ class TestAquaModel(unittest.TestCase):
 
             for attr in attributes:
                 assert rdict.get(attr) is not None
+
+    @parameterized.expand(
+        [
+            (
+                None,
+                {"license": "UPL", "org": "Oracle", "task": "text_generation"},
+                "UPL,Oracle,text_generation",
+            ),
+            (
+                "This is a description.",
+                {"license": "UPL", "org": "Oracle", "task": "text_generation"},
+                "This is a description. UPL,Oracle,text_generation",
+            ),
+        ]
+    )
+    def test_build_search_text(self, description, tags, expected_output):
+        assert (
+            self.app._build_search_text(tags=tags, description=description)
+            == expected_output
+        )

@@ -246,7 +246,7 @@ class AquaModelApp(AquaApp):
                 region=region,
             ),
         )
-
+        # TODO: build search_text with description
         search_text = self._build_search_text(tags) if tags else UNKNOWN
 
         return dict(
@@ -301,6 +301,8 @@ class AquaModelApp(AquaApp):
     def _build_search_text(self, tags: dict, description: str = None) -> str:
         """Constructs search_text field in response."""
         description = description or ""
-        tags_text = ",".join(str(v) for v in tags.values())
-
-        return description + tags_text
+        tags_text = (
+            ",".join(str(v) for v in tags.values()) if isinstance(tags, dict) else ""
+        )
+        separator = " " if description else ""
+        return f"{description}{separator}{tags_text}"
