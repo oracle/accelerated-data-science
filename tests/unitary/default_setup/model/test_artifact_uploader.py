@@ -164,6 +164,16 @@ class TestArtifactUploader:
             test_result = artifact_uploader._prepare_artifact_tmp_file()
             assert test_result == self.mock_oci_artifact_path
 
+        # tests for json file upload for model by reference
+        self.mock_artifact_file_path = os.path.join(
+            self.curr_dir, "test_files/model_description.json"
+        )
+        artifact_uploader = SmallArtifactUploader(
+            dsc_model=self.mock_dsc_model, artifact_path=self.mock_artifact_file_path
+        )
+        test_result = artifact_uploader._prepare_artifact_tmp_file()
+        assert test_result == self.mock_artifact_file_path
+
     def test_remove_artifact_tmp_file(self):
         artifact_uploader = SmallArtifactUploader(
             dsc_model=self.mock_dsc_model, artifact_path=self.mock_artifact_path
@@ -202,7 +212,12 @@ class TestArtifactUploader:
         mock__prepare_artifact_tmp_file.assert_called()
         mock__upload.assert_called()
 
-    def test_upload_small_artifact(self):
+    @pytest.mark.parametrize(
+        "upload_file",
+        ["test_files/model_artifacts.zip", "test_files/model_description.json"],
+    )
+    def test_upload_small_artifact(self, upload_file):
+        self.mock_artifact_file_path = os.path.join(self.curr_dir, upload_file)
         with open(self.mock_artifact_file_path, "rb") as file_data:
             with patch.object(
                 SmallArtifactUploader,
@@ -303,7 +318,3 @@ class TestArtifactUploader:
             assert sorted(test_files) == sorted(expected_files)
 
         shutil.rmtree(test_result, ignore_errors=True)
-
-    def test_upload_small_artifact_model_by_ref(self):
-        # todo: write new or update test_upload_small_artifact test to upload json file for model by reference.
-        pass

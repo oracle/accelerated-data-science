@@ -7,6 +7,7 @@ import glob
 import os
 import shutil
 import tempfile
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -151,16 +152,72 @@ class TestArtifactDownloader:
             assert sorted(test_files) == sorted(expected_files)
 
     def test_download_small_artifact_json(self):
-        # todo: call Small Artifact downloader, save json to target directory
-        #  check if the file has been written to directory
-        pass
+        """Test to check if Small Artifact downloader is called,
+        artifact is saved as json to target directory
+        """
+        self.mock_artifact_file_path = os.path.join(
+            self.curr_dir, "test_files/model_description.json"
+        )
+        with open(self.mock_artifact_file_path, "rb") as file_data:
+            expected_artifact_bytes_content = file_data.read()
 
-    def test_check_if_model_by_passed_by_reference(self):
-        # todo: check if dsc model custom metadata is empty or not
-        #  assert True if _is_model_by_reference else False
-        pass
+        self.mock_dsc_model.get_artifact_info.return_value = {
+            "Content-Disposition": "attachment; filename=artifact.json",
+        }
+        self.mock_dsc_model.get_model_artifact_content.return_value = (
+            expected_artifact_bytes_content
+        )
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            SmallArtifactDownloader(
+                dsc_model=self.mock_dsc_model,
+                target_dir=tmp_dir,
+                force_overwrite=True,
+            ).download()
+            self.mock_dsc_model.get_model_artifact_content.assert_called()
 
-    def test_download_from_model_file_description(self):
-        # todo: load model_file_description and parse it and test if
-        #  bulk_download_from_object_storage is appropriately called.
-        pass
+            test_files = list(glob.iglob(os.path.join(tmp_dir, "**"), recursive=True))
+            expected_files = [
+                os.path.join(tmp_dir, file_name)
+                for file_name in ["", "model_description.json"]
+            ]
+            assert sorted(test_files) == sorted(expected_files)
+
+    @patch(
+        "ads.common.object_storage_details.ObjectStorageDetails.bulk_download_from_object_storage"
+    )
+    def test_download_large_artifact_from_model_file_description(self, mock_download):
+        """Tests whether model_file_description is loaded within downloader and is parsed, and also if
+        #  download_from_model_file_description is appropriately called."""
+
+        self.mock_dsc_model.is_model_by_reference.return_value = True
+        self.mock_artifact_file_path = os.path.join(
+            self.curr_dir, "test_files/model_description.json"
+        )
+        with open(self.mock_artifact_file_path, "r") as file_data:
+            model_file_description = json.load(file_data)
+
+        model = model_file_description["models"][0]
+        namespace, bucket_name, prefix = (
+            model["namespace"],
+            model["bucketName"],
+            model["prefix"],
+        )
+        bucket_uri = f"oci://{bucket_name}@{namespace}/{prefix}"
+        objects = model["objects"]
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target_dir = os.path.join(tmp_dir, "model_artifacts/")
+
+            LargeArtifactDownloader(
+                dsc_model=self.mock_dsc_model,
+                target_dir=target_dir,
+                force_overwrite=True,
+                region=self.mock_region,
+                bucket_uri=bucket_uri,
+                overwrite_existing_artifact=True,
+                remove_existing_artifact=True,
+                auth=self.mock_auth,
+                model_file_description=model_file_description,
+            ).download()
+
+            mock_download.assert_called()
