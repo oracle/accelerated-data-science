@@ -5,9 +5,10 @@
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Union
 
+import requests
 from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 
 from ads.aqua import logger
@@ -24,6 +25,7 @@ from ads.aqua.utils import (
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
 from ads.config import AQUA_MODEL_DEPLOYMENT_IMAGE, COMPARTMENT_OCID
+from ads.common.auth import default_signer
 from ads.model.deployment import (
     ModelDeployment,
     ModelDeploymentContainerRuntime,
@@ -405,3 +407,67 @@ class AquaDeploymentApp(AquaApp):
             raise AquaError(f"Missing shape_config.", 500)
 
         return shape_config
+
+
+@dataclass
+class ModelParams:
+    max_tokens: int = None
+    temperature: float = None
+    top_k: float = None
+    top_p: float = None
+    model: str = None
+
+
+@dataclass
+class MDInferenceResponse(AquaApp):
+    """Contains APIs for Aqua Model deployments Inference.
+
+        Attributes
+        ----------
+
+        model_params: Dict
+        prompt: string
+
+        Methods
+        -------
+        get_model_deployment_response(self, **kwargs) -> "String"
+            Creates an instance of model deployment via Aqua
+        """
+
+    prompt:str = None
+    model_params: field(default_factory=ModelParams) = None
+
+    def get_model_deployment_response(self, endpoint):
+        """
+            Returns MD inference response
+
+            Parameters
+            ----------
+            endpoint: str
+                MD predict url
+            prompt: str
+                User prompt.
+
+            model_params: (Dict, optional)
+                Model parameters to be associated with the message.
+                Currently supported VLLM+OpenAI parameters.
+
+                --model-params '{
+                    "max_tokens":500,
+                    "temperature": 0.5,
+                    "top_k": 10,
+                    "top_p": 0.5,
+                    "model": "/opt/ds/model/deployed_model",
+                    ...}'
+
+            Returns
+            -------
+            model_response_content
+            """
+
+        params_dict = asdict(self.model_params)
+        params_dict = {key: value for key, value in params_dict.items() if value is not None}
+        body = {"prompt": self.prompt,**params_dict}
+        request_kwargs = {"json": body, "headers": {"Content-Type": "application/json"}}
+        response = requests.post(endpoint, auth=default_signer()["signer"], **request_kwargs)
+        return json.loads(response.content)
