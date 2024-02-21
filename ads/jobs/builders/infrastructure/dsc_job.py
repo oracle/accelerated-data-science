@@ -171,10 +171,12 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             )
             subnet_id = infra.get(
                 "subnetId",
-                nb_config.subnet_id
-                if infra_type
-                != JobInfrastructureConfigurationDetails.JOB_INFRASTRUCTURE_TYPE_ME_STANDALONE
-                else None,
+                (
+                    nb_config.subnet_id
+                    if infra_type
+                    != JobInfrastructureConfigurationDetails.JOB_INFRASTRUCTURE_TYPE_ME_STANDALONE
+                    else None
+                ),
             )
             job_shape_config_details = infra.get("jobShapeConfigDetails", {})
             memory_in_gbs = job_shape_config_details.get(
@@ -302,9 +304,9 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
         return self
 
     def _create_with_oci_api(self) -> None:
-        res = self.client.create_job(
-            self.to_oci_model(oci.data_science.models.CreateJobDetails)
-        )
+        oci_model = self.to_oci_model(oci.data_science.models.CreateJobDetails)
+        logger.debug(oci_model)
+        res = self.client.create_job(oci_model)
         self.update_from_oci_model(res.data)
         if self.lifecycle_state == "ACTIVE":
             return
@@ -947,9 +949,9 @@ class DataScienceJob(Infrastructure):
             if key not in attribute_map and key.lower() in snake_to_camel_map:
                 value = spec.pop(key)
                 if isinstance(value, dict):
-                    spec[
-                        snake_to_camel_map[key.lower()]
-                    ] = DataScienceJob.standardize_spec(value)
+                    spec[snake_to_camel_map[key.lower()]] = (
+                        DataScienceJob.standardize_spec(value)
+                    )
                 else:
                     spec[snake_to_camel_map[key.lower()]] = value
         return spec
