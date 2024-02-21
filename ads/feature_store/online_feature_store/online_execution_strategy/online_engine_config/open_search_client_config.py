@@ -4,11 +4,15 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from typing import Tuple
 
+from ads.common.decorator.runtime_dependency import OptionalDependency
 
 try:
     from opensearchpy import OpenSearch
 except ImportError:
-    pass
+    raise ModuleNotFoundError(
+        f"`opensearch-py` module was not found. Please run "
+        f"`pip install {OptionalDependency.FEATURE_STORE}`."
+    )
 
 
 class OpenSearchClientConfig:
