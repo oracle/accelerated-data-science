@@ -1,6 +1,8 @@
 from typing import Optional, List
 
-from ads.opctl.operator.lowcode.feature_store_marketplace.models.serializable_yaml_model import SerializableYAMLModel
+from ads.opctl.operator.lowcode.feature_store_marketplace.models.serializable_yaml_model import (
+    SerializableYAMLModel,
+)
 
 
 class ATPConfig(SerializableYAMLModel):
@@ -11,7 +13,7 @@ class ATPConfig(SerializableYAMLModel):
         "vaultOcid": "vault_ocid",
         "usernameSecretName": "username_secret_name",
         "passwordSecretName": "password_secret_name",
-        "walletPasswordSecretName": "wallet_password_secret_name"
+        "walletPasswordSecretName": "wallet_password_secret_name",
     }
 
     def __init__(self):
@@ -21,7 +23,17 @@ class ATPConfig(SerializableYAMLModel):
         self._username_secret_name: Optional[str] = None
         self._password_secret_name: Optional[str] = None
         self._wallet_password_secret_name: Optional[str] = None
-        self._wallet_files: Optional[List[str]] = None
+        self._wallet_files: Optional[List[str]] = [
+            "README",
+            "cwallet.sso",
+            "ewallet.p12",
+            "keystore.jks",
+            "ojdbc.properties",
+            "tnsnames.ora",
+            "truststore.jks",
+            "sqlnet.ora",
+            "ewallet.pem",
+        ]
 
     @property
     def tns_net_service_name(self) -> str:
@@ -78,4 +90,3 @@ class ATPConfig(SerializableYAMLModel):
     @wallet_files.setter
     def wallet_files(self, wallet_files: List[str]):
         self._wallet_files = wallet_files
-

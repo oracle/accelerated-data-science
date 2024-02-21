@@ -7,7 +7,9 @@
 from typing import Union, Optional
 
 from ads.common.extended_enum import ExtendedEnum
-from ads.opctl.operator.lowcode.feature_store_marketplace.models.atp_config import ATPConfig
+from ads.opctl.operator.lowcode.feature_store_marketplace.models.atp_config import (
+    ATPConfig,
+)
 from ads.opctl.operator.lowcode.feature_store_marketplace.models.serializable_yaml_model import (
     SerializableYAMLModel,
 )
@@ -18,7 +20,11 @@ from ads.opctl.operator.lowcode.feature_store_marketplace.models.mysql_config im
 
 
 class DBConfig(SerializableYAMLModel):
-    yaml_mapping = {"configuredDB": "configured_db", "mysql": "mysql_config", "atp": "atp_config"}
+    yaml_mapping = {
+        "configuredDB": "configured_db",
+        "mysql": "mysql_config",
+        "atp": "atp_config",
+    }
 
     class DBType(ExtendedEnum):
         MySQL = "MYSQL"
