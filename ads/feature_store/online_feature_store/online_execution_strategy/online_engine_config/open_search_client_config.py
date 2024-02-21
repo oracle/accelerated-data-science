@@ -4,7 +4,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from typing import Tuple
 
-from opensearchpy import OpenSearch
+
+try:
+    from opensearchpy import OpenSearch
+except ImportError:
+    pass
 
 
 class OpenSearchClientConfig:

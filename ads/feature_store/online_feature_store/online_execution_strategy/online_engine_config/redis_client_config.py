@@ -4,7 +4,10 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-import redis
+try:
+    import redis
+except ImportError:
+    pass
 
 
 class RedisClientConfig:
