@@ -8,10 +8,14 @@ import logging
 import random
 import re
 import sys
+from enum import Enum
 from string import Template
 from typing import List
 
 import fsspec
+
+from ads.common.oci_resource import SEARCH_TYPE, OCIResource
+from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID, TENANCY_OCID
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
@@ -20,6 +24,63 @@ UNKNOWN = ""
 README = "README.md"
 DEPLOYMENT_CONFIG = "deployment_config.json"
 UNKNOWN_JSON_STR = "{}"
+CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
+    datasciencemodel="models",
+    datasciencemodeldeployment="model-deployments",
+    datasciencejob="jobs",
+)
+
+
+class LifecycleStatus(Enum):
+    COMPLETED = "Completed"
+    IN_PROGRESS = "In Progress"
+    CANCELLED = "Cancelled"
+    UNKNOWN = "Unknown"
+
+    @property
+    def detail(self) -> str:
+        """Returns the detail message corresponding to the status."""
+        return LIFECYCLE_DETAILS_MAPPING.get(
+            self.name, f"No detail available for the status {self.name}."
+        )
+
+    @staticmethod
+    def get_status(evaluation_status: str, job_run_status: str):
+        """
+        Maps the combination of evaluation status and job run status to a standard status.
+
+        Parameters
+        ----------
+        evaluation_status (str):
+            The status of the evaluation.
+        job_run_status (str):
+            The status of the job run.
+
+        Returns
+        -------
+        LifecycleStatus
+            The mapped status ("Completed", "In Progress", "Canceled").
+        """
+        evaluation_status = evaluation_status.lower()
+        job_run_status = job_run_status.lower()
+        status = LifecycleStatus.UNKNOWN
+
+        if evaluation_status == "active":
+            if job_run_status == "succeeded":
+                status = LifecycleStatus.COMPLETED
+            elif job_run_status == "running":
+                status = LifecycleStatus.IN_PROGRESS
+            elif job_run_status == "cancelled":
+                status = LifecycleStatus.CANCELLED
+        return status
+
+
+LIFECYCLE_DETAILS_MAPPING = {
+    LifecycleStatus.COMPLETED.name: "The evaluation ran successfully.",
+    LifecycleStatus.IN_PROGRESS.name: "The evaluation job is running.",
+    LifecycleStatus.CANCELLED.name: "The evaluation has been cancelled.",
+    LifecycleStatus.UNKNOWN.name: "Failed to retreive evaluation status.",
+}
 
 
 def get_logger():
@@ -108,3 +169,113 @@ def read_file(file_path: str, **kwargs) -> str:
     except Exception as e:
         logger.error(f"Failed to read file {file_path}. {e}")
         return UNKNOWN
+
+
+def is_valid_ocid(ocid: str) -> bool:
+    """Checks if the given ocid is valid.
+
+    Parameters
+    ----------
+    ocid: str
+        Oracle Cloud Identifier (OCID).
+
+    Returns
+    -------
+    bool:
+        Whether the given ocid is valid.
+    """
+    pattern = r"^ocid1\.([a-z0-9_]+)\.([a-z0-9]+)\.([a-z0-9]*)(\.[^.]+)?\.([a-z0-9_]+)$"
+    match = re.match(pattern, ocid)
+    return bool(match)
+
+
+def get_resource_type(ocid: str) -> str:
+    """Gets resource type based on the given ocid.
+
+    Parameters
+    ----------
+    ocid: str
+        Oracle Cloud Identifier (OCID).
+
+    Returns
+    -------
+    str:
+        The resource type indicated in the given ocid.
+
+    Raises
+    -------
+    ValueError:
+        When the given ocid is not a valid ocid.
+    """
+    if not is_valid_ocid(ocid):
+        raise ValueError(
+            f"The given ocid {ocid} is not a valid ocid."
+            "Check out this page https://docs.oracle.com/en-us/iaas/Content/General/Concepts/identifiers.htm to see more details."
+        )
+    return ocid.split(".")[1]
+
+
+def query_resource(
+    ocid, return_all: bool = True
+) -> "oci.resource_search.models.ResourceSummary":
+    """Use Search service to find a single resource within a tenancy.
+
+    Parameters
+    ----------
+    ocid: str
+        Oracle Cloud Identifier (OCID).
+    return_all: bool
+        Whether to return allAdditionalFields.
+
+    Returns
+    -------
+    oci.resource_search.models.ResourceSummary:
+        The retrieved resource.
+    """
+
+    return_all = "return allAdditionalFields" if return_all else ""
+    resource_type = get_resource_type(ocid)
+    query = (
+        f"query {resource_type} resources {return_all} where (identifier = '{ocid}')"
+    )
+    logger.info(query)
+
+    resources = OCIResource.search(
+        query,
+        type=SEARCH_TYPE.STRUCTURED,
+    )
+    return resources[0] if len(resources) > 0 else None
+
+
+def query_resources(
+    compartment_id, resource_type: str, return_all: bool = True, **kwargs
+) -> List["oci.resource_search.models.ResourceSummary"]:
+    """Use Search service to find resources within compartment.
+
+    Parameters
+    ----------
+    compartment_id: str
+        The compartment ocid.
+    resource_type: str
+        The type of the target resources.
+    return_all: bool
+        Whether to return allAdditionalFields.
+    **kwargs:
+        Additional arguments.
+
+    Returns
+    -------
+    List[oci.resource_search.models.ResourceSummary]:
+        The retrieved resources.
+    """
+    return_all = "return allAdditionalFields" if return_all else ""
+    # TODO: construct tags dynamically.
+    condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
+    condition_tags = f"&& (freeformTags.key = 'aqua_evaluation')"
+    query = f"query {resource_type} resources {return_all} where (compartmentId = '{compartment_id}' {condition_lifecycle} {condition_tags})"
+    logger.info(query)
+    logger.info(f"tenant_id={TENANCY_OCID}")
+
+    return OCIResource.search(
+        query, type=SEARCH_TYPE.STRUCTURED, tenant_id=TENANCY_OCID, **kwargs
+    )
