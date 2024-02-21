@@ -1,4 +1,5 @@
-autodoc nbsphinx
+autodoc
+nbsphinx
 sphinx
 sphinxcontrib-napoleon
 sphinx_copybutton

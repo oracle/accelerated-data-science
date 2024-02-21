@@ -1,9 +1,11 @@
-=================================
-Feature Store Deployment Operator (Recommended)
-=================================
+======================================================
+Deployment Using Feature Store Operator (Recommended for deploying in existing cluster)
+======================================================
 
 The Feature Store marketplace operator uses your current infrastructure to set up a Feature Store. It helps in setting up the Feature Store API server in your exisiting OKE cluster and MySQL database.
 
+
+.. image:: figures/oke.png
 
 Installing the Feature Store Marketplace Operator
 -------------------------------------------------
@@ -12,7 +14,7 @@ The Feature Store Marketplace Operator can be installed from PyPi using the foll
 
 .. code-block:: bash
 
-    python3 -m pip install oracle-ads[feature-store-marketplace]
+    python3 -m pip install "oracle-ads[feature-store-marketplace]"
 
 
 After that, the Operator is ready to go!
@@ -64,3 +66,9 @@ After the ``feature_store_marketplace.yaml`` is written using the init step abov
 .. code-block:: bash
 
     ads operator run -f feature_store_marketplace.yaml -b marketplace
+
+AuthN/AuthZ Setup (Optional)
+_____________________________
+
+We can also setup `Feature Store API Gateway stack <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/feature_store/README.md>`_ to enable authentication and authorization for Feature Store. This will allow us to access the feature store securely from a public endpoint using OCI IAM.
+

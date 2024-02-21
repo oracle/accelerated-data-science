@@ -29,28 +29,8 @@ Feature Store Statistics and Validation
 - **Description**:
     This demo concentrates on exploring the statistical insights and validation processes integral to the Feature Store. It delves into conda environments in the context of statistical analysis in the Feature Store platform. Moreover, it provides an in-depth walkthrough of how the Feature Store manages, computes, and validates various statistical metrics associated with stored features, ensuring data integrity and reliability.
 
-Deploying Feature Store Stack using Terraform
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- **Demo Links**:
-    - `Deploy Feature Store stack using terraform for admin users <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/feature-store-admin-deployment.mp4>`__
-    - **Demo Description**:
-        This demonstration illustrates the step-by-step process of setting up the Feature Store utilizing terraform stacks specifically designed for administration users.
-
-    - `Deploy Feature Store stack using terraform for non admin users <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/feature-store-non-admin-deployment.mp4>`__
-    - **Demo Description**:
-        It focuses on deploying the Feature Store using terraform stacks tailored for non-administration users, emphasizing simplified deployment processes.
-
-    - `Deploy Feature Store stack using terraform BYODB ATP instance <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/feature-store-byodb-atp.mp4>`__
-    - **Demo Description**:
-        This section showcases the deployment of the Feature Store utilizing terraform stacks, utilizing an ATP (Autonomous Transaction Processing) instance in the Oracle Cloud Infrastructure.
-
-    - `Deploy Feature Store stack using terraform BYODB MySQL instance <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/feature-store-byodb-mysql.mp4>`__
-    - **Demo Description**:
-        Lastly, it details the deployment process utilizing terraform stacks and integrating a MySQL instance to facilitate Feature Store functionalities.
-
 Deploying Feature Store API server to an existing OKE cluster
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 - **Demo Links**:
     - `Deploy Feature Store stack using operator <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/operator_demo.mp4>`__
@@ -63,8 +43,14 @@ Deploying Feature Store API server to an existing OKE cluster
          This demonstration illustrates the step-by-step process of setting up the Feature Store utilizing helm charts from the feature store marketplace listing
 
 - **Demo Links**:
-    - `Adding AuthN/Z to API server deployed in existing cluster <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/api_gateway_demo.mp4>`__
+    - `Adding AuthN/Z to API server deployed in existing cluster <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/container-service-deployment-demo.mp4>`__
     - **Demo Description**:
          This demonstration illustrates the step-by-step process of setting up AuthN/Z for feature store API server deployment to an OKE cluster
 
+Deploying Feature Store API server to OCI Container Service
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+- **Demo Links**:
+    - `Deploy Feature Store on OCI Container Service using terraform stack <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/container-service-deployment-demo.mp4>`__
+    - **Demo Description**:
+         This demonstration illustrates the step-by-step process of setting up feature store environment on OCI Container Service using terraform stack
