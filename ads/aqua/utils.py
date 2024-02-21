@@ -15,7 +15,7 @@ from typing import List
 import fsspec
 
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID, TENANCY_OCID
+from ads.config import TENANCY_OCID
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
@@ -233,11 +233,9 @@ def query_resource(
         The retrieved resource.
     """
 
-    return_all = "return allAdditionalFields" if return_all else ""
+    return_all = " return allAdditionalFields " if return_all else " "
     resource_type = get_resource_type(ocid)
-    query = (
-        f"query {resource_type} resources {return_all} where (identifier = '{ocid}')"
-    )
+    query = f"query {resource_type} resources{return_all}where (identifier = '{ocid}')"
     logger.info(query)
 
     resources = OCIResource.search(
@@ -248,7 +246,13 @@ def query_resource(
 
 
 def query_resources(
-    compartment_id, resource_type: str, return_all: bool = True, **kwargs
+    compartment_id,
+    resource_type: str,
+    return_all: bool = True,
+    tag_list: list = None,
+    status_list: list = None,
+    connect_by_ampersands: bool = True,
+    **kwargs,
 ) -> List["oci.resource_search.models.ResourceSummary"]:
     """Use Search service to find resources within compartment.
 
@@ -260,6 +264,13 @@ def query_resources(
         The type of the target resources.
     return_all: bool
         Whether to return allAdditionalFields.
+    tag_list: list
+        List of tags will be applied for filtering.
+    status_list: list
+        List of lifecycleState will be applied for filtering.
+    connect_by_ampersands: bool
+        Whether to use `&&` to group multiple conditions.
+        if `connect_by_ampersands=False`, `||` will be used.
     **kwargs:
         Additional arguments.
 
@@ -268,14 +279,52 @@ def query_resources(
     List[oci.resource_search.models.ResourceSummary]:
         The retrieved resources.
     """
-    return_all = "return allAdditionalFields" if return_all else ""
-    # TODO: construct tags dynamically.
-    condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
-    condition_tags = f"&& (freeformTags.key = 'aqua_evaluation')"
-    query = f"query {resource_type} resources {return_all} where (compartmentId = '{compartment_id}' {condition_lifecycle} {condition_tags})"
+    return_all = " return allAdditionalFields " if return_all else " "
+    condition_lifecycle = _construct_condition(
+        field_name="lifecycleState",
+        allowed_values=status_list,
+        connect_by_ampersands=False,
+    )
+    condition_tags = _construct_condition(
+        field_name="freeformTags.key",
+        allowed_values=tag_list,
+        connect_by_ampersands=connect_by_ampersands,
+    )
+    query = f"query {resource_type} resources{return_all}where (compartmentId = '{compartment_id}'{condition_lifecycle}{condition_tags})"
     logger.info(query)
-    logger.info(f"tenant_id={TENANCY_OCID}")
+    logger.info(f"tenant_id=`{TENANCY_OCID}`")
 
     return OCIResource.search(
         query, type=SEARCH_TYPE.STRUCTURED, tenant_id=TENANCY_OCID, **kwargs
     )
+
+
+def _construct_condition(
+    field_name: str, allowed_values: list = None, connect_by_ampersands: bool = True
+) -> str:
+    """Returns tag condition applied in query statement.
+
+    Parameters
+    ----------
+    field_name: str
+        The field_name keyword is the resource attribute against which the
+        operation and chosen value of that attribute are evaluated.
+    allowed_values: list
+        List of value will be applied for filtering.
+    connect_by_ampersands: bool
+        Whether to use `&&` to group multiple tag conditions.
+        if `connect_by_ampersands=False`, `||` will be used.
+
+    Returns
+    -------
+    str:
+        The tag condition.
+    """
+    if not allowed_values:
+        return ""
+
+    joint = "&&" if connect_by_ampersands else "||"
+    formatted_tags = [f"{field_name} = '{value}'" for value in allowed_values]
+    joined_tags = f" {joint} ".join(formatted_tags)
+    condition = f" && ({joined_tags})" if joined_tags else ""
+    return condition
