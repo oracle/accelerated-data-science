@@ -720,3 +720,50 @@ class TestDataScienceModel:
                 )
                 assert self.mock_dsc_model.dsc_model.__class__.kwargs == {"timeout": 2}
                 mock_download.assert_called()
+
+    def test_bucket_not_versioned_error(self):
+        # todo: for model passed by reference, check if bucket is not versioned.
+        pass
+
+    def test_setup_model_file_description_property(self):
+        # todo: read the json file, json_string and json_uri and load the
+        #  model_file_description property
+        pass
+
+    def test_invalidate_model_file_description_json_schema(self):
+        # todo: read the json file, json_string and json_uri and load the
+        #  model_file_description property
+        pass
+
+    def test_create_model_by_reference(self):
+        # todo: create model passed by reference, check custom metadata and
+        #  test whether upload artifact args have model_by_reference set as True
+        pass
+
+    def test_upload_artifact_for_model_created_by_reference(self):
+        # todo: for model passed by reference, check bucket, call small  artifact uploader
+        #  and remove temp artifact
+        pass
+
+    def test_download_artifact_for_model_created_by_reference(self):
+        # todo: check if model is passed by reference using custom metadata, then download
+        #  json file and get artifact info and size
+        pass
+
+    def test_load_model_created_by_reference_by_id(self):
+        # todo: if model created by reference, then check file extension and if json file is
+        #  available then read artifact to get bucket location and populate model_file_description
+        pass
+
+    def test_validate_prepare_file_description_artifact(self):
+        # todo: get model description content abd set artifact path
+        pass
+
+    def test_prepare_file_description_artifact(self):
+        # todo: read list from objects from artifact location and return content of json as dict
+        pass
+
+    def test_download_file_description_artifact(self):
+        # todo: Loads the json file from model artifact, updates the
+        #  model file description property, and returns the bucket uri and artifact size details.
+        pass
