@@ -12,6 +12,8 @@ import oci
 import requests
 from typing import TYPE_CHECKING
 
+from ads.opctl.operator.lowcode.feature_store_marketplace.models.atp_config import ATPConfig
+
 try:
     from kubernetes.client import (
         V1ServiceStatus,
@@ -61,7 +63,73 @@ from ads.opctl.operator.lowcode.feature_store_marketplace.models.db_config impor
 from ads.common import auth as authutil
 
 
+def get_mysql_config() -> MySqlConfig:
+    jdbc_url = "jdbc:mysql://{}/{}?createDatabaseIfNotExist=true"
+    mysql_db_config = MySqlConfig()
+    print_heading(
+        f"MySQL database configuration",
+        colors=[Color.BOLD, Color.BLUE],
+        prefix_newline_count=2,
+    )
+    mysql_db_config.username = click.prompt("Username", default="admin")
+
+    mysql_db_config.auth_type = MySqlConfig.MySQLAuthType(
+        click.prompt(
+            "Is password provided as plain-text or via a Vault secret?\n"
+            "(https://docs.oracle.com/en-us/iaas/Content/KeyManagement/Concepts/keyoverview.htm)",
+            type=click.Choice(MySqlConfig.MySQLAuthType.values()),
+            default=MySqlConfig.MySQLAuthType.BASIC.value,
+        )
+    )
+    if mysql_db_config.auth_type == MySqlConfig.MySQLAuthType.BASIC:
+        basic_auth_config = MySqlConfig.BasicConfig()
+        basic_auth_config.password = click.prompt(f"Password", hide_input=True)
+        mysql_db_config.basic_config = basic_auth_config
+
+    elif mysql_db_config.auth_type == MySqlConfig.MySQLAuthType.VAULT:
+        vault_auth_config = MySqlConfig.VaultConfig()
+        vault_auth_config.vault_ocid = click.prompt("Vault OCID")
+        vault_auth_config.secret_name = click.prompt(
+            "Name of the secret having password"
+        )
+        mysql_db_config.vault_config = vault_auth_config
+
+    mysql_jdbc_ip = click.prompt(
+        "IP address using which the database can be access inside the Kubernetes cluster"
+        " (example: 10.0.0.1:3306)"
+    )
+    db_name = click.prompt(
+        "Database name (will be auto created if it doesn't already exist)",
+        default="FeatureStore",
+    )
+    mysql_db_config.url = jdbc_url.format(mysql_jdbc_ip, db_name)
+    logger.debug(f"MySQL jdbc url generated is: {mysql_db_config.url}")
+
+    return mysql_db_config
+
+def get_atp_config() -> ATPConfig:
+
+
+
 def get_db_details() -> DBConfig:
+    # Create the database config
+    db_config = DBConfig()
+
+    click.prompt(
+        "Please select the database type to store the feature store metadata.",
+        type=click.Choice(DBConfig.DBType.values()),
+        default=DBConfig.DBType.MySQL.value,
+    )
+
+
+
+
+
+
+
+
+
+
     jdbc_url = "jdbc:mysql://{}/{}?createDatabaseIfNotExist=true"
     mysql_db_config = MySqlConfig()
     print_heading(
@@ -279,7 +347,7 @@ def get_nlb_id_from_service(service: "V1Service", apigw_config: APIGatewayConfig
 
 
 def update_resource_manager_stack(
-    apigw_config: APIGatewayConfig, nlb_id: str, authoriser_image: str
+        apigw_config: APIGatewayConfig, nlb_id: str, authoriser_image: str
 ):
     print("Updating resource manager stack")
     resource_manager_client: oci.resource_manager.ResourceManagerClient = (
@@ -344,8 +412,8 @@ def apply_stack(stack_id: str):
 
 def prompt_security_rules(stack_id: str):
     if not click.confirm(
-        "Do you want to attach required security rules to subnets automatically?",
-        default=True,
+            "Do you want to attach required security rules to subnets automatically?",
+            default=True,
     ):
         return
 
