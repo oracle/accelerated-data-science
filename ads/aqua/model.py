@@ -23,7 +23,12 @@ from ads.aqua.utils import (
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
-from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID, TENANCY_OCID
+from ads.config import (
+    COMPARTMENT_OCID, 
+    ODSC_MODEL_COMPARTMENT_OCID, 
+    PROJECT_OCID, 
+    TENANCY_OCID
+)
 from ads.model.datascience_model import DataScienceModel
 
 
@@ -85,7 +90,7 @@ class AquaModelApp(AquaApp):
 
     def create(
         self, model_id: str, project_id: str, comparment_id: str = None, **kwargs
-    ) -> "AquaModel":
+    ) -> DataScienceModel:
         """Creates custom aqua model from service model.
 
         Parameters
@@ -100,45 +105,44 @@ class AquaModelApp(AquaApp):
 
         Returns
         -------
-        AquaModel:
-            The instance of AquaModel.
+        DataScienceModel:
+            The instance of DataScienceModel.
         """
         with tempfile.TemporaryDirectory() as temp_dir:
-            try:
-                service_model = DataScienceModel.from_id(model_id)
-                service_model.download_artifact(target_dir=temp_dir)
-                custom_model = (
-                    DataScienceModel()
-                    .with_compartment_id(comparment_id or COMPARTMENT_OCID)
-                    .with_project_id(project_id)
-                    .with_artifact(temp_dir)
-                    .with_display_name(service_model.display_name)
-                    .with_description(service_model.description)
-                    .with_freeform_tags(**(service_model.freeform_tags or {}))
-                    .with_defined_tags(**(service_model.defined_tags or {}))
-                    .with_model_version_set_id(service_model.model_version_set_id)
-                    .with_version_label(service_model.version_label)
-                    .with_custom_metadata_list(service_model.custom_metadata_list)
-                    .with_defined_metadata_list(service_model.defined_metadata_list)
-                    .with_provenance_metadata(service_model.provenance_metadata)
-                    # TODO: decide what kwargs will be needed.
-                    .create(**kwargs)
-                )
-            except Exception as e:
-                # TODO: adjust error raising
-                logger.error(f"Failed to create model from the given id {model_id}.")
-                raise e
+            target_model = DataScienceModel.from_id(model_id)
+            target_compartment = comparment_id or COMPARTMENT_OCID
+            target_project = project_id or PROJECT_OCID
 
-            artifact_path = get_artifact_path(
-                custom_model.dsc_model.custom_metadata_list
+            if target_model.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
+                logger.debug(
+                    f"Aqua Model {model_id} already exists in user's compartment."
+                    "Skipped copying."
+                )
+                return target_model
+
+            target_model.download_artifact(target_dir=temp_dir)
+            custom_model = (
+                DataScienceModel()
+                .with_compartment_id(target_compartment)
+                .with_project_id(target_project)
+                .with_artifact(temp_dir)
+                .with_display_name(target_model.display_name)
+                .with_description(target_model.description)
+                .with_freeform_tags(**(target_model.freeform_tags or {}))
+                .with_defined_tags(**(target_model.defined_tags or {}))
+                .with_model_version_set_id(target_model.model_version_set_id)
+                .with_version_label(target_model.version_label)
+                .with_custom_metadata_list(target_model.custom_metadata_list)
+                .with_defined_metadata_list(target_model.defined_metadata_list)
+                .with_provenance_metadata(target_model.provenance_metadata)
+                # TODO: decide what kwargs will be needed.
+                .create(**kwargs)
             )
-            return AquaModel(
-                **self._process_model(custom_model.dsc_model, self.region),
-                project_id=custom_model.project_id,
-                model_card=str(
-                    read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
-                ),
+            logger.debug(
+                f"Aqua Model {custom_model.id} created with the service model {model_id}"
             )
+
+            return custom_model
 
     def get(self, model_id) -> "AquaModel":
         """Gets the information of an Aqua model.
