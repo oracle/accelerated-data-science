@@ -19,7 +19,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads"  # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.10.0"
+version = "2.10.1"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -176,6 +176,14 @@ forecast = [
   "sktime",
   "statsmodels",
   "plotly",
+  "oracledb",
+]
+anomaly  = [
+  "oracle_ads[opctl]",
+  "autots",
+  "oracle-automlx[forecasting]==23.2.3",
+  "oracledb",
+  "datapane",
 ]
 feature-store-marketplace = [
     "oracle-ads[opctl]",

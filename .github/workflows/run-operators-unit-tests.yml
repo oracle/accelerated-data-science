@@ -26,7 +26,7 @@ jobs:
   test:
     name: python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 180
 
     strategy:
       fail-fast: false
@@ -49,7 +49,7 @@ jobs:
         name: "Test config setup"
 
       - name: "Run Operators Tests"
-        timeout-minutes: 60
+        timeout-minutes: 180
         shell: bash
         run: |
           set -x # print commands that are executed

@@ -1,0 +1,11 @@
+name: Anomaly
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8
+  - pip
+  - pip:
+      - datapane
+      - cerberus
+      - oracle-automlx==23.2.3
+      - "oracle-ads[anomaly]"

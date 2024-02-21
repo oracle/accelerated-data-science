@@ -2,9 +2,8 @@
 Advanced Use Cases
 ==================
 
-**Documentation: Forecasting Science and Model Parameterization**
-
-**The Science of Forecasting**
+The Science of Forecasting
+--------------------------
 
 Forecasting is a complex yet essential discipline that involves predicting future values or events based on historical data and various mathematical and statistical techniques. To achieve accurate forecasts, it is crucial to understand some fundamental concepts:
 
@@ -22,10 +21,55 @@ The "cold start" problem arises when you have limited historical data for a new 
 
 **Passing Parameters to Models**
 
-To enhance the accuracy and adaptability of forecasting models, our system allows you to pass parameters directly. Here's how to do it:
+To enhance the accuracy and adaptability of forecasting models, our system allows you to pass parameters directly.
 
 
-**Specify Model Type**
+Data Parameterization
+---------------------
+
+**Read Data from the Database**
+
+.. code-block:: yaml
+
+    kind: operator
+    type: forecast
+    version: v1
+    spec:
+        historical_data:
+            connect_args:
+                user: XXX
+                password: YYY
+                dsn: "localhost/orclpdb"
+            sql: 'SELECT Store_ID, Sales, Date FROM live_data'
+        datetime_column:
+            name: ds
+        horizon: 1
+        target_column: y
+
+
+**Read Part of a Dataset**
+
+
+.. code-block:: yaml
+
+    kind: operator
+    type: forecast
+    version: v1
+    spec:
+        historical_data:
+            url: oci://bucket@namespace/data
+            format: tsv
+            limit: 1000  # Only the first 1000 rows
+            columns: ["y", "ds"]  # Ignore other columns
+        datetime_column:
+            name: ds
+        horizon: 1
+        target_column: y
+
+
+
+Model Parameterization
+----------------------
 
 Sometimes users will know which models they want to use. When users know this in advance, they can specify using the ``model_kwargs`` dictionary. In the following example, we will instruct the model to *only* use the ``DecisionTreeRegressor`` model.
 

@@ -7,8 +7,9 @@
 from ads.opctl.operator import __operators__
 
 
-class OperatorSchemaYamlError(Exception):
+class InvalidParameterError(Exception):
     """Exception raised when there is an issue with the schema."""
+
     def __init__(self, error: str):
         super().__init__(
             "Invalid operator specification. Check the YAML structure and ensure it "
