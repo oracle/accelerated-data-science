@@ -120,7 +120,6 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
         if developer_enabled():
             self.spark_session = configure_spark_with_delta_pip(
                 spark_builder,
-                ## org.opensearch.client:opensearch-spark-30_2.12:1.0.1
                 extra_packages=[
                     "org.opensearch.client:opensearch-spark-30_2.12:1.0.1",
                     "com.redislabs:spark-redis_2.12:3.0.0",

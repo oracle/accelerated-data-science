@@ -4,8 +4,8 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import feature_store_client.feature_store as fs
-from feature_store_client.feature_store.models import (
+import ads.feature_store.feature_store_client.feature_store as fs
+from ads.feature_store.feature_store_client.feature_store.models import (
     CreateEntityDetails,
     UpdateEntityDetails,
     Entity,

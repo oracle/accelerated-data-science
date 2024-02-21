@@ -383,7 +383,7 @@ class OCIModelMixin(OCISerializableMixin):
     """
 
     # Regex pattern matching the module name of an OCI model.
-    OCI_MODEL_PATTERN = r"(oci|feature_store_client).[^.]+\.models[\..*]?"
+    OCI_MODEL_PATTERN = r"(oci|ads.feature_store.feature_store_client).[^.]+\.models[\..*]?"
     # Constants
     CONS_COMPARTMENT_ID = "compartment_id"
 

@@ -6,11 +6,11 @@
 
 import logging
 
-import feature_store_client.feature_store as fs
+import ads.feature_store.feature_store_client.feature_store as fs
 
 from ads.feature_store.mixin.oci_feature_store import OCIFeatureStoreMixin
 
-from feature_store_client.feature_store.models import (
+from ads.feature_store.feature_store_client.feature_store.models import (
     Lineage,
 )
 

@@ -12,7 +12,7 @@ import logging
 import email.utils
 import os
 import oci
-import feature_store_client.feature_store as fs
+import ads.feature_store.feature_store_client.feature_store as fs
 
 logger = logging.getLogger(__name__)
 from ads.common.oci_mixin import OCIModelMixin

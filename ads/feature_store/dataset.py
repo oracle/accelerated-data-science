@@ -10,7 +10,7 @@ import pandas as pd
 from great_expectations.core import ExpectationSuite
 
 from ads import deprecated
-from feature_store_client.feature_store.models import (
+from ads.feature_store.feature_store_client.feature_store.models import (
     DatasetFeatureGroupCollection,
     DatasetFeatureGroupSummary,
 )
