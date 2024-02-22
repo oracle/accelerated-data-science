@@ -45,7 +45,7 @@ class AquaUIHandler(AquaAPIhandler):
             return self.get_default_compartment()
         elif paths.startswith("aqua/compartments"):
             return self.list_compartments()
-        elif paths.startswith("aqua/modelversionsets"):
+        elif paths.startswith("aqua/experiment"):
             return self.list_model_version_sets()
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
@@ -88,5 +88,5 @@ class AquaUIHandler(AquaAPIhandler):
 __handlers__ = [
     ("logging/?([^/]*)", AquaUIHandler),
     ("compartments/?([^/]*)", AquaUIHandler),
-    ("modelversionsets/?([^/]*)", AquaUIHandler),
+    ("experiment/?([^/]*)", AquaUIHandler),
 ]

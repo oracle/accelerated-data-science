@@ -37,8 +37,14 @@ class AquaEvalParams(DataClassSerializable):
 @dataclass(repr=False)
 class AquaEvalMetric(DataClassSerializable):
     name: str
-    description: str
-    value: dict
+    content: str
+    description: str = ""
+
+
+@dataclass(repr=False)
+class AquaEvalMetrics(DataClassSerializable):
+    id: str
+    metrics: List[AquaEvalMetric] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -101,6 +107,34 @@ class AquaEvaluationApp(AquaApp):
         and requires proper configuration and authentication set up to interact
         with OCI services.
     """
+
+    def create(self):
+        return {
+            "id": "ocid1.datasciencemodel.<OCID>",
+            "name": "test_evaluation",
+            "console_url": "https://cloud.oracle.com/data-science/models/ocid1.datasciencemodel.<OCID>?region=us-ashburn-1",
+            "lifecycle_state": "ACCEPTED",
+            "lifecycle_details": "TODO",
+            "time_created": "2024-02-21 21:06:11.444000+00:00",
+            "experiment": {
+                "id": "ocid1.datasciencemodelversionset.<OCID>",
+                "name": "test_43210123456789012",
+                "console_url": "https://cloud.oracle.com/data-science/model-version-sets/ocid1.datasciencemodelversionset.<OCID>?region=us-ashburn-1",
+            },
+            "source": {
+                "id": "ocid1.datasciencemodel.<OCID>",
+                "name": "Mistral-7B-Instruct-v0.1-Fine-Tuned",
+                "console_url": "https://cloud.oracle.com/data-science/models/ocid1.datasciencemodel.<OCID>?region=us-ashburn-1",
+            },
+            "job": {
+                "id": "ocid1.datasciencejob.<OCID>",
+                "name": "test_evaluation",
+                "console_url": "https://cloud.oracle.com/data-science/jobs/ocid1.datasciencejob.<OCID>?region=us-ashburn-1",
+            },
+            "tags": {
+                "aqua_evaluation": "aqua_evaluation",
+            },
+        }
 
     def get(self, eval_id) -> AquaEvaluationSummary:
         """Gets the information of an Aqua evalution.
@@ -185,13 +219,20 @@ class AquaEvaluationApp(AquaApp):
             )
         return evaluations
 
-    def load_metrics(self, model_id: str) -> dict:
-        """Loads default model metrics.
+    def get_status(self, eval_id: str) -> dict:
+        return {
+            "id": eval_id,
+            "lifecycle_state": "ACTIVE",
+            "lifecycle_details": "This is explanation for lifecycle_state.",
+        }
+
+    def load_metrics(self, eval_id: str) -> dict:
+        """Loads evalution metrics markdown from artifacts.
 
         Parameters
         ----------
-        model_id: str
-            The source model ocid. It can be modeldeplyment or model.
+        eval_id: str
+            The evaluation ocid.
 
         Returns
         -------
@@ -200,12 +241,6 @@ class AquaEvaluationApp(AquaApp):
         """
         # TODO: add caching
         pass
-        # # Mock response
-        # response_file = f"{BUCKET_URI}/param.json"
-        # logger.info(f"Loading mock response from {response_file}.")
-        # with fsspec.open(response_file, "r", **self._auth) as f:
-        #     default_params = json.load(f)
-        # return default_params
 
     def download_report(self, eval_id) -> dict:
         """Downloads HTML report from model artifact.
@@ -234,13 +269,6 @@ class AquaEvaluationApp(AquaApp):
 
         content = res.data.raw.read()
         return dict(evaluation_id=eval_id, content=base64.b64encode(content).decode())
-
-    def _upload_data(self, src_uri, dst_uri):
-        """Uploads data file from notebook session to object storage."""
-        # This method will be called in create()
-        # if src is os : pass to script
-        # else: copy to dst_uri then pass dst_uri to script
-        pass
 
     def _process(self, model: "oci.resource_search.models.ResourceSummary") -> dict:
         """Constructs AquaEvaluationSummary from `oci.resource_search.models.ResourceSummary`."""

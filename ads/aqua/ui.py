@@ -162,8 +162,8 @@ class AquaUIApp(AquaApp):
         -------
             str has json representation of oci.logging.models.log_group.LogGroup
         """
-
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        logger.info(f"Loading experiments from compartment: {compartment_id}")
 
         return self.ds_client.list_model_version_sets(
             compartment_id=compartment_id, **kwargs
