@@ -10,6 +10,7 @@ from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import extract_region
 from ads.config import OCI_RESOURCE_PRINCIPAL_VERSION
+from ads import set_auth
 
 
 class AquaApp:
