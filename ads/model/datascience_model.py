@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import cgi
@@ -10,11 +10,17 @@ from copy import deepcopy
 from typing import Dict, List, Optional, Union
 
 import pandas
+
 from ads.common import utils
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import COMPARTMENT_OCID, PROJECT_OCID
 from ads.feature_engineering.schema import Schema
 from ads.jobs.builders.base import Builder
+from ads.model.artifact_downloader import (
+    LargeArtifactDownloader,
+    SmallArtifactDownloader,
+)
+from ads.model.artifact_uploader import LargeArtifactUploader, SmallArtifactUploader
 from ads.model.model_metadata import (
     ModelCustomMetadata,
     ModelProvenanceMetadata,
@@ -24,11 +30,6 @@ from ads.model.service.oci_datascience_model import (
     ModelProvenanceNotFoundError,
     OCIDataScienceModel,
 )
-from ads.model.artifact_downloader import (
-    LargeArtifactDownloader,
-    SmallArtifactDownloader,
-)
-from ads.model.artifact_uploader import LargeArtifactUploader, SmallArtifactUploader
 
 logger = logging.getLogger(__name__)
 
@@ -170,7 +171,10 @@ class DataScienceModel(Builder):
     CONST_PROVENANCE_METADATA = "provenanceMetadata"
     CONST_ARTIFACT = "artifact"
     CONST_MODEL_VERSION_SET_ID = "modelVersionSetId"
+    CONST_MODEL_VERSION_SET_NAME = "modelVersionSetName"
     CONST_MODEL_VERSION_LABEL = "versionLabel"
+    CONST_TIME_CREATED = "timeCreated"
+    CONST_LIFECYCLE_STATE = "lifecycleState"
 
     attribute_map = {
         CONST_ID: "id",
@@ -187,7 +191,10 @@ class DataScienceModel(Builder):
         CONST_PROVENANCE_METADATA: "provenance_metadata",
         CONST_ARTIFACT: "artifact",
         CONST_MODEL_VERSION_SET_ID: "model_version_set_id",
+        CONST_MODEL_VERSION_SET_NAME: "model_version_set_name",
         CONST_MODEL_VERSION_LABEL: "version_label",
+        CONST_TIME_CREATED: "time_created",
+        CONST_LIFECYCLE_STATE: "lifecycle_state",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -265,6 +272,10 @@ class DataScienceModel(Builder):
             The DataScienceModel instance (self)
         """
         return self.set_spec(self.CONST_PROJECT_ID, project_id)
+
+    @property
+    def time_created(self) -> str:
+        return self.get_spec(self.CONST_TIME_CREATED)
 
     @property
     def description(self) -> str:
@@ -519,6 +530,20 @@ class DataScienceModel(Builder):
             The Model version set OCID.
         """
         return self.set_spec(self.CONST_MODEL_VERSION_SET_ID, model_version_set_id)
+
+    @property
+    def model_version_set_name(self) -> str:
+        return self.get_spec(self.CONST_MODEL_VERSION_SET_NAME)
+
+    def with_model_version_set_id(self, model_version_set_name: str):
+        """Sets the model version set name.
+
+        Parameters
+        ----------
+        model_version_set_name: str
+            The Model version set name.
+        """
+        return self.set_spec(self.CONST_MODEL_VERSION_SET_NAME, model_version_set_name)
 
     @property
     def version_label(self) -> str:

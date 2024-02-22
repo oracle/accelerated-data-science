@@ -14,6 +14,7 @@ from typing import List
 
 import fsspec
 
+from ads.aqua.exception import AquaRuntimeError
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.config import TENANCY_OCID
 
@@ -35,7 +36,7 @@ class LifecycleStatus(Enum):
     COMPLETED = "Completed"
     IN_PROGRESS = "In Progress"
     CANCELLED = "Cancelled"
-    UNKNOWN = "Unknown"
+    UNKNOWN = ""
 
     @property
     def detail(self) -> str:
@@ -45,7 +46,7 @@ class LifecycleStatus(Enum):
         )
 
     @staticmethod
-    def get_status(evaluation_status: str, job_run_status: str):
+    def get_status(evaluation_status: str, job_run_status: str = None):
         """
         Maps the combination of evaluation status and job run status to a standard status.
 
@@ -61,6 +62,8 @@ class LifecycleStatus(Enum):
         LifecycleStatus
             The mapped status ("Completed", "In Progress", "Canceled").
         """
+        if not job_run_status:
+            return LifecycleStatus.UNKNOWN
         evaluation_status = evaluation_status.lower()
         job_run_status = job_run_status.lower()
         status = LifecycleStatus.UNKNOWN
@@ -72,6 +75,11 @@ class LifecycleStatus(Enum):
                 status = LifecycleStatus.IN_PROGRESS
             elif job_run_status == "cancelled":
                 status = LifecycleStatus.CANCELLED
+            else:
+                status = job_run_status
+        else:
+            status = evaluation_status
+
         return status
 
 
@@ -79,7 +87,6 @@ LIFECYCLE_DETAILS_MAPPING = {
     LifecycleStatus.COMPLETED.name: "The evaluation ran successfully.",
     LifecycleStatus.IN_PROGRESS.name: "The evaluation job is running.",
     LifecycleStatus.CANCELLED.name: "The evaluation has been cancelled.",
-    LifecycleStatus.UNKNOWN.name: "Failed to retreive evaluation status.",
 }
 
 
@@ -241,8 +248,14 @@ def query_resource(
     resources = OCIResource.search(
         query,
         type=SEARCH_TYPE.STRUCTURED,
+        tenant_id=TENANCY_OCID,
     )
-    return resources[0] if len(resources) > 0 else None
+    if len(resources) == 0:
+        raise AquaRuntimeError(
+            f"Failed to retreive source {resource_type}'s information.",
+            service_payload={"query": query, "tenant_id": TENANCY_OCID},
+        )
+    return resources[0]
 
 
 def query_resources(

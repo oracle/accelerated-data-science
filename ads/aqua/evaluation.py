@@ -4,6 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import base64
 import json
+import tempfile
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Union
 from urllib.parse import urlparse
@@ -12,10 +13,11 @@ import oci
 
 from ads.aqua import logger, utils
 from ads.aqua.base import AquaApp
-from ads.aqua.exception import AquaRuntimeError
+from ads.aqua.exception import AquaError, AquaMissingKeyError, AquaRuntimeError
 from ads.common import oci_client as oc
 from ads.common.serializer import DataClassSerializable
-from ads.common.utils import get_console_link
+from ads.common.utils import get_console_link, get_files
+from ads.model.datascience_model import DataScienceModel
 
 
 @dataclass(repr=False)
@@ -27,11 +29,11 @@ class AquaResourceIdentifier(DataClassSerializable):
 
 @dataclass(repr=False)
 class AquaEvalParams(DataClassSerializable):
-    shape: str
-    max_tokens: str
-    top_p: str
-    top_k: str
-    temperature: str
+    shape: str = ""
+    max_tokens: str = ""
+    top_p: str = ""
+    top_k: str = ""
+    temperature: str = ""
 
 
 @dataclass(repr=False)
@@ -87,6 +89,11 @@ class EvaluationTags:
 class EvaluationMetadata:
     EVALUATION_SOURCE = "evaluation_source"
     HYPERPARAMETERS = "Hyperparameters"
+    EVALUATION_JOB_ID = "evaluation_job_id"
+
+
+class EvaluationConfig:
+    PARAMS = "model_params"
 
 
 class AquaEvaluationApp(AquaApp):
@@ -151,7 +158,11 @@ class AquaEvaluationApp(AquaApp):
         """
         logger.info(f"Fetching evaluation: {eval_id} details ...")
 
-        resource = utils.query_resource(eval_id)
+        resource = DataScienceModel.from_id(eval_id)
+
+        # resource = utils.query_resource(eval_id)
+        # resource = self.ds_client.get_model(eval_id).data
+        # Need separate call to get model provenance: get_model_provenance(eval_id)
 
         if not resource:
             raise AquaRuntimeError(
@@ -166,14 +177,22 @@ class AquaEvaluationApp(AquaApp):
             else utils.UNKNOWN
         )
 
-        return AquaEvaluationDetails(
-            **self._process(resource),
-            **self._get_job_details(
-                job_run_details=job_run_details,
-                evaluation_status=resource.lifecycle_state,
+        return AquaEvaluationSummary(
+            **self._process(resource, shape),
+            **self._get_status(
+                resource.status, job_status=job_run_details.lifecycle_state
             ),
-            parameters=self._fetch_runtime_params(resource, shape),
-            # metrics=self._fetch_metrics(resource),
+            job=self._build_job_identifier(
+                job_run_details=job_run_details,
+            ),
+        )
+
+    def _get_status(self, model_status, job_status) -> dict:
+        """Build evaluation status based on the model status and job run status."""
+        lifecycle_state = utils.LifecycleStatus.get_status(model_status, job_status)
+        return dict(
+            lifecycle_state=lifecycle_state.value,
+            lifecycle_details=lifecycle_state.detail,
         )
 
     def list(
@@ -200,6 +219,7 @@ class AquaEvaluationApp(AquaApp):
             compartment_id=compartment_id,
             resource_type="datasciencemodel",
             tag_list=[EvaluationTags.AQUA_EVALUATION],
+            status_list=["ACTIVE"],
         )
         logger.info(f"Fetched {len(models)} evaluations.")
 
@@ -208,12 +228,16 @@ class AquaEvaluationApp(AquaApp):
         evaluations = []
         for model in models:
             job_run = self._fetch_jobrun(model)
-
+            job_status = job_run.lifecycle_state if job_run else None
             evaluations.append(
                 AquaEvaluationSummary(
                     **self._process(model),
-                    **self._get_job_details(
-                        job_run_details=job_run, evaluation_status=model.lifecycle_state
+                    **self._get_status(
+                        model_status=model.lifecycle_state,
+                        job_status=job_status,
+                    ),
+                    job=self._build_job_identifier(
+                        job_run_details=job_run,
                     ),
                 )
             )
@@ -226,7 +250,7 @@ class AquaEvaluationApp(AquaApp):
             "lifecycle_details": "This is explanation for lifecycle_state.",
         }
 
-    def load_metrics(self, eval_id: str) -> dict:
+    def load_metrics(self, eval_id: str) -> AquaEvalMetrics:
         """Loads evalution metrics markdown from artifacts.
 
         Parameters
@@ -236,11 +260,25 @@ class AquaEvaluationApp(AquaApp):
 
         Returns
         -------
-        dict:
-            A dictionary contains default model parameters.
+        AquaEvalMetrics:
+            An instancec of AquaEvalMetrics.
         """
         # TODO: add caching
-        pass
+        with tempfile.TemporaryDirectory() as temp_dir:
+            DataScienceModel.from_id(eval_id).download_artifact(
+                temp_dir, auth=self._auth
+            )
+            metrics = []
+            for file in get_files(temp_dir):
+                if file.name.endswith(".md"):
+                    with open(file, "rb") as f:
+                        content = f.read()
+                    metrics.append(
+                        AquaEvalMetric(
+                            name=f.name, content=base64.b64encode(content).decode()
+                        )
+                    )
+        return AquaEvalMetrics(id=eval_id, metrics=metrics)
 
     def download_report(self, eval_id) -> dict:
         """Downloads HTML report from model artifact.
@@ -256,64 +294,135 @@ class AquaEvaluationApp(AquaApp):
             A dictionary contains json response.
         """
         # TODO: add caching
-        # Mock response
-        os_uri = (
-            "oci://license_checker@ociodscdev/evaluation/report/evaluation_report.html"
-        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            DataScienceModel.from_id(eval_id).download_artifact(
+                temp_dir,
+                auth=self._auth,
+            )
+            for file in get_files(temp_dir):
+                if file == "report.zip":
+                    with ZipFile(zip_file_path) as zip_file:
+                        zip_file.extractall(self.target_dir)
 
-        p = urlparse(os_uri)
-        os_client = oc.OCIClientFactory(**self._auth).object_storage
-        res = os_client.get_object(
-            namespace_name=p.hostname, bucket_name=p.username, object_name=p.path[1:]
-        )
-
-        content = res.data.raw.read()
         return dict(evaluation_id=eval_id, content=base64.b64encode(content).decode())
 
-    def _process(self, model: "oci.resource_search.models.ResourceSummary") -> dict:
-        """Constructs AquaEvaluationSummary from `oci.resource_search.models.ResourceSummary`."""
+    def _get_source_id(
+        self,
+        model: Union[
+            "oci.resource_search.models.ResourceSummary",
+            "ads.model.datascience_model.DataScienceModel",
+        ],
+    ) -> str:
+        try:
+            return (
+                self._extract_metadata(
+                    model.additional_details.get(RqsAdditionalDetails.METADATA),
+                    EvaluationMetadata.EVALUATION_SOURCE,
+                )
+                if isinstance(model, oci.resource_search.models.ResourceSummary)
+                else model.custom_metadata_list.get(
+                    EvaluationMetadata.EVALUATION_SOURCE
+                ).value
+            )
+        except:
+            raise AquaMissingKeyError(
+                f"Missing `evaluation_source` in custom metadata of model."
+            )
+
+    def _get_model_id(
+        self,
+        model: Union[
+            "oci.resource_search.models.ResourceSummary",
+            "ads.model.datascience_model.DataScienceModel",
+        ],
+    ) -> str:
+        return (
+            model.identifier
+            if isinstance(model, oci.resource_search.models.ResourceSummary)
+            else model.id
+        )
+
+    def _get_experiment_info(
+        self,
+        model: Union[
+            "oci.resource_search.models.ResourceSummary",
+            "ads.model.datascience_model.DataScienceModel",
+        ],
+    ) -> tuple:
+        return (
+            (
+                model.additional_details.get(RqsAdditionalDetails.MODEL_VERSION_SET_ID),
+                model.additional_details.get(
+                    RqsAdditionalDetails.MODEL_VERSION_SET_NAME
+                ),
+            )
+            if isinstance(model, oci.resource_search.models.ResourceSummary)
+            else (model.model_version_set_id, model.model_version_set_name)
+        )
+
+    def _get_source_info(
+        self,
+        model: Union[
+            "oci.resource_search.models.ResourceSummary",
+            "ads.model.datascience_model.DataScienceModel",
+        ],
+        model_id: str,
+    ) -> tuple:
+        source_model_id = utils.UNKNOWN
+        source_model_name = utils.UNKNOWN
+        try:
+            source_model_id = self._get_source_id(model)
+            logger.info(f"Fetching source model {source_model_id} info.")
+
+            source_model = utils.query_resource(source_model_id, return_all=False)
+            source_model_name = source_model.display_name
+        except Exception as e:
+            logger.debug(f"{str(e)}: {model_id}.")
+        return (source_model_id, source_model_name)
+
+    def _process(
+        self,
+        model: Union[
+            "oci.resource_search.models.ResourceSummary",
+            "ads.model.datascience_model.DataScienceModel",
+        ],
+        shape: str = None,
+    ) -> dict:
+        """Constructs AquaEvaluationSummary from `oci.resource_search.models.ResourceSummary`
+        or `ads.model.datascience_model.DataScienceModel`.
+        """
 
         tags = {}
         tags.update(model.defined_tags or {})
         tags.update(model.freeform_tags or {})
 
-        # TODO: discuss if we want to use metadata/tags to save source model name
-        source_model_id = self._extract_metadata(
-            model.additional_details.get(RqsAdditionalDetails.METADATA),
-            EvaluationMetadata.EVALUATION_SOURCE,
+        model_id = self._get_model_id(model)
+        console_url = get_console_link(
+            resource="models",
+            ocid=model_id,
+            region=self.region,
         )
-        logger.info(f"Source model ocid: {source_model_id}.")
-
-        try:
-            source_model = utils.query_resource(source_model_id, return_all=False)
-            source_model_name = source_model.display_name
-        except:
-            source_model_name = ""
+        source_model_id, source_model_name = self._get_source_info(model, model_id)
+        experiment_id, experiment_name = self._get_experiment_info(model)
+        parameters = self._fetch_runtime_params(model, shape)
 
         return dict(
-            id=model.identifier,
+            id=model_id,
             name=model.display_name,
-            console_url=get_console_link(
-                resource="models",
-                ocid=model.identifier,
-                region=self.region,
-            ),
+            console_url=console_url,
             time_created=model.time_created,
             tags=tags,
-            experiment=self._get_resource_identifier(
-                id=model.additional_details.get(
-                    RqsAdditionalDetails.MODEL_VERSION_SET_ID
-                ),
-                name=model.additional_details.get(
-                    RqsAdditionalDetails.MODEL_VERSION_SET_NAME
-                ),
+            experiment=self._build_resource_identifier(
+                id=experiment_id,
+                name=experiment_name,
             ),
-            source=self._get_resource_identifier(
+            source=self._build_resource_identifier(
                 id=source_model_id, name=source_model_name
             ),
+            parameters=parameters,
         )
 
-    def _get_resource_identifier(
+    def _build_resource_identifier(
         self, id: str = None, name: str = None
     ) -> AquaResourceIdentifier:
         """Constructs AquaResourceIdentifier based on the given ocid and display name."""
@@ -338,17 +447,40 @@ class AquaEvaluationApp(AquaApp):
             return AquaResourceIdentifier()
 
     def _fetch_jobrun(
-        self, resource: oci.resource_search.models.ResourceSummary, use_rqs: bool = True
+        self,
+        resource: Union[
+            oci.resource_search.models.ResourceSummary,
+            "ads.model.datascience_model.DataScienceModel",
+        ],
+        use_rqs: bool = True,
     ) -> Union[
         oci.resource_search.models.ResourceSummary, oci.data_science.models.JobRun
     ]:
-        """Extracts job run id from freeform tags, and gets related job run information."""
+        """Extracts job run id from metadata, and gets related job run information."""
 
-        jobrun_id = resource.freeform_tags.get(EvaluationTags.EVALUATION_JOB)
-        if not jobrun_id:
-            logger.error(
-                f"Resource {resource.identifier} missing job run key in tags: {str(resource.freeform_tags)}."
-            )
+        if isinstance(resource, DataScienceModel):
+            try:
+                jobrun_id = resource.provenance_metadata.training_id
+            except:
+                logger.debug(
+                    f"Resource {resource.id} missing job run information in model provenance: {resource.provenance_metadata}."
+                )
+        elif isinstance(resource, oci.resource_search.models.ResourceSummary):
+            try:
+                metadata = resource.additional_details.get(
+                    RqsAdditionalDetails.METADATA
+                )
+                jobrun_id = self._extract_metadata(
+                    metadata, EvaluationMetadata.EVALUATION_JOB_ID
+                )
+            except:
+                logger.debug(
+                    f"Resource {resource.identifier} missing job run information in custom metadata: {metadata}."
+                )
+        else:
+            logger.error(f"{type(resource)} is not valid.")
+            raise AquaError(f"{type(resource)} is not valid.", status=500)
+
         logger.info(f"Fetching associated job run: {jobrun_id}")
 
         try:
@@ -385,19 +517,37 @@ class AquaEvaluationApp(AquaApp):
             )
         return AquaEvalMetrics(data=metrics)
 
+    def _get_hyperparameters(self, model):
+        params = ""
+        if isinstance(model, DataScienceModel):
+            params = model.defined_metadata_list.get(
+                EvaluationMetadata.HYPERPARAMETERS
+            ).value
+
+        else:
+            metadata = model.additional_details.get(RqsAdditionalDetails.METADATA)
+            params = json.loads(
+                self._extract_metadata(metadata, EvaluationMetadata.HYPERPARAMETERS)
+            )
+        return params
+
     def _fetch_runtime_params(self, resource, shape: str = None) -> AquaEvalParams:
-        """Extracts runtime parameters from metadata. Shape is the shape used in job run."""
-        metadata = resource.additional_details.get(RqsAdditionalDetails.METADATA)
-        params = json.loads(
-            self._extract_metadata(metadata, EvaluationMetadata.HYPERPARAMETERS)
-        )
-        # TODO: validate the format of parameters.
-        # self._validate_params(params)
-        return AquaEvalParams(
-            **params[EvaluationConfig.PARAMS],
-            **params[EvaluationConfig.CONFIG],
-            shape=shape,
-        )
+        """Extracts model parameters from metadata. Shape is the shape used in job run."""
+        try:
+            params = self._get_hyperparameters(resource)
+            # TODO: validate the format of parameters.
+            # self._validate_params(params)
+
+            return AquaEvalParams(
+                **params[EvaluationConfig.PARAMS],
+                shape=shape,
+            )
+        except Exception as e:
+            logger.debug(
+                f"Failed to retrieve model parameters for the model: {str(resource)}."
+                f"DEBUG INFO: {str(e)}."
+            )
+            return AquaEvalParams(shape=shape)
 
     def _extract_metadata(self, metadata_list: List[Dict], key: str) -> Any:
         for metadata in metadata_list:
@@ -406,36 +556,25 @@ class AquaEvaluationApp(AquaApp):
         logger.error(f"Missing target key: {key} in metadata {metadata_list}.")
         return ""
 
-    def _get_job_details(
+    def _build_job_identifier(
         self,
         job_run_details: Union[
             oci.data_science.models.JobRun, oci.resource_search.models.ResourceSummary
         ] = None,
-        evaluation_status: str = None,
-    ) -> dict:
+    ) -> AquaResourceIdentifier:
         try:
-            lifecycle_state = utils.LifecycleStatus.get_status(
-                evaluation_status, job_run_details.lifecycle_state
-            )
             job_id = (
                 job_run_details.id
                 if isinstance(job_run_details, oci.data_science.models.JobRun)
                 else job_run_details.identifier
             )
-            return dict(
-                lifecycle_state=lifecycle_state.value,
-                lifecycle_details=lifecycle_state.detail,
-                job=self._get_resource_identifier(
-                    id=job_id, name=job_run_details.display_name
-                ),
+            return self._build_resource_identifier(
+                id=job_id, name=job_run_details.display_name
             )
+
         except Exception as e:
             logger.debug(
                 f"Failed to get job details from job_run_details: {job_run_details}"
                 f"DEBUG INFO:{str(e)}"
             )
-            return dict(
-                lifecycle_state=utils.UNKNOWN,
-                lifecycle_details=utils.UNKNOWN,
-                job=AquaResourceIdentifier(),
-            )
+            return AquaResourceIdentifier()
