@@ -80,7 +80,7 @@ class AquaUIApp(AquaApp):
         ).data.__repr__()
 
     def list_compartments(self) -> str:
-        """Lists the compartments in a compartment specified by TENANCY_OCID env variable. This is a pass through the OCI list_compartments
+        """Lists the compartments in a tenancy specified by TENANCY_OCID env variable. This is a pass through the OCI list_compartments
         API.
 
         Returns
@@ -140,7 +140,10 @@ class AquaUIApp(AquaApp):
                     0,
                     Compartment(id=TENANCY_OCID, name=" ** Root - Name N/A **"),
                 )
+            # convert the string of the results flattened as a dict
             res = compartments.__repr__()
+
+            # cache compartment results
             self._compartments_cache.__setitem__(key=TENANCY_OCID, value=res)
 
             return res

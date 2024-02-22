@@ -408,6 +408,7 @@ class TestGenericModel:
             overwrite_existing_artifact=True,
             remove_existing_artifact=True,
             parallel_process_count=utils.DEFAULT_PARALLEL_PROCESS_COUNT,
+            model_by_reference=False,
         )
 
     @patch("ads.model.runtime.env_info.get_service_packs")
@@ -1505,6 +1506,7 @@ class TestGenericModel:
                     "region": None,
                     "version_label": None,
                     "model_version_set": None,
+                    "model_by_reference": False,
                 },
                 {
                     "wait_for_completion": True,
@@ -1596,6 +1598,7 @@ class TestGenericModel:
                     "model_version_set": None,
                     "version_label": None,
                     "region": None,
+                    "model_by_reference": False,
                 },
                 {
                     "wait_for_completion": True,
@@ -1691,6 +1694,7 @@ class TestGenericModel:
                     "model_version_set": None,
                     "version_label": None,
                     "region": None,
+                    "model_by_reference": False,
                 },
                 {
                     "wait_for_completion": True,
@@ -1796,6 +1800,7 @@ class TestGenericModel:
                     "model_version_set": None,
                     "version_label": None,
                     "region": None,
+                    "model_by_reference": False,
                 },
                 {
                     "wait_for_completion": True,
@@ -1869,6 +1874,7 @@ class TestGenericModel:
             "version_label": None,
             "model_version_set": None,
             "region": None,
+            "model_by_reference": False,
         }
         expected_deploy = {
             "wait_for_completion": True,
