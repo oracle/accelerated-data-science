@@ -43,7 +43,8 @@ class AquaEvalMetric(DataClassSerializable):
 
 @dataclass(repr=False)
 class AquaEvalMetrics(DataClassSerializable):
-    data: List[AquaEvalMetric] = field(default_factory=list)
+    id: str
+    metrics: List[AquaEvalMetric] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -60,14 +61,7 @@ class AquaEvaluationSummary(DataClassSerializable):
     experiment: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     source: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     job: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-
-
-@dataclass(repr=False)
-class AquaEvaluationDetails(AquaEvaluationSummary):
-    """Represents a detail of Aqua evalution."""
-
     parameters: AquaEvalParams = field(default_factory=AquaEvalParams)
-    metrics: AquaEvalMetrics = field(default_factory=AquaEvalMetrics)
 
 
 class RqsAdditionalDetails:
@@ -80,20 +74,13 @@ class RqsAdditionalDetails:
     VERSION_LABEL = "versionLabel"
 
 
-class EvaluationConfig:
-    PARAMS = "model_params"
-    CONFIG = "model_config"
-
-
 class EvaluationTags:
-    EVALUATION_JOB = "evaluation_job_id"
     AQUA_EVALUATION = "aqua_evaluation"
 
 
 class EvaluationMetadata:
     EVALUATION_SOURCE = "evaluation_source"
     HYPERPARAMETERS = "Hyperparameters"
-    ARTFACTTESTRESULTS = "ArtifactTestResults"
 
 
 class AquaEvaluationApp(AquaApp):
@@ -104,7 +91,7 @@ class AquaEvaluationApp(AquaApp):
 
     Methods
     -------
-    get(model_id: str) -> AquaModel:
+    get(model_id: str) -> AquaEvaluationSummary:
         Retrieves details of an Aqua evaluation by its unique identifier.
     list(compartment_id: str = None, project_id: str = None, **kwargs) -> List[AquaEvaluationSummary]:
         Lists all Aqua evaluation within a specified compartment and/or project.
@@ -115,7 +102,7 @@ class AquaEvaluationApp(AquaApp):
         with OCI services.
     """
 
-    def get(self, eval_id) -> AquaEvaluationDetails:
+    def get(self, eval_id) -> AquaEvaluationSummary:
         """Gets the information of an Aqua evalution.
 
         Parameters
@@ -125,8 +112,8 @@ class AquaEvaluationApp(AquaApp):
 
         Returns
         -------
-        AquaEvaluationDetails:
-            The instance of AquaEvaluationDetails.
+        AquaEvaluationSummary:
+            The instance of AquaEvaluationSummary.
         """
         logger.info(f"Fetching evaluation: {eval_id} details ...")
 
