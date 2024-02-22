@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import os
-import tempfile
+
 from dataclasses import dataclass
 from enum import Enum
 from typing import List, Union
@@ -24,10 +23,10 @@ from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
 from ads.config import (
-    COMPARTMENT_OCID, 
-    ODSC_MODEL_COMPARTMENT_OCID, 
-    PROJECT_OCID, 
-    TENANCY_OCID
+    COMPARTMENT_OCID,
+    ODSC_MODEL_COMPARTMENT_OCID,
+    PROJECT_OCID,
+    TENANCY_OCID,
 )
 from ads.model.datascience_model import DataScienceModel
 
@@ -75,7 +74,7 @@ class AquaModelApp(AquaApp):
 
     Methods
     -------
-    create(model_id: str, project_id: str, comparment_id: str = None, **kwargs) -> "AquaModel"
+    create(model_id: str, project_id: str, compartment_id: str = None, **kwargs) -> "AquaModel"
         Creates custom aqua model from service model.
     get(model_id: str) -> AquaModel:
         Retrieves details of an Aqua model by its unique identifier.
@@ -89,7 +88,7 @@ class AquaModelApp(AquaApp):
     """
 
     def create(
-        self, model_id: str, project_id: str, comparment_id: str = None, **kwargs
+        self, model_id: str, project_id: str, compartment_id: str = None, **kwargs
     ) -> DataScienceModel:
         """Creates custom aqua model from service model.
 
@@ -99,7 +98,7 @@ class AquaModelApp(AquaApp):
             The service model id.
         project_id: str
             The project id for custom model.
-        comparment_id: str
+        compartment_id: str
             The compartment id for custom model. Defaults to None.
             If not provided, compartment id will be fetched from environment variables.
 
@@ -108,41 +107,39 @@ class AquaModelApp(AquaApp):
         DataScienceModel:
             The instance of DataScienceModel.
         """
-        with tempfile.TemporaryDirectory() as temp_dir:
-            target_model = DataScienceModel.from_id(model_id)
-            target_compartment = comparment_id or COMPARTMENT_OCID
-            target_project = project_id or PROJECT_OCID
+        service_model = DataScienceModel.from_id(model_id)
+        target_project = project_id or PROJECT_OCID
+        target_compartment = compartment_id or COMPARTMENT_OCID
 
-            if target_model.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
-                logger.debug(
-                    f"Aqua Model {model_id} already exists in user's compartment."
-                    "Skipped copying."
-                )
-                return target_model
-
-            target_model.download_artifact(target_dir=temp_dir)
-            custom_model = (
-                DataScienceModel()
-                .with_compartment_id(target_compartment)
-                .with_project_id(target_project)
-                .with_artifact(temp_dir)
-                .with_display_name(target_model.display_name)
-                .with_description(target_model.description)
-                .with_freeform_tags(**(target_model.freeform_tags or {}))
-                .with_defined_tags(**(target_model.defined_tags or {}))
-                .with_model_version_set_id(target_model.model_version_set_id)
-                .with_version_label(target_model.version_label)
-                .with_custom_metadata_list(target_model.custom_metadata_list)
-                .with_defined_metadata_list(target_model.defined_metadata_list)
-                .with_provenance_metadata(target_model.provenance_metadata)
-                # TODO: decide what kwargs will be needed.
-                .create(**kwargs)
-            )
+        if service_model.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
             logger.debug(
-                f"Aqua Model {custom_model.id} created with the service model {model_id}"
+                f"Aqua Model {model_id} already exists in user's compartment."
+                "Skipped copying."
             )
+            return service_model
 
-            return custom_model
+        custom_model = (
+            DataScienceModel()
+            .with_compartment_id(target_compartment)
+            .with_project_id(target_project)
+            .with_model_file_description(json_dict=service_model.model_file_description)
+            .with_artifact(service_model.artifact)
+            .with_display_name(service_model.display_name)
+            .with_description(service_model.description)
+            .with_freeform_tags(**(service_model.freeform_tags or {}))
+            .with_defined_tags(**(service_model.defined_tags or {}))
+            .with_model_version_set_id(service_model.model_version_set_id)
+            .with_version_label(service_model.version_label)
+            .with_custom_metadata_list(service_model.custom_metadata_list)
+            .with_defined_metadata_list(service_model.defined_metadata_list)
+            .with_provenance_metadata(service_model.provenance_metadata)
+            # TODO: decide what kwargs will be needed.
+            .create(model_by_reference=True, **kwargs)
+        )
+        logger.debug(
+            f"Aqua Model {custom_model.id} created with the service model {model_id}"
+        )
+        return custom_model
 
     def get(self, model_id) -> "AquaModel":
         """Gets the information of an Aqua model.

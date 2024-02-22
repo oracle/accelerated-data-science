@@ -49,7 +49,7 @@ from ads.common.decorator.runtime_dependency import (
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_client import OCIClientFactory
 from ads.common.word_lists import adjectives, animals
-from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
+from ads.dataset.progress import TqdmProgressBar
 
 from . import auth as authutil
 
@@ -1548,7 +1548,7 @@ def batch_convert_case(spec: dict, to_fmt: str) -> Dict:
     else:
         converter = camel_to_snake
     for k, v in spec.items():
-        if k == "spec" or isinstance(v, dict):
+        if k == "spec":
             converted[converter(k)] = batch_convert_case(v, to_fmt)
         else:
             converted[converter(k)] = v
