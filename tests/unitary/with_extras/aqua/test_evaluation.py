@@ -248,7 +248,9 @@ class TestAquaModel(unittest.TestCase):
         response = self.app.list(TestDataset.COMPARTMENT_ID)
 
         utils.query_resources.assert_called_with(
-            compartment_id=TestDataset.COMPARTMENT_ID, resource_type="datasciencemodel"
+            compartment_id=TestDataset.COMPARTMENT_ID,
+            resource_type="datasciencemodel",
+            tag_list=["aqua_evaluation"],
         )
 
         calls = [

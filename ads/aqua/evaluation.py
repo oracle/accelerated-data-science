@@ -8,17 +8,14 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Union
 from urllib.parse import urlparse
 
-import fsspec
 import oci
 
 from ads.aqua import logger, utils
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaRuntimeError
 from ads.common import oci_client as oc
-from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
-from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID, TENANCY_OCID
 
 
 @dataclass(repr=False)
@@ -35,7 +32,6 @@ class AquaEvalParams(DataClassSerializable):
     top_p: str
     top_k: str
     temperature: str
-    gpu_memory: str
 
 
 @dataclass(repr=False)
@@ -91,6 +87,7 @@ class EvaluationConfig:
 
 class EvaluationTags:
     EVALUATION_JOB = "evaluation_job_id"
+    AQUA_EVALUATION = "aqua_evaluation"
 
 
 class EvaluationMetadata:
@@ -155,7 +152,7 @@ class AquaEvaluationApp(AquaApp):
                 evaluation_status=resource.lifecycle_state,
             ),
             parameters=self._fetch_runtime_params(resource, shape),
-            metrics=self._fetch_metrics(resource),
+            # metrics=self._fetch_metrics(resource),
         )
 
     def list(
@@ -179,7 +176,9 @@ class AquaEvaluationApp(AquaApp):
         """
         logger.info(f"Fetching evaluations from compartment {compartment_id}.")
         models = utils.query_resources(
-            compartment_id=compartment_id, resource_type="datasciencemodel"
+            compartment_id=compartment_id,
+            resource_type="datasciencemodel",
+            tag_list=[EvaluationTags.AQUA_EVALUATION],
         )
         logger.info(f"Fetched {len(models)} evaluations.")
 
@@ -199,8 +198,8 @@ class AquaEvaluationApp(AquaApp):
             )
         return evaluations
 
-    def load_params(self, model_id: str) -> dict:
-        """Loads default params from `evaluation_config.json` in model artifact.
+    def load_metrics(self, model_id: str) -> dict:
+        """Loads default model metrics.
 
         Parameters
         ----------
@@ -212,6 +211,7 @@ class AquaEvaluationApp(AquaApp):
         dict:
             A dictionary contains default model parameters.
         """
+        # TODO: add caching
         pass
         # # Mock response
         # response_file = f"{BUCKET_URI}/param.json"
@@ -233,6 +233,7 @@ class AquaEvaluationApp(AquaApp):
         dict:
             A dictionary contains json response.
         """
+        # TODO: add caching
         # Mock response
         os_uri = (
             "oci://license_checker@ociodscdev/evaluation/report/evaluation_report.html"
