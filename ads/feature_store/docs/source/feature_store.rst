@@ -28,10 +28,6 @@ The following example defines a Feature Store and gives it a name. A ``FeatureSt
             with_offline_config(
                 metastore_id=metastoreId
             )
-            with_online_config(
-                opensearch_id=opensearch_id,
-                redis_id=redis_id
-            )
     )
 
   .. code-tab:: Python3
