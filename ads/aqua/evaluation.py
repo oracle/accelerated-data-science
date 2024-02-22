@@ -32,14 +32,19 @@ class AquaEvalParams(DataClassSerializable):
     top_p: str
     top_k: str
     temperature: str
-    gpu_memory: str
 
 
 @dataclass(repr=False)
 class AquaEvalMetric(DataClassSerializable):
     name: str
-    description: str
-    value: dict
+    content: str
+    description: str = ""
+
+
+@dataclass(repr=False)
+class AquaEvalMetrics(DataClassSerializable):
+    id: str
+    metrics: List[AquaEvalMetric] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -56,14 +61,7 @@ class AquaEvaluationSummary(DataClassSerializable):
     experiment: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     source: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     job: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-
-
-@dataclass(repr=False)
-class AquaEvaluationDetails(AquaEvaluationSummary):
-    """Represents a detail of Aqua evalution."""
-
     parameters: AquaEvalParams = field(default_factory=AquaEvalParams)
-    metrics: List[dict] = field(default_factory=list)
 
 
 # TODO: Remove later
@@ -87,7 +85,35 @@ class AquaEvaluationApp(AquaApp):
         with OCI services.
     """
 
-    def get(self, eval_id) -> AquaEvaluationDetails:
+    def create(self):
+        return {
+            "id": "ocid1.datasciencemodel.<OCID>",
+            "name": "test_evaluation",
+            "console_url": "https://cloud.oracle.com/data-science/models/ocid1.datasciencemodel.<OCID>?region=us-ashburn-1",
+            "lifecycle_state": "ACCEPTED",
+            "lifecycle_details": "TODO",
+            "time_created": "2024-02-21 21:06:11.444000+00:00",
+            "experiment": {
+                "id": "ocid1.datasciencemodelversionset.<OCID>",
+                "name": "test_43210123456789012",
+                "console_url": "https://cloud.oracle.com/data-science/model-version-sets/ocid1.datasciencemodelversionset.<OCID>?region=us-ashburn-1",
+            },
+            "source": {
+                "id": "ocid1.datasciencemodel.<OCID>",
+                "name": "Mistral-7B-Instruct-v0.1-Fine-Tuned",
+                "console_url": "https://cloud.oracle.com/data-science/models/ocid1.datasciencemodel.<OCID>?region=us-ashburn-1",
+            },
+            "job": {
+                "id": "ocid1.datasciencejob.<OCID>",
+                "name": "test_evaluation",
+                "console_url": "https://cloud.oracle.com/data-science/jobs/ocid1.datasciencejob.<OCID>?region=us-ashburn-1",
+            },
+            "tags": {
+                "aqua_evaluation": "aqua_evaluation",
+            },
+        }
+
+    def get(self, eval_id) -> AquaEvaluationSummary:
         """Gets the information of an Aqua evalution.
 
         Parameters
@@ -97,15 +123,15 @@ class AquaEvaluationApp(AquaApp):
 
         Returns
         -------
-        AquaEvaluationDetails:
-            The instance of AquaEvaluationDetails.
+        AquaEvaluationSummary:
+            The instance of AquaEvaluationSummary.
         """
         # Mock response
         response_file = f"{BUCKET_URI}/get.json"
         logger.info(f"Loading mock response from {response_file}.")
         with fsspec.open(response_file, "r", **self._auth) as f:
             model = json.load(f)
-        return AquaEvaluationDetails(**model)
+        return AquaEvaluationSummary(**model)
 
     def list(
         self, compartment_id: str = None, project_id: str = None, **kwargs
@@ -137,20 +163,20 @@ class AquaEvaluationApp(AquaApp):
             evaluations.append(AquaEvaluationSummary(**model))
         return evaluations
 
-        # real implementation
-        # models = self._rqs_models(compartment_id)
-        # evaluations = []
-        # for model in models:
-        #     evaluations.append(AquaEvaluationSummary(**self._process(model)))
-        # return evaluations
+    def get_status(self, eval_id: str) -> dict:
+        return {
+            "id": eval_id,
+            "lifecycle_state": "ACTIVE",
+            "lifecycle_details": "This is explanation for lifecycle_state.",
+        }
 
-    def load_params(self, model_id: str) -> dict:
-        """Loads default params from `evaluation_config.json` in model artifact.
+    def load_metrics(self, eval_id: str) -> dict:
+        """Loads evalution metrics markdown from artifacts.
 
         Parameters
         ----------
-        model_id: str
-            The source model ocid. It can be modeldeplyment or model.
+        eval_id: str
+            The evaluation ocid.
 
         Returns
         -------
@@ -158,11 +184,13 @@ class AquaEvaluationApp(AquaApp):
             A dictionary contains default model parameters.
         """
         # Mock response
-        response_file = f"{BUCKET_URI}/param.json"
+        response_file = f"{BUCKET_URI}/metrics.json"
         logger.info(f"Loading mock response from {response_file}.")
         with fsspec.open(response_file, "r", **self._auth) as f:
-            default_params = json.load(f)
-        return default_params
+            metrics = json.load(f)
+        return AquaEvalMetrics(
+            id=eval_id, metrics=[AquaEvalMetric(**m) for m in metrics]
+        )
 
     def download_report(self, eval_id) -> dict:
         """Downloads HTML report from model artifact.
