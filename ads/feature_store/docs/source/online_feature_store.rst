@@ -1,7 +1,7 @@
 .. _Online Feature Store:
 
-Online feature store
-********************
+Online feature store (Experimental)
+***********************************
 
 Data Science Feature Store is designed to optimize the delivery of features at low latency by employing online stores. These features' values are retrieved from various data sources and seamlessly integrated into the online store through a process called materialization. This process can be initiated using the ``materialise`` function available within the ADS Feature Store framework.
 
