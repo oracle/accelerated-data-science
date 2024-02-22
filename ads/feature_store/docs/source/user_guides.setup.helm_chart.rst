@@ -1,6 +1,6 @@
-=============================
-Deployment using Helm Charts
-=============================
+=============================================
+[No AuthN/AuthZ] Deployment using Helm Charts
+=============================================
 
 This deployment method facilitates the implementation of a Helm chart onto an existing Oracle Kubernetes Engine (OKE) cluster. The following steps outline the process for deploying a Helm chart onto an OKE cluster.
 

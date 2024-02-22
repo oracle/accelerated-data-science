@@ -50,7 +50,7 @@ Release notes: February 5, 2024
 * [MAINTENANCE] Upgrade of ``oracle-ml-insights`` version to ``1.0.4``
 * [UI] Addition of drift detection tab in UI
 * [CONDA] Release of feature store v3 conda pack ``fspyspark32_p38_cpu_v3``
-* [DOCS] Addition of `examples <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/feature_store/tutorials/README.md>`_ to demonstrate Ci/Cd using ``ML Jobs`` and ``OCI DataFlow``
+* [DOCS] Addition of `examples <https://github.com/KshitizLohia/oci-data-science-ai-samples/blob/main/feature_store/tutorials/README.md>`_ to demonstrate Ci/Cd using ``ML Jobs`` and ``OCI DataFlow``
 
 1.0.4
 -----
