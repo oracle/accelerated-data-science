@@ -5,8 +5,6 @@ A dataset is a collection of features that are used together to train a model or
 
 .. image:: figures/dataset.png
 
-.. image:: figures/dataset.png
-
 Define
 ======
 
