@@ -1,6 +1,6 @@
-======================================================
-Deployment Using Feature Store Operator (Recommended for deploying in existing cluster)
-======================================================
+========================================
+Deployment Using Feature Store Operator
+========================================
 
 The Feature Store marketplace operator uses your current infrastructure to set up a Feature Store. It helps in setting up the Feature Store API server in your exisiting OKE cluster and MySQL database.
 
@@ -70,5 +70,5 @@ After the ``feature_store_marketplace.yaml`` is written using the init step abov
 AuthN/AuthZ Setup (Optional)
 _____________________________
 
-We can also setup `Feature Store API Gateway stack <https://github.com/KshitizLohia/oci-data-science-ai-samples/blob/main/feature_store/README.md>`_ to enable authentication and authorization for Feature Store. This will allow us to access the feature store securely from a public endpoint using OCI IAM.
+Users can also setup `Feature Store API Gateway stack <https://github.com/KshitizLohia/oci-data-science-ai-samples/blob/main/feature_store/README.md>`_ to enable authentication and authorization for Feature Store. This will allow us to access the feature store securely from a public endpoint using OCI IAM.
 
