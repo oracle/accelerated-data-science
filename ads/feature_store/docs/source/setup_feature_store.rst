@@ -102,3 +102,9 @@ The following environment variables are used by the API server:
    * - **MYSQL_DB_URL**
      - (Required) The JDBC URL to the MySQL Database
 
+.. toctree::
+  :maxdepth: 1
+
+  ./user_guides.setup.feature_store_operator
+  ./user_guides.setup.helm_chart
+  ./user_guides.setup.container
