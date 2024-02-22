@@ -228,6 +228,21 @@ class AquaDeploymentApp(AquaApp):
             if tag in aqua_model.freeform_tags:
                 tags[tag] = aqua_model.freeform_tags[tag]
 
+        # todo: move this from here to container
+        if not env_var:
+            env_var = dict()
+        if aqua_model.model_file_description:
+            model_path_prefix = aqua_model.model_file_description["models"][0][
+                "prefix"
+            ].rstrip("/")
+            env_var.update(
+                {"MODEL": f"/opt/ds/model/deployed_model/{model_path_prefix}"}
+            )
+        deployment_config = self.get_deployment_config(aqua_model.id)
+        if "environmentVariables" in deployment_config:
+            env_var.update(deployment_config["environmentVariables"])
+        logging.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
+
         # Start model deployment
         # configure model deployment infrastructure
         # todo : any other infrastructure params needed?
