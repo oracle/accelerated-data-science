@@ -18,12 +18,11 @@ from ads.aqua.utils import (
     DEPLOYMENT_CONFIG,
     UNKNOWN,
     UNKNOWN_JSON_STR,
+    MODEL_BY_REFERENCE_OSS_PATH_KEY,
     get_artifact_path,
     read_file,
 )
-from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
-from ads.config import AQUA_MODEL_DEPLOYMENT_IMAGE, COMPARTMENT_OCID
 from ads.common.auth import default_signer
 from ads.model.deployment import (
     ModelDeployment,
@@ -131,17 +130,25 @@ class AquaDeployment(DataClassSerializable):
 
 
 class AquaDeploymentApp(AquaApp):
-    """Contains APIs for Aqua deployments.
+    """Provides a suite of APIs to interact with Aqua model deployments within the Oracle
+    Cloud Infrastructure Data Science service, serving as an interface for deploying
+    machine learning models.
 
-    Attributes
-    ----------
 
     Methods
     -------
-    create(self, **kwargs) -> "AquaDeployment"
-        Creates an instance of model deployment via Aqua
-    list(self, ..., **kwargs) -> List["AquaDeployment"]
-        List existing model deployments created via Aqua
+    create(model_id: str, instance_shape: str, display_name: str,...) -> AquaDeployment
+        Creates a model deployment for Aqua Model.
+    get(model_deployment_id: str) -> AquaDeployment:
+        Retrieves details of an Aqua model deployment by its unique identifier.
+    list(**kwargs) -> List[AquaModelSummary]:
+        Lists all Aqua deployments within a specified compartment and/or project.
+
+    Note:
+        Use `ads aqua deployment <method_name> --help` to get more details on the parameters available.
+        This class is designed to work within the Oracle Cloud Infrastructure
+        and requires proper configuration and authentication set up to interact
+        with OCI services.
     """
 
     def create(
@@ -158,10 +165,9 @@ class AquaDeploymentApp(AquaApp):
         description: str = None,
         bandwidth_mbps: int = None,
         web_concurrency: int = None,
-        server_port: int = 5000,
-        health_check_port: int = 5000,
+        server_port: int = 8080,
+        health_check_port: int = 8080,
         env_var: Dict = None,
-        **kwargs,
     ) -> "AquaDeployment":
         """
         Creates a new Aqua deployment
@@ -194,9 +200,9 @@ class AquaDeploymentApp(AquaApp):
             The number of worker processes/threads to handle incoming requests
         with_bucket_uri(bucket_uri)
             Sets the bucket uri when uploading large size model.
-        server_port: (int). Defaults to 5000.
+        server_port: (int). Defaults to 8080.
             The server port for docker container image.
-        health_check_port: (int). Defaults to 5000.
+        health_check_port: (int). Defaults to 8080.
             The health check port for docker container image.
         env_var : dict, optional
             Environment variable for the deployment, by default None.
@@ -227,6 +233,31 @@ class AquaDeploymentApp(AquaApp):
         ]:
             if tag in aqua_model.freeform_tags:
                 tags[tag] = aqua_model.freeform_tags[tag]
+
+        # todo: temporary code, move this from here to container
+        if not env_var:
+            env_var = dict()
+        if aqua_model.model_file_description:
+            model_path_prefix = aqua_model.model_file_description["models"][0][
+                "prefix"
+            ].rstrip("/")
+            env_var.update(
+                {"MODEL": f"/opt/ds/model/deployed_model/{model_path_prefix}"}
+            )
+        try:
+            artifact_path = aqua_model.custom_metadata_list.get(
+                MODEL_BY_REFERENCE_OSS_PATH_KEY
+            ).value
+        except ValueError:
+            raise AquaValueError(
+                f"{MODEL_BY_REFERENCE_OSS_PATH_KEY} key is not available in the custom metadata field."
+            )
+
+        deployment_config = self._load_deployment_config(artifact_path, auth=self._auth)
+
+        if "environmentVariables" in deployment_config:
+            env_var.update(deployment_config["environmentVariables"])
+        logging.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
 
         # Start model deployment
         # configure model deployment infrastructure
@@ -383,19 +414,22 @@ class AquaDeploymentApp(AquaApp):
             raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
 
         artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+        deployment_config = self._load_deployment_config(artifact_path, auth=self._auth)
 
-        shape_config = json.loads(
-            read_file(file_path=f"{artifact_path}/{DEPLOYMENT_CONFIG}", auth=self._auth)
-            or UNKNOWN_JSON_STR
+        return deployment_config
+
+    @staticmethod
+    def _load_deployment_config(file_path: str, **kwargs) -> dict:
+        artifact_path = f"{file_path.rstrip('/')}/{DEPLOYMENT_CONFIG}"
+        deployment_config = json.loads(
+            read_file(file_path=artifact_path, **kwargs) or UNKNOWN_JSON_STR
         )
-
-        if not shape_config:
+        if not deployment_config:
             raise AquaError(
-                f"Deployment config file `deployment_config.json` is either empty or missing.",
+                f"Deployment config file `deployment_config.json` is either empty or missing at {artifact_path}",
                 500,
             )
-
-        return shape_config
+        return deployment_config
 
 
 @dataclass
