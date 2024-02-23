@@ -16,7 +16,6 @@ class AquaEvaluationHandler(AquaAPIhandler):
         """Handle GET request."""
         if not eval_id:
             return self.list()
-        print(self.xsrf_token)
         return self.read(eval_id)
 
     @handle_exceptions
