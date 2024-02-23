@@ -170,9 +170,11 @@ class AquaEvaluationApp(AquaApp):
                 "Please check if the OCID is correct."
             )
         jobrun_id = model_provenance.training_id
-        job_run_details = self._fetch_jobrun(resource, jobrun_id=jobrun_id)
+        job_run_details = self._fetch_jobrun(
+            resource, use_rqs=False, jobrun_id=jobrun_id
+        )
 
-        return AquaEvaluationSummary(
+        summary = AquaEvaluationSummary(
             **self._process(resource),
             **self._get_status(
                 resource.lifecycle_state, job_status=job_run_details.lifecycle_state
@@ -181,6 +183,10 @@ class AquaEvaluationApp(AquaApp):
                 job_run_details=job_run_details,
             ),
         )
+        summary.parameters.shape = (
+            job_run_details.job_infrastructure_configuration_details.shape_name
+        )
+        return summary
 
     def list(
         self, compartment_id: str = None, project_id: str = None, **kwargs
@@ -326,15 +332,16 @@ class AquaEvaluationApp(AquaApp):
     def _get_source(
         self,
         evaluation: oci.resource_search.models.ResourceSummary,
-        mapping: dict = None,
+        resources_mapping: dict = {},
     ) -> tuple:
         """Returns ocid and name of the model has been evaluated."""
         source_id = self._get_attribute_from_model_metadata(
             evaluation,
             EvaluationMetadata.EVALUATION_SOURCE,
         )
+
         try:
-            source = mapping.get(source_id)
+            source = resources_mapping.get(source_id)
             source_name = (
                 source.display_name
                 if source
@@ -342,6 +349,7 @@ class AquaEvaluationApp(AquaApp):
                     evaluation, EvaluationMetadata.EVALUATION_SOURCE_NAME
                 )
             )
+
             if not source_name:
                 resource_type = utils.get_resource_type(source_id)
 
@@ -375,7 +383,7 @@ class AquaEvaluationApp(AquaApp):
     def _process(
         self,
         model: oci.resource_search.models.ResourceSummary,
-        mapping: dict = None,
+        resources_mapping: dict = {},
     ) -> dict:
         """Constructs AquaEvaluationSummary from `oci.resource_search.models.ResourceSummary`."""
 
@@ -389,7 +397,7 @@ class AquaEvaluationApp(AquaApp):
             ocid=model_id,
             region=self.region,
         )
-        source_model_id, source_model_name = self._get_source(model, mapping)
+        source_model_id, source_model_name = self._get_source(model, resources_mapping)
         experiment_id, experiment_name = self._get_experiment_info(model)
         parameters = self._fetch_runtime_params(model)
 
@@ -444,7 +452,7 @@ class AquaEvaluationApp(AquaApp):
         job_run = mapping.get(jobrun_id)
 
         if not job_run:
-            job_run = self._fetch_jobrun(model, use_rqs=False, jobrun_id=jobrun_id)
+            job_run = self._fetch_jobrun(model, use_rqs=True, jobrun_id=jobrun_id)
         return job_run
 
     def _fetch_jobrun(

@@ -6,18 +6,30 @@
 
 import json
 import unittest
-from unittest.mock import MagicMock, call
+from dataclasses import asdict
+from unittest.mock import MagicMock
 
 import oci
 
 from ads.aqua import utils
-from ads.aqua.evaluation import AquaEvaluationApp
+from ads.aqua.evaluation import AquaEvaluationApp, AquaEvaluationSummary
 from ads.aqua.extension.base_handler import AquaAPIhandler
 
 null = None
 
 
 class TestDataset:
+    """Mock service response."""
+
+    model_provenance_object = {
+        "git_branch": null,
+        "git_commit": null,
+        "repository_url": null,
+        "script_dir": null,
+        "training_id": "ocid1.datasciencejobrun.oc1.iad.<OCID>",
+        "training_script": null,
+    }
+
     job_run_object = {
         "compartment_id": "ocid1.compartment.oc1..<OCID>",
         "created_by": "ocid1.datasciencenotebooksession.oc1.iad.<OCID>",
@@ -55,24 +67,6 @@ class TestDataset:
         "time_started": "2024-02-10T17:16:33.547000+00:00",
     }
 
-    resource_summary_object_md = [
-        {
-            "additional_details": {},
-            "availability_domain": null,
-            "compartment_id": "ocid1.compartment.oc1..<OCID>",
-            "defined_tags": {},
-            "display_name": "datasciencemodeldeployment_Mixtral-8x7B-v0.1_20240220",
-            "freeform_tags": {"OCI_AQUA": ""},
-            "identifier": "ocid1.datasciencemodeldeployment.oc1.iad.<OCID>",
-            "identity_context": {},
-            "lifecycle_state": "CREATING",
-            "resource_type": "DataScienceModelDeployment",
-            "search_context": null,
-            "system_tags": {},
-            "time_created": "2024-02-20T09:00:50.489000+00:00",
-        }
-    ]
-
     resource_summary_object_job = [
         {
             "additional_details": {},
@@ -108,6 +102,18 @@ class TestDataset:
                     },
                     {
                         "category": "other",
+                        "description": "The model that was evaluated.",
+                        "key": "evaluation_source_name",
+                        "value": "Model 1",
+                    },
+                    {
+                        "category": "other",
+                        "description": "The JOB OCID associated with the Evaluation MC entry.",
+                        "key": "evaluation_job_id",
+                        "value": "ocid1.datasciencejobrun.oc1.iad.<OCID>",
+                    },
+                    {
+                        "category": "other",
                         "description": "The OS path to store the result of the evaluation.",
                         "key": "evaluation_output_path",
                         "value": "oci://ming-dev@ociodscdev/output",
@@ -122,7 +128,7 @@ class TestDataset:
                         "category": null,
                         "description": null,
                         "key": "Hyperparameters",
-                        "value": '{"model_params": {"max_tokens": 100, "temperature": 100, "top_p": 1, "top_k": 1}, "model_config": {"gpu_memory": "0.9"}}',
+                        "value": '{"model_params": {"shape": "BM.A10.2", "max_tokens": 100, "temperature": 100, "top_p": 1, "top_k": 1}, "model_config": {"gpu_memory": "0.9"}}',
                     },
                     {
                         "category": null,
@@ -134,7 +140,7 @@ class TestDataset:
                         "category": null,
                         "description": null,
                         "key": "ArtifactTestResults",
-                        "value": '{"bert_score": {"precision": {"0.25": "0.345", "0.5": "0.3453", "0.75": "0.66553"}, "recall": {"0.25": "453", "0.5": "0.4345", "0.75": "0.53435"}, "f1": {"0.25": "453", "0.5": "0.4345", "0.75": "0.53435"}}}',
+                        "value": null,
                     },
                     {
                         "category": null,
@@ -160,7 +166,6 @@ class TestDataset:
             "display_name": "Eval2",
             "freeform_tags": {
                 "aqua_evaluation": "aqua_evaluation",
-                "evaluation_job_id": "ocid1.datasciencejobrun.oc1.iad.<OCID>",
             },
             "identifier": "ocid1.datasciencemodel.oc1.iad.<OCID>",
             "identity_context": {},
@@ -207,16 +212,34 @@ class TestAquaModel(unittest.TestCase):
                 **TestDataset.resource_summary_object_job[0]
             )
 
-    def assert_payload(self, response, method):
+    def print_expected_response(self, response, method):
+        """Used for manually check expected output."""
         print(f"############ Expected Response For {method} ############")
         if isinstance(response, list):
             response = {"data": response}
         response = json.loads(json.dumps(response, default=AquaAPIhandler.serialize))
         print(response)
 
+    def assert_payload(self, response):
+        """Checks each field is not empty."""
+        attributes = AquaEvaluationSummary.__annotations__.keys()
+        rdict = asdict(response)
+
+        for attr in attributes:
+            assert rdict.get(attr)
+
     def test_get(self):
         """Tests get evaluation details successfully."""
-
+        self.app.ds_client.get_model_provenance = MagicMock(
+            return_value=oci.response.Response(
+                status=200,
+                request=MagicMock(),
+                headers=MagicMock(),
+                data=oci.data_science.models.ModelProvenance(
+                    **TestDataset.model_provenance_object
+                ),
+            )
+        )
         self.app.ds_client.get_job_run = MagicMock(
             return_value=oci.response.Response(
                 status=200,
@@ -225,53 +248,32 @@ class TestAquaModel(unittest.TestCase):
                 data=oci.data_science.models.JobRun(**TestDataset.job_run_object),
             )
         )
+
         response = self.app.get(TestDataset.EVAL_ID)
-        calls = [
-            call(TestDataset.EVAL_ID),
-            call(
-                TestDataset.resource_summary_object_md[0].get("identifier"),
-                return_all=False,
-            ),
-        ]
-        utils.query_resource.assert_has_calls(calls)
+
+        utils.query_resource.assert_called_with(TestDataset.EVAL_ID)
 
         self.app.ds_client.get_job_run.assert_called_with(
-            TestDataset.resource_summary_object_eval[0]
-            .get("freeform_tags")
-            .get("evaluation_job_id")
+            TestDataset.model_provenance_object.get("training_id")
         )
-        self.assert_payload(response, "GET EVALUATION")
+        self.print_expected_response(response, "GET EVALUATION")
+        self.assert_payload(response)
 
     def test_list(self):
         """Tests list evaluations successfully."""
-
+        self.app._prefetch_resources = MagicMock(return_value={})
         response = self.app.list(TestDataset.COMPARTMENT_ID)
-
         utils.query_resources.assert_called_with(
             compartment_id=TestDataset.COMPARTMENT_ID,
             resource_type="datasciencemodel",
             tag_list=["aqua_evaluation"],
         )
 
-        calls = [
-            call(
-                TestDataset.resource_summary_object_eval[0]
-                .get("freeform_tags")
-                .get("evaluation_job_id"),
-                return_all=False,
-            ),
-            call(
-                TestDataset.resource_summary_object_md[0].get("identifier"),
-                return_all=False,
-            ),
-        ]
-        utils.query_resource.assert_has_calls(calls)
+        utils.query_resource.assert_called_with(
+            TestDataset.resource_summary_object_job[0].get("identifier"),
+            return_all=False,
+        )
 
         assert len(response) == 1
-        self.assert_payload(response, "LIST EVALUATIONS")
-
-    def test_missing_tags(self):
-        pass
-
-    def test_missing_metadata(self):
-        pass
+        self.print_expected_response(response, "LIST EVALUATIONS")
+        self.assert_payload(response[0])
