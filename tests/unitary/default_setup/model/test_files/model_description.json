@@ -1,0 +1,23 @@
+{
+  "models": [
+    {
+      "bucketName": "test_bucket",
+      "namespace": "test_namespace",
+      "objects": [
+        {
+          "name": "score.py",
+          "sizeInBytes": 45,
+          "version": "12a039ww-l1n4-32d4-o223c-24pf07pq299w"
+        },
+        {
+          "name": "runtime.yaml",
+          "sizeInBytes": 21,
+          "version": "940873c7-f91b-4431-a6e2-db9f07f97975"
+        }
+      ],
+      "prefix": "model_artifacts"
+    }
+  ],
+  "type": "modelOSSReferenceDescription",
+  "version": "1.0"
+}

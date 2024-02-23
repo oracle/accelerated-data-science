@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import datetime
@@ -214,6 +214,7 @@ class TestDataScienceModel:
     @patch.object(DataScienceModel, "_load_default_properties", return_value={})
     def test__init__(self, mock_load_default_properties):
         dsc_model = DataScienceModel(**self.payload)
+        print(dsc_model.to_dict()["spec"])
         assert self.prepare_dict(dsc_model.to_dict()["spec"]) == self.prepare_dict(
             self.payload
         )
@@ -381,6 +382,7 @@ class TestDataScienceModel:
             auth=None,
             timeout=None,
             parallel_process_count=3,
+            model_by_reference=False,
         )
         mock_sync.assert_called()
         assert self.prepare_dict(result.to_dict()["spec"]) == self.prepare_dict(
@@ -478,10 +480,14 @@ class TestDataScienceModel:
                 self.mock_dsc_model._to_oci_dsc_model(display_name="new_name").to_dict()
             )
 
+    @patch.object(OCIDataScienceModel, "is_model_by_reference")
     @patch.object(OCIDataScienceModel, "get_artifact_info")
     @patch.object(OCIDataScienceModel, "get_model_provenance")
     def test__update_from_oci_dsc_model(
-        self, mock_get_model_provenance, mock_get_artifact_info
+        self,
+        mock_get_model_provenance,
+        mock_get_artifact_info,
+        mock_is_model_by_reference,
     ):
         """Tests updating the properties from an OCIDataScienceModel object."""
         oci_model_payload = {
@@ -582,6 +588,7 @@ class TestDataScienceModel:
             mock_model_provenance = ModelProvenance(**OCI_MODEL_PROVENANCE_PAYLOAD)
             mock_get_model_provenance.return_value = mock_model_provenance
             mock_get_artifact_info.return_value = ARTIFACT_HEADER_INFO
+            mock_is_model_by_reference.return_value = False
             self.mock_dsc_model._update_from_oci_dsc_model(mock_oci_dsc_model)
             assert self.prepare_dict(
                 self.mock_dsc_model.to_dict()["spec"]
@@ -686,6 +693,7 @@ class TestDataScienceModel:
                     bucket_uri="test_bucket_uri",
                     overwrite_existing_artifact=False,
                     remove_existing_artifact=False,
+                    model_file_description=None,
                 )
                 mock_download.assert_called()
 
@@ -712,3 +720,50 @@ class TestDataScienceModel:
                 )
                 assert self.mock_dsc_model.dsc_model.__class__.kwargs == {"timeout": 2}
                 mock_download.assert_called()
+
+    def test_bucket_not_versioned_error(self):
+        # todo: for model passed by reference, check if bucket is not versioned.
+        pass
+
+    def test_setup_model_file_description_property(self):
+        # todo: read the json file, json_string and json_uri and load the
+        #  model_file_description property
+        pass
+
+    def test_invalidate_model_file_description_json_schema(self):
+        # todo: read the json file, json_string and json_uri and load the
+        #  model_file_description property
+        pass
+
+    def test_create_model_by_reference(self):
+        # todo: create model passed by reference, check custom metadata and
+        #  test whether upload artifact args have model_by_reference set as True
+        pass
+
+    def test_upload_artifact_for_model_created_by_reference(self):
+        # todo: for model passed by reference, check bucket, call small  artifact uploader
+        #  and remove temp artifact
+        pass
+
+    def test_download_artifact_for_model_created_by_reference(self):
+        # todo: check if model is passed by reference using custom metadata, then download
+        #  json file and get artifact info and size
+        pass
+
+    def test_load_model_created_by_reference_by_id(self):
+        # todo: if model created by reference, then check file extension and if json file is
+        #  available then read artifact to get bucket location and populate model_file_description
+        pass
+
+    def test_validate_prepare_file_description_artifact(self):
+        # todo: get model description content abd set artifact path
+        pass
+
+    def test_prepare_file_description_artifact(self):
+        # todo: read list from objects from artifact location and return content of json as dict
+        pass
+
+    def test_download_file_description_artifact(self):
+        # todo: Loads the json file from model artifact, updates the
+        #  model file description property, and returns the bucket uri and artifact size details.
+        pass

@@ -38,6 +38,8 @@ MODEL_NEEDS_TO_BE_SAVED = (
     "Model needs to be saved to the Model Catalog before it can be accessed."
 )
 
+MODEL_BY_REFERENCE_DESC = "modelDescription"
+
 
 class ModelProvenanceNotFoundError(Exception):  # pragma: no cover
     pass
@@ -304,18 +306,25 @@ class OCIDataScienceModel(
     @check_for_model_id(
         msg="Model needs to be saved to the Model Catalog before the artifact can be created."
     )
-    def create_model_artifact(self, bytes_content: BytesIO) -> None:
+    def create_model_artifact(
+        self,
+        bytes_content: BytesIO,
+        extension: str = None,
+    ) -> None:
         """Creates model artifact for specified model.
 
         Parameters
         ----------
         bytes_content: BytesIO
             Model artifacts to upload.
+        extension: str
+            File extension, defaults to zip
         """
+        ext = ".json" if extension and extension.lower() == ".json" else ".zip"
         self.client.create_model_artifact(
             self.id,
             bytes_content,
-            content_disposition=f'attachment; filename="{self.id}.zip"',
+            content_disposition=f'attachment; filename="{self.id}{ext}"',
         )
 
     @check_for_model_id(
@@ -539,3 +548,19 @@ class OCIDataScienceModel(
         if not ocid:
             raise ValueError("Model OCID not provided.")
         return super().from_ocid(ocid)
+
+    def is_model_by_reference(self):
+        """Checks if model is created by reference
+        Returns
+        -------
+            bool flag denoting whether model was created by reference.
+
+        """
+        if self.custom_metadata_list:
+            for metadata in self.custom_metadata_list:
+                if (
+                    metadata.key == MODEL_BY_REFERENCE_DESC
+                    and metadata.value.lower() == "true"
+                ):
+                    return True
+        return False

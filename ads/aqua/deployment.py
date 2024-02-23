@@ -11,7 +11,6 @@ from typing import Dict, List, Union
 import requests
 from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 
-from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaError, AquaRuntimeError, AquaValueError
 from ads.aqua.model import AquaModelApp, Tags
@@ -32,6 +31,8 @@ from ads.model.deployment import (
     ModelDeploymentInfrastructure,
     ModelDeploymentMode,
 )
+from ads.common.serializer import DataClassSerializable
+from ads.config import COMPARTMENT_OCID, AQUA_MODEL_DEPLOYMENT_IMAGE
 
 
 @dataclass
@@ -146,14 +147,14 @@ class AquaDeploymentApp(AquaApp):
     def create(
         self,
         model_id: str,
-        compartment_id: str,
-        instance_count: int,
         instance_shape: str,
-        log_group_id: str,
-        access_log_id: str,
-        predict_log_id: str,
+        display_name: str,
+        instance_count: int = None,
+        log_group_id: str = None,
+        access_log_id: str = None,
+        predict_log_id: str = None,
+        compartment_id: str = None,
         project_id: str = None,
-        display_name: str = None,
         description: str = None,
         bandwidth_mbps: int = None,
         web_concurrency: int = None,
@@ -217,14 +218,6 @@ class AquaDeploymentApp(AquaApp):
         aqua_model = AquaModelApp().create(
             model_id=model_id, comparment_id=compartment_id, project_id=project_id
         )
-        logging.debug(
-            f"Aqua Model {aqua_model.id} created with the service model {model_id}"
-        )
-        logging.debug(aqua_model)
-
-        # todo: remove entrypoint, this will go in the image. For now, added for testing
-        #  the image iad.ocir.io/ociodscdev/aqua_deploy:1.0.0
-        entrypoint = ["python", "/opt/api/api.py"]
 
         tags = {}
         for tag in [
@@ -232,8 +225,8 @@ class AquaDeploymentApp(AquaApp):
             Tags.AQUA_FINE_TUNED_MODEL_TAG.value,
             Tags.AQUA_TAG.value,
         ]:
-            if tag in aqua_model.tags:
-                tags[tag] = aqua_model.tags[tag]
+            if tag in aqua_model.freeform_tags:
+                tags[tag] = aqua_model.freeform_tags[tag]
 
         # Start model deployment
         # configure model deployment infrastructure
@@ -260,7 +253,6 @@ class AquaDeploymentApp(AquaApp):
         container_runtime = (
             ModelDeploymentContainerRuntime()
             .with_image(AQUA_MODEL_DEPLOYMENT_IMAGE)
-            .with_entrypoint(entrypoint)
             .with_server_port(server_port)
             .with_health_check_port(health_check_port)
             .with_env(env_var)
@@ -376,12 +368,7 @@ class AquaDeploymentApp(AquaApp):
         Dict:
             A dict of allowed deployment configs.
         """
-        try:
-            oci_model = self.ds_client.get_model(model_id).data
-        except Exception as ex:
-            # TODO: adjust error raising
-            logger.error(f"Failed to retreive model from the given id {model_id}")
-            raise ex
+        oci_model = self.ds_client.get_model(model_id).data
 
         oci_aqua = (
             (
@@ -403,8 +390,10 @@ class AquaDeploymentApp(AquaApp):
         )
 
         if not shape_config:
-            # TODO: adjust the error raising
-            raise AquaError(f"Missing shape_config.", 500)
+            raise AquaError(
+                f"Deployment config file `deployment_config.json` is either empty or missing.",
+                500,
+            )
 
         return shape_config
 
@@ -422,52 +411,56 @@ class ModelParams:
 class MDInferenceResponse(AquaApp):
     """Contains APIs for Aqua Model deployments Inference.
 
-        Attributes
-        ----------
+    Attributes
+    ----------
 
-        model_params: Dict
-        prompt: string
+    model_params: Dict
+    prompt: string
 
-        Methods
-        -------
-        get_model_deployment_response(self, **kwargs) -> "String"
-            Creates an instance of model deployment via Aqua
-        """
+    Methods
+    -------
+    get_model_deployment_response(self, **kwargs) -> "String"
+        Creates an instance of model deployment via Aqua
+    """
 
-    prompt:str = None
+    prompt: str = None
     model_params: field(default_factory=ModelParams) = None
 
     def get_model_deployment_response(self, endpoint):
         """
-            Returns MD inference response
+        Returns MD inference response
 
-            Parameters
-            ----------
-            endpoint: str
-                MD predict url
-            prompt: str
-                User prompt.
+        Parameters
+        ----------
+        endpoint: str
+            MD predict url
+        prompt: str
+            User prompt.
 
-            model_params: (Dict, optional)
-                Model parameters to be associated with the message.
-                Currently supported VLLM+OpenAI parameters.
+        model_params: (Dict, optional)
+            Model parameters to be associated with the message.
+            Currently supported VLLM+OpenAI parameters.
 
-                --model-params '{
-                    "max_tokens":500,
-                    "temperature": 0.5,
-                    "top_k": 10,
-                    "top_p": 0.5,
-                    "model": "/opt/ds/model/deployed_model",
-                    ...}'
+            --model-params '{
+                "max_tokens":500,
+                "temperature": 0.5,
+                "top_k": 10,
+                "top_p": 0.5,
+                "model": "/opt/ds/model/deployed_model",
+                ...}'
 
-            Returns
-            -------
-            model_response_content
-            """
+        Returns
+        -------
+        model_response_content
+        """
 
         params_dict = asdict(self.model_params)
-        params_dict = {key: value for key, value in params_dict.items() if value is not None}
-        body = {"prompt": self.prompt,**params_dict}
+        params_dict = {
+            key: value for key, value in params_dict.items() if value is not None
+        }
+        body = {"prompt": self.prompt, **params_dict}
         request_kwargs = {"json": body, "headers": {"Content-Type": "application/json"}}
-        response = requests.post(endpoint, auth=default_signer()["signer"], **request_kwargs)
+        response = requests.post(
+            endpoint, auth=default_signer()["signer"], **request_kwargs
+        )
         return json.loads(response.content)
