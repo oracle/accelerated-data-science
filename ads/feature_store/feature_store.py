@@ -127,7 +127,8 @@ class FeatureStore(Builder):
         fs_spec.update(**kwargs)
         return OCIFeatureStore(**fs_spec)
 
-    def spark_engine(self):
+    @property
+    def spark_engine(self) -> SparkEngine:
         if not self._spark_engine:
             self._spark_engine = SparkEngine(
                 self.offline_config.get(self.CONST_METASTORE_ID)
@@ -717,7 +718,7 @@ class FeatureStore(Builder):
                 "Cannot query a FeatureStore resource that has not been created or saved."
             )
 
-        return self._spark_engine.sql(query, dataframe_type, is_online)
+        return self.spark_engine.sql(query, dataframe_type, is_online)
 
     def _random_display_name(self):
         """Generates a random display name."""
