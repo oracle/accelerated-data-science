@@ -100,7 +100,7 @@ class AquaEvaluationConfigHandler(AquaAPIhandler):
     """Handler for Aqua Evaluation Config REST APIs."""
 
     @handle_exceptions
-    def get(self, model_id=""):
+    def get(self, model_id):
         """Handle GET request."""
 
         return self.finish(AquaEvaluationApp().load_evaluation_config(model_id))
