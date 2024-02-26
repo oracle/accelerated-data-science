@@ -4,15 +4,24 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import base64
 import json
+import os
 import tempfile
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from threading import Lock
 from typing import Any, Dict, List, Union
+from zipfile import ZipFile
 
 import oci
+from cachetools import TTLCache
 
 from ads.aqua import logger, utils
 from ads.aqua.base import AquaApp
-from ads.aqua.exception import AquaMissingKeyError, AquaRuntimeError
+from ads.aqua.exception import (
+    AquaFileNotFoundError,
+    AquaMissingKeyError,
+    AquaRuntimeError,
+)
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link, get_files
 from ads.model.datascience_model import DataScienceModel
@@ -23,6 +32,12 @@ class AquaResourceIdentifier(DataClassSerializable):
     id: str = ""
     name: str = ""
     console_url: str = ""
+
+
+@dataclass(repr=False)
+class AquaEvalReport(DataClassSerializable):
+    evaluation_id: str = ""
+    content: str = ""
 
 
 @dataclass(repr=False)
@@ -113,6 +128,9 @@ class AquaEvaluationApp(AquaApp):
         and requires proper configuration and authentication set up to interact
         with OCI services.
     """
+
+    _report_cache = TTLCache(maxsize=10, ttl=timedelta(hours=5), timer=datetime.now)
+    _cache_lock = Lock()
 
     def create(self):
         return {
@@ -277,7 +295,7 @@ class AquaEvaluationApp(AquaApp):
                     )
         return AquaEvalMetrics(id=eval_id, metrics=metrics)
 
-    def download_report(self, eval_id) -> dict:
+    def download_report(self, eval_id) -> AquaEvalReport:
         """Downloads HTML report from model artifact.
 
         Parameters
@@ -287,22 +305,52 @@ class AquaEvaluationApp(AquaApp):
 
         Returns
         -------
-        dict:
-            A dictionary contains json response.
+        AquaEvalReport:
+            An instance of AquaEvalReport.
         """
-        # WIP
-        # TODO: add caching
+        if eval_id in self._report_cache.keys():
+            logger.info(f"Returning report from cache.")
+            report = self._report_cache.get(eval_id)
+            if report.content:
+                return report
+
         with tempfile.TemporaryDirectory() as temp_dir:
             DataScienceModel.from_id(eval_id).download_artifact(
                 temp_dir,
                 auth=self._auth,
             )
+            report_zip_name = ""
             for file in get_files(temp_dir):
-                if file == "report.zip":
+                # report will be a zip archive in model artifact
+                if file.endswith(".zip"):
+                    zip_file_path = os.path.join(temp_dir, file)
                     with ZipFile(zip_file_path) as zip_file:
-                        zip_file.extractall(self.target_dir)
+                        zip_file.extractall(temp_dir)
+                    report_zip_name = file
+                    break
 
-        return dict(evaluation_id=eval_id, content=base64.b64encode(content).decode())
+            try:
+                report_path = os.path.join(temp_dir, utils.EVALUATION_REPORT)
+                with open(report_path, "rb") as f:
+                    content = f.read()
+            except FileNotFoundError as e:
+                error_msg = "Related Resource Not Authorized Or Not Found:" + (
+                    (
+                        f"Found report zip in evaluation artifact: `{report_zip_name}`."
+                        f"Expected zip name is `{utils.EVALUATION_REPORT_ZIP}`."
+                    )
+                    if report_zip_name
+                    else f"Missing `{utils.EVALUATION_REPORT_ZIP}` in evaluation artifact."
+                )
+                raise AquaFileNotFoundError(error_msg)
+
+        report = AquaEvalReport(
+            evaluation_id=eval_id, content=base64.b64encode(content).decode()
+        )
+
+        self._report_cache.__setitem__(key=eval_id, value=report)
+
+        return report
 
     def _get_attribute_from_model_metadata(
         self,
