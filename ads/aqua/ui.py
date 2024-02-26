@@ -9,6 +9,7 @@ from oci.identity.models import Compartment
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaValueError
+from ads.common import oci_client as oc
 from ads.config import COMPARTMENT_OCID, TENANCY_OCID
 
 
@@ -184,13 +185,18 @@ class AquaUIApp(AquaApp):
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         logger.info(f"Loading buckets summary from compartment: {compartment_id}")
 
-        # TODO: extract namespace_name
-        return self.os_client.list_buckets(
-            namespace_name="ociodscdev", compartment_id=compartment_id, **kwargs
+        os_client = oc.OCIClientFactory(**self._auth).object_storage
+        namespace_name = os_client.get_namespace(compartment_id=compartment_id).data
+        logger.info(f"Object Storage namespace is `{namespace_name}`.")
+
+        return os_client.list_buckets(
+            namespace_name=namespace_name,
+            compartment_id=compartment_id,
+            **kwargs,
         ).data.__repr__()
 
     def list_job_shapes(self, **kwargs) -> list:
-        """Lists all buckets for the specified compartment.
+        """Lists all availiable job shapes for the specified compartment.
 
         Parameters
         ----------
@@ -204,7 +210,6 @@ class AquaUIApp(AquaApp):
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         logger.info(f"Loading job shape summary from compartment: {compartment_id}")
 
-        # TODO: extract namespace_name
         return self.ds_client.list_job_shapes(
             compartment_id=compartment_id, **kwargs
         ).data.__repr__()

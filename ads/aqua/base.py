@@ -23,7 +23,6 @@ class AquaApp:
         self.ds_client = oc.OCIClientFactory(**self._auth).data_science
         self.logging_client = oc.OCIClientFactory(**self._auth).logging_management
         self.identity_client = oc.OCIClientFactory(**self._auth).identity
-        self.os_client = oc.OCIClientFactory(**self._auth).object_storage
         self.region = extract_region(self._auth)
 
     def list_resource(
