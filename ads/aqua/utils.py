@@ -25,6 +25,7 @@ UNKNOWN = ""
 README = "README.md"
 UNKNOWN_JSON_STR = "{}"
 SUPPORTED_FILE_FORMATS = ["jsonl"]
+MODEL_BY_REFERENCE_OSS_PATH_KEY = "Object Storage Path"
 
 
 def get_logger():
@@ -100,7 +101,7 @@ def get_artifact_path(custom_metadata_list: List) -> str:
         The artifact path from model.
     """
     for custom_metadata in custom_metadata_list:
-        if custom_metadata.key == "Object Storage Path":
+        if custom_metadata.key == MODEL_BY_REFERENCE_OSS_PATH_KEY:
             return custom_metadata.value
     logger.debug("Failed to get artifact path from custom metadata.")
     return UNKNOWN
