@@ -103,7 +103,7 @@ class FeatureStore(Builder):
         """
         super().__init__(spec=spec, **deepcopy(kwargs))
         # Specify oci FeatureStore instance
-        self.spark_engine = None
+        self._spark_engine = None
         self.oci_transformation = None
         self.oci_fs_entity = None
         self.oci_fs = self._to_oci_fs(**kwargs)
@@ -126,6 +126,15 @@ class FeatureStore(Builder):
             fs_spec[dsc_attr] = value
         fs_spec.update(**kwargs)
         return OCIFeatureStore(**fs_spec)
+
+    def spark_engine(self):
+        if not self._spark_engine:
+            self._spark_engine = SparkEngine(
+                self.offline_config.get(self.CONST_METASTORE_ID)
+                if self.offline_config
+                else None
+            )
+        return self._spark_engine
 
     @property
     def kind(self) -> str:
@@ -160,8 +169,8 @@ class FeatureStore(Builder):
         return self.get_spec(self.CONST_NAME)
 
     @name.setter
-    def name(self, name: str) -> "FeatureStore":
-        return self.with_name(name)
+    def name(self, name: str):
+        self.with_name(name)
 
     def with_name(self, name: str) -> "FeatureStore":
         """Sets the name.
@@ -708,14 +717,7 @@ class FeatureStore(Builder):
                 "Cannot query a FeatureStore resource that has not been created or saved."
             )
 
-        if not self.spark_engine:
-            self.spark_engine = SparkEngine(
-                self.offline_config.get(self.CONST_METASTORE_ID)
-                if self.offline_config
-                else None
-            )
-
-        return self.spark_engine.sql(query, dataframe_type, is_online)
+        return self._spark_engine.sql(query, dataframe_type, is_online)
 
     def _random_display_name(self):
         """Generates a random display name."""
