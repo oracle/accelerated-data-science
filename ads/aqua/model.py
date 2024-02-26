@@ -222,35 +222,6 @@ class AquaModelApp(AquaApp):
 
         return aqua_models
 
-    def load_evaluation_config(self, model_id: str) -> dict:
-        """Loads `evaluation_config.json` stored in artifact."""
-        # TODO: Implementation
-        logger.info(f"Loading evaluation config for model: {model_id}")
-        return {
-            "model_params": {
-                "max_tokens": 2048,
-                "temperature": 100,
-                "top_p": 1,
-                "top_k": 1,
-            },
-            "shape": {
-                "BM.A10.2": {
-                    "count": 1,
-                    "gpu_memory": 0.8,
-                    "tensor_parallel": 1,
-                    "enforce_eager": 3,
-                    "max_model_len": 2048,
-                },
-                "VM.A10.2": {
-                    "count": 1,
-                    "gpu_memory": 0.8,
-                    "tensor_parallel": 1,
-                    "enforce_eager": 3,
-                    "max_model_len": 2048,
-                },
-            },
-        }
-
     def _process_model(
         self, model: Union["ModelSummary", "Model", "ResourceSummary"], region: str
     ) -> dict:
