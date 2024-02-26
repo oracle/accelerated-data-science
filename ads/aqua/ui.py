@@ -9,6 +9,7 @@ from oci.identity.models import Compartment
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaValueError
+from ads.common import oci_client as oc
 from ads.config import COMPARTMENT_OCID, TENANCY_OCID
 
 
@@ -160,11 +161,55 @@ class AquaUIApp(AquaApp):
 
         Returns
         -------
-            str has json representation of oci.logging.models.log_group.LogGroup
+            str has json representation of `oci.data_science.models.ModelVersionSetSummary`.
         """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         logger.info(f"Loading experiments from compartment: {compartment_id}")
 
         return self.ds_client.list_model_version_sets(
+            compartment_id=compartment_id, **kwargs
+        ).data.__repr__()
+
+    def list_buckets(self, **kwargs) -> list:
+        """Lists all buckets for the specified compartment.
+
+        Parameters
+        ----------
+        **kwargs
+            Addtional arguments, such as `compartment_id`,
+            for `list_buckets <https://docs.oracle.com/en-us/iaas/tools/python/2.122.0/api/object_storage/client/oci.object_storage.ObjectStorageClient.html?highlight=list%20bucket#oci.object_storage.ObjectStorageClient.list_buckets>`_
+
+        Returns
+        -------
+            str has json representation of `oci.object_storage.models.BucketSummary`."""
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        logger.info(f"Loading buckets summary from compartment: {compartment_id}")
+
+        os_client = oc.OCIClientFactory(**self._auth).object_storage
+        namespace_name = os_client.get_namespace(compartment_id=compartment_id).data
+        logger.info(f"Object Storage namespace is `{namespace_name}`.")
+
+        return os_client.list_buckets(
+            namespace_name=namespace_name,
+            compartment_id=compartment_id,
+            **kwargs,
+        ).data.__repr__()
+
+    def list_job_shapes(self, **kwargs) -> list:
+        """Lists all availiable job shapes for the specified compartment.
+
+        Parameters
+        ----------
+        **kwargs
+            Addtional arguments, such as `compartment_id`,
+            for `list_job_shapes <https://docs.oracle.com/en-us/iaas/tools/python/2.122.0/api/data_science/client/oci.data_science.DataScienceClient.html#oci.data_science.DataScienceClient.list_job_shapes>`_
+
+        Returns
+        -------
+            str has json representation of `oci.data_science.models.JobShapeSummary`."""
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        logger.info(f"Loading job shape summary from compartment: {compartment_id}")
+
+        return self.ds_client.list_job_shapes(
             compartment_id=compartment_id, **kwargs
         ).data.__repr__()
