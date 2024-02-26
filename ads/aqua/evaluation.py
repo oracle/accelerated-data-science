@@ -219,6 +219,19 @@ class AquaEvaluationApp(AquaApp):
         content = res.data.raw.read()
         return dict(evaluation_id=eval_id, content=base64.b64encode(content).decode())
 
+    def get_supported_metrics(self) -> list:
+        """Lists supported metrics."""
+
+        # TODO: implementation
+        return [
+            {
+                "use_case": ["one", "two", "three"],
+                "name": "bert_score",
+                "description": "BERTScore computes the semantic similarity between two pieces of text using BERT embeddings.",
+                "args": {},
+            },
+        ]
+
     def _upload_data(self, src_uri, dst_uri):
         """Uploads data file from notebook session to object storage."""
         # This method will be called in create()

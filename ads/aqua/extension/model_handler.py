@@ -33,4 +33,17 @@ class AquaModelHandler(AquaAPIhandler):
         return self.finish(AquaModelApp().list(compartment_id, project_id))
 
 
-__handlers__ = [("model/?([^/]*)", AquaModelHandler)]
+class AquaModelConfigHandler(AquaAPIhandler):
+    """Handler for Aqua Model Config REST APIs."""
+
+    @handle_exceptions
+    def get(self, model_id=""):
+        """Handle GET request."""
+
+        return self.finish(AquaModelApp().load_evaluation_config(model_id))
+
+
+__handlers__ = [
+    ("model/?([^/]*)", AquaModelHandler),
+    ("model/config/?([^/]*)", AquaModelConfigHandler),
+]

@@ -6,11 +6,11 @@
 
 import oci
 
+from ads import set_auth
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import extract_region
-from ads.config import OCI_RESOURCE_PRINCIPAL_VERSION, OCI_ODSC_SERVICE_ENDPOINT
-from ads import set_auth
+from ads.config import OCI_ODSC_SERVICE_ENDPOINT, OCI_RESOURCE_PRINCIPAL_VERSION
 
 
 class AquaApp:
@@ -23,6 +23,7 @@ class AquaApp:
         self.ds_client = oc.OCIClientFactory(**self._auth).data_science
         self.logging_client = oc.OCIClientFactory(**self._auth).logging_management
         self.identity_client = oc.OCIClientFactory(**self._auth).identity
+        self.os_client = oc.OCIClientFactory(**self._auth).object_storage
         self.region = extract_region(self._auth)
 
     def list_resource(
