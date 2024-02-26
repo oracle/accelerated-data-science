@@ -2,26 +2,18 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import inspect
-from typing import Dict
+from dataclasses import fields
+from typing import Dict, Optional
 from requests import HTTPError
 
 from ads.aqua.extension.base_handler import Errors
 
-SKIPPED_PARAMETERS = ["self", "kwargs"]
 
-
-def validate_function_parameters(function, input_data: Dict):
-    """Validates if the required parameters are provided in input data."""
-    function_signature = inspect.signature(function)
-    
+def validate_function_parameters(data_class, input_data: Dict):
+    """Validates if the required parameters are provided in input data."""    
     required_parameters = [
-        parameter.name for parameter in 
-        function_signature.parameters.values()
-        if (
-            parameter.name not in SKIPPED_PARAMETERS
-            and parameter.default is parameter.empty
-        )
+        field.name for field in fields(data_class) 
+        if field.type != Optional[field.type]
     ]
 
     for required_parameter in required_parameters:

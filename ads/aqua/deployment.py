@@ -15,7 +15,6 @@ from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaError, AquaRuntimeError, AquaValueError
 from ads.aqua.model import AquaModelApp, Tags
 from ads.aqua.utils import (
-    DEPLOYMENT_CONFIG,
     UNKNOWN,
     UNKNOWN_JSON_STR,
     get_artifact_path,
@@ -23,7 +22,11 @@ from ads.aqua.utils import (
 )
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
-from ads.config import AQUA_MODEL_DEPLOYMENT_IMAGE, COMPARTMENT_OCID
+from ads.config import (
+    AQUA_MODEL_DEPLOYMENT_CONFIG, 
+    AQUA_MODEL_DEPLOYMENT_IMAGE, 
+    COMPARTMENT_OCID
+)
 from ads.common.auth import default_signer
 from ads.model.deployment import (
     ModelDeployment,
@@ -385,7 +388,7 @@ class AquaDeploymentApp(AquaApp):
         artifact_path = get_artifact_path(oci_model.custom_metadata_list)
 
         shape_config = json.loads(
-            read_file(file_path=f"{artifact_path}/{DEPLOYMENT_CONFIG}", auth=self._auth)
+            read_file(file_path=f"{artifact_path}/{AQUA_MODEL_DEPLOYMENT_CONFIG}", auth=self._auth)
             or UNKNOWN_JSON_STR
         )
 

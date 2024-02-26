@@ -5,10 +5,12 @@
 
 from requests import HTTPError
 from ads.aqua.decorator import handle_exceptions
-from ads.aqua.evaluation import AquaEvaluationApp
+from ads.aqua.evaluation import (
+    AquaEvaluationApp, 
+    CreateAquaEvaluationDetails
+)
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.aqua.extension.utils import validate_function_parameters
-from ads.config import COMPARTMENT_OCID, PROJECT_OCID
 
 
 class AquaEvaluationHandler(AquaAPIhandler):
@@ -40,31 +42,17 @@ class AquaEvaluationHandler(AquaAPIhandler):
             raise HTTPError(400, Errors.NO_INPUT_DATA)
         
         validate_function_parameters(
-            function=AquaEvaluationApp.create, 
+            data_class=CreateAquaEvaluationDetails, 
             input_data=input_data
         )
         
         try:
             self.finish(
+                # TODO: decide what other kwargs will be needed for create aqua evaluation.
                 AquaEvaluationApp().create(
-                    evaluation_source_id=input_data.get("evaluation_source_id"),
-                    evaluation_name=input_data.get("evaluation_name"),
-                    evaluation_description=input_data.get("evaluation_description"),
-                    project_id=input_data.get("project_id", PROJECT_OCID),
-                    dataset_path=input_data.get("dataset_path"),
-                    report_path=input_data.get("report_path"),
-                    model_parameters=input_data.get("model_parameters"),
-                    shape_name=input_data.get("shape_name"),
-                    memory_in_gbs=input_data.get("memory_in_gbs"),
-                    ocpus=input_data.get("ocpus"),
-                    block_storage_size=input_data.get("block_storage_size"),
-                    compartment_id=input_data.get("compartment_id", COMPARTMENT_OCID),
-                    experiment_id=input_data.get("experiment_id"), 
-                    experiment_name=input_data.get("experiment_name"), 
-                    experiment_description=input_data.get("experiment_description"),
-                    log_group_id=input_data.get("log_group_id"),
-                    log_id=input_data.get("log_id"),
-                    metrics=input_data.get("metrics"),
+                    create_aqua_evaluation_details=(
+                        CreateAquaEvaluationDetails(**input_data)
+                    )
                 )
             )
         except Exception as ex:

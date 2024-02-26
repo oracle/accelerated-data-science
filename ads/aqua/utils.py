@@ -23,9 +23,8 @@ logger = logging.getLogger("ODSC_AQUA")
 
 UNKNOWN = ""
 README = "README.md"
-DEPLOYMENT_CONFIG = "deployment_config.json"
 UNKNOWN_JSON_STR = "{}"
-SUPPORTED_FILE_FORMATS = [".jsonl"]
+SUPPORTED_FILE_FORMATS = ["jsonl"]
 
 
 def get_logger():
@@ -124,7 +123,7 @@ def upload_file_to_os(
     expanded_path = os.path.expanduser(src_uri)
     if not os.path.isfile(expanded_path):
         raise AquaFileNotFoundError("Invalid input file path. Specify a valid one.")
-    if Path(expanded_path).suffix not in SUPPORTED_FILE_FORMATS:
+    if Path(expanded_path).suffix.lstrip(".") not in SUPPORTED_FILE_FORMATS:
         raise AquaValueError(
             f"Invalid input file. Only {', '.join(SUPPORTED_FILE_FORMATS)} files are supported."
         )
