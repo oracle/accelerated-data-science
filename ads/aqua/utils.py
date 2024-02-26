@@ -128,7 +128,7 @@ def upload_file_to_os(
             f"Invalid input file. Only {', '.join(SUPPORTED_FILE_FORMATS)} files are supported."
         )
     if os.path.getsize(expanded_path) == 0:
-        raise AquaValueError("Empty input file. Specify a non-empty one.")
+        raise AquaValueError("Empty input file. Specify a valid file path.")
     
     upload_to_os(
         src_uri=expanded_path,
