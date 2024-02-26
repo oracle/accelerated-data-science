@@ -7,6 +7,7 @@
 import base64
 import json
 import os
+import shutil
 import unittest
 from dataclasses import asdict
 from unittest.mock import MagicMock, patch
@@ -300,3 +301,7 @@ class TestAquaModel(unittest.TestCase):
             base64.b64decode(response.content)
             == b"This is a sample evaluation report.html."
         )
+
+        rm_target = os.path.join(mock_temp_path, "report")
+        if os.path.exists(rm_target):
+            shutil.rmtree(rm_target)
