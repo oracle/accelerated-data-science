@@ -242,6 +242,7 @@ class TransformationMode(Enum):
     SQL = "sql"
     PANDAS = "pandas"
     SPARK = "spark"
+    ON_DEMAND = "on_demand"
 
 
 class FilterOperators(Enum):

@@ -8,8 +8,8 @@ import datetime
 import logging
 import time
 
-import feature_store_client.feature_store as fs
-from feature_store_client.feature_store.models import (
+import ads.feature_store.feature_store_client.feature_store as fs
+from ads.feature_store.feature_store_client.feature_store.models import (
     CreateFeatureGroupJobDetails,
     CompleteFeatureGroupJobDetails,
     FeatureGroupJob,

@@ -10,7 +10,6 @@ There are two types of expectations possible for expectation suite
 - ``ExpectationType.STRICT``: Requires meeting set expectations. The job fails if criteria aren't met.
 - ``ExpectationType.LENIENT``: Permits unmet expectations. The job continues despite criteria not being fully satisfied.
 
-
 .. note::
   `Great Expectations <https://docs.greatexpectations.io/docs/0.15.50/>`_  is an open source Python-based library that validates, documents, and profiles data. It automates testing, which is essential for managing complex code bases.
 

@@ -9,7 +9,7 @@ from ads.feature_store.common.enums import FeatureType
 from ads.feature_store.feature_group import FeatureGroup
 from ads.feature_store.input_feature_detail import FeatureDetail
 from tests.integration.feature_store.test_base import FeatureStoreTestCase
-from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
+from ads.feature_store.common.feature_store_singleton import SparkSessionSingleton
 
 
 class TestDataTypeSparkBasic(FeatureStoreTestCase):

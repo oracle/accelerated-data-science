@@ -14,7 +14,7 @@ import pytest
 
 from ads.feature_store.feature_group_job import (
     FeatureGroupJob,
-    IngestionMode,
+    BatchIngestionMode,
     JobConfigurationType,
 )
 from ads.feature_store.service.oci_feature_group_job import OCIFeatureGroupJob
@@ -87,7 +87,7 @@ class TestFeatureGroupJob:
         dsc_feature_group_job = (
             FeatureGroupJob()
             .with_compartment_id(self.payload["compartmentId"])
-            .with_ingestion_mode(IngestionMode.OVERWRITE)
+            .with_ingestion_mode(BatchIngestionMode.OVERWRITE)
             .with_feature_group_id(self.payload["featureGroupId"])
             .with_job_configuration_details(JobConfigurationType.SPARK_BATCH_AUTOMATIC)
         )
@@ -100,7 +100,7 @@ class TestFeatureGroupJob:
         dsc_feature_group_job = (
             FeatureGroupJob()
             .with_compartment_id(self.payload["compartmentId"])
-            .with_ingestion_mode(IngestionMode.OVERWRITE)
+            .with_ingestion_mode(BatchIngestionMode.OVERWRITE)
             .with_feature_group_id(self.payload["featureGroupId"])
             .with_job_configuration_details(JobConfigurationType.SPARK_BATCH_AUTOMATIC)
         )

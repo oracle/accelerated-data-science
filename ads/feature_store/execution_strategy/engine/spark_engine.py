@@ -25,20 +25,22 @@ from ads.feature_store.common.utils.feature_schema_mapper import (
 )
 
 from ads.feature_store.common.enums import DataFrameType
-from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
+from ads.feature_store.common.feature_store_singleton import FeatureStoreSingleton
 
 logger = logging.getLogger(__name__)
 
 
 class SparkEngine:
-    def __init__(self, metastore_id: str = None, spark_session: SparkSession = None):
+    def __init__(
+        self, feature_store_id: str = None, spark_session: SparkSession = None
+    ):
         if spark_session:
             self.spark = spark_session
         else:
-            self.spark = SparkSessionSingleton(metastore_id).get_spark_session()
+            self.spark = FeatureStoreSingleton(feature_store_id).get_spark_session()
 
         self.managed_table_location = (
-            SparkSessionSingleton().get_managed_table_location()
+            FeatureStoreSingleton().get_managed_table_location()
         )
 
     def get_time_version_data(
@@ -205,10 +207,10 @@ class SparkEngine:
                 "Either 'table_name' or 'dataframe' must be provided to retrieve output columns."
             )
 
-        if dataframe is not None:
-            feature_data_target = dataframe
-        else:
+        if table_name is not None:
             feature_data_target = self.spark.sql(f"SELECT * FROM {table_name} LIMIT 1")
+        else:
+            feature_data_target = dataframe
 
         target_table_columns = []
 

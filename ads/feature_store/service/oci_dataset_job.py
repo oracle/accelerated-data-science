@@ -8,7 +8,7 @@ import datetime
 import logging
 import time
 
-from feature_store_client.feature_store.models import (
+from ads.feature_store.feature_store_client.feature_store.models import (
     CreateDatasetJobDetails,
     CompleteDatasetJobDetails,
     DatasetJob,

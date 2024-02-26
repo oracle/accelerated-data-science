@@ -6,6 +6,7 @@
 
 import logging
 import pandas as pd
+from pyspark.sql.functions import col, concat_ws
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
 from ads.feature_store.common.utils.base64_encoder_decoder import Base64EncoderDecoder
@@ -16,6 +17,10 @@ from ads.feature_store.common.utils.utility import (
 )
 from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
 import traceback
+
+from ads.feature_store.online_feature_store.online_fs_strategy_provider import (
+    OnlineFSStrategyProvider,
+)
 
 try:
     from pyspark.sql import DataFrame
@@ -31,7 +36,7 @@ from ads.feature_store.common.enums import (
     EntityType,
     ExpectationType,
 )
-from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
+from ads.feature_store.common.feature_store_singleton import FeatureStoreSingleton
 from ads.feature_store.common.utils.transformation_utils import TransformationUtils
 from ads.feature_store.data_validation.great_expectation import ExpectationService
 from ads.feature_store.dataset_job import DatasetJob
@@ -44,7 +49,7 @@ from ads.feature_store.transformation import Transformation
 
 from ads.feature_store.feature_statistics.statistics_service import StatisticsService
 from ads.feature_store.common.utils.utility import validate_input_feature_details
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
     from ads.feature_store.feature_group import FeatureGroup
@@ -70,10 +75,12 @@ class SparkExecutionEngine(Strategy):
     Delta Lake table.
     """
 
-    def __init__(self, metastore_id: str = None):
-        self._spark_session = SparkSessionSingleton(metastore_id).get_spark_session()
+    def __init__(self, feature_store_id: str = None):
+        self._spark_session = FeatureStoreSingleton(
+            feature_store_id
+        ).get_spark_session()
         self._spark_context = self._spark_session.sparkContext
-        self.spark_engine = SparkEngine(metastore_id)
+        self.spark_engine = SparkEngine(feature_store_id)
         self.delta_lake_service = DeltaLakeService(self._spark_session)
         self._jvm = self._spark_context._jvm
 
@@ -82,9 +89,12 @@ class SparkExecutionEngine(Strategy):
         feature_group: "FeatureGroup",
         feature_group_job: FeatureGroupJob,
         dataframe,
+        http_auth: Tuple[str, str] = None,
     ):
         try:
-            self._save_offline_dataframe(dataframe, feature_group, feature_group_job)
+            self._save_offline_dataframe(
+                dataframe, feature_group, feature_group_job, http_auth
+            )
         except Exception as e:
             raise SparkExecutionException(e).with_traceback(e.__traceback__)
 
@@ -111,9 +121,11 @@ class SparkExecutionEngine(Strategy):
         except Exception as e:
             raise SparkExecutionException(e).with_traceback(e.__traceback__)
 
-    def ingest_dataset(self, dataset, dataset_job: DatasetJob):
+    def ingest_dataset(
+        self, dataset, dataset_job: DatasetJob, http_auth: Tuple[str, str] = None
+    ):
         try:
-            self._save_dataset_input(dataset, dataset_job)
+            self._save_dataset_input(dataset, dataset_job, http_auth)
         except Exception as e:
             raise SparkExecutionException(e).with_traceback(e.__traceback__)
 
@@ -212,7 +224,11 @@ class SparkExecutionEngine(Strategy):
             raise Exception(error_message)
 
     def _save_offline_dataframe(
-        self, data_frame, feature_group, feature_group_job: FeatureGroupJob
+        self,
+        data_frame,
+        feature_group,
+        feature_group_job: FeatureGroupJob,
+        http_auth: Tuple[str, str],
     ):
         """Ingest dataframe to the feature store system. as now this handles both spark dataframe and pandas
         dataframe. in case of pandas after transformation we convert it to spark and write to the delta.
@@ -294,27 +310,39 @@ class SparkExecutionEngine(Strategy):
                         featured_data
                     )
                 )
+            offline_target_table = None
 
-            target_table = f"{database}.{feature_group.name}"
-            self.delta_lake_service.write_dataframe_to_delta_lake(
-                featured_data,
-                target_table,
-                feature_group.primary_keys,
-                feature_group.partition_keys,
-                feature_group_job.ingestion_mode,
-                featured_data.schema,
-                feature_group_job.feature_option_details,
-            )
+            if feature_group.is_offline_enabled:
+                offline_target_table = f"{database}.{feature_group.name}"
+                self.delta_lake_service.write_dataframe_to_delta_lake(
+                    featured_data,
+                    offline_target_table,
+                    feature_group.primary_keys,
+                    feature_group.partition_keys,
+                    feature_group_job.ingestion_mode,
+                    featured_data.schema,
+                    feature_group_job.feature_option_details,
+                )
 
             # Get the output features
             output_features = get_features(
                 self.spark_engine.get_output_columns_from_table_or_dataframe(
-                    target_table
+                    table_name=offline_target_table, dataframe=featured_data
                 ),
                 feature_group.id,
             )
 
             logger.info(f"output features for the FeatureGroup: {output_features}")
+
+            if feature_group.is_online_enabled:
+                online_execution_engine = (
+                    OnlineFSStrategyProvider.provide_online_execution_strategy(
+                        feature_group.feature_store_id
+                    )
+                )
+                online_execution_engine.write(
+                    feature_group, feature_group_job, featured_data, http_auth
+                )
 
             # Compute Feature Statistics
             feature_statistics = StatisticsService.compute_stats_with_mlm(
@@ -408,7 +436,9 @@ class SparkExecutionEngine(Strategy):
         except Exception as e:
             raise SparkExecutionException(e).with_traceback(e.__traceback__)
 
-    def _save_dataset_input(self, dataset, dataset_job: DatasetJob):
+    def _save_dataset_input(
+        self, dataset, dataset_job: DatasetJob, http_auth: Tuple[str, str] = None
+    ):
         """As now this handles both spark dataframe and pandas dataframe. in case of pandas after transformation we
         convert it to spark and write to the delta.
         """
@@ -444,23 +474,36 @@ class SparkExecutionEngine(Strategy):
                         validation_output=validation_output,
                     )
 
-            self.delta_lake_service.save_delta_dataframe(
-                dataset_dataframe,
-                dataset_job.ingestion_mode,
-                target_table,
-                dataset_job.feature_option_details,
-                dataset.partition_keys,
-            )
+            if dataset.is_offline_enabled:
+                self.delta_lake_service.write_dataframe_to_delta_lake(
+                    dataset_dataframe,
+                    target_table,
+                    dataset.primary_keys,
+                    dataset.partition_keys,
+                    dataset_job.ingestion_mode,
+                    dataset_dataframe.schema,
+                    dataset_job.feature_option_details,
+                )
 
             # Get the output features
             output_features = get_features(
                 output_columns=self.spark_engine.get_output_columns_from_table_or_dataframe(
-                    table_name=target_table
+                    table_name=target_table, dataframe=dataset_dataframe
                 ),
                 parent_id=dataset.id,
                 entity_type=EntityType.DATASET,
             )
             logger.info(f"output features for the dataset: {output_features}")
+
+            if dataset.is_online_enabled:
+                online_execution_engine = (
+                    OnlineFSStrategyProvider.provide_online_execution_strategy(
+                        dataset.feature_store_id
+                    )
+                )
+                online_execution_engine.write(
+                    dataset, dataset_job, dataset_dataframe, http_auth
+                )
 
             # Compute Feature Statistics
             feature_statistics = StatisticsService.compute_stats_with_mlm(
@@ -533,6 +576,7 @@ class SparkExecutionEngine(Strategy):
         timeout,
         checkpoint_dir,
     ):
+        # TODO: Need to make the changes for online store
         output_features = []
         output_details = {
             "error_details": None,
@@ -616,3 +660,33 @@ class SparkExecutionEngine(Strategy):
                 output_features=output_features,
                 output_details=output_details,
             )
+
+    def _save_online_dataframe(self, dataframe, dataset):
+        """Ingest dataframe to the feature store system. as now this handles both spark dataframe and pandas
+        dataframe. in case of pandas after transformation we convert it to spark and write to the delta.
+        Parameter
+        ----------
+        data_frame
+            data_frame that needs to be ingested in the system.
+        feature_group
+            feature group.
+        Parameters
+        ----------
+        data_frame
+        feature_group
+        Returns
+        -------
+        None
+        """
+
+        if len(dataset.primary_keys["items"]) == 1:
+            key = dataset.primary_keys["items"][0]["name"]
+            df_with_key = dataframe.withColumn("key", col(key))
+        else:
+            primary_keys = []
+            for key in dataset.primary_keys["items"]:
+                primary_keys.append(key["name"])
+            df_with_key = dataframe.withColumn("key", concat_ws(":", *primary_keys))
+        df_with_key.write.format("org.apache.spark.sql.redis").option(
+            "table", dataset.id
+        ).option("key.column", "key").save()

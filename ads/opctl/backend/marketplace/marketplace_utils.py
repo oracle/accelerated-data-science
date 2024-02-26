@@ -92,7 +92,7 @@ def get_marketplace_composite_client() -> (
 
 def get_docker_bearer_token(ocir_repo: str) -> BearerToken:
     def get_ocir_url(repo: str):
-        repo = repo.lstrip("https://")
+        repo = repo.replace("https://", "")
         repo = repo.rstrip("/")
         repo = f"https://{repo}/20180419"
         return repo

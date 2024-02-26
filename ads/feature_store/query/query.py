@@ -77,9 +77,7 @@ class Query(Builder):
         joins=None,
     ):
         super().__init__()
-        self.spark_engine = SparkEngine(
-            metastore_id=get_metastore_id(feature_store_id=feature_store_id)
-        )
+        self.spark_engine = SparkEngine(feature_store_id)
         self.with_left_feature_group(left_feature_group)
         self.with_entity_id(entity_id)
         self.with_feature_store_id(feature_store_id)

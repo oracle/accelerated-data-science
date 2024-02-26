@@ -12,7 +12,7 @@ from ads.common.oci_mixin import OCIModelMixin
 
 from ads.common import utils
 from ads.feature_store.common.enums import DataFrameType
-from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
+from ads.feature_store.common.feature_store_singleton import FeatureStoreSingleton
 
 from ads.feature_store.entity import Entity
 from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
@@ -73,6 +73,9 @@ class FeatureStore(Builder):
     CONST_DEFINED_TAG = "definedTags"
     CONST_OFFLINE_CONFIG = "offlineConfig"
     CONST_METASTORE_ID = "metastoreId"
+    CONST_ONLINE_CONFIG = "onlineConfig"
+    CONST_REDIS_ID = "redisId"
+    CONST_OPEN_SEARCH_ID = "openSearchId"
 
     attribute_map = {
         CONST_ID: "id",
@@ -82,6 +85,7 @@ class FeatureStore(Builder):
         CONST_FREEFORM_TAG: "freeform_tags",
         CONST_DEFINED_TAG: "defined_tags",
         CONST_OFFLINE_CONFIG: "offline_config",
+        CONST_ONLINE_CONFIG: "online_config",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -99,7 +103,7 @@ class FeatureStore(Builder):
         """
         super().__init__(spec=spec, **deepcopy(kwargs))
         # Specify oci FeatureStore instance
-        self.spark_engine = None
+        self._spark_engine = None
         self.oci_transformation = None
         self.oci_fs_entity = None
         self.oci_fs = self._to_oci_fs(**kwargs)
@@ -122,6 +126,16 @@ class FeatureStore(Builder):
             fs_spec[dsc_attr] = value
         fs_spec.update(**kwargs)
         return OCIFeatureStore(**fs_spec)
+
+    @property
+    def spark_engine(self) -> SparkEngine:
+        if not self._spark_engine:
+            self._spark_engine = SparkEngine(
+                self.offline_config.get(self.CONST_METASTORE_ID)
+                if self.offline_config
+                else None
+            )
+        return self._spark_engine
 
     @property
     def kind(self) -> str:
@@ -156,8 +170,8 @@ class FeatureStore(Builder):
         return self.get_spec(self.CONST_NAME)
 
     @name.setter
-    def name(self, name: str) -> "FeatureStore":
-        return self.with_name(name)
+    def name(self, name: str):
+        self.with_name(name)
 
     def with_name(self, name: str) -> "FeatureStore":
         """Sets the name.
@@ -204,15 +218,59 @@ class FeatureStore(Builder):
         """
         return self.set_spec(self.CONST_DESCRIPTION, description)
 
+    @property
+    def online_config(self) -> dict:
+        return self.get_spec(self.CONST_ONLINE_CONFIG)
+
+    @online_config.setter
+    def online_config(
+        self, redis_id: str, opensearch_id: str, **kwargs: Dict[str, Any]
+    ):
+        self.with_online_config(redis_id, opensearch_id, **kwargs)
+
+    def with_online_config(
+        self,
+        redis_id: str = None,
+        opensearch_id: str = None,
+        **kwargs: Dict[str, Any],
+    ) -> "FeatureStore":
+        """Sets the offline config.
+        Parameters
+        ----------
+        redis_id: str
+            The redis id for online store
+        opensearch_id: str
+            The elastic search id for online store
+        kwargs: Dict[str, Any]
+            Additional key value arguments
+        Returns
+        -------
+        FeatureStore
+            The FeatureStore instance (self)
+        """
+        if redis_id is None and opensearch_id is None:
+            raise ValueError(
+                "Either redis_id or opensearch_id must be present for online feature store configuration"
+            )
+        elif redis_id is not None and opensearch_id is not None:
+            raise ValueError(
+                "only one must be part of online feature store configuration"
+            )
+
+        return self.set_spec(
+            self.CONST_ONLINE_CONFIG,
+            {
+                self.CONST_REDIS_ID: redis_id,
+                self.CONST_OPEN_SEARCH_ID: opensearch_id,
+                **kwargs,
+            },
+        )
+
     def init(self):
         """Initialize the feature store with spark session."""
 
         # Initialize the Spark Session
-        return SparkSessionSingleton(
-            self.offline_config.get(self.CONST_METASTORE_ID)
-            if self.offline_config
-            else None
-        )
+        return FeatureStoreSingleton(self.id)
 
     @property
     def offline_config(self) -> dict:
@@ -658,13 +716,6 @@ class FeatureStore(Builder):
         if self.id is None:
             raise ValueError(
                 "Cannot query a FeatureStore resource that has not been created or saved."
-            )
-
-        if not self.spark_engine:
-            self.spark_engine = SparkEngine(
-                self.offline_config.get(self.CONST_METASTORE_ID)
-                if self.offline_config
-                else None
             )
 
         return self.spark_engine.sql(query, dataframe_type, is_online)

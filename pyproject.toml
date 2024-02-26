@@ -185,6 +185,20 @@ anomaly  = [
   "oracledb",
   "datapane",
 ]
+
+feature-store = [
+  "opensearch-py",
+  "redis",
+  "graphviz<0.17",
+  "plotly==5.4.0",
+  "great-expectations==0.17.19",
+  "pyarrow",
+  "oracle-ml-insights==1.0.4",
+  "pyspark==3.2.1",
+  "delta-spark==2.0.1",
+  "pandas"
+]
+
 feature-store-marketplace = [
     "oracle-ads[opctl]",
     "kubernetes"

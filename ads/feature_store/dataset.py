@@ -3,14 +3,14 @@
 import logging
 from copy import deepcopy
 from datetime import datetime
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Tuple
 
 import pandas
 import pandas as pd
 from great_expectations.core import ExpectationSuite
 
 from ads import deprecated
-from feature_store_client.feature_store.models import (
+from ads.feature_store.feature_store_client.feature_store.models import (
     DatasetFeatureGroupCollection,
     DatasetFeatureGroupSummary,
 )
@@ -24,6 +24,8 @@ from ads.feature_store.common.enums import (
     BatchIngestionMode,
 )
 from ads.feature_store.common.exceptions import NotMaterializedError
+from ads.feature_store.common.feature_store_singleton import FeatureStoreSingleton
+from ads.feature_store.common.utils.base64_encoder_decoder import Base64EncoderDecoder
 from ads.feature_store.common.utils.utility import (
     get_metastore_id,
     validate_delta_format_parameters,
@@ -38,11 +40,18 @@ from ads.feature_store.feature import DatasetFeature
 from ads.feature_store.feature_group import FeatureGroup
 from ads.feature_store.feature_group_expectation import Expectation
 from ads.feature_store.feature_option_details import FeatureOptionDetails
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.open_search_client_config import (
+    OpenSearchClientConfig,
+)
+from ads.feature_store.online_feature_store.online_fs_strategy_provider import (
+    OnlineFSStrategyProvider,
+)
 from ads.feature_store.service.oci_dataset import OCIDataset
 from ads.feature_store.statistics.statistics import Statistics
 from ads.feature_store.statistics_config import StatisticsConfig
 from ads.feature_store.service.oci_lineage import OCILineage
 from ads.feature_store.model_details import ModelDetails
+from ads.feature_store.transformation import Transformation
 from ads.jobs.builders.base import Builder
 from ads.feature_store.feature_lineage.graphviz_service import (
     GraphService,
@@ -124,6 +133,10 @@ class Dataset(Builder):
     CONST_LAST_JOB_ID = "jobId"
     CONST_MODEL_DETAILS = "modelDetails"
     CONST_FEATURE_GROUP = "datasetFeatureGroups"
+    CONST_IS_ONLINE_ENABLED = "isOnlineEnabled"
+    CONST_IS_OFFLINE_ENABLED = "isOfflineEnabled"
+    CONST_PRIMARY_KEYS = "primaryKeys"
+    CONST_ON_DEMAND_TRANSFORMATION_ID = "onDemandTransformationId"
 
     attribute_map = {
         CONST_ID: "id",
@@ -142,6 +155,10 @@ class Dataset(Builder):
         CONST_MODEL_DETAILS: "model_details",
         CONST_PARTITION_KEYS: "partition_keys",
         CONST_FEATURE_GROUP: "dataset_feature_groups",
+        CONST_IS_ONLINE_ENABLED: "isOnlineEnabled",
+        CONST_PRIMARY_KEYS: "primary_keys",
+        CONST_IS_OFFLINE_ENABLED: "is_offline_enabled",
+        CONST_ON_DEMAND_TRANSFORMATION_ID: "on_demand_transformation_id",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -160,6 +177,8 @@ class Dataset(Builder):
         super().__init__(spec=spec, **deepcopy(kwargs))
         # Specify oci Dataset instance
         self.dataset_job = None
+        self.with_is_offline_enabled(True)
+        self.with_is_online_enabled(False)
         self._is_manual_association: bool = False
         self._spark_engine = None
         self.oci_dataset = self._to_oci_dataset(**kwargs)
@@ -230,6 +249,34 @@ class Dataset(Builder):
             The Dataset instance (self)
         """
         return self.set_spec(self.CONST_COMPARTMENT_ID, compartment_id)
+
+    @property
+    def on_demand_transformation_id(self) -> str:
+        return self.get_spec(self.CONST_ON_DEMAND_TRANSFORMATION_ID)
+
+    @on_demand_transformation_id.setter
+    def on_demand_transformation_id(self, value: str):
+        self.with_on_demand_transformation_id(value)
+
+    def with_on_demand_transformation_id(
+        self, on_demand_transformation_id: str
+    ) -> "FeatureGroup":
+        """Sets the transformation_id.
+
+        Parameters
+        ----------
+        transformation_id: str
+            The transformation_id.
+
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+
+        return self.set_spec(
+            self.CONST_ON_DEMAND_TRANSFORMATION_ID, on_demand_transformation_id
+        )
 
     @property
     def name(self) -> str:
@@ -629,6 +676,59 @@ class Dataset(Builder):
             },
         )
 
+    @property
+    def is_online_enabled(self) -> bool:
+        return self.get_spec(self.CONST_IS_ONLINE_ENABLED)
+
+    def with_is_online_enabled(self, is_online_enabled: bool) -> "Dataset":
+        """Sets the compartment_id.
+        Parameters
+        ----------
+        is_online_enabled: bool
+            The compartment_id.
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+        # self.redis_client = get_redis_client(self.feature_store_id)
+        return self.set_spec(self.CONST_IS_ONLINE_ENABLED, is_online_enabled)
+
+    @property
+    def is_offline_enabled(self) -> bool:
+        return self.get_spec(self.CONST_IS_OFFLINE_ENABLED)
+
+    def with_is_offline_enabled(self, is_offline_enabled: bool) -> "Dataset":
+        return self.set_spec(self.CONST_IS_OFFLINE_ENABLED, is_offline_enabled)
+
+    @property
+    def primary_keys(self) -> List[str]:
+        return self.get_spec(self.CONST_PRIMARY_KEYS)
+
+    @primary_keys.setter
+    def primary_keys(self, value: List[str]):
+        self.with_primary_keys(value)
+
+    def with_primary_keys(self, primary_keys: List[str]) -> "Dataset":
+        """Sets the primary keys of the feature group.
+        Parameters
+        ----------
+        primary_keys: str
+            The description of the feature group.
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+        return self.set_spec(
+            self.CONST_PRIMARY_KEYS,
+            {
+                self.CONST_ITEMS: [
+                    {self.CONST_NAME: primary_key} for primary_key in primary_keys or []
+                ]
+            },
+        )
+
     def add_models(self, model_details: ModelDetails) -> "Dataset":
         """Add model details to the dataset, Append to the existing model id list
 
@@ -705,9 +805,97 @@ class Dataset(Builder):
         if lineage:
             GraphService.view_lineage(lineage.data, EntityType.DATASET, rankdir)
         else:
-            raise ValueError(
-                f"Can't get lineage information for Feature group id {self.id}"
+            raise ValueError(f"Can't get lineage information for Dataset id {self.id}")
+
+    def get_nearest_neighbours(
+        self,
+        field,
+        k_neighbors,
+        embedding_vector,
+        max_candidate_pool,
+        http_auth: Tuple[str, str],
+    ):
+        """
+        Get nearest neighbors based on embedding vector.
+
+        Parameters:
+        - field (str): Field containing embedding vectors.
+        - k_neighbors (int): Number of neighbors to retrieve.
+        - embedding_vector: Embedding vector for the query.
+        - max_candidate_pool (int): Maximum number of candidates to consider.
+        - http_auth (Tuple[str, str]): Tuple containing username and password for authentication.
+
+        Returns:
+        - result: Result of the nearest neighbors query.
+        """
+        if self.is_online_enabled:
+            online_execution_engine = (
+                OnlineFSStrategyProvider.provide_online_execution_strategy(
+                    self.feature_store_id
+                )
             )
+
+            return online_execution_engine.get_nearest_neighbours(
+                self,
+                field,
+                k_neighbors,
+                embedding_vector,
+                max_candidate_pool,
+                http_auth,
+            )
+        else:
+            raise ValueError(
+                "Online serving/embedding is not enabled for this Dataset."
+            )
+
+    def get_serving_vector(
+        self, primary_key_vector, http_auth=Tuple[str, str], **kwargs
+    ):
+        """
+        Get serving vector based on primary key.
+
+        Parameters:
+        - primary_key_vector: Primary key vector for serving vector retrieval.
+        - http_auth (Tuple[str, str]): Tuple containing username and password for authentication.
+
+        Returns:
+        - serving_vector: Serving vector retrieved based on the primary key.
+        """
+        if self.is_online_enabled:
+            online_execution_engine = (
+                OnlineFSStrategyProvider.provide_online_execution_strategy(
+                    self.feature_store_id
+                )
+            )
+
+            serving_vector = online_execution_engine.read(
+                self, primary_key_vector, http_auth=http_auth
+            )
+
+            transformed_data = serving_vector
+
+            if self.on_demand_transformation_id:
+                on_demand_transformation = Transformation.from_id(
+                    self.on_demand_transformation_id
+                )
+                transformation_function = Base64EncoderDecoder.decode(
+                    on_demand_transformation.source_code_function
+                )
+
+                # Execute the function under namespace
+                execution_namespace = {}
+                exec(transformation_function, execution_namespace)
+                transformation_function_caller = execution_namespace.get(
+                    on_demand_transformation.name
+                )
+
+                transformed_data = transformation_function_caller(
+                    serving_vector, **kwargs
+                )
+
+            return transformed_data
+        else:
+            raise ValueError("Online serving is not enabled for this Dataset.")
 
     def create(self, validate_sql=False, **kwargs) -> "Dataset":
         """Creates dataset  resource.
@@ -737,6 +925,27 @@ class Dataset(Builder):
         """
 
         self.compartment_id = OCIModelMixin.check_compartment_id(self.compartment_id)
+
+        if self.is_online_enabled:
+            from ads.feature_store.feature_store import FeatureStore
+
+            # Check if feature store is configured for online feature store
+            feature_store = FeatureStore.from_id(self.feature_store_id)
+
+            if not feature_store.online_config:
+                raise ValueError(
+                    "Dataset cannot be enabled for online use, without providing the online configuration in feature store resource."
+                )
+
+            # Check for primary keys
+            if (
+                self.primary_keys is None
+                or self.primary_keys.get("items") is None
+                or len(self.primary_keys.get("items")) == 0
+            ):
+                raise ValueError(
+                    "Dataset cannot be enabled for online use, without primary keys"
+                )
 
         if not self.name:
             self.name = self._random_display_name()
@@ -877,22 +1086,34 @@ class Dataset(Builder):
         self,
         ingestion_mode: BatchIngestionMode = BatchIngestionMode.OVERWRITE,
         feature_option_details: FeatureOptionDetails = None,
+        http_auth: Tuple[str, str] = None,
     ):
         """Creates a dataset job.
 
         Parameters
         ----------
-        ingestion_mode: dict(str, str), optional
-            The IngestionMode is used to specify the expected behavior of saving a DataFrame.
-            Defaults to OVERWRITE.
-        feature_option_details: FeatureOptionDetails
-            An instance of the FeatureOptionDetails class containing feature options.
+        ingestion_mode: dict(str, str),The IngestionMode is used to specify the expected behavior of saving a DataFrame. Defaults to OVERWRITE.
+        feature_option_details: FeatureOptionDetails An instance of the FeatureOptionDetails class containing feature options.
+        http_auth: Optional Http Authentication to authenticate the opensearch elasticsearch hosts if the dataset is online enabled.
 
         Returns
         -------
         None
 
         """
+        feature_store_singleton = FeatureStoreSingleton(
+            feature_store_id=self.feature_store_id
+        )
+        if (
+            isinstance(
+                feature_store_singleton.get_online_config(), OpenSearchClientConfig
+            )
+            and self.is_online_enabled
+            and http_auth is None
+        ):
+            raise ValueError(
+                "HTTP authentication (username, password) is required to access the online ElasticSearch cluster. Please provide the necessary credentials."
+            )
 
         # Build the job and persist it.
         dataset_job = self._build_dataset_job(ingestion_mode, feature_option_details)
@@ -903,11 +1124,11 @@ class Dataset(Builder):
         dataset_execution_strategy = (
             OciExecutionStrategyProvider.provide_execution_strategy(
                 execution_engine=ExecutionEngine.SPARK,
-                metastore_id=get_metastore_id(self.feature_store_id),
+                feature_store_id=self.feature_store_id,
             )
         )
 
-        dataset_execution_strategy.ingest_dataset(self, dataset_job)
+        dataset_execution_strategy.ingest_dataset(self, dataset_job, http_auth)
 
     def get_last_job(self) -> "DatasetJob":
         """Gets the Job details for the last running Dataset job.

@@ -8,7 +8,7 @@ import datetime
 import pandas as pd
 from ads.common import utils
 
-from feature_store_client.feature_store.models import (
+from ads.feature_store.feature_store_client.feature_store.models import (
     CreateFeatureGroupDetails,
     UpdateFeatureGroupDetails,
     FeatureGroup,

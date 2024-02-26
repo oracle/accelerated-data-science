@@ -129,7 +129,7 @@ def check_helm_pull(helm_chart_url: str, version: str) -> HelmPullStatus:
     stderr = result.stderr.decode("utf-8")
     if result.returncode == 0:
         return HelmPullStatus.SUCCESS
-    elif "unauthorized" in stderr.lower():
+    elif "unauthorized" in stderr.lower() or "forbidden" in stderr.lower():
         logger.debug(stderr)
         return HelmPullStatus.AUTHENTICATION_FAILURE
     else:

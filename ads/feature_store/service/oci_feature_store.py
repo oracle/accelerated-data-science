@@ -8,7 +8,7 @@ import datetime
 from functools import wraps
 from typing import Callable
 
-from feature_store_client.feature_store.models import (
+from ads.feature_store.feature_store_client.feature_store.models import (
     CreateFeatureStoreDetails,
     UpdateFeatureStoreDetails,
     FeatureStore,

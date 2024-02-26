@@ -8,7 +8,7 @@ import json
 import logging
 from copy import deepcopy
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Tuple
 
 import pandas as pd
 from great_expectations.core import ExpectationSuite
@@ -26,6 +26,7 @@ from ads.feature_store.common.enums import (
 from ads.feature_store.common.exceptions import (
     NotMaterializedError,
 )
+from ads.feature_store.common.feature_store_singleton import FeatureStoreSingleton
 from ads.feature_store.common.utils.base64_encoder_decoder import Base64EncoderDecoder
 from ads.feature_store.common.utils.utility import (
     get_metastore_id,
@@ -44,6 +45,12 @@ from ads.feature_store.feature_group_expectation import Expectation
 from ads.feature_store.feature_group_job import FeatureGroupJob
 from ads.feature_store.feature_option_details import FeatureOptionDetails
 from ads.feature_store.input_feature_detail import FeatureDetail, FeatureType
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.open_search_client_config import (
+    OpenSearchClientConfig,
+)
+from ads.feature_store.online_feature_store.online_fs_strategy_provider import (
+    OnlineFSStrategyProvider,
+)
 from ads.feature_store.query.filter import Filter, Logic
 from ads.feature_store.query.query import Query
 from ads.feature_store.service.oci_feature_group import OCIFeatureGroup
@@ -51,6 +58,7 @@ from ads.feature_store.service.oci_feature_group_job import OCIFeatureGroupJob
 from ads.feature_store.service.oci_lineage import OCILineage
 from ads.feature_store.statistics.statistics import Statistics
 from ads.feature_store.statistics_config import StatisticsConfig
+from ads.feature_store.transformation import Transformation
 from ads.feature_store.validation_output import ValidationOutput
 
 from ads.jobs.builders.base import Builder
@@ -139,11 +147,14 @@ class FeatureGroup(Builder):
     CONST_FREEFORM_TAG = "freeformTags"
     CONST_DEFINED_TAG = "definedTags"
     CONST_TRANSFORMATION_ID = "transformationId"
+    CONST_ON_DEMAND_TRANSFORMATION_ID = "onDemandTransformationId"
     CONST_STATISTICS_CONFIG = "statisticsConfig"
     CONST_LIFECYCLE_STATE = "lifecycleState"
     CONST_LAST_JOB_ID = "jobId"
     CONST_INFER_SCHEMA = "isInferSchema"
     CONST_TRANSFORMATION_KWARGS = "transformationParameters"
+    CONST_IS_ONLINE_ENABLED = "isOnlineEnabled"
+    CONST_IS_OFFLINE_ENABLED = "isOfflineEnabled"
 
     attribute_map = {
         CONST_ID: "id",
@@ -159,11 +170,14 @@ class FeatureGroup(Builder):
         CONST_FREEFORM_TAG: "freeform_tags",
         CONST_DEFINED_TAG: "defined_tags",
         CONST_TRANSFORMATION_ID: "transformation_id",
+        CONST_ON_DEMAND_TRANSFORMATION_ID: "on_demand_transformation_id",
         CONST_LIFECYCLE_STATE: "lifecycle_state",
         CONST_OUTPUT_FEATURE_DETAILS: "output_feature_details",
         CONST_STATISTICS_CONFIG: "statistics_config",
         CONST_INFER_SCHEMA: "is_infer_schema",
         CONST_PARTITION_KEYS: "partition_keys",
+        CONST_IS_ONLINE_ENABLED: "is_online_enabled",
+        CONST_IS_OFFLINE_ENABLED: "is_offline_enabled",
         CONST_TRANSFORMATION_KWARGS: "transformation_parameters",
     }
 
@@ -183,6 +197,8 @@ class FeatureGroup(Builder):
         super().__init__(spec=spec, **deepcopy(kwargs))
         # Specify oci FeatureGroup instance
         self.feature_group_job = None
+        self.with_is_offline_enabled(True)
+        self.with_is_online_enabled(False)
         self._spark_engine = None
         self.oci_feature_group: OCIFeatureGroup = self._to_oci_feature_group(**kwargs)
         self.dsc_job = OCIFeatureGroupJob()
@@ -212,7 +228,7 @@ class FeatureGroup(Builder):
     @property
     def spark_engine(self):
         if not self._spark_engine:
-            self._spark_engine = SparkEngine(get_metastore_id(self.feature_store_id))
+            self._spark_engine = SparkEngine(self.feature_store_id)
         return self._spark_engine
 
     @property
@@ -416,12 +432,40 @@ class FeatureGroup(Builder):
         return self.set_spec(self.CONST_FEATURE_STORE_ID, feature_store_id)
 
     @property
+    def on_demand_transformation_id(self) -> str:
+        return self.get_spec(self.CONST_ON_DEMAND_TRANSFORMATION_ID)
+
+    @on_demand_transformation_id.setter
+    def on_demand_transformation_id(self, value: str):
+        self.with_on_demand_transformation_id(value)
+
+    def with_on_demand_transformation_id(
+        self, on_demand_transformation_id: str
+    ) -> "FeatureGroup":
+        """Sets the transformation_id.
+
+        Parameters
+        ----------
+        transformation_id: str
+            The transformation_id.
+
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+
+        return self.set_spec(
+            self.CONST_ON_DEMAND_TRANSFORMATION_ID, on_demand_transformation_id
+        )
+
+    @property
     def transformation_id(self) -> str:
         return self.get_spec(self.CONST_TRANSFORMATION_ID)
 
     @transformation_id.setter
     def transformation_id(self, value: str):
-        self.with_feature_store_id(value)
+        self.with_transformation_id(value)
 
     def with_transformation_id(self, transformation_id: str) -> "FeatureGroup":
         """Sets the transformation_id.
@@ -631,6 +675,20 @@ class FeatureGroup(Builder):
             or []
         ]
 
+    @property
+    def is_online_enabled(self) -> bool:
+        return self.get_spec(self.CONST_IS_ONLINE_ENABLED)
+
+    def with_is_online_enabled(self, is_online_enabled: bool) -> "FeatureGroup":
+        return self.set_spec(self.CONST_IS_ONLINE_ENABLED, is_online_enabled)
+
+    @property
+    def is_offline_enabled(self) -> bool:
+        return self.get_spec(self.CONST_IS_OFFLINE_ENABLED)
+
+    def with_is_offline_enabled(self, is_offline_enabled: bool) -> "FeatureGroup":
+        return self.set_spec(self.CONST_IS_OFFLINE_ENABLED, is_offline_enabled)
+
     def with_job_id(self, feature_group_job_id: str) -> "FeatureGroup":
         """Sets the job_id for the last running job.
 
@@ -711,6 +769,27 @@ class FeatureGroup(Builder):
             If compartment id not provided.
         """
         self.compartment_id = OCIModelMixin.check_compartment_id(self.compartment_id)
+
+        if self.is_online_enabled:
+            from ads.feature_store.feature_store import FeatureStore
+
+            # Check if feature store is configured for online feature store
+            feature_store = FeatureStore.from_id(self.feature_store_id)
+
+            if not feature_store.online_config:
+                raise ValueError(
+                    "FeatureGroup cannot be enabled for online use, without providing the online configuration in feature store resource."
+                )
+
+            # Check for primary keys
+            if (
+                self.primary_keys is None
+                or self.primary_keys.get("items") is None
+                or len(self.primary_keys.get("items")) == 0
+            ):
+                raise ValueError(
+                    "FeatureGroup cannot be enabled for online use, without primary keys"
+                )
 
         if not self.feature_store_id:
             raise ValueError("FeatureStore id must be provided.")
@@ -870,6 +949,7 @@ class FeatureGroup(Builder):
         self,
         input_dataframe: Union[DataFrame, pd.DataFrame],
         ingestion_mode: BatchIngestionMode = BatchIngestionMode.OVERWRITE,
+        http_auth: Tuple[str, str] = None,
         from_timestamp: str = None,
         to_timestamp: str = None,
         feature_option_details: FeatureOptionDetails = None,
@@ -883,6 +963,7 @@ class FeatureGroup(Builder):
             from_timestamp: Optional. A string representing the lower bound of the time range of data to include in the job.
             to_timestamp: Optional. A string representing the upper bound of the time range of data to include in the job.
             feature_option_details: Optional. An instance of the FeatureOptionDetails class containing feature options.
+            http_auth: Optional Http Authentication to authenticate the opensearch elasticsearch hosts if the feature group is online enabled.
 
         Returns:
             None. This method does not return anything.
@@ -891,6 +972,20 @@ class FeatureGroup(Builder):
             Any exceptions thrown by the underlying execution strategy or feature store.
 
         """
+
+        feature_store_singleton = FeatureStoreSingleton(
+            feature_store_id=self.feature_store_id
+        )
+        if (
+            isinstance(
+                feature_store_singleton.get_online_config(), OpenSearchClientConfig
+            )
+            and self.is_online_enabled
+            and http_auth is None
+        ):
+            raise ValueError(
+                "HTTP authentication (username, password) is required to access the online ElasticSearch cluster. Please provide the necessary credentials."
+            )
 
         # Create Feature Definition Job and persist it
         feature_group_job = self._build_feature_group_job(
@@ -908,12 +1003,12 @@ class FeatureGroup(Builder):
         feature_group_execution_strategy = (
             OciExecutionStrategyProvider.provide_execution_strategy(
                 execution_engine=get_execution_engine_type(input_dataframe),
-                metastore_id=get_metastore_id(self.feature_store_id),
+                feature_store_id=self.feature_store_id,
             )
         )
 
         feature_group_execution_strategy.ingest_feature_definition(
-            self, feature_group_job, input_dataframe
+            self, feature_group_job, input_dataframe, http_auth
         )
 
     def materialise_stream(
@@ -928,7 +1023,7 @@ class FeatureGroup(Builder):
     ):
         """Ingest a Spark Structured Streaming Dataframe to the feature store.
 
-        This method creates a long running Spark Streaming Query, you can control the
+        This method creates a long-running Spark Streaming Query, you can control the
         termination of the query through the arguments.
 
         It is possible to stop the returned query with the `.stop()` and check its
@@ -1049,6 +1144,98 @@ class FeatureGroup(Builder):
             feature_store_id=self.feature_store_id,
             entity_id=self.entity_id,
         )
+
+    def get_nearest_neighbours(
+        self,
+        field,
+        k_neighbors,
+        embedding_vector,
+        max_candidate_pool,
+        http_auth: Tuple[str, str],
+    ):
+        """
+        Get nearest neighbors based on embedding vector.
+
+        Parameters:
+        - field (str): Field containing embedding vectors.
+        - k_neighbors (int): Number of neighbors to retrieve.
+        - embedding_vector: Embedding vector for the query.
+        - max_candidate_pool (int): Maximum number of candidates to consider.
+        - http_auth (Tuple[str, str]): Tuple containing username and password for authentication.
+
+        Returns:
+        - result: Result of the nearest neighbors query.
+        """
+
+        if self.is_online_enabled:
+            online_execution_engine = (
+                OnlineFSStrategyProvider.provide_online_execution_strategy(
+                    self.feature_store_id
+                )
+            )
+
+            return online_execution_engine.get_nearest_neighbours(
+                self,
+                field,
+                k_neighbors,
+                embedding_vector,
+                max_candidate_pool,
+                http_auth,
+            )
+        else:
+            raise ValueError(
+                "Online serving/embedding is not enabled for this FeatureGroup."
+            )
+
+    def get_serving_vector(
+        self, primary_key_vector, http_auth: Tuple[str, str], **kwargs
+    ):
+        """
+        Get serving vector based on primary key.
+
+        Parameters:
+        - primary_key_vector: Primary key vector for serving vector retrieval.
+        - http_auth (Tuple[str, str]): Tuple containing username and password for authentication.
+
+        Returns:
+        - serving_vector: Serving vector retrieved based on the primary key.
+        """
+
+        if self.is_online_enabled:
+            online_execution_engine = (
+                OnlineFSStrategyProvider.provide_online_execution_strategy(
+                    self.feature_store_id
+                )
+            )
+
+            serving_vector = online_execution_engine.read(
+                self, primary_key_vector, http_auth=http_auth
+            )
+
+            transformed_data = serving_vector
+
+            if self.on_demand_transformation_id:
+                on_demand_transformation = Transformation.from_id(
+                    self.on_demand_transformation_id
+                )
+                transformation_function = Base64EncoderDecoder.decode(
+                    on_demand_transformation.source_code_function
+                )
+
+                # Execute the function under namespace
+                execution_namespace = {}
+                exec(transformation_function, execution_namespace)
+                transformation_function_caller = execution_namespace.get(
+                    on_demand_transformation.name
+                )
+
+                transformed_data = transformation_function_caller(
+                    serving_vector, **kwargs
+                )
+
+            return transformed_data
+        else:
+            raise ValueError("Online serving is not enabled for this FeatureGroup.")
 
     def delete(self):
         """Removes FeatureGroup Resource.

@@ -289,9 +289,12 @@ class Entity(Builder):
         expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
         statistics_config: Union[StatisticsConfig, bool] = True,
         transformation_id: str = None,
+        on_demand_transformation_id: str = None,
         name: str = None,
         description: str = None,
         compartment_id: str = None,
+        is_online_enabled: bool = False,
+        is_offline_enabled: bool = True,
         transformation_kwargs: Dict = None,
     ):
         feature_group_resource = (
@@ -302,8 +305,11 @@ class Entity(Builder):
             .with_compartment_id(
                 compartment_id if compartment_id else self.compartment_id
             )
+            .with_is_online_enabled(is_online_enabled)
+            .with_is_offline_enabled(is_offline_enabled)
             .with_entity_id(self.id)
             .with_transformation_id(transformation_id)
+            .with_on_demand_transformation_id(on_demand_transformation_id)
             .with_partition_keys(partition_keys)
             .with_transformation_kwargs(transformation_kwargs)
             .with_primary_keys(primary_keys)
@@ -319,7 +325,9 @@ class Entity(Builder):
 
     def create_feature_group(
         self,
-        primary_keys: List[str],
+        primary_keys: List[str] = None,
+        is_online_enabled: bool = False,
+        is_offline_enabled: bool = True,
         partition_keys: List[str] = None,
         input_feature_details: List[FeatureDetail] = None,
         schema_details_dataframe: Union[DataFrame, pd.DataFrame] = None,
@@ -327,6 +335,7 @@ class Entity(Builder):
         expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
         statistics_config: Union[StatisticsConfig, bool] = True,
         transformation_id: str = None,
+        on_demand_transformation_id: str = None,
         name: str = None,
         description: str = None,
         compartment_id: str = None,
@@ -352,6 +361,8 @@ class Entity(Builder):
             Type of the expectation.
         transformation_id: str = None
             Transformation Mode.
+        on_demand_transformation_id: str = None
+            on_demand_transformation_id for Transformation.
         name: str = None
             Name for the resource.
         description: str = None
@@ -393,9 +404,12 @@ class Entity(Builder):
             expectation_type,
             statistics_config,
             transformation_id,
+            on_demand_transformation_id,
             name,
             description,
             compartment_id,
+            is_online_enabled,
+            is_offline_enabled,
             transformation_kwargs,
         )
 
@@ -461,8 +475,12 @@ class Entity(Builder):
         self,
         query: str,
         name: str = None,
+        primary_keys: List[str] = None,
         description: str = None,
         compartment_id: str = None,
+        on_demand_transformation_id: str = None,
+        is_online_enabled: bool = False,
+        is_offline_enabled: bool = True,
         expectation_suite: ExpectationSuite = None,
         expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
         statistics_config: Union[StatisticsConfig, bool] = True,
@@ -475,11 +493,15 @@ class Entity(Builder):
             .with_feature_store_id(self.feature_store_id)
             .with_entity_id(self.id)
             .with_query(query)
+            .with_is_online_enabled(is_online_enabled)
+            .with_is_offline_enabled(is_offline_enabled)
             .with_compartment_id(
                 compartment_id if compartment_id else self.compartment_id
             )
             .with_statistics_config(statistics_config)
             .with_partition_keys(partition_keys)
+            .with_primary_keys(primary_keys)
+            .with_on_demand_transformation_id(on_demand_transformation_id)
         )
 
         if expectation_suite:
@@ -493,9 +515,13 @@ class Entity(Builder):
     def create_dataset(
         self,
         query: str,
+        primary_keys: List[str] = None,
+        is_online_enabled: bool = False,
+        is_offline_enabled: bool = True,
         name: str = None,
         description: str = None,
         compartment_id: str = None,
+        on_demand_transformation_id: str = None,
         expectation_suite: ExpectationSuite = None,
         expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
         statistics_config: Union[StatisticsConfig, bool] = True,
@@ -513,6 +539,8 @@ class Entity(Builder):
             Description about the Resource.
         compartment_id: str = None
             compartment_id
+        on_demand_transformation_id: str = None
+            on_demand_transformation_id for Transformation.
         expectation_suite: ExpectationSuite = None
             Expectation details for the validation.
         expectation_type: ExpectationType
@@ -535,8 +563,12 @@ class Entity(Builder):
         self.oci_fs_dataset = self._build_dataset(
             query,
             name,
+            primary_keys,
             description,
             compartment_id,
+            on_demand_transformation_id,
+            is_online_enabled,
+            is_offline_enabled,
             expectation_suite,
             expectation_type,
             statistics_config,

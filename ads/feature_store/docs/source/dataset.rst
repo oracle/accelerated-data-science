@@ -112,6 +112,8 @@ Use the ``from_id()`` method from the ``Dataset`` class to load an existing data
 
   dataset = Dataset.from_id("<unique_id>")
 
+.. _Materialise Dataset:
+
 Materialise
 ===========
 
@@ -119,12 +121,12 @@ Use the the ``materialise() -> DatasetJob`` method of the ``Dataset`` instance t
 
 The ``.materialise()`` method has the following parameters:
 
-- ``input_dataframe: Union[DataFrame, pd.DataFrame]``. The Spark dataframe or Pandas dataframe.
-- ``from_timestamp: str(Optional)``. The from timestamp of the dataset.
-- ``to_timestamp: str(Optional)``. The to timestamp of the dataset.
-- ``feature_option_details: FeatureOptionDetails(Optional)``. The feature option details for the materialise operation.
-    - ``write_config_details: (merge_schema: bool, overwrite_schema: bool)``. The write configuration details for the feature option details.
-    - ``read_config_details: (version_as_of: int, timestamp_as_of: datetime)``. The read configuration details for the feature option details.
+- ``input_dataframe: Union[DataFrame, pd.DataFrame]``. Spark dataframe or Pandas dataframe.
+- ``from_timestamp: str(Optional)``. From timestamp of dataset.
+- ``to_timestamp: str(Optional)``. To timestamp of dataset.
+- ``feature_option_details: FeatureOptionDetails(Optional)``. Feature option details for materialise operation.
+    - ``write_config_details: (merge_schema: bool, overwrite_schema: bool)``. Write configuration details for feature option details.
+    - ``read_config_details: (version_as_of: int, timestamp_as_of: datetime)``. Read configuration details for feature option details.
 
 .. code-block:: python3
 
@@ -134,6 +136,35 @@ The ``.materialise()`` method has the following parameters:
 
 .. seealso::
    :ref:`Dataset Job`
+
+Get nearest neighbours
+======================
+You can call the ``get_nearest_neighbours() -> NearestNeighbour`` method of the ``Dataset`` instance to find the nearest neighbours for a feature field
+
+The ``.get_nearest_neighbours()`` method takes the following parameter:
+    - ``field``: Indicates which fields to fetch.
+    - ``k_neighbors``: Number of neighbours to fetch
+    - ``embedding_vector``: Embedding vector. Usually a dense vector
+    - ``max_candidate_pool``: Indicates the maximum candidate pool size
+
+.. seealso::
+   Refer  :ref:`Data types` supported by feature store
+
+.. seealso::
+   See :ref:`Online Feature Store` for the documentation on online feature store.
+
+Get serving vector
+===================
+You can call the ``get_serving_vector()`` method of the ``Dataset`` instance to find the serving vector
+
+The ``.get_serving_vector()`` method takes the following parameter:
+    - ``primary_key_vector``: Primary key vector for dataset
+
+.. seealso::
+   Refer  :ref:`Data types` supported by feature store
+
+.. seealso::
+   See :ref:`Online Feature Store` for the documentation on online feature store.
 
 
 Delete

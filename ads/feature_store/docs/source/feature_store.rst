@@ -3,6 +3,8 @@ Feature Store
 
 Feature store is the top-level entity for a Feature Store.
 
+.. image:: figures/entity.png
+
 Define
 ======
 

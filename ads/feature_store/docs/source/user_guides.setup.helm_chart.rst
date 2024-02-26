@@ -1,10 +1,10 @@
-=================================
-Setup using Helm Charts
-=================================
+=============================================
+[No AuthN/AuthZ] Deployment using Helm Charts
+=============================================
 
-We always suggest to deploy feature store via the :doc:`Feature Store Operator <./user_guides.setup.feature_store_operator>` to setup Feature Store API server in OKE Cluster. This method should preferably be used only when the operator can not satisfy your requirements
-as it is much simpler to do the setup via the operator.
+This deployment method facilitates the implementation of a Helm chart onto an existing Oracle Kubernetes Engine (OKE) cluster. The following steps outline the process for deploying a Helm chart onto an OKE cluster.
 
+.. image:: figures/oke.png
 
 Prerequisites
 _____________
@@ -36,7 +36,6 @@ ________________________________
 .. code-block:: bash
 
    helm upgrade <app-name> oci://<helm-chart-image-path> --namespace <kubernetes-namespace> --values <path-to-values-yaml> --timeout 300s --wait -i --version <marketplace-version>
-- (Optional) `Setup Feature Store API Gateway <https://github.com/oracle-samples/oci-data-science-ai-samples/tree/main/feature_store/apigw_terraform>`_
 
 
 Appendix

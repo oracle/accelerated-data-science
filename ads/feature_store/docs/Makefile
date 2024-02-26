@@ -36,9 +36,14 @@ push: build-image
 	docker push $(REGISTRY)/$(IMAGE_NAME):$(TAG)
 
 # https://objectstorage.us-ashburn-1.oraclecloud.com/p/vv1bNIvcMnbvbM5TUW5NDVSoisL4BAS54l9bGFDmyiNkTPZ4q6NtAmOdemNr8lTv/n/ociodscdev/b/oci-feature-store/o/beta/index.html#document-quickstart
-publish: clean
-	sphinx-build "$(SOURCEDIR)" "$(BUILDDIR)" -b singlehtml && \
-			oci os object put --name beta/index.html --file build/index.html -bn oci-feature-store -ns ociodscdev --force --content-type "text/html"
+publish: html
+	oci os object bulk-upload -bn oci-feature-store --src-dir build -ns ociodscdev --prefix beta/ --overwrite
+	oci os object bulk-upload -bn oci-feature-store --src-dir build -ns ociodscdev --include "*.js" --content-type "text/javascript" --prefix beta/ --overwrite
+	oci os object bulk-upload -bn oci-feature-store --src-dir build -ns ociodscdev --include "*.css" --content-type "text/css" --prefix beta/ --overwrite
+	oci os object bulk-upload -bn oci-feature-store --src-dir build -ns ociodscdev --include "*.gif" --content-type "image/gif" --prefix beta/ --overwrite
+	oci os object bulk-upload -bn oci-feature-store --src-dir build -ns ociodscdev --include "*.png" --content-type "image/png" --prefix beta/ --overwrite
+	oci os object bulk-upload -bn oci-feature-store --src-dir build -ns ociodscdev --include "*.html" --content-type "text/html" --prefix beta/ --overwrite
+
 
 launch:
 	docker run -it --network host $(IMAGE_NAME):$(TAG)

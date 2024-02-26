@@ -7,7 +7,7 @@ from ads.feature_store.feature_group_job import FeatureGroupJob
 import pandas as pd
 import numpy as np
 import pytest
-from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
+from ads.feature_store.common.feature_store_singleton import SparkSessionSingleton
 
 
 class TestInputSchema(FeatureStoreTestCase):
