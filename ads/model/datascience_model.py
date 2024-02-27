@@ -4,38 +4,39 @@
 # Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import os
-import shutil
 import cgi
 import json
 import logging
+import os
+import shutil
+import tempfile
 from copy import deepcopy
 from typing import Dict, List, Optional, Union
 
-import tempfile
-from jsonschema import validate, ValidationError
 import pandas
+from jsonschema import ValidationError, validate
+
 from ads.common import utils
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import COMPARTMENT_OCID, PROJECT_OCID
 from ads.feature_engineering.schema import Schema
 from ads.jobs.builders.base import Builder
-from ads.model.model_metadata import (
-    ModelCustomMetadata,
-    ModelCustomMetadataItem,
-    ModelProvenanceMetadata,
-    ModelTaxonomyMetadata,
-    MetadataCustomCategory,
-)
-from ads.model.service.oci_datascience_model import (
-    ModelProvenanceNotFoundError,
-    OCIDataScienceModel,
-)
 from ads.model.artifact_downloader import (
     LargeArtifactDownloader,
     SmallArtifactDownloader,
 )
 from ads.model.artifact_uploader import LargeArtifactUploader, SmallArtifactUploader
+from ads.model.model_metadata import (
+    MetadataCustomCategory,
+    ModelCustomMetadata,
+    ModelCustomMetadataItem,
+    ModelProvenanceMetadata,
+    ModelTaxonomyMetadata,
+)
+from ads.model.service.oci_datascience_model import (
+    ModelProvenanceNotFoundError,
+    OCIDataScienceModel,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +198,10 @@ class DataScienceModel(Builder):
     CONST_PROVENANCE_METADATA = "provenanceMetadata"
     CONST_ARTIFACT = "artifact"
     CONST_MODEL_VERSION_SET_ID = "modelVersionSetId"
+    CONST_MODEL_VERSION_SET_NAME = "modelVersionSetName"
     CONST_MODEL_VERSION_LABEL = "versionLabel"
+    CONST_TIME_CREATED = "timeCreated"
+    CONST_LIFECYCLE_STATE = "lifecycleState"
     CONST_MODEL_FILE_DESCRIPTION = "modelDescription"
 
     attribute_map = {
@@ -215,7 +219,10 @@ class DataScienceModel(Builder):
         CONST_PROVENANCE_METADATA: "provenance_metadata",
         CONST_ARTIFACT: "artifact",
         CONST_MODEL_VERSION_SET_ID: "model_version_set_id",
+        CONST_MODEL_VERSION_SET_NAME: "model_version_set_name",
         CONST_MODEL_VERSION_LABEL: "version_label",
+        CONST_TIME_CREATED: "time_created",
+        CONST_LIFECYCLE_STATE: "lifecycle_state",
         CONST_MODEL_FILE_DESCRIPTION: "model_file_description",
     }
 
@@ -295,6 +302,10 @@ class DataScienceModel(Builder):
             The DataScienceModel instance (self)
         """
         return self.set_spec(self.CONST_PROJECT_ID, project_id)
+
+    @property
+    def time_created(self) -> str:
+        return self.get_spec(self.CONST_TIME_CREATED)
 
     @property
     def description(self) -> str:
@@ -549,6 +560,10 @@ class DataScienceModel(Builder):
             The Model version set OCID.
         """
         return self.set_spec(self.CONST_MODEL_VERSION_SET_ID, model_version_set_id)
+
+    @property
+    def model_version_set_name(self) -> str:
+        return self.get_spec(self.CONST_MODEL_VERSION_SET_NAME)
 
     @property
     def version_label(self) -> str:

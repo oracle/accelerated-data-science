@@ -44,4 +44,6 @@ class AquaModelHandler(AquaAPIhandler):
         return self.finish(AquaModelApp().list(compartment_id, project_id))
 
 
-__handlers__ = [("model/?([^/]*)", AquaModelHandler)]
+__handlers__ = [
+    ("model/?([^/]*)", AquaModelHandler),
+]
