@@ -704,6 +704,11 @@ class AquaEvaluationApp(AquaApp):
         -------
         AquaEvalReport:
             An instance of AquaEvalReport.
+
+        Raises
+        ------
+        AquaFileNotFoundError:
+            When missing `report.html` in evaluation artifact.
         """
         if eval_id in self._report_cache.keys():
             logger.info(f"Returning report from cache.")
