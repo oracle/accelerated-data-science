@@ -26,6 +26,9 @@ logger = logging.getLogger("ODSC_AQUA")
 
 UNKNOWN = ""
 README = "README.md"
+DEPLOYMENT_CONFIG = "deployment_config.json"
+EVALUATION_REPORT_ZIP = "report.zip"
+EVALUATION_REPORT = "report.html"
 UNKNOWN_JSON_STR = "{}"
 CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
     datasciencemodel="models",
