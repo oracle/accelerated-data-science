@@ -4,6 +4,8 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from requests import HTTPError
+from urllib.parse import urlparse
+
 from ads.aqua.decorator import handle_exceptions
 from ads.aqua.evaluation import (
     AquaEvaluationApp, 
@@ -19,9 +21,12 @@ class AquaEvaluationHandler(AquaAPIhandler):
     @handle_exceptions
     def get(self, eval_id=""):
         """Handle GET request."""
+        url_parse = urlparse(self.request.path)
+        paths = url_parse.path.strip("/")
+        if paths.startswith("aqua/evaluation/metrics"):
+            return self.get_default_metrics()
         if not eval_id:
             return self.list()
-        print(self.xsrf_token)
         return self.read(eval_id)
 
     @handle_exceptions
@@ -90,6 +95,10 @@ class AquaEvaluationHandler(AquaAPIhandler):
         project_id = self.get_argument("project_id", default=None)
         return self.finish(AquaEvaluationApp().list(compartment_id, project_id))
 
+    def get_default_metrics(self, **kwargs):
+        """Lists supported metrics."""
+        return self.finish(AquaEvaluationApp().get_supported_metrics())
+
 
 class AquaEvaluationStatusHandler(AquaAPIhandler):
     """Handler for Aqua Evaluation status REST APIs."""
@@ -121,7 +130,18 @@ class AquaEvaluationMetricsHandler(AquaAPIhandler):
         return self.finish(AquaEvaluationApp().load_metrics(eval_id))
 
 
+class AquaEvaluationConfigHandler(AquaAPIhandler):
+    """Handler for Aqua Evaluation Config REST APIs."""
+
+    @handle_exceptions
+    def get(self, model_id):
+        """Handle GET request."""
+
+        return self.finish(AquaEvaluationApp().load_evaluation_config(model_id))
+
+
 __handlers__ = [
+    ("evaluation/config/?([^/]*)", AquaEvaluationConfigHandler),
     ("evaluation/?([^/]*)", AquaEvaluationHandler),
     ("evaluation/?([^/]*/report)", AquaEvaluationReportHandler),
     ("evaluation/?([^/]*/metrics)", AquaEvaluationMetricsHandler),

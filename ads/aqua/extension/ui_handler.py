@@ -47,6 +47,10 @@ class AquaUIHandler(AquaAPIhandler):
             return self.list_compartments()
         elif paths.startswith("aqua/experiment"):
             return self.list_model_version_sets()
+        elif paths.startswith("aqua/buckets"):
+            return self.list_buckets()
+        elif paths.startswith("aqua/job/shapes"):
+            return self.list_job_shapes()
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
@@ -84,9 +88,27 @@ class AquaUIHandler(AquaAPIhandler):
             AquaUIApp().list_model_version_sets(compartment_id=compartment_id, **kwargs)
         )
 
+    @handle_exceptions
+    def list_buckets(self, **kwargs):
+        """Lists all model version sets for the specified compartment or tenancy."""
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
+        return self.finish(
+            AquaUIApp().list_buckets(compartment_id=compartment_id, **kwargs)
+        )
+
+    @handle_exceptions
+    def list_job_shapes(self, **kwargs):
+        """Lists job shapes available in the specified compartment."""
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
+        return self.finish(
+            AquaUIApp().list_job_shapes(compartment_id=compartment_id, **kwargs)
+        )
+
 
 __handlers__ = [
     ("logging/?([^/]*)", AquaUIHandler),
     ("compartments/?([^/]*)", AquaUIHandler),
     ("experiment/?([^/]*)", AquaUIHandler),
+    ("buckets/?([^/]*)", AquaUIHandler),
+    ("job/shapes/?([^/]*)", AquaUIHandler),
 ]

@@ -625,6 +625,49 @@ class AquaEvaluationApp(AquaApp):
         content = res.data.raw.read()
         return dict(evaluation_id=eval_id, content=base64.b64encode(content).decode())
 
+    def get_supported_metrics(self) -> list:
+        """Lists supported metrics."""
+
+        # TODO: implementation
+        return [
+            {
+                "use_case": ["one", "two", "three"],
+                "key": "bertscore",
+                "name": "BERT Score",
+                "description": "BERTScore computes the semantic similarity between two pieces of text using BERT embeddings.",
+                "args": {},
+            },
+        ]
+
+    def load_evaluation_config(self, model_id: str) -> dict:
+        """Loads `evaluation_config.json` stored in artifact."""
+        # TODO: Implementation
+        logger.info(f"Loading evaluation config for model: {model_id}")
+        return {
+            "model_params": {
+                "max_tokens": 500,
+                "temperature": 0.7,
+                "top_p": 1.0,
+                "top_k": 50,
+            },
+            "shape": {
+                "BM.A10.2": {
+                    "count": 1,
+                    "gpu_memory": 0.8,
+                    "tensor_parallel": 1,
+                    "enforce_eager": 3,
+                    "max_model_len": 2048,
+                },
+                "VM.A10.2": {
+                    "count": 1,
+                    "gpu_memory": 0.8,
+                    "tensor_parallel": 1,
+                    "enforce_eager": 3,
+                    "max_model_len": 2048,
+                },
+            },
+        }
+
     def _upload_data(self, src_uri, dst_uri):
         """Uploads data file from notebook session to object storage."""
         # This method will be called in create()
