@@ -9,6 +9,7 @@ import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
+from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Optional, Union
 from zipfile import ZipFile
@@ -134,12 +135,6 @@ class AquaEvaluationSummary(DataClassSerializable):
     experiment: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     source: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     job: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-
-
-@dataclass(repr=False)
-class AquaEvaluation(AquaEvaluationSummary, DataClassSerializable):
-    """Represents an Aqua evaluation."""
-
     parameters: AquaEvalParams = field(default_factory=AquaEvalParams)
 
 
@@ -725,27 +720,28 @@ class AquaEvaluationApp(AquaApp):
             report_zip_name = ""
             for file in get_files(temp_dir):
                 # report will be a zip archive in model artifact
-                if file.endswith(".zip"):
-                    zip_file_path = os.path.join(temp_dir, file)
-                    with ZipFile(zip_file_path) as zip_file:
-                        zip_file.extractall(temp_dir)
+                if os.path.basename(file) == utils.EVALUATION_REPORT:
+                    report_path = os.path.join(temp_dir, utils.EVALUATION_REPORT)
+                    with open(report_path, "rb") as f:
+                        content = f.read()
+
                     report_zip_name = file
                     break
 
-            try:
-                report_path = os.path.join(temp_dir, utils.EVALUATION_REPORT)
-                with open(report_path, "rb") as f:
-                    content = f.read()
-            except FileNotFoundError as e:
-                error_msg = "Related Resource Not Authorized Or Not Found:" + (
-                    (
-                        f"Found report zip in evaluation artifact: `{report_zip_name}`."
-                        f"Expected zip name is `{utils.EVALUATION_REPORT_ZIP}`."
-                    )
-                    if report_zip_name
-                    else f"Missing `{utils.EVALUATION_REPORT_ZIP}` in evaluation artifact."
-                )
-                raise AquaFileNotFoundError(error_msg)
+            # try:
+            #     report_path = os.path.join(temp_dir, utils.EVALUATION_REPORT)
+            #     with open(report_path, "rb") as f:
+            #         content = f.read()
+            # except FileNotFoundError as e:
+            #     error_msg = "Related Resource Not Authorized Or Not Found:" + (
+            #         (
+            #             f"Found report zip in evaluation artifact: `{report_zip_name}`."
+            #             f"Expected zip name is `{utils.EVALUATION_REPORT_ZIP}`."
+            #         )
+            #         if report_zip_name
+            #         else f"Missing `{utils.EVALUATION_REPORT_ZIP}` in evaluation artifact."
+            #     )
+            #     raise AquaFileNotFoundError(error_msg)
 
         report = AquaEvalReport(
             evaluation_id=eval_id, content=base64.b64encode(content).decode()
