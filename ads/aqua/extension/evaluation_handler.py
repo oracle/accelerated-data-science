@@ -3,16 +3,15 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from requests import HTTPError
 from urllib.parse import urlparse
 
+from requests import HTTPError
+
 from ads.aqua.decorator import handle_exceptions
-from ads.aqua.evaluation import (
-    AquaEvaluationApp, 
-    CreateAquaEvaluationDetails
-)
+from ads.aqua.evaluation import AquaEvaluationApp, CreateAquaEvaluationDetails
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.aqua.extension.utils import validate_function_parameters
+from ads.config import COMPARTMENT_OCID, PROJECT_OCID
 
 
 class AquaEvaluationHandler(AquaAPIhandler):
@@ -32,7 +31,7 @@ class AquaEvaluationHandler(AquaAPIhandler):
     @handle_exceptions
     def post(self, *args, **kwargs):
         """Handles post request for the evaluation APIs
-        
+
         Raises
         ------
         HTTPError
@@ -45,12 +44,11 @@ class AquaEvaluationHandler(AquaAPIhandler):
 
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)
-        
+
         validate_function_parameters(
-            data_class=CreateAquaEvaluationDetails, 
-            input_data=input_data
+            data_class=CreateAquaEvaluationDetails, input_data=input_data
         )
-        
+
         try:
             self.finish(
                 # TODO: decide what other kwargs will be needed for create aqua evaluation.
@@ -90,7 +88,7 @@ class AquaEvaluationHandler(AquaAPIhandler):
 
     def list(self):
         """List Aqua models."""
-        compartment_id = self.get_argument("compartment_id", default=None)
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
         # project_id is no needed.
         project_id = self.get_argument("project_id", default=None)
         return self.finish(AquaEvaluationApp().list(compartment_id, project_id))
