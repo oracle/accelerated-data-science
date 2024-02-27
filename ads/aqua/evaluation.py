@@ -8,10 +8,13 @@ from dataclasses import dataclass, field, asdict
 import os
 import tempfile
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import Enum
+from threading import Lock
 from typing import Any, Dict, List, Optional, Union
 
 import oci
+from cachetools import TTLCache
 from oci.data_science.models import (
     Metadata,
     UpdateModelDetails,
@@ -21,7 +24,8 @@ from oci.data_science.models import (
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.utils import (
-    CONSOLE_LINK_RESOURCE_TYPE_MAPPING, 
+    CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
+    EVALUATION_REPORT, 
     MODEL_PARAMETERS, 
     UNKNOWN, 
     LifecycleStatus, 
@@ -31,7 +35,12 @@ from ads.aqua.utils import (
     query_resources, 
     upload_file_to_os
 )
-from ads.aqua.exception import AquaMissingKeyError, AquaRuntimeError, AquaValueError
+from ads.aqua.exception import (
+    AquaFileNotFoundError,
+    AquaMissingKeyError,
+    AquaRuntimeError,
+    AquaValueError,
+)
 from ads.common import oci_client as oc
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
@@ -85,6 +94,12 @@ class AquaResourceIdentifier(DataClassSerializable):
     id: str = ""
     name: str = ""
     url: str = ""
+
+
+@dataclass(repr=False)
+class AquaEvalReport(DataClassSerializable):
+    evaluation_id: str = ""
+    content: str = ""
 
 
 @dataclass(repr=False)
@@ -251,6 +266,9 @@ class AquaEvaluationApp(AquaApp):
         and requires proper configuration and authentication set up to interact
         with OCI services.
     """
+
+    _report_cache = TTLCache(maxsize=10, ttl=timedelta(hours=5), timer=datetime.now)
+    _cache_lock = Lock()
 
     def create(
         self, create_aqua_evaluation_details: CreateAquaEvaluationDetails, **kwargs
@@ -707,7 +725,7 @@ class AquaEvaluationApp(AquaApp):
                     )
         return AquaEvalMetrics(id=eval_id, metrics=metrics)
 
-    def download_report(self, eval_id) -> dict:
+    def download_report(self, eval_id) -> AquaEvalReport:
         """Downloads HTML report from model artifact.
 
         Parameters
@@ -717,22 +735,46 @@ class AquaEvaluationApp(AquaApp):
 
         Returns
         -------
-        dict:
-            A dictionary contains json response.
+        AquaEvalReport:
+            An instance of AquaEvalReport.
+
+        Raises
+        ------
+        AquaFileNotFoundError:
+            When missing `report.html` in evaluation artifact.
         """
-        # WIP
-        # TODO: add caching
+        if eval_id in self._report_cache.keys():
+            logger.info(f"Returning report from cache.")
+            report = self._report_cache.get(eval_id)
+            if report.content:
+                return report
+
         with tempfile.TemporaryDirectory() as temp_dir:
             DataScienceModel.from_id(eval_id).download_artifact(
                 temp_dir,
                 auth=self._auth,
             )
+            content = ""
             for file in get_files(temp_dir):
-                if file == "report.zip":
-                    with ZipFile(zip_file_path) as zip_file:
-                        zip_file.extractall(self.target_dir)
+                if os.path.basename(file) == EVALUATION_REPORT:
+                    report_path = os.path.join(temp_dir, EVALUATION_REPORT)
+                    with open(report_path, "rb") as f:
+                        content = f.read()
+                    break
 
-        return dict(evaluation_id=eval_id, content=base64.b64encode(content).decode())
+            if not content:
+                error_msg = "Related Resource Not Authorized Or Not Found:" + (
+                    f"Missing `{EVALUATION_REPORT}` in evaluation artifact."
+                )
+                raise AquaFileNotFoundError(error_msg)
+
+        report = AquaEvalReport(
+            evaluation_id=eval_id, content=base64.b64encode(content).decode()
+        )
+
+        self._report_cache.__setitem__(key=eval_id, value=report)
+
+        return report
 
     def _get_attribute_from_model_metadata(
         self,

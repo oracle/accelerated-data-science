@@ -52,12 +52,14 @@ class AquaAPIhandler(APIHandler):
         """AquaAPIhandler errors are JSON, not human pages."""
 
         self.set_header("Content-Type", "application/json")
+        reason = kwargs.get("reason")
+        self.set_status(status_code, reason=reason)
         message = responses.get(status_code, "Unknown HTTP Error")
         reply = {
             "status": status_code,
             "message": message,
             "service_payload": kwargs.get("service_payload", {}),
-            "reason": kwargs.get("reason"),
+            "reason": reason,
         }
         exc_info = kwargs.get("exc_info")
         if exc_info:

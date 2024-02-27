@@ -4,16 +4,19 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import base64
 import json
+import os
 import unittest
 from dataclasses import asdict
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import oci
 
 from ads.aqua import utils
-from ads.aqua.evaluation import AquaEvaluationApp, AquaEvaluationSummary
+from ads.aqua.evaluation import AquaEvalReport, AquaEvaluationApp, AquaEvaluationSummary
 from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.model import DataScienceModel
 
 null = None
 
@@ -220,9 +223,9 @@ class TestAquaModel(unittest.TestCase):
         response = json.loads(json.dumps(response, default=AquaAPIhandler.serialize))
         print(response)
 
-    def assert_payload(self, response):
+    def assert_payload(self, response, response_type):
         """Checks each field is not empty."""
-        attributes = AquaEvaluationSummary.__annotations__.keys()
+        attributes = response_type.__annotations__.keys()
         rdict = asdict(response)
 
         for attr in attributes:
@@ -257,7 +260,7 @@ class TestAquaModel(unittest.TestCase):
             TestDataset.model_provenance_object.get("training_id")
         )
         self.print_expected_response(response, "GET EVALUATION")
-        self.assert_payload(response)
+        self.assert_payload(response, AquaEvaluationSummary)
 
     def test_list(self):
         """Tests list evaluations successfully."""
@@ -276,4 +279,25 @@ class TestAquaModel(unittest.TestCase):
 
         assert len(response) == 1
         self.print_expected_response(response, "LIST EVALUATIONS")
-        self.assert_payload(response[0])
+        self.assert_payload(response[0], AquaEvaluationSummary)
+
+    @patch.object(DataScienceModel, "download_artifact")
+    @patch.object(DataScienceModel, "from_id")
+    @patch("tempfile.TemporaryDirectory")
+    def test_download_report(
+        self, mock_TemporaryDirectory, mock_dsc_model_from_id, mock_download_artifact
+    ):
+        """Tests download evaluation report successfully."""
+        curr_dir = os.path.dirname(os.path.abspath(__file__))
+        mock_temp_path = os.path.join(curr_dir, "test_data/valid_eval_artifact")
+        mock_TemporaryDirectory.return_value.__enter__.return_value = mock_temp_path
+        response = self.app.download_report(TestDataset.EVAL_ID)
+
+        mock_dsc_model_from_id.assert_called_with(TestDataset.EVAL_ID)
+        self.print_expected_response(response, "DOWNLOAD REPORT")
+        self.assert_payload(response, AquaEvalReport)
+
+        read_content = base64.b64decode(response.content)
+        assert (
+            read_content == b"This is a sample evaluation report.html.\n"
+        ), read_content
