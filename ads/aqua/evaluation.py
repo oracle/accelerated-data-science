@@ -416,12 +416,8 @@ class AquaEvaluationApp(AquaApp):
             DataScienceModel()
             .with_compartment_id(target_compartment)
             .with_project_id(target_project)
-            .with_display_name(
-                create_aqua_evaluation_details.evaluation_name
-            )
-            .with_description(
-                create_aqua_evaluation_details.evaluation_description
-            )
+            .with_display_name(create_aqua_evaluation_details.evaluation_name)
+            .with_description(create_aqua_evaluation_details.evaluation_description)
             .with_model_version_set_id(experiment_model_version_set_id)
             .with_custom_metadata_list(evaluation_model_custom_metadata)
             .with_defined_metadata_list(evaluation_model_taxonomy_metadata)
