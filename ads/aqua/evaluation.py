@@ -83,7 +83,7 @@ class EvaluationJobTags(Enum):
 class AquaResourceIdentifier(DataClassSerializable):
     id: str = ""
     name: str = ""
-    console_url: str = ""
+    url: str = ""
 
 
 @dataclass(repr=False)
@@ -562,7 +562,7 @@ class AquaEvaluationApp(AquaApp):
 
         return runtime
 
-    def get(self, eval_id) -> AquaEvaluation:
+    def get(self, eval_id) -> AquaEvaluationSummary:
         """Gets the information of an Aqua evalution.
 
         Parameters
@@ -572,8 +572,8 @@ class AquaEvaluationApp(AquaApp):
 
         Returns
         -------
-        AquaEvaluation:
-            The instance of AquaEvaluation.
+        AquaEvaluationSummary:
+            The instance of AquaEvaluationSummary.
         """
         logger.info(f"Fetching evaluation: {eval_id} details ...")
 
@@ -606,7 +606,7 @@ class AquaEvaluationApp(AquaApp):
 
     def list(
         self, compartment_id: str = None, project_id: str = None, **kwargs
-    ) -> List[AquaEvaluation]:
+    ) -> List[AquaEvaluationSummary]:
         """List Aqua evaluations in a given compartment and under certain project.
 
         Parameters
@@ -620,8 +620,8 @@ class AquaEvaluationApp(AquaApp):
 
         Returns
         -------
-        List[AquaEvaluation]:
-            The list of the `ads.aqua.evalution.AquaEvaluation`.
+        List[AquaEvaluationSummary]:
+            The list of the `ads.aqua.evalution.AquaEvaluationSummary`.
         """
         logger.info(f"Fetching evaluations from compartment {compartment_id}.")
         models = utils.query_resources(
@@ -876,7 +876,7 @@ class AquaEvaluationApp(AquaApp):
             return AquaResourceIdentifier(
                 id=id,
                 name=name,
-                console_url=get_console_link(
+                url=get_console_link(
                     resource=resource_type,
                     ocid=id,
                     region=self.region,
