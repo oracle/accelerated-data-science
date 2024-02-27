@@ -186,6 +186,7 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
 BUCKET_URI = "oci://ming-dev@ociodscdev/evaluation/sample_response"
 ARTIFACT="oci://lu_bucket@ociodscdev/sample_artifact.zip"
 SOURCE="oci://lu_bucket@ociodscdev/evaluation_dummy_script.py"
+SUBNET_ID=os.environ.get("SUBNET_ID", None)
 
 
 class AquaEvaluationApp(AquaApp):
@@ -399,6 +400,7 @@ class AquaEvaluationApp(AquaApp):
                 .with_freeform_tag(
                     **evaluation_job_freeform_tags
                 )
+                .with_subnet_id(SUBNET_ID)
             )
             .with_runtime(
                 self._build_evaluation_runtime(

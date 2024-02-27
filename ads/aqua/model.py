@@ -135,7 +135,6 @@ class AquaModelApp(AquaApp):
             .with_provenance_metadata(service_model.provenance_metadata)
             # TODO: decide what kwargs will be needed.
             .create(
-                remove_existing_artifact=False,
                 model_by_reference=True, 
                 **kwargs
             )
