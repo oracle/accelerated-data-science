@@ -36,6 +36,7 @@ class AquaEvalParams(DataClassSerializable):
 
 @dataclass(repr=False)
 class AquaEvalMetric(DataClassSerializable):
+    key: str
     name: str
     content: str
     description: str = ""
