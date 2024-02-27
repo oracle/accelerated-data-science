@@ -523,6 +523,7 @@ class AquaEvaluationApp(AquaApp):
                 evaluation_source=create_aqua_evaluation_details.evaluation_source_id,
                 evaluation_experiment_id=experiment_model_version_set_id,
             ),
+            parameters=AquaResourceIdentifier(),
         )
 
     def _build_evaluation_runtime(
