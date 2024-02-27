@@ -15,7 +15,6 @@ from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaError, AquaRuntimeError, AquaValueError
 from ads.aqua.model import AquaModelApp, Tags
 from ads.aqua.utils import (
-    DEPLOYMENT_CONFIG,
     UNKNOWN,
     UNKNOWN_JSON_STR,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
@@ -31,7 +30,7 @@ from ads.model.deployment import (
     ModelDeploymentMode,
 )
 from ads.common.serializer import DataClassSerializable
-from ads.config import COMPARTMENT_OCID, AQUA_MODEL_DEPLOYMENT_IMAGE
+from ads.config import AQUA_MODEL_DEPLOYMENT_CONFIG, COMPARTMENT_OCID, AQUA_MODEL_DEPLOYMENT_IMAGE
 
 
 @dataclass
@@ -420,7 +419,7 @@ class AquaDeploymentApp(AquaApp):
 
     @staticmethod
     def _load_deployment_config(file_path: str, **kwargs) -> dict:
-        artifact_path = f"{file_path.rstrip('/')}/{DEPLOYMENT_CONFIG}"
+        artifact_path = f"{file_path.rstrip('/')}/{AQUA_MODEL_DEPLOYMENT_CONFIG}"
         deployment_config = json.loads(
             read_file(file_path=artifact_path, **kwargs) or UNKNOWN_JSON_STR
         )

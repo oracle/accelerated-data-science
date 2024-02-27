@@ -134,7 +134,10 @@ class AquaModelApp(AquaApp):
             .with_defined_metadata_list(service_model.defined_metadata_list)
             .with_provenance_metadata(service_model.provenance_metadata)
             # TODO: decide what kwargs will be needed.
-            .create(model_by_reference=True, **kwargs)
+            .create(
+                model_by_reference=True, 
+                **kwargs
+            )
         )
         logger.debug(
             f"Aqua Model {custom_model.id} created with the service model {model_id}"

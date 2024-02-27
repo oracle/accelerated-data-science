@@ -3,11 +3,16 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from requests import HTTPError
 from urllib.parse import urlparse
 
 from ads.aqua.decorator import handle_exceptions
-from ads.aqua.evaluation import AquaEvaluationApp
-from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.aqua.evaluation import (
+    AquaEvaluationApp, 
+    CreateAquaEvaluationDetails
+)
+from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
+from ads.aqua.extension.utils import validate_function_parameters
 
 
 class AquaEvaluationHandler(AquaAPIhandler):
@@ -26,8 +31,37 @@ class AquaEvaluationHandler(AquaAPIhandler):
 
     @handle_exceptions
     def post(self, *args, **kwargs):
-        """Handles post request for the evaluation APIs"""
-        self.finish(AquaEvaluationApp().create())
+        """Handles post request for the evaluation APIs
+        
+        Raises
+        ------
+        HTTPError
+            Raises HTTPError if inputs are missing or are invalid.
+        """
+        try:
+            input_data = self.get_json_body()
+        except Exception:
+            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT)
+
+        if not input_data:
+            raise HTTPError(400, Errors.NO_INPUT_DATA)
+        
+        validate_function_parameters(
+            data_class=CreateAquaEvaluationDetails, 
+            input_data=input_data
+        )
+        
+        try:
+            self.finish(
+                # TODO: decide what other kwargs will be needed for create aqua evaluation.
+                AquaEvaluationApp().create(
+                    create_aqua_evaluation_details=(
+                        CreateAquaEvaluationDetails(**input_data)
+                    )
+                )
+            )
+        except Exception as ex:
+            raise HTTPError(500, str(ex))
 
     @handle_exceptions
     def put(self, eval_id):
