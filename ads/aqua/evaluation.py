@@ -34,7 +34,7 @@ from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link, get_files
 from ads.config import COMPARTMENT_OCID, PROJECT_OCID
-from ads.jobs.ads_job import Job
+from ads.jobs.ads_job import Job, DataScienceJobRun
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
 from ads.jobs.builders.runtimes.python_runtime import PythonRuntime
@@ -742,6 +742,18 @@ class AquaEvaluationApp(AquaApp):
         self._report_cache.__setitem__(key=eval_id, value=report)
 
         return report
+
+    def cancel_evaluation(self, eval_id) -> dict:
+        run = DataScienceJobRun.from_ocid(eval_id)
+        try:
+            if run.status not in run.TERMINAL_STATES:
+                run.cancel(wait_for_completion=False)
+                logger.info("Cancelled Job Run: %s", eval_id)
+        except oci.exceptions.ServiceError as ex:
+            error = ex.message
+
+    def delete_evaluation(self, eval_id) -> dict:
+        pass
 
     def _get_attribute_from_model_metadata(
         self,
