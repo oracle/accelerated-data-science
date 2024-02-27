@@ -677,17 +677,10 @@ class AquaEvaluationApp(AquaApp):
             An instancec of AquaEvalMetrics.
         """
         if eval_id in self._metrics_cache.keys():
-            eval_metrics = self._metrics_cache.get(eval_id)
-            return_cache = True
-            for m in eval_metrics.metrics:
-                if not m.content:
-                    return_cache = False
-                    logger.info(f"Missing content for {m.name} in cache.")
-                    break
-
-        if return_cache:
             logger.info(f"Returning metrics from cache.")
-            return eval_metrics
+            eval_metrics = self._metrics_cache.get(eval_id)
+            if len(eval_metrics.metrics) > 0:
+                return eval_metrics
 
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Downloading evaluation artifact: {eval_id}.")
@@ -722,9 +715,11 @@ class AquaEvaluationApp(AquaApp):
 
             # TODO: after finalizing the format of report.json, move the constant to class
             metrics_results = report.get("metric_results")
+            missing_content = False
             for k, v in metrics_results.items():
                 content = metric_markdown.get(k, utils.UNKNOWN)
                 if not content:
+                    missing_content = True
                     logger.error(
                         "Related Resource Not Authorized Or Not Found:"
                         f"Missing `{k}.md` in evaluation artifact."
@@ -741,7 +736,8 @@ class AquaEvaluationApp(AquaApp):
 
         eval_metrics = AquaEvalMetrics(id=eval_id, metrics=metrics)
 
-        self._metrics_cache.__setitem__(key=eval_id, value=eval_metrics)
+        if not missing_content:
+            self._metrics_cache.__setitem__(key=eval_id, value=eval_metrics)
 
         return eval_metrics
 
