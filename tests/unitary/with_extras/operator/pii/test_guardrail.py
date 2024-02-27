@@ -31,6 +31,8 @@ spec:
     url: {self.test_files_uri}/test_data.csv
   output_directory:
     url: {self.test_files_uri}
+  report:
+    report_filename: {DEFAULT_REPORT_FILENAME}
   target_column: text
 type: pii
 version: v1
