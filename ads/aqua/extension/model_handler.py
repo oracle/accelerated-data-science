@@ -3,6 +3,8 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from tornado.web import HTTPError
+
 from ads.aqua.decorator import handle_exceptions
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.model import AquaModelApp
@@ -14,7 +16,6 @@ class AquaModelHandler(AquaAPIhandler):
     @handle_exceptions
     def get(self, model_id=""):
         """Handle GET request."""
-
         if not model_id:
             return self.list()
         return self.read(model_id)
