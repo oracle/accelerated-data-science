@@ -226,7 +226,8 @@ class AquaEvaluationApp(AquaApp):
         return [
             {
                 "use_case": ["one", "two", "three"],
-                "name": "bert_score",
+                "key": "bertscore",
+                "name": "BERT Score",
                 "description": "BERTScore computes the semantic similarity between two pieces of text using BERT embeddings.",
                 "args": {},
             },
@@ -238,10 +239,10 @@ class AquaEvaluationApp(AquaApp):
         logger.info(f"Loading evaluation config for model: {model_id}")
         return {
             "model_params": {
-                "max_tokens": 2048,
-                "temperature": 100,
-                "top_p": 1,
-                "top_k": 1,
+                "max_tokens": 500,
+                "temperature": 0.7,
+                "top_p": 1.0,
+                "top_k": 50,
             },
             "shape": {
                 "BM.A10.2": {
