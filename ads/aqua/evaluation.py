@@ -688,22 +688,48 @@ class AquaEvaluationApp(AquaApp):
                 auth=self._auth,
             )
             metrics = []
+            metric_markdown = {}
+            report = None
             for file in get_files(temp_dir):
                 if file.endswith(".md"):
+                    metric_key = Path(file).stem
+                    logger.info(f"Reading {file}...")
                     with open(os.path.join(temp_dir, file), "rb") as f:
                         content = f.read()
-                    metrics.append(
-                        AquaEvalMetric(
-                            name=Path(file).stem,
-                            content=base64.b64encode(content).decode(),
-                        )
+
+                    metric_markdown[metric_key] = base64.b64encode(content).decode()
+
+                if file == utils.EVALUATION_REPORT_JSON:
+                    logger.info(f"Loading {utils.EVALUATION_REPORT_JSON}...")
+                    with open(
+                        os.path.join(temp_dir, utils.EVALUATION_REPORT_JSON), "rb"
+                    ) as f:
+                        report = json.loads(f.read())
+
+            if not report:
+                raise AquaFileNotFoundError(
+                    "Related Resource Not Authorized Or Not Found:"
+                    f"Missing `{utils.EVALUATION_REPORT_JSON}` in evaluation artifact."
+                )
+
+            # TODO: after finalizing the format of report.json, move the constant to class
+            metrics_results = report.get("metric_results")
+            for k, v in metrics_results.items():
+                content = metric_markdown.get(k, utils.UNKNOWN)
+                if not content:
+                    logger.error(
+                        "Related Resource Not Authorized Or Not Found:"
+                        f"Missing `{k}.md` in evaluation artifact."
                     )
 
-        if not metrics:
-            raise AquaFileNotFoundError(
-                "Related Resource Not Authorized Or Not Found:"
-                "Missing metric markdown in evaluation artifact."
-            )
+                metrics.append(
+                    AquaEvalMetric(
+                        key=k,
+                        name=v.get("name", utils.UNKNOWN),
+                        content=content,
+                        description=v.get("description"),
+                    )
+                )
 
         eval_metrics = AquaEvalMetrics(id=eval_id, metrics=metrics)
 
