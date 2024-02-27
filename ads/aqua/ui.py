@@ -5,6 +5,9 @@
 
 from oci.exceptions import ServiceError
 from oci.identity.models import Compartment
+from datetime import datetime, timedelta
+from threading import Lock
+from cachetools import TTLCache
 
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
@@ -29,6 +32,11 @@ class AquaUIApp(AquaApp):
         Lists the compartments in a specified compartment.
 
     """
+
+    _compartments_cache = TTLCache(
+        maxsize=10, ttl=timedelta(hours=2), timer=datetime.now
+    )
+    _cache_lock = Lock()
 
     def list_log_groups(self, **kwargs) -> str:
         """Lists all log groups for the specified compartment or tenancy. This is a pass through the OCI list_log_groups
@@ -72,15 +80,9 @@ class AquaUIApp(AquaApp):
             log_group_id=log_group_id, **kwargs
         ).data.__repr__()
 
-    def list_compartments(self, **kwargs) -> str:
-        """Lists the compartments in a compartment specified by TENANCY_OCID env variable. This is a pass through the OCI list_compartments
+    def list_compartments(self) -> str:
+        """Lists the compartments in a tenancy specified by TENANCY_OCID env variable. This is a pass through the OCI list_compartments
         API.
-
-        Parameters
-        ----------
-        kwargs
-            Keyword arguments, such as compartment_id,
-            for `list_compartments <https://docs.oracle.com/en-us/iaas/tools/python/2.119.1/api/logging/client/oci.identity.IdentityClient.html#oci.identity.IdentityClient.list_compartments>`_
 
         Returns
         -------
@@ -93,6 +95,13 @@ class AquaUIApp(AquaApp):
                     f"TENANCY_OCID must be available in environment"
                     " variables to list the sub compartments."
                 )
+
+            if TENANCY_OCID in self._compartments_cache.keys():
+                logger.info(
+                    f"Returning compartments list in {TENANCY_OCID} from cache."
+                )
+                return self._compartments_cache.get(TENANCY_OCID)
+
             compartments = []
             # User may not have permissions to list compartment.
             try:
@@ -132,7 +141,13 @@ class AquaUIApp(AquaApp):
                     0,
                     Compartment(id=TENANCY_OCID, name=" ** Root - Name N/A **"),
                 )
-            return compartments.__repr__()
+            # convert the string of the results flattened as a dict
+            res = compartments.__repr__()
+
+            # cache compartment results
+            self._compartments_cache.__setitem__(key=TENANCY_OCID, value=res)
+
+            return res
 
         # todo : update this once exception handling is set up
         except ServiceError as se:
@@ -149,6 +164,25 @@ class AquaUIApp(AquaApp):
         if not COMPARTMENT_OCID:
             logger.error("No compartment id found from environment variables.")
         return dict(compartment_id=COMPARTMENT_OCID)
+
+    def clear_compartments_list_cache(self) -> dict:
+        """Allows caller to clear compartments list cache
+        Returns
+        -------
+            dict with the key used, and True if cache has the key that needs to be deleted.
+        """
+        res = {}
+        logger.info(f"Clearing list_compartments cache")
+        with self._cache_lock:
+            if TENANCY_OCID in self._compartments_cache.keys():
+                self._compartments_cache.pop(key=TENANCY_OCID)
+                res = {
+                    "key": {
+                        "tenancy_ocid": TENANCY_OCID,
+                    },
+                    "cache_deleted": True,
+                }
+        return res
 
     def list_model_version_sets(self, **kwargs) -> str:
         """Lists all model version sets for the specified compartment or tenancy.

@@ -6,9 +6,11 @@
 from dataclasses import dataclass
 from enum import Enum
 from typing import List, Union
+from datetime import datetime, timedelta
+from threading import Lock
+from cachetools import TTLCache
 
 import oci
-
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaRuntimeError
@@ -80,12 +82,19 @@ class AquaModelApp(AquaApp):
         Retrieves details of an Aqua model by its unique identifier.
     list(compartment_id: str = None, project_id: str = None, **kwargs) -> List[AquaModelSummary]:
         Lists all Aqua models within a specified compartment and/or project.
+    clear_model_list_cache()
+        Allows clear list model cache items from the service models compartment.
 
     Note:
         This class is designed to work within the Oracle Cloud Infrastructure
         and requires proper configuration and authentication set up to interact
         with OCI services.
     """
+
+    _service_models_cache = TTLCache(
+        maxsize=10, ttl=timedelta(hours=5), timer=datetime.now
+    )
+    _cache_lock = Lock()
 
     def create(
         self, model_id: str, project_id: str, compartment_id: str = None, **kwargs
@@ -134,10 +143,7 @@ class AquaModelApp(AquaApp):
             .with_defined_metadata_list(service_model.defined_metadata_list)
             .with_provenance_metadata(service_model.provenance_metadata)
             # TODO: decide what kwargs will be needed.
-            .create(
-                model_by_reference=True, 
-                **kwargs
-            )
+            .create(model_by_reference=True, **kwargs)
         )
         logger.debug(
             f"Aqua Model {custom_model.id} created with the service model {model_id}"
@@ -177,8 +183,9 @@ class AquaModelApp(AquaApp):
     ) -> List["AquaModelSummary"]:
         """Lists all Aqua models within a specified compartment and/or project.
         If `compartment_id` is not specified, the method defaults to returning
-        the service models within the pre-configured default compartment.
-
+        the service models within the pre-configured default compartment. By default, the list
+        of models in the service compartment are cached. Use clear_model_list_cache() to invalidate
+        the cache.
 
         Parameters
         ----------
@@ -199,6 +206,11 @@ class AquaModelApp(AquaApp):
             logger.info(f"Fetching custom models from compartment_id={compartment_id}.")
             models = self._rqs(compartment_id)
         else:
+            if ODSC_MODEL_COMPARTMENT_OCID in self._service_models_cache.keys():
+                logger.info(
+                    f"Returning service models list in {ODSC_MODEL_COMPARTMENT_OCID} from cache."
+                )
+                return self._service_models_cache.get(ODSC_MODEL_COMPARTMENT_OCID)
             logger.info(
                 f"Fetching service models from compartment_id={ODSC_MODEL_COMPARTMENT_OCID}"
             )
@@ -213,7 +225,6 @@ class AquaModelApp(AquaApp):
         )
 
         aqua_models = []
-        # TODO: build index.json for service model as caching if needed.
 
         for model in models:
             aqua_models.append(
@@ -223,7 +234,34 @@ class AquaModelApp(AquaApp):
                 )
             )
 
+        if not compartment_id:
+            self._service_models_cache.__setitem__(
+                key=ODSC_MODEL_COMPARTMENT_OCID, value=aqua_models
+            )
+
         return aqua_models
+
+    def clear_model_list_cache(
+        self,
+    ):
+        """
+        Allows user to clear list model cache items from the service models compartment.
+        Returns
+        -------
+            dict with the key used, and True if cache has the key that needs to be deleted.
+        """
+        res = {}
+        logger.info(f"Clearing _service_models_cache")
+        with self._cache_lock:
+            if ODSC_MODEL_COMPARTMENT_OCID in self._service_models_cache.keys():
+                self._service_models_cache.pop(key=ODSC_MODEL_COMPARTMENT_OCID)
+                res = {
+                    "key": {
+                        "compartment_id": ODSC_MODEL_COMPARTMENT_OCID,
+                    },
+                    "cache_deleted": True,
+                }
+        return res
 
     def _process_model(
         self, model: Union["ModelSummary", "Model", "ResourceSummary"], region: str

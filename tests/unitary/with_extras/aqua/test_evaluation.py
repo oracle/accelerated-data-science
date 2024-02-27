@@ -7,7 +7,6 @@
 import base64
 import json
 import os
-import shutil
 import unittest
 from dataclasses import asdict
 from unittest.mock import MagicMock, patch
@@ -302,6 +301,10 @@ class TestAquaModel(unittest.TestCase):
         mock_dsc_model_from_id.assert_called_with(TestDataset.EVAL_ID)
         self.print_expected_response(response, "DOWNLOAD REPORT")
         self.assert_payload(response, AquaEvalReport)
+        read_content = base64.b64decode(response.content)
+        assert (
+            read_content == b"This is a sample evaluation report.html.\n"
+        ), read_content
 
     @patch.object(DataScienceModel, "download_artifact")
     @patch.object(DataScienceModel, "from_id")

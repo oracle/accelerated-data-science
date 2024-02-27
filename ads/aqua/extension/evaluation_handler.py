@@ -11,6 +11,7 @@ from ads.aqua.decorator import handle_exceptions
 from ads.aqua.evaluation import AquaEvaluationApp, CreateAquaEvaluationDetails
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.aqua.extension.utils import validate_function_parameters
+from ads.config import COMPARTMENT_OCID, PROJECT_OCID
 
 
 class AquaEvaluationHandler(AquaAPIhandler):
@@ -87,7 +88,7 @@ class AquaEvaluationHandler(AquaAPIhandler):
 
     def list(self):
         """List Aqua models."""
-        compartment_id = self.get_argument("compartment_id", default=None)
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
         # project_id is no needed.
         project_id = self.get_argument("project_id", default=None)
         return self.finish(AquaEvaluationApp().list(compartment_id, project_id))
