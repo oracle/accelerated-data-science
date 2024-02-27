@@ -5,7 +5,7 @@
 import base64
 from enum import Enum
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 import os
 from typing import List, Optional
 from urllib.parse import urlparse
@@ -15,7 +15,7 @@ import fsspec
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaValueError
-from ads.aqua.utils import UNKNOWN, upload_file_to_os
+from ads.aqua.utils import MODEL_PARAMETERS, UNKNOWN, upload_file_to_os
 from ads.common import oci_client as oc
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
@@ -127,8 +127,6 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
         The evaluation source id. Must be either model or model deployment ocid.
     evaluation_name: str
         The name for evaluation.
-    evaluation_description: str
-        The description for evaluation
     dataset_path: str
         The dataset path for the evaluation. Could be either a local path from notebook session
         or an object storage path.
@@ -148,6 +146,8 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
         The compartment id for the evaluation.
     project_id: (str, optional). Defaults to `None`.
         The project id for the evaluation.
+    evaluation_description: (str, optional). Defaults to `None`.
+        The description for evaluation
     experiment_id: (str, optional). Defaults to `None`.
         The evaluation model version set id. If provided, 
         evaluation model will be associated with it.
@@ -167,7 +167,6 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
 
     evaluation_source_id: str
     evaluation_name: str
-    evaluation_description: str
     dataset_path: str
     report_path: str
     model_parameters: dict
@@ -177,6 +176,7 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
     block_storage_size: int
     compartment_id: Optional[str]=None
     project_id: Optional[str]=None
+    evaluation_description: Optional[str]=None
     experiment_id: Optional[str]=None
     experiment_name: Optional[str]=None
     experiment_description: Optional[str]=None
@@ -186,7 +186,6 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
 
 # TODO: Remove later
 BUCKET_URI = "oci://ming-dev@ociodscdev/evaluation/sample_response"
-ARTIFACT="oci://lu_bucket@ociodscdev/sample_artifact.zip"
 SOURCE="oci://lu_bucket@ociodscdev/evaluation_dummy_script.py"
 SUBNET_ID=os.environ.get("SUBNET_ID", None)
 
@@ -255,6 +254,18 @@ class AquaEvaluationApp(AquaApp):
         if not ObjectStorageDetails.is_oci_path(create_aqua_evaluation_details.report_path):
             raise AquaValueError("Evaluation report path must be an object storage path.")
         
+        evaluation_model_parameters = None
+        try:
+            evaluation_model_parameters = AquaEvalParams(
+                shape=create_aqua_evaluation_details.shape_name,
+                **create_aqua_evaluation_details.model_parameters
+            )
+        except:
+            raise AquaValueError(
+               "Invalid model parameters. Model parameters should "
+               f"be a dictionary with keys: {', '.join(MODEL_PARAMETERS)}."
+            )
+
         target_compartment = (
             create_aqua_evaluation_details.compartment_id or COMPARTMENT_OCID
         )
@@ -321,7 +332,10 @@ class AquaEvaluationApp(AquaApp):
         evaluation_model_taxonomy_metadata[
             MetadataTaxonomyKeys.HYPERPARAMETERS
         ].value={
-            "model_params": create_aqua_evaluation_details.model_parameters,
+            "model_params": {
+                key: value for key, value in 
+                asdict(evaluation_model_parameters).items()
+            }
         }
 
         evaluation_model_freeform_tags = {
@@ -338,7 +352,6 @@ class AquaEvaluationApp(AquaApp):
             .with_description(
                 create_aqua_evaluation_details.evaluation_description
             )
-            .with_artifact(ARTIFACT) # TODO: for the purpose of demo and will remove later
             .with_model_version_set_id(experiment_model_version_set_id)
             .with_custom_metadata_list(evaluation_model_custom_metadata)
             .with_defined_metadata_list(evaluation_model_taxonomy_metadata)
