@@ -15,6 +15,7 @@ from string import Template
 from typing import List
 
 import fsspec
+from oci.data_science.models import JobRun, Model
 
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
@@ -27,8 +28,8 @@ logger = logging.getLogger("ODSC_AQUA")
 UNKNOWN = ""
 README = "README.md"
 DEPLOYMENT_CONFIG = "deployment_config.json"
-EVALUATION_REPORT = "report.html"
 EVALUATION_REPORT_JSON = "report.json"
+EVALUATION_REPORT = "report.html"
 UNKNOWN_JSON_STR = "{}"
 CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
     datasciencemodel="models",
@@ -69,16 +70,14 @@ class LifecycleStatus(Enum):
         """
         if not job_run_status:
             return LifecycleStatus.UNKNOWN
-        evaluation_status = evaluation_status.lower()
-        job_run_status = job_run_status.lower()
-        status = LifecycleStatus.UNKNOWN
 
-        if evaluation_status == "active":
-            if job_run_status == "succeeded":
+        status = LifecycleStatus.UNKNOWN
+        if evaluation_status == Model.LIFECYCLE_STATE_ACTIVE:
+            if job_run_status == JobRun.LIFECYCLE_STATE_SUCCEEDED:
                 status = LifecycleStatus.COMPLETED
-            elif job_run_status == "running":
+            elif job_run_status == JobRun.LIFECYCLE_STATE_IN_PROGRESS:
                 status = LifecycleStatus.IN_PROGRESS
-            elif job_run_status == "cancelled":
+            elif job_run_status == JobRun.LIFECYCLE_STATE_CANCELED:
                 status = LifecycleStatus.CANCELLED
             else:
                 status = job_run_status

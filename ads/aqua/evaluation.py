@@ -657,11 +657,36 @@ class AquaEvaluationApp(AquaApp):
         return evaluations
 
     def get_status(self, eval_id: str) -> dict:
-        return {
-            "id": eval_id,
-            "lifecycle_state": "ACTIVE",
-            "lifecycle_details": "This is explanation for lifecycle_state.",
-        }
+        """Gets evaluation's current status.
+
+        Parameters
+        ----------
+        eval_id: str
+            The evaluation ocid.
+
+        Returns
+        -------
+        dict
+        """
+        # TODO: add job_run_id as input param
+        eval = utils.query_resource(eval_id)
+        model_provenance = self.ds_client.get_model_provenance(eval_id).data
+
+        if not eval:
+            raise AquaRuntimeError(
+                f"Failed to retrieve evalution {eval_id}."
+                "Please check if the OCID is correct."
+            )
+        jobrun_id = model_provenance.training_id
+        job_run_details = self._fetch_jobrun(eval, use_rqs=True, jobrun_id=jobrun_id)
+
+        return dict(
+            id=eval_id,
+            **self._get_status(
+                model_status=eval.lifecycle_state,
+                job_status=job_run_details.lifecycle_state,
+            ),
+        )
 
     def load_metrics(self, eval_id: str) -> AquaEvalMetrics:
         """Loads evalution metrics markdown from artifacts.
@@ -930,7 +955,7 @@ class AquaEvaluationApp(AquaApp):
             return AquaResourceIdentifier()
 
     def _get_jobrun(
-        self, model: oci.resource_search.models.ResourceSummary, mapping: dict
+        self, model: oci.resource_search.models.ResourceSummary, mapping: dict = {}
     ) -> Union[
         oci.resource_search.models.ResourceSummary, oci.data_science.models.JobRun
     ]:
@@ -1024,7 +1049,9 @@ class AquaEvaluationApp(AquaApp):
 
     def _get_status(self, model_status, job_status) -> dict:
         """Build evaluation status based on the model status and job run status."""
-        lifecycle_state = utils.LifecycleStatus.get_status(model_status, job_status)
+        lifecycle_state = utils.LifecycleStatus.get_status(
+            evaluation_status=model_status, job_run_status=job_status
+        )
         return dict(
             lifecycle_state=(
                 lifecycle_state
