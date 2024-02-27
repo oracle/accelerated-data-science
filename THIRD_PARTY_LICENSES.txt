@@ -405,6 +405,12 @@ delta
 * Source code: https://github.com/delta-io/delta/
 * Project home: https://delta.io/
 
+cachetools
+* Copyright (c) 2014-2024 Thomas Kemmer
+* License: The MIT License (MIT)
+* Source code: https://github.com/tkem/cachetools/
+* Project home: https://cachetools.readthedocs.io/
+
 =============================== Licenses ===============================
 ------------------------------------------------------------------------
 
