@@ -227,7 +227,7 @@ class AquaEvaluationApp(AquaApp):
             {
                 "use_case": ["one", "two", "three"],
                 "key": "bertscore",
-                "name": "bert_score",
+                "name": "BERT Score",
                 "description": "BERTScore computes the semantic similarity between two pieces of text using BERT embeddings.",
                 "args": {},
             },
