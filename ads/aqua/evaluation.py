@@ -15,7 +15,7 @@ import fsspec
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaValueError
-from ads.aqua.utils import upload_file_to_os
+from ads.aqua.utils import UNKNOWN, upload_file_to_os
 from ads.common import oci_client as oc
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
@@ -30,7 +30,8 @@ from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import (
     MetadataTaxonomyKeys, 
-    ModelCustomMetadata, 
+    ModelCustomMetadata,
+    ModelProvenanceMetadata, 
     ModelTaxonomyMetadata
 )
 from ads.model.model_version_set import ModelVersionSet
@@ -340,6 +341,11 @@ class AquaEvaluationApp(AquaApp):
             .with_model_version_set_id(experiment_model_version_set_id)
             .with_custom_metadata_list(evaluation_model_custom_metadata)
             .with_defined_metadata_list(evaluation_model_taxonomy_metadata)
+            .with_provenance_metadata(
+                ModelProvenanceMetadata(
+                    training_id=UNKNOWN
+                )
+            )
             .with_freeform_tags(**evaluation_model_freeform_tags)
             # TODO: decide what parameters will be needed
             .create(
