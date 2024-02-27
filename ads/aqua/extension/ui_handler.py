@@ -4,9 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from urllib.parse import urlparse
-
 from tornado.web import HTTPError
-
 from ads.aqua.decorator import handle_exceptions
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.ui import AquaUIApp
@@ -55,10 +53,20 @@ class AquaUIHandler(AquaAPIhandler):
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
     @handle_exceptions
+    def delete(self, id=""):
+        """Handles DELETE request for clearing cache"""
+        # todo: added for dev work, to be deleted if there's no feature to refresh cache in Aqua
+        url_parse = urlparse(self.request.path)
+        paths = url_parse.path.strip("/")
+        if paths.startswith("aqua/compartments/cache"):
+            return self.finish(AquaUIApp().clear_compartments_list_cache())
+        else:
+            raise HTTPError(400, f"The request {self.request.path} is invalid.")
+
+    @handle_exceptions
     def list_log_groups(self, **kwargs):
         """Lists all log groups for the specified compartment or tenancy."""
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
-
         return self.finish(
             AquaUIApp().list_log_groups(compartment_id=compartment_id, **kwargs)
         )
@@ -66,14 +74,12 @@ class AquaUIHandler(AquaAPIhandler):
     @handle_exceptions
     def list_logs(self, log_group_id: str, **kwargs):
         """Lists the specified log group's log objects."""
-
         return self.finish(AquaUIApp().list_logs(log_group_id=log_group_id, **kwargs))
 
     @handle_exceptions
-    def list_compartments(self, **kwargs):
+    def list_compartments(self):
         """Lists the compartments in a compartment specified by ODSC_MODEL_COMPARTMENT_OCID env variable."""
-
-        return self.finish(AquaUIApp().list_compartments(**kwargs))
+        return self.finish(AquaUIApp().list_compartments())
 
     @handle_exceptions
     def get_default_compartment(self):
