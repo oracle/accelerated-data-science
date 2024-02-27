@@ -45,7 +45,7 @@ class AquaEvalMetric(DataClassSerializable):
 @dataclass(repr=False)
 class AquaEvalMetrics(DataClassSerializable):
     id: str
-    metric_results: dict
+    metrics: List[AquaEvalMetric] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -190,8 +190,7 @@ class AquaEvaluationApp(AquaApp):
         with fsspec.open(response_file, "r", **self._auth) as f:
             metrics = json.load(f)
         return AquaEvalMetrics(
-            id=eval_id,
-            metric_results={k: AquaEvalMetric(**v) for k, v in metrics.items()},
+            id=eval_id, metrics=[AquaEvalMetric(**m) for m in metrics]
         )
 
     def download_report(self, eval_id) -> dict:
