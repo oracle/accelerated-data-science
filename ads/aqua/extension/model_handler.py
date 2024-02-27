@@ -19,12 +19,10 @@ class AquaModelHandler(AquaAPIhandler):
             return self.list()
         return self.read(model_id)
 
-    @handle_exceptions
     def read(self, model_id):
         """Read the information of an Aqua model."""
         return self.finish(AquaModelApp().get(model_id))
 
-    @handle_exceptions
     def list(self):
         """List Aqua models."""
         compartment_id = self.get_argument("compartment_id", default=None)
