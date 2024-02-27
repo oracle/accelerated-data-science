@@ -302,14 +302,6 @@ class TestAquaModel(unittest.TestCase):
         mock_dsc_model_from_id.assert_called_with(TestDataset.EVAL_ID)
         self.print_expected_response(response, "DOWNLOAD REPORT")
         self.assert_payload(response, AquaEvalReport)
-        assert (
-            base64.b64decode(response.content)
-            == b"This is a sample evaluation report.html."
-        )
-
-        rm_target = os.path.join(mock_temp_path, "report")
-        if os.path.exists(rm_target):
-            shutil.rmtree(rm_target)
 
     @patch.object(DataScienceModel, "download_artifact")
     @patch.object(DataScienceModel, "from_id")

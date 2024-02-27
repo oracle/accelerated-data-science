@@ -5,17 +5,20 @@
 """AQUA utils and constants."""
 import base64
 import logging
+import os
 import random
 import re
 import sys
 from enum import Enum
+from pathlib import Path
 from string import Template
 from typing import List
 
 import fsspec
 
-from ads.aqua.exception import AquaRuntimeError
+from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
+from ads.common.utils import upload_to_os
 from ads.config import TENANCY_OCID
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -25,7 +28,7 @@ UNKNOWN = ""
 README = "README.md"
 DEPLOYMENT_CONFIG = "deployment_config.json"
 EVALUATION_REPORT_ZIP = "report.zip"
-EVALUATION_REPORT = "report/report.html"
+EVALUATION_REPORT = "report.html"
 UNKNOWN_JSON_STR = "{}"
 CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
     datasciencemodel="models",
@@ -90,6 +93,8 @@ LIFECYCLE_DETAILS_MAPPING = {
     LifecycleStatus.IN_PROGRESS.name: "The evaluation job is running.",
     LifecycleStatus.CANCELLED.name: "The evaluation has been cancelled.",
 }
+SUPPORTED_FILE_FORMATS = ["jsonl"]
+MODEL_BY_REFERENCE_OSS_PATH_KEY = "Object Storage Path"
 
 
 def get_logger():
@@ -165,7 +170,7 @@ def get_artifact_path(custom_metadata_list: List) -> str:
         The artifact path from model.
     """
     for custom_metadata in custom_metadata_list:
-        if custom_metadata.key == "Object Storage Path":
+        if custom_metadata.key == MODEL_BY_REFERENCE_OSS_PATH_KEY:
             return custom_metadata.value
     logger.debug("Failed to get artifact path from custom metadata.")
     return UNKNOWN
@@ -343,3 +348,24 @@ def _construct_condition(
     joined_tags = f" {joint} ".join(formatted_tags)
     condition = f" && ({joined_tags})" if joined_tags else ""
     return condition
+
+
+def upload_file_to_os(
+    src_uri: str, dst_uri: str, auth: dict = None, force_overwrite: bool = False
+):
+    expanded_path = os.path.expanduser(src_uri)
+    if not os.path.isfile(expanded_path):
+        raise AquaFileNotFoundError("Invalid input file path. Specify a valid one.")
+    if Path(expanded_path).suffix.lstrip(".") not in SUPPORTED_FILE_FORMATS:
+        raise AquaValueError(
+            f"Invalid input file. Only {', '.join(SUPPORTED_FILE_FORMATS)} files are supported."
+        )
+    if os.path.getsize(expanded_path) == 0:
+        raise AquaValueError("Empty input file. Specify a valid file path.")
+
+    upload_to_os(
+        src_uri=expanded_path,
+        dst_uri=dst_uri,
+        auth=auth,
+        force_overwrite=force_overwrite,
+    )
