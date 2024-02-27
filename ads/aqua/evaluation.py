@@ -717,31 +717,19 @@ class AquaEvaluationApp(AquaApp):
                 temp_dir,
                 auth=self._auth,
             )
-            report_zip_name = ""
+            content = ""
             for file in get_files(temp_dir):
-                # report will be a zip archive in model artifact
                 if os.path.basename(file) == utils.EVALUATION_REPORT:
                     report_path = os.path.join(temp_dir, utils.EVALUATION_REPORT)
                     with open(report_path, "rb") as f:
                         content = f.read()
-
-                    report_zip_name = file
                     break
 
-            # try:
-            #     report_path = os.path.join(temp_dir, utils.EVALUATION_REPORT)
-            #     with open(report_path, "rb") as f:
-            #         content = f.read()
-            # except FileNotFoundError as e:
-            #     error_msg = "Related Resource Not Authorized Or Not Found:" + (
-            #         (
-            #             f"Found report zip in evaluation artifact: `{report_zip_name}`."
-            #             f"Expected zip name is `{utils.EVALUATION_REPORT_ZIP}`."
-            #         )
-            #         if report_zip_name
-            #         else f"Missing `{utils.EVALUATION_REPORT_ZIP}` in evaluation artifact."
-            #     )
-            #     raise AquaFileNotFoundError(error_msg)
+            if not content:
+                error_msg = "Related Resource Not Authorized Or Not Found:" + (
+                    f"Missing `{utils.EVALUATION_REPORT}` in evaluation artifact."
+                )
+                raise AquaFileNotFoundError(error_msg)
 
         report = AquaEvalReport(
             evaluation_id=eval_id, content=base64.b64encode(content).decode()
