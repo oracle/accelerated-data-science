@@ -298,4 +298,6 @@ class TestAquaModel(unittest.TestCase):
         self.assert_payload(response, AquaEvalReport)
 
         read_content = base64.b64decode(response.content)
-        assert read_content == b"This is a sample evaluation report.html.", read_content
+        assert (
+            read_content == b"This is a sample evaluation report.html.\n"
+        ), read_content
