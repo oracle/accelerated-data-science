@@ -7,7 +7,6 @@
 import base64
 import json
 import os
-import shutil
 import unittest
 from dataclasses import asdict
 from unittest.mock import MagicMock, patch

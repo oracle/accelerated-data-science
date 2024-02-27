@@ -7,15 +7,10 @@ import json
 import os
 import tempfile
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
 from enum import Enum
-from pathlib import Path
-from threading import Lock
 from typing import Any, Dict, List, Optional, Union
-from zipfile import ZipFile
 
 import oci
-from cachetools import TTLCache
 from oci.data_science.models import (
     Metadata,
     UpdateModelDetails,
@@ -175,8 +170,6 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
         The name for evaluation.
     evaluation_description: str
         The description for evaluation
-    project_id: str
-        The project id for the evaluation.
     dataset_path: str
         The dataset path for the evaluation. Could be either a local path from notebook session
         or an object storage path.
@@ -194,6 +187,8 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
         The storage for the evaluation job infrastructure.
     compartment_id: (str, optional). Defaults to `None`.
         The compartment id for the evaluation.
+    project_id: (str, optional). Defaults to `None`.
+        The project id for the evaluation.
     experiment_id: (str, optional). Defaults to `None`.
         The evaluation model version set id. If provided,
         evaluation model will be associated with it.
@@ -214,7 +209,6 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
     evaluation_source_id: str
     evaluation_name: str
     evaluation_description: str
-    project_id: str
     dataset_path: str
     report_path: str
     model_parameters: dict
@@ -223,6 +217,7 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
     ocpus: float
     block_storage_size: int
     compartment_id: Optional[str] = None
+    project_id: Optional[str] = None
     experiment_id: Optional[str] = None
     experiment_name: Optional[str] = None
     experiment_description: Optional[str] = None
@@ -542,6 +537,7 @@ class AquaEvaluationApp(AquaApp):
                 evaluation_source=create_aqua_evaluation_details.evaluation_source_id,
                 evaluation_experiment_id=experiment_model_version_set_id,
             ),
+            parameters=AquaResourceIdentifier(),
         )
 
     def _build_evaluation_runtime(
