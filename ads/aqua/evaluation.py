@@ -818,7 +818,7 @@ class AquaEvaluationApp(AquaApp):
             content = ""
             for file in get_files(temp_dir):
                 if os.path.basename(file) == utils.EVALUATION_REPORT:
-                    report_path = os.path.join(temp_dir, utils.EVALUATION_REPORT)
+                    report_path = os.path.join(temp_dir, file)
                     with open(report_path, "rb") as f:
                         content = f.read()
                     break
