@@ -10,6 +10,7 @@ from oci.resource_search.models.resource_summary import ResourceSummary
 from parameterized import parameterized
 
 from ads.aqua import utils
+from ads.aqua.exception import AquaRuntimeError
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.config import TENANCY_OCID
 
@@ -84,14 +85,15 @@ class TestAquaUtils(unittest.TestCase):
         """Tests use Search service to find a single resource."""
         utils.is_valid_ocid = MagicMock(return_value=True)
         mock_search.return_value = mock_response
-
-        resource = utils.query_resource(**input)
-        mock_search.assert_called_with(
-            expected_query,
-            type=SEARCH_TYPE.STRUCTURED,
-        )
-        if resource:
+        if mock_response:
+            resource = utils.query_resource(**input)
+            mock_search.assert_called_with(
+                expected_query, type=SEARCH_TYPE.STRUCTURED, tenant_id=TENANCY_OCID
+            )
             assert isinstance(resource, ResourceSummary)
+        else:
+            with self.assertRaises(AquaRuntimeError):
+                resource = utils.query_resource(**input)
 
     @parameterized.expand(
         [
