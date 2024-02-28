@@ -15,6 +15,7 @@ from string import Template
 from typing import List
 
 import fsspec
+from oci.data_science.models import JobRun, Model
 
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
@@ -27,8 +28,8 @@ logger = logging.getLogger("ODSC_AQUA")
 UNKNOWN = ""
 README = "README.md"
 DEPLOYMENT_CONFIG = "deployment_config.json"
-EVALUATION_REPORT = "report.html"
 EVALUATION_REPORT_JSON = "report.json"
+EVALUATION_REPORT = "report.html"
 UNKNOWN_JSON_STR = "{}"
 CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
     datasciencemodel="models",
@@ -40,7 +41,7 @@ CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
 class LifecycleStatus(Enum):
     COMPLETED = "Completed"
     IN_PROGRESS = "In Progress"
-    CANCELLED = "Cancelled"
+    CANCELED = "Canceled"
     UNKNOWN = ""
 
     @property
@@ -69,17 +70,15 @@ class LifecycleStatus(Enum):
         """
         if not job_run_status:
             return LifecycleStatus.UNKNOWN
-        evaluation_status = evaluation_status.lower()
-        job_run_status = job_run_status.lower()
-        status = LifecycleStatus.UNKNOWN
 
-        if evaluation_status == "active":
-            if job_run_status == "succeeded":
+        status = LifecycleStatus.UNKNOWN
+        if evaluation_status == Model.LIFECYCLE_STATE_ACTIVE:
+            if job_run_status == JobRun.LIFECYCLE_STATE_SUCCEEDED:
                 status = LifecycleStatus.COMPLETED
-            elif job_run_status == "running":
+            elif job_run_status == JobRun.LIFECYCLE_STATE_IN_PROGRESS:
                 status = LifecycleStatus.IN_PROGRESS
-            elif job_run_status == "cancelled":
-                status = LifecycleStatus.CANCELLED
+            elif job_run_status == JobRun.LIFECYCLE_STATE_CANCELED:
+                status = LifecycleStatus.CANCELED
             else:
                 status = job_run_status
         else:
@@ -91,7 +90,7 @@ class LifecycleStatus(Enum):
 LIFECYCLE_DETAILS_MAPPING = {
     LifecycleStatus.COMPLETED.name: "The evaluation ran successfully.",
     LifecycleStatus.IN_PROGRESS.name: "The evaluation job is running.",
-    LifecycleStatus.CANCELLED.name: "The evaluation has been cancelled.",
+    LifecycleStatus.CANCELED.name: "The evaluation has been cancelled.",
 }
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "Object Storage Path"

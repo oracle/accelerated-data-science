@@ -22,25 +22,19 @@ from oci.data_science.models import (
     UpdateModelProvenanceDetails,
 )
 
-from ads.aqua import logger
+from ads.aqua import logger, utils
 from ads.aqua.base import AquaApp
-from ads.aqua.utils import (
-    CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
-    EVALUATION_REPORT, 
-    MODEL_PARAMETERS, 
-    UNKNOWN, 
-    LifecycleStatus, 
-    get_resource_type, 
-    is_valid_ocid, 
-    query_resource, 
-    query_resources, 
-    upload_file_to_os
-)
 from ads.aqua.exception import (
     AquaFileNotFoundError,
     AquaMissingKeyError,
     AquaRuntimeError,
     AquaValueError,
+)
+from ads.aqua.utils import (
+    MODEL_PARAMETERS,
+    UNKNOWN, 
+    upload_file_to_os,
+    is_valid_ocid
 )
 from ads.common import oci_client as oc
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -607,7 +601,7 @@ class AquaEvaluationApp(AquaApp):
         """
         logger.info(f"Fetching evaluation: {eval_id} details ...")
 
-        resource = query_resource(eval_id)
+        resource = utils.query_resource(eval_id)
         model_provenance = self.ds_client.get_model_provenance(eval_id).data
 
         if not resource:
@@ -654,7 +648,7 @@ class AquaEvaluationApp(AquaApp):
             The list of the `ads.aqua.evalution.AquaEvaluationSummary`.
         """
         logger.info(f"Fetching evaluations from compartment {compartment_id}.")
-        models = query_resources(
+        models = utils.query_resources(
             compartment_id=compartment_id,
             resource_type="datasciencemodel",
             tag_list=[EvaluationTags.AQUA_EVALUATION],
@@ -686,11 +680,36 @@ class AquaEvaluationApp(AquaApp):
         return evaluations
 
     def get_status(self, eval_id: str) -> dict:
-        return {
-            "id": eval_id,
-            "lifecycle_state": "ACTIVE",
-            "lifecycle_details": "This is explanation for lifecycle_state.",
-        }
+        """Gets evaluation's current status.
+
+        Parameters
+        ----------
+        eval_id: str
+            The evaluation ocid.
+
+        Returns
+        -------
+        dict
+        """
+        # TODO: add job_run_id as input param
+        eval = utils.query_resource(eval_id)
+        model_provenance = self.ds_client.get_model_provenance(eval_id).data
+
+        if not eval:
+            raise AquaRuntimeError(
+                f"Failed to retrieve evalution {eval_id}."
+                "Please check if the OCID is correct."
+            )
+        jobrun_id = model_provenance.training_id
+        job_run_details = self._fetch_jobrun(eval, use_rqs=True, jobrun_id=jobrun_id)
+
+        return dict(
+            id=eval_id,
+            **self._get_status(
+                model_status=eval.lifecycle_state,
+                job_status=job_run_details.lifecycle_state,
+            ),
+        )
 
     def load_metrics(self, eval_id: str) -> AquaEvalMetrics:
         """Loads evalution metrics markdown from artifacts.
@@ -801,15 +820,15 @@ class AquaEvaluationApp(AquaApp):
             )
             content = ""
             for file in get_files(temp_dir):
-                if os.path.basename(file) == EVALUATION_REPORT:
-                    report_path = os.path.join(temp_dir, EVALUATION_REPORT)
+                if os.path.basename(file) == utils.EVALUATION_REPORT:
+                    report_path = os.path.join(temp_dir, utils.EVALUATION_REPORT)
                     with open(report_path, "rb") as f:
                         content = f.read()
                     break
 
             if not content:
                 error_msg = "Related Resource Not Authorized Or Not Found:" + (
-                    f"Missing `{EVALUATION_REPORT}` in evaluation artifact."
+                    f"Missing `{utils.EVALUATION_REPORT}` in evaluation artifact."
                 )
                 raise AquaFileNotFoundError(error_msg)
 
@@ -868,7 +887,7 @@ class AquaEvaluationApp(AquaApp):
             )
 
             if not source_name:
-                resource_type = get_resource_type(source_id)
+                resource_type = utils.get_resource_type(source_id)
 
                 if resource_type == "datasciencemodel":
                     source_name = self.ds_client.get_model(source_id).data.display_name
@@ -939,8 +958,8 @@ class AquaEvaluationApp(AquaApp):
     ) -> AquaResourceIdentifier:
         """Constructs AquaResourceIdentifier based on the given ocid and display name."""
         try:
-            resource_type = CONSOLE_LINK_RESOURCE_TYPE_MAPPING.get(
-                get_resource_type(id)
+            resource_type = utils.CONSOLE_LINK_RESOURCE_TYPE_MAPPING.get(
+                utils.get_resource_type(id)
             )
 
             return AquaResourceIdentifier(
@@ -959,7 +978,7 @@ class AquaEvaluationApp(AquaApp):
             return AquaResourceIdentifier()
 
     def _get_jobrun(
-        self, model: oci.resource_search.models.ResourceSummary, mapping: dict
+        self, model: oci.resource_search.models.ResourceSummary, mapping: dict = {}
     ) -> Union[
         oci.resource_search.models.ResourceSummary, oci.data_science.models.JobRun
     ]:
@@ -990,7 +1009,7 @@ class AquaEvaluationApp(AquaApp):
 
         try:
             jobrun = (
-                query_resource(jobrun_id, return_all=False)
+                utils.query_resource(jobrun_id, return_all=False)
                 if use_rqs
                 else self.ds_client.get_job_run(jobrun_id).data
             )
@@ -1053,7 +1072,9 @@ class AquaEvaluationApp(AquaApp):
 
     def _get_status(self, model_status, job_status) -> dict:
         """Build evaluation status based on the model status and job run status."""
-        lifecycle_state = LifecycleStatus.get_status(model_status, job_status)
+        lifecycle_state = utils.LifecycleStatus.get_status(
+            evaluation_status=model_status, job_run_status=job_status
+        )
         return dict(
             lifecycle_state=(
                 lifecycle_state
@@ -1071,7 +1092,7 @@ class AquaEvaluationApp(AquaApp):
         """Fetches all AQUA resources."""
         # TODO: handle cross compartment/tenency resources
         # TODO: add cache
-        resources = query_resources(
+        resources = utils.query_resources(
             compartment_id=compartment_id,
             resource_type="all",
             tag_list=[EvaluationTags.AQUA_EVALUATION, "OCI_AQUA"],
