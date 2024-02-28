@@ -780,16 +780,11 @@ class AquaEvaluationApp(AquaApp):
             if run.lifecycle_state not in run.TERMINAL_STATES:
                 # todo: check if we want to return directly before waiting for completion
                 run.cancel()
-                while (
-                    run.lifecycle_state
-                    != oci.data_science.models.JobRun.LIFECYCLE_STATE_CANCELING
-                ):
-                    time.sleep(3)
                 logger.info(f"Canceling Job Run: {job_run_id} for evaluation {eval_id}")
                 status = dict(
                     evaluation_id=eval_id,
-                    lifecycle_state=run.lifecycle_state,
-                    time_accepted=run.time_accepted,
+                    lifecycle_state="CANCELING",
+                    time_accepted=datetime.now().strftime("%Y%m%d-%H%M"),
                 )
         except oci.exceptions.ServiceError as ex:
             logger.error(
