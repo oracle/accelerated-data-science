@@ -322,3 +322,18 @@ class TestAquaModel(unittest.TestCase):
         self.print_expected_response(response, "LOAD METRICS")
         self.assert_payload(response, AquaEvalMetrics)
         assert len(response.metrics) == 1
+
+    def test_get_status(self):
+        """Tests getting evaluation status successfully."""
+        self.app.ds_client.get_model_provenance = MagicMock(
+            return_value=oci.response.Response(
+                status=200,
+                request=MagicMock(),
+                headers=MagicMock(),
+                data=oci.data_science.models.ModelProvenance(
+                    **TestDataset.model_provenance_object
+                ),
+            )
+        )
+        response = self.app.get_status(TestDataset.EVAL_ID)
+        self.print_expected_response(response, "GET STATUS")
