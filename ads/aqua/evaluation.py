@@ -4,8 +4,10 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import base64
 import json
+import logging
 import os
 import tempfile
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
@@ -744,16 +746,113 @@ class AquaEvaluationApp(AquaApp):
         return report
 
     def cancel_evaluation(self, eval_id) -> dict:
-        run = DataScienceJobRun.from_ocid(eval_id)
-        try:
-            if run.status not in run.TERMINAL_STATES:
-                run.cancel(wait_for_completion=False)
-                logger.info("Cancelled Job Run: %s", eval_id)
-        except oci.exceptions.ServiceError as ex:
-            error = ex.message
+        """Cancels the job run for the given evaluation id.
+        Parameters
+        ----------
+        eval_id: str
+            The evaluation ocid.
 
-    def delete_evaluation(self, eval_id) -> dict:
-        pass
+        Returns
+        -------
+            dict containing evaluation_id, status and time_accepted
+
+        Raises
+        ------
+        AquaRuntimeError:
+            if a model doesn't exist for the given eval_id
+        AquaMissingKeyError:
+            if training_id is missing the job run id
+        """
+        model = DataScienceModel.from_id(eval_id)
+        if not model:
+            raise AquaRuntimeError(
+                f"Failed to get evaluation details for model {eval_id}"
+            )
+        job_run_id = model.provenance_metadata.training_id
+        if not job_run_id:
+            raise AquaMissingKeyError(
+                "Model provenance is missing job run training_id key"
+            )
+
+        status = dict(evaluation_id=eval_id, status=UNKNOWN, time_accepted="")
+        run = DataScienceJobRun.from_ocid(job_run_id)
+        try:
+            if run.lifecycle_state not in run.TERMINAL_STATES:
+                # todo: check if we want to return directly before waiting for completion
+                run.cancel()
+                while (
+                    run.lifecycle_state
+                    != oci.data_science.models.JobRun.LIFECYCLE_STATE_CANCELING
+                ):
+                    time.sleep(3)
+                logger.info(f"Canceling Job Run: {job_run_id} for evaluation {eval_id}")
+                status = dict(
+                    evaluation_id=eval_id,
+                    lifecycle_state=run.lifecycle_state,
+                    time_accepted=run.time_accepted,
+                )
+        except oci.exceptions.ServiceError as ex:
+            logger.error(
+                f"Exception occurred while canceling job run: {job_run_id} for evaluation {eval_id}. "
+                f"Exception message: {ex}"
+            )
+        return status
+
+    def delete_evaluation(self, eval_id):
+        """Deletes the job and the associated model for the given evaluation id.
+        Parameters
+        ----------
+        eval_id: str
+            The evaluation ocid.
+
+        Returns
+        -------
+            dict containing evaluation_id, status and time_accepted
+
+        Raises
+        ------
+        AquaRuntimeError:
+            if a model doesn't exist for the given eval_id
+        AquaMissingKeyError:
+            if training_id is missing the job run id
+        """
+
+        model = DataScienceModel.from_id(eval_id)
+        if not model:
+            raise AquaRuntimeError(
+                f"Failed to get evaluation details for model {eval_id}"
+            )
+
+        try:
+            job_id = model.custom_metadata_list.get(
+                EvaluationCustomMetadata.EVALUATION_JOB_ID.value
+            ).value
+        except ValueError:
+            raise AquaMissingKeyError(
+                f"Custom metadata is missing {EvaluationCustomMetadata.EVALUATION_JOB_ID.value} key"
+            )
+
+        status = dict(evaluation_id=eval_id, status=UNKNOWN, time_accepted="")
+        job = DataScienceJob.from_id(job_id)
+        try:
+            job.delete()
+            logger.info(f"Deleting Job: {job.job_id} for evaluation {eval_id}")
+
+            model.delete()
+            logger.info(f"Deleting evaluation: {eval_id}")
+
+            status = dict(
+                evaluation_id=eval_id,
+                lifecycle_state="DELETING",
+                time_accepted=datetime.now().strftime("%Y%m%d-%H%M"),
+            )
+        except oci.exceptions.ServiceError as ex:
+            logger.error(
+                f"Exception occurred while deleting job: {job_id} for evaluation {eval_id}. "
+                f"Exception message: {ex}"
+            )
+
+        return status
 
     def _get_attribute_from_model_metadata(
         self,
