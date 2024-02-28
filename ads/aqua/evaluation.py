@@ -6,7 +6,7 @@ import base64
 import json
 import os
 import tempfile
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
@@ -29,7 +29,7 @@ from ads.aqua.exception import (
     AquaRuntimeError,
     AquaValueError,
 )
-from ads.aqua.utils import UNKNOWN, upload_file_to_os
+from ads.aqua.utils import MODEL_PARAMETERS, UNKNOWN, is_valid_ocid, upload_file_to_os
 from ads.common import oci_client as oc
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
@@ -65,6 +65,7 @@ class DataScienceResource(Enum):
 class EvaluationCustomMetadata(Enum):
     EVALUATION_SOURCE = "evaluation_source"
     EVALUATION_JOB_ID = "evaluation_job_id"
+    EVALUATION_JOB_RUN_ID = "evaluation_job_run_id"
     EVALUATION_OUTPUT_PATH = "evaluation_output_path"
     EVALUATION_SOURCE_NAME = "evaluation_source_name"
 
@@ -172,8 +173,6 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
         The evaluation source id. Must be either model or model deployment ocid.
     evaluation_name: str
         The name for evaluation.
-    evaluation_description: str
-        The description for evaluation
     dataset_path: str
         The dataset path for the evaluation. Could be either a local path from notebook session
         or an object storage path.
@@ -193,6 +192,8 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
         The compartment id for the evaluation.
     project_id: (str, optional). Defaults to `None`.
         The project id for the evaluation.
+    evaluation_description: (str, optional). Defaults to `None`.
+        The description for evaluation
     experiment_id: (str, optional). Defaults to `None`.
         The evaluation model version set id. If provided,
         evaluation model will be associated with it.
@@ -212,7 +213,6 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
 
     evaluation_source_id: str
     evaluation_name: str
-    evaluation_description: str
     dataset_path: str
     report_path: str
     model_parameters: dict
@@ -222,6 +222,7 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
     block_storage_size: int
     compartment_id: Optional[str] = None
     project_id: Optional[str] = None
+    evaluation_description: Optional[str] = None
     experiment_id: Optional[str] = None
     experiment_name: Optional[str] = None
     experiment_description: Optional[str] = None
@@ -232,7 +233,6 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
 
 # TODO: Remove later
 BUCKET_URI = "oci://ming-dev@ociodscdev/evaluation/sample_response"
-ARTIFACT = "oci://lu_bucket@ociodscdev/sample_artifact.zip"
 SOURCE = "oci://lu_bucket@ociodscdev/evaluation_dummy_script.py"
 SUBNET_ID = os.environ.get("SUBNET_ID", None)
 
@@ -280,6 +280,11 @@ class AquaEvaluationApp(AquaApp):
         AquaEvaluationSummary:
             The instance of AquaEvaluationSummary.
         """
+        if not is_valid_ocid(create_aqua_evaluation_details.evaluation_source_id):
+            raise AquaValueError(
+                f"Invalid evaluation source {create_aqua_evaluation_details.evaluation_source_id}. "
+                "Specify either a model or model deployment id."
+            )
 
         evaluation_source = None
         if (
@@ -307,6 +312,18 @@ class AquaEvaluationApp(AquaApp):
         ):
             raise AquaValueError(
                 "Evaluation report path must be an object storage path."
+            )
+
+        evaluation_model_parameters = None
+        try:
+            evaluation_model_parameters = AquaEvalParams(
+                shape=create_aqua_evaluation_details.shape_name,
+                **create_aqua_evaluation_details.model_parameters,
+            )
+        except:
+            raise AquaValueError(
+                "Invalid model parameters. Model parameters should "
+                f"be a dictionary with keys: {', '.join(MODEL_PARAMETERS)}."
             )
 
         target_compartment = (
@@ -375,7 +392,9 @@ class AquaEvaluationApp(AquaApp):
         evaluation_model_taxonomy_metadata[
             MetadataTaxonomyKeys.HYPERPARAMETERS
         ].value = {
-            "model_params": create_aqua_evaluation_details.model_parameters,
+            "model_params": {
+                key: value for key, value in asdict(evaluation_model_parameters).items()
+            }
         }
 
         evaluation_model_freeform_tags = {
@@ -388,9 +407,6 @@ class AquaEvaluationApp(AquaApp):
             .with_project_id(target_project)
             .with_display_name(create_aqua_evaluation_details.evaluation_name)
             .with_description(create_aqua_evaluation_details.evaluation_description)
-            .with_artifact(
-                ARTIFACT
-            )  # TODO: for the purpose of demo and will remove later
             .with_model_version_set_id(experiment_model_version_set_id)
             .with_custom_metadata_list(evaluation_model_custom_metadata)
             .with_defined_metadata_list(evaluation_model_taxonomy_metadata)
@@ -461,9 +477,22 @@ class AquaEvaluationApp(AquaApp):
             f"Successfully created evaluation job {evaluation_job.id} for {create_aqua_evaluation_details.evaluation_source_id}."
         )
 
+        evaluation_job_run = evaluation_job.run(
+            name=evaluation_model.display_name,
+            freeform_tags=evaluation_job_freeform_tags,
+            wait=False,
+        )
+        logger.debug(
+            f"Successfully created evaluation job run {evaluation_job_run.id} for {create_aqua_evaluation_details.evaluation_source_id}."
+        )
+
         evaluation_model_custom_metadata.add(
             key=EvaluationCustomMetadata.EVALUATION_JOB_ID.value,
             value=evaluation_job.id,
+        )
+        evaluation_model_custom_metadata.add(
+            key=EvaluationCustomMetadata.EVALUATION_JOB_RUN_ID.value,
+            value=evaluation_job_run.id,
         )
         updated_custom_metadata_list = [
             Metadata(**metadata)
@@ -475,15 +504,6 @@ class AquaEvaluationApp(AquaApp):
             update_model_details=UpdateModelDetails(
                 custom_metadata_list=updated_custom_metadata_list
             ),
-        )
-
-        evaluation_job_run = evaluation_job.run(
-            name=evaluation_model.display_name,
-            freeform_tags=evaluation_job_freeform_tags,
-            wait=False,
-        )
-        logger.debug(
-            f"Successfully created evaluation job run {evaluation_job_run.id} for {create_aqua_evaluation_details.evaluation_source_id}."
         )
 
         self.ds_client.update_model_provenance(
@@ -502,8 +522,8 @@ class AquaEvaluationApp(AquaApp):
                 region=self.region,
             ),
             time_created=str(evaluation_model.dsc_model.time_created),
-            lifecycle_state=evaluation_job_run.lifecycle_state,
-            lifecycle_details=evaluation_job_run.lifecycle_details,
+            lifecycle_state=evaluation_job_run.lifecycle_state or UNKNOWN,
+            lifecycle_details=evaluation_job_run.lifecycle_details or UNKNOWN,
             experiment=AquaResourceIdentifier(
                 id=experiment_model_version_set_id,
                 name=experiment_model_version_set_name,
@@ -542,7 +562,7 @@ class AquaEvaluationApp(AquaApp):
                 evaluation_source=create_aqua_evaluation_details.evaluation_source_id,
                 evaluation_experiment_id=experiment_model_version_set_id,
             ),
-            parameters=AquaResourceIdentifier(),
+            parameters=AquaEvalParams(),
         )
 
     def _build_evaluation_runtime(

@@ -94,6 +94,12 @@ LIFECYCLE_DETAILS_MAPPING = {
 }
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "Object Storage Path"
+MODEL_PARAMETERS = [
+    "max_tokens",
+    "temperature",
+    "top_p",
+    "top_k"
+]
 
 
 def get_logger():
