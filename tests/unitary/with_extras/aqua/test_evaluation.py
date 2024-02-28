@@ -14,7 +14,12 @@ from unittest.mock import MagicMock, patch
 import oci
 
 from ads.aqua import utils
-from ads.aqua.evaluation import AquaEvalReport, AquaEvaluationApp, AquaEvaluationSummary
+from ads.aqua.evaluation import (
+    AquaEvalMetrics,
+    AquaEvalReport,
+    AquaEvaluationApp,
+    AquaEvaluationSummary,
+)
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.model import DataScienceModel
 
@@ -296,8 +301,24 @@ class TestAquaModel(unittest.TestCase):
         mock_dsc_model_from_id.assert_called_with(TestDataset.EVAL_ID)
         self.print_expected_response(response, "DOWNLOAD REPORT")
         self.assert_payload(response, AquaEvalReport)
-
         read_content = base64.b64decode(response.content)
         assert (
             read_content == b"This is a sample evaluation report.html.\n"
         ), read_content
+
+    @patch.object(DataScienceModel, "download_artifact")
+    @patch.object(DataScienceModel, "from_id")
+    @patch("tempfile.TemporaryDirectory")
+    def test_load_metrics(
+        self, mock_TemporaryDirectory, mock_dsc_model_from_id, mock_download_artifact
+    ):
+        """Tests loading evaluation metrics successfully."""
+        curr_dir = os.path.dirname(os.path.abspath(__file__))
+        mock_temp_path = os.path.join(curr_dir, "test_data/valid_eval_artifact")
+        mock_TemporaryDirectory.return_value.__enter__.return_value = mock_temp_path
+        response = self.app.load_metrics(TestDataset.EVAL_ID)
+
+        mock_dsc_model_from_id.assert_called_with(TestDataset.EVAL_ID)
+        self.print_expected_response(response, "LOAD METRICS")
+        self.assert_payload(response, AquaEvalMetrics)
+        assert len(response.metrics) == 1

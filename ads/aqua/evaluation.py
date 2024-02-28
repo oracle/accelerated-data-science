@@ -10,6 +10,7 @@ import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
+from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Optional, Union
 
@@ -268,6 +269,7 @@ class AquaEvaluationApp(AquaApp):
     """
 
     _report_cache = TTLCache(maxsize=10, ttl=timedelta(hours=5), timer=datetime.now)
+    _metrics_cache = TTLCache(maxsize=10, ttl=timedelta(hours=5), timer=datetime.now)
     _cache_lock = Lock()
 
     def create(
@@ -703,23 +705,70 @@ class AquaEvaluationApp(AquaApp):
         AquaEvalMetrics:
             An instancec of AquaEvalMetrics.
         """
-        # WIP
-        # TODO: add caching
+        if eval_id in self._metrics_cache.keys():
+            logger.info(f"Returning metrics from cache.")
+            eval_metrics = self._metrics_cache.get(eval_id)
+            if len(eval_metrics.metrics) > 0:
+                return eval_metrics
+
         with tempfile.TemporaryDirectory() as temp_dir:
+            logger.info(f"Downloading evaluation artifact: {eval_id}.")
             DataScienceModel.from_id(eval_id).download_artifact(
-                temp_dir, auth=self._auth
+                temp_dir,
+                auth=self._auth,
             )
             metrics = []
+            metric_markdown = {}
+            report = None
             for file in get_files(temp_dir):
-                if file.name.endswith(".md"):
-                    with open(file, "rb") as f:
+                if file.endswith(".md"):
+                    metric_key = Path(file).stem
+                    logger.info(f"Reading {file}...")
+                    with open(os.path.join(temp_dir, file), "rb") as f:
                         content = f.read()
-                    metrics.append(
-                        AquaEvalMetric(
-                            name=f.name, content=base64.b64encode(content).decode()
-                        )
+
+                    metric_markdown[metric_key] = base64.b64encode(content).decode()
+
+                if file == utils.EVALUATION_REPORT_JSON:
+                    logger.info(f"Loading {utils.EVALUATION_REPORT_JSON}...")
+                    with open(
+                        os.path.join(temp_dir, utils.EVALUATION_REPORT_JSON), "rb"
+                    ) as f:
+                        report = json.loads(f.read())
+
+            if not report:
+                raise AquaFileNotFoundError(
+                    "Related Resource Not Authorized Or Not Found:"
+                    f"Missing `{utils.EVALUATION_REPORT_JSON}` in evaluation artifact."
+                )
+
+            # TODO: after finalizing the format of report.json, move the constant to class
+            metrics_results = report.get("metric_results")
+            missing_content = False
+            for k, v in metrics_results.items():
+                content = metric_markdown.get(k, utils.UNKNOWN)
+                if not content:
+                    missing_content = True
+                    logger.error(
+                        "Related Resource Not Authorized Or Not Found:"
+                        f"Missing `{k}.md` in evaluation artifact."
                     )
-        return AquaEvalMetrics(id=eval_id, metrics=metrics)
+
+                metrics.append(
+                    AquaEvalMetric(
+                        key=k,
+                        name=v.get("name", utils.UNKNOWN),
+                        content=content,
+                        description=v.get("description"),
+                    )
+                )
+
+        eval_metrics = AquaEvalMetrics(id=eval_id, metrics=metrics)
+
+        if not missing_content:
+            self._metrics_cache.__setitem__(key=eval_id, value=eval_metrics)
+
+        return eval_metrics
 
     def download_report(self, eval_id) -> AquaEvalReport:
         """Downloads HTML report from model artifact.
