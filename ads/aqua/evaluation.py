@@ -71,6 +71,7 @@ class DataScienceResource(Enum):
 class EvaluationCustomMetadata(Enum):
     EVALUATION_SOURCE = "evaluation_source"
     EVALUATION_JOB_ID = "evaluation_job_id"
+    EVALUATION_JOB_RUN_ID = "evaluation_job_run_id"
     EVALUATION_OUTPUT_PATH = "evaluation_output_path"
     EVALUATION_SOURCE_NAME = "evaluation_source_name"
 
@@ -484,9 +485,22 @@ class AquaEvaluationApp(AquaApp):
             f"Successfully created evaluation job {evaluation_job.id} for {create_aqua_evaluation_details.evaluation_source_id}."
         )
 
+        evaluation_job_run = evaluation_job.run(
+            name=evaluation_model.display_name,
+            freeform_tags=evaluation_job_freeform_tags,
+            wait=False,
+        )
+        logger.debug(
+            f"Successfully created evaluation job run {evaluation_job_run.id} for {create_aqua_evaluation_details.evaluation_source_id}."
+        )
+
         evaluation_model_custom_metadata.add(
             key=EvaluationCustomMetadata.EVALUATION_JOB_ID.value,
             value=evaluation_job.id,
+        )
+        evaluation_model_custom_metadata.add(
+            key=EvaluationCustomMetadata.EVALUATION_JOB_RUN_ID.value,
+            value=evaluation_job_run.id
         )
         updated_custom_metadata_list = [
             Metadata(**metadata)
@@ -498,15 +512,6 @@ class AquaEvaluationApp(AquaApp):
             update_model_details=UpdateModelDetails(
                 custom_metadata_list=updated_custom_metadata_list
             ),
-        )
-
-        evaluation_job_run = evaluation_job.run(
-            name=evaluation_model.display_name,
-            freeform_tags=evaluation_job_freeform_tags,
-            wait=False,
-        )
-        logger.debug(
-            f"Successfully created evaluation job run {evaluation_job_run.id} for {create_aqua_evaluation_details.evaluation_source_id}."
         )
 
         self.ds_client.update_model_provenance(
