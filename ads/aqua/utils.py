@@ -41,7 +41,7 @@ CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
 class LifecycleStatus(Enum):
     COMPLETED = "Completed"
     IN_PROGRESS = "In Progress"
-    CANCELLED = "Cancelled"
+    CANCELED = "Canceled"
     UNKNOWN = ""
 
     @property
@@ -78,7 +78,7 @@ class LifecycleStatus(Enum):
             elif job_run_status == JobRun.LIFECYCLE_STATE_IN_PROGRESS:
                 status = LifecycleStatus.IN_PROGRESS
             elif job_run_status == JobRun.LIFECYCLE_STATE_CANCELED:
-                status = LifecycleStatus.CANCELLED
+                status = LifecycleStatus.CANCELED
             else:
                 status = job_run_status
         else:
@@ -90,7 +90,7 @@ class LifecycleStatus(Enum):
 LIFECYCLE_DETAILS_MAPPING = {
     LifecycleStatus.COMPLETED.name: "The evaluation ran successfully.",
     LifecycleStatus.IN_PROGRESS.name: "The evaluation job is running.",
-    LifecycleStatus.CANCELLED.name: "The evaluation has been cancelled.",
+    LifecycleStatus.CANCELED.name: "The evaluation has been cancelled.",
 }
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "Object Storage Path"
