@@ -4,10 +4,9 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import base64
 import json
-from dataclasses import dataclass, field, asdict
 import os
 import tempfile
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
@@ -30,12 +29,7 @@ from ads.aqua.exception import (
     AquaRuntimeError,
     AquaValueError,
 )
-from ads.aqua.utils import (
-    MODEL_PARAMETERS,
-    UNKNOWN, 
-    upload_file_to_os,
-    is_valid_ocid
-)
+from ads.aqua.utils import MODEL_PARAMETERS, UNKNOWN, is_valid_ocid, upload_file_to_os
 from ads.common import oci_client as oc
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
@@ -236,6 +230,7 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
     log_id: Optional[str] = None
     metrics: Optional[List] = None
 
+
 # TODO: Remove later
 BUCKET_URI = "oci://ming-dev@ociodscdev/evaluation/sample_response"
 SOURCE = "oci://lu_bucket@ociodscdev/evaluation_dummy_script.py"
@@ -285,9 +280,7 @@ class AquaEvaluationApp(AquaApp):
         AquaEvaluationSummary:
             The instance of AquaEvaluationSummary.
         """
-        if not is_valid_ocid(
-            create_aqua_evaluation_details.evaluation_source_id
-        ):
+        if not is_valid_ocid(create_aqua_evaluation_details.evaluation_source_id):
             raise AquaValueError(
                 f"Invalid evaluation source {create_aqua_evaluation_details.evaluation_source_id}. "
                 "Specify either a model or model deployment id."
@@ -313,24 +306,24 @@ class AquaEvaluationApp(AquaApp):
                 f"Invalid evaluation source {create_aqua_evaluation_details.evaluation_source_id}. "
                 "Specify either a model or model deployment id."
             )
-        
+
         if not ObjectStorageDetails.is_oci_path(
             create_aqua_evaluation_details.report_path
         ):
             raise AquaValueError(
                 "Evaluation report path must be an object storage path."
             )
-        
+
         evaluation_model_parameters = None
         try:
             evaluation_model_parameters = AquaEvalParams(
                 shape=create_aqua_evaluation_details.shape_name,
-                **create_aqua_evaluation_details.model_parameters
+                **create_aqua_evaluation_details.model_parameters,
             )
         except:
             raise AquaValueError(
-               "Invalid model parameters. Model parameters should "
-               f"be a dictionary with keys: {', '.join(MODEL_PARAMETERS)}."
+                "Invalid model parameters. Model parameters should "
+                f"be a dictionary with keys: {', '.join(MODEL_PARAMETERS)}."
             )
 
         target_compartment = (
@@ -398,10 +391,9 @@ class AquaEvaluationApp(AquaApp):
         evaluation_model_taxonomy_metadata = ModelTaxonomyMetadata()
         evaluation_model_taxonomy_metadata[
             MetadataTaxonomyKeys.HYPERPARAMETERS
-        ].value={
+        ].value = {
             "model_params": {
-                key: value for key, value in 
-                asdict(evaluation_model_parameters).items()
+                key: value for key, value in asdict(evaluation_model_parameters).items()
             }
         }
 
@@ -500,7 +492,7 @@ class AquaEvaluationApp(AquaApp):
         )
         evaluation_model_custom_metadata.add(
             key=EvaluationCustomMetadata.EVALUATION_JOB_RUN_ID.value,
-            value=evaluation_job_run.id
+            value=evaluation_job_run.id,
         )
         updated_custom_metadata_list = [
             Metadata(**metadata)
@@ -570,7 +562,7 @@ class AquaEvaluationApp(AquaApp):
                 evaluation_source=create_aqua_evaluation_details.evaluation_source_id,
                 evaluation_experiment_id=experiment_model_version_set_id,
             ),
-            parameters=AquaResourceIdentifier(),
+            parameters=AquaEvalParams(),
         )
 
     def _build_evaluation_runtime(
