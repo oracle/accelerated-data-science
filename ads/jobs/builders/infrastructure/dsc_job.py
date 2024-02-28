@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from __future__ import annotations
 
@@ -40,6 +40,7 @@ from ads.common.dsc_file_system import (
     DSCFileSystemManager,
     OCIObjectStorage,
 )
+from ads.common.decorator.utils import class_or_instance_method
 
 logger = logging.getLogger(__name__)
 
@@ -432,7 +433,7 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
         items = oci.pagination.list_call_get_all_results(
             self.client.list_job_runs, self.compartment_id, job_id=self.id, **kwargs
         ).data
-        return [DataScienceJobRun.from_oci_model(item) for item in items]
+        return [DataScienceJobRun(**self.auth).from_oci_model(item) for item in items]
 
     def run(self, **kwargs) -> DataScienceJobRun:
         """Runs the job
@@ -498,27 +499,10 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             kwargs["job_configuration_override_details"] = config_override
 
         wait = kwargs.pop("wait", False)
-        run = DataScienceJobRun(**kwargs).create()
+        run = DataScienceJobRun(**kwargs, **self.auth).create()
         if wait:
             return run.watch()
         return run
-
-    @classmethod
-    def from_ocid(cls, ocid) -> DSCJob:
-        """Gets a job by OCID
-
-        Parameters
-        ----------
-        ocid : str
-            The OCID of the job.
-
-        Returns
-        -------
-        DSCJob
-            An instance of DSCJob.
-
-        """
-        return super().from_ocid(ocid)
 
 
 class DataScienceJobRun(
@@ -577,7 +561,12 @@ class DataScienceJobRun(
         if not self.log_id:
             raise ValueError("Log OCID is not specified for this job run.")
         # Specifying log group ID when initializing OCILog can reduce the number of API calls.
-        return OCILog(id=self.log_id, log_group_id=self.log_details.log_group_id)
+        auth = self.auth
+        if "client_kwargs" in auth and isinstance(auth["client_kwargs"], dict):
+            auth["client_kwargs"].pop("service_endpoint", None)
+        return OCILog(
+            id=self.log_id, log_group_id=self.log_details.log_group_id, **auth
+        )
 
     @staticmethod
     def _format_log(message: str, date_time: datetime.datetime) -> dict:
@@ -930,6 +919,8 @@ class DataScienceJob(Infrastructure):
         OBJECT_STORAGE_TYPE: OCIObjectStorage,
     }
 
+    auth = {}
+
     @staticmethod
     def standardize_spec(spec):
         if not spec:
@@ -967,12 +958,16 @@ class DataScienceJob(Infrastructure):
             Specification as keyword arguments.
             If spec contains the same key as the one in kwargs, the value from kwargs will be used.
         """
+        for key in ["config", "signer", "client_kwargs"]:
+            if kwargs.get(key):
+                self.auth[key] = kwargs.pop(key)
+
         self.standardize_spec(spec)
         self.standardize_spec(kwargs)
         super().__init__(spec=spec, **kwargs)
         if not self.job_type:
             self.with_job_type("DEFAULT")
-        self.dsc_job = DSCJob()
+        self.dsc_job = DSCJob(**self.auth)
         self.runtime = None
         self._name = None
 
@@ -1559,7 +1554,7 @@ class DataScienceJob(Infrastructure):
         if not payload.get("defined_tags"):
             payload["defined_tags"] = self.defined_tags
 
-        self.dsc_job = DSCJob(**payload)
+        self.dsc_job = DSCJob(**payload, **self.auth)
         # Set Job infra to user values after DSCJob initialized the defaults
         self._update_job_infra(self.dsc_job)
         self.dsc_job.create()
@@ -1684,7 +1679,7 @@ class DataScienceJob(Infrastructure):
         instance.runtime = DataScienceJobRuntimeManager(instance).extract(dsc_job)
         return instance
 
-    @classmethod
+    @class_or_instance_method
     def from_id(cls, job_id: str) -> DataScienceJob:
         """Gets an existing job using Job OCID
 
@@ -1700,9 +1695,9 @@ class DataScienceJob(Infrastructure):
             An instance of DataScienceJob
 
         """
-        return cls.from_dsc_job(DSCJob.from_ocid(job_id))
+        return cls.from_dsc_job(DSCJob(**cls.auth).from_ocid(job_id))
 
-    @classmethod
+    @class_or_instance_method
     def list_jobs(cls, compartment_id: str = None, **kwargs) -> List[DataScienceJob]:
         """Lists all jobs in a compartment.
 
@@ -1723,10 +1718,10 @@ class DataScienceJob(Infrastructure):
         """
         return [
             cls.from_dsc_job(job)
-            for job in DSCJob.list_resource(compartment_id, **kwargs)
+            for job in DSCJob(**cls.auth).list_resource(compartment_id, **kwargs)
         ]
 
-    @classmethod
+    @class_or_instance_method
     def instance_shapes(cls, compartment_id: str = None, **kwargs) -> list:
         """Lists the supported shapes for running jobs in a compartment.
 
@@ -1754,13 +1749,13 @@ class DataScienceJob(Infrastructure):
 
         """
         shapes = oci.pagination.list_call_get_all_results(
-            DSCJob.init_client().list_job_shapes,
+            DSCJob(**cls.auth).init_client().list_job_shapes,
             DSCJob.check_compartment_id(compartment_id),
             **kwargs,
         ).data
         return shapes
 
-    @classmethod
+    @class_or_instance_method
     def fast_launch_shapes(cls, compartment_id: str = None, **kwargs) -> list:
         """Lists the supported fast launch shapes for running jobs in a compartment.
 
@@ -1788,7 +1783,7 @@ class DataScienceJob(Infrastructure):
 
         """
         shapes = oci.pagination.list_call_get_all_results(
-            DSCJob.init_client().list_fast_launch_job_configs,
+            DSCJob(**cls.auth).init_client().list_fast_launch_job_configs,
             DSCJob.check_compartment_id(compartment_id),
             **kwargs,
         ).data

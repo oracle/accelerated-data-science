@@ -798,14 +798,13 @@ class OCIModelMixin(OCISerializableMixin):
                         logger.error(
                             "Failed to synchronize the properties of %s due to service error:\n%s",
                             self.__class__,
-                            str(ex),
+                            traceback.format_exc(),
                         )
-                except Exception as ex:
+                except Exception:
                     logger.error(
-                        "Failed to synchronize the properties of %s: %s\n%s",
+                        "Failed to synchronize the properties of %s.\n%s",
                         self.__class__,
-                        type(ex),
-                        str(ex),
+                        traceback.format_exc(),
                     )
         return super().__getattribute__(name)
 
