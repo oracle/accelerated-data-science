@@ -1087,7 +1087,7 @@ class AquaEvaluationApp(AquaApp):
                 else lifecycle_state.value
             ),
             lifecycle_details=(
-                UNKNOWN
+                utils.UNKNOWN
                 if isinstance(lifecycle_state, str)
                 else lifecycle_state.detail
             ),
