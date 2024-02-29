@@ -241,8 +241,6 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
     report_path: str
     model_parameters: dict
     shape_name: str
-    memory_in_gbs: float
-    ocpus: float
     block_storage_size: int
     compartment_id: Optional[str] = None
     project_id: Optional[str] = None
@@ -250,6 +248,8 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
     experiment_id: Optional[str] = None
     experiment_name: Optional[str] = None
     experiment_description: Optional[str] = None
+    memory_in_gbs: Optional[float] = None
+    ocpus: Optional[float] = None
     log_group_id: Optional[str] = None
     log_id: Optional[str] = None
     metrics: Optional[List] = None
