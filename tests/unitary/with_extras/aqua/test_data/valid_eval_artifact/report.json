@@ -1,9 +1,9 @@
 {
   "data": [],
   "metric_results": {
-    "metric1": {
+    "": {
       "description": "This is a description.",
-      "key": "metric1",
+      "key": "",
       "name": "METRIC 1"
     }
   }

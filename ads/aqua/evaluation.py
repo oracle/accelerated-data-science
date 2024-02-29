@@ -742,8 +742,8 @@ class AquaEvaluationApp(AquaApp):
                     logger.info(f"Reading {file}...")
                     with open(os.path.join(temp_dir, file), "rb") as f:
                         content = f.read()
-
-                    metric_markdown[metric_key] = base64.b64encode(content).decode()
+                    # TODO: change hardcode value "bertscore" back to variable metric_key
+                    metric_markdown["bertscore"] = base64.b64encode(content).decode()
 
                 if file == utils.EVALUATION_REPORT_JSON:
                     logger.info(f"Loading {utils.EVALUATION_REPORT_JSON}...")
@@ -762,7 +762,9 @@ class AquaEvaluationApp(AquaApp):
             metrics_results = report.get("metric_results")
             missing_content = False
             for k, v in metrics_results.items():
-                content = metric_markdown.get(k, utils.UNKNOWN)
+                # TODO: remove the hardcode line
+                content = metric_markdown.get("bertscore", utils.UNKNOWN)
+                # content = metric_markdown.get(k, utils.UNKNOWN)
                 if not content:
                     missing_content = True
                     logger.error(
