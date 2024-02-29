@@ -1140,7 +1140,7 @@ class AquaEvaluationApp(AquaApp):
         """Extracts job run id from metadata, and gets related job run information."""
 
         jobrun_id = jobrun_id or self._get_attribute_from_model_metadata(
-            resource, EvaluationMetadata.EVALUATION_JOB_ID
+            resource, EvaluationMetadata.EVALUATION_JOB_RUN_ID
         )
 
         logger.info(f"Fetching associated job run: {jobrun_id}")
