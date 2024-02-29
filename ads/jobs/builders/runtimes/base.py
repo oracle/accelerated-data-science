@@ -313,7 +313,7 @@ class MultiNodeRuntime(Runtime):
                 job_runs.append(run)
                 if i == 0:
                     main_run = run
-        except Exception:
+        except Exception as ex:
             traceback.print_exc()
             # Wait a few second to avoid the job run being in a transient state.
             time.sleep(2)
@@ -321,4 +321,5 @@ class MultiNodeRuntime(Runtime):
             # cancel all the job runs.
             for run in job_runs:
                 run.cancel()
+            raise ex
         return main_run

@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ads.common import utils as common_utils
+from ads.common.decorator.utils import class_or_instance_method
 from ads.jobs.builders.base import Builder
 from ads.jobs.builders.runtimes.base import Runtime
 import logging
@@ -97,7 +98,8 @@ class Infrastructure(Builder):
         """
         raise NotImplementedError()
 
-    def list_jobs(self, **kwargs) -> list:
+    @class_or_instance_method
+    def list_jobs(cls, **kwargs) -> list:
         """
         List jobs from the infrastructure.
 

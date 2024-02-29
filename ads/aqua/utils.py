@@ -15,6 +15,7 @@ from string import Template
 from typing import List
 
 import fsspec
+from oci.data_science.models import JobRun, Model
 
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
@@ -27,7 +28,7 @@ logger = logging.getLogger("ODSC_AQUA")
 UNKNOWN = ""
 README = "README.md"
 DEPLOYMENT_CONFIG = "deployment_config.json"
-EVALUATION_REPORT_ZIP = "report.zip"
+EVALUATION_REPORT_JSON = "report.json"
 EVALUATION_REPORT = "report.html"
 UNKNOWN_JSON_STR = "{}"
 CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
@@ -35,12 +36,20 @@ CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
     datasciencemodeldeployment="model-deployments",
     datasciencejob="jobs",
 )
+CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS", "ociodscdev")
+SOURCE_FILE = "run.sh"
+CONDA_URI = f"oci://ads-evaluation@{CONDA_BUCKET_NS}/conda_environments/gpu/PyTorch 2.1 for GPU on Python 3.9/1.0/pytorch21_p39_gpu_v1"
+CONDA_REGION = "us-ashburn-1"
+BERT_SCORE_PATH = "/home/datascience/conda/pytorch21_p39_gpu_v1/bertscore/bertscore.py"
+BERT_BASE_MULTILINGUAL_CASED = (
+    "/home/datascience/conda/pytorch21_p39_gpu_v1/bert-base-multilingual-cased/"
+)
+
+# TODO: remove later
+SUBNET_ID = os.environ.get("SUBNET_ID", None)
 
 
 class LifecycleStatus(Enum):
-    COMPLETED = "Completed"
-    IN_PROGRESS = "In Progress"
-    CANCELLED = "Cancelled"
     UNKNOWN = ""
 
     @property
@@ -68,18 +77,23 @@ class LifecycleStatus(Enum):
             The mapped status ("Completed", "In Progress", "Canceled").
         """
         if not job_run_status:
-            return LifecycleStatus.UNKNOWN
-        evaluation_status = evaluation_status.lower()
-        job_run_status = job_run_status.lower()
-        status = LifecycleStatus.UNKNOWN
+            logger.error("Failed to get jobrun state.")
+            # case1 : failed to create jobrun
+            # case2: jobrun is deleted - rqs cannot retreive deleted resource
+            return JobRun.LIFECYCLE_STATE_NEEDS_ATTENTION
 
-        if evaluation_status == "active":
-            if job_run_status == "succeeded":
-                status = LifecycleStatus.COMPLETED
-            elif job_run_status == "running":
-                status = LifecycleStatus.IN_PROGRESS
-            elif job_run_status == "cancelled":
-                status = LifecycleStatus.CANCELLED
+        status = LifecycleStatus.UNKNOWN
+        if evaluation_status == Model.LIFECYCLE_STATE_ACTIVE:
+            if (
+                job_run_status == JobRun.LIFECYCLE_STATE_IN_PROGRESS
+                or job_run_status == JobRun.LIFECYCLE_STATE_ACCEPTED
+            ):
+                status = JobRun.LIFECYCLE_STATE_IN_PROGRESS
+            elif (
+                job_run_status == JobRun.LIFECYCLE_STATE_FAILED
+                or job_run_status == JobRun.LIFECYCLE_STATE_NEEDS_ATTENTION
+            ):
+                status = JobRun.LIFECYCLE_STATE_FAILED
             else:
                 status = job_run_status
         else:
@@ -89,12 +103,14 @@ class LifecycleStatus(Enum):
 
 
 LIFECYCLE_DETAILS_MAPPING = {
-    LifecycleStatus.COMPLETED.name: "The evaluation ran successfully.",
-    LifecycleStatus.IN_PROGRESS.name: "The evaluation job is running.",
-    LifecycleStatus.CANCELLED.name: "The evaluation has been cancelled.",
+    JobRun.LIFECYCLE_STATE_SUCCEEDED: "The evaluation ran successfully.",
+    JobRun.LIFECYCLE_STATE_IN_PROGRESS: "The evaluation is running.",
+    JobRun.LIFECYCLE_STATE_FAILED: "The evaluation failed.",
+    JobRun.LIFECYCLE_STATE_NEEDS_ATTENTION: "Missing jobrun information.",
 }
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "Object Storage Path"
+MODEL_PARAMETERS = ["max_tokens", "temperature", "top_p", "top_k"]
 
 
 def get_logger():
