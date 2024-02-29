@@ -50,9 +50,6 @@ SUBNET_ID = os.environ.get("SUBNET_ID", None)
 
 
 class LifecycleStatus(Enum):
-    COMPLETED = "Completed"
-    IN_PROGRESS = "In Progress"
-    CANCELED = "Canceled"
     UNKNOWN = ""
 
     @property
@@ -80,16 +77,21 @@ class LifecycleStatus(Enum):
             The mapped status ("Completed", "In Progress", "Canceled").
         """
         if not job_run_status:
+            logger.error("Failed to get jobrun state.")
             return LifecycleStatus.UNKNOWN
 
         status = LifecycleStatus.UNKNOWN
         if evaluation_status == Model.LIFECYCLE_STATE_ACTIVE:
-            if job_run_status == JobRun.LIFECYCLE_STATE_SUCCEEDED:
-                status = LifecycleStatus.COMPLETED
-            elif job_run_status == JobRun.LIFECYCLE_STATE_IN_PROGRESS:
-                status = LifecycleStatus.IN_PROGRESS
-            elif job_run_status == JobRun.LIFECYCLE_STATE_CANCELED:
-                status = LifecycleStatus.CANCELED
+            if (
+                job_run_status == JobRun.LIFECYCLE_STATE_IN_PROGRESS
+                or job_run_status == JobRun.LIFECYCLE_STATE_ACCEPTED
+            ):
+                status = JobRun.LIFECYCLE_STATE_IN_PROGRESS
+            elif (
+                job_run_status == JobRun.LIFECYCLE_STATE_FAILED
+                or job_run_status == JobRun.LIFECYCLE_STATE_NEEDS_ATTENTION
+            ):
+                status = JobRun.LIFECYCLE_STATE_FAILED
             else:
                 status = job_run_status
         else:
@@ -99,9 +101,9 @@ class LifecycleStatus(Enum):
 
 
 LIFECYCLE_DETAILS_MAPPING = {
-    LifecycleStatus.COMPLETED.name: "The evaluation ran successfully.",
-    LifecycleStatus.IN_PROGRESS.name: "The evaluation job is running.",
-    LifecycleStatus.CANCELED.name: "The evaluation has been cancelled.",
+    JobRun.LIFECYCLE_STATE_SUCCEEDED: "The evaluation ran successfully.",
+    JobRun.LIFECYCLE_STATE_IN_PROGRESS: "The evaluation is running.",
+    JobRun.LIFECYCLE_STATE_FAILED: "The evaluation failed.",
 }
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "Object Storage Path"
