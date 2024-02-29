@@ -174,10 +174,12 @@ class EvaluationTags:
     AQUA_EVALUATION = "aqua_evaluation"
 
 
+# TODO: use EvaluationCustomMetadata instead
 class EvaluationMetadata:
     EVALUATION_SOURCE = "evaluation_source"
     HYPERPARAMETERS = "Hyperparameters"
     EVALUATION_JOB_ID = "evaluation_job_id"
+    EVALUATION_JOB_RUN_ID = "evaluation_job_run_id"
     EVALUATION_SOURCE_NAME = "evaluation_source_name"
 
 
@@ -732,7 +734,6 @@ class AquaEvaluationApp(AquaApp):
         for model in models:
             job_run = self._get_jobrun(model, mapping)
             job_status = job_run.lifecycle_state if job_run else None
-
             evaluations.append(
                 AquaEvaluationSummary(
                     **self._process(model),
@@ -1101,7 +1102,7 @@ class AquaEvaluationApp(AquaApp):
         oci.resource_search.models.ResourceSummary, oci.data_science.models.JobRun
     ]:
         jobrun_id = self._get_attribute_from_model_metadata(
-            model, EvaluationMetadata.EVALUATION_JOB_ID
+            model, EvaluationMetadata.EVALUATION_JOB_RUN_ID
         )
         job_run = mapping.get(jobrun_id)
 
