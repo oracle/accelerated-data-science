@@ -36,6 +36,17 @@ CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
     datasciencemodeldeployment="model-deployments",
     datasciencejob="jobs",
 )
+CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS", "ociodscdev")
+SOURCE_FILE = "run.sh"
+CONDA_URI = f"oci://ads-evaluation@{CONDA_BUCKET_NS}/conda_environments/gpu/PyTorch 2.1 for GPU on Python 3.9/1.0/pytorch21_p39_gpu_v1"
+CONDA_REGION = "us-ashburn-1"
+BERT_SCORE_PATH = "/home/datascience/conda/pytorch21_p39_gpu_v1/bertscore/bertscore.py"
+BERT_BASE_MULTILINGUAL_CASED = (
+    "/home/datascience/conda/pytorch21_p39_gpu_v1/bert-base-multilingual-cased/"
+)
+
+# TODO: remove later
+SUBNET_ID = os.environ.get("SUBNET_ID", None)
 
 
 class LifecycleStatus(Enum):
@@ -94,12 +105,7 @@ LIFECYCLE_DETAILS_MAPPING = {
 }
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "Object Storage Path"
-MODEL_PARAMETERS = [
-    "max_tokens",
-    "temperature",
-    "top_p",
-    "top_k"
-]
+MODEL_PARAMETERS = ["max_tokens", "temperature", "top_p", "top_k"]
 
 
 def get_logger():
