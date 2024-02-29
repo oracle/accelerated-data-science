@@ -48,12 +48,12 @@ jobs:
             test-path: "tests/unitary/with_extras/model"
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: ./.github/workflows/create-more-space
         name: "Create more disk space"
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
