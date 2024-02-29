@@ -118,9 +118,7 @@ class AquaUIHandler(AquaAPIhandler):
     def list_vcn(self, **kwargs):
         """Lists the virtual cloud networks (VCNs) in the specified compartment."""
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
-        return self.finish(
-            AquaUIApp().list_vcn(compartment_id=compartment_id, **kwargs)
-        )
+        return self.finish(AquaUIApp.list_vcn(compartment_id=compartment_id, **kwargs))
 
     @handle_exceptions
     def list_subnets(self, **kwargs):
@@ -128,7 +126,7 @@ class AquaUIHandler(AquaAPIhandler):
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
         vcn_id = self.get_argument("vcn_id")
         return self.finish(
-            AquaUIApp().list_subnets(
+            AquaUIApp.list_subnets(
                 compartment_id=compartment_id, vcn_id=vcn_id, **kwargs
             )
         )
