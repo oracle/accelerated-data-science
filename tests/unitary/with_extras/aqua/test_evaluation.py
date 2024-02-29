@@ -17,6 +17,7 @@ from ads.aqua import utils
 from ads.aqua.evaluation import AquaEvalReport, AquaEvaluationApp, AquaEvaluationSummary
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.model import DataScienceModel
+from ads.jobs.ads_job import DataScienceJobRun, DataScienceJob
 
 null = None
 
@@ -301,3 +302,46 @@ class TestAquaModel(unittest.TestCase):
         assert (
             read_content == b"This is a sample evaluation report.html.\n"
         ), read_content
+
+    @patch.object(DataScienceModel, "from_id")
+    @patch.object(DataScienceJob, "from_id")
+    def test_delete_evaluation(self, mock_dsc_job, mock_dsc_model_from_id):
+        mock_dsc_model_delete = MagicMock()
+        mock_dsc_model_from_id.return_value = MagicMock(
+            provenance_data={
+                "training_id": TestDataset.model_provenance_object.get("training_id"),
+            },
+            delete=mock_dsc_model_delete,
+        )
+        mock_dsc_job_delete = MagicMock()
+        mock_dsc_job.return_value = MagicMock(
+            lifecycle_state="ACCEPTED", delete=mock_dsc_job_delete
+        )
+        mock_dsc_model_delete.return_value = None
+
+        result = self.app.delete_evaluation(TestDataset.EVAL_ID)
+
+        assert result["id"] == TestDataset.EVAL_ID
+        assert result["lifecycle_state"] == "DELETING"
+
+        mock_dsc_job_delete.assert_called_once()
+        mock_dsc_model_delete.assert_called_once()
+
+    @patch.object(DataScienceModel, "from_id")
+    @patch.object(DataScienceJobRun, "from_ocid")
+    def test_cancel_evaluation(self, mock_dsc_job_run, mock_dsc_model_from_id):
+        mock_dsc_model_from_id.return_value = MagicMock(
+            provenance_data={
+                "training_id": TestDataset.model_provenance_object.get("training_id")
+            }
+        )
+        mock_dsc_job_run_cancel = MagicMock()
+        mock_dsc_job_run.return_value = MagicMock(
+            lifecycle_state="ACCEPTED", cancel=mock_dsc_job_run_cancel
+        )
+
+        result = self.app.cancel_evaluation(TestDataset.EVAL_ID)
+
+        assert result["id"] == TestDataset.EVAL_ID
+        assert result["lifecycle_state"] == "CANCELING"
+        mock_dsc_job_run_cancel.assert_called_once()

@@ -754,7 +754,7 @@ class AquaEvaluationApp(AquaApp):
 
         Returns
         -------
-            dict containing evaluation_id, status and time_accepted
+            dict containing id, status and time_accepted
 
         Raises
         ------
@@ -774,7 +774,7 @@ class AquaEvaluationApp(AquaApp):
                 "Model provenance is missing job run training_id key"
             )
 
-        status = dict(evaluation_id=eval_id, status=UNKNOWN, time_accepted="")
+        status = dict(id=eval_id, status=UNKNOWN, time_accepted="")
         run = DataScienceJobRun.from_ocid(job_run_id)
         try:
             if run.lifecycle_state not in run.TERMINAL_STATES:
@@ -782,9 +782,9 @@ class AquaEvaluationApp(AquaApp):
                 run.cancel()
                 logger.info(f"Canceling Job Run: {job_run_id} for evaluation {eval_id}")
                 status = dict(
-                    evaluation_id=eval_id,
+                    id=eval_id,
                     lifecycle_state="CANCELING",
-                    time_accepted=datetime.now().strftime("%Y%m%d-%H%M"),
+                    time_accepted=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f%z"),
                 )
         except oci.exceptions.ServiceError as ex:
             logger.error(
@@ -802,7 +802,7 @@ class AquaEvaluationApp(AquaApp):
 
         Returns
         -------
-            dict containing evaluation_id, status and time_accepted
+            dict containing id, status and time_accepted
 
         Raises
         ------
@@ -827,7 +827,7 @@ class AquaEvaluationApp(AquaApp):
                 f"Custom metadata is missing {EvaluationCustomMetadata.EVALUATION_JOB_ID.value} key"
             )
 
-        status = dict(evaluation_id=eval_id, status=UNKNOWN, time_accepted="")
+        status = dict(id=eval_id, status=UNKNOWN, time_accepted="")
         job = DataScienceJob.from_id(job_id)
         try:
             job.delete()
@@ -837,9 +837,9 @@ class AquaEvaluationApp(AquaApp):
             logger.info(f"Deleting evaluation: {eval_id}")
 
             status = dict(
-                evaluation_id=eval_id,
+                id=eval_id,
                 lifecycle_state="DELETING",
-                time_accepted=datetime.now().strftime("%Y%m%d-%H%M"),
+                time_accepted=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f%z"),
             )
         except oci.exceptions.ServiceError as ex:
             logger.error(
