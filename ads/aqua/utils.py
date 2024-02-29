@@ -50,10 +50,6 @@ SUBNET_ID = os.environ.get("SUBNET_ID", None)
 
 
 class LifecycleStatus(Enum):
-    COMPLETED = "Completed"
-    IN_PROGRESS = "In Progress"
-    CANCELED = "Canceled"
-    FAILED = "Failed"
     UNKNOWN = ""
 
     @property
@@ -105,10 +101,9 @@ class LifecycleStatus(Enum):
 
 
 LIFECYCLE_DETAILS_MAPPING = {
-    LifecycleStatus.COMPLETED.name: "The evaluation ran successfully.",
-    LifecycleStatus.IN_PROGRESS.name: "The evaluation job is running.",
-    LifecycleStatus.CANCELED.name: "The evaluation has been canceled.",
-    LifecycleStatus.FAILED.name: "The evaluation failed.",
+    JobRun.LIFECYCLE_STATE_SUCCEEDED: "The evaluation ran successfully.",
+    JobRun.LIFECYCLE_STATE_IN_PROGRESS: "The evaluation is running.",
+    JobRun.LIFECYCLE_STATE_FAILED: "The evaluation failed.",
 }
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "Object Storage Path"
