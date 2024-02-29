@@ -78,7 +78,9 @@ class LifecycleStatus(Enum):
         """
         if not job_run_status:
             logger.error("Failed to get jobrun state.")
-            return LifecycleStatus.UNKNOWN
+            # case1 : failed to create jobrun
+            # case2: jobrun is deleted - rqs cannot retreive deleted resource
+            return JobRun.LIFECYCLE_STATE_NEEDS_ATTENTION
 
         status = LifecycleStatus.UNKNOWN
         if evaluation_status == Model.LIFECYCLE_STATE_ACTIVE:
@@ -104,6 +106,7 @@ LIFECYCLE_DETAILS_MAPPING = {
     JobRun.LIFECYCLE_STATE_SUCCEEDED: "The evaluation ran successfully.",
     JobRun.LIFECYCLE_STATE_IN_PROGRESS: "The evaluation is running.",
     JobRun.LIFECYCLE_STATE_FAILED: "The evaluation failed.",
+    JobRun.LIFECYCLE_STATE_NEEDS_ATTENTION: "Missing jobrun information.",
 }
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "Object Storage Path"
