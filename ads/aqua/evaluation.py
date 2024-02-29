@@ -910,6 +910,54 @@ class AquaEvaluationApp(AquaApp):
 
         return report
 
+    def load_evaluation_config(self, eval_id):
+        # TODO
+        return {
+            "model_params": {
+                "max_tokens": 500,
+                "temperature": 0.7,
+                "top_p": 1.0,
+                "top_k": 50,
+            },
+            "shape": {
+                "VM.Standard.E3.Flex": {
+                    "ocpu": 2,
+                    "memory_in_gbs": 64,
+                    "block_storage_size": 100,
+                },
+                "VM.Standard.E3.Flex": {
+                    "ocpu": 2,
+                    "memory_in_gbs": 64,
+                    "block_storage_size": 100,
+                },
+                "VM.Standard.E4.Flex": {
+                    "ocpu": 2,
+                    "memory_in_gbs": 64,
+                    "block_storage_size": 100,
+                },
+                "VM.Standard3.Flex": {
+                    "ocpu": 2,
+                    "memory_in_gbs": 64,
+                    "block_storage_size": 100,
+                },
+                "VM.Optimized3.Flex": {
+                    "ocpu": 2,
+                    "memory_in_gbs": 64,
+                    "block_storage_size": 100,
+                },
+                "VM.Standard.A1.Flex": {
+                    "ocpu": 2,
+                    "memory_in_gbs": 64,
+                    "block_storage_size": 100,
+                },
+            },
+            "default": {
+                "ocpu": 2,
+                "memory_in_gbs": 64,
+                "block_storage_size": 100,
+            },
+        }
+
     def _get_attribute_from_model_metadata(
         self,
         model: oci.resource_search.models.ResourceSummary,
