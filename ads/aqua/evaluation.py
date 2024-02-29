@@ -29,8 +29,20 @@ from ads.aqua.exception import (
     AquaRuntimeError,
     AquaValueError,
 )
-from ads.aqua.utils import MODEL_PARAMETERS, UNKNOWN, is_valid_ocid, upload_file_to_os
+from ads.aqua.utils import (
+    BERT_BASE_MULTILINGUAL_CASED, 
+    BERT_SCORE_PATH, 
+    CONDA_REGION, 
+    CONDA_URI, 
+    MODEL_PARAMETERS, 
+    SOURCE_FILE, 
+    SUBNET_ID, 
+    UNKNOWN, 
+    is_valid_ocid, 
+    upload_file_to_os
+)
 from ads.common import oci_client as oc
+from ads.common.auth import AuthType
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link, get_files
@@ -241,11 +253,6 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
     metrics: Optional[List] = None
 
 
-# TODO: Remove later
-SOURCE = os.environ.get("SOURCE", None)
-SUBNET_ID = os.environ.get("SUBNET_ID", None)
-
-
 class AquaEvaluationApp(AquaApp):
     """Provides a suite of APIs to interact with Aqua evaluations within the
     Oracle Cloud Infrastructure Data Science service, serving as an interface
@@ -453,7 +460,7 @@ class AquaEvaluationApp(AquaApp):
             EvaluationJobTags.EVALUATION_MODEL_ID.value: evaluation_model.id,
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory() as temp_directory:
 
             evaluation_job = (
                 Job(name=evaluation_model.display_name)
@@ -484,7 +491,7 @@ class AquaEvaluationApp(AquaApp):
                         report_path=create_aqua_evaluation_details.report_path,
                         model_parameters=create_aqua_evaluation_details.model_parameters,
                         metrics=create_aqua_evaluation_details.metrics,
-                        source_folder=temp_dir
+                        source_folder=temp_directory
                     )
                 )
                 .create(**kwargs)  ## TODO: decide what parameters will be needed
@@ -590,21 +597,24 @@ class AquaEvaluationApp(AquaApp):
         model_parameters: dict,
         source_folder: str,
         metrics: List = None,
-        **kwargs,
     ) -> Runtime:
         """Builds evaluation runtime for Job."""
-        # TODO: update the logic to evaluate the model or model deployment
+        source_path = f"{source_folder}/{SOURCE_FILE}"
+        with open(source_path, "w") as fp:
+            fp.write("aqua-evaluate")
         runtime = (
             PythonRuntime()
-            .with_service_conda("pytorch21_p39_gpu_v1")
-            .with_custom_conda("")
-            .with_source(SOURCE)
+            .with_custom_conda(
+                uri=CONDA_URI,
+                region=CONDA_REGION
+            )
+            .with_source(source_path)
             .with_environment_variable(
-                {
-                    "BERT_SCORE_PATH" : "",
-                    "BERT_BASE_MULTILINGUAL_CASED" : "",
-                    "OCI_IAM_TYPE": "resource_principal",
-                    "OCI__LAUNCH_CMD": json.dump(
+                **{
+                    "BERT_SCORE_PATH" : BERT_SCORE_PATH,
+                    "BERT_BASE_MULTILINGUAL_CASED" : BERT_BASE_MULTILINGUAL_CASED,
+                    "OCI_IAM_TYPE": AuthType.RESOURCE_PRINCIPAL,
+                    "OCI__LAUNCH_CMD": json.dumps(
                         asdict(
                             self._build_launch_cmd(
                                 evaluation_id=evaluation_id,
