@@ -16,4 +16,4 @@ dependencies:
       - shap
       - autots[additional]
       - optuna==2.9.0
-      - oracle-automlx==23.2.3
+      - oracle-automlx==23.4.1

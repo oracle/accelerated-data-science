@@ -57,7 +57,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     @runtime_dependency(
         module="automl",
         err_msg=(
-            "Please run `pip3 install oracle-automlx==23.2.3` to install the required dependencies for automlx."
+            "Please run `pip3 install oracle-automlx==23.4.1` to install the required dependencies for automlx."
         ),
     )
     @runtime_dependency(
