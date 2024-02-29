@@ -49,6 +49,10 @@ class AquaUIHandler(AquaAPIhandler):
             return self.list_buckets()
         elif paths.startswith("aqua/job/shapes"):
             return self.list_job_shapes()
+        elif paths.startswith("aqua/vcn"):
+            return self.list_vcn()
+        elif paths.startswith("aqua/subnets"):
+            return self.list_subnets()
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
@@ -110,6 +114,25 @@ class AquaUIHandler(AquaAPIhandler):
             AquaUIApp().list_job_shapes(compartment_id=compartment_id, **kwargs)
         )
 
+    @handle_exceptions
+    def list_vcn(self, **kwargs):
+        """Lists the virtual cloud networks (VCNs) in the specified compartment."""
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
+        return self.finish(
+            AquaUIApp().list_vcn(compartment_id=compartment_id, **kwargs)
+        )
+
+    @handle_exceptions
+    def list_subnets(self, **kwargs):
+        """Lists the subnets in the specified VCN and the specified compartment."""
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
+        vcn_id = self.get_argument("vcn_id")
+        return self.finish(
+            AquaUIApp().list_subnets(
+                compartment_id=compartment_id, vcn_id=vcn_id, **kwargs
+            )
+        )
+
 
 __handlers__ = [
     ("logging/?([^/]*)", AquaUIHandler),
@@ -117,4 +140,6 @@ __handlers__ = [
     ("experiment/?([^/]*)", AquaUIHandler),
     ("buckets/?([^/]*)", AquaUIHandler),
     ("job/shapes/?([^/]*)", AquaUIHandler),
+    ("vcn/?([^/]*)", AquaUIHandler),
+    ("subnets/?([^/]*)", AquaUIHandler),
 ]
