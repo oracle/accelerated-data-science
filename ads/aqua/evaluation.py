@@ -34,18 +34,19 @@ from ads.aqua.utils import (
     BERT_SCORE_PATH,
     CONDA_REGION,
     CONDA_URI,
+    MAXIMUM_ALLOWED_DATASET_IN_BYTE,
     MODEL_PARAMETERS,
     SOURCE_FILE,
     SUBNET_ID,
     UNKNOWN,
     is_valid_ocid,
-    upload_file_to_os,
+    validate_local_dataset_path,
 )
 from ads.common import oci_client as oc
 from ads.common.auth import AuthType
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
-from ads.common.utils import get_console_link, get_files
+from ads.common.utils import get_console_link, get_files, upload_to_os
 from ads.config import COMPARTMENT_OCID, PROJECT_OCID
 from ads.jobs.ads_job import Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
@@ -78,6 +79,7 @@ class EvaluationCustomMetadata(Enum):
     EVALUATION_SOURCE = "evaluation_source"
     EVALUATION_JOB_ID = "evaluation_job_id"
     EVALUATION_JOB_RUN_ID = "evaluation_job_run_id"
+    EVALUATION_STATUS = "evaluation_status"
     EVALUATION_OUTPUT_PATH = "evaluation_output_path"
     EVALUATION_SOURCE_NAME = "evaluation_source_name"
 
@@ -89,6 +91,11 @@ class EvaluationModelTags(Enum):
 class EvaluationJobTags(Enum):
     AQUA_EVALUATION = "aqua_evaluation"
     EVALUATION_MODEL_ID = "evaluation_model_id"
+
+
+class EvaluationUploadStatus(Enum):
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
 
 
 @dataclass(repr=False)
@@ -331,6 +338,15 @@ class AquaEvaluationApp(AquaApp):
             raise AquaValueError(
                 "Evaluation report path must be an object storage path."
             )
+        
+        evaluation_dataset_path = create_aqua_evaluation_details.dataset_path
+        if not ObjectStorageDetails.is_oci_path(evaluation_dataset_path):
+            expanded_path = validate_local_dataset_path(evaluation_dataset_path)
+            if os.path.getsize(expanded_path) > MAXIMUM_ALLOWED_DATASET_IN_BYTE:
+                raise AquaValueError(
+                    f"Local dataset file can't exceed {MAXIMUM_ALLOWED_DATASET_IN_BYTE} bytes."
+                )
+            evaluation_dataset_path = expanded_path
 
         evaluation_model_parameters = None
         try:
@@ -405,6 +421,10 @@ class AquaEvaluationApp(AquaApp):
             key=EvaluationCustomMetadata.EVALUATION_SOURCE_NAME.value,
             value=evaluation_source.display_name,
         )
+        evaluation_model_custom_metadata.add(
+            key=EvaluationCustomMetadata.EVALUATION_STATUS.value,
+            value=EvaluationUploadStatus.IN_PROGRESS.value
+        )
 
         evaluation_model_taxonomy_metadata = ModelTaxonomyMetadata()
         evaluation_model_taxonomy_metadata[
@@ -435,11 +455,10 @@ class AquaEvaluationApp(AquaApp):
             f"Successfully created evaluation model {evaluation_model.id} for {create_aqua_evaluation_details.evaluation_source_id}."
         )
 
-        evaluation_dataset_path = create_aqua_evaluation_details.dataset_path
         if not ObjectStorageDetails.is_oci_path(evaluation_dataset_path):
             # format: oci://<bucket>@<namespace>/<evaluation_model_id>/<dataset_file_name>
-            dst_uri = f"{create_aqua_evaluation_details.report_path}/{evaluation_model.id}/{os.path.basename(evaluation_dataset_path)}"
-            upload_file_to_os(
+            dst_uri = f"{create_aqua_evaluation_details.report_path.rstrip('/')}/{evaluation_model.id}/{os.path.basename(evaluation_dataset_path)}"
+            upload_to_os(
                 src_uri=evaluation_dataset_path,
                 dst_uri=dst_uri,
                 auth=self._auth,
@@ -449,6 +468,22 @@ class AquaEvaluationApp(AquaApp):
                 f"Uploaded local file {evaluation_dataset_path} to object storage {dst_uri}."
             )
             evaluation_dataset_path = dst_uri
+
+        evaluation_model_custom_metadata.add(
+            key=EvaluationCustomMetadata.EVALUATION_STATUS.value,
+            value=EvaluationUploadStatus.COMPLETED.value,
+            replace=True
+        )
+
+        self.ds_client.update_model(
+            model_id=evaluation_model.id,
+            update_model_details=UpdateModelDetails(
+                custom_metadata_list=[
+                    Metadata(**metadata)
+                    for metadata in evaluation_model_custom_metadata.to_dict()["data"]
+                ]
+            ),
+        )
 
         # TODO: validat metrics if it's provided
 

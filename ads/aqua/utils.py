@@ -48,6 +48,8 @@ BERT_BASE_MULTILINGUAL_CASED = (
 # TODO: remove later
 SUBNET_ID = os.environ.get("SUBNET_ID", None)
 
+MAXIMUM_ALLOWED_DATASET_IN_BYTE = 52428800 # 1024 x 1024 x 50 = 50MB
+
 
 class LifecycleStatus(Enum):
     UNKNOWN = ""
@@ -366,10 +368,8 @@ def _construct_condition(
     return condition
 
 
-def upload_file_to_os(
-    src_uri: str, dst_uri: str, auth: dict = None, force_overwrite: bool = False
-):
-    expanded_path = os.path.expanduser(src_uri)
+def validate_local_dataset_path(file_path: str) -> str:
+    expanded_path = os.path.expanduser(file_path)
     if not os.path.isfile(expanded_path):
         raise AquaFileNotFoundError("Invalid input file path. Specify a valid one.")
     if Path(expanded_path).suffix.lstrip(".") not in SUPPORTED_FILE_FORMATS:
@@ -378,10 +378,5 @@ def upload_file_to_os(
         )
     if os.path.getsize(expanded_path) == 0:
         raise AquaValueError("Empty input file. Specify a valid file path.")
-
-    upload_to_os(
-        src_uri=expanded_path,
-        dst_uri=dst_uri,
-        auth=auth,
-        force_overwrite=force_overwrite,
-    )
+    
+    return expanded_path
