@@ -29,7 +29,7 @@ class AquaFineTuningApp(AquaApp):
         """Creates a aqua fine tuned model."""
 
         # todo : parse kwargs and convert to CreateAquaFineTuneDetails object
-        #   with CreateAquaEvaluationDetails(**kwargs)
+        #   with CreateAquaFineTuneDetails(**kwargs)
 
         return AquaFineTuningSummary(
             id="ocid1.datasciencemodel.oc1.iad.xxxx",
@@ -70,10 +70,10 @@ class AquaFineTuningApp(AquaApp):
                 ),
             ),
             tags=dict(
-                aqua_evaluation=JobTypeTags.AQUA_FINE_TUNING.value,
-                evaluation_job_id="ocid1.datasciencejob.oc1.iad.xxxx",
-                evaluation_source="ocid1.datasciencemodel.oc1.iad.xxxx",
-                evaluation_experiment_id="ocid1.datasciencemodelversionset.oc1.iad.xxxx",
+                aqua_finetuning=JobTypeTags.AQUA_FINE_TUNING.value,
+                finetuning_job_id="ocid1.datasciencejob.oc1.iad.xxxx",
+                finetuning_source="ocid1.datasciencemodel.oc1.iad.xxxx",
+                finetuning_experiment_id="ocid1.datasciencemodelversionset.oc1.iad.xxxx",
             ),
             parameters=AquaFineTuningParams(epochs=0, learning_rate=0.0),
         )
