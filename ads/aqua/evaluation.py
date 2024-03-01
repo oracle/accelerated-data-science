@@ -34,7 +34,6 @@ from ads.aqua.utils import (
     BERT_SCORE_PATH,
     CONDA_REGION,
     CONDA_URI,
-    MAXIMUM_ALLOWED_DATASET_IN_BYTE,
     MODEL_PARAMETERS,
     SOURCE_FILE,
     SUBNET_ID,
@@ -341,12 +340,9 @@ class AquaEvaluationApp(AquaApp):
         
         evaluation_dataset_path = create_aqua_evaluation_details.dataset_path
         if not ObjectStorageDetails.is_oci_path(evaluation_dataset_path):
-            expanded_path = validate_local_dataset_path(evaluation_dataset_path)
-            if os.path.getsize(expanded_path) > MAXIMUM_ALLOWED_DATASET_IN_BYTE:
-                raise AquaValueError(
-                    f"Local dataset file can't exceed {MAXIMUM_ALLOWED_DATASET_IN_BYTE} bytes."
-                )
-            evaluation_dataset_path = expanded_path
+            evaluation_dataset_path = validate_local_dataset_path(
+                evaluation_dataset_path
+            )
 
         evaluation_model_parameters = None
         try:

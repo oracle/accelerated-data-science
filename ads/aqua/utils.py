@@ -378,5 +378,9 @@ def validate_local_dataset_path(file_path: str) -> str:
         )
     if os.path.getsize(expanded_path) == 0:
         raise AquaValueError("Empty input file. Specify a valid file path.")
+    if os.path.getsize(expanded_path) > MAXIMUM_ALLOWED_DATASET_IN_BYTE:
+        raise AquaValueError(
+            f"Local dataset file can't exceed {MAXIMUM_ALLOWED_DATASET_IN_BYTE} bytes."
+        )
     
     return expanded_path
