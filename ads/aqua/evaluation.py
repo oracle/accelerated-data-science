@@ -29,16 +29,23 @@ from ads.aqua.exception import (
     AquaRuntimeError,
     AquaValueError,
 )
+from ads.aqua.ui import AquaUIApp
 from ads.aqua.utils import (
     BERT_BASE_MULTILINGUAL_CASED,
     BERT_SCORE_PATH,
     CONDA_REGION,
     CONDA_URI,
+    DEFAULT_BLOCK_STORAGE_SIZE,
+    DEFAULT_MEMORY_IN_GBS,
+    DEFAULT_MODEL_PARAMS_CONFIGS,
+    DEFAULT_OCPUS,
     MODEL_PARAMETERS,
     SOURCE_FILE,
     SUBNET_ID,
     UNKNOWN,
+    get_artifact_path,
     is_valid_ocid,
+    load_default_aqua_config,
     upload_file_to_os,
 )
 from ads.common import oci_client as oc
@@ -46,13 +53,20 @@ from ads.common.auth import AuthType
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link, get_files
-from ads.config import COMPARTMENT_OCID, PROJECT_OCID
+from ads.config import (
+    AQUA_MODEL_EVALUATION_CONFIG, 
+    COMPARTMENT_OCID, 
+    PROJECT_OCID
+)
 from ads.jobs.ads_job import Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
 from ads.jobs.builders.runtimes.python_runtime import PythonRuntime
 from ads.model.datascience_model import DataScienceModel
-from ads.model.deployment.model_deployment import ModelDeployment
+from ads.model.deployment.model_deployment import (
+    MODEL_DEPLOYMENT_KIND, 
+    ModelDeployment
+)
 from ads.model.model_metadata import (
     MetadataTaxonomyKeys,
     ModelCustomMetadata,
@@ -298,32 +312,9 @@ class AquaEvaluationApp(AquaApp):
         AquaEvaluationSummary:
             The instance of AquaEvaluationSummary.
         """
-        if not is_valid_ocid(create_aqua_evaluation_details.evaluation_source_id):
-            raise AquaValueError(
-                f"Invalid evaluation source {create_aqua_evaluation_details.evaluation_source_id}. "
-                "Specify either a model or model deployment id."
-            )
-
-        evaluation_source = None
-        if (
-            DataScienceResource.MODEL_DEPLOYMENT.value
-            in create_aqua_evaluation_details.evaluation_source_id
-        ):
-            evaluation_source = ModelDeployment.from_id(
-                create_aqua_evaluation_details.evaluation_source_id
-            )
-        elif (
-            DataScienceResource.MODEL.value
-            in create_aqua_evaluation_details.evaluation_source_id
-        ):
-            evaluation_source = DataScienceModel.from_id(
-                create_aqua_evaluation_details.evaluation_source_id
-            )
-        else:
-            raise AquaValueError(
-                f"Invalid evaluation source {create_aqua_evaluation_details.evaluation_source_id}. "
-                "Specify either a model or model deployment id."
-            )
+        evaluation_source = self._get_target_evaluation(
+            create_aqua_evaluation_details.evaluation_source_id
+        )
 
         if not ObjectStorageDetails.is_oci_path(
             create_aqua_evaluation_details.report_path
@@ -914,53 +905,105 @@ class AquaEvaluationApp(AquaApp):
 
         return report
 
-    def load_evaluation_config(self, eval_id):
-        # TODO
-        return {
-            "model_params": {
-                "max_tokens": 500,
-                "temperature": 0.7,
-                "top_p": 1.0,
-                "top_k": 50,
-            },
-            "shape": {
-                "VM.Standard.E3.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
-                },
-                "VM.Standard.E3.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
-                },
-                "VM.Standard.E4.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
-                },
-                "VM.Standard3.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
-                },
-                "VM.Optimized3.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
-                },
-                "VM.Standard.A1.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
-                },
-            },
-            "default": {
-                "ocpu": 2,
-                "memory_in_gbs": 64,
-                "block_storage_size": 100,
-            },
-        }
+    def load_evaluation_config(
+        self,
+        target_evaluation_id: str,
+        compartment_id: str=None,
+        **kwargs
+    ) -> dict:
+        """Loads model evaluation default configs.
+
+        Parameters
+        ----------
+        target_evaluation_id: str
+            The target evaluation source ocid.
+        compartment_id: (str, optional). Defaults to `None`.
+            The compartment ocid.
+        
+        Returns
+        -------
+        dict
+            A dict of model evaluation default configs.
+        """
+        target_evaluation = self._get_target_evaluation(
+            target_evaluation_id
+        )
+
+        if target_evaluation.kind == MODEL_DEPLOYMENT_KIND:
+            job_shapes = json.loads(
+                AquaUIApp().list_job_shapes(
+                    compartment_id=compartment_id or COMPARTMENT_OCID, 
+                    **kwargs
+                )
+            )
+            shape = {}
+            for job_shape in job_shapes:
+                shape[job_shape["name"]] = {
+                    "block_storage_size": DEFAULT_BLOCK_STORAGE_SIZE,
+                    "ocpus": (
+                        job_shape["core_count"]
+                        if not job_shape["name"].endswith(".Flex")
+                        else DEFAULT_OCPUS
+                    ),
+                    "memory_in_gbs": (
+                        job_shape["memory_in_gbs"]
+                        if not job_shape["name"].endswith(".Flex")
+                        else DEFAULT_MEMORY_IN_GBS
+                    )
+                }
+            return {
+                "shape": shape,
+                **DEFAULT_MODEL_PARAMS_CONFIGS
+            }
+        
+        artifact_path = get_artifact_path(
+            target_evaluation.dsc_model.custom_metadata_list
+        )
+        evaluation_config = self._load_evaluation_config(artifact_path)
+
+        return evaluation_config
+
+    def _get_target_evaluation(
+        self, 
+        target_evaluation_id: str
+    ) -> Union[ModelDeployment, DataScienceModel]:
+        if not is_valid_ocid(target_evaluation_id):
+            raise AquaValueError(
+                f"Invalid evaluation source {target_evaluation_id}. "
+                "Specify either a model or model deployment id."
+            )
+
+        target_evaluation = None
+        if (
+            DataScienceResource.MODEL_DEPLOYMENT.value
+            in target_evaluation_id
+        ):
+            target_evaluation = ModelDeployment.from_id(
+                target_evaluation_id
+            )
+        elif (
+            DataScienceResource.MODEL.value
+            in target_evaluation_id
+        ):
+            target_evaluation = DataScienceModel.from_id(
+                target_evaluation_id
+            )
+        else:
+            raise AquaValueError(
+                f"Invalid evaluation source {target_evaluation_id}. "
+                "Specify either a model or model deployment id."
+            )
+        
+        return target_evaluation
+    
+    def _load_evaluation_config(self, file_path: str) -> dict:
+        evaluation_config = load_default_aqua_config(
+            artifact_path = (
+                f"{file_path.rstrip('/')}/{AQUA_MODEL_EVALUATION_CONFIG}"
+            ),
+            auth=self._auth
+        )
+        return evaluation_config
 
     def _get_attribute_from_model_metadata(
         self,

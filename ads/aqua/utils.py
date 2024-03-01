@@ -4,6 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA utils and constants."""
 import base64
+import json
 import logging
 import os
 import random
@@ -17,7 +18,7 @@ from typing import List
 import fsspec
 from oci.data_science.models import JobRun, Model
 
-from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
+from ads.aqua.exception import AquaError, AquaFileNotFoundError, AquaRuntimeError, AquaValueError
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import upload_to_os
 from ads.config import TENANCY_OCID
@@ -44,6 +45,27 @@ BERT_SCORE_PATH = "/home/datascience/conda/pytorch21_p39_gpu_v1/bertscore/bertsc
 BERT_BASE_MULTILINGUAL_CASED = (
     "/home/datascience/conda/pytorch21_p39_gpu_v1/bert-base-multilingual-cased/"
 )
+DEFAULT_MAX_TOKEN = 500
+DEFAULT_TEMPERATURE = 0.7
+DEFAULT_TOP_P = 1.0
+DEFAULT_TOP_K = 50
+DEFAULT_BLOCK_STORAGE_SIZE = 100
+DEFAULT_MEMORY_IN_GBS = 32
+DEFAULT_OCPUS = 2
+
+DEFAULT_MODEL_PARAMS_CONFIGS = {
+    "model_params": {
+        "max_tokens": DEFAULT_MAX_TOKEN,
+        "temperature": DEFAULT_TEMPERATURE,
+        "top_p": DEFAULT_TOP_P,
+        "top_k": DEFAULT_TOP_K,
+    },
+    "default": {
+        "ocpus": DEFAULT_OCPUS,
+        "memory_in_gbs": DEFAULT_MEMORY_IN_GBS,
+        "block_storage_size": DEFAULT_BLOCK_STORAGE_SIZE,
+    },
+}
 
 # TODO: remove later
 SUBNET_ID = os.environ.get("SUBNET_ID", None)
@@ -385,3 +407,14 @@ def upload_file_to_os(
         auth=auth,
         force_overwrite=force_overwrite,
     )
+
+def load_default_aqua_config(artifact_path: str, **kwargs) -> dict:
+    config = json.loads(
+        read_file(file_path=artifact_path, **kwargs) or UNKNOWN_JSON_STR
+    )
+    if not config:
+        raise AquaError(
+            f"Config file {artifact_path} is either empty or missing.",
+            500,
+        )
+    return config
