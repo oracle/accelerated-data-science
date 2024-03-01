@@ -248,8 +248,7 @@ class AquaUIApp(AquaApp):
             compartment_id=compartment_id, **kwargs
         ).data.__repr__()
 
-    @staticmethod
-    def list_vcn(**kwargs) -> list:
+    def list_vcn(self, **kwargs) -> list:
         """Lists the virtual cloud networks (VCNs) in the specified compartment.
 
         Parameters
@@ -290,8 +289,7 @@ class AquaUIApp(AquaApp):
             }
         ]
 
-    @staticmethod
-    def list_subnets(**kwargs) -> list:
+    def list_subnets(self, **kwargs) -> list:
         """Lists the subnets in the specified VCN and the specified compartment.
 
         Parameters
