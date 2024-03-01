@@ -271,8 +271,8 @@ class AquaUIApp(AquaApp):
         return [
             {
                 "byoipv6_cidr_blocks": "",
-                "cidr_block": "10.0.0.0/16",
-                "cidr_blocks": ["10.0.0.0/16"],
+                "cidr_block": "00.0.0.0/0",
+                "cidr_blocks": ["0.0.0.0/0"],
                 "compartment_id": "ocid1.compartment.oc1..<OCID>",
                 "default_dhcp_options_id": "ocid1.dhcpoptions.oc1.iad.<OCID>",
                 "default_route_table_id": "ocid1.routetable.oc1.iad.<OCID>",
@@ -315,7 +315,7 @@ class AquaUIApp(AquaApp):
         return [
             {
                 "availability_domain": "",
-                "cidr_block": "10.0.1.0/24",
+                "cidr_block": "0.0.0.0/0",
                 "compartment_id": "ocid1.compartment.oc1..<OCID>",
                 "defined_tags": {},
                 "dhcp_options_id": "ocid1.dhcpoptions.oc1.iad.<OCID>",
