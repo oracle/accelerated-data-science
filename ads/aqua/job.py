@@ -6,68 +6,55 @@
 
 
 import logging
-from dataclasses import dataclass
-from typing import List
-from ads.aqua.base import AquaApp
-
+from enum import Enum
+from dataclasses import dataclass, field
+from ads.common.serializer import DataClassSerializable
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class AquaJobSummary:
+class Resource(Enum):
+    JOB = "jobs"
+    MODEL = "models"
+    MODEL_DEPLOYMENT = "modeldeployments"
+    MODEL_VERSION_SET = "model-version-sets"
+
+
+class DataScienceResource(Enum):
+    MODEL_DEPLOYMENT = "datasciencemodeldeployment"
+    MODEL = "datasciencemodel"
+
+
+@dataclass(repr=False)
+class AquaResourceIdentifier(DataClassSerializable):
+    id: str = ""
+    name: str = ""
+    url: str = ""
+
+
+@dataclass(repr=False)
+class AquaResourceIdentifier(DataClassSerializable):
+    id: str = ""
+    name: str = ""
+    url: str = ""
+
+
+class JobTypeTags(Enum):
+    AQUA_EVALUATION = "aqua_evaluation"
+    AQUA_FINE_TUNING = "aqua_finetuning"
+
+
+@dataclass(repr=False)
+class AquaJobSummary(DataClassSerializable):
     """Represents an Aqua job summary."""
 
     id: str
-    compartment_id: str
-    project_id: str
-
-    model_id: str
-    task: str
-
-
-@dataclass
-class AquaJob(AquaJobSummary):
-    """Represents an Aqua job."""
-
-    dataset: str
-
-
-@dataclass
-class AquaFineTuningJob(AquaJob):
-    """Represents an Aqua fine-tuning job."""
-
-    epoch: int
-
-
-class AquaJobApp(AquaApp):
-    """Contains APIs for Aqua jobs."""
-
-
-class AquaFineTuningApp(AquaApp):
-    """Contains APIs for Aqua fine-tuning jobs."""
-
-    def get(self, job_id) -> AquaFineTuningJob:
-        """Gets the information of an Aqua model."""
-        return AquaFineTuningJob(
-            id=job_id,
-            compartment_id="ocid.compartment.xxx",
-            project_id="ocid.project.xxx",
-            model_id="ocid.model.xxx",
-            task="fine-tuning",
-            dataset="dummy",
-            epoch=2,
-        )
-
-    def list(self, compartment_id, project_id=None, **kwargs) -> List[AquaJobSummary]:
-        """Lists Aqua models."""
-        return [
-            AquaJobSummary(
-                id=f"ocid{i}.xxx",
-                compartment_id=compartment_id,
-                project_id=project_id,
-                model_id="ocid.model.xxx",
-                task="fine-tuning",
-            )
-            for i in range(5)
-        ]
+    name: str
+    console_url: str
+    lifecycle_state: str
+    lifecycle_details: str
+    time_created: str
+    tags: dict
+    experiment: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    source: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    job: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)

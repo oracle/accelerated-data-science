@@ -5,7 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ads.aqua.deployment import AquaDeploymentApp
-from ads.aqua.job import AquaFineTuningApp
+from ads.aqua.finetune import AquaFineTuningApp
 from ads.aqua.model import AquaModelApp
 from ads.aqua.evaluation import AquaEvaluationApp
 
