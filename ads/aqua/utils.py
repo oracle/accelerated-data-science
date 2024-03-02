@@ -29,6 +29,7 @@ UNKNOWN = ""
 README = "README.md"
 DEPLOYMENT_CONFIG = "deployment_config.json"
 EVALUATION_REPORT_JSON = "report.json"
+EVALUATION_REPORT_MD = "report.md"
 EVALUATION_REPORT = "report.html"
 UNKNOWN_JSON_STR = "{}"
 CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
