@@ -374,7 +374,7 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
         """
         runs = self.run_list()
         for run in runs:
-            if run in [
+            if run.lifecycle_state in [
                 DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
                 DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
                 DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,

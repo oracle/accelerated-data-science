@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import asyncio
 import base64
 import json
 import os
@@ -983,7 +984,7 @@ class AquaEvaluationApp(AquaApp):
             )
         return status
 
-    async def delete_evaluation(self, eval_id):
+    def delete_evaluation(self, eval_id):
         """Deletes the job and the associated model for the given evaluation id.
         Parameters
         ----------
@@ -1017,23 +1018,23 @@ class AquaEvaluationApp(AquaApp):
                 f"Custom metadata is missing {EvaluationCustomMetadata.EVALUATION_JOB_ID.value} key"
             )
 
-        # status = dict(id=eval_id, status=UNKNOWN, time_accepted="")
         job = DataScienceJob.from_id(job_id)
 
-        await self._delete_job_and_model(job, model)
+        # submit a coroutine for execution of job and model deletion task which runs in the background,
+        # no need to wait for result.
+        asyncio.create_task(self._delete_job_and_model(job, model))
 
         status = dict(
             id=eval_id,
-            lifecycle_state="CANCELING",
+            lifecycle_state="DELETING",
             time_accepted=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f%z"),
         )
-
         return status
 
     @staticmethod
     async def _delete_job_and_model(job, model):
         try:
-            job.delete(force_delete=True)
+            job.dsc_job.delete(force_delete=True)
             logger.info(f"Deleting Job: {job.job_id} for evaluation {model.id}")
 
             model.delete()
