@@ -117,20 +117,22 @@ class AquaEvalParams(DataClassSerializable):
 class AquaEvalMetric(DataClassSerializable):
     key: str
     name: str
-    content: str
     description: str = ""
 
 
 @dataclass(repr=False)
-class AquaEvalMetrics(DataClassSerializable):
-    id: str
-    metrics: List[AquaEvalMetric] = field(default_factory=list)
+class AquaEvalMetricSummary(DataClassSerializable):
+    metric: str = ""
+    score: str = ""
+    grade: str = ""
 
 
 @dataclass(repr=False)
 class AquaEvalMetrics(DataClassSerializable):
     id: str
-    metrics: List[AquaEvalMetric] = field(default_factory=list)
+    report: str
+    metric_results: List[AquaEvalMetric] = field(default_factory=list)
+    metric_summary_result: List[AquaEvalMetricSummary] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -168,19 +170,6 @@ class RqsAdditionalDetails:
     MODEL_VERSION_SET_NAME = "modelVersionSetName"
     PROJECT_ID = "projectId"
     VERSION_LABEL = "versionLabel"
-
-
-class EvaluationTags:
-    AQUA_EVALUATION = "aqua_evaluation"
-
-
-# TODO: use EvaluationCustomMetadata instead
-class EvaluationMetadata:
-    EVALUATION_SOURCE = "evaluation_source"
-    HYPERPARAMETERS = "Hyperparameters"
-    EVALUATION_JOB_ID = "evaluation_job_id"
-    EVALUATION_JOB_RUN_ID = "evaluation_job_run_id"
-    EVALUATION_SOURCE_NAME = "evaluation_source_name"
 
 
 class EvaluationConfig:
@@ -741,7 +730,7 @@ class AquaEvaluationApp(AquaApp):
         models = utils.query_resources(
             compartment_id=compartment_id,
             resource_type="datasciencemodel",
-            tag_list=[EvaluationTags.AQUA_EVALUATION],
+            tag_list=[EvaluationModelTags.AQUA_EVALUATION.value],
         )
         logger.info(f"Fetched {len(models)} evaluations.")
 
@@ -800,6 +789,19 @@ class AquaEvaluationApp(AquaApp):
             ),
         )
 
+    def get_supported_metrics(self) -> dict:
+        """Gets a list of supported metrics for evaluation."""
+        # TODO: implemente it when starting to support more metrics.
+        return [
+            {
+                "use_case": ["text_generation"],
+                "key": "bertscore",
+                "name": "BERT Score",
+                "description": "BERT Score is a metric for evaluating the quality of text generation models, such as machine translation or summarization. It utilizes pre-trained BERT contextual embeddings for both the generated and reference texts, and then calculates the cosine similarity between these embeddings.",
+                "args": {},
+            },
+        ]
+
     def load_metrics(self, eval_id: str) -> AquaEvalMetrics:
         """Loads evalution metrics markdown from artifacts.
 
@@ -825,60 +827,70 @@ class AquaEvaluationApp(AquaApp):
                 temp_dir,
                 auth=self._auth,
             )
-            metrics = []
-            metric_markdown = {}
-            report = None
-            for file in get_files(temp_dir):
-                if file.endswith(".md"):
-                    metric_key = Path(file).stem
-                    logger.info(f"Reading {file}...")
-                    with open(os.path.join(temp_dir, file), "rb") as f:
-                        content = f.read()
-                    # TODO: change hardcode value "bertscore" back to variable metric_key
-                    metric_markdown["bertscore"] = base64.b64encode(content).decode()
 
-                if file == utils.EVALUATION_REPORT_JSON:
-                    logger.info(f"Loading {utils.EVALUATION_REPORT_JSON}...")
-                    with open(
-                        os.path.join(temp_dir, utils.EVALUATION_REPORT_JSON), "rb"
-                    ) as f:
-                        report = json.loads(f.read())
-
-            if not report:
-                raise AquaFileNotFoundError(
-                    "Related Resource Not Authorized Or Not Found:"
-                    f"Missing `{utils.EVALUATION_REPORT_JSON}` in evaluation artifact."
+            files_in_artifact = get_files(temp_dir)
+            report_content = self._read_from_artifact(
+                temp_dir, files_in_artifact, utils.EVALUATION_REPORT_MD
+            )
+            report = json.loads(
+                self._read_from_artifact(
+                    temp_dir, files_in_artifact, utils.EVALUATION_REPORT_JSON
                 )
+            )
 
-            # TODO: after finalizing the format of report.json, move the constant to class
-            metrics_results = report.get("metric_results")
-            missing_content = False
-            for k, v in metrics_results.items():
-                # TODO: remove the hardcode line
-                content = metric_markdown.get("bertscore", utils.UNKNOWN)
-                # content = metric_markdown.get(k, utils.UNKNOWN)
-                if not content:
-                    missing_content = True
-                    logger.error(
-                        "Related Resource Not Authorized Or Not Found:"
-                        f"Missing `{k}.md` in evaluation artifact."
-                    )
-
-                metrics.append(
-                    AquaEvalMetric(
-                        key=k,
-                        name=v.get("name", utils.UNKNOWN),
-                        content=content,
-                        description=v.get("description"),
-                    )
+        # TODO: after finalizing the format of report.json, move the constant to class
+        eval_metrics = AquaEvalMetrics(
+            id=eval_id,
+            report=report_content,
+            metric_results=[
+                AquaEvalMetric(
+                    key=metric_key,
+                    name=metadata.get("name", utils.UNKNOWN),
+                    description=metadata.get("description", utils.UNKNOWN),
                 )
+                for metric_key, metadata in report.get("metric_results", {}).items()
+            ],
+            metric_summary_result=[
+                AquaEvalMetricSummary(**m)
+                for m in report.get("metric_summary_result", [{}])
+            ],
+        )
 
-        eval_metrics = AquaEvalMetrics(id=eval_id, metrics=metrics)
-
-        if not missing_content:
+        if report_content:
             self._metrics_cache.__setitem__(key=eval_id, value=eval_metrics)
 
         return eval_metrics
+
+    def _read_from_artifact(self, artifact_dir, files, target):
+        """Reads target file from artifacts.
+
+        Parameters
+        ----------
+        artifact_dir: str
+            Path of the artifact.
+        files: list
+            List of files name in artifacts.
+        target: str
+            Target file name.
+
+        Return
+        ------
+        bytes
+        """
+        content = None
+        for f in files:
+            if os.path.basename(f) == target:
+                logger.info(f"Reading {f}...")
+                with open(os.path.join(artifact_dir, f), "rb") as f:
+                    content = f.read()
+                break
+
+        if not content:
+            raise AquaFileNotFoundError(
+                "Related Resource Not Authorized Or Not Found:"
+                f"Missing `{target}` in evaluation artifact."
+            )
+        return content
 
     def download_report(self, eval_id) -> AquaEvalReport:
         """Downloads HTML report from model artifact.
@@ -909,19 +921,9 @@ class AquaEvaluationApp(AquaApp):
                 temp_dir,
                 auth=self._auth,
             )
-            content = ""
-            for file in get_files(temp_dir):
-                if os.path.basename(file) == utils.EVALUATION_REPORT:
-                    report_path = os.path.join(temp_dir, file)
-                    with open(report_path, "rb") as f:
-                        content = f.read()
-                    break
-
-            if not content:
-                error_msg = "Related Resource Not Authorized Or Not Found:" + (
-                    f"Missing `{utils.EVALUATION_REPORT}` in evaluation artifact."
-                )
-                raise AquaFileNotFoundError(error_msg)
+            content = self._read_from_artifact(
+                temp_dir, get_files(temp_dir), utils.EVALUATION_REPORT
+            )
 
         report = AquaEvalReport(
             evaluation_id=eval_id, content=base64.b64encode(content).decode()
@@ -1116,7 +1118,7 @@ class AquaEvaluationApp(AquaApp):
         """Returns ocid and name of the model has been evaluated."""
         source_id = self._get_attribute_from_model_metadata(
             evaluation,
-            EvaluationMetadata.EVALUATION_SOURCE,
+            EvaluationCustomMetadata.EVALUATION_SOURCE.value,
         )
 
         try:
@@ -1125,7 +1127,7 @@ class AquaEvaluationApp(AquaApp):
                 source.display_name
                 if source
                 else self._get_attribute_from_model_metadata(
-                    evaluation, EvaluationMetadata.EVALUATION_SOURCE_NAME
+                    evaluation, EvaluationCustomMetadata.EVALUATION_SOURCE_NAME.value
                 )
             )
 
@@ -1226,7 +1228,7 @@ class AquaEvaluationApp(AquaApp):
         oci.resource_search.models.ResourceSummary, oci.data_science.models.JobRun
     ]:
         jobrun_id = self._get_attribute_from_model_metadata(
-            model, EvaluationMetadata.EVALUATION_JOB_RUN_ID
+            model, EvaluationCustomMetadata.EVALUATION_JOB_RUN_ID.value
         )
         job_run = mapping.get(jobrun_id)
 
@@ -1245,7 +1247,7 @@ class AquaEvaluationApp(AquaApp):
         """Extracts job run id from metadata, and gets related job run information."""
 
         jobrun_id = jobrun_id or self._get_attribute_from_model_metadata(
-            resource, EvaluationMetadata.EVALUATION_JOB_RUN_ID
+            resource, EvaluationCustomMetadata.EVALUATION_JOB_RUN_ID.value
         )
 
         logger.info(f"Fetching associated job run: {jobrun_id}")
@@ -1271,7 +1273,7 @@ class AquaEvaluationApp(AquaApp):
         try:
             params = json.loads(
                 self._get_attribute_from_model_metadata(
-                    resource, EvaluationMetadata.HYPERPARAMETERS
+                    resource, MetadataTaxonomyKeys.HYPERPARAMETERS
                 )
             )
             if not params.get(EvaluationConfig.PARAMS):
@@ -1336,7 +1338,7 @@ class AquaEvaluationApp(AquaApp):
         resources = utils.query_resources(
             compartment_id=compartment_id,
             resource_type="all",
-            tag_list=[EvaluationTags.AQUA_EVALUATION, "OCI_AQUA"],
+            tag_list=[EvaluationModelTags.AQUA_EVALUATION.value, "OCI_AQUA"],
             connect_by_ampersands=False,
             return_all=False,
         )

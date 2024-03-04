@@ -76,7 +76,7 @@ class TestDataset:
         "time_started": "2024-02-10T17:16:33.547000+00:00",
     }
 
-    resource_summary_object_job = [
+    resource_summary_object_jobrun = [
         {
             "additional_details": {},
             "availability_domain": null,
@@ -119,6 +119,12 @@ class TestDataset:
                         "category": "other",
                         "description": "The JOB OCID associated with the Evaluation MC entry.",
                         "key": "evaluation_job_id",
+                        "value": "ocid1.datasciencejob.oc1.iad.<OCID>",
+                    },
+                    {
+                        "category": "other",
+                        "description": "The JOB RUN OCID associated with the Evaluation MC entry.",
+                        "key": "evaluation_job_run_id",
                         "value": "ocid1.datasciencejobrun.oc1.iad.<OCID>",
                     },
                     {
@@ -218,7 +224,7 @@ class TestAquaModel(unittest.TestCase):
             )
         elif args[1].startswith("ocid1.datasciencejob"):
             return oci.resource_search.models.ResourceSummary(
-                **TestDataset.resource_summary_object_job[0]
+                **TestDataset.resource_summary_object_jobrun[0]
             )
 
     def print_expected_response(self, response, method):
@@ -279,7 +285,7 @@ class TestAquaModel(unittest.TestCase):
         )
 
         utils.query_resource.assert_called_with(
-            TestDataset.resource_summary_object_job[0].get("identifier"),
+            TestDataset.resource_summary_object_jobrun[0].get("identifier"),
             return_all=False,
         )
 
@@ -365,10 +371,12 @@ class TestAquaModel(unittest.TestCase):
         mock_dsc_model_from_id.assert_called_with(TestDataset.EVAL_ID)
         self.print_expected_response(response, "LOAD METRICS")
         self.assert_payload(response, AquaEvalMetrics)
-        assert len(response.metrics) == 1
+        assert len(response.metric_results) == 1
+        assert len(response.metric_summary_result) == 1
 
     def test_get_status(self):
         """Tests getting evaluation status successfully."""
+        # TODO: add test for difference cases.
         self.app.ds_client.get_model_provenance = MagicMock(
             return_value=oci.response.Response(
                 status=200,
@@ -381,3 +389,4 @@ class TestAquaModel(unittest.TestCase):
         )
         response = self.app.get_status(TestDataset.EVAL_ID)
         self.print_expected_response(response, "GET STATUS")
+        assert response.get("lifecycle_state") == "SUCCEEDED"
