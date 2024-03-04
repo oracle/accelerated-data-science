@@ -2,10 +2,7 @@ name: "[Py3.8][Py3.9][Py3.10] tests/unitary/default_setup/**"
 
 on:
   workflow_dispatch:
-  push:
   pull_request:
-    types: [opened, reopened]
-    branches: [ "main" ]
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -32,9 +29,9 @@ jobs:
         python-version: ["3.8", "3.9", "3.10"]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
