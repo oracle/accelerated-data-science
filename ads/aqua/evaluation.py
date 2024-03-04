@@ -41,7 +41,6 @@ from ads.aqua.utils import (
     is_valid_ocid,
     upload_file_to_os,
 )
-from ads.common import oci_client as oc
 from ads.common.auth import AuthType
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
@@ -965,8 +964,11 @@ class AquaEvaluationApp(AquaApp):
         status = dict(id=eval_id, status=UNKNOWN, time_accepted="")
         run = DataScienceJobRun.from_ocid(job_run_id)
         try:
-            if run.lifecycle_state not in run.TERMINAL_STATES:
-                # todo: check if we want to return directly before waiting for completion
+            if run.lifecycle_state in [
+                DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
+                DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
+                DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
+            ]:
                 run.cancel()
                 logger.info(f"Canceling Job Run: {job_run_id} for evaluation {eval_id}")
                 status = dict(
@@ -981,7 +983,7 @@ class AquaEvaluationApp(AquaApp):
             )
         return status
 
-    def delete_evaluation(self, eval_id):
+    async def delete_evaluation(self, eval_id):
         """Deletes the job and the associated model for the given evaluation id.
         Parameters
         ----------
@@ -1015,27 +1017,32 @@ class AquaEvaluationApp(AquaApp):
                 f"Custom metadata is missing {EvaluationCustomMetadata.EVALUATION_JOB_ID.value} key"
             )
 
-        status = dict(id=eval_id, status=UNKNOWN, time_accepted="")
+        # status = dict(id=eval_id, status=UNKNOWN, time_accepted="")
         job = DataScienceJob.from_id(job_id)
-        try:
-            job.delete()
-            logger.info(f"Deleting Job: {job.job_id} for evaluation {eval_id}")
 
-            model.delete()
-            logger.info(f"Deleting evaluation: {eval_id}")
+        await self._delete_job_and_model(job, model)
 
-            status = dict(
-                id=eval_id,
-                lifecycle_state="DELETING",
-                time_accepted=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f%z"),
-            )
-        except oci.exceptions.ServiceError as ex:
-            logger.error(
-                f"Exception occurred while deleting job: {job_id} for evaluation {eval_id}. "
-                f"Exception message: {ex}"
-            )
+        status = dict(
+            id=eval_id,
+            lifecycle_state="CANCELING",
+            time_accepted=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f%z"),
+        )
 
         return status
+
+    @staticmethod
+    async def _delete_job_and_model(job, model):
+        try:
+            job.delete(force_delete=True)
+            logger.info(f"Deleting Job: {job.job_id} for evaluation {model.id}")
+
+            model.delete()
+            logger.info(f"Deleting evaluation: {model.id}")
+        except oci.exceptions.ServiceError as ex:
+            logger.error(
+                f"Exception occurred while deleting job: {job.job_id} for evaluation {model.id}. "
+                f"Exception message: {ex}"
+            )
 
     def load_evaluation_config(self, eval_id):
         # TODO

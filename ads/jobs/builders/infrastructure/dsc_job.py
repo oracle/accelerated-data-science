@@ -356,8 +356,15 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
         """Updates the Data Science Job."""
         raise NotImplementedError("Updating Job is not supported at the moment.")
 
-    def delete(self) -> DSCJob:
+    def delete(self, force_delete: bool = False) -> DSCJob:
         """Deletes the job and the corresponding job runs.
+
+        Parameters
+        ----------
+        force_delete : bool, optional, defaults to False
+            the deletion fails when associated job runs are in progress, but if force_delete to true, then
+            the job run will be canceled, then it will be deleted. In this case, delete job has to wait till
+            job has been canceled.
 
         Returns
         -------
@@ -367,6 +374,12 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
         """
         runs = self.run_list()
         for run in runs:
+            if run in [
+                DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
+                DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
+                DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
+            ]:
+                run.cancel(wait_for_completion=True)
             run.delete()
         self.client.delete_job(self.id)
         return self
@@ -940,9 +953,9 @@ class DataScienceJob(Infrastructure):
             if key not in attribute_map and key.lower() in snake_to_camel_map:
                 value = spec.pop(key)
                 if isinstance(value, dict):
-                    spec[snake_to_camel_map[key.lower()]] = (
-                        DataScienceJob.standardize_spec(value)
-                    )
+                    spec[
+                        snake_to_camel_map[key.lower()]
+                    ] = DataScienceJob.standardize_spec(value)
                 else:
                     spec[snake_to_camel_map[key.lower()]] = value
         return spec
