@@ -18,6 +18,7 @@ from oci.resource_search import ResourceSearchClient
 from oci.secrets import SecretsClient
 from oci.vault import VaultsClient
 from oci.logging import LoggingManagementClient
+from oci.core import VirtualNetworkClient
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,7 @@ class OCIClientFactory:
             "resource_search": ResourceSearchClient,
             "data_catalog": DataCatalogClient,
             "logging_management": LoggingManagementClient,
+            "virtual_network": VirtualNetworkClient,
         }
         try:
             from oci.feature_store import FeatureStoreClient
@@ -156,3 +158,7 @@ class OCIClientFactory:
     @property
     def logging_management(self):
         return self.create_client("logging_management")
+
+    @property
+    def virtual_network(self):
+        return self.create_client("virtual_network")

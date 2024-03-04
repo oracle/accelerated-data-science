@@ -264,30 +264,10 @@ class AquaUIApp(AquaApp):
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         logger.info(f"Loading job shape summary from compartment: {compartment_id}")
 
-        # todo: add VirtualNetworkClient in oci_client.py
-        #   lazy init of vcn_client and call VirtualNetworkClient.list_vcns(compartment_id)
-
-        return [
-            {
-                "byoipv6_cidr_blocks": "",
-                "cidr_block": "00.0.0.0/0",
-                "cidr_blocks": ["0.0.0.0/0"],
-                "compartment_id": "ocid1.compartment.oc1..<OCID>",
-                "default_dhcp_options_id": "ocid1.dhcpoptions.oc1.iad.<OCID>",
-                "default_route_table_id": "ocid1.routetable.oc1.iad.<OCID>",
-                "default_security_list_id": "ocid1.securitylist.oc1.iad.<OCID>",
-                "defined_tags": {},
-                "display_name": "",
-                "dns_label": "",
-                "freeform_tags": {"VCN": ""},
-                "id": "ocid1.vcn.oc1.iad.<OCID>",
-                "ipv6_cidr_blocks": "",
-                "ipv6_private_cidr_blocks": "",
-                "lifecycle_state": "",
-                "time_created": "",
-                "vcn_domain_name": "",
-            }
-        ]
+        # todo: add _vcn_client in init in AquaApp, then add a property vcn_client which does lazy init
+        #   of _vcn_client. Do this for all clients in AquaApp
+        vcn_client = oc.OCIClientFactory(**self._auth).virtual_network
+        return vcn_client.list_vcns(compartment_id=compartment_id).data.__repr__()
 
     def list_subnets(self, **kwargs) -> list:
         """Lists the subnets in the specified VCN and the specified compartment.
@@ -307,32 +287,7 @@ class AquaUIApp(AquaApp):
 
         vcn_id = kwargs.pop("vcn_id", None)
 
-        # todo: add VirtualNetworkClient in oci_client.py
-        #   lazy init of vcn_client and call VirtualNetworkClient.list_subnets(compartment_id, vcn_id)
-
-        return [
-            {
-                "availability_domain": "",
-                "cidr_block": "0.0.0.0/0",
-                "compartment_id": "ocid1.compartment.oc1..<OCID>",
-                "defined_tags": {},
-                "dhcp_options_id": "ocid1.dhcpoptions.oc1.iad.<OCID>",
-                "display_name": "",
-                "dns_label": "",
-                "freeform_tags": {"VCN": ""},
-                "id": "ocid1.subnet.oc1.iad.<OCID>",
-                "ipv6_cidr_block": "",
-                "ipv6_cidr_blocks": "",
-                "ipv6_virtual_router_ip": "",
-                "lifecycle_state": "",
-                "prohibit_internet_ingress": "",
-                "prohibit_public_ip_on_vnic": "",
-                "route_table_id": "ocid1.routetable.oc1.iad.<OCID>",
-                "security_list_ids": ["ocid1.securitylist.oc1.iad.<OCID>"],
-                "subnet_domain_name": "",
-                "time_created": "",
-                "vcn_id": "ocid1.vcn.oc1.iad.<OCID>",
-                "virtual_router_ip": "",
-                "virtual_router_mac": "",
-            }
-        ]
+        vcn_client = oc.OCIClientFactory(**self._auth).virtual_network
+        return vcn_client.list_subnets(
+            compartment_id=compartment_id, vcn_id=vcn_id
+        ).data.__repr__()
