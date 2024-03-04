@@ -93,8 +93,8 @@ class AquaEvaluationHandler(AquaAPIhandler):
         project_id = self.get_argument("project_id", default=None)
         return self.finish(AquaEvaluationApp().list(compartment_id, project_id))
 
-    def get_default_metrics(self, **kwargs):
-        """Lists supported metrics."""
+    def get_default_metrics(self):
+        """Lists supported metrics for evaluation."""
         return self.finish(AquaEvaluationApp().get_supported_metrics())
 
 
