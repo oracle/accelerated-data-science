@@ -65,11 +65,11 @@ class AquaEvaluationHandler(AquaAPIhandler):
     def put(self, eval_id):
         """Handles PUT request for the evaluation APIs"""
         eval_id = eval_id.split("/")[0]
-        return self.finish(AquaEvaluationApp().cancel_evaluation(eval_id))
+        return self.finish(AquaEvaluationApp().cancel(eval_id))
 
     @handle_exceptions
     def delete(self, eval_id):
-        return self.finish(AquaEvaluationApp().delete_evaluation(eval_id))
+        return self.finish(AquaEvaluationApp().delete(eval_id))
 
     def read(self, eval_id):
         """Read the information of an Aqua model."""

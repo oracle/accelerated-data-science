@@ -329,7 +329,7 @@ class TestAquaModel(unittest.TestCase):
         )
         mock_dsc_model_delete.return_value = None
 
-        result = self.app.delete_evaluation(TestDataset.EVAL_ID)
+        result = self.app.delete(TestDataset.EVAL_ID)
 
         assert result["id"] == TestDataset.EVAL_ID
         assert result["lifecycle_state"] == "DELETING"
@@ -350,7 +350,7 @@ class TestAquaModel(unittest.TestCase):
             lifecycle_state="ACCEPTED", cancel=mock_dsc_job_run_cancel
         )
 
-        result = self.app.cancel_evaluation(TestDataset.EVAL_ID)
+        result = self.app.cancel(TestDataset.EVAL_ID)
 
         assert result["id"] == TestDataset.EVAL_ID
         assert result["lifecycle_state"] == "CANCELING"

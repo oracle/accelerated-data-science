@@ -933,7 +933,7 @@ class AquaEvaluationApp(AquaApp):
 
         return report
 
-    def cancel_evaluation(self, eval_id) -> dict:
+    def cancel(self, eval_id) -> dict:
         """Cancels the job run for the given evaluation id.
         Parameters
         ----------
@@ -984,7 +984,7 @@ class AquaEvaluationApp(AquaApp):
             )
         return status
 
-    def delete_evaluation(self, eval_id):
+    def delete(self, eval_id):
         """Deletes the job and the associated model for the given evaluation id.
         Parameters
         ----------
