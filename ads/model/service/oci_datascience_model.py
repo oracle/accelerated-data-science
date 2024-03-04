@@ -432,10 +432,14 @@ class OCIDataScienceModel(
         OCIDataScienceModel
             The `OCIDataScienceModel` instance (self).
         """
+
+        model_details = self.to_oci_model(UpdateModelDetails)
+
+        # Clean up the model version set, otherwise it throws an error that model is already
+        # associated with the model version set.
+        model_details.model_version_set_id = None
         return self.update_from_oci_model(
-            self.client.update_model(
-                self.id, self.to_oci_model(UpdateModelDetails)
-            ).data
+            self.client.update_model(self.id, model_details).data
         )
 
     @check_for_model_id(
