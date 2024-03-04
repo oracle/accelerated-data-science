@@ -6,7 +6,8 @@
 from dataclasses import dataclass, field
 from ads.common.serializer import DataClassSerializable
 from ads.aqua.base import AquaApp
-from ads.aqua.job import AquaJobSummary, Resource, AquaResourceIdentifier, JobTypeTags
+from ads.aqua.job import AquaJobSummary
+from ads.aqua.data import Resource, AquaResourceIdentifier, Tags
 from ads.common.utils import get_console_link
 from ads.aqua.utils import UNKNOWN
 
@@ -70,7 +71,7 @@ class AquaFineTuningApp(AquaApp):
                 ),
             ),
             tags=dict(
-                aqua_finetuning=JobTypeTags.AQUA_FINE_TUNING.value,
+                aqua_finetuning=Tags.AQUA_FINE_TUNING.value,
                 finetuning_job_id="ocid1.datasciencejob.oc1.iad.xxxx",
                 finetuning_source="ocid1.datasciencemodel.oc1.iad.xxxx",
                 finetuning_experiment_id="ocid1.datasciencemodelversionset.oc1.iad.xxxx",

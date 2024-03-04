@@ -4,7 +4,6 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import List, Union
 from datetime import datetime, timedelta
 from threading import Lock
@@ -31,15 +30,7 @@ from ads.config import (
     TENANCY_OCID,
 )
 from ads.model.datascience_model import DataScienceModel
-
-
-class Tags(Enum):
-    TASK = "task"
-    LICENSE = "license"
-    ORGANIZATION = "organization"
-    AQUA_TAG = "OCI_AQUA"
-    AQUA_SERVICE_MODEL_TAG = "aqua_service_model"
-    AQUA_FINE_TUNED_MODEL_TAG = "aqua_fine_tuned_model"
+from ads.aqua.data import Tags
 
 
 @dataclass(repr=False)
@@ -268,7 +259,9 @@ class AquaModelApp(AquaApp):
     ) -> dict:
         """Constructs required fields for AquaModelSummary."""
 
-        icon = self._load_icon(model.display_name)
+        # todo: revisit icon generation code
+        # icon = self._load_icon(model.display_name)
+        icon = ""
         tags = {}
         tags.update(model.defined_tags or {})
         tags.update(model.freeform_tags or {})

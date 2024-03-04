@@ -6,42 +6,11 @@
 
 
 import logging
-from enum import Enum
 from dataclasses import dataclass, field
 from ads.common.serializer import DataClassSerializable
+from ads.aqua.data import AquaResourceIdentifier
 
 logger = logging.getLogger(__name__)
-
-
-class Resource(Enum):
-    JOB = "jobs"
-    MODEL = "models"
-    MODEL_DEPLOYMENT = "modeldeployments"
-    MODEL_VERSION_SET = "model-version-sets"
-
-
-class DataScienceResource(Enum):
-    MODEL_DEPLOYMENT = "datasciencemodeldeployment"
-    MODEL = "datasciencemodel"
-
-
-@dataclass(repr=False)
-class AquaResourceIdentifier(DataClassSerializable):
-    id: str = ""
-    name: str = ""
-    url: str = ""
-
-
-@dataclass(repr=False)
-class AquaResourceIdentifier(DataClassSerializable):
-    id: str = ""
-    name: str = ""
-    url: str = ""
-
-
-class JobTypeTags(Enum):
-    AQUA_EVALUATION = "aqua_evaluation"
-    AQUA_FINE_TUNING = "aqua_finetuning"
 
 
 @dataclass(repr=False)
