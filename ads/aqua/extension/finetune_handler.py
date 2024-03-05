@@ -6,7 +6,8 @@
 
 from tornado.web import HTTPError
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
-from ads.aqua.finetune import AquaFineTuningApp
+from ads.aqua.extension.utils import validate_function_parameters
+from ads.aqua.finetune import AquaFineTuningApp, CreateFineTuningDetails
 from ads.aqua.decorator import handle_exceptions
 
 
@@ -30,12 +31,15 @@ class AquaFineTuneHandler(AquaAPIhandler):
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)
 
-        # todo: create CreateAquaFineTuningDetails class and validate inputs
-        # validate_function_parameters(
-        #     data_class=CreateAquaFineTuningDetails, input_data=input_data
-        # )
+        validate_function_parameters(
+            data_class=CreateFineTuningDetails, input_data=input_data
+        )
         try:
-            self.finish(AquaFineTuningApp().create(**input_data))
+            self.finish(
+                AquaFineTuningApp().create(
+                    CreateFineTuningDetails(**input_data)
+                )
+            )
         except Exception as ex:
             raise HTTPError(500, str(ex))
 
