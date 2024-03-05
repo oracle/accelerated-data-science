@@ -13,6 +13,8 @@ from enum import Enum
 from pathlib import Path
 from string import Template
 from typing import List
+from functools import wraps
+import asyncio
 
 import fsspec
 from oci.data_science.models import JobRun, Model
@@ -386,3 +388,13 @@ def upload_file_to_os(
         auth=auth,
         force_overwrite=force_overwrite,
     )
+
+
+def fire_and_forget(func):
+    """Decorator to push execution of methods to the background."""
+
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        return asyncio.get_event_loop().run_in_executor(None, func, *args, *kwargs)
+
+    return wrapped

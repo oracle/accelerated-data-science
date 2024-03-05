@@ -14,6 +14,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Optional, Union
 
+
 import oci
 from cachetools import TTLCache
 from oci.data_science.models import (
@@ -41,6 +42,7 @@ from ads.aqua.utils import (
     UNKNOWN,
     is_valid_ocid,
     upload_file_to_os,
+    fire_and_forget,
 )
 from ads.common.auth import AuthType
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -1020,9 +1022,7 @@ class AquaEvaluationApp(AquaApp):
 
         job = DataScienceJob.from_id(job_id)
 
-        # submit a coroutine for execution of job and model deletion task which runs in the background,
-        # no need to wait for result.
-        asyncio.create_task(self._delete_job_and_model(job, model))
+        self._delete_job_and_model(job, model)
 
         status = dict(
             id=eval_id,
@@ -1032,7 +1032,8 @@ class AquaEvaluationApp(AquaApp):
         return status
 
     @staticmethod
-    async def _delete_job_and_model(job, model):
+    @fire_and_forget
+    def _delete_job_and_model(job, model):
         try:
             job.dsc_job.delete(force_delete=True)
             logger.info(f"Deleting Job: {job.job_id} for evaluation {model.id}")

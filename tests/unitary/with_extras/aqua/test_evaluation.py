@@ -315,27 +315,22 @@ class TestAquaModel(unittest.TestCase):
 
     @patch.object(DataScienceModel, "from_id")
     @patch.object(DataScienceJob, "from_id")
-    def test_delete_evaluation(self, mock_dsc_job, mock_dsc_model_from_id):
-        mock_dsc_model_delete = MagicMock()
+    @patch.object(AquaEvaluationApp, "_delete_job_and_model")
+    def test_delete_evaluation(
+        self, mock_del_job_func, mock_dsc_job, mock_dsc_model_from_id
+    ):
         mock_dsc_model_from_id.return_value = MagicMock(
             provenance_data={
                 "training_id": TestDataset.model_provenance_object.get("training_id"),
-            },
-            delete=mock_dsc_model_delete,
+            }
         )
-        mock_dsc_job_delete = MagicMock()
-        mock_dsc_job.return_value = MagicMock(
-            lifecycle_state="ACCEPTED", delete=mock_dsc_job_delete
-        )
-        mock_dsc_model_delete.return_value = None
-
+        mock_dsc_job.return_value = MagicMock(lifecycle_state="ACCEPTED")
+        mock_del_job_func.return_value = None
         result = self.app.delete(TestDataset.EVAL_ID)
-
         assert result["id"] == TestDataset.EVAL_ID
         assert result["lifecycle_state"] == "DELETING"
 
-        mock_dsc_job_delete.assert_called_once()
-        mock_dsc_model_delete.assert_called_once()
+        mock_del_job_func.assert_called_once()
 
     @patch.object(DataScienceModel, "from_id")
     @patch.object(DataScienceJobRun, "from_ocid")
