@@ -34,7 +34,6 @@ from ads.aqua.utils import (
     BERT_SCORE_PATH,
     CONDA_REGION,
     CONDA_URI,
-    MODEL_PARAMETERS,
     SOURCE_FILE,
     SUBNET_ID,
     UNKNOWN,
@@ -105,12 +104,19 @@ class AquaEvalReport(DataClassSerializable):
 
 
 @dataclass(repr=False)
-class AquaEvalParams(DataClassSerializable):
-    shape: str = ""
+class ModelParams(DataClassSerializable):
     max_tokens: str = ""
     top_p: str = ""
     top_k: str = ""
     temperature: str = ""
+    presence_penalty: Optional[float] = 0.0
+    frequency_penalty: Optional[float] = 0.0
+    stop: Optional[Union[str, List[str]]] = field(default_factory=list)
+
+
+@dataclass(repr=False)
+class AquaEvalParams(ModelParams, DataClassSerializable):
+    shape: str = ""
 
 
 @dataclass(repr=False)
@@ -270,7 +276,9 @@ class AquaEvaluationApp(AquaApp):
     _cache_lock = Lock()
 
     def create(
-        self, create_aqua_evaluation_details: CreateAquaEvaluationDetails, **kwargs
+        self,
+        create_aqua_evaluation_details: CreateAquaEvaluationDetails,
+        **kwargs,
     ) -> "AquaEvaluationSummary":
         """Creates Aqua evaluation for resource.
 
@@ -330,7 +338,7 @@ class AquaEvaluationApp(AquaApp):
         except:
             raise AquaValueError(
                 "Invalid model parameters. Model parameters should "
-                f"be a dictionary with keys: {', '.join(MODEL_PARAMETERS)}."
+                f"be a dictionary with keys: {', '.join(list(ModelParams.__annotations__.keys()))}."
             )
 
         target_compartment = (
@@ -941,6 +949,9 @@ class AquaEvaluationApp(AquaApp):
                 "temperature": 0.7,
                 "top_p": 1.0,
                 "top_k": 50,
+                "presence_penalty": 0.0,
+                "frequency_penalty": 0.0,
+                "stop": [],
             },
             "shape": {
                 "VM.Standard.E3.Flex": {

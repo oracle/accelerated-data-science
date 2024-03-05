@@ -3,8 +3,9 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
+
 from ads.common.serializer import DataClassSerializable
 
 
@@ -17,6 +18,7 @@ class AquaResourceIdentifier(DataClassSerializable):
 
 class Resource(Enum):
     JOB = "jobs"
+    JOBRUN = "jobruns"
     MODEL = "models"
     MODEL_DEPLOYMENT = "modeldeployments"
     MODEL_VERSION_SET = "model-version-sets"
