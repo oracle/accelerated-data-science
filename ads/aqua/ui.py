@@ -267,7 +267,8 @@ class AquaUIApp(AquaApp):
         # todo: add _vcn_client in init in AquaApp, then add a property vcn_client which does lazy init
         #   of _vcn_client. Do this for all clients in AquaApp
         vcn_client = oc.OCIClientFactory(**self._auth).virtual_network
-        return vcn_client.list_vcns(compartment_id=compartment_id).data.__repr__()
+        res = vcn_client.list_vcns(compartment_id=compartment_id).data
+        return vcn_client.base_client.sanitize_for_serialization(res)
 
     def list_subnets(self, **kwargs) -> list:
         """Lists the subnets in the specified VCN and the specified compartment.
@@ -288,6 +289,6 @@ class AquaUIApp(AquaApp):
         vcn_id = kwargs.pop("vcn_id", None)
 
         vcn_client = oc.OCIClientFactory(**self._auth).virtual_network
-        return vcn_client.list_subnets(
-            compartment_id=compartment_id, vcn_id=vcn_id
-        ).data.__repr__()
+        res = vcn_client.list_subnets(compartment_id=compartment_id, vcn_id=vcn_id).data
+
+        return vcn_client.base_client.sanitize_for_serialization(res)
