@@ -300,7 +300,7 @@ class MultiNodeRuntime(Runtime):
                     # HuggingFace accelerate requires machine rank
                     # Here we use NODE_RANK to store the machine rank
                     envs["NODE_RANK"] = str(i)
-                    envs["WORLD_SIZE"] = str(replicas)
+                    envs["NODE_COUNT"] = str(replicas)
                     if main_run:
                         envs["MAIN_JOB_RUN_OCID"] = main_run.id
                     name = replica_kwargs.get("display_name")

@@ -818,7 +818,7 @@ class AquaEvaluationApp(AquaApp):
         if eval_id in self._metrics_cache.keys():
             logger.info(f"Returning metrics from cache.")
             eval_metrics = self._metrics_cache.get(eval_id)
-            if len(eval_metrics.metrics) > 0:
+            if len(eval_metrics.report) > 0:
                 return eval_metrics
 
         with tempfile.TemporaryDirectory() as temp_dir:
