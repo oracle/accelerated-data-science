@@ -317,7 +317,7 @@ class TestAquaModel(unittest.TestCase):
     @patch.object(DataScienceJob, "from_id")
     @patch.object(AquaEvaluationApp, "_delete_job_and_model")
     def test_delete_evaluation(
-        self, mock_del_job_func, mock_dsc_job, mock_dsc_model_from_id
+        self, mock_del_job_model_func, mock_dsc_job, mock_dsc_model_from_id
     ):
         mock_dsc_model_from_id.return_value = MagicMock(
             provenance_data={
@@ -325,31 +325,32 @@ class TestAquaModel(unittest.TestCase):
             }
         )
         mock_dsc_job.return_value = MagicMock(lifecycle_state="ACCEPTED")
-        mock_del_job_func.return_value = None
+        mock_del_job_model_func.return_value = None
         result = self.app.delete(TestDataset.EVAL_ID)
         assert result["id"] == TestDataset.EVAL_ID
         assert result["lifecycle_state"] == "DELETING"
 
-        mock_del_job_func.assert_called_once()
+        mock_del_job_model_func.assert_called_once()
 
     @patch.object(DataScienceModel, "from_id")
     @patch.object(DataScienceJobRun, "from_ocid")
-    def test_cancel_evaluation(self, mock_dsc_job_run, mock_dsc_model_from_id):
+    @patch.object(AquaEvaluationApp, "_cancel_job_run")
+    def test_cancel_evaluation(
+        self, mock_cancel_jr_func, mock_dsc_job_run, mock_dsc_model_from_id
+    ):
         mock_dsc_model_from_id.return_value = MagicMock(
             provenance_data={
                 "training_id": TestDataset.model_provenance_object.get("training_id")
             }
         )
-        mock_dsc_job_run_cancel = MagicMock()
-        mock_dsc_job_run.return_value = MagicMock(
-            lifecycle_state="ACCEPTED", cancel=mock_dsc_job_run_cancel
-        )
+        mock_dsc_job_run.return_value = MagicMock(lifecycle_state="ACCEPTED")
+        mock_cancel_jr_func.return_value = None
 
         result = self.app.cancel(TestDataset.EVAL_ID)
 
         assert result["id"] == TestDataset.EVAL_ID
         assert result["lifecycle_state"] == "CANCELING"
-        mock_dsc_job_run_cancel.assert_called_once()
+        mock_cancel_jr_func.assert_called_once()
 
     @patch.object(DataScienceModel, "download_artifact")
     @patch.object(DataScienceModel, "from_id")

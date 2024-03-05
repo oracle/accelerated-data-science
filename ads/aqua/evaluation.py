@@ -966,25 +966,30 @@ class AquaEvaluationApp(AquaApp):
 
         status = dict(id=eval_id, status=UNKNOWN, time_accepted="")
         run = DataScienceJobRun.from_ocid(job_run_id)
-        try:
-            if run.lifecycle_state in [
-                DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
-                DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
-                DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
-            ]:
-                run.cancel()
-                logger.info(f"Canceling Job Run: {job_run_id} for evaluation {eval_id}")
-                status = dict(
-                    id=eval_id,
-                    lifecycle_state="CANCELING",
-                    time_accepted=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f%z"),
-                )
-        except oci.exceptions.ServiceError as ex:
-            logger.error(
-                f"Exception occurred while canceling job run: {job_run_id} for evaluation {eval_id}. "
-                f"Exception message: {ex}"
+        if run.lifecycle_state in [
+            DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
+            DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
+            DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
+        ]:
+            self._cancel_job_run(run, model)
+            status = dict(
+                id=eval_id,
+                lifecycle_state="CANCELING",
+                time_accepted=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f%z"),
             )
         return status
+
+    @staticmethod
+    @fire_and_forget
+    def _cancel_job_run(run, model):
+        try:
+            run.cancel()
+            logger.info(f"Canceling Job Run: {run.id} for evaluation {model.id}")
+        except oci.exceptions.ServiceError as ex:
+            logger.error(
+                f"Exception occurred while canceling job run: {run.id} for evaluation {model.id}. "
+                f"Exception message: {ex}"
+            )
 
     def delete(self, eval_id):
         """Deletes the job and the associated model for the given evaluation id.
