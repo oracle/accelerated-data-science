@@ -388,7 +388,7 @@ def upload_file_to_os(
     )
 
 
-def sanitize_response(oci_client, response: list):
+def sanitize_response(oci_client, response: list) -> dict:
     """Builds a JSON POST object for the response from OCI clients.
 
     Parameters
