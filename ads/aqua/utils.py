@@ -17,6 +17,7 @@ from typing import List
 import fsspec
 from oci.data_science.models import JobRun, Model
 
+import ads.common.oci_client
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import upload_to_os
@@ -386,3 +387,22 @@ def upload_file_to_os(
         auth=auth,
         force_overwrite=force_overwrite,
     )
+
+
+def sanitize_response(oci_client, response: list):
+    """Builds a JSON POST object for the response from OCI clients.
+
+    Parameters
+    ----------
+    oci_client
+        OCI client object
+
+    response
+        list of results from the OCI client
+
+    Returns
+    -------
+        The serialized form of data.
+
+    """
+    return oci_client.base_client.sanitize_for_serialization(response)
