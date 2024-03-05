@@ -12,14 +12,13 @@ import requests
 from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 
 from ads.aqua.base import AquaApp
-from ads.aqua.exception import AquaError, AquaRuntimeError, AquaValueError
+from ads.aqua.exception import AquaRuntimeError, AquaValueError
 from ads.aqua.model import AquaModelApp, Tags
 from ads.aqua.utils import (
     UNKNOWN,
-    UNKNOWN_JSON_STR,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     get_artifact_path,
-    read_file,
+    load_default_aqua_config,
 )
 from ads.common.utils import get_console_link
 from ads.common.auth import default_signer
@@ -413,21 +412,13 @@ class AquaDeploymentApp(AquaApp):
             raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
 
         artifact_path = get_artifact_path(oci_model.custom_metadata_list)
-        deployment_config = self._load_deployment_config(artifact_path, auth=self._auth)
-
-        return deployment_config
-
-    @staticmethod
-    def _load_deployment_config(file_path: str, **kwargs) -> dict:
-        artifact_path = f"{file_path.rstrip('/')}/{AQUA_MODEL_DEPLOYMENT_CONFIG}"
-        deployment_config = json.loads(
-            read_file(file_path=artifact_path, **kwargs) or UNKNOWN_JSON_STR
+        deployment_config = load_default_aqua_config(
+            artifact_path = (
+                f"{artifact_path.rstrip('/')}/{AQUA_MODEL_DEPLOYMENT_CONFIG}"
+            ),
+            auth=self._auth
         )
-        if not deployment_config:
-            raise AquaError(
-                f"Deployment config file `deployment_config.json` is either empty or missing at {artifact_path}",
-                500,
-            )
+
         return deployment_config
 
 
