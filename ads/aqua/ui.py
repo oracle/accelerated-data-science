@@ -247,3 +247,47 @@ class AquaUIApp(AquaApp):
         return self.ds_client.list_job_shapes(
             compartment_id=compartment_id, **kwargs
         ).data.__repr__()
+
+    def list_vcn(self, **kwargs) -> list:
+        """Lists the virtual cloud networks (VCNs) in the specified compartment.
+
+        Parameters
+        ----------
+        **kwargs
+            Addtional arguments, such as `compartment_id`,
+            for `list_vcns <https://docs.oracle.com/iaas/api/#/en/iaas/20160918/Vcn/ListVcns>`_
+
+        Returns
+        -------
+            json representation of `oci.core.models.Vcn`."""
+
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        logger.info(f"Loading job shape summary from compartment: {compartment_id}")
+
+        # todo: add _vcn_client in init in AquaApp, then add a property vcn_client which does lazy init
+        #   of _vcn_client. Do this for all clients in AquaApp
+        vcn_client = oc.OCIClientFactory(**self._auth).virtual_network
+        return vcn_client.list_vcns(compartment_id=compartment_id).data.__repr__()
+
+    def list_subnets(self, **kwargs) -> list:
+        """Lists the subnets in the specified VCN and the specified compartment.
+
+        Parameters
+        ----------
+        **kwargs
+            Addtional arguments, such as `compartment_id`,
+            for `list_vcns <https://docs.oracle.com/iaas/api/#/en/iaas/20160918/Subnet/ListSubnets>`_
+
+        Returns
+        -------
+            json representation of `oci.core.models.Subnet`."""
+
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        logger.info(f"Loading job shape summary from compartment: {compartment_id}")
+
+        vcn_id = kwargs.pop("vcn_id", None)
+
+        vcn_client = oc.OCIClientFactory(**self._auth).virtual_network
+        return vcn_client.list_subnets(
+            compartment_id=compartment_id, vcn_id=vcn_id
+        ).data.__repr__()

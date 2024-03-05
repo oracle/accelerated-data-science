@@ -3,16 +3,17 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from dataclasses import dataclass
-from enum import Enum
-from typing import List, Union
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from threading import Lock
-from cachetools import TTLCache
+from typing import List, Union
 
 import oci
+from cachetools import TTLCache
+
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
+from ads.aqua.data import AquaResourceIdentifier, Resource, Tags
 from ads.aqua.exception import AquaRuntimeError
 from ads.aqua.utils import (
     README,
@@ -33,13 +34,10 @@ from ads.config import (
 from ads.model.datascience_model import DataScienceModel
 
 
-class Tags(Enum):
-    TASK = "task"
-    LICENSE = "license"
-    ORGANIZATION = "organization"
-    AQUA_TAG = "OCI_AQUA"
-    AQUA_SERVICE_MODEL_TAG = "aqua_service_model"
-    AQUA_FINE_TUNED_MODEL_TAG = "aqua_fine_tuned_model"
+@dataclass(repr=False)
+class AquaFineTuningMetric(DataClassSerializable):
+    name: str
+    scores: list
 
 
 @dataclass(repr=False)
@@ -66,6 +64,16 @@ class AquaModel(AquaModelSummary, DataClassSerializable):
     """Represents an Aqua model."""
 
     model_card: str
+
+
+@dataclass(repr=False)
+class AquaFineTuneModel(AquaModel, DataClassSerializable):
+    """Represents an Aqua Fine Tuned Model."""
+
+    source: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    experiment: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    shape_info: dict = field(default_factory=dict)
+    metrics: List[AquaFineTuningMetric] = field(default_factory=list)
 
 
 class AquaModelApp(AquaApp):
@@ -170,12 +178,72 @@ class AquaModelApp(AquaApp):
 
         artifact_path = get_artifact_path(oci_model.custom_metadata_list)
 
-        return AquaModel(
-            **self._process_model(oci_model, self.region),
-            project_id=oci_model.project_id,
-            model_card=str(
-                read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
-            ),
+        is_fine_tuned_model = (
+            True
+            if oci_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
+            else False
+        )
+
+        return (
+            AquaModel(
+                **self._process_model(oci_model, self.region),
+                project_id=oci_model.project_id,
+                model_card=str(
+                    read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
+                ),
+            )
+            if not is_fine_tuned_model
+            else AquaFineTuneModel(
+                **self._process_model(oci_model, self.region),
+                project_id=oci_model.project_id,
+                model_card=str(
+                    read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
+                ),
+                # mock data for fine tuned model details
+                # TODO: fetch real value from custom metadata
+                source=AquaResourceIdentifier(
+                    id="ocid1.datasciencemodel.oc1.iad.xxxx",
+                    name="Base Model Name",
+                    url=get_console_link(
+                        resource=Resource.MODEL.value,
+                        ocid="ocid1.datasciencemodel.oc1.iad.xxxx",
+                        region=self.region,
+                    ),
+                ),
+                experiment=AquaResourceIdentifier(
+                    id="ocid1.datasciencemodelversionset.oc1.iad.xxxx",
+                    name="Model Version Set Name",
+                    url=get_console_link(
+                        resource=Resource.MODEL_VERSION_SET.value,
+                        ocid="ocid1.datasciencemodelversionset.oc1.iad.xxxx",
+                        region=self.region,
+                    ),
+                ),
+                shape_info={"instance_shape": "VM.Standard.E4.Flex", "replica": 1},
+                metrics=[
+                    AquaFineTuningMetric(
+                        **{
+                            "name": "validation_loss",
+                            "scores": [
+                                {"epoch": 2.5, "step": 12, "score": 1.1149},
+                                {"epoch": 3.5, "step": 20, "score": 1.1067},
+                                # ...
+                            ],
+                        }
+                    ),
+                    AquaFineTuningMetric(
+                        **{
+                            "name": "validation_accuracy",
+                            "scores": [
+                                # accuracy will be stored in "val_metrics_final"
+                                # Before we finalize the accuracy, we can use the rouge1 score as an example.
+                                # There will be only one number without epoch/step
+                                {"score": 29.1849}
+                            ],
+                        }
+                    ),
+                ],
+            )
         )
 
     def list(
@@ -268,7 +336,9 @@ class AquaModelApp(AquaApp):
     ) -> dict:
         """Constructs required fields for AquaModelSummary."""
 
-        icon = self._load_icon(model.display_name)
+        # todo: revisit icon generation code
+        # icon = self._load_icon(model.display_name)
+        icon = ""
         tags = {}
         tags.update(model.defined_tags or {})
         tags.update(model.freeform_tags or {})
