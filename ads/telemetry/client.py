@@ -66,7 +66,8 @@ class TelemetryClient(TelemetryBase):
         endpoint = f"{self.service_endpoint}/n/{self.namespace}/b/{self.bucket}/o/{path}"
         headers = {"User-Agent": self._encode_user_agent(**kwargs)}
         logger.debug(f"Sending telemetry to endpoint: {endpoint}")
-        response = requests.head(endpoint, auth=self._auth, headers=headers)
+        signer = self._auth["signer"]
+        response = requests.head(endpoint, auth=signer, headers=headers)
         logger.debug(f"Telemetry status code: {response.status_code}")
         return response
 
