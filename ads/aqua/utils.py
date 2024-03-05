@@ -17,7 +17,6 @@ from typing import List
 import fsspec
 from oci.data_science.models import JobRun, Model
 
-import ads.common.oci_client
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import upload_to_os
