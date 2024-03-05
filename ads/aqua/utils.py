@@ -368,8 +368,13 @@ def _construct_condition(
     return condition
 
 
-def validate_local_dataset_path(file_path: str) -> str:
-    expanded_path = os.path.expanduser(file_path)
+def upload_local_to_os(
+    src_uri: str,
+    dst_uri: str,
+    auth: dict=None,
+    force_overwrite: bool=False
+):
+    expanded_path = os.path.expanduser(src_uri)
     if not os.path.isfile(expanded_path):
         raise AquaFileNotFoundError("Invalid input file path. Specify a valid one.")
     if Path(expanded_path).suffix.lstrip(".") not in SUPPORTED_FILE_FORMATS:
@@ -383,4 +388,9 @@ def validate_local_dataset_path(file_path: str) -> str:
             f"Local dataset file can't exceed {MAXIMUM_ALLOWED_DATASET_IN_BYTE} bytes."
         )
     
-    return expanded_path
+    upload_to_os(
+        src_uri=expanded_path,
+        dst_uri=dst_uri,
+        auth=auth,
+        force_overwrite=force_overwrite,
+    )

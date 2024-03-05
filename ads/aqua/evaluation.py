@@ -39,7 +39,7 @@ from ads.aqua.utils import (
     SUBNET_ID,
     UNKNOWN,
     is_valid_ocid,
-    validate_local_dataset_path,
+    upload_local_to_os,
 )
 from ads.common import oci_client as oc
 from ads.common.auth import AuthType
@@ -78,7 +78,6 @@ class EvaluationCustomMetadata(Enum):
     EVALUATION_SOURCE = "evaluation_source"
     EVALUATION_JOB_ID = "evaluation_job_id"
     EVALUATION_JOB_RUN_ID = "evaluation_job_run_id"
-    EVALUATION_STATUS = "evaluation_status"
     EVALUATION_OUTPUT_PATH = "evaluation_output_path"
     EVALUATION_SOURCE_NAME = "evaluation_source_name"
 
@@ -340,9 +339,18 @@ class AquaEvaluationApp(AquaApp):
         
         evaluation_dataset_path = create_aqua_evaluation_details.dataset_path
         if not ObjectStorageDetails.is_oci_path(evaluation_dataset_path):
-            evaluation_dataset_path = validate_local_dataset_path(
-                evaluation_dataset_path
+            # format: oci://<bucket>@<namespace>/<prefix>/<dataset_file_name>
+            dst_uri = f"{create_aqua_evaluation_details.report_path.rstrip('/')}/{os.path.basename(evaluation_dataset_path)}"
+            upload_local_to_os(
+                src_uri=evaluation_dataset_path,
+                dst_uri=dst_uri,
+                auth=self._auth,
+                force_overwrite=False,
             )
+            logger.debug(
+                f"Uploaded local file {evaluation_dataset_path} to object storage {dst_uri}."
+            )
+            evaluation_dataset_path = dst_uri
 
         evaluation_model_parameters = None
         try:
@@ -417,10 +425,6 @@ class AquaEvaluationApp(AquaApp):
             key=EvaluationCustomMetadata.EVALUATION_SOURCE_NAME.value,
             value=evaluation_source.display_name,
         )
-        evaluation_model_custom_metadata.add(
-            key=EvaluationCustomMetadata.EVALUATION_STATUS.value,
-            value=EvaluationUploadStatus.IN_PROGRESS.value
-        )
 
         evaluation_model_taxonomy_metadata = ModelTaxonomyMetadata()
         evaluation_model_taxonomy_metadata[
@@ -451,36 +455,6 @@ class AquaEvaluationApp(AquaApp):
             f"Successfully created evaluation model {evaluation_model.id} for {create_aqua_evaluation_details.evaluation_source_id}."
         )
 
-        if not ObjectStorageDetails.is_oci_path(evaluation_dataset_path):
-            # format: oci://<bucket>@<namespace>/<evaluation_model_id>/<dataset_file_name>
-            dst_uri = f"{create_aqua_evaluation_details.report_path.rstrip('/')}/{evaluation_model.id}/{os.path.basename(evaluation_dataset_path)}"
-            upload_to_os(
-                src_uri=evaluation_dataset_path,
-                dst_uri=dst_uri,
-                auth=self._auth,
-                force_overwrite=True,
-            )
-            logger.debug(
-                f"Uploaded local file {evaluation_dataset_path} to object storage {dst_uri}."
-            )
-            evaluation_dataset_path = dst_uri
-
-        evaluation_model_custom_metadata.add(
-            key=EvaluationCustomMetadata.EVALUATION_STATUS.value,
-            value=EvaluationUploadStatus.COMPLETED.value,
-            replace=True
-        )
-
-        self.ds_client.update_model(
-            model_id=evaluation_model.id,
-            update_model_details=UpdateModelDetails(
-                custom_metadata_list=[
-                    Metadata(**metadata)
-                    for metadata in evaluation_model_custom_metadata.to_dict()["data"]
-                ]
-            ),
-        )
-
         # TODO: validat metrics if it's provided
 
         evaluation_job_freeform_tags = {
@@ -488,77 +462,56 @@ class AquaEvaluationApp(AquaApp):
             EvaluationJobTags.EVALUATION_MODEL_ID.value: evaluation_model.id,
         }
 
-        try:
-            with tempfile.TemporaryDirectory() as temp_directory:
-                evaluation_job = (
-                    Job(name=evaluation_model.display_name)
-                    .with_infrastructure(
-                        DataScienceJob()
-                        .with_log_group_id(create_aqua_evaluation_details.log_group_id)
-                        .with_log_id(create_aqua_evaluation_details.log_id)
-                        .with_compartment_id(target_compartment)
-                        .with_project_id(target_project)
-                        .with_shape_name(create_aqua_evaluation_details.shape_name)
-                        .with_block_storage_size(
-                            create_aqua_evaluation_details.block_storage_size
-                        )
-                        .with_freeform_tag(**evaluation_job_freeform_tags)
-                        .with_subnet_id(SUBNET_ID)
+        with tempfile.TemporaryDirectory() as temp_directory:
+            evaluation_job = (
+                Job(name=evaluation_model.display_name)
+                .with_infrastructure(
+                    DataScienceJob()
+                    .with_log_group_id(create_aqua_evaluation_details.log_group_id)
+                    .with_log_id(create_aqua_evaluation_details.log_id)
+                    .with_compartment_id(target_compartment)
+                    .with_project_id(target_project)
+                    .with_shape_name(create_aqua_evaluation_details.shape_name)
+                    .with_block_storage_size(
+                        create_aqua_evaluation_details.block_storage_size
                     )
+                    .with_freeform_tag(**evaluation_job_freeform_tags)
+                    .with_subnet_id(SUBNET_ID)
                 )
-                if (
-                    create_aqua_evaluation_details.memory_in_gbs 
-                    and create_aqua_evaluation_details.ocpus
-                ):
-                    evaluation_job.infrastructure.with_shape_config_details(
-                        memory_in_gbs=create_aqua_evaluation_details.memory_in_gbs,
-                        ocpus=create_aqua_evaluation_details.ocpus,
-                    )
-                evaluation_job.with_runtime(
-                    self._build_evaluation_runtime(
-                        evaluation_id=evaluation_model.id,
-                        evaluation_source_id=(
-                            create_aqua_evaluation_details.evaluation_source_id
-                        ),
-                        dataset_path=evaluation_dataset_path,
-                        report_path=create_aqua_evaluation_details.report_path,
-                        model_parameters=create_aqua_evaluation_details.model_parameters,
-                        metrics=create_aqua_evaluation_details.metrics,
-                        source_folder=temp_directory,
-                    )
-                ).create(**kwargs)  ## TODO: decide what parameters will be needed
-                logger.debug(
-                    f"Successfully created evaluation job {evaluation_job.id} for {create_aqua_evaluation_details.evaluation_source_id}."
-                )
-
-                evaluation_job_run = evaluation_job.run(
-                    name=evaluation_model.display_name,
-                    freeform_tags=evaluation_job_freeform_tags,
-                    wait=False,
-                )
-                logger.debug(
-                    f"Successfully created evaluation job run {evaluation_job_run.id} for {create_aqua_evaluation_details.evaluation_source_id}."
-                )
-                
-                self.ds_client.update_model(
-                    model_id=evaluation_model.id,
-                    update_model_details=UpdateModelDetails(
-                        freeform_tags={
-                            EvaluationModelTags.AQUA_EVALUATION.value: EvaluationModelTags.AQUA_EVALUATION.value,
-                        }
-                    ),
-                )
-        except:
-            # TODO: quick fix, revisit this later
-            self.ds_client.update_model(
-                model_id=evaluation_model.id,
-                update_model_details=UpdateModelDetails(
-                    freeform_tags={
-                        EvaluationModelTags.AQUA_EVALUATION.value: EvaluationModelTags.AQUA_EVALUATION.value,
-                    }
-                ),
             )
-            raise
+            if (
+                create_aqua_evaluation_details.memory_in_gbs 
+                and create_aqua_evaluation_details.ocpus
+            ):
+                evaluation_job.infrastructure.with_shape_config_details(
+                    memory_in_gbs=create_aqua_evaluation_details.memory_in_gbs,
+                    ocpus=create_aqua_evaluation_details.ocpus,
+                )
+            evaluation_job.with_runtime(
+                self._build_evaluation_runtime(
+                    evaluation_id=evaluation_model.id,
+                    evaluation_source_id=(
+                        create_aqua_evaluation_details.evaluation_source_id
+                    ),
+                    dataset_path=evaluation_dataset_path,
+                    report_path=create_aqua_evaluation_details.report_path,
+                    model_parameters=create_aqua_evaluation_details.model_parameters,
+                    metrics=create_aqua_evaluation_details.metrics,
+                    source_folder=temp_directory,
+                )
+            ).create(**kwargs)  ## TODO: decide what parameters will be needed
+            logger.debug(
+                f"Successfully created evaluation job {evaluation_job.id} for {create_aqua_evaluation_details.evaluation_source_id}."
+            )
+
+            evaluation_job_run = evaluation_job.run(
+                name=evaluation_model.display_name,
+                freeform_tags=evaluation_job_freeform_tags,
+                wait=False,
+            )
+            logger.debug(
+                f"Successfully created evaluation job run {evaluation_job_run.id} for {create_aqua_evaluation_details.evaluation_source_id}."
+            )
 
         evaluation_model_custom_metadata.add(
             key=EvaluationCustomMetadata.EVALUATION_JOB_ID.value,
@@ -576,7 +529,10 @@ class AquaEvaluationApp(AquaApp):
         self.ds_client.update_model(
             model_id=evaluation_model.id,
             update_model_details=UpdateModelDetails(
-                custom_metadata_list=updated_custom_metadata_list
+                custom_metadata_list=updated_custom_metadata_list,
+                freeform_tags={
+                    EvaluationModelTags.AQUA_EVALUATION.value: EvaluationModelTags.AQUA_EVALUATION.value,
+                }
             ),
         )
 
