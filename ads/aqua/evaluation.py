@@ -919,6 +919,8 @@ class AquaEvaluationApp(AquaApp):
             The target evaluation source ocid.
         compartment_id: (str, optional). Defaults to `None`.
             The compartment ocid.
+        kwargs
+            Additional keyword arguments.
         
         Returns
         -------
@@ -929,6 +931,7 @@ class AquaEvaluationApp(AquaApp):
             target_evaluation_id
         )
 
+        evaluation_config = {}
         if target_evaluation.kind == MODEL_DEPLOYMENT_KIND:
             job_shapes = json.loads(
                 AquaUIApp().list_job_shapes(
@@ -951,15 +954,15 @@ class AquaEvaluationApp(AquaApp):
                         else DEFAULT_MEMORY_IN_GBS
                     )
                 }
-            return {
+            evaluation_config = {
                 "shape": shape,
                 **DEFAULT_MODEL_PARAMS_CONFIGS
             }
-        
-        artifact_path = get_artifact_path(
-            target_evaluation.dsc_model.custom_metadata_list
-        )
-        evaluation_config = self._load_evaluation_config(artifact_path)
+        else:
+            artifact_path = get_artifact_path(
+                target_evaluation.dsc_model.custom_metadata_list
+            )
+            evaluation_config = self._load_evaluation_config(artifact_path)
 
         return evaluation_config
 
