@@ -37,6 +37,7 @@ from ads.model.datascience_model import DataScienceModel
 @dataclass(repr=False)
 class AquaFineTuningMetric(DataClassSerializable):
     name: str
+    category: str
     scores: list
 
 
@@ -70,6 +71,7 @@ class AquaModel(AquaModelSummary, DataClassSerializable):
 class AquaFineTuneModel(AquaModel, DataClassSerializable):
     """Represents an Aqua Fine Tuned Model."""
 
+    job: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     source: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     experiment: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     shape_info: dict = field(default_factory=dict)
@@ -201,6 +203,15 @@ class AquaModelApp(AquaApp):
                 ),
                 # mock data for fine tuned model details
                 # TODO: fetch real value from custom metadata
+                job=AquaResourceIdentifier(
+                    id="ocid1.datasciencejobrun.oc1.iad.xxxx",
+                    name="Job Run Name",
+                    url=get_console_link(
+                        resource=Resource.JOBRUN.value,
+                        ocid="ocid1.datasciencejobrun.oc1.iad.xxxx",
+                        region=self.region,
+                    ),
+                ),
                 source=AquaResourceIdentifier(
                     id="ocid1.datasciencemodel.oc1.iad.xxxx",
                     name="Base Model Name",
@@ -224,6 +235,7 @@ class AquaModelApp(AquaApp):
                     AquaFineTuningMetric(
                         **{
                             "name": "validation_loss",
+                            "category": "validation",
                             "scores": [
                                 {"epoch": 2.5, "step": 12, "score": 1.1149},
                                 {"epoch": 3.5, "step": 20, "score": 1.1067},
@@ -233,13 +245,33 @@ class AquaModelApp(AquaApp):
                     ),
                     AquaFineTuningMetric(
                         **{
+                            "name": "training_loss",
+                            "category": "training",
+                            "scores": [
+                                {"epoch": 1.0, "step": 4, "score": 1.3856},
+                                {"epoch": 1.5, "step": 8, "score": 1.0992},
+                                {"epoch": 3.0, "step": 3, "score": 0.9193},
+                                {"epoch": 3.5, "step": 20, "score": 0.853},
+                            ],
+                        }
+                    ),
+                    AquaFineTuningMetric(
+                        **{
                             "name": "validation_accuracy",
+                            "category": "validation",
                             "scores": [
                                 # accuracy will be stored in "val_metrics_final"
                                 # Before we finalize the accuracy, we can use the rouge1 score as an example.
                                 # There will be only one number without epoch/step
                                 {"score": 29.1849}
                             ],
+                        }
+                    ),
+                    AquaFineTuningMetric(
+                        **{
+                            "name": "final_training_loss",
+                            "category": "training",
+                            "scores": [{"score": 1.0474}],
                         }
                     ),
                 ],
