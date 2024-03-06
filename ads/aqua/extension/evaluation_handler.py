@@ -11,7 +11,7 @@ from ads.aqua.decorator import handle_exceptions
 from ads.aqua.evaluation import AquaEvaluationApp, CreateAquaEvaluationDetails
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.aqua.extension.utils import validate_function_parameters
-from ads.config import COMPARTMENT_OCID, PROJECT_OCID
+from ads.config import COMPARTMENT_OCID
 
 
 class AquaEvaluationHandler(AquaAPIhandler):
