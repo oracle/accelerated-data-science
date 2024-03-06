@@ -29,13 +29,19 @@ class TelemetryClient(TelemetryBase):
     Examples
     --------
     >>> import os
+    >>> import traceback
     >>> from ads.telemetry.client import TelemetryClient
-    >>> AQUA_BUCKET = os.environ.get("AQUA_BUCKET", "service-managed-models")
-    >>> AQUA_BUCKET_NS = os.environ.get("AQUA_BUCKET_NS", "ociodscdev")
-    >>> telemetry = TelemetryClient(bucket=AQUA_BUCKET, namespace=AQUA_BUCKET_NS)
-    >>> category = "aqua/service/model"
-    >>> action = "list"
-    >>> telemetry.record_event_async(category=f"telemetry/{category}", action=action)
+    >>> try:
+    >>>     AQUA_BUCKET = os.environ.get("AQUA_BUCKET", "service-managed-models")
+    >>>     AQUA_BUCKET_NS = os.environ.get("AQUA_BUCKET_NS", "ociodscdev")
+    >>>     category = "aqua/service/model"
+    >>>     action = "list"
+    >>>     telemetry = TelemetryClient(bucket=AQUA_BUCKET, namespace=AQUA_BUCKET_NS)
+    >>>     telemetry.record_event_async(category=category, action=action)
+    >>> except:
+    >>>    if "DEBUG_TELEMETRY" in os.environ:
+    >>>        print("There is an error recording telemetry.")
+    >>>        traceback.print_exc()
     """
 
     @staticmethod
@@ -43,7 +49,7 @@ class TelemetryClient(TelemetryBase):
         message = urllib.parse.urlencode(kwargs)
         return message
 
-    def record_event(self, category: str = None, action: str = None, path: str = None, **kwargs) -> None:
+    def record_event(self, category: str = None, action: str = None, **kwargs) -> None:
         """Send a head request to generate an event record.
 
         Parameters
@@ -52,18 +58,14 @@ class TelemetryClient(TelemetryBase):
             Category of the event, which is also the path to the directory containing the object representing the event.
         action (str)
             Filename of the object representing the event.
-        path (str)
-            The path of the object representing the event, e.g. "telemetry/conda/delete".
 
         Returns
         -------
         Response
         """
-        if category and action:
-            path = f"{category}/{action}"
-        if not path:
-            raise ValueError("Please specify either the combination of category and action, or path")
-        endpoint = f"{self.service_endpoint}/n/{self.namespace}/b/{self.bucket}/o/{path}"
+        if not category or not action:
+            raise ValueError("Please specify the category and the action.")
+        endpoint = f"{self.service_endpoint}/n/{self.namespace}/b/{self.bucket}/o/telemetry/{category}/{action}"
         headers = {"User-Agent": self._encode_user_agent(**kwargs)}
         logger.debug(f"Sending telemetry to endpoint: {endpoint}")
         signer = self._auth["signer"]
@@ -71,7 +73,7 @@ class TelemetryClient(TelemetryBase):
         logger.debug(f"Telemetry status code: {response.status_code}")
         return response
 
-    def record_event_async(self, category: str = None, action: str = None, path: str = None, **kwargs):
+    def record_event_async(self, category: str = None, action: str = None, **kwargs):
         """Send a head request to generate an event record.
 
         Parameters
@@ -80,8 +82,6 @@ class TelemetryClient(TelemetryBase):
             Category of the event, which is also the path to the directory containing the object representing the event.
         action (str)
             Filename of the object representing the event.
-        path (str)
-            The path of the object representing the event, e.g. "telemetry/conda/delete".
 
         Returns
         -------
@@ -90,7 +90,7 @@ class TelemetryClient(TelemetryBase):
         """
         thread = threading.Thread(
             target=self.record_event,
-            args=(category, action, path),
+            args=(category, action),
             kwargs=kwargs
         )
         thread.daemon = True

@@ -8,7 +8,7 @@ import logging
 from ads import set_auth
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
-from ads.config import OCI_RESOURCE_PRINCIPAL_VERSION
+from ads.config import OCI_ODSC_SERVICE_ENDPOINT, OCI_RESOURCE_PRINCIPAL_VERSION
 
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ class TelemetryBase:
         """
         if OCI_RESOURCE_PRINCIPAL_VERSION:
             set_auth("resource_principal")
-        self._auth = default_signer()
+        self._auth = default_signer({"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT})
         self.os_client = oc.OCIClientFactory(**self._auth).object_storage
         self.bucket = bucket
         self._namespace = namespace
