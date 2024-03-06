@@ -6,7 +6,6 @@
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 import os
-import tempfile
 from typing import Optional
 from ads.aqua.exception import AquaValueError
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -16,6 +15,7 @@ from ads.aqua.job import AquaJobSummary
 from ads.aqua.data import Resource, AquaResourceIdentifier, Tags
 from ads.common.utils import get_console_link
 from ads.aqua.utils import (
+    DEFAULT_REPLICA,
     FINE_TUNING_RUNTIME_CONTAINER,
     UNKNOWN,
     logger,
@@ -29,7 +29,6 @@ from ads.jobs.ads_job import Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
-from ads.jobs.builders.runtimes.python_runtime import PythonRuntime
 from ads.model.model_metadata import (
     MetadataTaxonomyKeys,
     ModelCustomMetadata,
@@ -189,7 +188,7 @@ class AquaFineTuningApp(AquaApp):
 
         ft_job_freeform_tags = {
             Tags.AQUA_TAG.value: UNKNOWN,
-            Tags.AQUA_FINE_TUNED_MODEL_TAG.value: f"{source.id}#{source.display_name}", # discuss with ming
+            Tags.AQUA_FINE_TUNED_MODEL_TAG.value: f"{source.id}#{source.display_name}",
         }
 
         ft_job = Job(
@@ -207,7 +206,7 @@ class AquaFineTuningApp(AquaApp):
             .with_freeform_tag(**ft_job_freeform_tags)
         )
 
-        if create_fine_tuning_details.replica > 1:
+        if create_fine_tuning_details.replica > DEFAULT_REPLICA:
             ft_job.infrastructure.with_subnet_id(
                 create_fine_tuning_details.subnet_id
             )
@@ -265,7 +264,6 @@ class AquaFineTuningApp(AquaApp):
                 training_id=ft_job_run.id
             ),
         )
-    
 
         return AquaFineTuningSummary(
             id=ft_model.id,

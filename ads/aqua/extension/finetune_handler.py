@@ -5,6 +5,7 @@
 
 
 from tornado.web import HTTPError
+from ads.aqua.exception import AquaError
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.aqua.extension.utils import validate_function_parameters
 from ads.aqua.finetune import AquaFineTuningApp, CreateFineTuningDetails
@@ -34,14 +35,12 @@ class AquaFineTuneHandler(AquaAPIhandler):
         validate_function_parameters(
             data_class=CreateFineTuningDetails, input_data=input_data
         )
-        try:
-            self.finish(
-                AquaFineTuningApp().create(
-                    CreateFineTuningDetails(**input_data)
-                )
+
+        self.finish(
+            AquaFineTuningApp().create(
+                CreateFineTuningDetails(**input_data)
             )
-        except Exception as ex:
-            raise HTTPError(500, str(ex))
+        )
 
 
 __handlers__ = [("finetuning/?([^/]*)", AquaFineTuneHandler)]
