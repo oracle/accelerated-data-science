@@ -36,6 +36,7 @@ from ads.aqua.utils import (
     BERT_SCORE_PATH,
     CONDA_REGION,
     CONDA_URI,
+    HF_MODELS,
     SOURCE_FILE,
     SUBNET_ID,
     UNKNOWN,
@@ -617,6 +618,7 @@ class AquaEvaluationApp(AquaApp):
                 **{
                     "BERT_SCORE_PATH": BERT_SCORE_PATH,
                     "BERT_BASE_MULTILINGUAL_CASED": BERT_BASE_MULTILINGUAL_CASED,
+                    "HF_MODELS": HF_MODELS,
                     "OCI_IAM_TYPE": AuthType.RESOURCE_PRINCIPAL,
                     "OCI__LAUNCH_CMD": json.dumps(
                         asdict(
