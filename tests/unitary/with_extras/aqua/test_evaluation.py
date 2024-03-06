@@ -23,6 +23,7 @@ from ads.aqua.evaluation import (
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.model import DataScienceModel
+from ads.jobs.ads_job import DataScienceJobRun, DataScienceJob
 
 null = None
 
@@ -318,6 +319,45 @@ class TestAquaModel(unittest.TestCase):
         assert (
             read_content == b"This is a sample evaluation report.html.\n"
         ), read_content
+
+    @patch.object(DataScienceModel, "from_id")
+    @patch.object(DataScienceJob, "from_id")
+    @patch.object(AquaEvaluationApp, "_delete_job_and_model")
+    def test_delete_evaluation(
+        self, mock_del_job_model_func, mock_dsc_job, mock_dsc_model_from_id
+    ):
+        mock_dsc_model_from_id.return_value = MagicMock(
+            provenance_data={
+                "training_id": TestDataset.model_provenance_object.get("training_id"),
+            }
+        )
+        mock_dsc_job.return_value = MagicMock(lifecycle_state="ACCEPTED")
+        mock_del_job_model_func.return_value = None
+        result = self.app.delete(TestDataset.EVAL_ID)
+        assert result["id"] == TestDataset.EVAL_ID
+        assert result["lifecycle_state"] == "DELETING"
+
+        mock_del_job_model_func.assert_called_once()
+
+    @patch.object(DataScienceModel, "from_id")
+    @patch.object(DataScienceJobRun, "from_ocid")
+    @patch.object(AquaEvaluationApp, "_cancel_job_run")
+    def test_cancel_evaluation(
+        self, mock_cancel_jr_func, mock_dsc_job_run, mock_dsc_model_from_id
+    ):
+        mock_dsc_model_from_id.return_value = MagicMock(
+            provenance_data={
+                "training_id": TestDataset.model_provenance_object.get("training_id")
+            }
+        )
+        mock_dsc_job_run.return_value = MagicMock(lifecycle_state="ACCEPTED")
+        mock_cancel_jr_func.return_value = None
+
+        result = self.app.cancel(TestDataset.EVAL_ID)
+
+        assert result["id"] == TestDataset.EVAL_ID
+        assert result["lifecycle_state"] == "CANCELING"
+        mock_cancel_jr_func.assert_called_once()
 
     @patch.object(DataScienceModel, "download_artifact")
     @patch.object(DataScienceModel, "from_id")

@@ -3,6 +3,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA utils and constants."""
+import asyncio
 import base64
 import logging
 import os
@@ -10,6 +11,7 @@ import random
 import re
 import sys
 from enum import Enum
+from functools import wraps
 from pathlib import Path
 from string import Template
 from typing import List
@@ -49,7 +51,7 @@ BERT_BASE_MULTILINGUAL_CASED = (
 # TODO: remove later
 SUBNET_ID = os.environ.get("SUBNET_ID", None)
 
-MAXIMUM_ALLOWED_DATASET_IN_BYTE = 52428800 # 1024 x 1024 x 50 = 50MB
+MAXIMUM_ALLOWED_DATASET_IN_BYTE = 52428800  # 1024 x 1024 x 50 = 50MB
 
 
 class LifecycleStatus(Enum):
@@ -370,10 +372,7 @@ def _construct_condition(
 
 
 def upload_local_to_os(
-    src_uri: str,
-    dst_uri: str,
-    auth: dict=None,
-    force_overwrite: bool=False
+    src_uri: str, dst_uri: str, auth: dict = None, force_overwrite: bool = False
 ):
     expanded_path = os.path.expanduser(src_uri)
     if not os.path.isfile(expanded_path):
@@ -388,10 +387,20 @@ def upload_local_to_os(
         raise AquaValueError(
             f"Local dataset file can't exceed {MAXIMUM_ALLOWED_DATASET_IN_BYTE} bytes."
         )
-    
+
     upload_to_os(
         src_uri=expanded_path,
         dst_uri=dst_uri,
         auth=auth,
         force_overwrite=force_overwrite,
     )
+
+
+def fire_and_forget(func):
+    """Decorator to push execution of methods to the background."""
+
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        return asyncio.get_event_loop().run_in_executor(None, func, *args, *kwargs)
+
+    return wrapped

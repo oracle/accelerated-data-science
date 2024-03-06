@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import asyncio
 import base64
 import json
 import os
@@ -39,16 +40,16 @@ from ads.aqua.utils import (
     SOURCE_FILE,
     SUBNET_ID,
     UNKNOWN,
+    fire_and_forget,
     is_valid_ocid,
     upload_local_to_os,
 )
-from ads.common import oci_client as oc
 from ads.common.auth import AuthType
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link, get_files, upload_to_os
 from ads.config import COMPARTMENT_OCID, PROJECT_OCID
-from ads.jobs.ads_job import Job
+from ads.jobs.ads_job import DataScienceJobRun, Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
 from ads.jobs.builders.runtimes.python_runtime import PythonRuntime
@@ -930,6 +931,122 @@ class AquaEvaluationApp(AquaApp):
         self._report_cache.__setitem__(key=eval_id, value=report)
 
         return report
+
+    def cancel(self, eval_id) -> dict:
+        """Cancels the job run for the given evaluation id.
+        Parameters
+        ----------
+        eval_id: str
+            The evaluation ocid.
+
+        Returns
+        -------
+            dict containing id, status and time_accepted
+
+        Raises
+        ------
+        AquaRuntimeError:
+            if a model doesn't exist for the given eval_id
+        AquaMissingKeyError:
+            if training_id is missing the job run id
+        """
+        model = DataScienceModel.from_id(eval_id)
+        if not model:
+            raise AquaRuntimeError(
+                f"Failed to get evaluation details for model {eval_id}"
+            )
+        job_run_id = model.provenance_metadata.training_id
+        if not job_run_id:
+            raise AquaMissingKeyError(
+                "Model provenance is missing job run training_id key"
+            )
+
+        status = dict(id=eval_id, status=UNKNOWN, time_accepted="")
+        run = DataScienceJobRun.from_ocid(job_run_id)
+        if run.lifecycle_state in [
+            DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
+            DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
+            DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
+        ]:
+            self._cancel_job_run(run, model)
+            status = dict(
+                id=eval_id,
+                lifecycle_state="CANCELING",
+                time_accepted=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f%z"),
+            )
+        return status
+
+    @staticmethod
+    @fire_and_forget
+    def _cancel_job_run(run, model):
+        try:
+            run.cancel()
+            logger.info(f"Canceling Job Run: {run.id} for evaluation {model.id}")
+        except oci.exceptions.ServiceError as ex:
+            logger.error(
+                f"Exception occurred while canceling job run: {run.id} for evaluation {model.id}. "
+                f"Exception message: {ex}"
+            )
+
+    def delete(self, eval_id):
+        """Deletes the job and the associated model for the given evaluation id.
+        Parameters
+        ----------
+        eval_id: str
+            The evaluation ocid.
+
+        Returns
+        -------
+            dict containing id, status and time_accepted
+
+        Raises
+        ------
+        AquaRuntimeError:
+            if a model doesn't exist for the given eval_id
+        AquaMissingKeyError:
+            if training_id is missing the job run id
+        """
+
+        model = DataScienceModel.from_id(eval_id)
+        if not model:
+            raise AquaRuntimeError(
+                f"Failed to get evaluation details for model {eval_id}"
+            )
+
+        try:
+            job_id = model.custom_metadata_list.get(
+                EvaluationCustomMetadata.EVALUATION_JOB_ID.value
+            ).value
+        except ValueError:
+            raise AquaMissingKeyError(
+                f"Custom metadata is missing {EvaluationCustomMetadata.EVALUATION_JOB_ID.value} key"
+            )
+
+        job = DataScienceJob.from_id(job_id)
+
+        self._delete_job_and_model(job, model)
+
+        status = dict(
+            id=eval_id,
+            lifecycle_state="DELETING",
+            time_accepted=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f%z"),
+        )
+        return status
+
+    @staticmethod
+    @fire_and_forget
+    def _delete_job_and_model(job, model):
+        try:
+            job.dsc_job.delete(force_delete=True)
+            logger.info(f"Deleting Job: {job.job_id} for evaluation {model.id}")
+
+            model.delete()
+            logger.info(f"Deleting evaluation: {model.id}")
+        except oci.exceptions.ServiceError as ex:
+            logger.error(
+                f"Exception occurred while deleting job: {job.job_id} for evaluation {model.id}. "
+                f"Exception message: {ex}"
+            )
 
     def load_evaluation_config(self, eval_id):
         # TODO
