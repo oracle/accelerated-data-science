@@ -270,7 +270,7 @@ class AquaUIApp(AquaApp):
             json representation of `oci.core.models.Vcn`."""
 
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
-        logger.info(f"Loading job shape summary from compartment: {compartment_id}")
+        logger.info(f"Loading VCN list from compartment: {compartment_id}")
 
         # todo: add _vcn_client in init in AquaApp, then add a property vcn_client which does lazy init
         #   of _vcn_client. Do this for all clients in AquaApp
@@ -292,9 +292,10 @@ class AquaUIApp(AquaApp):
             json representation of `oci.core.models.Subnet`."""
 
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
-        logger.info(f"Loading job shape summary from compartment: {compartment_id}")
-
         vcn_id = kwargs.pop("vcn_id", None)
+        logger.info(
+            f"Loading subnet list from compartment: {compartment_id} for VCN: {vcn_id}"
+        )
 
         vcn_client = oc.OCIClientFactory(**self._auth).virtual_network
         res = vcn_client.list_subnets(compartment_id=compartment_id, vcn_id=vcn_id).data
