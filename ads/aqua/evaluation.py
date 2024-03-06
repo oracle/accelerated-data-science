@@ -26,6 +26,7 @@ from oci.data_science.models import (
 from ads.aqua import logger, utils
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import (
+    AquaFileExistsError,
     AquaFileNotFoundError,
     AquaMissingKeyError,
     AquaRuntimeError,
@@ -340,13 +341,20 @@ class AquaEvaluationApp(AquaApp):
         evaluation_dataset_path = create_aqua_evaluation_details.dataset_path
         if not ObjectStorageDetails.is_oci_path(evaluation_dataset_path):
             # format: oci://<bucket>@<namespace>/<prefix>/<dataset_file_name>
-            dst_uri = f"{create_aqua_evaluation_details.report_path.rstrip('/')}/{os.path.basename(evaluation_dataset_path)}"
-            upload_local_to_os(
-                src_uri=evaluation_dataset_path,
-                dst_uri=dst_uri,
-                auth=self._auth,
-                force_overwrite=False,
-            )
+            dataset_file = os.path.basename(evaluation_dataset_path)
+            dst_uri = f"{create_aqua_evaluation_details.report_path.rstrip('/')}/{dataset_file}"
+            try:
+                upload_local_to_os(
+                    src_uri=evaluation_dataset_path,
+                    dst_uri=dst_uri,
+                    auth=self._auth,
+                    force_overwrite=False,
+                )
+            except FileExistsError:
+                raise AquaFileExistsError(
+                    f"Dataset {dataset_file} already exists in {create_aqua_evaluation_details.report_path}. "
+                    "Please use a new dataset file name."
+                )
             logger.debug(
                 f"Uploaded local file {evaluation_dataset_path} to object storage {dst_uri}."
             )

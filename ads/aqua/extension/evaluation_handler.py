@@ -9,6 +9,7 @@ from requests import HTTPError
 
 from ads.aqua.decorator import handle_exceptions
 from ads.aqua.evaluation import AquaEvaluationApp, CreateAquaEvaluationDetails
+from ads.aqua.exception import AquaError
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.aqua.extension.utils import validate_function_parameters
 from ads.config import COMPARTMENT_OCID
@@ -59,7 +60,10 @@ class AquaEvaluationHandler(AquaAPIhandler):
                 )
             )
         except Exception as ex:
-            raise HTTPError(500, str(ex))
+            if isinstance(ex, AquaError):
+                raise HTTPError(ex.status, ex.reason)
+            else:
+                raise HTTPError(500, str(ex))
 
     @handle_exceptions
     def put(self, eval_id):
