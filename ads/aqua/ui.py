@@ -12,6 +12,7 @@ from cachetools import TTLCache
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaValueError
+from ads.common.auth import default_signer
 from ads.common import oci_client as oc
 from ads.config import COMPARTMENT_OCID, TENANCY_OCID
 from ads.aqua.utils import sanitize_response
@@ -224,7 +225,7 @@ class AquaUIApp(AquaApp):
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         logger.info(f"Loading buckets summary from compartment: {compartment_id}")
 
-        os_client = oc.OCIClientFactory(**self._auth).object_storage
+        os_client = oc.OCIClientFactory(**default_signer()).object_storage
         namespace_name = os_client.get_namespace(compartment_id=compartment_id).data
         logger.info(f"Object Storage namespace is `{namespace_name}`.")
 
@@ -274,7 +275,7 @@ class AquaUIApp(AquaApp):
 
         # todo: add _vcn_client in init in AquaApp, then add a property vcn_client which does lazy init
         #   of _vcn_client. Do this for all clients in AquaApp
-        vcn_client = oc.OCIClientFactory(**self._auth).virtual_network
+        vcn_client = oc.OCIClientFactory(**default_signer()).virtual_network
         res = vcn_client.list_vcns(compartment_id=compartment_id).data
         return sanitize_response(oci_client=vcn_client, response=res)
 
@@ -297,7 +298,7 @@ class AquaUIApp(AquaApp):
             f"Loading subnet list from compartment: {compartment_id} for VCN: {vcn_id}"
         )
 
-        vcn_client = oc.OCIClientFactory(**self._auth).virtual_network
+        vcn_client = oc.OCIClientFactory(**default_signer()).virtual_network
         res = vcn_client.list_subnets(compartment_id=compartment_id, vcn_id=vcn_id).data
 
         return sanitize_response(oci_client=vcn_client, response=res)
