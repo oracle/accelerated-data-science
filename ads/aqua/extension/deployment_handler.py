@@ -123,7 +123,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
         # jupyterlab will raise 400 error when argument is not provided by the HTTP request.
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
         # project_id is optional.
-        project_id = self.get_argument("project_id", default=PROJECT_OCID)
+        project_id = self.get_argument("project_id", default=None)
         try:
             # todo: update below after list is implemented
             return self.finish(
