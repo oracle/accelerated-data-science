@@ -353,7 +353,7 @@ class AquaEvaluationApp(AquaApp):
             except FileExistsError:
                 raise AquaFileExistsError(
                     f"Dataset {dataset_file} already exists in {create_aqua_evaluation_details.report_path}. "
-                    "Please use a new dataset file name."
+                    "Please use a new dataset file name or report path."
                 )
             logger.debug(
                 f"Uploaded local file {evaluation_dataset_path} to object storage {dst_uri}."

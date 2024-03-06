@@ -50,20 +50,14 @@ class AquaEvaluationHandler(AquaAPIhandler):
             data_class=CreateAquaEvaluationDetails, input_data=input_data
         )
 
-        try:
-            self.finish(
-                # TODO: decide what other kwargs will be needed for create aqua evaluation.
-                AquaEvaluationApp().create(
-                    create_aqua_evaluation_details=(
-                        CreateAquaEvaluationDetails(**input_data)
-                    )
+        self.finish(
+            # TODO: decide what other kwargs will be needed for create aqua evaluation.
+            AquaEvaluationApp().create(
+                create_aqua_evaluation_details=(
+                    CreateAquaEvaluationDetails(**input_data)
                 )
             )
-        except Exception as ex:
-            if isinstance(ex, AquaError):
-                raise HTTPError(ex.status, ex.reason)
-            else:
-                raise HTTPError(500, str(ex))
+        )
 
     @handle_exceptions
     def put(self, eval_id):
