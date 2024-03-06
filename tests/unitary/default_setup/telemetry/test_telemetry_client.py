@@ -28,7 +28,7 @@ class TestTelemetryClient:
         """
         data = {
             "cmd": "ads aqua model list",
-            "category": "telemetry/aqua/service/model",
+            "category": "aqua/service/model",
             "action": "list",
             "bucket": "test_bucket",
             "namespace": "test_namespace",
@@ -41,16 +41,13 @@ class TestTelemetryClient:
         bucket = data["bucket"]
         namespace = data["namespace"]
         value = data["value"]
-        path = f"{category}/{action}"
-        expected_endpoint = f"{self.endpoint}/n/{namespace}/b/{bucket}/o/{path}"
+        expected_endpoint = f"{self.endpoint}/n/{namespace}/b/{bucket}/o/telemetry/{category}/{action}"
 
         telemetry = TelemetryClient(bucket=bucket, namespace=namespace)
         telemetry.record_event(category=category, action=action)
-        telemetry.record_event(path=path)
-        telemetry.record_event(path=path, **value)
+        telemetry.record_event(category=category, action=action, **value)
 
         expected_headers = [
-            {'User-Agent': ''},
             {'User-Agent': ''},
             {'User-Agent': 'keyword=test_service_model_name_or_id'}
         ]
