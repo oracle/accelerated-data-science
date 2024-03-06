@@ -1216,7 +1216,7 @@ class AquaEvaluationApp(AquaApp):
         model_status = model.lifecycle_state
         job_run_status = (
             jobrun.lifecycle_state
-            if jobrun
+            if jobrun and not jobrun.lifecycle_state == JobRun.LIFECYCLE_STATE_DELETED
             else (
                 JobRun.LIFECYCLE_STATE_SUCCEEDED
                 if self._if_eval_artifact_exist(model)
