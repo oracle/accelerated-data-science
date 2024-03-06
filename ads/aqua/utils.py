@@ -3,6 +3,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA utils and constants."""
+import asyncio
 import base64
 import logging
 import os
@@ -10,11 +11,10 @@ import random
 import re
 import sys
 from enum import Enum
+from functools import wraps
 from pathlib import Path
 from string import Template
 from typing import List
-from functools import wraps
-import asyncio
 
 import fsspec
 from oci.data_science.models import JobRun, Model
@@ -41,15 +41,17 @@ CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
 )
 CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS", "ociodscdev")
 SOURCE_FILE = "run.sh"
-CONDA_URI = f"oci://ads-evaluation@{CONDA_BUCKET_NS}/conda_environments/gpu/PyTorch 2.1 for GPU on Python 3.9/1.0/pytorch21_p39_gpu_v1"
+CONDA_URI = f"oci://aqua-eval-test-bucket@{CONDA_BUCKET_NS}/conda_environments/gpu/PyTorch 2.1 for GPU on Python 3.9/1.0/pytorch21_p39_gpu_v1"
 CONDA_REGION = "us-ashburn-1"
 BERT_SCORE_PATH = "/home/datascience/conda/pytorch21_p39_gpu_v1/bertscore/bertscore.py"
 BERT_BASE_MULTILINGUAL_CASED = (
     "/home/datascience/conda/pytorch21_p39_gpu_v1/bert-base-multilingual-cased/"
 )
-
+HF_MODELS = "/home/datascience/conda/pytorch21_p39_gpu_v1/"
 # TODO: remove later
 SUBNET_ID = os.environ.get("SUBNET_ID", None)
+
+MAXIMUM_ALLOWED_DATASET_IN_BYTE = 52428800  # 1024 x 1024 x 50 = 50MB
 
 
 class LifecycleStatus(Enum):
@@ -113,7 +115,6 @@ LIFECYCLE_DETAILS_MAPPING = {
 }
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "Object Storage Path"
-MODEL_PARAMETERS = ["max_tokens", "temperature", "top_p", "top_k"]
 
 
 def get_logger():
@@ -369,7 +370,7 @@ def _construct_condition(
     return condition
 
 
-def upload_file_to_os(
+def upload_local_to_os(
     src_uri: str, dst_uri: str, auth: dict = None, force_overwrite: bool = False
 ):
     expanded_path = os.path.expanduser(src_uri)
@@ -381,6 +382,10 @@ def upload_file_to_os(
         )
     if os.path.getsize(expanded_path) == 0:
         raise AquaValueError("Empty input file. Specify a valid file path.")
+    if os.path.getsize(expanded_path) > MAXIMUM_ALLOWED_DATASET_IN_BYTE:
+        raise AquaValueError(
+            f"Local dataset file can't exceed {MAXIMUM_ALLOWED_DATASET_IN_BYTE} bytes."
+        )
 
     upload_to_os(
         src_uri=expanded_path,
