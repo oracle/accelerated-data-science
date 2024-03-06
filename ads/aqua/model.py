@@ -32,6 +32,7 @@ from ads.config import (
     TENANCY_OCID,
 )
 from ads.model.datascience_model import DataScienceModel
+from oci.data_science.models import Model
 
 
 @dataclass(repr=False)
@@ -314,9 +315,14 @@ class AquaModelApp(AquaApp):
             logger.info(
                 f"Fetching service models from compartment_id={ODSC_MODEL_COMPARTMENT_OCID}"
             )
+            lifecycle_state = kwargs.pop(
+                "lifecycle_state", Model.LIFECYCLE_STATE_ACTIVE
+            )
+
             models = self.list_resource(
                 self.ds_client.list_models,
                 compartment_id=ODSC_MODEL_COMPARTMENT_OCID,
+                lifecycle_state=lifecycle_state,
                 **kwargs,
             )
 
