@@ -3,6 +3,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA utils and constants."""
+import asyncio
 import base64
 import logging
 import os
@@ -10,11 +11,10 @@ import random
 import re
 import sys
 from enum import Enum
+from functools import wraps
 from pathlib import Path
 from string import Template
 from typing import List
-from functools import wraps
-import asyncio
 
 import fsspec
 from oci.data_science.models import JobRun, Model
@@ -50,6 +50,8 @@ BERT_BASE_MULTILINGUAL_CASED = (
 
 # TODO: remove later
 SUBNET_ID = os.environ.get("SUBNET_ID", None)
+
+MAXIMUM_ALLOWED_DATASET_IN_BYTE = 52428800  # 1024 x 1024 x 50 = 50MB
 
 
 class LifecycleStatus(Enum):
@@ -369,7 +371,7 @@ def _construct_condition(
     return condition
 
 
-def upload_file_to_os(
+def upload_local_to_os(
     src_uri: str, dst_uri: str, auth: dict = None, force_overwrite: bool = False
 ):
     expanded_path = os.path.expanduser(src_uri)
@@ -381,6 +383,10 @@ def upload_file_to_os(
         )
     if os.path.getsize(expanded_path) == 0:
         raise AquaValueError("Empty input file. Specify a valid file path.")
+    if os.path.getsize(expanded_path) > MAXIMUM_ALLOWED_DATASET_IN_BYTE:
+        raise AquaValueError(
+            f"Local dataset file can't exceed {MAXIMUM_ALLOWED_DATASET_IN_BYTE} bytes."
+        )
 
     upload_to_os(
         src_uri=expanded_path,
