@@ -73,3 +73,10 @@ class AquaFileNotFoundError(AquaError, FileNotFoundError):
 
     def __init__(self, reason, status=400, service_payload=None):
         super().__init__(reason, status, service_payload)
+
+
+class AquaFileExistsError(AquaError, FileExistsError):
+    """Exception raised when file already exists in resource."""
+
+    def __init__(self, reason, status=400, service_payload=None):
+        super().__init__(reason, status, service_payload)
