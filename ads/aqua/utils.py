@@ -395,6 +395,25 @@ def upload_local_to_os(
     )
 
 
+def sanitize_response(oci_client, response: list):
+    """Builds a JSON POST object for the response from OCI clients.
+
+    Parameters
+    ----------
+    oci_client
+        OCI client object
+
+    response
+        list of results from the OCI client
+
+    Returns
+    -------
+        The serialized form of data.
+
+    """
+    return oci_client.base_client.sanitize_for_serialization(response)
+
+
 def fire_and_forget(func):
     """Decorator to push execution of methods to the background."""
 

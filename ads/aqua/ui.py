@@ -14,6 +14,7 @@ from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaValueError
 from ads.common import oci_client as oc
 from ads.config import COMPARTMENT_OCID, TENANCY_OCID
+from ads.aqua.utils import sanitize_response
 
 
 class AquaUIApp(AquaApp):
@@ -55,9 +56,10 @@ class AquaUIApp(AquaApp):
 
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
 
-        return self.logging_client.list_log_groups(
+        res = self.logging_client.list_log_groups(
             compartment_id=compartment_id, **kwargs
-        ).data.__repr__()
+        ).data
+        return sanitize_response(oci_client=self.logging_client, response=res)
 
     def list_logs(self, **kwargs) -> str:
         """Lists the specified log group's log objects. This is a pass through the OCI list_log_groups
@@ -76,9 +78,8 @@ class AquaUIApp(AquaApp):
         """
         log_group_id = kwargs.pop("log_group_id")
 
-        return self.logging_client.list_logs(
-            log_group_id=log_group_id, **kwargs
-        ).data.__repr__()
+        res = self.logging_client.list_logs(log_group_id=log_group_id, **kwargs).data
+        return sanitize_response(oci_client=self.logging_client, response=res)
 
     def list_compartments(self) -> str:
         """Lists the compartments in a tenancy specified by TENANCY_OCID env variable. This is a pass through the OCI list_compartments
@@ -142,7 +143,9 @@ class AquaUIApp(AquaApp):
                     Compartment(id=TENANCY_OCID, name=" ** Root - Name N/A **"),
                 )
             # convert the string of the results flattened as a dict
-            res = compartments.__repr__()
+            res = sanitize_response(
+                oci_client=self.identity_client, response=compartments
+            )
 
             # cache compartment results
             self._compartments_cache.__setitem__(key=TENANCY_OCID, value=res)
@@ -200,9 +203,11 @@ class AquaUIApp(AquaApp):
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         logger.info(f"Loading experiments from compartment: {compartment_id}")
 
-        return self.ds_client.list_model_version_sets(
+        res = self.ds_client.list_model_version_sets(
             compartment_id=compartment_id, **kwargs
-        ).data.__repr__()
+        ).data
+
+        return sanitize_response(oci_client=self.ds_client, response=res)
 
     def list_buckets(self, **kwargs) -> list:
         """Lists all buckets for the specified compartment.
@@ -223,11 +228,13 @@ class AquaUIApp(AquaApp):
         namespace_name = os_client.get_namespace(compartment_id=compartment_id).data
         logger.info(f"Object Storage namespace is `{namespace_name}`.")
 
-        return os_client.list_buckets(
+        res = os_client.list_buckets(
             namespace_name=namespace_name,
             compartment_id=compartment_id,
             **kwargs,
-        ).data.__repr__()
+        ).data
+
+        return sanitize_response(oci_client=os_client, response=res)
 
     def list_job_shapes(self, **kwargs) -> list:
         """Lists all availiable job shapes for the specified compartment.
@@ -244,9 +251,10 @@ class AquaUIApp(AquaApp):
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         logger.info(f"Loading job shape summary from compartment: {compartment_id}")
 
-        return self.ds_client.list_job_shapes(
+        res = self.ds_client.list_job_shapes(
             compartment_id=compartment_id, **kwargs
-        ).data.__repr__()
+        ).data
+        return sanitize_response(oci_client=self.ds_client, response=res)
 
     def list_vcn(self, **kwargs) -> list:
         """Lists the virtual cloud networks (VCNs) in the specified compartment.
@@ -262,12 +270,13 @@ class AquaUIApp(AquaApp):
             json representation of `oci.core.models.Vcn`."""
 
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
-        logger.info(f"Loading job shape summary from compartment: {compartment_id}")
+        logger.info(f"Loading VCN list from compartment: {compartment_id}")
 
         # todo: add _vcn_client in init in AquaApp, then add a property vcn_client which does lazy init
         #   of _vcn_client. Do this for all clients in AquaApp
         vcn_client = oc.OCIClientFactory(**self._auth).virtual_network
-        return vcn_client.list_vcns(compartment_id=compartment_id).data.__repr__()
+        res = vcn_client.list_vcns(compartment_id=compartment_id).data
+        return sanitize_response(oci_client=vcn_client, response=res)
 
     def list_subnets(self, **kwargs) -> list:
         """Lists the subnets in the specified VCN and the specified compartment.
@@ -283,11 +292,12 @@ class AquaUIApp(AquaApp):
             json representation of `oci.core.models.Subnet`."""
 
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
-        logger.info(f"Loading job shape summary from compartment: {compartment_id}")
-
         vcn_id = kwargs.pop("vcn_id", None)
+        logger.info(
+            f"Loading subnet list from compartment: {compartment_id} for VCN: {vcn_id}"
+        )
 
         vcn_client = oc.OCIClientFactory(**self._auth).virtual_network
-        return vcn_client.list_subnets(
-            compartment_id=compartment_id, vcn_id=vcn_id
-        ).data.__repr__()
+        res = vcn_client.list_subnets(compartment_id=compartment_id, vcn_id=vcn_id).data
+
+        return sanitize_response(oci_client=vcn_client, response=res)
