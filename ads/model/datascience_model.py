@@ -1274,7 +1274,7 @@ class DataScienceModel(Builder):
 
         bucket_uri = self.artifact
         if isinstance(bucket_uri, str):
-            bucket_uri = (bucket_uri,)
+            bucket_uri = list(bucket_uri)
 
         for uri in bucket_uri:
             if not ObjectStorageDetails.from_path(uri).is_bucket_versioned():
