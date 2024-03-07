@@ -41,6 +41,7 @@ from ads.aqua.utils import (
     SOURCE_FILE,
     UNKNOWN,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
+    NB_SESSION_IDENTIFIER,
     fire_and_forget,
     is_valid_ocid,
     upload_local_to_os,
@@ -498,12 +499,13 @@ class AquaEvaluationApp(AquaApp):
                     AQUA_JOB_SUBNET_ID
                 )
             else:
-                # apply default subnet id for job by setting ME_STANDALONE
-                # so as to avoid using the notebook session's networking when running on it
-                # https://accelerated-data-science.readthedocs.io/en/latest/user_guide/jobs/infra_and_runtime.html#networking
-                evaluation_job.infrastructure.with_job_infrastructure_type(
-                    JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING
-                )
+                if NB_SESSION_IDENTIFIER in os.environ:
+                    # apply default subnet id for job by setting ME_STANDALONE
+                    # so as to avoid using the notebook session's networking when running on it
+                    # https://accelerated-data-science.readthedocs.io/en/latest/user_guide/jobs/infra_and_runtime.html#networking
+                    evaluation_job.infrastructure.with_job_infrastructure_type(
+                        JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING
+                    )
             evaluation_job.with_runtime(
                 self._build_evaluation_runtime(
                     evaluation_id=evaluation_model.id,
