@@ -103,24 +103,8 @@ class AquaFineTuningApp(AquaApp):
             create_fine_tuning_details.report_path
         ):
             raise AquaValueError(
-                "Evaluation report path must be an object storage path."
+                "Fine tuning report path must be an object storage path."
             )
-        
-        # upload dataset if it's local path
-        ft_dataset_path = create_fine_tuning_details.dataset_path
-        if not ObjectStorageDetails.is_oci_path(ft_dataset_path):
-            # format: oci://<bucket>@<namespace>/<dataset_file_name>
-            dst_uri = f"{create_fine_tuning_details.report_path}/{os.path.basename(ft_dataset_path)}"
-            upload_file_to_os(
-                src_uri=ft_dataset_path,
-                dst_uri=dst_uri,
-                auth=self._auth,
-                force_overwrite=False,
-            )
-            logger.debug(
-                f"Uploaded local file {ft_dataset_path} to object storage {dst_uri}."
-            )
-            ft_dataset_path = dst_uri
 
         target_compartment = (
             create_fine_tuning_details.compartment_id or COMPARTMENT_OCID
@@ -150,6 +134,22 @@ class AquaFineTuningApp(AquaApp):
             raise AquaValueError(
                 "Either experiment id or experiment name must be provided."
             )
+        
+        # upload dataset if it's local path
+        ft_dataset_path = create_fine_tuning_details.dataset_path
+        if not ObjectStorageDetails.is_oci_path(ft_dataset_path):
+            # format: oci://<bucket>@<namespace>/<dataset_file_name>
+            dst_uri = f"{create_fine_tuning_details.report_path}/{os.path.basename(ft_dataset_path)}"
+            upload_file_to_os(
+                src_uri=ft_dataset_path,
+                dst_uri=dst_uri,
+                auth=self._auth,
+                force_overwrite=False,
+            )
+            logger.debug(
+                f"Uploaded local file {ft_dataset_path} to object storage {dst_uri}."
+            )
+            ft_dataset_path = dst_uri
         
         (
             experiment_model_version_set_id,
@@ -314,7 +314,7 @@ class AquaFineTuningApp(AquaApp):
                 finetuning_source=source.id,
                 finetuning_experiment_id=experiment_model_version_set_id,
             ),
-            parameters=AquaFineTuningParams(**create_fine_tuning_details.ft_parameters),
+            parameters=ft_parameters,
         )
     
     def _build_fine_tuning_runtime(
@@ -325,7 +325,7 @@ class AquaFineTuningApp(AquaApp):
         replica: int,
         parameters: AquaFineTuningParams,
     ) -> Runtime:
-        """Builds evaluation runtime for Job."""
+        """Builds fine tuning runtime for Job."""
         runtime = (
             ContainerRuntime()
             .with_environment_variable(
