@@ -259,7 +259,7 @@ class ObjectStorageDetails:
             object_name=path.filepath,
             version_id=path.version,
         )
-        local_filepath = os.path.join(target_dir, path.filepath)
+        local_filepath = os.path.join(target_dir, path.bucket, path.filepath)
         os.makedirs(os.path.dirname(local_filepath), exist_ok=True)
 
         with open(local_filepath, "wb") as _file:

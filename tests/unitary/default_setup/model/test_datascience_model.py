@@ -767,3 +767,12 @@ class TestDataScienceModel:
         # todo: Loads the json file from model artifact, updates the
         #  model file description property, and returns the bucket uri and artifact size details.
         pass
+
+    def test_multiple_artifact_for_model_by_reference(self):
+        # todo: create a datascience model with multiple artifact, check if multiple paths are added to json file.
+        #   for regular model, check if InvalidArtifactType is raised
+        pass
+
+    def test_model_by_reference_created_from_yaml(self):
+        # todo: create a datascience model using yaml, pass single and also multiple artifact.
+        pass
