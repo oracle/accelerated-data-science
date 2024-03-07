@@ -169,7 +169,8 @@ forecast = [
   "oci-cli",
   "optuna==2.9.0",
   "oracle-ads",
-  "oracle-automlx[forecasting]==23.2.3",
+  "oracle-automlx[forecasting]==23.4.1",
+  "oracle-automlx[classic]==23.4.1",
   "pmdarima",
   "prophet",
   "shap",
@@ -181,7 +182,8 @@ forecast = [
 anomaly  = [
   "oracle_ads[opctl]",
   "autots",
-  "oracle-automlx[forecasting]==23.2.3",
+  "oracle-automlx[forecasting]==23.4.1",
+  "oracle-automlx[classic]==23.4.1",
   "oracledb",
   "datapane",
 ]
