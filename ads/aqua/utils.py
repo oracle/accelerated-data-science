@@ -53,6 +53,7 @@ BERT_BASE_MULTILINGUAL_CASED = (
     "/home/datascience/conda/pytorch21_p39_gpu_v1/bert-base-multilingual-cased/"
 )
 FINE_TUNING_RUNTIME_CONTAINER = "iad.ocir.io/ociodscdev/aqua_ft_cuda121:0.2.11.19"
+DEFAULT_FT_BLOCK_STORAGE_SIZE = 256
 DEFAULT_REPLICA = 1
 
 # TODO: remove later

@@ -15,6 +15,7 @@ from ads.aqua.job import AquaJobSummary
 from ads.aqua.data import Resource, AquaResourceIdentifier, Tags
 from ads.common.utils import get_console_link
 from ads.aqua.utils import (
+    DEFAULT_FT_BLOCK_STORAGE_SIZE,
     DEFAULT_REPLICA,
     FINE_TUNING_RUNTIME_CONTAINER,
     UNKNOWN,
@@ -68,16 +69,16 @@ class CreateFineTuningDetails(DataClassSerializable):
     dataset_path: str
     report_path: str
     validation_split: float
-    ft_parameters: dict # can pass through env
+    ft_parameters: dict # TODO: revisit to allow pass through env
     shape_name: str
-    replica: int # in runtime
+    replica: int
     ft_description: Optional[str] = None
     compartment_id: Optional[str] = None
     project_id: Optional[str] = None
     experiment_id: Optional[str] = None
     experiment_name: Optional[str] = None
     experiment_description: Optional[str] = None
-    block_storage_size: Optional[int] = 256
+    block_storage_size: Optional[int] = None
     subnet_id: Optional[str] = None
     log_id: Optional[str] = None
     log_group_id: Optional[str] = None
@@ -86,7 +87,11 @@ class CreateFineTuningDetails(DataClassSerializable):
 class AquaFineTuningApp(AquaApp):
     """Contains APIs for Aqua fine-tuning jobs."""
 
-    def create(self, create_fine_tuning_details: CreateFineTuningDetails, **kwargs) -> "AquaFineTuningSummary":
+    def create(
+        self,
+        create_fine_tuning_details: CreateFineTuningDetails,
+        **kwargs
+    ) -> "AquaFineTuningSummary":
         """Creates a aqua fine tuned model."""
 
         # todo : parse kwargs and convert to CreateAquaFineTuneDetails object
@@ -201,7 +206,7 @@ class AquaFineTuningApp(AquaApp):
             .with_project_id(target_project)
             .with_shape_name(create_fine_tuning_details.shape_name)
             .with_block_storage_size(
-                create_fine_tuning_details.block_storage_size
+                create_fine_tuning_details.block_storage_size or DEFAULT_FT_BLOCK_STORAGE_SIZE
             ) 
             .with_freeform_tag(**ft_job_freeform_tags)
         )
