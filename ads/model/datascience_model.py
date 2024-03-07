@@ -1388,7 +1388,7 @@ class DataScienceModel(Builder):
         model_file_desc_dict = self.model_file_description
         models = model_file_desc_dict["models"]
 
-        bucket_uri = ()
+        bucket_uri = list()
         artifact_size = 0
         for model in models:
             namespace = model["namespace"]
@@ -1397,6 +1397,6 @@ class DataScienceModel(Builder):
             objects = model["objects"]
             uri = f"oci://{bucket_name}@{namespace}/{prefix}"
             artifact_size += sum([obj["sizeInBytes"] for obj in objects])
-            bucket_uri += (uri,)
+            bucket_uri.append(uri)
 
         return bucket_uri[0] if len(bucket_uri) == 1 else bucket_uri, artifact_size
