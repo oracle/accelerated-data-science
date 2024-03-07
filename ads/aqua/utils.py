@@ -3,7 +3,6 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA utils and constants."""
-import asyncio
 import base64
 import logging
 import os
@@ -11,7 +10,6 @@ import random
 import re
 import sys
 from enum import Enum
-from functools import wraps
 from pathlib import Path
 from string import Template
 from typing import List
@@ -19,9 +17,15 @@ from typing import List
 import fsspec
 from oci.data_science.models import JobRun, Model
 
-from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
+from ads.aqua.data import AquaResourceIdentifier
+from ads.aqua.exception import (
+    AquaFileNotFoundError,
+    AquaMissingKeyError,
+    AquaRuntimeError,
+    AquaValueError,
+)
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import upload_to_os
+from ads.common.utils import get_console_link, upload_to_os
 from ads.config import TENANCY_OCID
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -414,11 +418,24 @@ def sanitize_response(oci_client, response: list):
     return oci_client.base_client.sanitize_for_serialization(response)
 
 
-def fire_and_forget(func):
-    """Decorator to push execution of methods to the background."""
+def _build_resource_identifier(
+    id: str = None, name: str = None, region: str = None
+) -> AquaResourceIdentifier:
+    """Constructs AquaResourceIdentifier based on the given ocid and display name."""
+    try:
+        resource_type = CONSOLE_LINK_RESOURCE_TYPE_MAPPING.get(get_resource_type(id))
 
-    @wraps(func)
-    def wrapped(*args, **kwargs):
-        return asyncio.get_event_loop().run_in_executor(None, func, *args, *kwargs)
-
-    return wrapped
+        return AquaResourceIdentifier(
+            id=id,
+            name=name,
+            url=get_console_link(
+                resource=resource_type,
+                ocid=id,
+                region=region,
+            ),
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to construct AquaResourceIdentifier from given id=`{id}`, and name=`{name}`, {str(e)}"
+        )
+        return AquaResourceIdentifier()
