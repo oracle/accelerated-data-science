@@ -40,6 +40,7 @@ from ads.aqua.utils import (
     HF_MODELS,
     SOURCE_FILE,
     UNKNOWN,
+    JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     fire_and_forget,
     is_valid_ocid,
     upload_local_to_os,
@@ -48,7 +49,7 @@ from ads.common.auth import AuthType
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link, get_files, upload_to_os
-from ads.config import COMPARTMENT_OCID, PROJECT_OCID
+from ads.config import AQUA_JOB_SUBNET_ID, COMPARTMENT_OCID, PROJECT_OCID
 from ads.jobs.ads_job import DataScienceJobRun, Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
@@ -491,6 +492,17 @@ class AquaEvaluationApp(AquaApp):
                 evaluation_job.infrastructure.with_shape_config_details(
                     memory_in_gbs=create_aqua_evaluation_details.memory_in_gbs,
                     ocpus=create_aqua_evaluation_details.ocpus,
+                )
+            if AQUA_JOB_SUBNET_ID:
+                evaluation_job.infrastructure.with_subnet_id(
+                    AQUA_JOB_SUBNET_ID
+                )
+            else:
+                # apply default subnet id for job by setting ME_STANDALONE
+                # so as to avoid using the notebook session's networking when running on it
+                # 
+                evaluation_job.infrastructure.with_job_infrastructure_type(
+                    JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING
                 )
             evaluation_job.with_runtime(
                 self._build_evaluation_runtime(
