@@ -39,7 +39,6 @@ from ads.aqua.utils import (
     CONDA_URI,
     HF_MODELS,
     SOURCE_FILE,
-    SUBNET_ID,
     UNKNOWN,
     fire_and_forget,
     is_valid_ocid,
@@ -484,7 +483,6 @@ class AquaEvaluationApp(AquaApp):
                     create_aqua_evaluation_details.block_storage_size
                 )
                 .with_freeform_tag(**evaluation_job_freeform_tags)
-                .with_subnet_id(SUBNET_ID)
             )
             if (
                 create_aqua_evaluation_details.memory_in_gbs
