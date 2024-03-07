@@ -500,7 +500,7 @@ class AquaEvaluationApp(AquaApp):
             else:
                 # apply default subnet id for job by setting ME_STANDALONE
                 # so as to avoid using the notebook session's networking when running on it
-                # 
+                # https://accelerated-data-science.readthedocs.io/en/latest/user_guide/jobs/infra_and_runtime.html#networking
                 evaluation_job.infrastructure.with_job_infrastructure_type(
                     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING
                 )
