@@ -178,7 +178,7 @@ class AquaEvaluationSummary(DataClassSerializable):
 
 
 @dataclass(repr=False)
-class AquaEvaluationDetail(DataClassSerializable):
+class AquaEvaluationDetail(AquaEvaluationSummary, DataClassSerializable):
     """Represents a details of Aqua evalution."""
 
     log_group: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
@@ -681,7 +681,7 @@ class AquaEvaluationApp(AquaApp):
             params=model_parameters,
         )
 
-    def get(self, eval_id) -> AquaEvaluationSummary:
+    def get(self, eval_id) -> AquaEvaluationDetail:
         """Gets the information of an Aqua evalution.
 
         Parameters
@@ -691,8 +691,8 @@ class AquaEvaluationApp(AquaApp):
 
         Returns
         -------
-        AquaEvaluationSummary:
-            The instance of AquaEvaluationSummary.
+        AquaEvaluationDetail:
+            The instance of AquaEvaluationDetail.
         """
         logger.info(f"Fetching evaluation: {eval_id} details ...")
 
@@ -716,20 +716,31 @@ class AquaEvaluationApp(AquaApp):
             log_id = ""
 
         try:
-            loggroup_id = job_run_details.log_details.loggroup_id
+            loggroup_id = job_run_details.log_details.log_group_id
         except Exception as e:
-            logger.debug(f"Failed to get associated log. {str(e)}")
+            logger.debug(f"Failed to get associated loggroup. {str(e)}")
             loggroup_id = ""
 
-        loggroup_url = f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}?region={self.region}"
-        log_url = f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}/logs/{log_id}?region={self.region}"
+        loggroup_url = (
+            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}?region={self.region}"
+            if loggroup_id
+            else ""
+        )
+        log_url = (
+            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}/logs/{log_id}?region={self.region}"
+            if (loggroup_id and log_id)
+            else ""
+        )
+        log_name = None
+        loggroup_name = None
 
         if log_id:
             log = utils.query_resource(log_id, return_all=False)
-            log_name = log.display_name
+            log_name = log.display_name if log else ""
+
         if loggroup_id:
             loggroup = utils.query_resource(log_id, return_all=False)
-            loggroup_name = loggroup.display_name
+            loggroup_name = loggroup.display_name if loggroup else ""
 
         try:
             introspection = json.loads(
@@ -857,13 +868,21 @@ class AquaEvaluationApp(AquaApp):
             log_id = ""
 
         try:
-            loggroup_id = job_run_details.log_details.loggroup_id
+            loggroup_id = job_run_details.log_details.log_group_id
         except Exception as e:
             logger.debug(f"Failed to get associated log. {str(e)}")
             loggroup_id = ""
 
-        loggroup_url = f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}?region={self.region}"
-        log_url = f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}/logs/{log_id}?region={self.region}"
+        loggroup_url = (
+            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}?region={self.region}"
+            if loggroup_id
+            else ""
+        )
+        log_url = (
+            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}/logs/{log_id}?region={self.region}"
+            if (loggroup_id and log_id)
+            else ""
+        )
 
         return dict(
             id=eval_id,
