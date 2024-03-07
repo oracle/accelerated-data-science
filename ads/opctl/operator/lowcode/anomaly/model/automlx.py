@@ -17,20 +17,22 @@ class AutoMLXOperatorModel(AnomalyOperatorBaseModel):
     """Class representing AutoMLX operator model."""
 
     @runtime_dependency(
-        module="automl",
+        module="automlx",
         err_msg=(
-            "Please run `pip3 install oracle-automlx==23.4.1` to "
-            "install the required dependencies for automlx."
+            "Please run `pip3 install oracle-automlx==23.4.1` and "
+            "`pip3 install oracle-automlx[classic]==23.4.1` "
+            "to install the required dependencies for automlx."
         ),
     )
     def _build_model(self) -> pd.DataFrame:
+        from automlx import init
+        init(engine="ray", engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}})
         date_column = self.spec.datetime_column.name
         anomaly_output = AnomalyOutput(date_column=date_column)
 
-        time_budget = self.spec.model_kwargs.pop("time_budget", None)
         # Iterate over the full_data_dict items
         for target, df in self.datasets.full_data_dict.items():
-            est = automl.Pipeline(task="anomaly_detection", **self.spec.model_kwargs)
+            est = automlx.Pipeline(task="anomaly_detection", **self.spec.model_kwargs)
             est.fit(
                 X=df,
                 X_valid=self.X_valid_dict[target]
@@ -39,7 +41,6 @@ class AutoMLXOperatorModel(AnomalyOperatorBaseModel):
                 y_valid=self.y_valid_dict[target]
                 if self.y_valid_dict is not None
                 else None,
-                time_budget=time_budget,
                 contamination=self.spec.contamination
                 if self.y_valid_dict is not None
                 else None,

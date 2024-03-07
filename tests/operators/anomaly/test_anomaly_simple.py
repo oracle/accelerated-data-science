@@ -212,7 +212,7 @@ def test_load_datasets(model, data_dict):
 
         # run(yaml_i, backend="operator.local", debug=False)
 
-        with open(f"{tmpdirname}/anomaly.yaml", "w") as f:
+        with open(anomaly_yaml_filename, "w") as f:
             f.write(yaml.dump(yaml_i))
         sleep(0.5)
         subprocess.run(
