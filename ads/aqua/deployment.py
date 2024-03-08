@@ -276,7 +276,7 @@ class AquaDeploymentApp(AquaApp):
         model_path_prefix = os_path.filepath.rstrip("/")
 
         # todo: revisit this after new image is built
-        env_var.update({"MODEL": f"{model_path_prefix}"})
+        env_var.update({"MODEL": f"{AQUA_MODEL_DEPLOYMENT_FOLDER}{model_path_prefix}"})
         env_var.update(
             {"PARAMS": f"--served-model-name {AQUA_MODEL_DEPLOYMENT_FOLDER}"}
         )
@@ -284,9 +284,9 @@ class AquaDeploymentApp(AquaApp):
 
         # todo: added for testing, remove when TENSOR_PARALLELISM will be set inside the container
         try:
-            cards = int(instance_shape.split(".")[-1])
-            if cards > 1:
-                env_var.update({"TENSOR_PARALLELISM": str(cards)})
+            cards = instance_shape.split(".")[-1]
+            if int(cards) > 1:
+                env_var.update({"TENSOR_PARALLELISM": cards})
         except:
             pass
 
@@ -337,6 +337,7 @@ class AquaDeploymentApp(AquaApp):
             .with_overwrite_existing_artifact(True)
             .with_remove_existing_artifact(True)
         )
+        raise ValueError()
         # configure model deployment and deploy model on container runtime
         # todo : any other deployment params needed?
         deployment = (
