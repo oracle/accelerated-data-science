@@ -53,6 +53,7 @@ HF_MODELS = "/home/datascience/conda/pytorch21_p39_gpu_v1/"
 SUBNET_ID = os.environ.get("SUBNET_ID", None)
 
 MAXIMUM_ALLOWED_DATASET_IN_BYTE = 52428800  # 1024 x 1024 x 50 = 50MB
+LIFECYCLE_DETAILS_MISSING_JOBRUN = "The asscociated JobRun resource has been deleted."
 
 
 class LifecycleStatus(Enum):
