@@ -1,0 +1,62 @@
+{
+  "CodeLlama-13b-Instruct-hf": {
+    "shape": [
+      "VM.GPU.A10.1",
+      "VM.GPU.A10.2"
+    ]
+  },
+  "CodeLlama-34b-Instruct-hf": {
+    "shape": [
+      "VM.GPU.A10.1",
+      "VM.GPU.A10.2"
+    ]
+  },
+  "CodeLlama-7b-Instruct-hf": {
+    "shape": [
+      "VM.GPU.A10.1",
+      "VM.GPU.A10.2"
+    ]
+  },
+  "Llama-2-13b-hf": {
+    "shape": [
+      "VM.GPU.A10.1",
+      "VM.GPU.A10.2"
+    ]
+  },
+  "Mistral-7B-Instruct-v0.1": {
+    "shape": [
+      "VM.GPU.A10.1",
+      "VM.GPU.A10.2"
+    ]
+  },
+  "Mistral-7B-v0.1": {
+    "shape": [
+      "VM.GPU.A10.1",
+      "VM.GPU.A10.2"
+    ]
+  },
+  "Mixtral-8x7B-Instruct-v0.1": {
+    "shape": [
+      "VM.GPU.A10.1",
+      "VM.GPU.A10.2"
+    ]
+  },
+  "Mixtral-8x7B-v0.1": {
+    "shape": [
+      "VM.GPU.A10.1",
+      "VM.GPU.A10.2"
+    ]
+  },
+  "falcon-7b": {
+    "shape": [
+      "VM.GPU.A10.1",
+      "VM.GPU.A10.2"
+    ]
+  },
+  "phi-2": {
+    "shape": [
+      "VM.GPU.A10.1",
+      "VM.GPU.A10.2"
+    ]
+  }
+}

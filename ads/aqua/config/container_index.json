@@ -1,0 +1,24 @@
+{
+  "odsc-llm-evaluate": [
+    {
+      "name": "dsmc://odsc-llm-evaluate",
+      "version": "1.0"
+    }
+  ],
+  "odsc-llm-fine-tuning": [
+    {
+      "name": "dsmc://odsc-llm-fine-tuning",
+      "version": "1.0"
+    }
+  ],
+  "odsc-vllm-serving": [
+    {
+      "name": "dsmc://odsc-vllm-serving",
+      "version": "0.3.0.1"
+    },
+    {
+      "name": "dsmc://odsc-vllm-serving",
+      "version": "0.3.0.2"
+    }
+  ]
+}

@@ -18,6 +18,7 @@ from ads.aqua.utils import (
     UNKNOWN,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     load_config,
+    get_container_image,
 )
 from ads.common.utils import get_console_link
 from ads.common.auth import default_signer
@@ -31,8 +32,10 @@ from ads.common.serializer import DataClassSerializable
 from ads.config import (
     AQUA_MODEL_DEPLOYMENT_CONFIG,
     COMPARTMENT_OCID,
-    AQUA_MODEL_DEPLOYMENT_IMAGE,
+    AQUA_CONFIG_FOLDER,
     AQUA_MODEL_DEPLOYMENT_FOLDER,
+    AQUA_CONTAINER_INDEX_CONFIG,
+    AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
 )
 from ads.common.object_storage_details import ObjectStorageDetails
 
@@ -218,11 +221,11 @@ class AquaDeploymentApp(AquaApp):
 
         """
         # todo: revisit error handling and pull deployment image info from config
-        if not AQUA_MODEL_DEPLOYMENT_IMAGE:
-            raise AquaValueError(
-                f"AQUA_MODEL_DEPLOYMENT_IMAGE must be available in environment variables to "
-                f"continue with Aqua model deployment."
-            )
+        # if not AQUA_MODEL_DEPLOYMENT_IMAGE:
+        #     raise AquaValueError(
+        #         f"AQUA_MODEL_DEPLOYMENT_IMAGE must be available in environment variables to "
+        #         f"continue with Aqua model deployment."
+        #     )
 
         # todo: for fine tuned models, skip model creation.
         # Create a model catalog entry in the user compartment
@@ -248,28 +251,52 @@ class AquaDeploymentApp(AquaApp):
                 f"{MODEL_BY_REFERENCE_OSS_PATH_KEY} key is not available in the custom metadata field."
             )
 
+        # todo: revisit this for fine tuned models
+        deployment_config = load_config(
+            AQUA_CONFIG_FOLDER,
+            config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG,
+        )
+        model_name = aqua_model.display_name
+        if model_name not in deployment_config:
+            raise AquaValueError(
+                f"{AQUA_MODEL_DEPLOYMENT_CONFIG} does not have config details for model: {model_name}"
+            )
+
+        shape_list = deployment_config[model_name]["shape"]
+        if instance_shape not in shape_list:
+            raise AquaValueError(
+                f"{instance_shape} is not supported by the model {aqua_model.id}. Available shapes are: {shape_list}"
+            )
+
         # set up env vars
         if not env_var:
             env_var = dict()
 
         os_path = ObjectStorageDetails.from_path(artifact_path)
         model_path_prefix = os_path.filepath.rstrip("/")
+
+        # todo: revisit this after new image is built
         env_var.update({"MODEL": f"{AQUA_MODEL_DEPLOYMENT_FOLDER}{model_path_prefix}"})
-
-        deployment_config = load_config(
-            artifact_path,
-            config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG,
-            auth=self._auth,
+        env_var.update(
+            {"PARAMS": f"--served-model-name {AQUA_MODEL_DEPLOYMENT_FOLDER}"}
         )
-        shape_dict = deployment_config["shape"]
-        if instance_shape not in shape_dict:
-            raise AquaValueError(
-                f"{instance_shape} is not supported by the model {aqua_model.id}. Available shapes are: {list(shape_dict.keys())}"
-            )
+        env_var.update({"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"})
+        cards = int(instance_shape.split(".")[-1])
+        if cards > 1:
+            env_var.update({"TENSOR_PARALLELISM": str(cards)})
 
-        if "env_var" in shape_dict[instance_shape]:
-            env_var.update(shape_dict[instance_shape]["env_var"])
         logging.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
+
+        # fetch image name from config
+        container_image = get_container_image(
+            custom_metadata_list=aqua_model.custom_metadata_list,
+            config_file_name=AQUA_CONTAINER_INDEX_CONFIG,
+            container_type=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
+        )
+
+        logging.info(
+            f"Aqua Image used for deploying {aqua_model.id} :{container_image}"
+        )
 
         # Start model deployment
         # configure model deployment infrastructure
@@ -295,7 +322,7 @@ class AquaDeploymentApp(AquaApp):
         # todo : any other runtime params needed?
         container_runtime = (
             ModelDeploymentContainerRuntime()
-            .with_image(AQUA_MODEL_DEPLOYMENT_IMAGE)
+            .with_image(container_image)
             .with_server_port(server_port)
             .with_health_check_port(health_check_port)
             .with_env(env_var)

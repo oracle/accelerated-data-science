@@ -57,7 +57,14 @@ AQUA_MODEL_DEPLOYMENT_CONFIG = os.environ.get(
 AQUA_MODEL_FINETUNING_CONFIG = os.environ.get(
     "AQUA_MODEL_FINETUNING_CONFIG", "finetuning_config.json"
 )
+AQUA_CONTAINER_INDEX_CONFIG = os.environ.get(
+    "AQUA_CONTAINER_INDEX_CONFIG", "container_index.json"
+)
+AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME = "deployment-container"
+AQUA_FINETUNING_CONTAINER_METADATA_NAME = "finetune-container"
+AQUA_EVALUATION_CONTAINER_METADATA_NAME = "evaluation-container"
 AQUA_MODEL_DEPLOYMENT_FOLDER = "/opt/ds/model/deployed_model/"
+AQUA_CONFIG_FOLDER = "ads/aqua/config/"
 
 
 def export(
