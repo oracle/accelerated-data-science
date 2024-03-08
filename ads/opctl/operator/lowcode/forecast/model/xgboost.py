@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import pandas as pd
@@ -53,7 +53,13 @@ class XGBoostOperatorModel(ForecastOperatorBaseModel):
         df["__Month"] = dt_col.dt.month
         df["__Day"] = dt_col.dt.day
         df["__DOW"] = dt_col.dt.dayofweek
+        df["__Week"] = dt_col.dt.week
         return df.drop(dt_col_name, axis=1)
+
+    def add_lag(self, df, nlags=5):
+        for i in range(nlags):
+            df[f"__lag{i}"] = df[self.original_target_column].shift(i)
+        return df
 
     def _train_model(self, data_long, model_kwargs):
         """Trains the ARIMA model for a given series of the dataset.
@@ -72,34 +78,60 @@ class XGBoostOperatorModel(ForecastOperatorBaseModel):
         # model.fit(X, y)
         # data_wide = self.datasets.format_wide()
 
+        from sklearn.metrics import mean_squared_error
+        from sklearn.model_selection import train_test_split
+        import optuna
+
         for s_id in self.datasets.list_series_ids():
-            data = self.datasets.get_data_at_series(s_id, include_horizon=False)
+            data = self.datasets.get_data_at_series(s_id, include_horizon=True)
+            self.forecast_output.init_series_output(series_id=s_id, data_at_series=data)
             data_clean = self.deconstruct_timestamp(
                 data, self.spec.datetime_column.name
             )
             data_clean = self.preprocess(data_clean, series_id=s_id)
-            model = XGBRegressor(objective="reg:squarederror", n_estimators=1000)
-            X, y = (
-                data_clean.drop(self.original_target_column, axis=1),
-                data_clean[self.original_target_column],
+            data_clean = self.add_lag(data_clean)
+
+            horizon = self.get_horizon(data_clean)
+            historical = self.drop_horizon(data_clean)
+
+            X = historical.drop(self.original_target_column, axis=1)
+            y = historical[self.original_target_column]
+
+            X_train, X_val, y_train, y_val = train_test_split(
+                X, y, test_size=0.2, random_state=42
+            )
+
+            def objective(trial):
+                params = {
+                    "objective": "reg:squarederror",
+                    "n_estimators": 1000,
+                    "verbosity": 0,
+                    "learning_rate": trial.suggest_float(
+                        "learning_rate", 1e-3, 0.1, log=True
+                    ),
+                    "max_depth": trial.suggest_int("max_depth", 1, 10),
+                    "subsample": trial.suggest_float("subsample", 0.05, 1.0),
+                    "colsample_bytree": trial.suggest_float(
+                        "colsample_bytree", 0.05, 1.0
+                    ),
+                    "min_child_weight": trial.suggest_int("min_child_weight", 1, 20),
+                }
+
+                model = XGBRegressor(**params)
+                model.fit(X_train, y_train, verbose=False)
+                predictions = model.predict(X_val)
+                rmse = mean_squared_error(y_val, predictions, squared=False)
+                return rmse
+
+            study = optuna.create_study(direction="minimize")
+            study.optimize(objective, n_trials=30)
+
+            model = XGBRegressor(
+                objective="reg:squarederror", n_estimators=1000, **study.best_params
             )
             model.fit(X, y)
 
-            # try:
-            horizon = self.datasets.get_horizon_at_series(s_id=s_id)
-            #
-            horizon = self.deconstruct_timestamp(
-                horizon, self.spec.datetime_column.name
-            )
-            horizon = self.le[s_id].transform(horizon)
             X_pred = horizon.drop(self.original_target_column, axis=1)
-            print(set(X_pred.columns) - set(X.columns))
-            print(set(X.columns) - set(X_pred.columns))
-
-            self.forecast_output.init_series_output(
-                series_id=s_id,
-                data_at_series=self.datasets.get_data_at_series(s_id=s_id),
-            )
             yhat = model.predict(X_pred)
 
             fitted_values = model.predict(X)
