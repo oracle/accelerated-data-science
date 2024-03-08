@@ -48,10 +48,9 @@ BERT_BASE_MULTILINGUAL_CASED = (
     "/home/datascience/conda/pytorch21_p39_gpu_v1/bert-base-multilingual-cased/"
 )
 HF_MODELS = "/home/datascience/conda/pytorch21_p39_gpu_v1/"
-# TODO: remove later
-SUBNET_ID = os.environ.get("SUBNET_ID", None)
-
 MAXIMUM_ALLOWED_DATASET_IN_BYTE = 52428800  # 1024 x 1024 x 50 = 50MB
+JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING = "ME_STANDALONE"
+NB_SESSION_IDENTIFIER = "NB_SESSION_OCID"
 LIFECYCLE_DETAILS_MISSING_JOBRUN = "The asscociated JobRun resource has been deleted."
 
 

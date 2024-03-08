@@ -52,6 +52,7 @@ TMPDIR = os.environ.get("TMPDIR")
 ODSC_MODEL_COMPARTMENT_OCID = os.environ.get("ODSC_MODEL_COMPARTMENT_OCID")
 AQUA_MODEL_DEPLOYMENT_IMAGE = os.environ.get("AQUA_MODEL_DEPLOYMENT_IMAGE")
 AQUA_MODEL_DEPLOYMENT_CONFIG = os.environ.get("AQUA_DEPLOYMENT_CONFIG", "deployment_config.json")
+AQUA_JOB_SUBNET_ID = os.environ.get("AQUA_JOB_SUBNET_ID", None)
 
 
 def export(
