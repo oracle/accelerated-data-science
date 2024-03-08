@@ -50,10 +50,7 @@ class AquaFineTuneHandler(AquaAPIhandler):
         # validate_function_parameters(
         #     data_class=CreateAquaFineTuningDetails, input_data=input_data
         # )
-        try:
-            self.finish(AquaFineTuningApp().create(**input_data))
-        except Exception as ex:
-            raise HTTPError(500, str(ex))
+        self.finish(AquaFineTuningApp().create(**input_data))
 
     @handle_exceptions
     def get_finetuning_config(self, model_id):
