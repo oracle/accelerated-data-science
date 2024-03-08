@@ -26,7 +26,10 @@ class AutoMLXOperatorModel(AnomalyOperatorBaseModel):
     )
     def _build_model(self) -> pd.DataFrame:
         from automlx import init
-        init(engine="ray", engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}})
+        try:
+            init(engine="ray", engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}})
+        except Exception as e:
+            logger.info("Ray already initialized")
         date_column = self.spec.datetime_column.name
         anomaly_output = AnomalyOutput(date_column=date_column)
 
