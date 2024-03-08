@@ -12,6 +12,7 @@ from typing import List, Union
 
 import oci
 from cachetools import TTLCache
+from oci.data_science.models import Model
 
 from ads.aqua import logger, utils
 from ads.aqua.base import AquaApp
@@ -455,9 +456,14 @@ class AquaModelApp(AquaApp):
             logger.info(
                 f"Fetching service models from compartment_id={ODSC_MODEL_COMPARTMENT_OCID}"
             )
+            lifecycle_state = kwargs.pop(
+                "lifecycle_state", Model.LIFECYCLE_STATE_ACTIVE
+            )
+
             models = self.list_resource(
                 self.ds_client.list_models,
                 compartment_id=ODSC_MODEL_COMPARTMENT_OCID,
+                lifecycle_state=lifecycle_state,
                 **kwargs,
             )
 
