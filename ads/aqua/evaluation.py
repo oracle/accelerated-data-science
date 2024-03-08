@@ -45,7 +45,7 @@ from ads.aqua.utils import (
     is_valid_ocid,
     upload_local_to_os,
 )
-from ads.common.auth import AuthType
+from ads.common.auth import AuthType, default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link, get_files, upload_to_os
@@ -356,7 +356,7 @@ class AquaEvaluationApp(AquaApp):
                 upload_local_to_os(
                     src_uri=evaluation_dataset_path,
                     dst_uri=dst_uri,
-                    auth=self._auth,
+                    auth=default_signer(),
                     force_overwrite=False,
                 )
             except FileExistsError:
