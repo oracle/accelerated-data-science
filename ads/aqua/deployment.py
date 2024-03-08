@@ -146,6 +146,8 @@ class AquaDeploymentApp(AquaApp):
         Retrieves details of an Aqua model deployment by its unique identifier.
     list(**kwargs) -> List[AquaModelSummary]:
         Lists all Aqua deployments within a specified compartment and/or project.
+    get_deployment_config(self, model_id: str) -> Dict:
+        Gets the deployment config of given Aqua model.
 
     Note:
         Use `ads aqua deployment <method_name> --help` to get more details on the parameters available.
