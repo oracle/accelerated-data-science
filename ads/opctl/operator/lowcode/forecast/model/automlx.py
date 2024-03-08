@@ -45,7 +45,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             model_kwargs_cleaned.get("score_metric", AUTOMLX_DEFAULT_SCORE_METRIC),
         )
         model_kwargs_cleaned.pop("task", None)
-        time_budget = model_kwargs_cleaned.pop("time_budget", None)
+        time_budget = model_kwargs_cleaned.pop("time_budget", -1)
         model_kwargs_cleaned[
             "preprocessing"
         ] = self.spec.preprocessing or model_kwargs_cleaned.get("preprocessing", True)
@@ -116,7 +116,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     )
                     model.fit(
                         X=data_i.drop(target, axis=1),
-                        y=data_i[[target]]
+                        y=data_i[[target]],
+                        time_budget=time_budget,
                     )
                 logger.debug(f"Selected model: {model.selected_model_}")
                 logger.debug(f"Selected model params: {model.selected_model_params_}")
