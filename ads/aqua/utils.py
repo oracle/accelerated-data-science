@@ -52,12 +52,13 @@ BERT_SCORE_PATH = "/home/datascience/conda/pytorch21_p39_gpu_v1/bertscore/bertsc
 BERT_BASE_MULTILINGUAL_CASED = (
     "/home/datascience/conda/pytorch21_p39_gpu_v1/bert-base-multilingual-cased/"
 )
-FINE_TUNING_RUNTIME_CONTAINER = "iad.ocir.io/ociodscdev/aqua_ft_cuda121:0.2.11.19"
+FINE_TUNING_RUNTIME_CONTAINER = "iad.ocir.io/ociodscdev/aqua_ft_cuda121:0.2.13.19"
 DEFAULT_FT_BLOCK_STORAGE_SIZE = 256
 DEFAULT_REPLICA = 1
 
 # TODO: remove later
 SUBNET_ID = os.environ.get("SUBNET_ID", None)
+JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING = "ME_STANDALONE"
 
 
 class LifecycleStatus(Enum):
@@ -395,82 +396,4 @@ def upload_file_to_os(
         dst_uri=dst_uri,
         auth=auth,
         force_overwrite=force_overwrite,
-    )
-
-
-def create_model_version_set(
-    model_version_set_id: str=None,
-    model_version_set_name: str=None,
-    description: str=None,
-    compartment_id: str=None,
-    project_id: str=None,
-    **kwargs
-) -> tuple:
-    if not model_version_set_id:
-        try:
-            model_version_set = ModelVersionSet.from_name(
-                name=model_version_set_name,
-                compartment_id=compartment_id,
-            )
-        except:
-            logger.debug(
-                f"Model version set {model_version_set_name} doesn't exist. "
-                "Creating new model version set."
-            )
-            model_version_set = (
-                ModelVersionSet()
-                .with_compartment_id(compartment_id)
-                .with_project_id(project_id)
-                .with_name(model_version_set_name)
-                .with_description(description)
-                # TODO: decide what parameters will be needed
-                .create(**kwargs)
-            )
-            logger.debug(
-                f"Successfully created model version set {model_version_set_name} with id {model_version_set.id}."
-            )
-        return (model_version_set.id, model_version_set_name)
-    else:
-        model_version_set = ModelVersionSet.from_id(model_version_set_id)
-        return (model_version_set_id, model_version_set.name)
-
-def create_model_catalog(
-    display_name: str,
-    description: str,
-    model_version_set_id: str,
-    model_custom_metadata: Union[ModelCustomMetadata, Dict],
-    model_taxonomy_metadata: Union[ModelTaxonomyMetadata, Dict],
-    compartment_id: str,
-    project_id: str,
-    **kwargs
-) -> DataScienceModel:
-    model = (
-        DataScienceModel()
-        .with_compartment_id(compartment_id)
-        .with_project_id(project_id)
-        .with_display_name(display_name)
-        .with_description(description)
-        .with_model_version_set_id(model_version_set_id)
-        .with_custom_metadata_list(model_custom_metadata)
-        .with_defined_metadata_list(model_taxonomy_metadata)
-        .with_provenance_metadata(
-            ModelProvenanceMetadata(training_id=UNKNOWN)
-        )
-        # TODO: decide what parameters will be needed
-        .create(
-            **kwargs,
-        )
-    )
-    return model
-
-def get_source(source_id: str) -> Union[ModelDeployment, DataScienceModel]:
-    if is_valid_ocid(source_id):
-        if "datasciencemodeldeployment" in source_id:
-            return ModelDeployment.from_id(source_id)
-        elif "datasciencemodel" in source_id:
-            return DataScienceModel.from_id(source_id)
-    
-    raise AquaValueError(
-        f"Invalid source {source_id}. "
-        "Specify either a model or model deployment id."
     )

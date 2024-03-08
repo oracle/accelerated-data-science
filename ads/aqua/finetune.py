@@ -19,13 +19,11 @@ from ads.aqua.utils import (
     DEFAULT_REPLICA,
     FINE_TUNING_RUNTIME_CONTAINER,
     UNKNOWN,
+    JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     logger,
-    create_model_catalog,
-    create_model_version_set,
-    get_source,
     upload_file_to_os
 )
-from ads.config import COMPARTMENT_OCID, PROJECT_OCID
+from ads.config import AQUA_JOB_SUBNET_ID, COMPARTMENT_OCID, PROJECT_OCID
 from ads.jobs.ads_job import Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
@@ -97,13 +95,18 @@ class AquaFineTuningApp(AquaApp):
         # todo : parse kwargs and convert to CreateAquaFineTuneDetails object
         #   with CreateAquaFineTuneDetails(**kwargs)
 
-        source = get_source(create_fine_tuning_details.ft_source_id)
+        source = self.get_source(create_fine_tuning_details.ft_source_id)
 
         if not ObjectStorageDetails.is_oci_path(
             create_fine_tuning_details.report_path
         ):
             raise AquaValueError(
                 "Fine tuning report path must be an object storage path."
+            )
+        
+        if create_fine_tuning_details.replica < DEFAULT_REPLICA:
+            raise AquaValueError(
+                f"Fine tuning replica must be equal to or more than {DEFAULT_REPLICA}."
             )
 
         target_compartment = (
@@ -154,7 +157,7 @@ class AquaFineTuningApp(AquaApp):
         (
             experiment_model_version_set_id,
             experiment_model_version_set_name
-        ) = create_model_version_set(
+        ) = self.create_model_version_set(
             model_version_set_id=experiment_model_version_set_id,
             model_version_set_name=experiment_model_version_set_name,
             description=create_fine_tuning_details.experiment_description,
@@ -179,9 +182,13 @@ class AquaFineTuningApp(AquaApp):
         ft_model_taxonomy_metadata = ModelTaxonomyMetadata()
         ft_model_taxonomy_metadata[
             MetadataTaxonomyKeys.HYPERPARAMETERS
-        ].value = create_fine_tuning_details.ft_parameters
+        ].value = {
+            **create_fine_tuning_details.ft_parameters,
+            "val_set_size": create_fine_tuning_details.validation_split,
+            "training_data": ft_dataset_path
+        }
 
-        ft_model = create_model_catalog(
+        ft_model = self.create_model_catalog(
             display_name=create_fine_tuning_details.ft_name,
             description=create_fine_tuning_details.ft_description,
             model_version_set_id=experiment_model_version_set_id,
@@ -212,10 +219,20 @@ class AquaFineTuningApp(AquaApp):
         )
 
         if create_fine_tuning_details.replica > DEFAULT_REPLICA:
+            subnet_id = create_fine_tuning_details.subnet_id or AQUA_JOB_SUBNET_ID
+            if not subnet_id:
+                raise AquaValueError(
+                    f"Parameter subnet id must be provided if replica is more than {DEFAULT_REPLICA}. "
+                    "Specify the subnet id via API or environment variable AQUA_JOB_SUBNET_ID."
+                )
             ft_job.infrastructure.with_subnet_id(
                 create_fine_tuning_details.subnet_id
             )
-        
+        else:
+            ft_job.infrastructure.with_job_infrastructure_type(
+                JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING
+            )
+
         ft_job.with_runtime(
             self._build_fine_tuning_runtime(
                 source_id=source.id,
@@ -253,7 +270,7 @@ class AquaFineTuningApp(AquaApp):
             for metadata in ft_model_custom_metadata.to_dict()["data"]
         ]
 
-        self.ds_client.update_model(
+        self.update_model(
             model_id=ft_model.id,
             update_model_details=UpdateModelDetails(
                 custom_metadata_list=updated_custom_metadata_list,
@@ -263,7 +280,7 @@ class AquaFineTuningApp(AquaApp):
             ),
         )
 
-        self.ds_client.update_model_provenance(
+        self.update_model_provenance(
             model_id=ft_model.id,
             update_model_provenance_details=UpdateModelProvenanceDetails(
                 training_id=ft_job_run.id
@@ -333,7 +350,7 @@ class AquaFineTuningApp(AquaApp):
                     "BASE_MODEL": source_id,
                     "CONTAINER_CUSTOM_IMAGE": FINE_TUNING_RUNTIME_CONTAINER,
                     "OCI_LOG_LEVEL": "DEBUG",
-                    "OCI__LAUNCH_CMD": f"--base_model $BASE_MODEL --micro_batch_size 4 --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --training_data {dataset_path} --output_dir {report_path}",
+                    "OCI__LAUNCH_CMD": f"--base_model {source_id} --micro_batch_size 4 --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --training_data {dataset_path} --output_dir {report_path}",
                     "OCI__METRICS_NAMESPACE": "qq_job_runs"
                 }
             )
