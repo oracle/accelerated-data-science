@@ -15,6 +15,7 @@ from functools import wraps
 from pathlib import Path
 from string import Template
 from typing import List
+import json
 
 import fsspec
 from oci.data_science.models import JobRun, Model
@@ -114,7 +115,7 @@ LIFECYCLE_DETAILS_MAPPING = {
     JobRun.LIFECYCLE_STATE_NEEDS_ATTENTION: "Missing jobrun information.",
 }
 SUPPORTED_FILE_FORMATS = ["jsonl"]
-MODEL_BY_REFERENCE_OSS_PATH_KEY = "Object Storage Path"
+MODEL_BY_REFERENCE_OSS_PATH_KEY = "artifact_location"
 
 
 def get_logger():
@@ -203,6 +204,19 @@ def read_file(file_path: str, **kwargs) -> str:
     except Exception as e:
         logger.error(f"Failed to read file {file_path}. {e}")
         return UNKNOWN
+
+
+def load_config(file_path: str, config_file_name, **kwargs) -> dict:
+    artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
+    config = json.loads(
+        read_file(file_path=artifact_path, **kwargs) or UNKNOWN_JSON_STR
+    )
+    if not config:
+        raise AquaFileNotFoundError(
+            f"Config file `{config_file_name}` is either empty or missing at {artifact_path}",
+            500,
+        )
+    return config
 
 
 def is_valid_ocid(ocid: str) -> bool:

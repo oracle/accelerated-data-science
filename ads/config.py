@@ -51,7 +51,13 @@ TMPDIR = os.environ.get("TMPDIR")
 
 ODSC_MODEL_COMPARTMENT_OCID = os.environ.get("ODSC_MODEL_COMPARTMENT_OCID")
 AQUA_MODEL_DEPLOYMENT_IMAGE = os.environ.get("AQUA_MODEL_DEPLOYMENT_IMAGE")
-AQUA_MODEL_DEPLOYMENT_CONFIG = os.environ.get("AQUA_DEPLOYMENT_CONFIG", "deployment_config.json")
+AQUA_MODEL_DEPLOYMENT_CONFIG = os.environ.get(
+    "AQUA_DEPLOYMENT_CONFIG", "deployment_config.json"
+)
+AQUA_MODEL_FINETUNING_CONFIG = os.environ.get(
+    "AQUA_MODEL_FINETUNING_CONFIG", "finetuning_config.json"
+)
+AQUA_MODEL_DEPLOYMENT_FOLDER = "/opt/ds/model/deployed_model/"
 
 
 def export(

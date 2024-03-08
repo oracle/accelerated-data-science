@@ -16,10 +16,9 @@ from ads.aqua.exception import AquaError, AquaRuntimeError, AquaValueError
 from ads.aqua.model import AquaModelApp, Tags
 from ads.aqua.utils import (
     UNKNOWN,
-    UNKNOWN_JSON_STR,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     get_artifact_path,
-    read_file,
+    load_config,
 )
 from ads.common.utils import get_console_link
 from ads.common.auth import default_signer
@@ -30,7 +29,13 @@ from ads.model.deployment import (
     ModelDeploymentMode,
 )
 from ads.common.serializer import DataClassSerializable
-from ads.config import AQUA_MODEL_DEPLOYMENT_CONFIG, COMPARTMENT_OCID, AQUA_MODEL_DEPLOYMENT_IMAGE
+from ads.config import (
+    AQUA_MODEL_DEPLOYMENT_CONFIG,
+    COMPARTMENT_OCID,
+    AQUA_MODEL_DEPLOYMENT_IMAGE,
+    AQUA_MODEL_DEPLOYMENT_FOLDER,
+)
+from ads.common.object_storage_details import ObjectStorageDetails
 
 
 @dataclass
@@ -185,7 +190,7 @@ class AquaDeploymentApp(AquaApp):
             The description of the deployment.
         instance_count: (int, optional). Defaults to 1.
             The number of instance used for deployment.
-        instance_shape: (str). Default to `VM.Standard2.1`.
+        instance_shape: (str).
             The shape of the instance used for deployment.
         log_group_id: (str)
             The oci logging group id. The access log and predict log share the same log group.
@@ -233,16 +238,6 @@ class AquaDeploymentApp(AquaApp):
             if tag in aqua_model.freeform_tags:
                 tags[tag] = aqua_model.freeform_tags[tag]
 
-        # todo: temporary code, move this from here to container
-        if not env_var:
-            env_var = dict()
-        if aqua_model.model_file_description:
-            model_path_prefix = aqua_model.model_file_description["models"][0][
-                "prefix"
-            ].rstrip("/")
-            env_var.update(
-                {"MODEL": f"/opt/ds/model/deployed_model/{model_path_prefix}"}
-            )
         try:
             artifact_path = aqua_model.custom_metadata_list.get(
                 MODEL_BY_REFERENCE_OSS_PATH_KEY
@@ -252,10 +247,27 @@ class AquaDeploymentApp(AquaApp):
                 f"{MODEL_BY_REFERENCE_OSS_PATH_KEY} key is not available in the custom metadata field."
             )
 
-        deployment_config = self._load_deployment_config(artifact_path, auth=self._auth)
+        # set up env vars
+        if not env_var:
+            env_var = dict()
 
-        if "environmentVariables" in deployment_config:
-            env_var.update(deployment_config["environmentVariables"])
+        os_path = ObjectStorageDetails.from_path(artifact_path)
+        model_path_prefix = os_path.filepath.rstrip("/")
+        env_var.update({"MODEL": f"{AQUA_MODEL_DEPLOYMENT_FOLDER}{model_path_prefix}"})
+
+        deployment_config = load_config(
+            artifact_path,
+            config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG,
+            auth=self._auth,
+        )
+        shape_dict = deployment_config["shape"]
+        if instance_shape not in shape_dict:
+            raise AquaValueError(
+                f"{instance_shape} is not supported by the model {aqua_model.id}. Available shapes are: {list(shape_dict.keys())}"
+            )
+
+        if "env_var" in shape_dict[instance_shape]:
+            env_var.update(shape_dict[instance_shape]["env_var"])
         logging.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
 
         # Start model deployment
@@ -413,21 +425,12 @@ class AquaDeploymentApp(AquaApp):
             raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
 
         artifact_path = get_artifact_path(oci_model.custom_metadata_list)
-        deployment_config = self._load_deployment_config(artifact_path, auth=self._auth)
-
-        return deployment_config
-
-    @staticmethod
-    def _load_deployment_config(file_path: str, **kwargs) -> dict:
-        artifact_path = f"{file_path.rstrip('/')}/{AQUA_MODEL_DEPLOYMENT_CONFIG}"
-        deployment_config = json.loads(
-            read_file(file_path=artifact_path, **kwargs) or UNKNOWN_JSON_STR
+        deployment_config = load_config(
+            artifact_path,
+            config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG,
+            auth=self._auth,
         )
-        if not deployment_config:
-            raise AquaError(
-                f"Deployment config file `deployment_config.json` is either empty or missing at {artifact_path}",
-                500,
-            )
+
         return deployment_config
 
 
