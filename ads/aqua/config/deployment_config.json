@@ -14,7 +14,7 @@
       "BM.GPU.A100-v2.8"
     ]
   },
-  "CodeLlama-7b-Instruct-hf": {.2
+  "CodeLlama-7b-Instruct-hf": {
     "shape": [
       "VM.GPU.A10.1",
       "VM.GPU.A10.2"
