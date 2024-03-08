@@ -46,7 +46,7 @@ from ads.aqua.utils import (
     is_valid_ocid,
     upload_local_to_os,
 )
-from ads.common.auth import AuthType
+from ads.common.auth import AuthType, default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link, get_files, upload_to_os
@@ -176,6 +176,15 @@ class AquaEvaluationSummary(DataClassSerializable):
     source: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     job: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     parameters: AquaEvalParams = field(default_factory=AquaEvalParams)
+
+
+@dataclass(repr=False)
+class AquaEvaluationDetail(AquaEvaluationSummary, DataClassSerializable):
+    """Represents a details of Aqua evalution."""
+
+    log_group: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    log: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    introspection: dict = field(default_factory=dict)
 
 
 class RqsAdditionalDetails:
@@ -348,7 +357,7 @@ class AquaEvaluationApp(AquaApp):
                 upload_local_to_os(
                     src_uri=evaluation_dataset_path,
                     dst_uri=dst_uri,
-                    auth=self._auth,
+                    auth=default_signer(),
                     force_overwrite=False,
                 )
             except FileExistsError:
@@ -684,7 +693,7 @@ class AquaEvaluationApp(AquaApp):
             params=model_parameters,
         )
 
-    def get(self, eval_id) -> AquaEvaluationSummary:
+    def get(self, eval_id) -> AquaEvaluationDetail:
         """Gets the information of an Aqua evalution.
 
         Parameters
@@ -694,8 +703,8 @@ class AquaEvaluationApp(AquaApp):
 
         Returns
         -------
-        AquaEvaluationSummary:
-            The instance of AquaEvaluationSummary.
+        AquaEvaluationDetail:
+            The instance of AquaEvaluationDetail.
         """
         logger.info(f"Fetching evaluation: {eval_id} details ...")
 
@@ -712,12 +721,65 @@ class AquaEvaluationApp(AquaApp):
             resource, use_rqs=False, jobrun_id=jobrun_id
         )
 
-        summary = AquaEvaluationSummary(
+        try:
+            log_id = job_run_details.log_details.log_id
+        except Exception as e:
+            logger.debug(f"Failed to get associated log. {str(e)}")
+            log_id = ""
+
+        try:
+            loggroup_id = job_run_details.log_details.log_group_id
+        except Exception as e:
+            logger.debug(f"Failed to get associated loggroup. {str(e)}")
+            loggroup_id = ""
+
+        loggroup_url = (
+            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}?region={self.region}"
+            if loggroup_id
+            else ""
+        )
+        log_url = (
+            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}/logs/{log_id}?region={self.region}"
+            if (loggroup_id and log_id)
+            else ""
+        )
+        log_name = None
+        loggroup_name = None
+
+        if log_id:
+            log = utils.query_resource(log_id, return_all=False)
+            log_name = log.display_name if log else ""
+
+        if loggroup_id:
+            loggroup = utils.query_resource(log_id, return_all=False)
+            loggroup_name = loggroup.display_name if loggroup else ""
+
+        try:
+            introspection = json.loads(
+                self._get_attribute_from_model_metadata(resource, "ArtifactTestResults")
+            )
+        except:
+            # TODO: remove this hardcode value later
+            introspection = {
+                "aqua_evaluate": {
+                    "input_dataset_path": {
+                        "key": "input_dataset_path",
+                        "category": "aqua_evaluate",
+                        "description": "Some description here",
+                        "error_msg": "The error details",
+                        "success": False,
+                    }
+                }
+            }
+        summary = AquaEvaluationDetail(
             **self._process(resource),
             **self._get_status(model=resource, jobrun=job_run_details),
             job=self._build_job_identifier(
                 job_run_details=job_run_details,
             ),
+            log_group=AquaResourceIdentifier(loggroup_id, loggroup_name, loggroup_url),
+            log=AquaResourceIdentifier(log_id, log_name, log_url),
+            introspection=introspection,
         )
         summary.parameters.shape = (
             job_run_details.job_infrastructure_configuration_details.shape_name
@@ -798,8 +860,9 @@ class AquaEvaluationApp(AquaApp):
         -------
         dict
         """
-        # TODO: add job_run_id as input param
         eval = utils.query_resource(eval_id)
+
+        # TODO: add job_run_id as input param to skip the query below
         model_provenance = self.ds_client.get_model_provenance(eval_id).data
 
         if not eval:
@@ -808,7 +871,30 @@ class AquaEvaluationApp(AquaApp):
                 "Please check if the OCID is correct."
             )
         jobrun_id = model_provenance.training_id
-        job_run_details = self._fetch_jobrun(eval, use_rqs=True, jobrun_id=jobrun_id)
+        job_run_details = self._fetch_jobrun(eval, use_rqs=False, jobrun_id=jobrun_id)
+
+        try:
+            log_id = job_run_details.log_details.log_id
+        except Exception as e:
+            logger.debug(f"Failed to get associated log. {str(e)}")
+            log_id = ""
+
+        try:
+            loggroup_id = job_run_details.log_details.log_group_id
+        except Exception as e:
+            logger.debug(f"Failed to get associated log. {str(e)}")
+            loggroup_id = ""
+
+        loggroup_url = (
+            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}?region={self.region}"
+            if loggroup_id
+            else ""
+        )
+        log_url = (
+            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}/logs/{log_id}?region={self.region}"
+            if (loggroup_id and log_id)
+            else ""
+        )
 
         return dict(
             id=eval_id,
@@ -816,6 +902,10 @@ class AquaEvaluationApp(AquaApp):
                 model=eval,
                 jobrun=job_run_details,
             ),
+            log_id=log_id,
+            log_url=log_url,
+            loggroup_id=loggroup_id,
+            loggroup_url=loggroup_url,
         )
 
     def get_supported_metrics(self) -> dict:
@@ -1360,7 +1450,11 @@ class AquaEvaluationApp(AquaApp):
             return AquaResourceIdentifier()
 
     def _get_status(
-        self, model: oci.resource_search.models.ResourceSummary, jobrun=None
+        self,
+        model: oci.resource_search.models.ResourceSummary,
+        jobrun: Union[
+            oci.resource_search.models.ResourceSummary, oci.data_science.models.JobRun
+        ] = None,
     ) -> dict:
         """Builds evaluation status based on the model status and job run status."""
         model_status = model.lifecycle_state
@@ -1377,15 +1471,24 @@ class AquaEvaluationApp(AquaApp):
         lifecycle_state = utils.LifecycleStatus.get_status(
             evaluation_status=model_status, job_run_status=job_run_status
         )
+
+        try:
+            lifecycle_details = (
+                utils.LIFECYCLE_DETAILS_MISSING_JOBRUN
+                if not jobrun
+                else jobrun.lifecycle_details
+            )
+        except:
+            # ResourceSummary does not have lifecycle_details attr
+            lifecycle_details = ""
+
         return dict(
             lifecycle_state=(
                 lifecycle_state
                 if isinstance(lifecycle_state, str)
                 else lifecycle_state.value
             ),
-            lifecycle_details=utils.LIFECYCLE_DETAILS_MAPPING.get(
-                lifecycle_state, utils.UNKNOWN
-            ),
+            lifecycle_details=lifecycle_details,
         )
 
     def _prefetch_resources(self, compartment_id) -> dict:
