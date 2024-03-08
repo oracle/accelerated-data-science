@@ -337,7 +337,6 @@ class AquaDeploymentApp(AquaApp):
             .with_overwrite_existing_artifact(True)
             .with_remove_existing_artifact(True)
         )
-        raise ValueError()
         # configure model deployment and deploy model on container runtime
         # todo : any other deployment params needed?
         deployment = (
