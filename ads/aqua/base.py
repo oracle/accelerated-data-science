@@ -5,12 +5,17 @@
 
 
 import oci
+from typing import Dict
 
 from ads import set_auth
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import extract_region
 from ads.config import OCI_ODSC_SERVICE_ENDPOINT, OCI_RESOURCE_PRINCIPAL_VERSION
+
+from ads.aqua.data import Tags
+from ads.aqua.exception import AquaRuntimeError
+from ads.aqua.utils import get_artifact_path, load_config
 
 
 class AquaApp:
@@ -49,3 +54,40 @@ class AquaApp:
             list_func_ref,
             **kwargs,
         ).data
+
+    def get_config(self, model_id: str, config_file_name: str) -> Dict:
+        """Gets the config for the given Aqua model.
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the Aqua model.
+        config_file_name: str
+            name of the config file
+
+        Returns
+        -------
+        Dict:
+            A dict of allowed configs.
+        """
+        oci_model = self.ds_client.get_model(model_id).data
+
+        oci_aqua = (
+            (
+                Tags.AQUA_TAG.value in oci_model.freeform_tags
+                or Tags.AQUA_TAG.value.lower() in oci_model.freeform_tags
+            )
+            if oci_model.freeform_tags
+            else False
+        )
+
+        if not oci_aqua:
+            raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
+
+        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+        config = load_config(
+            artifact_path,
+            config_file_name=config_file_name,
+            auth=self._auth,
+        )
+
+        return config

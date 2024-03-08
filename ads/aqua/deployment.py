@@ -12,12 +12,11 @@ import requests
 from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 
 from ads.aqua.base import AquaApp
-from ads.aqua.exception import AquaError, AquaRuntimeError, AquaValueError
+from ads.aqua.exception import AquaRuntimeError, AquaValueError
 from ads.aqua.model import AquaModelApp, Tags
 from ads.aqua.utils import (
     UNKNOWN,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
-    get_artifact_path,
     load_config,
 )
 from ads.common.utils import get_console_link
@@ -410,28 +409,8 @@ class AquaDeploymentApp(AquaApp):
         Dict:
             A dict of allowed deployment configs.
         """
-        oci_model = self.ds_client.get_model(model_id).data
 
-        oci_aqua = (
-            (
-                Tags.AQUA_TAG.value in oci_model.freeform_tags
-                or Tags.AQUA_TAG.value.lower() in oci_model.freeform_tags
-            )
-            if oci_model.freeform_tags
-            else False
-        )
-
-        if not oci_aqua:
-            raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
-
-        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
-        deployment_config = load_config(
-            artifact_path,
-            config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG,
-            auth=self._auth,
-        )
-
-        return deployment_config
+        return self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG)
 
 
 @dataclass

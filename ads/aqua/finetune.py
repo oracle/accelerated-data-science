@@ -4,11 +4,15 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from dataclasses import dataclass, field
+from typing import Dict
+
 from ads.common.serializer import DataClassSerializable
+from ads.common.utils import get_console_link
+from ads.config import AQUA_MODEL_FINETUNING_CONFIG
+
 from ads.aqua.base import AquaApp
 from ads.aqua.job import AquaJobSummary
 from ads.aqua.data import Resource, AquaResourceIdentifier, Tags
-from ads.common.utils import get_console_link
 from ads.aqua.utils import UNKNOWN
 
 
@@ -78,3 +82,19 @@ class AquaFineTuningApp(AquaApp):
             ),
             parameters=AquaFineTuningParams(epochs=0, learning_rate=0.0),
         )
+
+    def get_finetuning_config(self, model_id: str) -> Dict:
+        """Gets the finetuning config for given Aqua model.
+
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the Aqua model.
+
+        Returns
+        -------
+        Dict:
+            A dict of allowed finetuning configs.
+        """
+
+        return self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG)
