@@ -15,6 +15,7 @@ from functools import wraps
 from pathlib import Path
 from string import Template
 from typing import List
+import json
 
 import fsspec
 from oci.data_science.models import JobRun, Model
@@ -22,7 +23,7 @@ from oci.data_science.models import JobRun, Model
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import upload_to_os
-from ads.config import TENANCY_OCID
+from ads.config import TENANCY_OCID, AQUA_CONFIG_FOLDER
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
@@ -114,7 +115,7 @@ LIFECYCLE_DETAILS_MAPPING = {
     JobRun.LIFECYCLE_STATE_NEEDS_ATTENTION: "Missing jobrun information.",
 }
 SUPPORTED_FILE_FORMATS = ["jsonl"]
-MODEL_BY_REFERENCE_OSS_PATH_KEY = "Object Storage Path"
+MODEL_BY_REFERENCE_OSS_PATH_KEY = "artifact_location"
 
 
 def get_logger():
@@ -203,6 +204,19 @@ def read_file(file_path: str, **kwargs) -> str:
     except Exception as e:
         logger.error(f"Failed to read file {file_path}. {e}")
         return UNKNOWN
+
+
+def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
+    artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
+    config = json.loads(
+        read_file(file_path=artifact_path, **kwargs) or UNKNOWN_JSON_STR
+    )
+    if not config:
+        raise AquaFileNotFoundError(
+            f"Config file `{config_file_name}` is either empty or missing at {artifact_path}",
+            500,
+        )
+    return config
 
 
 def is_valid_ocid(ocid: str) -> bool:
@@ -422,3 +436,58 @@ def fire_and_forget(func):
         return asyncio.get_event_loop().run_in_executor(None, func, *args, *kwargs)
 
     return wrapped
+
+
+def get_container_image(
+    custom_metadata_list, config_file_name: str, container_type: str
+) -> str:
+    """Gets the image name from the given model and container type.
+    Parameters
+    ----------
+    custom_metadata_list:
+        custom metadata of a given model
+    config_file_name: str
+        name of the config file
+    container_type: str
+        type of container, can be either deployment-container, finetune-container, evaluation-container
+
+    Returns
+    -------
+    Dict:
+        A dict of allowed configs.
+    """
+
+    try:
+        container_type = custom_metadata_list.get(container_type).value
+    except ValueError:
+        raise AquaValueError(
+            f"{container_type} key is not available in the custom metadata field."
+        )
+
+    # todo: currently loads config within ads, artifact_path will be an external bucket
+    config = load_config(
+        AQUA_CONFIG_FOLDER,
+        config_file_name=config_file_name,
+    )
+
+    if container_type not in config:
+        raise AquaValueError(
+            f"{config_file_name} does not have config details for model: {container_type}"
+        )
+
+    container_image = None
+    mapping = config[container_type]
+    versions = [obj["version"] for obj in mapping]
+    # todo: assumes numbered versions, update if `latest` is used
+    latest = max(versions)
+    for obj in mapping:
+        if obj["version"] == latest:
+            container_image = f"{obj['name']}:{obj['version']}"
+            break
+
+    if not container_image:
+        raise AquaValueError(
+            f"{config_file_name} is missing name and/or version details."
+        )
+
+    return container_image
