@@ -36,6 +36,7 @@ from ads.config import (
     AQUA_MODEL_DEPLOYMENT_FOLDER,
     AQUA_CONTAINER_INDEX_CONFIG,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
+    AQUA_SERVED_MODEL_NAME,
 )
 from ads.common.object_storage_details import ObjectStorageDetails
 
@@ -277,9 +278,7 @@ class AquaDeploymentApp(AquaApp):
 
         # todo: revisit this after new image is built
         env_var.update({"MODEL": f"{AQUA_MODEL_DEPLOYMENT_FOLDER}{model_path_prefix}"})
-        env_var.update(
-            {"PARAMS": f"--served-model-name {AQUA_MODEL_DEPLOYMENT_FOLDER}"}
-        )
+        env_var.update({"PARAMS": f"--served-model-name {AQUA_SERVED_MODEL_NAME}"})
         env_var.update({"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"})
 
         # todo: added for testing, remove when TENSOR_PARALLELISM will be set inside the container

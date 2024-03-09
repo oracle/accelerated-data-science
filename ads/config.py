@@ -64,6 +64,7 @@ AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME = "deployment-container"
 AQUA_FINETUNING_CONTAINER_METADATA_NAME = "finetune-container"
 AQUA_EVALUATION_CONTAINER_METADATA_NAME = "evaluation-container"
 AQUA_MODEL_DEPLOYMENT_FOLDER = "/opt/ds/model/deployed_model/"
+AQUA_SERVED_MODEL_NAME = "odsc-llm"
 AQUA_CONFIG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), "aqua/config/"
 )
