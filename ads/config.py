@@ -67,6 +67,7 @@ AQUA_MODEL_DEPLOYMENT_FOLDER = "/opt/ds/model/deployed_model/"
 AQUA_CONFIG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), "aqua/config/"
 )
+AQUA_JOB_SUBNET_ID = os.environ.get("AQUA_JOB_SUBNET_ID", None)
 
 
 def export(
