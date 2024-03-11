@@ -444,10 +444,10 @@ class AquaModelApp(AquaApp):
         """Gets target metric from `ads.model.model_metadata.ModelCustomMetadata`."""
         try:
             scores = []
-            for custom_metadata in custom_metadata_list:
+            for custom_metadata in custom_metadata_list._items:
                 # We use description to group metrics
                 if custom_metadata.description == target:
-                    scores.append(json.loads(custom_metadata.value))
+                    scores.append(custom_metadata.value)
                     if metric_name.endswith("final"):
                         break
 
