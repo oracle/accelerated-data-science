@@ -103,10 +103,79 @@ class AquaEvalFTCommon(DataClassSerializable):
     log_group: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     log: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     model: InitVar = None
+    jobrun: InitVar = None
+    region: InitVar = None
 
-    def __post_init__(self, model):
-        self.time_created = model.time_created
-        # self.lifecycle_details = model.lifecycle_details
+    def __post_init__(self, model, jobrun, region):
+        try:
+            log_id = jobrun.log_details.log_id
+        except Exception as e:
+            logger.debug(f"No associated log found. {str(e)}")
+            log_id = ""
+
+        try:
+            loggroup_id = jobrun.log_details.log_group_id
+        except Exception as e:
+            logger.debug(f"No associated loggroup found. {str(e)}")
+            loggroup_id = ""
+
+        loggroup_url = (
+            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}?region={region}"
+            if loggroup_id
+            else ""
+        )
+
+        log_url = (
+            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}/logs/{log_id}?region={region}"
+            if (loggroup_id and log_id)
+            else ""
+        )
+        log_name = None
+        loggroup_name = None
+
+        if log_id:
+            log = utils.query_resource(log_id, return_all=False)
+            log_name = log.display_name if log else ""
+
+        if loggroup_id:
+            loggroup = utils.query_resource(log_id, return_all=False)
+            loggroup_name = loggroup.display_name if loggroup else ""
+
+        # status
+        model_status = model.lifecycle_state
+        job_run_status = (
+            jobrun.lifecycle_state
+            if jobrun and not jobrun.lifecycle_state == JobRun.LIFECYCLE_STATE_DELETED
+            else (
+                JobRun.LIFECYCLE_STATE_SUCCEEDED
+                if self._if_eval_artifact_exist(model)
+                else JobRun.LIFECYCLE_STATE_FAILED
+            )
+        )
+
+        # experiments
+        experiment_id, experiment_name = utils._get_experiment_info(model)
+
+        self.log_group = AquaResourceIdentifier(
+            loggroup_id, loggroup_name, loggroup_url
+        )
+        self.log = AquaResourceIdentifier(log_id, log_name, log_url)
+        self.experiment = utils._build_resource_identifier(
+            id=experiment_id, name=experiment_name, region=region
+        )
+        self.source = utils._build_resource_identifier(
+            id=source_model_id, name=source_model_name, region=region
+        )
+        self.job = utils._build_job_identifier(job_run_details=jobrun, region=region)
+
+        self.lifecycle_state = utils.LifecycleStatus.get_status(
+            evaluation_status=model_status, job_run_status=job_run_status
+        )
+        self.lifecycle_details = (
+            utils.LIFECYCLE_DETAILS_MISSING_JOBRUN
+            if not jobrun
+            else jobrun.lifecycle_details
+        )
 
 
 @dataclass(repr=False)

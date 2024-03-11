@@ -440,3 +440,49 @@ def _build_resource_identifier(
             f"Failed to construct AquaResourceIdentifier from given id=`{id}`, and name=`{name}`, {str(e)}"
         )
         return AquaResourceIdentifier()
+
+
+from typing import Union
+
+import oci
+
+from ads.aqua.constants import RqsAdditionalDetails
+from ads.model import DataScienceModel
+
+
+def _get_experiment_info(
+    model: Union[oci.resource_search.models.ResourceSummary, DataScienceModel]
+) -> tuple:
+    """Returns ocid and name of the experiment."""
+    return (
+        (
+            model.additional_details.get(RqsAdditionalDetails.MODEL_VERSION_SET_ID),
+            model.additional_details.get(RqsAdditionalDetails.MODEL_VERSION_SET_NAME),
+        )
+        if isinstance(model, oci.resource_search.models.ResourceSummary)
+        else (model.model_version_set_id, model.model_version_set_name)
+    )
+
+
+def _build_job_identifier(
+    job_run_details: Union[
+        oci.data_science.models.JobRun, oci.resource_search.models.ResourceSummary
+    ] = None,
+    **kwargs,
+) -> AquaResourceIdentifier:
+    try:
+        job_id = (
+            job_run_details.id
+            if isinstance(job_run_details, oci.data_science.models.JobRun)
+            else job_run_details.identifier
+        )
+        return _build_resource_identifier(
+            id=job_id, name=job_run_details.display_name, **kwargs
+        )
+
+    except Exception as e:
+        logger.debug(
+            f"Failed to get job details from job_run_details: {job_run_details}"
+            f"DEBUG INFO:{str(e)}"
+        )
+        return AquaResourceIdentifier()

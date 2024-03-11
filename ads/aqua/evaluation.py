@@ -25,6 +25,7 @@ from oci.data_science.models import (
 
 from ads.aqua import logger, utils
 from ads.aqua.base import AquaApp
+from ads.aqua.decorator import fire_and_forget
 from ads.aqua.exception import (
     AquaFileExistsError,
     AquaFileNotFoundError,
@@ -41,7 +42,6 @@ from ads.aqua.utils import (
     SOURCE_FILE,
     SUBNET_ID,
     UNKNOWN,
-    fire_and_forget,
     is_valid_ocid,
     upload_local_to_os,
 )
@@ -747,18 +747,8 @@ class AquaEvaluationApp(AquaApp):
                 self._get_attribute_from_model_metadata(resource, "ArtifactTestResults")
             )
         except:
-            # TODO: remove this hardcode value later
-            introspection = {
-                "aqua_evaluate": {
-                    "input_dataset_path": {
-                        "key": "input_dataset_path",
-                        "category": "aqua_evaluate",
-                        "description": "Some description here",
-                        "error_msg": "The error details",
-                        "success": False,
-                    }
-                }
-            }
+            introspection = {}
+
         summary = AquaEvaluationDetail(
             **self._process(resource),
             **self._get_status(model=resource, jobrun=job_run_details),
