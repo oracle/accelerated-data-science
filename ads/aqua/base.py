@@ -3,34 +3,32 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-
 from typing import Dict, Union
+
 import oci
+from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDetails
 
 from ads import set_auth
-from ads.aqua.exception import AquaValueError
-from ads.aqua.utils import UNKNOWN, is_valid_ocid, logger
+from ads.aqua import logger
+from ads.aqua.data import Tags
+from ads.aqua.exception import AquaRuntimeError, AquaValueError
+from ads.aqua.utils import UNKNOWN, is_valid_ocid, load_config, logger
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import extract_region
-from ads.model.datascience_model import DataScienceModel
-from ads.model.deployment.model_deployment import ModelDeployment
-from ads.model.model_metadata import ModelCustomMetadata, ModelProvenanceMetadata, ModelTaxonomyMetadata
-from ads.model.model_version_set import ModelVersionSet
-
-from oci.data_science.models import (
-    UpdateModelDetails,
-    UpdateModelProvenanceDetails,
-)
 from ads.config import (
+    AQUA_CONFIG_FOLDER,
     OCI_ODSC_SERVICE_ENDPOINT,
     OCI_RESOURCE_PRINCIPAL_VERSION,
-    AQUA_CONFIG_FOLDER,
 )
-
-from ads.aqua.data import Tags
-from ads.aqua.exception import AquaRuntimeError, AquaValueError
-from ads.aqua.utils import load_config
+from ads.model.datascience_model import DataScienceModel
+from ads.model.deployment.model_deployment import ModelDeployment
+from ads.model.model_metadata import (
+    ModelCustomMetadata,
+    ModelProvenanceMetadata,
+    ModelTaxonomyMetadata,
+)
+from ads.model.model_version_set import ModelVersionSet
 
 
 class AquaApp:
@@ -69,12 +67,8 @@ class AquaApp:
             list_func_ref,
             **kwargs,
         ).data
-    
-    def update_model(
-        self,
-        model_id: str,
-        update_model_details: UpdateModelDetails
-    ):
+
+    def update_model(self, model_id: str, update_model_details: UpdateModelDetails):
         """Updates model details.
 
         Parameters
@@ -85,14 +79,13 @@ class AquaApp:
             The model details to be updated.
         """
         self.ds_client.update_model(
-            model_id=model_id,
-            update_model_details=update_model_details
+            model_id=model_id, update_model_details=update_model_details
         )
 
     def update_model_provenance(
         self,
         model_id: str,
-        update_model_provenance_details: UpdateModelProvenanceDetails
+        update_model_provenance_details: UpdateModelProvenanceDetails,
     ):
         """Updates model provenance details.
 
@@ -105,9 +98,9 @@ class AquaApp:
         """
         self.ds_client.update_model_provenance(
             model_id=model_id,
-            update_model_provenance_details=update_model_provenance_details
+            update_model_provenance_details=update_model_provenance_details,
         )
-    
+
     # TODO: refactor model evaluation implementation to use it.
     @staticmethod
     def get_source(source_id: str) -> Union[ModelDeployment, DataScienceModel]:
@@ -116,21 +109,21 @@ class AquaApp:
                 return ModelDeployment.from_id(source_id)
             elif "datasciencemodel" in source_id:
                 return DataScienceModel.from_id(source_id)
-        
+
         raise AquaValueError(
             f"Invalid source {source_id}. "
             "Specify either a model or model deployment id."
         )
-    
+
     # TODO: refactor model evaluation implementation to use it.
     @staticmethod
     def create_model_version_set(
-        model_version_set_id: str=None,
-        model_version_set_name: str=None,
-        description: str=None,
-        compartment_id: str=None,
-        project_id: str=None,
-        **kwargs
+        model_version_set_id: str = None,
+        model_version_set_name: str = None,
+        description: str = None,
+        compartment_id: str = None,
+        project_id: str = None,
+        **kwargs,
     ) -> tuple:
         if not model_version_set_id:
             try:
@@ -159,7 +152,7 @@ class AquaApp:
         else:
             model_version_set = ModelVersionSet.from_id(model_version_set_id)
             return (model_version_set_id, model_version_set.name)
-    
+
     # TODO: refactor model evaluation implementation to use it.
     @staticmethod
     def create_model_catalog(
@@ -170,7 +163,7 @@ class AquaApp:
         model_taxonomy_metadata: Union[ModelTaxonomyMetadata, Dict],
         compartment_id: str,
         project_id: str,
-        **kwargs
+        **kwargs,
     ) -> DataScienceModel:
         model = (
             DataScienceModel()
@@ -181,15 +174,37 @@ class AquaApp:
             .with_model_version_set_id(model_version_set_id)
             .with_custom_metadata_list(model_custom_metadata)
             .with_defined_metadata_list(model_taxonomy_metadata)
-            .with_provenance_metadata(
-                ModelProvenanceMetadata(training_id=UNKNOWN)
-            )
+            .with_provenance_metadata(ModelProvenanceMetadata(training_id=UNKNOWN))
             # TODO: decide what parameters will be needed
             .create(
                 **kwargs,
             )
         )
         return model
+
+    def if_artifact_exist(self, model_id: str, **kwargs) -> bool:
+        """Checks if the artifact exists.
+
+        Parameters
+        ----------
+        model_id : str
+            The model OCID.
+        **kwargs :
+            Additional keyword arguments passed in head_model_artifact.
+
+        Returns
+        -------
+        bool
+            Whether the artifact exists.
+        """
+
+        try:
+            response = self.ds_client.head_model_artifact(model_id=model_id, **kwargs)
+            return True if response.status == 200 else False
+        except oci.exceptions.ServiceError as ex:
+            if ex.status == 404:
+                logger.info(f"Artifact not found in model {model_id}.")
+                return False
 
     def get_config(self, model_id: str, config_file_name: str) -> Dict:
         """Gets the config for the given Aqua model.
@@ -228,8 +243,9 @@ class AquaApp:
         )
 
         if model_name not in config:
-            raise AquaValueError(
+            logger.error(
                 f"{config_file_name} does not have config details for model: {model_name}"
             )
+            return {}
 
         return config[model_name]

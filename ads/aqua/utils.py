@@ -3,27 +3,30 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA utils and constants."""
-import asyncio
 import base64
+import json
 import logging
 import os
 import random
 import re
 import sys
 from enum import Enum
-from functools import wraps
 from pathlib import Path
 from string import Template
-from typing import List
-import json
+from typing import List, Union
 
 import fsspec
+import oci
 from oci.data_science.models import JobRun, Model
 
+from ads.aqua.constants import RqsAdditionalDetails
+from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import upload_to_os
-from ads.config import TENANCY_OCID, AQUA_CONFIG_FOLDER
+from ads.common.utils import get_console_link, upload_to_os
+from ads.config import AQUA_CONFIG_FOLDER, AQUA_SERVICE_MODELS_BUCKET, TENANCY_OCID
+from ads.model import DataScienceModel
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
@@ -40,6 +43,8 @@ CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
     datasciencemodel="models",
     datasciencemodeldeployment="model-deployments",
     datasciencejob="jobs",
+    datasciencejobrun="jobruns",
+    datasciencemodelversionset="model-version-sets",
 )
 CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS", "ociodscdev")
 SOURCE_FILE = "run.sh"
@@ -199,7 +204,13 @@ def get_artifact_path(custom_metadata_list: List) -> str:
     """
     for custom_metadata in custom_metadata_list:
         if custom_metadata.key == MODEL_BY_REFERENCE_OSS_PATH_KEY:
-            return custom_metadata.value
+            if ObjectStorageDetails.is_oci_path(custom_metadata.value):
+                artifact_path = custom_metadata.value
+            else:
+                artifact_path = ObjectStorageDetails(
+                    AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, custom_metadata.value
+                ).path
+            return artifact_path
     logger.debug("Failed to get artifact path from custom metadata.")
     return UNKNOWN
 
@@ -300,7 +311,7 @@ def query_resource(
     )
     if len(resources) == 0:
         raise AquaRuntimeError(
-            f"Failed to retreive source {resource_type}'s information.",
+            f"Failed to retreive {resource_type}'s information.",
             service_payload={"query": query, "tenant_id": TENANCY_OCID},
         )
     return resources[0]
@@ -435,13 +446,65 @@ def sanitize_response(oci_client, response: list):
     return oci_client.base_client.sanitize_for_serialization(response)
 
 
-def fire_and_forget(func):
-    """Decorator to push execution of methods to the background."""
+def _build_resource_identifier(
+    id: str = None, name: str = None, region: str = None
+) -> AquaResourceIdentifier:
+    """Constructs AquaResourceIdentifier based on the given ocid and display name."""
+    try:
+        resource_type = CONSOLE_LINK_RESOURCE_TYPE_MAPPING.get(get_resource_type(id))
 
-    @wraps(func)
-    def wrapped(*args, **kwargs):
-        return asyncio.get_event_loop().run_in_executor(None, func, *args, *kwargs)
+        return AquaResourceIdentifier(
+            id=id,
+            name=name,
+            url=get_console_link(
+                resource=resource_type,
+                ocid=id,
+                region=region,
+            ),
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to construct AquaResourceIdentifier from given id=`{id}`, and name=`{name}`, {str(e)}"
+        )
+        return AquaResourceIdentifier()
 
+
+def _get_experiment_info(
+    model: Union[oci.resource_search.models.ResourceSummary, DataScienceModel]
+) -> tuple:
+    """Returns ocid and name of the experiment."""
+    return (
+        (
+            model.additional_details.get(RqsAdditionalDetails.MODEL_VERSION_SET_ID),
+            model.additional_details.get(RqsAdditionalDetails.MODEL_VERSION_SET_NAME),
+        )
+        if isinstance(model, oci.resource_search.models.ResourceSummary)
+        else (model.model_version_set_id, model.model_version_set_name)
+    )
+
+
+def _build_job_identifier(
+    job_run_details: Union[
+        oci.data_science.models.JobRun, oci.resource_search.models.ResourceSummary
+    ] = None,
+    **kwargs,
+) -> AquaResourceIdentifier:
+    try:
+        job_id = (
+            job_run_details.id
+            if isinstance(job_run_details, oci.data_science.models.JobRun)
+            else job_run_details.identifier
+        )
+        return _build_resource_identifier(
+            id=job_id, name=job_run_details.display_name, **kwargs
+        )
+
+    except Exception as e:
+        logger.debug(
+            f"Failed to get job details from job_run_details: {job_run_details}"
+            f"DEBUG INFO:{str(e)}"
+        )
+        return AquaResourceIdentifier()
     return wrapped
 
 

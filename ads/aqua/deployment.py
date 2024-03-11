@@ -19,6 +19,7 @@ from ads.aqua.utils import (
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     load_config,
     get_container_image,
+    is_valid_ocid,
 )
 from ads.common.utils import get_console_link
 from ads.common.auth import default_signer
@@ -243,21 +244,23 @@ class AquaDeploymentApp(AquaApp):
             if tag in aqua_model.freeform_tags:
                 tags[tag] = aqua_model.freeform_tags[tag]
 
-        try:
-            artifact_path = aqua_model.custom_metadata_list.get(
-                MODEL_BY_REFERENCE_OSS_PATH_KEY
-            ).value
-        except ValueError:
-            raise AquaValueError(
-                f"{MODEL_BY_REFERENCE_OSS_PATH_KEY} key is not available in the custom metadata field."
-            )
-
-        # todo: revisit this for fine tuned models
         deployment_config = load_config(
             AQUA_CONFIG_FOLDER,
             config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG,
         )
-        model_name = aqua_model.display_name
+        # todo: revisit after create FT model is implemented
+        if Tags.AQUA_FINE_TUNED_MODEL_TAG.value in tags:
+            tag = tags[Tags.AQUA_FINE_TUNED_MODEL_TAG.value]
+            base_model_ocid, base_model_name = tag.split("#")
+            if is_valid_ocid(base_model_ocid) and base_model_name:
+                model_name = base_model_name
+            else:
+                raise AquaValueError(
+                    f"{Tags.AQUA_FINE_TUNED_MODEL_TAG.value} tag should have the format `Service Model OCID>#Model Name`."
+                )
+        else:
+            model_name = aqua_model.display_name
+
         if model_name not in deployment_config:
             raise AquaValueError(
                 f"{AQUA_MODEL_DEPLOYMENT_CONFIG} does not have config details for model: {model_name}"
@@ -273,13 +276,25 @@ class AquaDeploymentApp(AquaApp):
         if not env_var:
             env_var = dict()
 
-        os_path = ObjectStorageDetails.from_path(artifact_path)
-        model_path_prefix = os_path.filepath.rstrip("/")
+        try:
+            model_path_prefix = aqua_model.custom_metadata_list.get(
+                MODEL_BY_REFERENCE_OSS_PATH_KEY
+            ).value.rstrip("/")
+        except ValueError:
+            raise AquaValueError(
+                f"{MODEL_BY_REFERENCE_OSS_PATH_KEY} key is not available in the custom metadata field."
+            )
+
+        # todo: remove this after absolute path is removed from env var
+        if ObjectStorageDetails.is_oci_path(model_path_prefix):
+            os_path = ObjectStorageDetails.from_path(model_path_prefix)
+            model_path_prefix = os_path.filepath.rstrip("/")
 
         # todo: revisit this after new image is built
         env_var.update({"MODEL": f"{AQUA_MODEL_DEPLOYMENT_FOLDER}{model_path_prefix}"})
         env_var.update({"PARAMS": f"--served-model-name {AQUA_SERVED_MODEL_NAME}"})
         env_var.update({"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"})
+        env_var.update({"MODEL_DEPLOY_ENABLE_STREAMING": "true"})
 
         # todo: added for testing, remove when TENSOR_PARALLELISM will be set inside the container
         try:

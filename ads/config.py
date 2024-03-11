@@ -69,6 +69,9 @@ AQUA_CONFIG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), "aqua/config/"
 )
 AQUA_JOB_SUBNET_ID = os.environ.get("AQUA_JOB_SUBNET_ID", None)
+AQUA_SERVICE_MODELS_BUCKET = os.environ.get(
+    "AQUA_SERVICE_MODELS_BUCKET", "service-managed-models"
+)
 
 
 def export(

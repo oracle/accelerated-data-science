@@ -25,6 +25,7 @@ from oci.data_science.models import (
 
 from ads.aqua import logger, utils
 from ads.aqua.base import AquaApp
+from ads.aqua.decorator import fire_and_forget
 from ads.aqua.exception import (
     AquaFileExistsError,
     AquaFileNotFoundError,
@@ -38,11 +39,10 @@ from ads.aqua.utils import (
     CONDA_REGION,
     CONDA_URI,
     HF_MODELS,
-    SOURCE_FILE,
-    UNKNOWN,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     NB_SESSION_IDENTIFIER,
-    fire_and_forget,
+    SOURCE_FILE,
+    UNKNOWN,
     is_valid_ocid,
     upload_local_to_os,
 )
@@ -504,9 +504,7 @@ class AquaEvaluationApp(AquaApp):
                     ocpus=create_aqua_evaluation_details.ocpus,
                 )
             if AQUA_JOB_SUBNET_ID:
-                evaluation_job.infrastructure.with_subnet_id(
-                    AQUA_JOB_SUBNET_ID
-                )
+                evaluation_job.infrastructure.with_subnet_id(AQUA_JOB_SUBNET_ID)
             else:
                 if NB_SESSION_IDENTIFIER in os.environ:
                     # apply default subnet id for job by setting ME_STANDALONE
@@ -759,18 +757,8 @@ class AquaEvaluationApp(AquaApp):
                 self._get_attribute_from_model_metadata(resource, "ArtifactTestResults")
             )
         except:
-            # TODO: remove this hardcode value later
-            introspection = {
-                "aqua_evaluate": {
-                    "input_dataset_path": {
-                        "key": "input_dataset_path",
-                        "category": "aqua_evaluate",
-                        "description": "Some description here",
-                        "error_msg": "The error details",
-                        "success": False,
-                    }
-                }
-            }
+            introspection = {}
+
         summary = AquaEvaluationDetail(
             **self._process(resource),
             **self._get_status(model=resource, jobrun=job_run_details),
