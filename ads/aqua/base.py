@@ -11,7 +11,6 @@ from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDet
 from ads import set_auth
 from ads.aqua import logger
 from ads.aqua.data import Tags
-from ads.aqua.exception import AquaRuntimeError, AquaValueError
 from ads.aqua.utils import UNKNOWN, is_valid_ocid, load_config, logger
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
@@ -29,6 +28,8 @@ from ads.model.model_metadata import (
     ModelTaxonomyMetadata,
 )
 from ads.model.model_version_set import ModelVersionSet
+
+from ads.aqua.exception import AquaRuntimeError, AquaValueError
 
 
 class AquaApp:
