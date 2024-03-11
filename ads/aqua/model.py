@@ -4,7 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from threading import Lock
@@ -15,6 +15,8 @@ from cachetools import TTLCache
 from oci.data_science.models import Model
 
 from ads.aqua import logger, utils
+
+# from ads.aqua.eval_ft_base import AquaEvalFTApp
 from ads.aqua.base import AquaApp
 from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaRuntimeError
@@ -43,6 +45,13 @@ class FineTuningShapeInfo(DataClassSerializable):
     replica: int = field(default_factory=int)
 
 
+# TODO: give a better name
+@dataclass(repr=False)
+class AquaFineTuneValidation(DataClassSerializable):
+    type: str = "Automatic split"
+    value: str = ""
+
+
 class AquaFineTuningMetricScore(DataClassSerializable):
     epoch: float = ""
     step: int = ""
@@ -60,35 +69,52 @@ class AquaFineTuningMetric(DataClassSerializable):
 class AquaModelSummary(DataClassSerializable):
     """Represents a summary of Aqua model."""
 
-    compartment_id: str
-    icon: str
-    id: str
-    is_fine_tuned_model: bool
-    license: str
-    name: str
-    organization: str
-    project_id: str
-    tags: dict
-    task: str
-    time_created: str
-    console_link: str
-    search_text: str
+    compartment_id: str = None
+    icon: str = None
+    id: str = None
+    is_fine_tuned_model: bool = None
+    license: str = None
+    name: str = None
+    organization: str = None
+    project_id: str = None
+    tags: dict = None
+    task: str = None
+    time_created: str = None
+    console_link: str = None
+    search_text: str = None
 
 
 @dataclass(repr=False)
 class AquaModel(AquaModelSummary, DataClassSerializable):
     """Represents an Aqua model."""
 
-    model_card: str
+    model_card: str = None
 
 
 @dataclass(repr=False)
-class AquaFineTuneModel(AquaModel, DataClassSerializable):
-    """Represents an Aqua Fine Tuned Model."""
+class AquaEvalFTCommon(DataClassSerializable):
+    """Represents common fields for evaluation and fine-tuning."""
 
+    lifecycle_state: str = None
+    lifecycle_details: str = None
     job: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     source: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     experiment: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    log_group: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    log: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    model: InitVar = None
+
+    def __post_init__(self, model):
+        self.time_created = model.time_created
+        # self.lifecycle_details = model.lifecycle_details
+
+
+@dataclass(repr=False)
+class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
+    """Represents an Aqua Fine Tuned Model."""
+
+    dataset: str = field(default_factory=str)
+    validation: AquaFineTuneValidation = field(default_factory=AquaFineTuneValidation)
     shape_info: FineTuningShapeInfo = field(default_factory=FineTuningShapeInfo)
     metrics: List[AquaFineTuningMetric] = field(default_factory=list)
 
@@ -102,11 +128,10 @@ class FineTuningCustomMetadata(Enum):
     FT_OUTPUT_PATH = "fine_tune_output_path"
     FT_JOB_ID = "fine_tune_job_id"
     FT_JOB_RUN_ID = "fine_tune_jobrun_id"
-    TRAINING_METRICS_FINAL = "training_metrics_final"
-    VALIDATION_METRICS_FINAL = "validation_metrics_final"
-
-    TRAINING_METRICS_EPOCH = "training_metrics_"
-    VALIDATION_METRICS_EPOCH = "validation_metrics_"
+    TRAINING_METRICS_FINAL = "train_metrics_final"
+    VALIDATION_METRICS_FINAL = "val_metrics_final"
+    TRAINING_METRICS_EPOCH = "train_metrics_epoch"
+    VALIDATION_METRICS_EPOCH = "val_metrics_epoch"
 
 
 class AquaModelApp(AquaApp):
