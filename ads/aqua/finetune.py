@@ -8,7 +8,7 @@ from enum import Enum
 import json
 import os
 from typing import Optional, Dict
-from ads.aqua.exception import AquaValueError
+from ads.aqua.exception import AquaFileExistsError, AquaValueError
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 
@@ -250,13 +250,20 @@ class AquaFineTuningApp(AquaApp):
         ft_dataset_path = create_fine_tuning_details.dataset_path
         if not ObjectStorageDetails.is_oci_path(ft_dataset_path):
             # format: oci://<bucket>@<namespace>/<dataset_file_name>
-            dst_uri = f"{create_fine_tuning_details.report_path}/{os.path.basename(ft_dataset_path)}"
-            upload_local_to_os(
-                src_uri=ft_dataset_path,
-                dst_uri=dst_uri,
-                auth=default_signer(),
-                force_overwrite=False,
-            )
+            dataset_file = os.path.basename(ft_dataset_path)
+            dst_uri = f"{create_fine_tuning_details.report_path.rstrip('/')}/{dataset_file}"
+            try:
+                upload_local_to_os(
+                    src_uri=ft_dataset_path,
+                    dst_uri=dst_uri,
+                    auth=default_signer(),
+                    force_overwrite=False,
+                )
+            except FileExistsError:
+                raise AquaFileExistsError(
+                    f"Dataset {dataset_file} already exists in {create_fine_tuning_details.report_path}. "
+                    "Please use a new dataset file name or report path."
+                )
             logger.debug(
                 f"Uploaded local file {ft_dataset_path} to object storage {dst_uri}."
             )
