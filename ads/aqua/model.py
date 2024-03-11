@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
 import json
 from dataclasses import InitVar, dataclass, field
 from datetime import datetime, timedelta
@@ -12,12 +11,18 @@ from typing import List, Union
 
 import oci
 from cachetools import TTLCache
-from oci.data_science.models import Model
+from oci.data_science.models import JobRun, Model
 
 from ads.aqua import logger, utils
-
-# from ads.aqua.eval_ft_base import AquaEvalFTApp
 from ads.aqua.base import AquaApp
+from ads.aqua.constants import (
+    TRAINING_METRICS_FINAL,
+    TRINING_METRICS,
+    UNKNOWN_VALUE,
+    VALIDATION_METRICS,
+    VALIDATION_METRICS_FINAL,
+    FineTuningDefinedMetadata,
+)
 from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaRuntimeError
 from ads.aqua.utils import README, UNKNOWN, create_word_icon, read_file
@@ -31,7 +36,7 @@ from ads.config import (
     TENANCY_OCID,
 )
 from ads.model import DataScienceModel
-from ads.model.model_metadata import ModelCustomMetadata
+from ads.model.model_metadata import MetadataTaxonomyKeys, ModelCustomMetadata
 
 
 class FineTuningMetricCategories(Enum):
@@ -52,17 +57,11 @@ class AquaFineTuneValidation(DataClassSerializable):
     value: str = ""
 
 
-class AquaFineTuningMetricScore(DataClassSerializable):
-    epoch: float = ""
-    step: int = ""
-    score: float = field(default_factory=float)
-
-
 @dataclass(repr=False)
 class AquaFineTuningMetric(DataClassSerializable):
     name: str = field(default_factory=str)
     category: str = field(default_factory=str)
-    scores: list[AquaFineTuningMetricScore] = field(default_factory=list)
+    scores: list[dict] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -102,11 +101,14 @@ class AquaEvalFTCommon(DataClassSerializable):
     experiment: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     log_group: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     log: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-    model: InitVar = None
-    jobrun: InitVar = None
-    region: InitVar = None
 
-    def __post_init__(self, model, jobrun, region):
+    model: InitVar = None
+    region: InitVar = None
+    jobrun: InitVar = None
+
+    def __post_init__(
+        self, model, region: str, jobrun: oci.data_science.models.JobRun = None
+    ):
         try:
             log_id = jobrun.log_details.log_id
         except Exception as e:
@@ -134,26 +136,19 @@ class AquaEvalFTCommon(DataClassSerializable):
         loggroup_name = None
 
         if log_id:
-            log = utils.query_resource(log_id, return_all=False)
-            log_name = log.display_name if log else ""
+            try:
+                log = utils.query_resource(log_id, return_all=False)
+                log_name = log.display_name if log else ""
+            except:
+                pass
 
         if loggroup_id:
-            loggroup = utils.query_resource(log_id, return_all=False)
-            loggroup_name = loggroup.display_name if loggroup else ""
+            try:
+                loggroup = utils.query_resource(loggroup_id, return_all=False)
+                loggroup_name = loggroup.display_name if loggroup else ""
+            except:
+                pass
 
-        # status
-        model_status = model.lifecycle_state
-        job_run_status = (
-            jobrun.lifecycle_state
-            if jobrun and not jobrun.lifecycle_state == JobRun.LIFECYCLE_STATE_DELETED
-            else (
-                JobRun.LIFECYCLE_STATE_SUCCEEDED
-                if self._if_eval_artifact_exist(model)
-                else JobRun.LIFECYCLE_STATE_FAILED
-            )
-        )
-
-        # experiments
         experiment_id, experiment_name = utils._get_experiment_info(model)
 
         self.log_group = AquaResourceIdentifier(
@@ -163,14 +158,7 @@ class AquaEvalFTCommon(DataClassSerializable):
         self.experiment = utils._build_resource_identifier(
             id=experiment_id, name=experiment_name, region=region
         )
-        self.source = utils._build_resource_identifier(
-            id=source_model_id, name=source_model_name, region=region
-        )
         self.job = utils._build_job_identifier(job_run_details=jobrun, region=region)
-
-        self.lifecycle_state = utils.LifecycleStatus.get_status(
-            evaluation_status=model_status, job_run_status=job_run_status
-        )
         self.lifecycle_details = (
             utils.LIFECYCLE_DETAILS_MISSING_JOBRUN
             if not jobrun
@@ -186,6 +174,52 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
     validation: AquaFineTuneValidation = field(default_factory=AquaFineTuneValidation)
     shape_info: FineTuningShapeInfo = field(default_factory=FineTuningShapeInfo)
     metrics: List[AquaFineTuningMetric] = field(default_factory=list)
+
+    def __post_init__(
+        self,
+        model: DataScienceModel,
+        region: str,
+        jobrun: oci.data_science.models.JobRun = None,
+    ):
+        super().__post_init__(model=model, region=region, jobrun=jobrun)
+
+        if jobrun is not None:
+            jobrun_env_vars = (
+                jobrun.job_configuration_override_details.environment_variables or {}
+            )
+            self.shape_info = FineTuningShapeInfo(
+                instance_shape=jobrun.job_infrastructure_configuration_details.shape_name,
+                # TODO: use variable for `NODE_COUNT` in ads/jobs/builders/runtimes/base.py
+                replica=jobrun_env_vars.get("NODE_COUNT", UNKNOWN_VALUE),
+            )
+
+        try:
+            model_hyperparameters = model.defined_metadata_list.get(
+                MetadataTaxonomyKeys.HYPERPARAMETERS
+            ).value
+        except Exception as e:
+            logger.debug(
+                f"Failed to extract model hyperparameters from {model.id}:" f"{str(e)}"
+            )
+            model_hyperparameters = {}
+
+        self.dataset = model_hyperparameters.get(
+            FineTuningDefinedMetadata.TRAINING_DATA.value
+        )
+        if not self.dataset:
+            logger.debug(
+                f"Key={FineTuningDefinedMetadata.TRAINING_DATA.value} not found in model hyperparameters."
+            )
+
+        self.validation = AquaFineTuneValidation(
+            value=model_hyperparameters.get(
+                FineTuningDefinedMetadata.VAL_SET_SIZE.value
+            )
+        )
+        if not self.validation:
+            logger.debug(
+                f"Key={FineTuningDefinedMetadata.VAL_SET_SIZE.value} not found in model hyperparameters."
+            )
 
 
 # TODO: merge metadata key used in create FT
@@ -227,6 +261,10 @@ class AquaModelApp(AquaApp):
     """
 
     _service_models_cache = TTLCache(
+        maxsize=10, ttl=timedelta(hours=5), timer=datetime.now
+    )
+    # Used for saving service model details
+    _service_model_details_cache = TTLCache(
         maxsize=10, ttl=timedelta(hours=5), timer=datetime.now
     )
     _cache_lock = Lock()
@@ -298,11 +336,20 @@ class AquaModelApp(AquaApp):
         AquaModel:
             The instance of AquaModel.
         """
-        # TODO: add cache for service model details
+        cached_item = self._service_model_details_cache.get(model_id)
+        if cached_item:
+            return cached_item
+
         ds_model = DataScienceModel.from_id(model_id)
 
         if not self._if_show(ds_model):
-            raise AquaRuntimeError(f"Target model {ds_model.id} is not Aqua model.")
+            raise AquaRuntimeError(f"Target model `{ds_model.id} `is not Aqua model.")
+
+        is_fine_tuned_model = (
+            True
+            if ds_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
+            else False
+        )
 
         artifact_path = ds_model.custom_metadata_list.get(
             utils.MODEL_BY_REFERENCE_OSS_PATH_KEY, utils.UNKNOWN
@@ -318,29 +365,16 @@ class AquaModelApp(AquaApp):
             ),
         )
 
-        is_fine_tuned_model = (
-            True
-            if ds_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
-            else False
-        )
-
         if not is_fine_tuned_model:
             model_details = AquaModel(**aqua_model_atttributes)
+            self._service_model_details_cache.__setitem__(
+                key=model_id, value=model_details
+            )
+
         else:
             jobrun_ocid = ds_model.provenance_metadata.training_id
             jobrun = self.ds_client.get_job_run(jobrun_ocid).data
-            # shape info
-            shape_info = FineTuningShapeInfo(
-                instance_shape=jobrun.job_infrastructure_configuration_details.shape_name,
-                # TODO: use variable for `NODE_COUNT` in ads/jobs/builders/runtimes/base.py
-                replica=jobrun.job_configuration_override_details.environment_variables.get(
-                    "NODE_COUNT"
-                ),
-            )
 
-            jobrun_identifier = utils._build_resource_identifier(
-                id=jobrun.id, name=jobrun.display_name, region=self.region
-            )
             source_identifier = utils._build_resource_identifier(
                 id=ds_model.custom_metadata_list.get(
                     FineTuningCustomMetadata.FT_SOURCE
@@ -351,20 +385,36 @@ class AquaModelApp(AquaApp):
                 region=self.region,
             )
 
-            experiment_identifier = utils._build_resource_identifier(
-                id=ds_model.model_version_set_id,
-                name=ds_model.model_version_set_name,
-                region=self.region,
-            )
             ft_metrics = self._build_ft_metrics(ds_model.custom_metadata_list)
+
+            job_run_status = (
+                jobrun.lifecycle_state
+                if jobrun
+                and not jobrun.lifecycle_state == JobRun.LIFECYCLE_STATE_DELETED
+                else (
+                    JobRun.LIFECYCLE_STATE_SUCCEEDED
+                    if self.if_artifact_exist(ds_model.id)
+                    else JobRun.LIFECYCLE_STATE_FAILED
+                )
+            )
+            # TODO: change the argument's name.
+            lifecycle_state = utils.LifecycleStatus.get_status(
+                evaluation_status=ds_model.lifecycle_state,
+                job_run_status=job_run_status,
+            )
 
             model_details = AquaFineTuneModel(
                 **aqua_model_atttributes,
-                job=jobrun_identifier,
                 source=source_identifier,
-                experiment=experiment_identifier,
-                shape_info=shape_info,
+                lifecycle_state=(
+                    Model.LIFECYCLE_STATE_ACTIVE
+                    if lifecycle_state == JobRun.LIFECYCLE_STATE_SUCCEEDED
+                    else lifecycle_state
+                ),
                 metrics=ft_metrics,
+                model=ds_model,
+                jobrun=jobrun,
+                region=self.region,
             )
 
         return model_details
@@ -382,23 +432,8 @@ class AquaModelApp(AquaApp):
             for custom_metadata in custom_metadata_list:
                 # We use description to group metrics
                 if custom_metadata.description == target:
-                    # final loss/accuracy
-                    metrics = json.loads(custom_metadata.value)
-                    scores.append(
-                        AquaFineTuningMetricScore(
-                            epoch=metrics.get("epoch", ""),
-                            step=metrics.get("step", ""),
-                            score=(
-                                metrics.get("rouge", [""])[0]
-                                if metric_name == "validation_accuracy"
-                                else metrics.get("loss", "")
-                            ),
-                        )
-                    )
-                    if (
-                        metric_name == "validation_accuracy"
-                        or metric_name == "final_training_loss"
-                    ):
+                    scores.append(json.loads(custom_metadata.value))
+                    if metric_name.endswith("final"):
                         break
 
             return AquaFineTuningMetric(
@@ -414,37 +449,39 @@ class AquaModelApp(AquaApp):
     ) -> List[AquaFineTuningMetric]:
         """Builds Fine Tuning metrics."""
 
-        validation_loss = self._fetch_metric_from_metadata(
+        validation_metrics = self._fetch_metric_from_metadata(
             custom_metadata_list=custom_metadata_list,
             target=FineTuningCustomMetadata.VALIDATION_METRICS_EPOCH,
             category=FineTuningMetricCategories.VALIDATION.value,
-            metric_name="validation_loss",
+            metric_name=VALIDATION_METRICS,
         )
 
-        training_loss = self._fetch_metric_from_metadata(
+        training_metrics = self._fetch_metric_from_metadata(
             custom_metadata_list=custom_metadata_list,
             target=FineTuningCustomMetadata.TRAINING_METRICS_EPOCH,
             category=FineTuningMetricCategories.TRAINING.value,
-            metric_name="training_loss",
+            metric_name=TRINING_METRICS,
         )
-        validation_accuracy = self._fetch_metric_from_metadata(
+
+        validation_final = self._fetch_metric_from_metadata(
             custom_metadata_list=custom_metadata_list,
             target=FineTuningCustomMetadata.VALIDATION_METRICS_FINAL,
             category=FineTuningMetricCategories.VALIDATION.value,
-            metric_name="validation_accuracy",
+            metric_name=VALIDATION_METRICS_FINAL,
         )
-        final_training_loss = self._fetch_metric_from_metadata(
+
+        training_final = self._fetch_metric_from_metadata(
             custom_metadata_list=custom_metadata_list,
             target=FineTuningCustomMetadata.TRAINING_METRICS_FINAL,
             category=FineTuningMetricCategories.TRAINING.value,
-            metric_name="final_training_loss",
+            metric_name=TRAINING_METRICS_FINAL,
         )
 
         return [
-            validation_loss,
-            training_loss,
-            validation_accuracy,
-            final_training_loss,
+            validation_metrics,
+            training_metrics,
+            validation_final,
+            training_final,
         ]
 
     def _process_model(

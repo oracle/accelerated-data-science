@@ -5,6 +5,7 @@
 import oci
 
 from ads import set_auth
+from ads.aqua.utils import logger
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import extract_region
@@ -47,3 +48,27 @@ class AquaApp:
             list_func_ref,
             **kwargs,
         ).data
+
+    def if_artifact_exist(self, model_id: str, **kwargs) -> bool:
+        """Checks if the artifact exists.
+
+        Parameters
+        ----------
+        model_id : str
+            The model OCID.
+        **kwargs :
+            Additional keyword arguments passed in head_model_artifact.
+
+        Returns
+        -------
+        bool
+            Whether the artifact exists.
+        """
+
+        try:
+            response = self.ds_client.head_model_artifact(model_id=model_id, **kwargs)
+            return True if response.status == 200 else False
+        except oci.exceptions.ServiceError as ex:
+            if ex.status == 404:
+                logger.info(f"Artifact not found in model {model_id}.")
+                return False

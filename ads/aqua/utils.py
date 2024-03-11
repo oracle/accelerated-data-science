@@ -12,21 +12,19 @@ import sys
 from enum import Enum
 from pathlib import Path
 from string import Template
-from typing import List
+from typing import List, Union
 
 import fsspec
+import oci
 from oci.data_science.models import JobRun, Model
 
+from ads.aqua.constants import RqsAdditionalDetails
 from ads.aqua.data import AquaResourceIdentifier
-from ads.aqua.exception import (
-    AquaFileNotFoundError,
-    AquaMissingKeyError,
-    AquaRuntimeError,
-    AquaValueError,
-)
+from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link, upload_to_os
 from ads.config import TENANCY_OCID
+from ads.model import DataScienceModel
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
@@ -42,6 +40,8 @@ CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
     datasciencemodel="models",
     datasciencemodeldeployment="model-deployments",
     datasciencejob="jobs",
+    datasciencejobrun="jobruns",
+    datasciencemodelversionset="model-version-sets",
 )
 CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS", "ociodscdev")
 SOURCE_FILE = "run.sh"
@@ -284,7 +284,7 @@ def query_resource(
     )
     if len(resources) == 0:
         raise AquaRuntimeError(
-            f"Failed to retreive source {resource_type}'s information.",
+            f"Failed to retreive {resource_type}'s information.",
             service_payload={"query": query, "tenant_id": TENANCY_OCID},
         )
     return resources[0]
@@ -440,14 +440,6 @@ def _build_resource_identifier(
             f"Failed to construct AquaResourceIdentifier from given id=`{id}`, and name=`{name}`, {str(e)}"
         )
         return AquaResourceIdentifier()
-
-
-from typing import Union
-
-import oci
-
-from ads.aqua.constants import RqsAdditionalDetails
-from ads.model import DataScienceModel
 
 
 def _get_experiment_info(
