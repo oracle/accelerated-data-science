@@ -61,7 +61,7 @@ class AquaFineTuneValidation(DataClassSerializable):
 class AquaFineTuningMetric(DataClassSerializable):
     name: str = field(default_factory=str)
     category: str = field(default_factory=str)
-    scores: list[dict] = field(default_factory=list)
+    scores: list = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -341,7 +341,6 @@ class AquaModelApp(AquaApp):
             return cached_item
 
         ds_model = DataScienceModel.from_id(model_id)
-
         if not self._if_show(ds_model):
             raise AquaRuntimeError(f"Target model `{ds_model.id} `is not Aqua model.")
 
@@ -381,7 +380,7 @@ class AquaModelApp(AquaApp):
 
             try:
                 source_id = ds_model.custom_metadata_list.get(
-                    FineTuningCustomMetadata.FT_SOURCE
+                    FineTuningCustomMetadata.FT_SOURCE.value
                 ).value
             except ValueError as e:
                 logger.debug(str(e))
@@ -389,7 +388,7 @@ class AquaModelApp(AquaApp):
 
             try:
                 source_name = ds_model.custom_metadata_list.get(
-                    FineTuningCustomMetadata.FT_SOURCE_NAME
+                    FineTuningCustomMetadata.FT_SOURCE_NAME.value
                 ).value
             except ValueError as e:
                 logger.debug(str(e))
@@ -467,28 +466,28 @@ class AquaModelApp(AquaApp):
 
         validation_metrics = self._fetch_metric_from_metadata(
             custom_metadata_list=custom_metadata_list,
-            target=FineTuningCustomMetadata.VALIDATION_METRICS_EPOCH,
+            target=FineTuningCustomMetadata.VALIDATION_METRICS_EPOCH.value,
             category=FineTuningMetricCategories.VALIDATION.value,
             metric_name=VALIDATION_METRICS,
         )
 
         training_metrics = self._fetch_metric_from_metadata(
             custom_metadata_list=custom_metadata_list,
-            target=FineTuningCustomMetadata.TRAINING_METRICS_EPOCH,
+            target=FineTuningCustomMetadata.TRAINING_METRICS_EPOCH.value,
             category=FineTuningMetricCategories.TRAINING.value,
             metric_name=TRINING_METRICS,
         )
 
         validation_final = self._fetch_metric_from_metadata(
             custom_metadata_list=custom_metadata_list,
-            target=FineTuningCustomMetadata.VALIDATION_METRICS_FINAL,
+            target=FineTuningCustomMetadata.VALIDATION_METRICS_FINAL.value,
             category=FineTuningMetricCategories.VALIDATION.value,
             metric_name=VALIDATION_METRICS_FINAL,
         )
 
         training_final = self._fetch_metric_from_metadata(
             custom_metadata_list=custom_metadata_list,
-            target=FineTuningCustomMetadata.TRAINING_METRICS_FINAL,
+            target=FineTuningCustomMetadata.TRAINING_METRICS_FINAL.value,
             category=FineTuningMetricCategories.TRAINING.value,
             metric_name=TRAINING_METRICS_FINAL,
         )
