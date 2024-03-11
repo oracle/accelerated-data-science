@@ -43,7 +43,6 @@ from ads.aqua.utils import (
     NB_SESSION_IDENTIFIER,
     SOURCE_FILE,
     UNKNOWN,
-    fire_and_forget,
     is_valid_ocid,
     upload_local_to_os,
 )

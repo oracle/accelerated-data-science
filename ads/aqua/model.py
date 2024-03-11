@@ -351,9 +351,13 @@ class AquaModelApp(AquaApp):
             else False
         )
 
-        artifact_path = ds_model.custom_metadata_list.get(
-            utils.MODEL_BY_REFERENCE_OSS_PATH_KEY, utils.UNKNOWN
-        )
+        try:
+            artifact_path = ds_model.custom_metadata_list.get(
+                utils.MODEL_BY_REFERENCE_OSS_PATH_KEY
+            ).value
+        except ValueError:
+            artifact_path = utils.UNKNOWN
+
         if not artifact_path:
             logger.debug("Failed to get artifact path from custom metadata.")
 
@@ -375,13 +379,25 @@ class AquaModelApp(AquaApp):
             jobrun_ocid = ds_model.provenance_metadata.training_id
             jobrun = self.ds_client.get_job_run(jobrun_ocid).data
 
-            source_identifier = utils._build_resource_identifier(
-                id=ds_model.custom_metadata_list.get(
+            try:
+                source_id = ds_model.custom_metadata_list.get(
                     FineTuningCustomMetadata.FT_SOURCE
-                ),
-                name=ds_model.custom_metadata_list.get(
+                ).value
+            except ValueError as e:
+                logger.debug(str(e))
+                source_id = UNKNOWN
+
+            try:
+                source_name = ds_model.custom_metadata_list.get(
                     FineTuningCustomMetadata.FT_SOURCE_NAME
-                ),
+                ).value
+            except ValueError as e:
+                logger.debug(str(e))
+                source_name = UNKNOWN
+
+            source_identifier = utils._build_resource_identifier(
+                id=source_id,
+                name=source_name,
                 region=self.region,
             )
 
