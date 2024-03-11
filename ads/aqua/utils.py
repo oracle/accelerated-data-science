@@ -33,6 +33,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
 
 UNKNOWN = ""
+UNKNOWN_DICT = {}
 README = "README.md"
 DEPLOYMENT_CONFIG = "deployment_config.json"
 EVALUATION_REPORT_JSON = "report.json"
@@ -54,7 +55,9 @@ BERT_BASE_MULTILINGUAL_CASED = (
 )
 FINE_TUNING_RUNTIME_CONTAINER = "iad.ocir.io/ociodscdev/aqua_ft_cuda121:0.2.13.19"
 DEFAULT_FT_BLOCK_STORAGE_SIZE = 256
-DEFAULT_REPLICA = 1
+DEFAULT_FT_REPLICA = 1
+DEFAULT_FT_BATCH_SIZE = 1
+DEFAULT_FT_VALIDATION_SET_SIZE = 0.1
 
 # TODO: remove later
 SUBNET_ID = os.environ.get("SUBNET_ID", None)
