@@ -23,7 +23,8 @@ from oci.data_science.models import JobRun, Model
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import upload_to_os
-from ads.config import TENANCY_OCID, AQUA_CONFIG_FOLDER
+from ads.config import TENANCY_OCID, AQUA_CONFIG_FOLDER, AQUA_SERVICE_MODELS_BUCKET
+from ads.common.object_storage_details import ObjectStorageDetails
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
@@ -192,7 +193,13 @@ def get_artifact_path(custom_metadata_list: List) -> str:
     """
     for custom_metadata in custom_metadata_list:
         if custom_metadata.key == MODEL_BY_REFERENCE_OSS_PATH_KEY:
-            return custom_metadata.value
+            if ObjectStorageDetails.is_oci_path(custom_metadata.value):
+                artifact_path = custom_metadata.value
+            else:
+                artifact_path = ObjectStorageDetails(
+                    AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, custom_metadata.value
+                ).path
+            return artifact_path
     logger.debug("Failed to get artifact path from custom metadata.")
     return UNKNOWN
 
