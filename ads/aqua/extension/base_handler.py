@@ -54,7 +54,7 @@ class AquaAPIhandler(APIHandler):
         self.set_header("Content-Type", "application/json")
         reason = kwargs.get("reason")
         self.set_status(status_code, reason=reason)
-        message = responses.get(status_code, "Unknown HTTP Error")
+        message = self.get_default_error_messages(status_code)
         reply = {
             "status": status_code,
             "message": message,
@@ -74,6 +74,20 @@ class AquaAPIhandler(APIHandler):
 
         logger.warning(reply["message"])
         self.finish(json.dumps(reply))
+
+    @staticmethod
+    def get_default_error_messages(status_code):
+        messages = {
+            400: "Something went wrong with your request.",
+            403: "We're having trouble processing your request with the information provided.",
+            404: "Authorization Failed: The resource you're looking for isn't accessible.",
+            408: "Server is taking too long to response, please try again.",
+            500: "An error occurred while creating the resource.",
+        }
+        if status_code in messages:
+            return messages[status_code]
+        else:
+            return "Unknown HTTP Error."
 
 
 # todo: remove after error handler is implemented
