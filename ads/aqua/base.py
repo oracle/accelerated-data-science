@@ -19,6 +19,7 @@ from ads.config import (
 from ads.aqua.data import Tags
 from ads.aqua.exception import AquaRuntimeError, AquaValueError
 from ads.aqua.utils import load_config
+from ads.aqua import logger
 
 
 class AquaApp:
@@ -95,8 +96,9 @@ class AquaApp:
         )
 
         if model_name not in config:
-            raise AquaValueError(
+            logger.error(
                 f"{config_file_name} does not have config details for model: {model_name}"
             )
+            return {}
 
         return config[model_name]
