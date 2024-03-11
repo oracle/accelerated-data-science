@@ -7,6 +7,7 @@
 import pandas as pd
 import numpy as np
 from xgboost import XGBRegressor
+from scipy.fft import fft
 
 from ads.opctl import logger
 
@@ -45,7 +46,15 @@ class XGBoostOperatorModel(ForecastOperatorBaseModel):
         self.le[series_id], df_encoded = _label_encode_dataframe(
             data,
         )
-        return df_encoded
+        original_y = df_encoded[self.original_target_column].values
+        df_encoded["__new_target"] = (
+            df_encoded[self.original_target_column].diff().fillna(0)
+        )
+        # df_encoded['__fft_target'] = np.abs(fft(df_encoded[self.original_target_column].values))
+        return df_encoded.drop(self.original_target_column, axis=1), original_y
+
+    def reverse_diff(self, y, diff):
+        return diff.cumsum() + y[-1 * (self.spec.horizon + 1) : -self.spec.horizon]
 
     def deconstruct_timestamp(self, df, dt_col_name):
         dt_col = df[dt_col_name]
@@ -88,51 +97,58 @@ class XGBoostOperatorModel(ForecastOperatorBaseModel):
             data_clean = self.deconstruct_timestamp(
                 data, self.spec.datetime_column.name
             )
-            data_clean = self.preprocess(data_clean, series_id=s_id)
-            data_clean = self.add_lag(data_clean)
+            data_clean, original_y = self.preprocess(data_clean, series_id=s_id)
+            # data_clean = self.add_lag(data_clean)
 
             horizon = self.get_horizon(data_clean)
             historical = self.drop_horizon(data_clean)
 
-            X = historical.drop(self.original_target_column, axis=1)
-            y = historical[self.original_target_column]
+            X = historical.drop("__new_target", axis=1)
+            y = historical["__new_target"]
 
             X_train, X_val, y_train, y_val = train_test_split(
                 X, y, test_size=0.2, random_state=42
             )
 
-            def objective(trial):
-                params = {
-                    "objective": "reg:squarederror",
-                    "n_estimators": 1000,
-                    "verbosity": 0,
-                    "learning_rate": trial.suggest_float(
-                        "learning_rate", 1e-3, 0.1, log=True
-                    ),
-                    "max_depth": trial.suggest_int("max_depth", 1, 10),
-                    "subsample": trial.suggest_float("subsample", 0.05, 1.0),
-                    "colsample_bytree": trial.suggest_float(
-                        "colsample_bytree", 0.05, 1.0
-                    ),
-                    "min_child_weight": trial.suggest_int("min_child_weight", 1, 20),
-                }
+            if self.spec.tuning is not None:
 
-                model = XGBRegressor(**params)
-                model.fit(X_train, y_train, verbose=False)
-                predictions = model.predict(X_val)
-                rmse = mean_squared_error(y_val, predictions, squared=False)
-                return rmse
+                def objective(trial):
+                    params = {
+                        "objective": "reg:squarederror",
+                        "n_estimators": 1000,
+                        "verbosity": 0,
+                        "learning_rate": trial.suggest_float(
+                            "learning_rate", 1e-3, 0.1, log=True
+                        ),
+                        "max_depth": trial.suggest_int("max_depth", 1, 10),
+                        "subsample": trial.suggest_float("subsample", 0.05, 1.0),
+                        "colsample_bytree": trial.suggest_float(
+                            "colsample_bytree", 0.05, 1.0
+                        ),
+                        "min_child_weight": trial.suggest_int(
+                            "min_child_weight", 1, 20
+                        ),
+                    }
 
-            study = optuna.create_study(direction="minimize")
-            study.optimize(objective, n_trials=30)
+                    model = XGBRegressor(**params)
+                    model.fit(X_train, y_train, verbose=False)
+                    predictions = model.predict(X_val)
+                    rmse = mean_squared_error(y_val, predictions, squared=False)
+                    return rmse
 
-            model = XGBRegressor(
-                objective="reg:squarederror", n_estimators=1000, **study.best_params
-            )
+                study = optuna.create_study(direction="minimize")
+                study.optimize(objective, n_trials=self.spec.tuning.n_trials)
+
+                model = XGBRegressor(
+                    objective="reg:squarederror", n_estimators=1000, **study.best_params
+                )
+            else:
+                model = XGBRegressor(objective="reg:squarederror", n_estimators=1000)
             model.fit(X, y)
 
-            X_pred = horizon.drop(self.original_target_column, axis=1)
-            yhat = model.predict(X_pred)
+            X_pred = horizon.drop("__new_target", axis=1)
+            pred = model.predict(X_pred)
+            yhat = self.reverse_diff(original_y, model.predict(X_pred))
 
             fitted_values = model.predict(X)
 
