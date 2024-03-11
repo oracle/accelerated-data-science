@@ -399,6 +399,9 @@ class AquaFineTuningApp(AquaApp):
                 custom_metadata_list=updated_custom_metadata_list,
                 freeform_tags={
                     Tags.AQUA_TAG.value: UNKNOWN,
+                    Tags.AQUA_FINE_TUNED_MODEL_TAG.value: (
+                        f"{source.id}#{source.display_name}"
+                    ),
                     Tags.LICENSE.value: (
                         source.freeform_tags.get(
                             Tags.LICENSE.value,
