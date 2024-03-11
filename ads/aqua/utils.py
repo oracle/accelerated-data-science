@@ -32,6 +32,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
 
 UNKNOWN = ""
+UNKNOWN_DICT = {}
 README = "README.md"
 DEPLOYMENT_CONFIG = "deployment_config.json"
 EVALUATION_REPORT_JSON = "report.json"
@@ -53,6 +54,12 @@ BERT_SCORE_PATH = "/home/datascience/conda/pytorch21_p39_gpu_v1/bertscore/bertsc
 BERT_BASE_MULTILINGUAL_CASED = (
     "/home/datascience/conda/pytorch21_p39_gpu_v1/bert-base-multilingual-cased/"
 )
+FINE_TUNING_RUNTIME_CONTAINER = "iad.ocir.io/ociodscdev/aqua_ft_cuda121:0.3.16.19"
+DEFAULT_FT_BLOCK_STORAGE_SIZE = 256
+DEFAULT_FT_REPLICA = 1
+DEFAULT_FT_BATCH_SIZE = 1
+DEFAULT_FT_VALIDATION_SET_SIZE = 0.1
+
 HF_MODELS = "/home/datascience/conda/pytorch21_p39_gpu_v1/"
 MAXIMUM_ALLOWED_DATASET_IN_BYTE = 52428800  # 1024 x 1024 x 50 = 50MB
 JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING = "ME_STANDALONE"
