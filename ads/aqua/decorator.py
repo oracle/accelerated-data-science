@@ -5,6 +5,7 @@
 
 """Decorator module."""
 
+import asyncio
 import sys
 from functools import wraps
 
@@ -99,3 +100,13 @@ def handle_exceptions(func):
             )
 
     return inner_function
+
+
+def fire_and_forget(func):
+    """Decorator to push execution of methods to the background."""
+
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        return asyncio.get_event_loop().run_in_executor(None, func, *args, *kwargs)
+
+    return wrapped
