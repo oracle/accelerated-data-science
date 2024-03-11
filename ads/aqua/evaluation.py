@@ -38,10 +38,10 @@ from ads.aqua.utils import (
     CONDA_REGION,
     CONDA_URI,
     HF_MODELS,
-    SOURCE_FILE,
-    UNKNOWN,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     NB_SESSION_IDENTIFIER,
+    SOURCE_FILE,
+    UNKNOWN,
     fire_and_forget,
     is_valid_ocid,
     upload_local_to_os,
@@ -504,9 +504,7 @@ class AquaEvaluationApp(AquaApp):
                     ocpus=create_aqua_evaluation_details.ocpus,
                 )
             if AQUA_JOB_SUBNET_ID:
-                evaluation_job.infrastructure.with_subnet_id(
-                    AQUA_JOB_SUBNET_ID
-                )
+                evaluation_job.infrastructure.with_subnet_id(AQUA_JOB_SUBNET_ID)
             else:
                 if NB_SESSION_IDENTIFIER in os.environ:
                     # apply default subnet id for job by setting ME_STANDALONE
@@ -951,16 +949,22 @@ class AquaEvaluationApp(AquaApp):
             report_content = self._read_from_artifact(
                 temp_dir, files_in_artifact, utils.EVALUATION_REPORT_MD
             )
-            report = json.loads(
-                self._read_from_artifact(
-                    temp_dir, files_in_artifact, utils.EVALUATION_REPORT_JSON
+            try:
+                report = json.loads(
+                    self._read_from_artifact(
+                        temp_dir, files_in_artifact, utils.EVALUATION_REPORT_JSON
+                    )
                 )
-            )
+            except Exception as e:
+                logger.debug(
+                    "Failed to load `report.json` from evaluation artifact" f"{str(e)}"
+                )
+                report = {}
 
         # TODO: after finalizing the format of report.json, move the constant to class
         eval_metrics = AquaEvalMetrics(
             id=eval_id,
-            report=report_content,
+            report=base64.b64encode(report_content).decode(),
             metric_results=[
                 AquaEvalMetric(
                     key=metric_key,
