@@ -16,3 +16,4 @@ runs:
         source /home/runner/.bashrc
 
         pip install -r dev-requirements.txt
+        conda list
