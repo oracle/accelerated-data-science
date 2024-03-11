@@ -745,30 +745,26 @@ class AquaEvaluationApp(AquaApp):
         loggroup_name = None
 
         if log_id:
-            log = utils.query_resource(log_id, return_all=False)
-            log_name = log.display_name if log else ""
+            try:
+                log = utils.query_resource(log_id, return_all=False)
+                log_name = log.display_name if log else ""
+            except:
+                pass
 
         if loggroup_id:
-            loggroup = utils.query_resource(log_id, return_all=False)
-            loggroup_name = loggroup.display_name if loggroup else ""
+            try:
+                loggroup = utils.query_resource(loggroup_id, return_all=False)
+                loggroup_name = loggroup.display_name if loggroup else ""
+            except:
+                pass
 
         try:
             introspection = json.loads(
                 self._get_attribute_from_model_metadata(resource, "ArtifactTestResults")
             )
         except:
-            # TODO: remove this hardcode value later
-            introspection = {
-                "aqua_evaluate": {
-                    "input_dataset_path": {
-                        "key": "input_dataset_path",
-                        "category": "aqua_evaluate",
-                        "description": "Some description here",
-                        "error_msg": "The error details",
-                        "success": False,
-                    }
-                }
-            }
+            introspection = {}
+
         summary = AquaEvaluationDetail(
             **self._process(resource),
             **self._get_status(model=resource, jobrun=job_run_details),
