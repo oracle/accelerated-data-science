@@ -14,7 +14,7 @@ from ads.common.object_storage_details import ObjectStorageDetails
 
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
-from ads.config import AQUA_MODEL_FINETUNING_CONFIG
+from ads.config import AQUA_CONFIG_FOLDER, AQUA_MODEL_FINETUNING_CONFIG
 
 from ads.aqua.base import AquaApp
 from ads.aqua.job import AquaJobSummary
@@ -29,9 +29,8 @@ from ads.aqua.utils import (
     UNKNOWN,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     UNKNOWN_DICT,
-    UNKNOWN_JSON_STR,
+    load_config,
     logger,
-    read_file,
     upload_local_to_os
 )
 from ads.config import AQUA_JOB_SUBNET_ID, COMPARTMENT_OCID, PROJECT_OCID
@@ -201,8 +200,8 @@ class AquaFineTuningApp(AquaApp):
             )
         
         if (
-            create_fine_tuning_details.validation_split < 0 
-            or create_fine_tuning_details.validation_split >= 1
+            create_fine_tuning_details.validation_set_size < 0 
+            or create_fine_tuning_details.validation_set_size >= 1
         ):
             raise AquaValueError(
                 f"Fine tuning validation set size should be a float number in between [0, 1)."
@@ -341,14 +340,9 @@ class AquaFineTuningApp(AquaApp):
                 create_fine_tuning_details.subnet_id
             )
 
-        ft_config_path = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)),
-            "config",
-            "finetuning_config.json"
-        )
-
-        ft_config = json.loads(
-            read_file(file_path=ft_config_path) or UNKNOWN_JSON_STR
+        ft_config = load_config(
+            AQUA_CONFIG_FOLDER,
+            config_file_name="finetuning_config.json",
         )
 
         batch_size = (

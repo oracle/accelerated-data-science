@@ -3,13 +3,9 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-<<<<<<< HEAD
 
-from typing import Dict, List, Union
-=======
->>>>>>> f53bbf73d7aaff3b80100b7acdbd52281c3af57f
+from typing import Dict, Union
 import oci
-from typing import Dict
 
 from ads import set_auth
 from ads.aqua.exception import AquaValueError
@@ -17,19 +13,15 @@ from ads.aqua.utils import UNKNOWN, is_valid_ocid, logger
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import extract_region
-<<<<<<< HEAD
-from ads.config import OCI_ODSC_SERVICE_ENDPOINT, OCI_RESOURCE_PRINCIPAL_VERSION
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import ModelCustomMetadata, ModelProvenanceMetadata, ModelTaxonomyMetadata
 from ads.model.model_version_set import ModelVersionSet
 
 from oci.data_science.models import (
-    Metadata,
     UpdateModelDetails,
     UpdateModelProvenanceDetails,
 )
-=======
 from ads.config import (
     OCI_ODSC_SERVICE_ENDPOINT,
     OCI_RESOURCE_PRINCIPAL_VERSION,
@@ -39,7 +31,6 @@ from ads.config import (
 from ads.aqua.data import Tags
 from ads.aqua.exception import AquaRuntimeError, AquaValueError
 from ads.aqua.utils import load_config
->>>>>>> f53bbf73d7aaff3b80100b7acdbd52281c3af57f
 
 
 class AquaApp:
@@ -84,6 +75,15 @@ class AquaApp:
         model_id: str,
         update_model_details: UpdateModelDetails
     ):
+        """Updates model details.
+
+        Parameters
+        ----------
+        model_id : str
+            The id of target model.
+        update_model_details: UpdateModelDetails
+            The model details to be updated.
+        """
         self.ds_client.update_model(
             model_id=model_id,
             update_model_details=update_model_details
@@ -94,11 +94,21 @@ class AquaApp:
         model_id: str,
         update_model_provenance_details: UpdateModelProvenanceDetails
     ):
+        """Updates model provenance details.
+
+        Parameters
+        ----------
+        model_id : str
+            The id of target model.
+        update_model_provenance_details: UpdateModelProvenanceDetails
+            The model provenance details to be updated.
+        """
         self.ds_client.update_model_provenance(
             model_id=model_id,
             update_model_provenance_details=update_model_provenance_details
         )
     
+    # TODO: refactor model evaluation implementation to use it.
     @staticmethod
     def get_source(source_id: str) -> Union[ModelDeployment, DataScienceModel]:
         if is_valid_ocid(source_id):
@@ -112,6 +122,7 @@ class AquaApp:
             "Specify either a model or model deployment id."
         )
     
+    # TODO: refactor model evaluation implementation to use it.
     @staticmethod
     def create_model_version_set(
         model_version_set_id: str=None,
@@ -149,6 +160,7 @@ class AquaApp:
             model_version_set = ModelVersionSet.from_id(model_version_set_id)
             return (model_version_set_id, model_version_set.name)
     
+    # TODO: refactor model evaluation implementation to use it.
     @staticmethod
     def create_model_catalog(
         display_name: str,
