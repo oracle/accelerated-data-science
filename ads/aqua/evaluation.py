@@ -39,17 +39,19 @@ from ads.aqua.utils import (
     CONDA_REGION,
     CONDA_URI,
     HF_MODELS,
+    JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
+    NB_SESSION_IDENTIFIER,
     SOURCE_FILE,
-    SUBNET_ID,
     UNKNOWN,
+    fire_and_forget,
     is_valid_ocid,
     upload_local_to_os,
 )
-from ads.common.auth import AuthType
+from ads.common.auth import AuthType, default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link, get_files, upload_to_os
-from ads.config import COMPARTMENT_OCID, PROJECT_OCID
+from ads.config import AQUA_JOB_SUBNET_ID, COMPARTMENT_OCID, PROJECT_OCID
 from ads.jobs.ads_job import DataScienceJobRun, Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
@@ -356,7 +358,7 @@ class AquaEvaluationApp(AquaApp):
                 upload_local_to_os(
                     src_uri=evaluation_dataset_path,
                     dst_uri=dst_uri,
-                    auth=self._auth,
+                    auth=default_signer(),
                     force_overwrite=False,
                 )
             except FileExistsError:
@@ -493,7 +495,6 @@ class AquaEvaluationApp(AquaApp):
                     create_aqua_evaluation_details.block_storage_size
                 )
                 .with_freeform_tag(**evaluation_job_freeform_tags)
-                .with_subnet_id(SUBNET_ID)
             )
             if (
                 create_aqua_evaluation_details.memory_in_gbs
@@ -503,6 +504,16 @@ class AquaEvaluationApp(AquaApp):
                     memory_in_gbs=create_aqua_evaluation_details.memory_in_gbs,
                     ocpus=create_aqua_evaluation_details.ocpus,
                 )
+            if AQUA_JOB_SUBNET_ID:
+                evaluation_job.infrastructure.with_subnet_id(AQUA_JOB_SUBNET_ID)
+            else:
+                if NB_SESSION_IDENTIFIER in os.environ:
+                    # apply default subnet id for job by setting ME_STANDALONE
+                    # so as to avoid using the notebook session's networking when running on it
+                    # https://accelerated-data-science.readthedocs.io/en/latest/user_guide/jobs/infra_and_runtime.html#networking
+                    evaluation_job.infrastructure.with_job_infrastructure_type(
+                        JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING
+                    )
             evaluation_job.with_runtime(
                 self._build_evaluation_runtime(
                     evaluation_id=evaluation_model.id,

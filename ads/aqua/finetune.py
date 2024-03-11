@@ -4,11 +4,15 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from dataclasses import dataclass, field
+from typing import Dict
+
 from ads.common.serializer import DataClassSerializable
+from ads.common.utils import get_console_link
+from ads.config import AQUA_MODEL_FINETUNING_CONFIG
+
 from ads.aqua.base import AquaApp
 from ads.aqua.job import AquaJobSummary
 from ads.aqua.data import Resource, AquaResourceIdentifier, Tags
-from ads.common.utils import get_console_link
 from ads.aqua.utils import UNKNOWN
 
 
@@ -24,7 +28,22 @@ class AquaFineTuningSummary(AquaJobSummary, DataClassSerializable):
 
 
 class AquaFineTuningApp(AquaApp):
-    """Contains APIs for Aqua fine-tuning jobs."""
+    """Provides a suite of APIs to interact with Aqua fine-tuned models within the Oracle
+    Cloud Infrastructure Data Science service, serving as an interface for creating fine-tuned models.
+
+    Methods
+    -------
+    create(...) -> AquaFineTuningSummary
+        Creates a fine-tuned Aqua model.
+    get_finetuning_config(self, model_id: str) -> Dict:
+        Gets the finetuning config for given Aqua model.
+
+    Note:
+        Use `ads aqua finetuning <method_name> --help` to get more details on the parameters available.
+        This class is designed to work within the Oracle Cloud Infrastructure
+        and requires proper configuration and authentication set up to interact
+        with OCI services.
+    """
 
     def create(self, **kwargs) -> "AquaFineTuningSummary":
         """Creates a aqua fine tuned model."""
@@ -78,3 +97,19 @@ class AquaFineTuningApp(AquaApp):
             ),
             parameters=AquaFineTuningParams(epochs=0, learning_rate=0.0),
         )
+
+    def get_finetuning_config(self, model_id: str) -> Dict:
+        """Gets the finetuning config for given Aqua model.
+
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the Aqua model.
+
+        Returns
+        -------
+        Dict:
+            A dict of allowed finetuning configs.
+        """
+
+        return self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG)
