@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import asyncio
 import base64
 import json
 import os
@@ -16,6 +17,7 @@ from typing import Any, Dict, List, Optional, Union
 import oci
 from cachetools import TTLCache
 from oci.data_science.models import (
+    JobRun,
     Metadata,
     UpdateModelDetails,
     UpdateModelProvenanceDetails,
@@ -24,6 +26,7 @@ from oci.data_science.models import (
 from ads.aqua import logger, utils
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import (
+    AquaFileExistsError,
     AquaFileNotFoundError,
     AquaMissingKeyError,
     AquaRuntimeError,
@@ -34,20 +37,21 @@ from ads.aqua.utils import (
     BERT_SCORE_PATH,
     CONDA_REGION,
     CONDA_URI,
-    MODEL_PARAMETERS,
+    HF_MODELS,
     SOURCE_FILE,
-    SUBNET_ID,
     UNKNOWN,
+    JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
+    NB_SESSION_IDENTIFIER,
+    fire_and_forget,
     is_valid_ocid,
-    upload_file_to_os,
+    upload_local_to_os,
 )
-from ads.common import oci_client as oc
-from ads.common.auth import AuthType
+from ads.common.auth import AuthType, default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
-from ads.common.utils import get_console_link, get_files
-from ads.config import COMPARTMENT_OCID, PROJECT_OCID
-from ads.jobs.ads_job import Job
+from ads.common.utils import get_console_link, get_files, upload_to_os
+from ads.config import AQUA_JOB_SUBNET_ID, COMPARTMENT_OCID, PROJECT_OCID
+from ads.jobs.ads_job import DataScienceJobRun, Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
 from ads.jobs.builders.runtimes.python_runtime import PythonRuntime
@@ -91,6 +95,11 @@ class EvaluationJobTags(Enum):
     EVALUATION_MODEL_ID = "evaluation_model_id"
 
 
+class EvaluationUploadStatus(Enum):
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+
+
 @dataclass(repr=False)
 class AquaResourceIdentifier(DataClassSerializable):
     id: str = ""
@@ -105,12 +114,19 @@ class AquaEvalReport(DataClassSerializable):
 
 
 @dataclass(repr=False)
-class AquaEvalParams(DataClassSerializable):
-    shape: str = ""
+class ModelParams(DataClassSerializable):
     max_tokens: str = ""
     top_p: str = ""
     top_k: str = ""
     temperature: str = ""
+    presence_penalty: Optional[float] = 0.0
+    frequency_penalty: Optional[float] = 0.0
+    stop: Optional[Union[str, List[str]]] = field(default_factory=list)
+
+
+@dataclass(repr=False)
+class AquaEvalParams(ModelParams, DataClassSerializable):
+    shape: str = ""
 
 
 @dataclass(repr=False)
@@ -160,6 +176,15 @@ class AquaEvaluationSummary(DataClassSerializable):
     source: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     job: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     parameters: AquaEvalParams = field(default_factory=AquaEvalParams)
+
+
+@dataclass(repr=False)
+class AquaEvaluationDetail(AquaEvaluationSummary, DataClassSerializable):
+    """Represents a details of Aqua evalution."""
+
+    log_group: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    log: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    introspection: dict = field(default_factory=dict)
 
 
 class RqsAdditionalDetails:
@@ -270,7 +295,9 @@ class AquaEvaluationApp(AquaApp):
     _cache_lock = Lock()
 
     def create(
-        self, create_aqua_evaluation_details: CreateAquaEvaluationDetails, **kwargs
+        self,
+        create_aqua_evaluation_details: CreateAquaEvaluationDetails,
+        **kwargs,
     ) -> "AquaEvaluationSummary":
         """Creates Aqua evaluation for resource.
 
@@ -321,6 +348,28 @@ class AquaEvaluationApp(AquaApp):
                 "Evaluation report path must be an object storage path."
             )
 
+        evaluation_dataset_path = create_aqua_evaluation_details.dataset_path
+        if not ObjectStorageDetails.is_oci_path(evaluation_dataset_path):
+            # format: oci://<bucket>@<namespace>/<prefix>/<dataset_file_name>
+            dataset_file = os.path.basename(evaluation_dataset_path)
+            dst_uri = f"{create_aqua_evaluation_details.report_path.rstrip('/')}/{dataset_file}"
+            try:
+                upload_local_to_os(
+                    src_uri=evaluation_dataset_path,
+                    dst_uri=dst_uri,
+                    auth=default_signer(),
+                    force_overwrite=False,
+                )
+            except FileExistsError:
+                raise AquaFileExistsError(
+                    f"Dataset {dataset_file} already exists in {create_aqua_evaluation_details.report_path}. "
+                    "Please use a new dataset file name or report path."
+                )
+            logger.debug(
+                f"Uploaded local file {evaluation_dataset_path} to object storage {dst_uri}."
+            )
+            evaluation_dataset_path = dst_uri
+
         evaluation_model_parameters = None
         try:
             evaluation_model_parameters = AquaEvalParams(
@@ -330,7 +379,7 @@ class AquaEvaluationApp(AquaApp):
         except:
             raise AquaValueError(
                 "Invalid model parameters. Model parameters should "
-                f"be a dictionary with keys: {', '.join(MODEL_PARAMETERS)}."
+                f"be a dictionary with keys: {', '.join(list(ModelParams.__annotations__.keys()))}."
             )
 
         target_compartment = (
@@ -424,100 +473,75 @@ class AquaEvaluationApp(AquaApp):
             f"Successfully created evaluation model {evaluation_model.id} for {create_aqua_evaluation_details.evaluation_source_id}."
         )
 
-        evaluation_dataset_path = create_aqua_evaluation_details.dataset_path
-        if not ObjectStorageDetails.is_oci_path(evaluation_dataset_path):
-            # format: oci://<bucket>@<namespace>/<evaluation_model_id>/<dataset_file_name>
-            dst_uri = f"{create_aqua_evaluation_details.report_path}/{evaluation_model.id}/{os.path.basename(evaluation_dataset_path)}"
-            upload_file_to_os(
-                src_uri=evaluation_dataset_path,
-                dst_uri=dst_uri,
-                auth=self._auth,
-                force_overwrite=True,
-            )
-            logger.debug(
-                f"Uploaded local file {evaluation_dataset_path} to object storage {dst_uri}."
-            )
-            evaluation_dataset_path = dst_uri
-
-        # TODO: validat metrics if it's provided
+        # TODO: validate metrics if it's provided
 
         evaluation_job_freeform_tags = {
             EvaluationJobTags.AQUA_EVALUATION.value: EvaluationJobTags.AQUA_EVALUATION.value,
             EvaluationJobTags.EVALUATION_MODEL_ID.value: evaluation_model.id,
         }
 
-        try:
-            with tempfile.TemporaryDirectory() as temp_directory:
-                evaluation_job = Job(
-                    name=evaluation_model.display_name
-                ).with_infrastructure(
-                    DataScienceJob()
-                    .with_log_group_id(create_aqua_evaluation_details.log_group_id)
-                    .with_log_id(create_aqua_evaluation_details.log_id)
-                    .with_compartment_id(target_compartment)
-                    .with_project_id(target_project)
-                    .with_shape_name(create_aqua_evaluation_details.shape_name)
-                    .with_block_storage_size(
-                        create_aqua_evaluation_details.block_storage_size
-                    )
-                    .with_freeform_tag(**evaluation_job_freeform_tags)
-                    .with_subnet_id(SUBNET_ID)
+        with tempfile.TemporaryDirectory() as temp_directory:
+            evaluation_job = Job(
+                name=evaluation_model.display_name
+            ).with_infrastructure(
+                DataScienceJob()
+                .with_log_group_id(create_aqua_evaluation_details.log_group_id)
+                .with_log_id(create_aqua_evaluation_details.log_id)
+                .with_compartment_id(target_compartment)
+                .with_project_id(target_project)
+                .with_shape_name(create_aqua_evaluation_details.shape_name)
+                .with_block_storage_size(
+                    create_aqua_evaluation_details.block_storage_size
                 )
-                if (
-                    create_aqua_evaluation_details.memory_in_gbs
-                    and create_aqua_evaluation_details.ocpus
-                ):
-                    evaluation_job.infrastructure.with_shape_config_details(
-                        memory_in_gbs=create_aqua_evaluation_details.memory_in_gbs,
-                        ocpus=create_aqua_evaluation_details.ocpus,
-                    )
-                evaluation_job.with_runtime(
-                    self._build_evaluation_runtime(
-                        evaluation_id=evaluation_model.id,
-                        evaluation_source_id=(
-                            create_aqua_evaluation_details.evaluation_source_id
-                        ),
-                        dataset_path=evaluation_dataset_path,
-                        report_path=create_aqua_evaluation_details.report_path,
-                        model_parameters=create_aqua_evaluation_details.model_parameters,
-                        metrics=create_aqua_evaluation_details.metrics,
-                        source_folder=temp_directory,
-                    )
-                ).create(
-                    **kwargs
-                )  ## TODO: decide what parameters will be needed
-                logger.debug(
-                    f"Successfully created evaluation job {evaluation_job.id} for {create_aqua_evaluation_details.evaluation_source_id}."
-                )
-
-                evaluation_job_run = evaluation_job.run(
-                    name=evaluation_model.display_name,
-                    freeform_tags=evaluation_job_freeform_tags,
-                    wait=False,
-                )
-                logger.debug(
-                    f"Successfully created evaluation job run {evaluation_job_run.id} for {create_aqua_evaluation_details.evaluation_source_id}."
-                )
-
-                self.ds_client.update_model(
-                    model_id=evaluation_model.id,
-                    update_model_details=UpdateModelDetails(
-                        freeform_tags={
-                            EvaluationModelTags.AQUA_EVALUATION.value: EvaluationModelTags.AQUA_EVALUATION.value,
-                        }
-                    ),
-                )
-        except:
-            # TODO: quick fix, revisit this later
-            self.ds_client.update_model(
-                model_id=evaluation_model.id,
-                update_model_details=UpdateModelDetails(
-                    freeform_tags={
-                        EvaluationModelTags.AQUA_EVALUATION.value: EvaluationModelTags.AQUA_EVALUATION.value,
-                    }
-                ),
+                .with_freeform_tag(**evaluation_job_freeform_tags)
             )
-            raise
+            if (
+                create_aqua_evaluation_details.memory_in_gbs
+                and create_aqua_evaluation_details.ocpus
+            ):
+                evaluation_job.infrastructure.with_shape_config_details(
+                    memory_in_gbs=create_aqua_evaluation_details.memory_in_gbs,
+                    ocpus=create_aqua_evaluation_details.ocpus,
+                )
+            if AQUA_JOB_SUBNET_ID:
+                evaluation_job.infrastructure.with_subnet_id(
+                    AQUA_JOB_SUBNET_ID
+                )
+            else:
+                if NB_SESSION_IDENTIFIER in os.environ:
+                    # apply default subnet id for job by setting ME_STANDALONE
+                    # so as to avoid using the notebook session's networking when running on it
+                    # https://accelerated-data-science.readthedocs.io/en/latest/user_guide/jobs/infra_and_runtime.html#networking
+                    evaluation_job.infrastructure.with_job_infrastructure_type(
+                        JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING
+                    )
+            evaluation_job.with_runtime(
+                self._build_evaluation_runtime(
+                    evaluation_id=evaluation_model.id,
+                    evaluation_source_id=(
+                        create_aqua_evaluation_details.evaluation_source_id
+                    ),
+                    dataset_path=evaluation_dataset_path,
+                    report_path=create_aqua_evaluation_details.report_path,
+                    model_parameters=create_aqua_evaluation_details.model_parameters,
+                    metrics=create_aqua_evaluation_details.metrics,
+                    source_folder=temp_directory,
+                )
+            ).create(
+                **kwargs
+            )  ## TODO: decide what parameters will be needed
+            logger.debug(
+                f"Successfully created evaluation job {evaluation_job.id} for {create_aqua_evaluation_details.evaluation_source_id}."
+            )
+
+            evaluation_job_run = evaluation_job.run(
+                name=evaluation_model.display_name,
+                freeform_tags=evaluation_job_freeform_tags,
+                wait=False,
+            )
+            logger.debug(
+                f"Successfully created evaluation job run {evaluation_job_run.id} for {create_aqua_evaluation_details.evaluation_source_id}."
+            )
 
         evaluation_model_custom_metadata.add(
             key=EvaluationCustomMetadata.EVALUATION_JOB_ID.value,
@@ -535,7 +559,10 @@ class AquaEvaluationApp(AquaApp):
         self.ds_client.update_model(
             model_id=evaluation_model.id,
             update_model_details=UpdateModelDetails(
-                custom_metadata_list=updated_custom_metadata_list
+                custom_metadata_list=updated_custom_metadata_list,
+                freeform_tags={
+                    EvaluationModelTags.AQUA_EVALUATION.value: EvaluationModelTags.AQUA_EVALUATION.value,
+                },
             ),
         )
 
@@ -620,6 +647,7 @@ class AquaEvaluationApp(AquaApp):
                 **{
                     "BERT_SCORE_PATH": BERT_SCORE_PATH,
                     "BERT_BASE_MULTILINGUAL_CASED": BERT_BASE_MULTILINGUAL_CASED,
+                    "HF_MODELS": HF_MODELS,
                     "OCI_IAM_TYPE": AuthType.RESOURCE_PRINCIPAL,
                     "OCI__LAUNCH_CMD": json.dumps(
                         asdict(
@@ -665,7 +693,7 @@ class AquaEvaluationApp(AquaApp):
             params=model_parameters,
         )
 
-    def get(self, eval_id) -> AquaEvaluationSummary:
+    def get(self, eval_id) -> AquaEvaluationDetail:
         """Gets the information of an Aqua evalution.
 
         Parameters
@@ -675,8 +703,8 @@ class AquaEvaluationApp(AquaApp):
 
         Returns
         -------
-        AquaEvaluationSummary:
-            The instance of AquaEvaluationSummary.
+        AquaEvaluationDetail:
+            The instance of AquaEvaluationDetail.
         """
         logger.info(f"Fetching evaluation: {eval_id} details ...")
 
@@ -693,14 +721,65 @@ class AquaEvaluationApp(AquaApp):
             resource, use_rqs=False, jobrun_id=jobrun_id
         )
 
-        summary = AquaEvaluationSummary(
+        try:
+            log_id = job_run_details.log_details.log_id
+        except Exception as e:
+            logger.debug(f"Failed to get associated log. {str(e)}")
+            log_id = ""
+
+        try:
+            loggroup_id = job_run_details.log_details.log_group_id
+        except Exception as e:
+            logger.debug(f"Failed to get associated loggroup. {str(e)}")
+            loggroup_id = ""
+
+        loggroup_url = (
+            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}?region={self.region}"
+            if loggroup_id
+            else ""
+        )
+        log_url = (
+            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}/logs/{log_id}?region={self.region}"
+            if (loggroup_id and log_id)
+            else ""
+        )
+        log_name = None
+        loggroup_name = None
+
+        if log_id:
+            log = utils.query_resource(log_id, return_all=False)
+            log_name = log.display_name if log else ""
+
+        if loggroup_id:
+            loggroup = utils.query_resource(log_id, return_all=False)
+            loggroup_name = loggroup.display_name if loggroup else ""
+
+        try:
+            introspection = json.loads(
+                self._get_attribute_from_model_metadata(resource, "ArtifactTestResults")
+            )
+        except:
+            # TODO: remove this hardcode value later
+            introspection = {
+                "aqua_evaluate": {
+                    "input_dataset_path": {
+                        "key": "input_dataset_path",
+                        "category": "aqua_evaluate",
+                        "description": "Some description here",
+                        "error_msg": "The error details",
+                        "success": False,
+                    }
+                }
+            }
+        summary = AquaEvaluationDetail(
             **self._process(resource),
-            **self._get_status(
-                resource.lifecycle_state, job_status=job_run_details.lifecycle_state
-            ),
+            **self._get_status(model=resource, jobrun=job_run_details),
             job=self._build_job_identifier(
                 job_run_details=job_run_details,
             ),
+            log_group=AquaResourceIdentifier(loggroup_id, loggroup_name, loggroup_url),
+            log=AquaResourceIdentifier(log_id, log_name, log_url),
+            introspection=introspection,
         )
         summary.parameters.shape = (
             job_run_details.job_infrastructure_configuration_details.shape_name
@@ -742,13 +821,13 @@ class AquaEvaluationApp(AquaApp):
         evaluations = []
         for model in models:
             job_run = self._get_jobrun(model, mapping)
-            job_status = job_run.lifecycle_state if job_run else None
+
             evaluations.append(
                 AquaEvaluationSummary(
                     **self._process(model),
                     **self._get_status(
-                        model_status=model.lifecycle_state,
-                        job_status=job_status,
+                        model=model,
+                        jobrun=job_run,
                     ),
                     job=self._build_job_identifier(
                         job_run_details=job_run,
@@ -756,6 +835,18 @@ class AquaEvaluationApp(AquaApp):
                 )
             )
         return evaluations
+
+    def _if_eval_artifact_exist(
+        self, model: oci.resource_search.models.ResourceSummary
+    ) -> bool:
+        """Checks if the evaluation artifact exists."""
+        try:
+            response = self.ds_client.head_model_artifact(model_id=model.identifier)
+            return True if response.status == 200 else False
+        except oci.exceptions.ServiceError as ex:
+            if ex.status == 404:
+                logger.info("Evaluation artifact not found.")
+                return False
 
     def get_status(self, eval_id: str) -> dict:
         """Gets evaluation's current status.
@@ -769,8 +860,9 @@ class AquaEvaluationApp(AquaApp):
         -------
         dict
         """
-        # TODO: add job_run_id as input param
         eval = utils.query_resource(eval_id)
+
+        # TODO: add job_run_id as input param to skip the query below
         model_provenance = self.ds_client.get_model_provenance(eval_id).data
 
         if not eval:
@@ -779,14 +871,41 @@ class AquaEvaluationApp(AquaApp):
                 "Please check if the OCID is correct."
             )
         jobrun_id = model_provenance.training_id
-        job_run_details = self._fetch_jobrun(eval, use_rqs=True, jobrun_id=jobrun_id)
+        job_run_details = self._fetch_jobrun(eval, use_rqs=False, jobrun_id=jobrun_id)
+
+        try:
+            log_id = job_run_details.log_details.log_id
+        except Exception as e:
+            logger.debug(f"Failed to get associated log. {str(e)}")
+            log_id = ""
+
+        try:
+            loggroup_id = job_run_details.log_details.log_group_id
+        except Exception as e:
+            logger.debug(f"Failed to get associated log. {str(e)}")
+            loggroup_id = ""
+
+        loggroup_url = (
+            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}?region={self.region}"
+            if loggroup_id
+            else ""
+        )
+        log_url = (
+            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}/logs/{log_id}?region={self.region}"
+            if (loggroup_id and log_id)
+            else ""
+        )
 
         return dict(
             id=eval_id,
             **self._get_status(
-                model_status=eval.lifecycle_state,
-                job_status=job_run_details.lifecycle_state,
+                model=eval,
+                jobrun=job_run_details,
             ),
+            log_id=log_id,
+            log_url=log_url,
+            loggroup_id=loggroup_id,
+            loggroup_url=loggroup_url,
         )
 
     def get_supported_metrics(self) -> dict:
@@ -933,6 +1052,122 @@ class AquaEvaluationApp(AquaApp):
 
         return report
 
+    def cancel(self, eval_id) -> dict:
+        """Cancels the job run for the given evaluation id.
+        Parameters
+        ----------
+        eval_id: str
+            The evaluation ocid.
+
+        Returns
+        -------
+            dict containing id, status and time_accepted
+
+        Raises
+        ------
+        AquaRuntimeError:
+            if a model doesn't exist for the given eval_id
+        AquaMissingKeyError:
+            if training_id is missing the job run id
+        """
+        model = DataScienceModel.from_id(eval_id)
+        if not model:
+            raise AquaRuntimeError(
+                f"Failed to get evaluation details for model {eval_id}"
+            )
+        job_run_id = model.provenance_metadata.training_id
+        if not job_run_id:
+            raise AquaMissingKeyError(
+                "Model provenance is missing job run training_id key"
+            )
+
+        status = dict(id=eval_id, status=UNKNOWN, time_accepted="")
+        run = DataScienceJobRun.from_ocid(job_run_id)
+        if run.lifecycle_state in [
+            DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
+            DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
+            DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
+        ]:
+            self._cancel_job_run(run, model)
+            status = dict(
+                id=eval_id,
+                lifecycle_state="CANCELING",
+                time_accepted=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f%z"),
+            )
+        return status
+
+    @staticmethod
+    @fire_and_forget
+    def _cancel_job_run(run, model):
+        try:
+            run.cancel()
+            logger.info(f"Canceling Job Run: {run.id} for evaluation {model.id}")
+        except oci.exceptions.ServiceError as ex:
+            logger.error(
+                f"Exception occurred while canceling job run: {run.id} for evaluation {model.id}. "
+                f"Exception message: {ex}"
+            )
+
+    def delete(self, eval_id):
+        """Deletes the job and the associated model for the given evaluation id.
+        Parameters
+        ----------
+        eval_id: str
+            The evaluation ocid.
+
+        Returns
+        -------
+            dict containing id, status and time_accepted
+
+        Raises
+        ------
+        AquaRuntimeError:
+            if a model doesn't exist for the given eval_id
+        AquaMissingKeyError:
+            if training_id is missing the job run id
+        """
+
+        model = DataScienceModel.from_id(eval_id)
+        if not model:
+            raise AquaRuntimeError(
+                f"Failed to get evaluation details for model {eval_id}"
+            )
+
+        try:
+            job_id = model.custom_metadata_list.get(
+                EvaluationCustomMetadata.EVALUATION_JOB_ID.value
+            ).value
+        except ValueError:
+            raise AquaMissingKeyError(
+                f"Custom metadata is missing {EvaluationCustomMetadata.EVALUATION_JOB_ID.value} key"
+            )
+
+        job = DataScienceJob.from_id(job_id)
+
+        self._delete_job_and_model(job, model)
+
+        status = dict(
+            id=eval_id,
+            lifecycle_state="DELETING",
+            time_accepted=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f%z"),
+        )
+        return status
+
+    @staticmethod
+    @fire_and_forget
+    def _delete_job_and_model(job, model):
+        try:
+            job.dsc_job.delete(force_delete=True)
+            logger.info(f"Deleting Job: {job.job_id} for evaluation {model.id}")
+
+            model.delete()
+            logger.info(f"Deleting evaluation: {model.id}")
+        except oci.exceptions.ServiceError as ex:
+            logger.error(
+                f"Exception occurred while deleting job: {job.job_id} for evaluation {model.id}. "
+                f"Exception message: {ex}"
+            )
+
     def load_evaluation_config(self, eval_id):
         # TODO
         return {
@@ -941,6 +1176,9 @@ class AquaEvaluationApp(AquaApp):
                 "temperature": 0.7,
                 "top_p": 1.0,
                 "top_k": 50,
+                "presence_penalty": 0.0,
+                "frequency_penalty": 0.0,
+                "stop": [],
             },
             "shape": {
                 "VM.Standard.E3.Flex": {
@@ -1211,20 +1449,46 @@ class AquaEvaluationApp(AquaApp):
             )
             return AquaResourceIdentifier()
 
-    def _get_status(self, model_status, job_status) -> dict:
-        """Build evaluation status based on the model status and job run status."""
-        lifecycle_state = utils.LifecycleStatus.get_status(
-            evaluation_status=model_status, job_run_status=job_status
+    def _get_status(
+        self,
+        model: oci.resource_search.models.ResourceSummary,
+        jobrun: Union[
+            oci.resource_search.models.ResourceSummary, oci.data_science.models.JobRun
+        ] = None,
+    ) -> dict:
+        """Builds evaluation status based on the model status and job run status."""
+        model_status = model.lifecycle_state
+        job_run_status = (
+            jobrun.lifecycle_state
+            if jobrun and not jobrun.lifecycle_state == JobRun.LIFECYCLE_STATE_DELETED
+            else (
+                JobRun.LIFECYCLE_STATE_SUCCEEDED
+                if self._if_eval_artifact_exist(model)
+                else JobRun.LIFECYCLE_STATE_FAILED
+            )
         )
+
+        lifecycle_state = utils.LifecycleStatus.get_status(
+            evaluation_status=model_status, job_run_status=job_run_status
+        )
+
+        try:
+            lifecycle_details = (
+                utils.LIFECYCLE_DETAILS_MISSING_JOBRUN
+                if not jobrun
+                else jobrun.lifecycle_details
+            )
+        except:
+            # ResourceSummary does not have lifecycle_details attr
+            lifecycle_details = ""
+
         return dict(
             lifecycle_state=(
                 lifecycle_state
                 if isinstance(lifecycle_state, str)
                 else lifecycle_state.value
             ),
-            lifecycle_details=utils.LIFECYCLE_DETAILS_MAPPING.get(
-                lifecycle_state, utils.UNKNOWN
-            ),
+            lifecycle_details=lifecycle_details,
         )
 
     def _prefetch_resources(self, compartment_id) -> dict:

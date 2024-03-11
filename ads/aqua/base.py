@@ -3,9 +3,13 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+<<<<<<< HEAD
 
 from typing import Dict, List, Union
+=======
+>>>>>>> f53bbf73d7aaff3b80100b7acdbd52281c3af57f
 import oci
+from typing import Dict
 
 from ads import set_auth
 from ads.aqua.exception import AquaValueError
@@ -13,6 +17,7 @@ from ads.aqua.utils import UNKNOWN, is_valid_ocid, logger
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import extract_region
+<<<<<<< HEAD
 from ads.config import OCI_ODSC_SERVICE_ENDPOINT, OCI_RESOURCE_PRINCIPAL_VERSION
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
@@ -24,6 +29,17 @@ from oci.data_science.models import (
     UpdateModelDetails,
     UpdateModelProvenanceDetails,
 )
+=======
+from ads.config import (
+    OCI_ODSC_SERVICE_ENDPOINT,
+    OCI_RESOURCE_PRINCIPAL_VERSION,
+    AQUA_CONFIG_FOLDER,
+)
+
+from ads.aqua.data import Tags
+from ads.aqua.exception import AquaRuntimeError, AquaValueError
+from ads.aqua.utils import load_config
+>>>>>>> f53bbf73d7aaff3b80100b7acdbd52281c3af57f
 
 
 class AquaApp:
@@ -34,8 +50,8 @@ class AquaApp:
             set_auth("resource_principal")
         self._auth = default_signer({"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT})
         self.ds_client = oc.OCIClientFactory(**self._auth).data_science
-        self.logging_client = oc.OCIClientFactory(**self._auth).logging_management
-        self.identity_client = oc.OCIClientFactory(**self._auth).identity
+        self.logging_client = oc.OCIClientFactory(**default_signer()).logging_management
+        self.identity_client = oc.OCIClientFactory(**default_signer()).identity
         self.region = extract_region(self._auth)
 
     def list_resource(
@@ -162,3 +178,46 @@ class AquaApp:
             )
         )
         return model
+
+    def get_config(self, model_id: str, config_file_name: str) -> Dict:
+        """Gets the config for the given Aqua model.
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the Aqua model.
+        config_file_name: str
+            name of the config file
+
+        Returns
+        -------
+        Dict:
+            A dict of allowed configs.
+        """
+        oci_model = self.ds_client.get_model(model_id).data
+        model_name = oci_model.display_name
+
+        oci_aqua = (
+            (
+                Tags.AQUA_TAG.value in oci_model.freeform_tags
+                or Tags.AQUA_TAG.value.lower() in oci_model.freeform_tags
+            )
+            if oci_model.freeform_tags
+            else False
+        )
+
+        if not oci_aqua:
+            raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
+
+        # todo: currently loads config within ads, artifact_path will be an external bucket
+        artifact_path = AQUA_CONFIG_FOLDER
+        config = load_config(
+            artifact_path,
+            config_file_name=config_file_name,
+        )
+
+        if model_name not in config:
+            raise AquaValueError(
+                f"{config_file_name} does not have config details for model: {model_name}"
+            )
+
+        return config[model_name]

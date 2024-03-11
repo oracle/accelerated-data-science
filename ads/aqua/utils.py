@@ -3,6 +3,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA utils and constants."""
+import asyncio
 import base64
 import logging
 import os
@@ -10,10 +11,13 @@ import random
 import re
 import sys
 from enum import Enum
+from functools import wraps
 from pathlib import Path
 from string import Template
 import tempfile
 from typing import Dict, List, Union
+from typing import List
+import json
 
 import fsspec
 from oci.data_science.models import JobRun, Model
@@ -21,13 +25,7 @@ from oci.data_science.models import JobRun, Model
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import upload_to_os
-from ads.config import TENANCY_OCID
-from ads.jobs.ads_job import Job
-from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
-from ads.model.datascience_model import DataScienceModel
-from ads.model.deployment.model_deployment import ModelDeployment
-from ads.model.model_metadata import ModelCustomMetadata, ModelProvenanceMetadata, ModelTaxonomyMetadata
-from ads.model.model_version_set import ModelVersionSet
+from ads.config import TENANCY_OCID, AQUA_CONFIG_FOLDER
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
@@ -47,7 +45,7 @@ CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
 )
 CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS", "ociodscdev")
 SOURCE_FILE = "run.sh"
-CONDA_URI = f"oci://ads-evaluation@{CONDA_BUCKET_NS}/conda_environments/gpu/PyTorch 2.1 for GPU on Python 3.9/1.0/pytorch21_p39_gpu_v1"
+CONDA_URI = f"oci://aqua-eval-test-bucket@{CONDA_BUCKET_NS}/conda_environments/gpu/PyTorch 2.1 for GPU on Python 3.9/1.0/pytorch21_p39_gpu_v1"
 CONDA_REGION = "us-ashburn-1"
 BERT_SCORE_PATH = "/home/datascience/conda/pytorch21_p39_gpu_v1/bertscore/bertscore.py"
 BERT_BASE_MULTILINGUAL_CASED = (
@@ -59,9 +57,11 @@ DEFAULT_FT_REPLICA = 1
 DEFAULT_FT_BATCH_SIZE = 1
 DEFAULT_FT_VALIDATION_SET_SIZE = 0.1
 
-# TODO: remove later
-SUBNET_ID = os.environ.get("SUBNET_ID", None)
+HF_MODELS = "/home/datascience/conda/pytorch21_p39_gpu_v1/"
+MAXIMUM_ALLOWED_DATASET_IN_BYTE = 52428800  # 1024 x 1024 x 50 = 50MB
 JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING = "ME_STANDALONE"
+NB_SESSION_IDENTIFIER = "NB_SESSION_OCID"
+LIFECYCLE_DETAILS_MISSING_JOBRUN = "The asscociated JobRun resource has been deleted."
 
 
 class LifecycleStatus(Enum):
@@ -124,8 +124,7 @@ LIFECYCLE_DETAILS_MAPPING = {
     JobRun.LIFECYCLE_STATE_NEEDS_ATTENTION: "Missing jobrun information.",
 }
 SUPPORTED_FILE_FORMATS = ["jsonl"]
-MODEL_BY_REFERENCE_OSS_PATH_KEY = "Object Storage Path"
-MODEL_PARAMETERS = ["max_tokens", "temperature", "top_p", "top_k"]
+MODEL_BY_REFERENCE_OSS_PATH_KEY = "artifact_location"
 
 
 def get_logger():
@@ -214,6 +213,19 @@ def read_file(file_path: str, **kwargs) -> str:
     except Exception as e:
         logger.error(f"Failed to read file {file_path}. {e}")
         return UNKNOWN
+
+
+def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
+    artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
+    config = json.loads(
+        read_file(file_path=artifact_path, **kwargs) or UNKNOWN_JSON_STR
+    )
+    if not config:
+        raise AquaFileNotFoundError(
+            f"Config file `{config_file_name}` is either empty or missing at {artifact_path}",
+            500,
+        )
+    return config
 
 
 def is_valid_ocid(ocid: str) -> bool:
@@ -381,7 +393,7 @@ def _construct_condition(
     return condition
 
 
-def upload_file_to_os(
+def upload_local_to_os(
     src_uri: str, dst_uri: str, auth: dict = None, force_overwrite: bool = False
 ):
     expanded_path = os.path.expanduser(src_uri)
@@ -393,6 +405,10 @@ def upload_file_to_os(
         )
     if os.path.getsize(expanded_path) == 0:
         raise AquaValueError("Empty input file. Specify a valid file path.")
+    if os.path.getsize(expanded_path) > MAXIMUM_ALLOWED_DATASET_IN_BYTE:
+        raise AquaValueError(
+            f"Local dataset file can't exceed {MAXIMUM_ALLOWED_DATASET_IN_BYTE} bytes."
+        )
 
     upload_to_os(
         src_uri=expanded_path,
@@ -400,3 +416,87 @@ def upload_file_to_os(
         auth=auth,
         force_overwrite=force_overwrite,
     )
+
+
+def sanitize_response(oci_client, response: list):
+    """Builds a JSON POST object for the response from OCI clients.
+
+    Parameters
+    ----------
+    oci_client
+        OCI client object
+
+    response
+        list of results from the OCI client
+
+    Returns
+    -------
+        The serialized form of data.
+
+    """
+    return oci_client.base_client.sanitize_for_serialization(response)
+
+
+def fire_and_forget(func):
+    """Decorator to push execution of methods to the background."""
+
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        return asyncio.get_event_loop().run_in_executor(None, func, *args, *kwargs)
+
+    return wrapped
+
+
+def get_container_image(
+    custom_metadata_list, config_file_name: str, container_type: str
+) -> str:
+    """Gets the image name from the given model and container type.
+    Parameters
+    ----------
+    custom_metadata_list:
+        custom metadata of a given model
+    config_file_name: str
+        name of the config file
+    container_type: str
+        type of container, can be either deployment-container, finetune-container, evaluation-container
+
+    Returns
+    -------
+    Dict:
+        A dict of allowed configs.
+    """
+
+    try:
+        container_type = custom_metadata_list.get(container_type).value
+    except ValueError:
+        raise AquaValueError(
+            f"{container_type} key is not available in the custom metadata field."
+        )
+
+    # todo: currently loads config within ads, artifact_path will be an external bucket
+    config = load_config(
+        AQUA_CONFIG_FOLDER,
+        config_file_name=config_file_name,
+    )
+
+    if container_type not in config:
+        raise AquaValueError(
+            f"{config_file_name} does not have config details for model: {container_type}"
+        )
+
+    container_image = None
+    mapping = config[container_type]
+    versions = [obj["version"] for obj in mapping]
+    # todo: assumes numbered versions, update if `latest` is used
+    latest = max(versions)
+    for obj in mapping:
+        if obj["version"] == latest:
+            container_image = f"{obj['name']}:{obj['version']}"
+            break
+
+    if not container_image:
+        raise AquaValueError(
+            f"{config_file_name} is missing name and/or version details."
+        )
+
+    return container_image
