@@ -62,4 +62,3 @@ jobs:
 
       - uses: ./.github/workflows/test-env-setup
         name: "Test env setup"
-        timeout-minutes: 40
