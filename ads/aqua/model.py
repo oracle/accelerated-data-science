@@ -2,26 +2,30 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
-from dataclasses import dataclass, field
+import json
+from dataclasses import InitVar, dataclass, field
 from datetime import datetime, timedelta
+from enum import Enum
 from threading import Lock
 from typing import List, Union
 
 import oci
 from cachetools import TTLCache
+from oci.data_science.models import JobRun, Model
 
-from ads.aqua import logger
+from ads.aqua import logger, utils
 from ads.aqua.base import AquaApp
-from ads.aqua.data import AquaResourceIdentifier, Resource, Tags
-from ads.aqua.exception import AquaRuntimeError
-from ads.aqua.utils import (
-    README,
-    UNKNOWN,
-    create_word_icon,
-    get_artifact_path,
-    read_file,
+from ads.aqua.constants import (
+    TRAINING_METRICS_FINAL,
+    TRINING_METRICS,
+    UNKNOWN_VALUE,
+    VALIDATION_METRICS,
+    VALIDATION_METRICS_FINAL,
+    FineTuningDefinedMetadata,
 )
+from ads.aqua.data import AquaResourceIdentifier, Tags
+from ads.aqua.exception import AquaRuntimeError
+from ads.aqua.utils import README, UNKNOWN, create_word_icon, read_file
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
@@ -31,52 +35,206 @@ from ads.config import (
     PROJECT_OCID,
     TENANCY_OCID,
 )
-from ads.model.datascience_model import DataScienceModel
-from oci.data_science.models import Model
+from ads.model import DataScienceModel
+from ads.model.model_metadata import MetadataTaxonomyKeys, ModelCustomMetadata
+
+
+class FineTuningMetricCategories(Enum):
+    VALIDATION = "validation"
+    TRAINING = "training"
+
+
+@dataclass(repr=False)
+class FineTuningShapeInfo(DataClassSerializable):
+    instance_shape: str = field(default_factory=str)
+    replica: int = field(default_factory=int)
+
+
+# TODO: give a better name
+@dataclass(repr=False)
+class AquaFineTuneValidation(DataClassSerializable):
+    type: str = "Automatic split"
+    value: str = ""
 
 
 @dataclass(repr=False)
 class AquaFineTuningMetric(DataClassSerializable):
-    name: str
-    category: str
-    scores: list
+    name: str = field(default_factory=str)
+    category: str = field(default_factory=str)
+    scores: list = field(default_factory=list)
 
 
 @dataclass(repr=False)
 class AquaModelSummary(DataClassSerializable):
     """Represents a summary of Aqua model."""
 
-    compartment_id: str
-    icon: str
-    id: str
-    is_fine_tuned_model: bool
-    license: str
-    name: str
-    organization: str
-    project_id: str
-    tags: dict
-    task: str
-    time_created: str
-    console_link: str
-    search_text: str
+    compartment_id: str = None
+    icon: str = None
+    id: str = None
+    is_fine_tuned_model: bool = None
+    license: str = None
+    name: str = None
+    organization: str = None
+    project_id: str = None
+    tags: dict = None
+    task: str = None
+    time_created: str = None
+    console_link: str = None
+    search_text: str = None
 
 
 @dataclass(repr=False)
 class AquaModel(AquaModelSummary, DataClassSerializable):
     """Represents an Aqua model."""
 
-    model_card: str
+    model_card: str = None
 
 
 @dataclass(repr=False)
-class AquaFineTuneModel(AquaModel, DataClassSerializable):
-    """Represents an Aqua Fine Tuned Model."""
+class AquaEvalFTCommon(DataClassSerializable):
+    """Represents common fields for evaluation and fine-tuning."""
 
+    lifecycle_state: str = None
+    lifecycle_details: str = None
     job: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     source: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     experiment: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-    shape_info: dict = field(default_factory=dict)
+    log_group: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    log: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+
+    model: InitVar = None
+    region: InitVar = None
+    jobrun: InitVar = None
+
+    def __post_init__(
+        self, model, region: str, jobrun: oci.data_science.models.JobRun = None
+    ):
+        try:
+            log_id = jobrun.log_details.log_id
+        except Exception as e:
+            logger.debug(f"No associated log found. {str(e)}")
+            log_id = ""
+
+        try:
+            loggroup_id = jobrun.log_details.log_group_id
+        except Exception as e:
+            logger.debug(f"No associated loggroup found. {str(e)}")
+            loggroup_id = ""
+
+        loggroup_url = (
+            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}?region={region}"
+            if loggroup_id
+            else ""
+        )
+
+        log_url = (
+            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}/logs/{log_id}?region={region}"
+            if (loggroup_id and log_id)
+            else ""
+        )
+        log_name = None
+        loggroup_name = None
+
+        if log_id:
+            try:
+                log = utils.query_resource(log_id, return_all=False)
+                log_name = log.display_name if log else ""
+            except:
+                pass
+
+        if loggroup_id:
+            try:
+                loggroup = utils.query_resource(loggroup_id, return_all=False)
+                loggroup_name = loggroup.display_name if loggroup else ""
+            except:
+                pass
+
+        experiment_id, experiment_name = utils._get_experiment_info(model)
+
+        self.log_group = AquaResourceIdentifier(
+            loggroup_id, loggroup_name, loggroup_url
+        )
+        self.log = AquaResourceIdentifier(log_id, log_name, log_url)
+        self.experiment = utils._build_resource_identifier(
+            id=experiment_id, name=experiment_name, region=region
+        )
+        self.job = utils._build_job_identifier(job_run_details=jobrun, region=region)
+        self.lifecycle_details = (
+            utils.LIFECYCLE_DETAILS_MISSING_JOBRUN
+            if not jobrun
+            else jobrun.lifecycle_details
+        )
+
+
+@dataclass(repr=False)
+class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
+    """Represents an Aqua Fine Tuned Model."""
+
+    dataset: str = field(default_factory=str)
+    validation: AquaFineTuneValidation = field(default_factory=AquaFineTuneValidation)
+    shape_info: FineTuningShapeInfo = field(default_factory=FineTuningShapeInfo)
     metrics: List[AquaFineTuningMetric] = field(default_factory=list)
+
+    def __post_init__(
+        self,
+        model: DataScienceModel,
+        region: str,
+        jobrun: oci.data_science.models.JobRun = None,
+    ):
+        super().__post_init__(model=model, region=region, jobrun=jobrun)
+
+        if jobrun is not None:
+            jobrun_env_vars = (
+                jobrun.job_configuration_override_details.environment_variables or {}
+            )
+            self.shape_info = FineTuningShapeInfo(
+                instance_shape=jobrun.job_infrastructure_configuration_details.shape_name,
+                # TODO: use variable for `NODE_COUNT` in ads/jobs/builders/runtimes/base.py
+                replica=jobrun_env_vars.get("NODE_COUNT", UNKNOWN_VALUE),
+            )
+
+        try:
+            model_hyperparameters = model.defined_metadata_list.get(
+                MetadataTaxonomyKeys.HYPERPARAMETERS
+            ).value
+        except Exception as e:
+            logger.debug(
+                f"Failed to extract model hyperparameters from {model.id}:" f"{str(e)}"
+            )
+            model_hyperparameters = {}
+
+        self.dataset = model_hyperparameters.get(
+            FineTuningDefinedMetadata.TRAINING_DATA.value
+        )
+        if not self.dataset:
+            logger.debug(
+                f"Key={FineTuningDefinedMetadata.TRAINING_DATA.value} not found in model hyperparameters."
+            )
+
+        self.validation = AquaFineTuneValidation(
+            value=model_hyperparameters.get(
+                FineTuningDefinedMetadata.VAL_SET_SIZE.value
+            )
+        )
+        if not self.validation:
+            logger.debug(
+                f"Key={FineTuningDefinedMetadata.VAL_SET_SIZE.value} not found in model hyperparameters."
+            )
+
+
+# TODO: merge metadata key used in create FT
+
+
+class FineTuningCustomMetadata(Enum):
+    FT_SOURCE = "fine_tune_source"
+    FT_SOURCE_NAME = "fine_tune_source_name"
+    FT_OUTPUT_PATH = "fine_tune_output_path"
+    FT_JOB_ID = "fine_tune_job_id"
+    FT_JOB_RUN_ID = "fine_tune_jobrun_id"
+    TRAINING_METRICS_FINAL = "train_metrics_final"
+    VALIDATION_METRICS_FINAL = "val_metrics_final"
+    TRAINING_METRICS_EPOCH = "train_metrics_epoch"
+    VALIDATION_METRICS_EPOCH = "val_metrics_epoch"
 
 
 class AquaModelApp(AquaApp):
@@ -103,6 +261,10 @@ class AquaModelApp(AquaApp):
     """
 
     _service_models_cache = TTLCache(
+        maxsize=10, ttl=timedelta(hours=5), timer=datetime.now
+    )
+    # Used for saving service model details
+    _service_model_details_cache = TTLCache(
         maxsize=10, ttl=timedelta(hours=5), timer=datetime.now
     )
     _cache_lock = Lock()
@@ -159,6 +321,12 @@ class AquaModelApp(AquaApp):
         logger.debug(
             f"Aqua Model {custom_model.id} created with the service model {model_id}"
         )
+
+        # tracks unique models that were created in the user compartment
+        self.telemetry.record_event_async(
+            category="aqua/model", action="create", value=service_model.display_name
+        )
+
         return custom_model
 
     def get(self, model_id) -> "AquaModel":
@@ -174,111 +342,235 @@ class AquaModelApp(AquaApp):
         AquaModel:
             The instance of AquaModel.
         """
-        self.telemetry.record_event_async(category="aqua/service/model", action="list")
 
-        oci_model = self.ds_client.get_model(model_id).data
+        cached_item = self._service_model_details_cache.get(model_id)
+        if cached_item:
+            return cached_item
 
-        if not self._if_show(oci_model):
-            raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
-
-        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+        ds_model = DataScienceModel.from_id(model_id)
+        if not self._if_show(ds_model):
+            raise AquaRuntimeError(f"Target model `{ds_model.id} `is not Aqua model.")
 
         is_fine_tuned_model = (
             True
-            if oci_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
+            if ds_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
             else False
         )
 
-        return (
-            AquaModel(
-                **self._process_model(oci_model, self.region),
-                project_id=oci_model.project_id,
-                model_card=str(
-                    read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
-                ),
+        try:
+            artifact_path = ds_model.custom_metadata_list.get(
+                utils.MODEL_BY_REFERENCE_OSS_PATH_KEY
+            ).value
+        except ValueError:
+            artifact_path = utils.UNKNOWN
+
+        if not artifact_path:
+            logger.debug("Failed to get artifact path from custom metadata.")
+
+        aqua_model_atttributes = dict(
+            **self._process_model(ds_model, self.region),
+            project_id=ds_model.project_id,
+            model_card=str(
+                read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
+            ),
+        )
+
+        if not is_fine_tuned_model:
+            model_details = AquaModel(**aqua_model_atttributes)
+            self._service_model_details_cache.__setitem__(
+                key=model_id, value=model_details
             )
-            if not is_fine_tuned_model
-            else AquaFineTuneModel(
-                **self._process_model(oci_model, self.region),
-                project_id=oci_model.project_id,
-                model_card=str(
-                    read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
-                ),
-                # mock data for fine tuned model details
-                # TODO: fetch real value from custom metadata
-                job=AquaResourceIdentifier(
-                    id="ocid1.datasciencejobrun.oc1.iad.xxxx",
-                    name="Job Run Name",
-                    url=get_console_link(
-                        resource=Resource.JOBRUN.value,
-                        ocid="ocid1.datasciencejobrun.oc1.iad.xxxx",
-                        region=self.region,
-                    ),
-                ),
-                source=AquaResourceIdentifier(
-                    id="ocid1.datasciencemodel.oc1.iad.xxxx",
-                    name="Base Model Name",
-                    url=get_console_link(
-                        resource=Resource.MODEL.value,
-                        ocid="ocid1.datasciencemodel.oc1.iad.xxxx",
-                        region=self.region,
-                    ),
-                ),
-                experiment=AquaResourceIdentifier(
-                    id="ocid1.datasciencemodelversionset.oc1.iad.xxxx",
-                    name="Model Version Set Name",
-                    url=get_console_link(
-                        resource=Resource.MODEL_VERSION_SET.value,
-                        ocid="ocid1.datasciencemodelversionset.oc1.iad.xxxx",
-                        region=self.region,
-                    ),
-                ),
-                shape_info={"instance_shape": "VM.Standard.E4.Flex", "replica": 1},
-                metrics=[
-                    AquaFineTuningMetric(
-                        **{
-                            "name": "validation_loss",
-                            "category": "validation",
-                            "scores": [
-                                {"epoch": 2.5, "step": 12, "score": 1.1149},
-                                {"epoch": 3.5, "step": 20, "score": 1.1067},
-                                # ...
-                            ],
-                        }
-                    ),
-                    AquaFineTuningMetric(
-                        **{
-                            "name": "training_loss",
-                            "category": "training",
-                            "scores": [
-                                {"epoch": 1.0, "step": 4, "score": 1.3856},
-                                {"epoch": 1.5, "step": 8, "score": 1.0992},
-                                {"epoch": 3.0, "step": 3, "score": 0.9193},
-                                {"epoch": 3.5, "step": 20, "score": 0.853},
-                            ],
-                        }
-                    ),
-                    AquaFineTuningMetric(
-                        **{
-                            "name": "validation_accuracy",
-                            "category": "validation",
-                            "scores": [
-                                # accuracy will be stored in "val_metrics_final"
-                                # Before we finalize the accuracy, we can use the rouge1 score as an example.
-                                # There will be only one number without epoch/step
-                                {"score": 29.1849}
-                            ],
-                        }
-                    ),
-                    AquaFineTuningMetric(
-                        **{
-                            "name": "final_training_loss",
-                            "category": "training",
-                            "scores": [{"score": 1.0474}],
-                        }
-                    ),
-                ],
+
+        else:
+            jobrun_ocid = ds_model.provenance_metadata.training_id
+            jobrun = self.ds_client.get_job_run(jobrun_ocid).data
+
+            try:
+                source_id = ds_model.custom_metadata_list.get(
+                    FineTuningCustomMetadata.FT_SOURCE.value
+                ).value
+            except ValueError as e:
+                logger.debug(str(e))
+                source_id = UNKNOWN
+
+            try:
+                source_name = ds_model.custom_metadata_list.get(
+                    FineTuningCustomMetadata.FT_SOURCE_NAME.value
+                ).value
+            except ValueError as e:
+                logger.debug(str(e))
+                source_name = UNKNOWN
+
+            source_identifier = utils._build_resource_identifier(
+                id=source_id,
+                name=source_name,
+                region=self.region,
             )
+
+            ft_metrics = self._build_ft_metrics(ds_model.custom_metadata_list)
+
+            job_run_status = (
+                jobrun.lifecycle_state
+                if jobrun
+                and not jobrun.lifecycle_state == JobRun.LIFECYCLE_STATE_DELETED
+                else (
+                    JobRun.LIFECYCLE_STATE_SUCCEEDED
+                    if self.if_artifact_exist(ds_model.id)
+                    else JobRun.LIFECYCLE_STATE_FAILED
+                )
+            )
+            # TODO: change the argument's name.
+            lifecycle_state = utils.LifecycleStatus.get_status(
+                evaluation_status=ds_model.lifecycle_state,
+                job_run_status=job_run_status,
+            )
+
+            model_details = AquaFineTuneModel(
+                **aqua_model_atttributes,
+                source=source_identifier,
+                lifecycle_state=(
+                    Model.LIFECYCLE_STATE_ACTIVE
+                    if lifecycle_state == JobRun.LIFECYCLE_STATE_SUCCEEDED
+                    else lifecycle_state
+                ),
+                metrics=ft_metrics,
+                model=ds_model,
+                jobrun=jobrun,
+                region=self.region,
+            )
+
+        return model_details
+
+    def _fetch_metric_from_metadata(
+        self,
+        custom_metadata_list: ModelCustomMetadata,
+        target: str,
+        category: str,
+        metric_name: str,
+    ) -> AquaFineTuningMetric:
+        """Gets target metric from `ads.model.model_metadata.ModelCustomMetadata`."""
+        try:
+            scores = []
+            for custom_metadata in custom_metadata_list._items:
+                # We use description to group metrics
+                if custom_metadata.description == target:
+                    scores.append(custom_metadata.value)
+                    if metric_name.endswith("final"):
+                        break
+
+            return AquaFineTuningMetric(
+                name=metric_name,
+                category=category,
+                scores=scores,
+            )
+        except:
+            return AquaFineTuningMetric(name=metric_name, category=category, scores=[])
+
+    def _build_ft_metrics(
+        self, custom_metadata_list: ModelCustomMetadata
+    ) -> List[AquaFineTuningMetric]:
+        """Builds Fine Tuning metrics."""
+
+        validation_metrics = self._fetch_metric_from_metadata(
+            custom_metadata_list=custom_metadata_list,
+            target=FineTuningCustomMetadata.VALIDATION_METRICS_EPOCH.value,
+            category=FineTuningMetricCategories.VALIDATION.value,
+            metric_name=VALIDATION_METRICS,
+        )
+
+        training_metrics = self._fetch_metric_from_metadata(
+            custom_metadata_list=custom_metadata_list,
+            target=FineTuningCustomMetadata.TRAINING_METRICS_EPOCH.value,
+            category=FineTuningMetricCategories.TRAINING.value,
+            metric_name=TRINING_METRICS,
+        )
+
+        validation_final = self._fetch_metric_from_metadata(
+            custom_metadata_list=custom_metadata_list,
+            target=FineTuningCustomMetadata.VALIDATION_METRICS_FINAL.value,
+            category=FineTuningMetricCategories.VALIDATION.value,
+            metric_name=VALIDATION_METRICS_FINAL,
+        )
+
+        training_final = self._fetch_metric_from_metadata(
+            custom_metadata_list=custom_metadata_list,
+            target=FineTuningCustomMetadata.TRAINING_METRICS_FINAL.value,
+            category=FineTuningMetricCategories.TRAINING.value,
+            metric_name=TRAINING_METRICS_FINAL,
+        )
+
+        return [
+            validation_metrics,
+            training_metrics,
+            validation_final,
+            training_final,
+        ]
+
+    def _process_model(
+        self,
+        model: Union[
+            DataScienceModel,
+            oci.data_science.models.model.Model,
+            oci.data_science.models.ModelSummary,
+            oci.resource_search.models.ResourceSummary,
+        ],
+        region: str,
+    ) -> dict:
+        """Constructs required fields for AquaModelSummary."""
+
+        # todo: revisit icon generation code
+        # icon = self._load_icon(model.display_name)
+        icon = ""
+
+        tags = {}
+        tags.update(model.defined_tags or {})
+        tags.update(model.freeform_tags or {})
+
+        model_id = (
+            model.identifier
+            if isinstance(model, oci.resource_search.models.ResourceSummary)
+            else model.id
+        )
+
+        console_link = (
+            get_console_link(
+                resource="models",
+                ocid=model_id,
+                region=region,
+            ),
+        )
+
+        description = ""
+        if isinstance(model, DataScienceModel) or isinstance(
+            model, oci.data_science.models.model.Model
+        ):
+            description = model.description
+        elif isinstance(model, oci.resource_search.models.ResourceSummary):
+            description = model.additional_details.get("description")
+
+        search_text = (
+            self._build_search_text(tags=tags, description=description)
+            if tags
+            else UNKNOWN
+        )
+
+        return dict(
+            compartment_id=model.compartment_id,
+            icon=icon or UNKNOWN,
+            id=model_id,
+            license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
+            name=model.display_name,
+            organization=model.freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
+            task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
+            time_created=model.time_created,
+            is_fine_tuned_model=(
+                True
+                if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
+                else False
+            ),
+            tags=tags,
+            console_link=console_link,
+            search_text=search_text,
         )
 
     def list(
@@ -305,7 +597,8 @@ class AquaModelApp(AquaApp):
             The list of the `ads.aqua.model.AquaModelSummary`.
         """
 
-        self.telemetry.record_event_async(category="aqua/service/model", action="list")
+        # tracks number of times model listing was called
+        self.telemetry.record_event_async(category="aqua/model", action="list")
 
         models = []
         if compartment_id:
@@ -374,7 +667,7 @@ class AquaModelApp(AquaApp):
                 }
         return res
 
-    def _process_model(
+    def ModelCustomMetadata_process_model(
         self, model: Union["ModelSummary", "Model", "ResourceSummary"], region: str
     ) -> dict:
         """Constructs required fields for AquaModelSummary."""

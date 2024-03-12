@@ -25,6 +25,7 @@ from oci.data_science.models import (
 
 from ads.aqua import logger, utils
 from ads.aqua.base import AquaApp
+from ads.aqua.decorator import fire_and_forget
 from ads.aqua.exception import (
     AquaFileExistsError,
     AquaFileNotFoundError,

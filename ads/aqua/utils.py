@@ -3,33 +3,36 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA utils and constants."""
-import asyncio
 import base64
+import json
 import logging
 import os
 import random
 import re
 import sys
 from enum import Enum
-from functools import wraps
 from pathlib import Path
 from string import Template
-from typing import List
-import json
+from typing import List, Union
 
 import fsspec
+import oci
 from oci.data_science.models import JobRun, Model
 
+from ads.aqua.constants import RqsAdditionalDetails
+from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
-from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import upload_to_os
-from ads.config import TENANCY_OCID, AQUA_CONFIG_FOLDER, AQUA_SERVICE_MODELS_BUCKET
 from ads.common.object_storage_details import ObjectStorageDetails
+from ads.common.oci_resource import SEARCH_TYPE, OCIResource
+from ads.common.utils import get_console_link, upload_to_os
+from ads.config import AQUA_CONFIG_FOLDER, AQUA_SERVICE_MODELS_BUCKET, TENANCY_OCID
+from ads.model import DataScienceModel
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
 
 UNKNOWN = ""
+UNKNOWN_DICT = {}
 README = "README.md"
 DEPLOYMENT_CONFIG = "deployment_config.json"
 EVALUATION_REPORT_JSON = "report.json"
@@ -40,6 +43,8 @@ CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
     datasciencemodel="models",
     datasciencemodeldeployment="model-deployments",
     datasciencejob="jobs",
+    datasciencejobrun="jobruns",
+    datasciencemodelversionset="model-version-sets",
 )
 CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS", "ociodscdev")
 SOURCE_FILE = "run.sh"
@@ -49,6 +54,12 @@ BERT_SCORE_PATH = "/home/datascience/conda/pytorch21_p39_gpu_v1/bertscore/bertsc
 BERT_BASE_MULTILINGUAL_CASED = (
     "/home/datascience/conda/pytorch21_p39_gpu_v1/bert-base-multilingual-cased/"
 )
+FINE_TUNING_RUNTIME_CONTAINER = "iad.ocir.io/ociodscdev/aqua_ft_cuda121:0.3.16.19"
+DEFAULT_FT_BLOCK_STORAGE_SIZE = 256
+DEFAULT_FT_REPLICA = 1
+DEFAULT_FT_BATCH_SIZE = 1
+DEFAULT_FT_VALIDATION_SET_SIZE = 0.1
+
 HF_MODELS = "/home/datascience/conda/pytorch21_p39_gpu_v1/"
 MAXIMUM_ALLOWED_DATASET_IN_BYTE = 52428800  # 1024 x 1024 x 50 = 50MB
 JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING = "ME_STANDALONE"
@@ -300,7 +311,7 @@ def query_resource(
     )
     if len(resources) == 0:
         raise AquaRuntimeError(
-            f"Failed to retreive source {resource_type}'s information.",
+            f"Failed to retreive {resource_type}'s information.",
             service_payload={"query": query, "tenant_id": TENANCY_OCID},
         )
     return resources[0]
@@ -435,13 +446,65 @@ def sanitize_response(oci_client, response: list):
     return oci_client.base_client.sanitize_for_serialization(response)
 
 
-def fire_and_forget(func):
-    """Decorator to push execution of methods to the background."""
+def _build_resource_identifier(
+    id: str = None, name: str = None, region: str = None
+) -> AquaResourceIdentifier:
+    """Constructs AquaResourceIdentifier based on the given ocid and display name."""
+    try:
+        resource_type = CONSOLE_LINK_RESOURCE_TYPE_MAPPING.get(get_resource_type(id))
 
-    @wraps(func)
-    def wrapped(*args, **kwargs):
-        return asyncio.get_event_loop().run_in_executor(None, func, *args, *kwargs)
+        return AquaResourceIdentifier(
+            id=id,
+            name=name,
+            url=get_console_link(
+                resource=resource_type,
+                ocid=id,
+                region=region,
+            ),
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to construct AquaResourceIdentifier from given id=`{id}`, and name=`{name}`, {str(e)}"
+        )
+        return AquaResourceIdentifier()
 
+
+def _get_experiment_info(
+    model: Union[oci.resource_search.models.ResourceSummary, DataScienceModel]
+) -> tuple:
+    """Returns ocid and name of the experiment."""
+    return (
+        (
+            model.additional_details.get(RqsAdditionalDetails.MODEL_VERSION_SET_ID),
+            model.additional_details.get(RqsAdditionalDetails.MODEL_VERSION_SET_NAME),
+        )
+        if isinstance(model, oci.resource_search.models.ResourceSummary)
+        else (model.model_version_set_id, model.model_version_set_name)
+    )
+
+
+def _build_job_identifier(
+    job_run_details: Union[
+        oci.data_science.models.JobRun, oci.resource_search.models.ResourceSummary
+    ] = None,
+    **kwargs,
+) -> AquaResourceIdentifier:
+    try:
+        job_id = (
+            job_run_details.id
+            if isinstance(job_run_details, oci.data_science.models.JobRun)
+            else job_run_details.identifier
+        )
+        return _build_resource_identifier(
+            id=job_id, name=job_run_details.display_name, **kwargs
+        )
+
+    except Exception as e:
+        logger.debug(
+            f"Failed to get job details from job_run_details: {job_run_details}"
+            f"DEBUG INFO:{str(e)}"
+        )
+        return AquaResourceIdentifier()
     return wrapped
 
 

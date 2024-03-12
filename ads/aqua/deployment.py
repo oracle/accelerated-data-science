@@ -362,6 +362,11 @@ class AquaDeploymentApp(AquaApp):
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
 
+        # tracks unique deployments that were created in the user compartment
+        self.telemetry.record_event_async(
+            category="aqua/deployment", action="create", value=aqua_model.display_name
+        )
+
         return AquaDeployment.from_oci_model_deployment(
             deployment.dsc_model_deployment, self.region
         )
