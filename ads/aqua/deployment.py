@@ -411,6 +411,11 @@ class AquaDeploymentApp(AquaApp):
                     )
                 )
 
+        # tracks number of times deployment listing was called
+        self.telemetry.record_event_async(
+            category="aqua/deployment", action="list", value=f"{compartment_id}"
+        )
+
         return results
 
     def get(self, model_deployment_id: str, **kwargs) -> "AquaDeployment":
