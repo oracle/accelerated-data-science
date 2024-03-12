@@ -280,6 +280,19 @@ class DataScienceModel(Builder):
         return None
 
     @property
+    def lifecycle_state(self) -> Union[str, None]:
+        """Status of the model.
+
+        Returns
+        -------
+        str
+            Status of the model.
+        """
+        if self.dsc_model:
+            return self.dsc_model.status
+        return None
+
+    @property
     def kind(self) -> str:
         """The kind of the object as showing in a YAML."""
         return "datascienceModel"

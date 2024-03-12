@@ -38,13 +38,13 @@ from ads.aqua.utils import (
     CONDA_REGION,
     CONDA_URI,
     HF_MODELS,
-    SOURCE_FILE,
-    UNKNOWN,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     NB_SESSION_IDENTIFIER,
-    fire_and_forget,
+    SOURCE_FILE,
+    UNKNOWN,
     is_valid_ocid,
     upload_local_to_os,
+    fire_and_forget,
 )
 from ads.common.auth import AuthType, default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -731,30 +731,26 @@ class AquaEvaluationApp(AquaApp):
         loggroup_name = None
 
         if log_id:
-            log = utils.query_resource(log_id, return_all=False)
-            log_name = log.display_name if log else ""
+            try:
+                log = utils.query_resource(log_id, return_all=False)
+                log_name = log.display_name if log else ""
+            except:
+                pass
 
         if loggroup_id:
-            loggroup = utils.query_resource(log_id, return_all=False)
-            loggroup_name = loggroup.display_name if loggroup else ""
+            try:
+                loggroup = utils.query_resource(loggroup_id, return_all=False)
+                loggroup_name = loggroup.display_name if loggroup else ""
+            except:
+                pass
 
         try:
             introspection = json.loads(
                 self._get_attribute_from_model_metadata(resource, "ArtifactTestResults")
             )
         except:
-            # TODO: remove this hardcode value later
-            introspection = {
-                "aqua_evaluate": {
-                    "input_dataset_path": {
-                        "key": "input_dataset_path",
-                        "category": "aqua_evaluate",
-                        "description": "Some description here",
-                        "error_msg": "The error details",
-                        "success": False,
-                    }
-                }
-            }
+            introspection = {}
+
         summary = AquaEvaluationDetail(
             **self._process(resource),
             **self._get_status(model=resource, jobrun=job_run_details),
@@ -935,16 +931,22 @@ class AquaEvaluationApp(AquaApp):
             report_content = self._read_from_artifact(
                 temp_dir, files_in_artifact, utils.EVALUATION_REPORT_MD
             )
-            report = json.loads(
-                self._read_from_artifact(
-                    temp_dir, files_in_artifact, utils.EVALUATION_REPORT_JSON
+            try:
+                report = json.loads(
+                    self._read_from_artifact(
+                        temp_dir, files_in_artifact, utils.EVALUATION_REPORT_JSON
+                    )
                 )
-            )
+            except Exception as e:
+                logger.debug(
+                    "Failed to load `report.json` from evaluation artifact" f"{str(e)}"
+                )
+                report = {}
 
         # TODO: after finalizing the format of report.json, move the constant to class
         eval_metrics = AquaEvalMetrics(
             id=eval_id,
-            report=report_content,
+            report=base64.b64encode(report_content).decode(),
             metric_results=[
                 AquaEvalMetric(
                     key=metric_key,
