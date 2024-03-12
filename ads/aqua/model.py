@@ -25,7 +25,7 @@ from ads.aqua.constants import (
 )
 from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaRuntimeError
-from ads.aqua.utils import README, UNKNOWN, create_word_icon, read_file
+from ads.aqua.utils import README, UNKNOWN, create_word_icon, read_file, CONDA_BUCKET_NS
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
@@ -34,9 +34,11 @@ from ads.config import (
     ODSC_MODEL_COMPARTMENT_OCID,
     PROJECT_OCID,
     TENANCY_OCID,
+    AQUA_SERVICE_MODELS_BUCKET,
 )
 from ads.model import DataScienceModel
 from ads.model.model_metadata import MetadataTaxonomyKeys, ModelCustomMetadata
+from ads.common.object_storage_details import ObjectStorageDetails
 
 
 class FineTuningMetricCategories(Enum):
@@ -350,10 +352,15 @@ class AquaModelApp(AquaApp):
             else False
         )
 
+        # todo: consolidate this logic in utils for model and deployment use
         try:
             artifact_path = ds_model.custom_metadata_list.get(
                 utils.MODEL_BY_REFERENCE_OSS_PATH_KEY
-            ).value
+            ).value.rstrip("/")
+            if not ObjectStorageDetails.is_oci_path(artifact_path):
+                artifact_path = ObjectStorageDetails(
+                    AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, artifact_path
+                ).path
         except ValueError:
             artifact_path = utils.UNKNOWN
 
