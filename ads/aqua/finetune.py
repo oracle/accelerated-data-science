@@ -31,7 +31,7 @@ from ads.aqua.utils import (
     UNKNOWN_DICT,
     load_config,
     logger,
-    upload_local_to_os
+    upload_local_to_os,
 )
 from ads.config import AQUA_JOB_SUBNET_ID, COMPARTMENT_OCID, PROJECT_OCID
 from ads.jobs.ads_job import Job
@@ -41,7 +41,7 @@ from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.model.model_metadata import (
     MetadataTaxonomyKeys,
     ModelCustomMetadata,
-    ModelTaxonomyMetadata
+    ModelTaxonomyMetadata,
 )
 
 from oci.data_science.models import (
@@ -157,9 +157,7 @@ class AquaFineTuningApp(AquaApp):
     """
 
     def create(
-        self,
-        create_fine_tuning_details: CreateFineTuningDetails=None,
-        **kwargs
+        self, create_fine_tuning_details: CreateFineTuningDetails = None, **kwargs
     ) -> "AquaFineTuningSummary":
         """Creates Aqua fine tuning for model.
 
@@ -192,31 +190,26 @@ class AquaFineTuningApp(AquaApp):
         )
         target_project = create_fine_tuning_details.project_id or PROJECT_OCID
 
-        if not ObjectStorageDetails.is_oci_path(
-            create_fine_tuning_details.report_path
-        ):
+        if not ObjectStorageDetails.is_oci_path(create_fine_tuning_details.report_path):
             raise AquaValueError(
                 "Fine tuning report path must be an object storage path."
             )
-        
+
         if (
-            create_fine_tuning_details.validation_set_size < 0 
+            create_fine_tuning_details.validation_set_size < 0
             or create_fine_tuning_details.validation_set_size >= 1
         ):
             raise AquaValueError(
                 f"Fine tuning validation set size should be a float number in between [0, 1)."
             )
-        
+
         if create_fine_tuning_details.replica < DEFAULT_FT_REPLICA:
             raise AquaValueError(
                 f"Fine tuning replica must be equal to or larger than {DEFAULT_FT_REPLICA}."
             )
-        
+
         subnet_id = create_fine_tuning_details.subnet_id or AQUA_JOB_SUBNET_ID
-        if (
-            not subnet_id and 
-            create_fine_tuning_details.replica > DEFAULT_FT_REPLICA
-        ):
+        if not subnet_id and create_fine_tuning_details.replica > DEFAULT_FT_REPLICA:
             raise AquaValueError(
                 f"Custom egress must be provided if replica is larger than {DEFAULT_FT_REPLICA}. "
                 "Specify the subnet id via API or environment variable AQUA_JOB_SUBNET_ID."
@@ -234,9 +227,7 @@ class AquaFineTuningApp(AquaApp):
             )
 
         experiment_model_version_set_id = create_fine_tuning_details.experiment_id
-        experiment_model_version_set_name = (
-            create_fine_tuning_details.experiment_name
-        )
+        experiment_model_version_set_name = create_fine_tuning_details.experiment_name
 
         if (
             not experiment_model_version_set_id
@@ -245,13 +236,15 @@ class AquaFineTuningApp(AquaApp):
             raise AquaValueError(
                 "Either experiment id or experiment name must be provided for fine tuning."
             )
-        
+
         # upload dataset if it's local path
         ft_dataset_path = create_fine_tuning_details.dataset_path
         if not ObjectStorageDetails.is_oci_path(ft_dataset_path):
             # format: oci://<bucket>@<namespace>/<dataset_file_name>
             dataset_file = os.path.basename(ft_dataset_path)
-            dst_uri = f"{create_fine_tuning_details.report_path.rstrip('/')}/{dataset_file}"
+            dst_uri = (
+                f"{create_fine_tuning_details.report_path.rstrip('/')}/{dataset_file}"
+            )
             try:
                 upload_local_to_os(
                     src_uri=ft_dataset_path,
@@ -268,16 +261,16 @@ class AquaFineTuningApp(AquaApp):
                 f"Uploaded local file {ft_dataset_path} to object storage {dst_uri}."
             )
             ft_dataset_path = dst_uri
-        
+
         (
             experiment_model_version_set_id,
-            experiment_model_version_set_name
+            experiment_model_version_set_name,
         ) = self.create_model_version_set(
             model_version_set_id=experiment_model_version_set_id,
             model_version_set_name=experiment_model_version_set_name,
             description=create_fine_tuning_details.experiment_description,
             compartment_id=target_compartment,
-            project_id=target_project
+            project_id=target_project,
         )
 
         ft_model_custom_metadata = ModelCustomMetadata()
@@ -295,12 +288,10 @@ class AquaFineTuningApp(AquaApp):
         )
 
         ft_model_taxonomy_metadata = ModelTaxonomyMetadata()
-        ft_model_taxonomy_metadata[
-            MetadataTaxonomyKeys.HYPERPARAMETERS
-        ].value = {
+        ft_model_taxonomy_metadata[MetadataTaxonomyKeys.HYPERPARAMETERS].value = {
             **create_fine_tuning_details.ft_parameters,
             "val_set_size": create_fine_tuning_details.validation_set_size,
-            "training_data": ft_dataset_path
+            "training_data": ft_dataset_path,
         }
 
         ft_model = self.create_model_catalog(
@@ -311,7 +302,7 @@ class AquaFineTuningApp(AquaApp):
             model_taxonomy_metadata=ft_model_taxonomy_metadata,
             compartment_id=target_compartment,
             project_id=target_project,
-            model_by_reference=True
+            model_by_reference=True,
         )
 
         ft_job_freeform_tags = {
@@ -319,9 +310,7 @@ class AquaFineTuningApp(AquaApp):
             Tags.AQUA_FINE_TUNED_MODEL_TAG.value: f"{source.id}#{source.display_name}",
         }
 
-        ft_job = Job(
-            name=ft_model.display_name
-        ).with_infrastructure(
+        ft_job = Job(name=ft_model.display_name).with_infrastructure(
             DataScienceJob()
             .with_log_group_id(create_fine_tuning_details.log_group_id)
             .with_log_id(create_fine_tuning_details.log_id)
@@ -331,7 +320,7 @@ class AquaFineTuningApp(AquaApp):
             .with_block_storage_size(
                 create_fine_tuning_details.block_storage_size
                 or DEFAULT_FT_BLOCK_STORAGE_SIZE
-            ) 
+            )
             .with_freeform_tag(**ft_job_freeform_tags)
         )
 
@@ -343,9 +332,7 @@ class AquaFineTuningApp(AquaApp):
                 JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING
             )
         else:
-            ft_job.infrastructure.with_subnet_id(
-                create_fine_tuning_details.subnet_id
-            )
+            ft_job.infrastructure.with_subnet_id(create_fine_tuning_details.subnet_id)
 
         ft_config = load_config(
             AQUA_CONFIG_FOLDER,
@@ -371,7 +358,7 @@ class AquaFineTuningApp(AquaApp):
                     create_fine_tuning_details.validation_set_size
                     or DEFAULT_FT_VALIDATION_SET_SIZE
                 ),
-                parameters=ft_parameters
+                parameters=ft_parameters,
             )
         ).create()
         logger.debug(
@@ -409,7 +396,7 @@ class AquaFineTuningApp(AquaApp):
                         f"{source.id}#{source.display_name}"
                     ),
                     **source.freeform_tags,
-                }
+                },
             ),
         )
 
@@ -466,7 +453,7 @@ class AquaFineTuningApp(AquaApp):
             ),
             parameters=ft_parameters,
         )
-    
+
     def _build_fine_tuning_runtime(
         self,
         source_id: str,
@@ -485,22 +472,17 @@ class AquaFineTuningApp(AquaApp):
                 **{
                     "AIP_SMC_FT_ARGUMENTS": json.dumps(
                         {
-                            "baseModel": {
-                                "type":"modelCatalog",
-                                "modelId": source_id
+                            "baseModel": {"type": "modelCatalog", "modelId": source_id},
+                            "outputModel": {
+                                "type": "modelCatalog",
+                                "modelId": ft_model_id,
                             },
-                            "outputModel":{
-                                "type":"modelCatalog",
-                                "modelId": ft_model_id
-                            }
                         }
                     ),
                     "OCI__LAUNCH_CMD": f"--micro_batch_size {batch_size} --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size}",
                 }
             )
-            .with_image(
-                image=FINE_TUNING_RUNTIME_CONTAINER
-            )
+            .with_image(image=FINE_TUNING_RUNTIME_CONTAINER)
             .with_replica(replica)
         )
 

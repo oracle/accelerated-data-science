@@ -25,7 +25,6 @@ from oci.data_science.models import (
 
 from ads.aqua import logger, utils
 from ads.aqua.base import AquaApp
-from ads.aqua.decorator import fire_and_forget
 from ads.aqua.exception import (
     AquaFileExistsError,
     AquaFileNotFoundError,
@@ -43,9 +42,9 @@ from ads.aqua.utils import (
     NB_SESSION_IDENTIFIER,
     SOURCE_FILE,
     UNKNOWN,
-    fire_and_forget,
     is_valid_ocid,
     upload_local_to_os,
+    fire_and_forget,
 )
 from ads.common.auth import AuthType, default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
