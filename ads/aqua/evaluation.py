@@ -630,7 +630,7 @@ class AquaEvaluationApp(AquaApp):
         # TODO the image name needs to be extracted from the mapping index.json file.
         runtime = (
             ContainerRuntime()
-            .with_image("iad.ocir.io/ociodscdev/odsc-llm-evaluate:0.0.2.9")
+            .with_image("iad.ocir.io/ociodscdev/odsc-llm-evaluate:0.0.2.10")
             .with_environment_variable(
                 **{
                     "AIP_SMC_EVALUATION_ARGUMENTS": json.dumps(
