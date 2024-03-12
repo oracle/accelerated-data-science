@@ -25,20 +25,20 @@ from ads.aqua.constants import (
 )
 from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaRuntimeError
-from ads.aqua.utils import README, UNKNOWN, create_word_icon, read_file, CONDA_BUCKET_NS
+from ads.aqua.utils import CONDA_BUCKET_NS, README, UNKNOWN, create_word_icon, read_file
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
 from ads.config import (
+    AQUA_SERVICE_MODELS_BUCKET,
     COMPARTMENT_OCID,
     ODSC_MODEL_COMPARTMENT_OCID,
     PROJECT_OCID,
     TENANCY_OCID,
-    AQUA_SERVICE_MODELS_BUCKET,
 )
 from ads.model import DataScienceModel
 from ads.model.model_metadata import MetadataTaxonomyKeys, ModelCustomMetadata
-from ads.common.object_storage_details import ObjectStorageDetails
 
 
 class FineTuningMetricCategories(Enum):
@@ -382,8 +382,14 @@ class AquaModelApp(AquaApp):
             )
 
         else:
-            jobrun_ocid = ds_model.provenance_metadata.training_id
-            jobrun = self.ds_client.get_job_run(jobrun_ocid).data
+            try:
+                jobrun_ocid = ds_model.provenance_metadata.training_id
+                jobrun = self.ds_client.get_job_run(jobrun_ocid).data
+            except Exception as e:
+                logger.debug(
+                    f"Missing jobrun information in the provenance metadata of the given model {model_id}."
+                )
+                jobrun = None
 
             try:
                 source_id = ds_model.custom_metadata_list.get(
