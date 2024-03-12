@@ -24,6 +24,7 @@ from oci.data_science.models import JobRun, Model
 from ads.aqua.constants import RqsAdditionalDetails
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
+from ads.aqua.data import Tags
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link, upload_to_os
@@ -572,3 +573,19 @@ def fire_and_forget(func):
         return asyncio.get_event_loop().run_in_executor(None, func, *args, *kwargs)
 
     return wrapped
+
+
+def get_base_model_from_tags(tags):
+    base_model_ocid = ""
+    base_model_name = ""
+    if Tags.AQUA_FINE_TUNED_MODEL_TAG.value in tags:
+        tag = tags[Tags.AQUA_FINE_TUNED_MODEL_TAG.value]
+        if "#" in tag:
+            base_model_ocid, base_model_name = tag.split("#")
+
+        if not (is_valid_ocid(base_model_ocid) and base_model_name):
+            raise AquaValueError(
+                f"{Tags.AQUA_FINE_TUNED_MODEL_TAG.value} tag should have the format `Service Model OCID#Model Name`."
+            )
+
+    return base_model_ocid, base_model_name
