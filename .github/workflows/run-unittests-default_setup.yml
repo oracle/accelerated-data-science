@@ -51,6 +51,8 @@ jobs:
         run: |
           set -x # print commands that are executed
           $CONDA/bin/conda create --name myenv python=${{ matrix.python-version }}
+          $CONDA/bin/conda init
+          source /home/runner/.bashrc 
           $CONDA/bin/conda activate myenv
           pip install -r test-requirements.txt
           conda list
