@@ -19,6 +19,8 @@ from ads.config import (
     AQUA_CONFIG_FOLDER,
     OCI_ODSC_SERVICE_ENDPOINT,
     OCI_RESOURCE_PRINCIPAL_VERSION,
+    AQUA_TELEMETRY_BUCKET,
+    AQUA_TELEMETRY_BUCKET_NS,
 )
 from ads.telemetry.client import TelemetryClient
 from ads.model.datascience_model import DataScienceModel
@@ -257,6 +259,6 @@ class AquaApp:
     def telemetry(self):
         if not self._telemetry:
             self._telemetry = TelemetryClient(
-                bucket="vipul-dev", namespace="ociodscdev"
+                bucket=AQUA_TELEMETRY_BUCKET, namespace=AQUA_TELEMETRY_BUCKET_NS
             )
         return self._telemetry

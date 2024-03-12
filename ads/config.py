@@ -72,6 +72,10 @@ AQUA_JOB_SUBNET_ID = os.environ.get("AQUA_JOB_SUBNET_ID", None)
 AQUA_SERVICE_MODELS_BUCKET = os.environ.get(
     "AQUA_SERVICE_MODELS_BUCKET", "service-managed-models"
 )
+AQUA_TELEMETRY_BUCKET = os.environ.get(
+    "AQUA_TELEMETRY_BUCKET", "service-managed-models"
+)
+AQUA_TELEMETRY_BUCKET_NS = os.environ.get("AQUA_TELEMETRY_BUCKET_NS", "id19sfcrra6z")
 
 
 def export(
