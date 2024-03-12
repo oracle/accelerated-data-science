@@ -48,8 +48,6 @@ jobs:
           NoDependency: True
         run: |
           set -x # print commands that are executed
-          $CONDA/bin/conda init
-          source /home/runner/.bashrc
           conda create --name myenv python=${{ matrix.python-version }}
           conda activate myenv
           pip install -r test-requirements.txt
