@@ -54,11 +54,12 @@ class AquaAPIhandler(APIHandler):
         self.set_header("Content-Type", "application/json")
         reason = kwargs.get("reason")
         self.set_status(status_code, reason=reason)
-        message = self.get_default_error_messages(status_code)
+        service_payload = kwargs.get("service_payload", {})
+        message = self.get_default_error_messages(service_payload, status_code)
         reply = {
             "status": status_code,
             "message": message,
-            "service_payload": kwargs.get("service_payload", {}),
+            "service_payload": service_payload,
             "reason": reason,
         }
         exc_info = kwargs.get("exc_info")
@@ -76,7 +77,9 @@ class AquaAPIhandler(APIHandler):
         self.finish(json.dumps(reply))
 
     @staticmethod
-    def get_default_error_messages(status_code):
+    def get_default_error_messages(service_payload, status_code):
+        if service_payload and "operation_name" in service_payload:
+            pass
         messages = {
             400: "Something went wrong with your request.",
             403: "We're having trouble processing your request with the information provided.",
