@@ -251,10 +251,9 @@ class AquaDeploymentApp(AquaApp):
         # todo: revisit after create FT model is implemented
 
         is_fine_tuned_model = (
-            True
-            if aqua_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
-            else False
+            Tags.AQUA_FINE_TUNED_MODEL_TAG.value in aqua_model.freeform_tags
         )
+
         if is_fine_tuned_model:
             _, model_name = get_base_model_from_tags(aqua_model.freeform_tags)
         else:

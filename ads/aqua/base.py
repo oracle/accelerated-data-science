@@ -231,10 +231,9 @@ class AquaApp:
         model_name = oci_model.display_name
 
         is_fine_tuned_model = (
-            True
-            if oci_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
-            else False
+            Tags.AQUA_FINE_TUNED_MODEL_TAG.value in oci_model.freeform_tags
         )
+
         if is_fine_tuned_model:
             _, model_name = get_base_model_from_tags(oci_model.freeform_tags)
 
