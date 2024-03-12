@@ -589,3 +589,34 @@ def get_base_model_from_tags(tags):
             )
 
     return base_model_ocid, base_model_name
+
+
+def get_resource_name(ocid: str) -> str:
+    """Gets resource name based on the given ocid.
+
+    Parameters
+    ----------
+    ocid: str
+        Oracle Cloud Identifier (OCID).
+
+    Returns
+    -------
+    str:
+        The resource name indicated in the given ocid.
+
+    Raises
+    -------
+    ValueError:
+        When the given ocid is not a valid ocid.
+    """
+    if not is_valid_ocid(ocid):
+        raise ValueError(
+            f"The given ocid {ocid} is not a valid ocid."
+            "Check out this page https://docs.oracle.com/en-us/iaas/Content/General/Concepts/identifiers.htm to see more details."
+        )
+    try:
+        resource = query_resource(ocid, return_all=False)
+        name = resource.display_name if resource else UNKNOWN
+    except:
+        name = UNKNOWN
+    return name

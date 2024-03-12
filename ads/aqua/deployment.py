@@ -20,8 +20,10 @@ from ads.aqua.utils import (
     load_config,
     get_container_image,
     get_base_model_from_tags,
+    get_resource_name,
 )
-from ads.common.utils import get_console_link
+from ads.aqua.data import AquaResourceIdentifier
+from ads.common.utils import get_console_link, get_log_links
 from ads.common.auth import default_signer
 from ads.model.deployment import (
     ModelDeployment,
@@ -135,6 +137,14 @@ class AquaDeployment(DataClassSerializable):
             ),
             tags=oci_model_deployment.freeform_tags,
         )
+
+
+@dataclass(repr=False)
+class AquaDeploymentDetail(AquaDeployment, DataClassSerializable):
+    """Represents a details of Aqua deployment."""
+
+    log_group: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    log: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
 
 
 class AquaDeploymentApp(AquaApp):
@@ -406,7 +416,7 @@ class AquaDeploymentApp(AquaApp):
 
         return results
 
-    def get(self, model_deployment_id: str, **kwargs) -> "AquaDeployment":
+    def get(self, model_deployment_id: str, **kwargs) -> "AquaDeploymentDetail":
         """Gets the information of Aqua model deployment.
 
         Parameters
@@ -419,8 +429,8 @@ class AquaDeploymentApp(AquaApp):
 
         Returns
         -------
-        AquaDeployment:
-            The instance of the Aqua model deployment.
+        AquaDeploymentDetail:
+            The instance of the Aqua model deployment details.
         """
         model_deployment = self.ds_client.get_model_deployment(
             model_deployment_id=model_deployment_id, **kwargs
@@ -440,7 +450,37 @@ class AquaDeploymentApp(AquaApp):
                 f"Target deployment {model_deployment_id} is not Aqua deployment."
             )
 
-        return AquaDeployment.from_oci_model_deployment(model_deployment, self.region)
+        log_id = ""
+        log_group_id = ""
+        log_name = ""
+        log_group_name = ""
+
+        logs = (
+            model_deployment.category_log_details.access
+            or model_deployment.category_log_details.predict
+        )
+        if logs:
+            log_id = logs.log_id
+            log_group_id = logs.log_group_id
+        if log_id:
+            log_name = get_resource_name(log_id)
+        if log_group_id:
+            log_group_name = get_resource_name(log_group_id)
+
+        log_group_url = get_log_links(region=self.region, log_group_id=log_group_id)
+        log_url = get_log_links(
+            region=self.region, log_group_id=log_group_id, log_id=log_id
+        )
+
+        return AquaDeploymentDetail(
+            **vars(
+                AquaDeployment.from_oci_model_deployment(model_deployment, self.region)
+            ),
+            log_group=AquaResourceIdentifier(
+                log_group_id, log_group_name, log_group_url
+            ),
+            log=AquaResourceIdentifier(log_id, log_name, log_url),
+        )
 
     def get_deployment_config(self, model_id: str) -> Dict:
         """Gets the deployment config of given Aqua model.
