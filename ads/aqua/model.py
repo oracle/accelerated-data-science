@@ -605,7 +605,9 @@ class AquaModelApp(AquaApp):
         """
 
         # tracks number of times model listing was called
-        self.telemetry.record_event_async(category="aqua/model", action="list")
+        self.telemetry.record_event_async(
+            category="aqua/model", action="list", value=f"{compartment_id}"
+        )
 
         models = []
         if compartment_id:

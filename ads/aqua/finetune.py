@@ -260,6 +260,12 @@ class AquaFineTuningApp(AquaApp):
             logger.debug(
                 f"Uploaded local file {ft_dataset_path} to object storage {dst_uri}."
             )
+            # tracks the size of dataset uploaded by user to the destination.
+            self.telemetry.record_event_async(
+                category="aqua/finetune",
+                action="upload",
+                value=os.path.getsize(os.path.expanduser(ft_dataset_path)),
+            )
             ft_dataset_path = dst_uri
 
         (
@@ -405,6 +411,11 @@ class AquaFineTuningApp(AquaApp):
             update_model_provenance_details=UpdateModelProvenanceDetails(
                 training_id=ft_job_run.id
             ),
+        )
+
+        # tracks unique fine-tuned models that were created in the user compartment
+        self.telemetry.record_event_async(
+            category="aqua/finetune", action="create", value=source.display_name
         )
 
         return AquaFineTuningSummary(
