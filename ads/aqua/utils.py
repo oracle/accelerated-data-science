@@ -616,7 +616,7 @@ def get_resource_name(ocid: str) -> str:
         )
     try:
         resource = query_resource(ocid, return_all=False)
-        name = resource.display_name if resource else ""
+        name = resource.display_name if resource else UNKNOWN
     except:
-        name = ""
+        name = UNKNOWN
     return name
