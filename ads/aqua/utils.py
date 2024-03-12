@@ -576,13 +576,15 @@ def fire_and_forget(func):
 
 
 def get_base_model_from_tags(tags):
-    base_model_ocid = None
-    base_model_name = None
+    base_model_ocid = ""
+    base_model_name = ""
     if Tags.AQUA_FINE_TUNED_MODEL_TAG.value in tags:
         tag = tags[Tags.AQUA_FINE_TUNED_MODEL_TAG.value]
-        base_model_ocid, base_model_name = tag.split("#")
+        if "#" in tag:
+            base_model_ocid, base_model_name = tag.split("#")
+
         if not (is_valid_ocid(base_model_ocid) and base_model_name):
-            logger.error(
+            raise AquaValueError(
                 f"{Tags.AQUA_FINE_TUNED_MODEL_TAG.value} tag should have the format `Service Model OCID#Model Name`."
             )
 
