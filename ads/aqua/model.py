@@ -571,11 +571,7 @@ class AquaModelApp(AquaApp):
             organization=freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
             task=freeform_tags.get(Tags.TASK.value, UNKNOWN),
             time_created=model.time_created,
-            is_fine_tuned_model=(
-                True
-                if freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
-                else False
-            ),
+            is_fine_tuned_model=Tags.AQUA_FINE_TUNED_MODEL_TAG.value in freeform_tags,
             tags=tags,
             console_link=console_link,
             search_text=search_text,
