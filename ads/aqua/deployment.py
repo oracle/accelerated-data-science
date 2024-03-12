@@ -19,7 +19,7 @@ from ads.aqua.utils import (
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     load_config,
     get_container_image,
-    is_valid_ocid,
+    get_base_model_from_tags,
 )
 from ads.common.utils import get_console_link
 from ads.common.auth import default_signer
@@ -249,15 +249,13 @@ class AquaDeploymentApp(AquaApp):
             config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG,
         )
         # todo: revisit after create FT model is implemented
-        if Tags.AQUA_FINE_TUNED_MODEL_TAG.value in tags:
-            tag = tags[Tags.AQUA_FINE_TUNED_MODEL_TAG.value]
-            base_model_ocid, base_model_name = tag.split("#")
-            if is_valid_ocid(base_model_ocid) and base_model_name:
-                model_name = base_model_name
-            else:
-                raise AquaValueError(
-                    f"{Tags.AQUA_FINE_TUNED_MODEL_TAG.value} tag should have the format `Service Model OCID>#Model Name`."
-                )
+
+        is_fine_tuned_model = (
+            Tags.AQUA_FINE_TUNED_MODEL_TAG.value in aqua_model.freeform_tags
+        )
+
+        if is_fine_tuned_model:
+            _, model_name = get_base_model_from_tags(aqua_model.freeform_tags)
         else:
             model_name = aqua_model.display_name
 

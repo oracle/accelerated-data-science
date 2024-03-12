@@ -38,13 +38,13 @@ from ads.aqua.utils import (
     CONDA_REGION,
     CONDA_URI,
     HF_MODELS,
-    SOURCE_FILE,
-    UNKNOWN,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     NB_SESSION_IDENTIFIER,
-    fire_and_forget,
+    SOURCE_FILE,
+    UNKNOWN,
     is_valid_ocid,
     upload_local_to_os,
+    fire_and_forget,
 )
 from ads.common.auth import AuthType, default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -54,7 +54,7 @@ from ads.config import AQUA_JOB_SUBNET_ID, COMPARTMENT_OCID, PROJECT_OCID
 from ads.jobs.ads_job import DataScienceJobRun, Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
-from ads.jobs.builders.runtimes.python_runtime import PythonRuntime
+from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import (
@@ -480,68 +480,60 @@ class AquaEvaluationApp(AquaApp):
             EvaluationJobTags.EVALUATION_MODEL_ID.value: evaluation_model.id,
         }
 
-        with tempfile.TemporaryDirectory() as temp_directory:
-            evaluation_job = Job(
-                name=evaluation_model.display_name
-            ).with_infrastructure(
-                DataScienceJob()
-                .with_log_group_id(create_aqua_evaluation_details.log_group_id)
-                .with_log_id(create_aqua_evaluation_details.log_id)
-                .with_compartment_id(target_compartment)
-                .with_project_id(target_project)
-                .with_shape_name(create_aqua_evaluation_details.shape_name)
-                .with_block_storage_size(
-                    create_aqua_evaluation_details.block_storage_size
-                )
-                .with_freeform_tag(**evaluation_job_freeform_tags)
+        evaluation_job = Job(name=evaluation_model.display_name).with_infrastructure(
+            DataScienceJob()
+            .with_log_group_id(create_aqua_evaluation_details.log_group_id)
+            .with_log_id(create_aqua_evaluation_details.log_id)
+            .with_compartment_id(target_compartment)
+            .with_project_id(target_project)
+            .with_shape_name(create_aqua_evaluation_details.shape_name)
+            .with_block_storage_size(create_aqua_evaluation_details.block_storage_size)
+            .with_freeform_tag(**evaluation_job_freeform_tags)
+        )
+        if (
+            create_aqua_evaluation_details.memory_in_gbs
+            and create_aqua_evaluation_details.ocpus
+        ):
+            evaluation_job.infrastructure.with_shape_config_details(
+                memory_in_gbs=create_aqua_evaluation_details.memory_in_gbs,
+                ocpus=create_aqua_evaluation_details.ocpus,
             )
-            if (
-                create_aqua_evaluation_details.memory_in_gbs
-                and create_aqua_evaluation_details.ocpus
-            ):
-                evaluation_job.infrastructure.with_shape_config_details(
-                    memory_in_gbs=create_aqua_evaluation_details.memory_in_gbs,
-                    ocpus=create_aqua_evaluation_details.ocpus,
+        if AQUA_JOB_SUBNET_ID:
+            evaluation_job.infrastructure.with_subnet_id(AQUA_JOB_SUBNET_ID)
+        else:
+            if NB_SESSION_IDENTIFIER in os.environ:
+                # apply default subnet id for job by setting ME_STANDALONE
+                # so as to avoid using the notebook session's networking when running on it
+                # https://accelerated-data-science.readthedocs.io/en/latest/user_guide/jobs/infra_and_runtime.html#networking
+                evaluation_job.infrastructure.with_job_infrastructure_type(
+                    JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING
                 )
-            if AQUA_JOB_SUBNET_ID:
-                evaluation_job.infrastructure.with_subnet_id(
-                    AQUA_JOB_SUBNET_ID
-                )
-            else:
-                if NB_SESSION_IDENTIFIER in os.environ:
-                    # apply default subnet id for job by setting ME_STANDALONE
-                    # so as to avoid using the notebook session's networking when running on it
-                    # https://accelerated-data-science.readthedocs.io/en/latest/user_guide/jobs/infra_and_runtime.html#networking
-                    evaluation_job.infrastructure.with_job_infrastructure_type(
-                        JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING
-                    )
-            evaluation_job.with_runtime(
-                self._build_evaluation_runtime(
-                    evaluation_id=evaluation_model.id,
-                    evaluation_source_id=(
-                        create_aqua_evaluation_details.evaluation_source_id
-                    ),
-                    dataset_path=evaluation_dataset_path,
-                    report_path=create_aqua_evaluation_details.report_path,
-                    model_parameters=create_aqua_evaluation_details.model_parameters,
-                    metrics=create_aqua_evaluation_details.metrics,
-                    source_folder=temp_directory,
-                )
-            ).create(
-                **kwargs
-            )  ## TODO: decide what parameters will be needed
-            logger.debug(
-                f"Successfully created evaluation job {evaluation_job.id} for {create_aqua_evaluation_details.evaluation_source_id}."
+        evaluation_job.with_runtime(
+            self._build_evaluation_runtime(
+                evaluation_id=evaluation_model.id,
+                evaluation_source_id=(
+                    create_aqua_evaluation_details.evaluation_source_id
+                ),
+                dataset_path=evaluation_dataset_path,
+                report_path=create_aqua_evaluation_details.report_path,
+                model_parameters=create_aqua_evaluation_details.model_parameters,
+                metrics=create_aqua_evaluation_details.metrics,
             )
+        ).create(
+            **kwargs
+        )  ## TODO: decide what parameters will be needed
+        logger.debug(
+            f"Successfully created evaluation job {evaluation_job.id} for {create_aqua_evaluation_details.evaluation_source_id}."
+        )
 
-            evaluation_job_run = evaluation_job.run(
-                name=evaluation_model.display_name,
-                freeform_tags=evaluation_job_freeform_tags,
-                wait=False,
-            )
-            logger.debug(
-                f"Successfully created evaluation job run {evaluation_job_run.id} for {create_aqua_evaluation_details.evaluation_source_id}."
-            )
+        evaluation_job_run = evaluation_job.run(
+            name=evaluation_model.display_name,
+            freeform_tags=evaluation_job_freeform_tags,
+            wait=False,
+        )
+        logger.debug(
+            f"Successfully created evaluation job run {evaluation_job_run.id} for {create_aqua_evaluation_details.evaluation_source_id}."
+        )
 
         evaluation_model_custom_metadata.add(
             key=EvaluationCustomMetadata.EVALUATION_JOB_ID.value,
@@ -632,24 +624,16 @@ class AquaEvaluationApp(AquaApp):
         dataset_path: str,
         report_path: str,
         model_parameters: dict,
-        source_folder: str,
         metrics: List = None,
     ) -> Runtime:
         """Builds evaluation runtime for Job."""
-        source_path = f"{source_folder}/{SOURCE_FILE}"
-        with open(source_path, "w") as fp:
-            fp.write("aqua-evaluate")
+        # TODO the image name needs to be extracted from the mapping index.json file.
         runtime = (
-            PythonRuntime()
-            .with_custom_conda(uri=CONDA_URI, region=CONDA_REGION)
-            .with_source(source_path)
+            ContainerRuntime()
+            .with_image("iad.ocir.io/ociodscdev/odsc-llm-evaluate:0.0.2.10")
             .with_environment_variable(
                 **{
-                    "BERT_SCORE_PATH": BERT_SCORE_PATH,
-                    "BERT_BASE_MULTILINGUAL_CASED": BERT_BASE_MULTILINGUAL_CASED,
-                    "HF_MODELS": HF_MODELS,
-                    "OCI_IAM_TYPE": AuthType.RESOURCE_PRINCIPAL,
-                    "OCI__LAUNCH_CMD": json.dumps(
+                    "AIP_SMC_EVALUATION_ARGUMENTS": json.dumps(
                         asdict(
                             self._build_launch_cmd(
                                 evaluation_id=evaluation_id,
@@ -747,30 +731,26 @@ class AquaEvaluationApp(AquaApp):
         loggroup_name = None
 
         if log_id:
-            log = utils.query_resource(log_id, return_all=False)
-            log_name = log.display_name if log else ""
+            try:
+                log = utils.query_resource(log_id, return_all=False)
+                log_name = log.display_name if log else ""
+            except:
+                pass
 
         if loggroup_id:
-            loggroup = utils.query_resource(log_id, return_all=False)
-            loggroup_name = loggroup.display_name if loggroup else ""
+            try:
+                loggroup = utils.query_resource(loggroup_id, return_all=False)
+                loggroup_name = loggroup.display_name if loggroup else ""
+            except:
+                pass
 
         try:
             introspection = json.loads(
                 self._get_attribute_from_model_metadata(resource, "ArtifactTestResults")
             )
         except:
-            # TODO: remove this hardcode value later
-            introspection = {
-                "aqua_evaluate": {
-                    "input_dataset_path": {
-                        "key": "input_dataset_path",
-                        "category": "aqua_evaluate",
-                        "description": "Some description here",
-                        "error_msg": "The error details",
-                        "success": False,
-                    }
-                }
-            }
+            introspection = {}
+
         summary = AquaEvaluationDetail(
             **self._process(resource),
             **self._get_status(model=resource, jobrun=job_run_details),
@@ -951,16 +931,22 @@ class AquaEvaluationApp(AquaApp):
             report_content = self._read_from_artifact(
                 temp_dir, files_in_artifact, utils.EVALUATION_REPORT_MD
             )
-            report = json.loads(
-                self._read_from_artifact(
-                    temp_dir, files_in_artifact, utils.EVALUATION_REPORT_JSON
+            try:
+                report = json.loads(
+                    self._read_from_artifact(
+                        temp_dir, files_in_artifact, utils.EVALUATION_REPORT_JSON
+                    )
                 )
-            )
+            except Exception as e:
+                logger.debug(
+                    "Failed to load `report.json` from evaluation artifact" f"{str(e)}"
+                )
+                report = {}
 
         # TODO: after finalizing the format of report.json, move the constant to class
         eval_metrics = AquaEvalMetrics(
             id=eval_id,
-            report=report_content,
+            report=base64.b64encode(report_content).decode(),
             metric_results=[
                 AquaEvalMetric(
                     key=metric_key,
