@@ -49,6 +49,7 @@ jobs:
         run: |
           set -x # print commands that are executed
           conda create --name myenv python=${{ matrix.python-version }}
+          conda init
           conda activate myenv
           pip install -r test-requirements.txt
           conda list
