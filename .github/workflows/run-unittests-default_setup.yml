@@ -21,9 +21,6 @@ jobs:
     name: python ${{ matrix.python-version }}, default_setup
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    defaults:
-      run:
-        shell: bash -el {0}
 
     strategy:
       fail-fast: false
@@ -45,13 +42,15 @@ jobs:
         name: "Test config setup"
 
       - name: "Run default_setup tests folder ONLY with minimum ADS dependencies"
+        shell: bash
         timeout-minutes: 15
         env:
           NoDependency: True
         run: |
           set -x # print commands that are executed
-          
-          $CONDA/bin/conda create --name myenv python=${{ matrix.python-version }} && \
-          $CONDA/bin/conda activate myenv && \
-          pip install -r test-requirements.txt && \
+
+          $CONDA/bin/conda init
+          source /home/runner/.bashrc
+          conda install python=${{ matrix.python-version }}
+          pip install -r test-requirements.txt
           conda list
