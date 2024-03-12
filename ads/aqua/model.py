@@ -174,6 +174,8 @@ class AquaModelApp(AquaApp):
         AquaModel:
             The instance of AquaModel.
         """
+        self.telemetry.record_event_async(category="aqua/service/model", action="list")
+
         oci_model = self.ds_client.get_model(model_id).data
 
         if not self._if_show(oci_model):
@@ -302,6 +304,9 @@ class AquaModelApp(AquaApp):
         List[AquaModelSummary]:
             The list of the `ads.aqua.model.AquaModelSummary`.
         """
+
+        self.telemetry.record_event_async(category="aqua/service/model", action="list")
+
         models = []
         if compartment_id:
             logger.info(f"Fetching custom models from compartment_id={compartment_id}.")

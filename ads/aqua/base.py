@@ -15,6 +15,7 @@ from ads.config import (
     OCI_RESOURCE_PRINCIPAL_VERSION,
     AQUA_CONFIG_FOLDER,
 )
+from ads.telemetry.client import TelemetryClient
 
 from ads.aqua.data import Tags
 from ads.aqua.exception import AquaRuntimeError, AquaValueError
@@ -33,6 +34,7 @@ class AquaApp:
         self.logging_client = oc.OCIClientFactory(**default_signer()).logging_management
         self.identity_client = oc.OCIClientFactory(**default_signer()).identity
         self.region = extract_region(self._auth)
+        self._telemetry = None
 
     def list_resource(
         self,
@@ -102,3 +104,11 @@ class AquaApp:
             return {}
 
         return config[model_name]
+
+    @property
+    def telemetry(self):
+        if not self._telemetry:
+            self._telemetry = TelemetryClient(
+                bucket="vipul-dev", namespace="ociodscdev"
+            )
+        return self._telemetry
