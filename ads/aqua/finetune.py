@@ -407,11 +407,6 @@ class AquaFineTuningApp(AquaApp):
             ),
         )
 
-        # tracks unique fine-tuned models that were created in the user compartment
-        self.telemetry.record_event_async(
-            category="aqua/finetune", action="create", value=source.display_name
-        )
-
         return AquaFineTuningSummary(
             id=ft_model.id,
             name=ft_model.display_name,
