@@ -14,6 +14,8 @@ from enum import Enum
 from pathlib import Path
 from string import Template
 from typing import List, Union
+from functools import wraps
+import asyncio
 
 import fsspec
 import oci
@@ -505,7 +507,6 @@ def _build_job_identifier(
             f"DEBUG INFO:{str(e)}"
         )
         return AquaResourceIdentifier()
-    return wrapped
 
 
 def get_container_image(
@@ -561,3 +562,13 @@ def get_container_image(
         )
 
     return container_image
+
+
+def fire_and_forget(func):
+    """Decorator to push execution of methods to the background."""
+
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        return asyncio.get_event_loop().run_in_executor(None, func, *args, *kwargs)
+
+    return wrapped
