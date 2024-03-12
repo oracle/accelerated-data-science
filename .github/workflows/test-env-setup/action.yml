@@ -12,9 +12,8 @@ runs:
 
         sudo apt update
         sudo apt-get install libkrb5-dev graphviz
-        conda create --name myenv python=${{ matrix.python-version }} && \
-        conda init && \
-        source /home/runner/.bashrc && \
-        conda activate myenv && \
-        pip install -r dev-requirements.txt && \
+        $CONDA/bin/conda init
+        source /home/runner/.bashrc
+        conda install python=${{ matrix.python-version }}
+        pip install -r dev-requirements.txt
         conda list
