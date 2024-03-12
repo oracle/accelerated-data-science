@@ -10,6 +10,7 @@ from tornado.web import HTTPError
 from ads.aqua.deployment import AquaDeploymentApp, MDInferenceResponse, ModelParams
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.config import COMPARTMENT_OCID, PROJECT_OCID
+from ads.aqua.decorator import handle_exceptions
 
 
 class AquaDeploymentHandler(AquaAPIhandler):
@@ -34,6 +35,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
     HTTPError: For various failure scenarios such as invalid input format, missing data, etc.
     """
 
+    @handle_exceptions
     def get(self, id=""):
         """Handle GET request."""
         url_parse = urlparse(self.request.path)
@@ -51,6 +53,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
+    @handle_exceptions
     def post(self, *args, **kwargs):
         """
         Handles post request for the deployment APIs
@@ -91,32 +94,28 @@ class AquaDeploymentHandler(AquaAPIhandler):
         instance_count = input_data.get("instance_count")
         bandwidth_mbps = input_data.get("bandwidth_mbps")
 
-        try:
-            self.finish(
-                AquaDeploymentApp().create(
-                    compartment_id=compartment_id,
-                    project_id=project_id,
-                    model_id=model_id,
-                    display_name=display_name,
-                    description=description,
-                    instance_count=instance_count,
-                    instance_shape=instance_shape,
-                    log_group_id=log_group_id,
-                    access_log_id=access_log_id,
-                    predict_log_id=predict_log_id,
-                    bandwidth_mbps=bandwidth_mbps,
-                )
+        self.finish(
+            AquaDeploymentApp().create(
+                compartment_id=compartment_id,
+                project_id=project_id,
+                model_id=model_id,
+                display_name=display_name,
+                description=description,
+                instance_count=instance_count,
+                instance_shape=instance_shape,
+                log_group_id=log_group_id,
+                access_log_id=access_log_id,
+                predict_log_id=predict_log_id,
+                bandwidth_mbps=bandwidth_mbps,
             )
-        except Exception as ex:
-            raise HTTPError(500, str(ex))
+        )
 
+    @handle_exceptions
     def read(self, id):
         """Read the information of an Aqua model deployment."""
-        try:
-            return self.finish(AquaDeploymentApp().get(model_deployment_id=id))
-        except Exception as ex:
-            raise HTTPError(500, str(ex))
+        return self.finish(AquaDeploymentApp().get(model_deployment_id=id))
 
+    @handle_exceptions
     def list(self):
         """List Aqua models."""
         # If default is not specified,
@@ -124,24 +123,16 @@ class AquaDeploymentHandler(AquaAPIhandler):
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
         # project_id is optional.
         project_id = self.get_argument("project_id", default=None)
-        try:
-            # todo: update below after list is implemented
-            return self.finish(
-                AquaDeploymentApp().list(
-                    compartment_id=compartment_id, project_id=project_id
-                )
+        return self.finish(
+            AquaDeploymentApp().list(
+                compartment_id=compartment_id, project_id=project_id
             )
-        except Exception as ex:
-            raise HTTPError(500, str(ex))
+        )
 
+    @handle_exceptions
     def get_deployment_config(self, model_id):
         """Gets the deployment config for Aqua model."""
-        try:
-            return self.finish(
-                AquaDeploymentApp().get_deployment_config(model_id=model_id)
-            )
-        except Exception as ex:
-            raise HTTPError(500, str(ex))
+        return self.finish(AquaDeploymentApp().get_deployment_config(model_id=model_id))
 
 
 class AquaDeploymentInferenceHandler(AquaAPIhandler):
@@ -159,6 +150,7 @@ class AquaDeploymentInferenceHandler(AquaAPIhandler):
         except Exception:
             return False
 
+    @handle_exceptions
     def post(self, *args, **kwargs):
         """
         Handles inference request for the Active Model Deployments
@@ -196,14 +188,11 @@ class AquaDeploymentInferenceHandler(AquaAPIhandler):
                 400, Errors.INVALID_INPUT_DATA_FORMAT.format("model_params")
             )
 
-        try:
-            return self.finish(
-                MDInferenceResponse(
-                    prompt, model_params_obj
-                ).get_model_deployment_response(endpoint)
+        return self.finish(
+            MDInferenceResponse(prompt, model_params_obj).get_model_deployment_response(
+                endpoint
             )
-        except Exception as e:
-            raise HTTPError(500, str(e))
+        )
 
 
 __handlers__ = [

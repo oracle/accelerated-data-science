@@ -1740,3 +1740,33 @@ def get_console_link(
         f"https://cloud.oracle.com/data-science/{resource}/{ocid}?region={region}"
     )
     return console_link_url
+
+
+def get_log_links(
+    region: str,
+    log_group_id: str,
+    log_id: str = None,
+) -> str:
+    """
+    This method returns the web console link for the given log ids.
+    Parameters
+    ----------
+    log_group_id: str, required
+        OCID of the resource
+    log_id: str, optional
+        OCID of the resource
+    region: str
+        The Region Identifier that the client should connect to.
+
+    Returns
+    -------
+    console_link_url: str
+        a valid link to the console for the given resource.
+    """
+    console_link_url = ""
+    if log_group_id and log_id:
+        console_link_url = f"https://cloud.oracle.com/logging/log-groups/{log_group_id}/logs/{log_id}?region={region}"
+    elif log_group_id:
+        console_link_url = f"https://cloud.oracle.com/logging/log-groups/{log_group_id}?region={region}"
+
+    return console_link_url
