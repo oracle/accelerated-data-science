@@ -14,5 +14,6 @@ opensearch-py
 pdfplumber
 py4j
 pyarrow
+statsmodels>=0.14.1
 tables
 xlrd>=1.2.0
