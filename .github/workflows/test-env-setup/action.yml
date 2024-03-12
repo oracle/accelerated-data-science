@@ -15,5 +15,6 @@ runs:
         $CONDA/bin/conda init
         source /home/runner/.bashrc
         conda install python=${{ matrix.python-version }}
+        pip install "bokeh>=3.0.0, <3.2.0"
         pip install -r dev-requirements.txt
         conda list
