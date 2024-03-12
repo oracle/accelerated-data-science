@@ -348,7 +348,8 @@ class AquaModelApp(AquaApp):
 
         is_fine_tuned_model = (
             True
-            if ds_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
+            if ds_model.freeform_tags
+            and ds_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
             else False
         )
 
@@ -560,18 +561,19 @@ class AquaModelApp(AquaApp):
             else UNKNOWN
         )
 
+        freeform_tags = model.freeform_tags or {}
         return dict(
             compartment_id=model.compartment_id,
             icon=icon or UNKNOWN,
             id=model_id,
-            license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
+            license=freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
             name=model.display_name,
-            organization=model.freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
-            task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
+            organization=freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
+            task=freeform_tags.get(Tags.TASK.value, UNKNOWN),
             time_created=model.time_created,
             is_fine_tuned_model=(
                 True
-                if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
+                if freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
                 else False
             ),
             tags=tags,
@@ -718,8 +720,11 @@ class AquaModelApp(AquaApp):
             search_text=search_text,
         )
 
-    def _if_show(self, model: "AquaModel") -> bool:
+    def _if_show(self, model: DataScienceModel) -> bool:
         """Determine if the given model should be return by `list`."""
+        if model.freeform_tags is None:
+            return False
+
         TARGET_TAGS = model.freeform_tags.keys()
         return (
             Tags.AQUA_TAG.value in TARGET_TAGS
