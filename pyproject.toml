@@ -121,7 +121,7 @@ tensorflow = ["oracle_ads[viz]", "tensorflow"]
 text = ["spacy", "wordcloud>=1.8.1"]
 torch = ["oracle_ads[viz]", "torch", "torchvision"]
 viz = [
-  "bokeh>=2.3.0, <=2.4.3",
+  "bokeh<=2.4.3",
   "folium>=0.12.1",
   "graphviz<0.17",
   "scipy>=1.5.4",
