@@ -5,7 +5,7 @@ category_encoders
 cohere
 dask
 faiss-cpu
-fastparquet
+fastparquet>=2024.2.0
 imbalanced-learn
 lxml
 mysql-connector-python
