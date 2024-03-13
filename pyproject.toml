@@ -173,7 +173,8 @@ dev = [
   "dask==2023.5.0; python_version=='3.8'",
   "dask==2024.3.0; python_version>='3.9'",
   "cohere==4.53",
-  "fastparquet==2024.2.0"
+  "fastparquet==2024.2.0",
+  "fastavr<2.0,>=1.8",  # cohere 4.53 depends on fastavro<2.0 and >=1.8
 ]
 
 [project.urls]
