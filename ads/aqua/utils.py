@@ -555,22 +555,23 @@ def get_container_image(config_file_name: str, container_type: str) -> str:
 
 
 def get_max_version(versions):
+    """Takes in a list of versions and returns the higher version."""
     if not versions:
-        return None
+        return UNKNOWN
 
     def compare_versions(version1, version2):
-        # split version strings into parts
+        # split version strings into parts and convert to int values for comparison
         parts1 = list(map(int, version1.split(".")))
         parts2 = list(map(int, version2.split(".")))
 
-        # compare each part numerically
+        # compare each part
         for i in range(min(len(parts1), len(parts2))):
             if parts1[i] < parts2[i]:
                 return version2
             elif parts1[i] > parts2[i]:
                 return version1
 
-        # ff all parts are equal up to this point, return the longer version string
+        # if all parts are equal up to this point, return the longer version string
         return version1 if len(parts1) > len(parts2) else version2
 
     max_version = versions[0]

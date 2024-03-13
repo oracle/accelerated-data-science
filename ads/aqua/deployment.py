@@ -299,7 +299,6 @@ class AquaDeploymentApp(AquaApp):
             os_path = ObjectStorageDetails.from_path(model_path_prefix)
             model_path_prefix = os_path.filepath.rstrip("/")
 
-        # todo: revisit this after new image is built
         env_var.update({"BASE_MODEL": f"{model_path_prefix}"})
         env_var.update({"PARAMS": f"--served-model-name {AQUA_SERVED_MODEL_NAME}"})
         env_var.update({"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"})
@@ -319,14 +318,6 @@ class AquaDeploymentApp(AquaApp):
                 fine_tune_output_path = os_path.filepath.rstrip("/")
 
             env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
-
-        # todo: added for testing, remove when TENSOR_PARALLELISM will be set inside the container
-        try:
-            cards = instance_shape.split(".")[-1]
-            if int(cards) > 1:
-                env_var.update({"TENSOR_PARALLELISM": cards})
-        except:
-            pass
 
         logging.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
 
