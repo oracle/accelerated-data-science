@@ -412,7 +412,7 @@ class DataScienceModel(Builder):
         return self.set_spec(self.CONST_DEFINED_TAG, kwargs)
 
     @property
-    def input_schema(self) -> Schema:
+    def input_schema(self) -> Union[Schema, Dict]:
         """Returns model input schema.
 
         Returns
@@ -436,11 +436,15 @@ class DataScienceModel(Builder):
             The DataScienceModel instance (self)
         """
         if schema and isinstance(schema, Dict):
-            schema = Schema.from_dict(schema)
+            try:
+                schema = Schema.from_dict(schema)
+            except Exception as err:
+                logger.warn(err)
+
         return self.set_spec(self.CONST_INPUT_SCHEMA, schema)
 
     @property
-    def output_schema(self) -> Schema:
+    def output_schema(self) -> Union[Schema, Dict]:
         """Returns model output schema.
 
         Returns
@@ -464,7 +468,11 @@ class DataScienceModel(Builder):
             The DataScienceModel instance (self)
         """
         if schema and isinstance(schema, Dict):
-            schema = Schema.from_dict(schema)
+            try:
+                schema = Schema.from_dict(schema)
+            except Exception as err:
+                logger.warn(err)
+
         return self.set_spec(self.CONST_OUTPUT_SCHEMA, schema)
 
     @property
@@ -1127,9 +1135,13 @@ class DataScienceModel(Builder):
         for infra_attr, dsc_attr in self.attribute_map.items():
             value = self.get_spec(infra_attr)
             if infra_attr in COMPLEX_ATTRIBUTES_CONVERTER and value:
-                dsc_spec[dsc_attr] = getattr(
-                    self.get_spec(infra_attr), COMPLEX_ATTRIBUTES_CONVERTER[infra_attr]
-                )()
+                if isinstance(value, dict):
+                    dsc_spec[dsc_attr] = json.dumps(value)
+                else:
+                    dsc_spec[dsc_attr] = getattr(
+                        self.get_spec(infra_attr),
+                        COMPLEX_ATTRIBUTES_CONVERTER[infra_attr],
+                    )()
             else:
                 dsc_spec[dsc_attr] = value
 
@@ -1152,8 +1164,8 @@ class DataScienceModel(Builder):
             The DataScienceModel instance (self).
         """
         COMPLEX_ATTRIBUTES_CONVERTER = {
-            self.CONST_INPUT_SCHEMA: Schema.from_json,
-            self.CONST_OUTPUT_SCHEMA: Schema.from_json,
+            self.CONST_INPUT_SCHEMA: [Schema.from_json, json.loads],
+            self.CONST_OUTPUT_SCHEMA: [Schema.from_json, json.loads],
             self.CONST_CUSTOM_METADATA: ModelCustomMetadata._from_oci_metadata,
             self.CONST_DEFINED_METADATA: ModelTaxonomyMetadata._from_oci_metadata,
         }
@@ -1164,7 +1176,16 @@ class DataScienceModel(Builder):
             value = utils.get_value(dsc_model, dsc_attr)
             if value:
                 if infra_attr in COMPLEX_ATTRIBUTES_CONVERTER:
-                    value = COMPLEX_ATTRIBUTES_CONVERTER[infra_attr](value)
+                    converter = COMPLEX_ATTRIBUTES_CONVERTER[infra_attr]
+                    if isinstance(converter, List):
+                        for converter_item in converter:
+                            try:
+                                value = converter_item(value)
+                            except Exception as err:
+                                logger.warn(err)
+                                pass
+                    else:
+                        value = converter(value)
                 self.set_spec(infra_attr, value)
 
         # Update provenance metadata
