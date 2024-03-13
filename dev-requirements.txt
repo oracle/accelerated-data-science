@@ -2,7 +2,6 @@
 -e ".[bds,data,geo,huggingface,llm,notebook,onnx,opctl,optuna,pii,spark,tensorflow,text,torch,viz]"
 -e ".[dev]"
 arff
-category_encoders
 faiss-cpu
 imbalanced-learn
 lxml
