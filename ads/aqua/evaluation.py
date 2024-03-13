@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import asyncio
+import re
 import base64
 import json
 import os
@@ -33,24 +33,24 @@ from ads.aqua.exception import (
     AquaValueError,
 )
 from ads.aqua.utils import (
-    BERT_BASE_MULTILINGUAL_CASED,
-    BERT_SCORE_PATH,
-    CONDA_REGION,
-    CONDA_URI,
-    HF_MODELS,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     NB_SESSION_IDENTIFIER,
-    SOURCE_FILE,
     UNKNOWN,
     is_valid_ocid,
     upload_local_to_os,
     fire_and_forget,
+    get_container_image,
 )
 from ads.common.auth import AuthType, default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link, get_files, upload_to_os
-from ads.config import AQUA_JOB_SUBNET_ID, COMPARTMENT_OCID, PROJECT_OCID
+from ads.config import (
+    AQUA_JOB_SUBNET_ID,
+    COMPARTMENT_OCID,
+    PROJECT_OCID,
+    AQUA_CONTAINER_INDEX_CONFIG,
+)
 from ads.jobs.ads_job import DataScienceJobRun, Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
@@ -64,6 +64,55 @@ from ads.model.model_metadata import (
     ModelTaxonomyMetadata,
 )
 from ads.model.model_version_set import ModelVersionSet
+
+
+class EvaluationJobExitCode(Enum):
+    SUCCESS = 0
+    COMMON_ERROR = 1
+
+    # Configuration-related issues
+    INVALID_EVALUATION_CONFIG = 10
+    EVALUATION_CONFIG_NOT_PROVIDED = 11
+    INVALID_OUTPUT_DIR = 12
+    INVALID_INPUT_DATASET_PATH = 13
+    INVALID_EVALUATION_ID = 14
+    INVALID_TARGET_EVALUATION_ID = 15
+    INVALID_EVALUATION_CONFIG_VALIDATION = 16
+
+    # Evaluation process issues
+    OUTPUT_DIR_NOT_FOUND = 20
+    INVALID_INPUT_DATASET = 21
+    INPUT_DATA_NOT_FOUND = 22
+    EVALUATION_ID_NOT_FOUND = 23
+    EVALUATION_ALREADY_PERFORMED = 24
+    EVALUATION_TARGET_NOT_FOUND = 25
+    NO_SUCCESS_INFERENCE_RESULT = 26
+    COMPUTE_EVALUATION_ERROR = 27
+    EVALUATION_REPORT_ERROR = 28
+    MODEL_INFERENCE_WRONG_RESPONSE_FORMAT = 29
+
+
+EVALUATION_JOB_EXIT_CODE_MESSAGE = {
+    EvaluationJobExitCode.SUCCESS.value: "Evaluation completed successfully.",
+    EvaluationJobExitCode.COMMON_ERROR.value: "An unexpected error occurred during the evaluation. Please check the log for more information and possible solutions.",
+    EvaluationJobExitCode.INVALID_EVALUATION_CONFIG.value: "The provided evaluation configuration has a wrong format. It must be in either YAML or JSON format.",
+    EvaluationJobExitCode.EVALUATION_CONFIG_NOT_PROVIDED.value: "Evaluation config is not provided. Please reinitiate the evaluation process.",
+    EvaluationJobExitCode.INVALID_OUTPUT_DIR.value: "The specified output directory path is invalid. Please ensure the path is correct and accessible.",
+    EvaluationJobExitCode.INVALID_INPUT_DATASET_PATH.value: "The specified input dataset path is invalid. Please ensure the path is correct and accessible.",
+    EvaluationJobExitCode.INVALID_EVALUATION_ID.value: "The provided evaluation ID does not correspond to a record in the Model Catalog.",
+    EvaluationJobExitCode.INVALID_TARGET_EVALUATION_ID.value: "The target evaluation ID you entered is not associated with any record in Model Deployment.",
+    EvaluationJobExitCode.INVALID_EVALUATION_CONFIG_VALIDATION.value: "The evaluation configuration is invalid due to content validation errors.",
+    EvaluationJobExitCode.OUTPUT_DIR_NOT_FOUND.value: "The destination folder does not exist or cannot be accessed for writing. Please verify the folder's existence and permissions.",
+    EvaluationJobExitCode.INVALID_INPUT_DATASET.value: "The input dataset is in an invalid format. Please ensure the dataset is a JSON Lines (JSONL) file that includes the required columns: 'prompt', 'completion', and 'category'. Adjust your dataset accordingly and try again.",
+    EvaluationJobExitCode.INPUT_DATA_NOT_FOUND.value: "The input data file does not exist or cannot be accessed for reading. Please verify the file's existence and permissions.",
+    EvaluationJobExitCode.EVALUATION_ID_NOT_FOUND.value: "The evaluation ID you provided doesn't match any entries in the Model Catalog, or access may be blocked by policies.",
+    EvaluationJobExitCode.EVALUATION_ALREADY_PERFORMED.value: "This evaluation already has an attached artifact, indicating that the evaluation has already been performed.",
+    EvaluationJobExitCode.EVALUATION_TARGET_NOT_FOUND.value: "The target evaluation ID you entered doesn't match any records in the Model Deployment.",
+    EvaluationJobExitCode.NO_SUCCESS_INFERENCE_RESULT.value: "Inference process completed without producing expected outcomes. Please verify the accuracy of model parameters and configurations.",
+    EvaluationJobExitCode.COMPUTE_EVALUATION_ERROR.value: "The evaluation process encountered an issue while calculating metrics. Please reinitiate the evaluation process.",
+    EvaluationJobExitCode.EVALUATION_REPORT_ERROR.value: "Failed to save the evaluation report due to an error. Ensure the evaluation model is currently active and the specified path for the output report is valid and accessible. Verify these conditions and reinitiate the evaluation process.",
+    EvaluationJobExitCode.MODEL_INFERENCE_WRONG_RESPONSE_FORMAT.value: "The evaluation encountered unsupported or unexpected model output. Please verify the target evaluation model is compatible and produces the correct format.",
+}
 
 
 class Resource(Enum):
@@ -514,12 +563,18 @@ class AquaEvaluationApp(AquaApp):
                 evaluation_job.infrastructure.with_job_infrastructure_type(
                     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING
                 )
+
+        container_image = self._get_evaluation_container(
+            create_aqua_evaluation_details.evaluation_source_id
+        )
+
         evaluation_job.with_runtime(
             self._build_evaluation_runtime(
                 evaluation_id=evaluation_model.id,
                 evaluation_source_id=(
                     create_aqua_evaluation_details.evaluation_source_id
                 ),
+                container_image=container_image,
                 dataset_path=evaluation_dataset_path,
                 report_path=create_aqua_evaluation_details.report_path,
                 model_parameters=create_aqua_evaluation_details.model_parameters,
@@ -632,6 +687,7 @@ class AquaEvaluationApp(AquaApp):
         self,
         evaluation_id: str,
         evaluation_source_id: str,
+        container_image: str,
         dataset_path: str,
         report_path: str,
         model_parameters: dict,
@@ -641,7 +697,7 @@ class AquaEvaluationApp(AquaApp):
         # TODO the image name needs to be extracted from the mapping index.json file.
         runtime = (
             ContainerRuntime()
-            .with_image("iad.ocir.io/ociodscdev/odsc-llm-evaluate:0.0.2.9")
+            .with_image(container_image)
             .with_environment_variable(
                 **{
                     "AIP_SMC_EVALUATION_ARGUMENTS": json.dumps(
@@ -661,6 +717,20 @@ class AquaEvaluationApp(AquaApp):
         )
 
         return runtime
+
+    @staticmethod
+    def _get_evaluation_container(source_id: str) -> str:
+        # todo: use the source, identify if it is a model or a deployment. If latter, then fetch the base model id
+        #   from the deployment object, and call ds_client.get_model() to get model details. Use custom metadata to
+        #   get the container_type_key. Pass this key as container_type to get_container_image method.
+
+        # fetch image name from config
+        container_image = get_container_image(
+            config_file_name=AQUA_CONTAINER_INDEX_CONFIG,
+            container_type="odsc-llm-evaluate",
+        )
+        logger.info(f"Aqua Image used for evaluating {source_id} :{container_image}")
+        return container_image
 
     def _build_launch_cmd(
         self,
@@ -1479,7 +1549,7 @@ class AquaEvaluationApp(AquaApp):
             lifecycle_details = (
                 utils.LIFECYCLE_DETAILS_MISSING_JOBRUN
                 if not jobrun
-                else jobrun.lifecycle_details
+                else self._extract_job_lifecycle_details(jobrun.lifecycle_details)
             )
         except:
             # ResourceSummary does not have lifecycle_details attr
@@ -1507,3 +1577,53 @@ class AquaEvaluationApp(AquaApp):
         )
         logger.info(f"Fetched {len(resources)} AQUA resources.")
         return {item.identifier: item for item in resources}
+
+    def _extract_job_lifecycle_details(self, lifecycle_details: str) -> str:
+        """
+        Extracts the exit code from a job lifecycle detail string and associates it
+        with a corresponding message from the EVALUATION_JOB_EXIT_CODE_MESSAGE dictionary.
+
+        This method searches the provided lifecycle detail string for an exit code pattern.
+        Upon finding an exit code, it retrieves the related human-readable message
+        from a predefined dictionary of exit codes and their meanings. If the exit code
+        is not found within the string, or if it does not exist in the dictionary,
+        the original `lifecycle_details` message will be returned.
+
+        Parameters
+        ----------
+        lifecycle_details : str
+            A string containing the details of the job's lifecycle, typically including an exit code.
+
+        Returns
+        -------
+        str
+            A message that combines the extracted exit code with its corresponding descriptive text.
+            If no exit code is found, or if the exit code is not in the dictionary,
+            the original `lifecycle_details` message will be returned.
+
+        Examples
+        --------
+        >>> _extract_job_lifecycle_details("Job run artifact execution failed with exit code 16")
+        'The evaluation configuration is invalid due to content validation errors.'
+
+        >>> _extract_job_lifecycle_details("Job completed successfully.")
+        'Job completed successfully.'
+        """
+        if not lifecycle_details:
+            return lifecycle_details
+
+        message = lifecycle_details
+        try:
+            # Extract exit code
+            match = re.search(r"exit code (\d+)", lifecycle_details)
+            if match:
+                exit_code = int(match.group(1))
+                # Match exit code to message
+                message = EVALUATION_JOB_EXIT_CODE_MESSAGE.get(
+                    exit_code,
+                    lifecycle_details,
+                )
+        except:
+            pass
+
+        return message

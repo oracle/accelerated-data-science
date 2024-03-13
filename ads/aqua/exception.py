@@ -68,13 +68,6 @@ class AquaMissingKeyError(AquaError):
         super().__init__(reason, status, service_payload)
 
 
-class AquaFileNotFoundError(AquaError, FileNotFoundError):
-    """Exception raised when missing metadata in resource."""
-
-    def __init__(self, reason, status=400, service_payload=None):
-        super().__init__(reason, status, service_payload)
-
-
 class AquaFileExistsError(AquaError, FileExistsError):
     """Exception raised when file already exists in resource."""
 

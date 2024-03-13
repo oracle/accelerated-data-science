@@ -25,20 +25,20 @@ from ads.aqua.constants import (
 )
 from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaRuntimeError
-from ads.aqua.utils import README, UNKNOWN, create_word_icon, read_file, CONDA_BUCKET_NS
+from ads.aqua.utils import CONDA_BUCKET_NS, README, UNKNOWN, create_word_icon, read_file
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
 from ads.config import (
+    AQUA_SERVICE_MODELS_BUCKET,
     COMPARTMENT_OCID,
     ODSC_MODEL_COMPARTMENT_OCID,
     PROJECT_OCID,
     TENANCY_OCID,
-    AQUA_SERVICE_MODELS_BUCKET,
 )
 from ads.model import DataScienceModel
 from ads.model.model_metadata import MetadataTaxonomyKeys, ModelCustomMetadata
-from ads.common.object_storage_details import ObjectStorageDetails
 
 
 class FineTuningMetricCategories(Enum):
@@ -355,7 +355,8 @@ class AquaModelApp(AquaApp):
 
         is_fine_tuned_model = (
             True
-            if ds_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
+            if ds_model.freeform_tags
+            and ds_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
             else False
         )
 
@@ -389,8 +390,14 @@ class AquaModelApp(AquaApp):
             )
 
         else:
-            jobrun_ocid = ds_model.provenance_metadata.training_id
-            jobrun = self.ds_client.get_job_run(jobrun_ocid).data
+            try:
+                jobrun_ocid = ds_model.provenance_metadata.training_id
+                jobrun = self.ds_client.get_job_run(jobrun_ocid).data
+            except Exception as e:
+                logger.debug(
+                    f"Missing jobrun information in the provenance metadata of the given model {model_id}."
+                )
+                jobrun = None
 
             try:
                 source_id = ds_model.custom_metadata_list.get(
@@ -561,20 +568,17 @@ class AquaModelApp(AquaApp):
             else UNKNOWN
         )
 
+        freeform_tags = model.freeform_tags or {}
         return dict(
             compartment_id=model.compartment_id,
             icon=icon or UNKNOWN,
             id=model_id,
-            license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
+            license=freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
             name=model.display_name,
-            organization=model.freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
-            task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
+            organization=freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
+            task=freeform_tags.get(Tags.TASK.value, UNKNOWN),
             time_created=model.time_created,
-            is_fine_tuned_model=(
-                True
-                if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
-                else False
-            ),
+            is_fine_tuned_model=Tags.AQUA_FINE_TUNED_MODEL_TAG.value in freeform_tags,
             tags=tags,
             console_link=console_link,
             search_text=search_text,
@@ -725,8 +729,11 @@ class AquaModelApp(AquaApp):
             search_text=search_text,
         )
 
-    def _if_show(self, model: "AquaModel") -> bool:
+    def _if_show(self, model: DataScienceModel) -> bool:
         """Determine if the given model should be return by `list`."""
+        if model.freeform_tags is None:
+            return False
+
         TARGET_TAGS = model.freeform_tags.keys()
         return (
             Tags.AQUA_TAG.value in TARGET_TAGS

@@ -11,7 +11,13 @@ from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDet
 from ads import set_auth
 from ads.aqua import logger
 from ads.aqua.data import Tags
-from ads.aqua.utils import UNKNOWN, is_valid_ocid, load_config, logger
+from ads.aqua.utils import (
+    UNKNOWN,
+    is_valid_ocid,
+    load_config,
+    logger,
+    get_base_model_from_tags,
+)
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import extract_region
@@ -227,6 +233,13 @@ class AquaApp:
         """
         oci_model = self.ds_client.get_model(model_id).data
         model_name = oci_model.display_name
+
+        is_fine_tuned_model = (
+            Tags.AQUA_FINE_TUNED_MODEL_TAG.value in oci_model.freeform_tags
+        )
+
+        if is_fine_tuned_model:
+            _, model_name = get_base_model_from_tags(oci_model.freeform_tags)
 
         oci_aqua = (
             (

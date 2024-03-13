@@ -24,6 +24,7 @@ from oci.data_science.models import JobRun, Model
 from ads.aqua.constants import RqsAdditionalDetails
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
+from ads.aqua.data import Tags
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link, upload_to_os
@@ -56,7 +57,7 @@ BERT_SCORE_PATH = "/home/datascience/conda/pytorch21_p39_gpu_v1/bertscore/bertsc
 BERT_BASE_MULTILINGUAL_CASED = (
     "/home/datascience/conda/pytorch21_p39_gpu_v1/bert-base-multilingual-cased/"
 )
-FINE_TUNING_RUNTIME_CONTAINER = "iad.ocir.io/ociodscdev/aqua_ft_cuda121:0.3.16.19"
+FINE_TUNING_RUNTIME_CONTAINER = "iad.ocir.io/ociodscdev/aqua_ft_cuda121:0.3.17.20"
 DEFAULT_FT_BLOCK_STORAGE_SIZE = 256
 DEFAULT_FT_REPLICA = 1
 DEFAULT_FT_BATCH_SIZE = 1
@@ -509,14 +510,10 @@ def _build_job_identifier(
         return AquaResourceIdentifier()
 
 
-def get_container_image(
-    custom_metadata_list, config_file_name: str, container_type: str
-) -> str:
+def get_container_image(config_file_name: str, container_type: str) -> str:
     """Gets the image name from the given model and container type.
     Parameters
     ----------
-    custom_metadata_list:
-        custom metadata of a given model
     config_file_name: str
         name of the config file
     container_type: str
@@ -527,13 +524,6 @@ def get_container_image(
     Dict:
         A dict of allowed configs.
     """
-
-    try:
-        container_type = custom_metadata_list.get(container_type).value
-    except ValueError:
-        raise AquaValueError(
-            f"{container_type} key is not available in the custom metadata field."
-        )
 
     # todo: currently loads config within ads, artifact_path will be an external bucket
     config = load_config(
@@ -549,10 +539,10 @@ def get_container_image(
     container_image = None
     mapping = config[container_type]
     versions = [obj["version"] for obj in mapping]
-    # todo: assumes numbered versions, update if `latest` is used
-    latest = max(versions)
+    # assumes numbered versions, update if `latest` is used
+    latest = get_max_version(versions)
     for obj in mapping:
-        if obj["version"] == latest:
+        if obj["version"] == str(latest):
             container_image = f"{obj['name']}:{obj['version']}"
             break
 
@@ -564,6 +554,33 @@ def get_container_image(
     return container_image
 
 
+def get_max_version(versions):
+    """Takes in a list of versions and returns the higher version."""
+    if not versions:
+        return UNKNOWN
+
+    def compare_versions(version1, version2):
+        # split version strings into parts and convert to int values for comparison
+        parts1 = list(map(int, version1.split(".")))
+        parts2 = list(map(int, version2.split(".")))
+
+        # compare each part
+        for idx in range(min(len(parts1), len(parts2))):
+            if parts1[idx] < parts2[idx]:
+                return version2
+            elif parts1[idx] > parts2[idx]:
+                return version1
+
+        # if all parts are equal up to this point, return the longer version string
+        return version1 if len(parts1) > len(parts2) else version2
+
+    max_version = versions[0]
+    for version in versions[1:]:
+        max_version = compare_versions(max_version, version)
+
+    return max_version
+
+
 def fire_and_forget(func):
     """Decorator to push execution of methods to the background."""
 
@@ -572,3 +589,50 @@ def fire_and_forget(func):
         return asyncio.get_event_loop().run_in_executor(None, func, *args, *kwargs)
 
     return wrapped
+
+
+def get_base_model_from_tags(tags):
+    base_model_ocid = ""
+    base_model_name = ""
+    if Tags.AQUA_FINE_TUNED_MODEL_TAG.value in tags:
+        tag = tags[Tags.AQUA_FINE_TUNED_MODEL_TAG.value]
+        if "#" in tag:
+            base_model_ocid, base_model_name = tag.split("#")
+
+        if not (is_valid_ocid(base_model_ocid) and base_model_name):
+            raise AquaValueError(
+                f"{Tags.AQUA_FINE_TUNED_MODEL_TAG.value} tag should have the format `Service Model OCID#Model Name`."
+            )
+
+    return base_model_ocid, base_model_name
+
+
+def get_resource_name(ocid: str) -> str:
+    """Gets resource name based on the given ocid.
+
+    Parameters
+    ----------
+    ocid: str
+        Oracle Cloud Identifier (OCID).
+
+    Returns
+    -------
+    str:
+        The resource name indicated in the given ocid.
+
+    Raises
+    -------
+    ValueError:
+        When the given ocid is not a valid ocid.
+    """
+    if not is_valid_ocid(ocid):
+        raise ValueError(
+            f"The given ocid {ocid} is not a valid ocid."
+            "Check out this page https://docs.oracle.com/en-us/iaas/Content/General/Concepts/identifiers.htm to see more details."
+        )
+    try:
+        resource = query_resource(ocid, return_all=False)
+        name = resource.display_name if resource else UNKNOWN
+    except:
+        name = UNKNOWN
+    return name
