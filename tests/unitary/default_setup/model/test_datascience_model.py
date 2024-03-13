@@ -511,14 +511,24 @@ class TestDataScienceModel:
                 self.mock_dsc_model._to_oci_dsc_model(display_name="new_name").to_dict()
             )
 
+    @pytest.mark.parametrize(
+        "test_args",
+        [
+            False,
+            True,
+        ],
+    )
     @patch.object(OCIDataScienceModel, "is_model_by_reference")
     @patch.object(OCIDataScienceModel, "get_artifact_info")
     @patch.object(OCIDataScienceModel, "get_model_provenance")
+    @patch.object(DataScienceModel, "_download_file_description_artifact")
     def test__update_from_oci_dsc_model(
         self,
+        mock__download_file_description_artifact,
         mock_get_model_provenance,
         mock_get_artifact_info,
         mock_is_model_by_reference,
+        test_args,
     ):
         """Tests updating the properties from an OCIDataScienceModel object."""
         oci_model_payload = {
@@ -547,6 +557,11 @@ class TestDataScienceModel:
             "input_schema": '{"schema": [{"dtype": "int64", "feature_type": "Integer", "name": 1, "domain": {"values": "", "stats": {}, "constraints": []}, "required": true, "description": "0", "order": 0}], "version": "1.1"}',
             "output_schema": '{"schema": [{"dtype": "int64", "feature_type": "Integer", "name": 1, "domain": {"values": "", "stats": {}, "constraints": []}, "required": true, "description": "0", "order": 0}], "version": "1.1"}',
         }
+        artifact_path = (
+            "oci://my-bucket@my-tenancy/prefix/"
+            if test_args
+            else "new_ocid1.datasciencemodel.oc1.iad.<unique_ocid>.zip"
+        )
 
         dsc_model_payload = {
             "compartmentId": "new ocid1.compartment.oc1..<unique_ocid>",
@@ -611,7 +626,7 @@ class TestDataScienceModel:
                 "training_id": None,
                 "artifact_dir": "test_script_dir",
             },
-            "artifact": "new_ocid1.datasciencemodel.oc1.iad.<unique_ocid>.zip",
+            "artifact": artifact_path,
         }
 
         with patch.object(OCIDataScienceModel, "sync"):
@@ -619,7 +634,18 @@ class TestDataScienceModel:
             mock_model_provenance = ModelProvenance(**OCI_MODEL_PROVENANCE_PAYLOAD)
             mock_get_model_provenance.return_value = mock_model_provenance
             mock_get_artifact_info.return_value = ARTIFACT_HEADER_INFO
-            mock_is_model_by_reference.return_value = False
+            mock_is_model_by_reference.return_value = test_args
+
+            if test_args:
+                # when model_by_reference is True, update payload
+                mock_oci_dsc_model.get_artifact_info.return_value = {
+                    "Content-Disposition": "attachment; filename=artifact.json",
+                }
+                mock__download_file_description_artifact.return_value = (
+                    artifact_path,
+                    0,
+                )
+
             self.mock_dsc_model._update_from_oci_dsc_model(mock_oci_dsc_model)
             assert self.prepare_dict(
                 self.mock_dsc_model.to_dict()["spec"]
@@ -954,7 +980,7 @@ class TestDataScienceModel:
         mock_small_downloader,
         test_args,
     ):
-        """check if model is passed by reference using custom metadata, then download json file and get artifact info and size"""
+        """Check if model is passed by reference using custom metadata, then download json file and get artifact info and size"""
 
         mock_small_downloader.return_value = None
         # there's a model_description.json file at this location
@@ -987,17 +1013,3 @@ class TestDataScienceModel:
         )
 
         mock_large_download.assert_called()
-
-    def test_load_model_created_by_reference_by_id(self):
-        # todo: if model created by reference, then check file extension and if json file is
-        #  available then read artifact to get bucket location and populate model_file_description
-        pass
-
-    def test_multiple_artifact_for_model_by_reference(self):
-        # todo: create a datascience model with multiple artifact, check if multiple paths are added to json file.
-        #   for regular model, check if InvalidArtifactType is raised
-        pass
-
-    def test_model_by_reference_created_from_yaml(self):
-        # todo: create a datascience model using yaml, pass single and also multiple artifact.
-        pass

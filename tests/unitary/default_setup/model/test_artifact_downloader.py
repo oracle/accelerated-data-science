@@ -214,7 +214,3 @@ class TestArtifactDownloader:
             ).download()
 
             mock_download.assert_called()
-
-    def test_multiple_artifact_download_from_model_file_description(self):
-        # todo: Tests whether model_file_description is loaded within downloader and is parsed with multiple artifacts."""
-        pass
