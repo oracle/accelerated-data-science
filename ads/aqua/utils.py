@@ -540,9 +540,9 @@ def get_container_image(config_file_name: str, container_type: str) -> str:
     mapping = config[container_type]
     versions = [obj["version"] for obj in mapping]
     # assumes numbered versions, update if `latest` is used
-    latest = max(versions)
+    latest = get_max_version(versions)
     for obj in mapping:
-        if obj["version"] == latest:
+        if obj["version"] == str(latest):
             container_image = f"{obj['name']}:{obj['version']}"
             break
 
@@ -552,6 +552,32 @@ def get_container_image(config_file_name: str, container_type: str) -> str:
         )
 
     return container_image
+
+
+def get_max_version(versions):
+    if not versions:
+        return None
+
+    def compare_versions(version1, version2):
+        # split version strings into parts
+        parts1 = list(map(int, version1.split(".")))
+        parts2 = list(map(int, version2.split(".")))
+
+        # compare each part numerically
+        for i in range(min(len(parts1), len(parts2))):
+            if parts1[i] < parts2[i]:
+                return version2
+            elif parts1[i] > parts2[i]:
+                return version1
+
+        # ff all parts are equal up to this point, return the longer version string
+        return version1 if len(parts1) > len(parts2) else version2
+
+    max_version = versions[0]
+    for version in versions[1:]:
+        max_version = compare_versions(max_version, version)
+
+    return max_version
 
 
 def fire_and_forget(func):

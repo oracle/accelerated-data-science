@@ -558,7 +558,9 @@ class AquaEvaluationApp(AquaApp):
                     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING
                 )
 
-        container_image = self._get_evaluation_container(evaluation_source)
+        container_image = self._get_evaluation_container(
+            create_aqua_evaluation_details.evaluation_source_id
+        )
 
         evaluation_job.with_runtime(
             self._build_evaluation_runtime(
@@ -706,9 +708,7 @@ class AquaEvaluationApp(AquaApp):
         return runtime
 
     @staticmethod
-    def _get_evaluation_container(
-        source: Union[ModelDeployment, DataScienceModel]
-    ) -> str:
+    def _get_evaluation_container(source_id: str) -> str:
         # todo: use the source, identify if it is a model or a deployment. If latter, then fetch the base model id
         #   from the deployment object, and call ds_client.get_model() to get model details. Use custom metadata to
         #   get the container_type_key. Pass this key as container_type to get_container_image method.
@@ -718,7 +718,7 @@ class AquaEvaluationApp(AquaApp):
             config_file_name=AQUA_CONTAINER_INDEX_CONFIG,
             container_type="odsc-llm-evaluate",
         )
-        logger.info(f"Aqua Image used for evaluating {source.id} :{container_image}")
+        logger.info(f"Aqua Image used for evaluating {source_id} :{container_image}")
         return container_image
 
     def _build_launch_cmd(
