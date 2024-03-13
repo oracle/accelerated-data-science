@@ -420,8 +420,8 @@ class AquaEvaluationApp(AquaApp):
             # tracks the size of dataset uploaded by user to the destination.
             self.telemetry.record_event_async(
                 category="aqua/evaluation",
-                action="upload",
-                value=os.path.getsize(os.path.expanduser(evaluation_dataset_path)),
+                action="upload/size",
+                detail=os.path.getsize(os.path.expanduser(evaluation_dataset_path)),
             )
             evaluation_dataset_path = dst_uri
 
