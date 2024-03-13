@@ -215,6 +215,15 @@ class AquaFineTuningApp(AquaApp):
                 "Specify the subnet id via API or environment variable AQUA_JOB_SUBNET_ID."
             )
 
+        if create_fine_tuning_details.replica > DEFAULT_FT_REPLICA:
+            if not (
+                create_fine_tuning_details.log_id and
+                create_fine_tuning_details.log_group_id
+            ):
+                raise AquaValueError(
+                    f"Logging is required for fine tuning if replica is larger than {DEFAULT_FT_REPLICA}."
+                )
+
         ft_parameters = None
         try:
             ft_parameters = AquaFineTuningParams(
