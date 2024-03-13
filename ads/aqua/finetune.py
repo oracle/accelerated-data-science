@@ -93,10 +93,6 @@ class CreateFineTuningDetails(DataClassSerializable):
         The replica for fine tuning job runtime.
     validation_set_size: float
         The validation set size for fine tuning job. Must be a float in between [0,1).
-    log_group_id: str
-        The log group id for fine tuning job infrastructure.
-    log_id: str
-        The log id for fine tuning job infrastructure.
     ft_description: (str, optional). Defaults to `None`.
         The description for fine tuning.
     compartment_id: (str, optional). Defaults to `None`.
@@ -116,6 +112,10 @@ class CreateFineTuningDetails(DataClassSerializable):
         The storage for fine tuning job infrastructure.
     subnet_id: (str, optional). Defaults to `None`.
         The custom egress for fine tuning job.
+    log_group_id: (str, optional). Defaults to `None`.
+        The log group id for fine tuning job infrastructure.
+    log_id: (str, optional). Defaults to `None`.
+        The log id for fine tuning job infrastructure.
     """
 
     ft_source_id: str
@@ -126,8 +126,6 @@ class CreateFineTuningDetails(DataClassSerializable):
     shape_name: str
     replica: int
     validation_set_size: float
-    log_id: str
-    log_group_id: str
     ft_description: Optional[str] = None
     compartment_id: Optional[str] = None
     project_id: Optional[str] = None
@@ -136,6 +134,8 @@ class CreateFineTuningDetails(DataClassSerializable):
     experiment_description: Optional[str] = None
     block_storage_size: Optional[int] = None
     subnet_id: Optional[str] = None
+    log_id: Optional[str] = None
+    log_group_id: Optional[str] = None
 
 
 class AquaFineTuningApp(AquaApp):
@@ -214,6 +214,15 @@ class AquaFineTuningApp(AquaApp):
                 f"Custom egress must be provided if replica is larger than {DEFAULT_FT_REPLICA}. "
                 "Specify the subnet id via API or environment variable AQUA_JOB_SUBNET_ID."
             )
+
+        if create_fine_tuning_details.replica > DEFAULT_FT_REPLICA:
+            if not (
+                create_fine_tuning_details.log_id and
+                create_fine_tuning_details.log_group_id
+            ):
+                raise AquaValueError(
+                    f"Logging is required for fine tuning if replica is larger than {DEFAULT_FT_REPLICA}."
+                )
 
         ft_parameters = None
         try:
