@@ -1541,12 +1541,40 @@ class AquaEvaluationApp(AquaApp):
         return {item.identifier: item for item in resources}
 
     def _extract_job_lifecycle_details(self, lifecycle_details: str) -> str:
+        """
+        Extracts the exit code from a job lifecycle detail string and associates it
+        with a corresponding message from the EVALUATION_JOB_EXIT_CODE_MESSAGE dictionary.
+
+        This method searches the provided lifecycle detail string for an exit code pattern.
+        Upon finding an exit code, it retrieves the related human-readable message
+        from a predefined dictionary of exit codes and their meanings. If the exit code
+        is not found within the string, or if it does not exist in the dictionary,
+        the original `lifecycle_details` message will be returned.
+
+        Parameters
+        ----------
+        lifecycle_details : str
+            A string containing the details of the job's lifecycle, typically including an exit code.
+
+        Returns
+        -------
+        str
+            A message that combines the extracted exit code with its corresponding descriptive text.
+            If no exit code is found, or if the exit code is not in the dictionary,
+            the original `lifecycle_details` message will be returned.
+
+        Examples
+        --------
+        >>> _extract_job_lifecycle_details("Job run artifact execution failed with exit code 16")
+        'The evaluation configuration is invalid due to content validation errors.'
+
+        >>> _extract_job_lifecycle_details("Job completed successfully.")
+        'Job completed successfully.'
+        """
         if not lifecycle_details:
             return lifecycle_details
 
-        message = EVALUATION_JOB_EXIT_CODE_MESSAGE[
-            EvaluationJobExitCode.COMMON_ERROR.value
-        ]
+        message = lifecycle_details
         try:
             # Extract exit code
             match = re.search(r"exit code (\d+)", lifecycle_details)
@@ -1555,9 +1583,7 @@ class AquaEvaluationApp(AquaApp):
                 # Match exit code to message
                 message = EVALUATION_JOB_EXIT_CODE_MESSAGE.get(
                     exit_code,
-                    EVALUATION_JOB_EXIT_CODE_MESSAGE[
-                        EvaluationJobExitCode.COMMON_ERROR.value
-                    ],
+                    lifecycle_details,
                 )
         except:
             pass
