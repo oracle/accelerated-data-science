@@ -54,11 +54,12 @@ class AquaAPIhandler(APIHandler):
         self.set_header("Content-Type", "application/json")
         reason = kwargs.get("reason")
         self.set_status(status_code, reason=reason)
-        message = responses.get(status_code, "Unknown HTTP Error")
+        service_payload = kwargs.get("service_payload", {})
+        message = self.get_default_error_messages(service_payload, str(status_code))
         reply = {
             "status": status_code,
             "message": message,
-            "service_payload": kwargs.get("service_payload", {}),
+            "service_payload": service_payload,
             "reason": reason,
         }
         exc_info = kwargs.get("exc_info")
@@ -74,6 +75,35 @@ class AquaAPIhandler(APIHandler):
 
         logger.warning(reply["message"])
         self.finish(json.dumps(reply))
+
+    @staticmethod
+    def get_default_error_messages(service_payload: dict, status_code: str):
+        """Method that maps the error messages based on the operation performed or the status codes encountered."""
+
+        messages = {
+            "400": "Something went wrong with your request.",
+            "403": "We're having trouble processing your request with the information provided.",
+            "404": "Authorization Failed: The resource you're looking for isn't accessible.",
+            "408": "Server is taking too long to response, please try again.",
+            "500": "An error occurred while creating the resource.",
+            "create": "Authorization Failed: Could not create resource.",
+            "get": "Authorization Failed: The resource you're looking for isn't accessible.",
+        }
+
+        if service_payload and "operation_name" in service_payload:
+            operation_name = service_payload["operation_name"]
+            if operation_name:
+                if operation_name.startswith("create"):
+                    return messages["create"]
+                elif operation_name.startswith("list") or operation_name.startswith(
+                    "get"
+                ):
+                    return messages["get"]
+
+        if status_code in messages:
+            return messages[status_code]
+        else:
+            return "Unknown HTTP Error."
 
 
 # todo: remove after error handler is implemented
