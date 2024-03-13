@@ -394,6 +394,12 @@ class AquaDeploymentApp(AquaApp):
             self.telemetry.record_event_async(
                 category="aqua/service/deployment", action="create", detail=model_name
             )
+        # tracks the shape used for fine-tuning the service models
+        self.telemetry.record_event_async(
+            category="aqua/deployment",
+            action="create/shape",
+            detail=instance_shape,
+        )
 
         return AquaDeployment.from_oci_model_deployment(
             deployment.dsc_model_deployment, self.region
