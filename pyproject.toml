@@ -82,10 +82,6 @@ boosted = [
   "lightgbm<4.0.0", # relax when the official releases of skl2onnx (v1.16.0) and onnxmltools (1.11.3), https://github.com/sdpython/mlprodict/issues/488
   "xgboost",
 ]
-dask = [
-  "dask==2023.5.0; python_version<'3.9'",  # for tests only
-  "dask==2024.3.0; python_version>='3.9'",  # for tests only
-]
 data = [
   "datefinder>=0.7.1",
   "fastavro>=0.24.2",
@@ -169,6 +165,15 @@ pii = [
 ]
 llm = ["langchain>=0.0.295", "evaluate>=0.4.0"]
 aqua = ["fire", "cachetools"]
+
+# to reduce backtracking during test/dev env setup reducing number of versions pip is trying to use
+# ref: https://pip.pypa.io/en/stable/topics/dependency-resolution/#possible-ways-to-reduce-backtracking
+dev = [
+  "dask==2023.5.0; python_version=='3.8'",
+  "dask==2024.3.0; python_version>='3.9'",
+  "cohere==4.55",
+  "fastparquet==2024.2.0"
+]
 
 [project.urls]
 "Github" = "https://github.com/oracle/accelerated-data-science"
