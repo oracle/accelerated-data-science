@@ -57,7 +57,7 @@ BERT_SCORE_PATH = "/home/datascience/conda/pytorch21_p39_gpu_v1/bertscore/bertsc
 BERT_BASE_MULTILINGUAL_CASED = (
     "/home/datascience/conda/pytorch21_p39_gpu_v1/bert-base-multilingual-cased/"
 )
-FINE_TUNING_RUNTIME_CONTAINER = "iad.ocir.io/ociodscdev/aqua_ft_cuda121:0.3.16.19"
+FINE_TUNING_RUNTIME_CONTAINER = "iad.ocir.io/ociodscdev/aqua_ft_cuda121:0.3.17.20"
 DEFAULT_FT_BLOCK_STORAGE_SIZE = 256
 DEFAULT_FT_REPLICA = 1
 DEFAULT_FT_BATCH_SIZE = 1
