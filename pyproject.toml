@@ -166,12 +166,13 @@ pii = [
 llm = ["langchain>=0.0.295", "evaluate>=0.4.0"]
 aqua = ["fire", "cachetools"]
 
-# to reduce backtracking during test/dev env setup reducing number of versions pip is trying to use
-# ref: https://pip.pypa.io/en/stable/topics/dependency-resolution/#possible-ways-to-reduce-backtracking
+# To reduce backtracking (descrese deps install time) during test/dev env setup reducing number of versions pip is
+# trying to use. Ref - https://pip.pypa.io/en/stable/topics/dependency-resolution/#possible-ways-to-reduce-backtracking
+# Revisit this section continuously to update to recent comaptible with python3.9/3.10 versions
 dev = [
   "dask==2023.5.0; python_version=='3.8'",
   "dask==2024.3.0; python_version>='3.9'",
-  "cohere==4.55",
+  "cohere==4.53",
   "fastparquet==2024.2.0"
 ]
 
