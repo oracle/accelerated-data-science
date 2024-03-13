@@ -33,14 +33,8 @@ from ads.aqua.exception import (
     AquaValueError,
 )
 from ads.aqua.utils import (
-    BERT_BASE_MULTILINGUAL_CASED,
-    BERT_SCORE_PATH,
-    CONDA_REGION,
-    CONDA_URI,
-    HF_MODELS,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     NB_SESSION_IDENTIFIER,
-    SOURCE_FILE,
     UNKNOWN,
     is_valid_ocid,
     upload_local_to_os,
