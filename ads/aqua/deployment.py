@@ -384,10 +384,16 @@ class AquaDeploymentApp(AquaApp):
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
 
-        # tracks unique deployments that were created in the user compartment
-        self.telemetry.record_event_async(
-            category="aqua/deployment", action="create", value=aqua_model.display_name
-        )
+        if is_fine_tuned_model:
+            # tracks unique deployments that were created in the user compartment
+            self.telemetry.record_event_async(
+                category="aqua/custom/deployment", action="create", detail=model_name
+            )
+        else:
+            # tracks unique deployments that were created in the user compartment
+            self.telemetry.record_event_async(
+                category="aqua/service/deployment", action="create", detail=model_name
+            )
 
         return AquaDeployment.from_oci_model_deployment(
             deployment.dsc_model_deployment, self.region
@@ -434,9 +440,7 @@ class AquaDeploymentApp(AquaApp):
                 )
 
         # tracks number of times deployment listing was called
-        self.telemetry.record_event_async(
-            category="aqua/deployment", action="list", value=f"{compartment_id}"
-        )
+        self.telemetry.record_event_async(category="aqua/deployment", action="list")
 
         return results
 

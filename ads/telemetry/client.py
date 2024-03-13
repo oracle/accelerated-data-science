@@ -49,7 +49,9 @@ class TelemetryClient(TelemetryBase):
         message = urllib.parse.urlencode(kwargs)
         return message
 
-    def record_event(self, category: str = None, action: str = None, **kwargs) -> None:
+    def record_event(
+        self, category: str = None, action: str = None, detail: str = None, **kwargs
+    ) -> None:
         """Send a head request to generate an event record.
 
         Parameters
@@ -58,6 +60,8 @@ class TelemetryClient(TelemetryBase):
             Category of the event, which is also the path to the directory containing the object representing the event.
         action (str)
             Filename of the object representing the event.
+        detail (str)
+            Additional detail, if required. Can be used to pass values that identifies category and action type.
 
         Returns
         -------
@@ -66,6 +70,8 @@ class TelemetryClient(TelemetryBase):
         if not category or not action:
             raise ValueError("Please specify the category and the action.")
         endpoint = f"{self.service_endpoint}/n/{self.namespace}/b/{self.bucket}/o/telemetry/{category}/{action}"
+        if detail:
+            endpoint = f"{endpoint}/{detail}"
         headers = {"User-Agent": self._encode_user_agent(**kwargs)}
         logger.debug(f"Sending telemetry to endpoint: {endpoint}")
         signer = self._auth["signer"]
@@ -73,7 +79,9 @@ class TelemetryClient(TelemetryBase):
         logger.debug(f"Telemetry status code: {response.status_code}")
         return response
 
-    def record_event_async(self, category: str = None, action: str = None, **kwargs):
+    def record_event_async(
+        self, category: str = None, action: str = None, detail: str = None, **kwargs
+    ):
         """Send a head request to generate an event record.
 
         Parameters
@@ -89,9 +97,7 @@ class TelemetryClient(TelemetryBase):
             A started thread to send a head request to generate an event record.
         """
         thread = threading.Thread(
-            target=self.record_event,
-            args=(category, action),
-            kwargs=kwargs
+            target=self.record_event, args=(category, action, detail), kwargs=kwargs
         )
         thread.daemon = True
         thread.start()

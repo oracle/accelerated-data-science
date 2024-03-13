@@ -17,7 +17,7 @@ from ads.common.utils import get_console_link
 from ads.config import (
     AQUA_CONFIG_FOLDER,
     AQUA_MODEL_FINETUNING_CONFIG,
-    ODSC_MODEL_COMPARTMENT_OCID
+    ODSC_MODEL_COMPARTMENT_OCID,
 )
 
 from ads.aqua.base import AquaApp
@@ -230,8 +230,8 @@ class AquaFineTuningApp(AquaApp):
 
         if create_fine_tuning_details.replica > DEFAULT_FT_REPLICA:
             if not (
-                create_fine_tuning_details.log_id and
-                create_fine_tuning_details.log_group_id
+                create_fine_tuning_details.log_id
+                and create_fine_tuning_details.log_group_id
             ):
                 raise AquaValueError(
                     f"Logging is required for fine tuning if replica is larger than {DEFAULT_FT_REPLICA}."
@@ -285,8 +285,8 @@ class AquaFineTuningApp(AquaApp):
             # tracks the size of dataset uploaded by user to the destination.
             self.telemetry.record_event_async(
                 category="aqua/finetune",
-                action="upload",
-                value=os.path.getsize(os.path.expanduser(ft_dataset_path)),
+                action="upload/size",
+                detail=os.path.getsize(os.path.expanduser(ft_dataset_path)),
             )
             ft_dataset_path = dst_uri
 
@@ -328,7 +328,7 @@ class AquaFineTuningApp(AquaApp):
         ft_model_custom_metadata.add(
             key=service_model_deployment_container.key,
             value=service_model_deployment_container.value,
-            description=service_model_deployment_container.description
+            description=service_model_deployment_container.description,
         )
 
         ft_model_taxonomy_metadata = ModelTaxonomyMetadata()
@@ -451,9 +451,17 @@ class AquaFineTuningApp(AquaApp):
             ),
         )
 
+        # tracks the shape used for fine-tuning the service models
+        self.telemetry.record_event_async(
+            category="aqua/finetune",
+            action="create/shape",
+            detail=create_fine_tuning_details.shape_name,
+        )
         # tracks unique fine-tuned models that were created in the user compartment
         self.telemetry.record_event_async(
-            category="aqua/finetune", action="create", value=source.display_name
+            category="aqua/service/finetune",
+            action="create",
+            detail=source.display_name,
         )
 
         return AquaFineTuningSummary(

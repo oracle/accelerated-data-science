@@ -326,7 +326,9 @@ class AquaModelApp(AquaApp):
 
         # tracks unique models that were created in the user compartment
         self.telemetry.record_event_async(
-            category="aqua/model", action="create", value=service_model.display_name
+            category="aqua/service/model",
+            action="create",
+            detail=service_model.display_name,
         )
 
         return custom_model
@@ -608,16 +610,21 @@ class AquaModelApp(AquaApp):
             The list of the `ads.aqua.model.AquaModelSummary`.
         """
 
-        # tracks number of times model listing was called
-        self.telemetry.record_event_async(
-            category="aqua/model", action="list", value=f"{compartment_id}"
-        )
-
         models = []
         if compartment_id:
+            # tracks number of times custom model listing was called
+            self.telemetry.record_event_async(
+                category="aqua/custom/model", action="list"
+            )
+
             logger.info(f"Fetching custom models from compartment_id={compartment_id}.")
             models = self._rqs(compartment_id)
         else:
+            # tracks number of times service model listing was called
+            self.telemetry.record_event_async(
+                category="aqua/service/model", action="list"
+            )
+
             if ODSC_MODEL_COMPARTMENT_OCID in self._service_models_cache.keys():
                 logger.info(
                     f"Returning service models list in {ODSC_MODEL_COMPARTMENT_OCID} from cache."

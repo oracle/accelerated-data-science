@@ -628,7 +628,9 @@ class AquaEvaluationApp(AquaApp):
 
         # tracks unique evaluation that were created for the given evaluation source
         self.telemetry.record_event_async(
-            category="aqua/evaluation", action="create", value=evaluation_source.id
+            category="aqua/evaluation",
+            action="create",
+            detail=evaluation_source.display_name,
         )
 
         return AquaEvaluationSummary(
@@ -897,9 +899,7 @@ class AquaEvaluationApp(AquaApp):
             )
 
         # tracks number of times deployment listing was called
-        self.telemetry.record_event_async(
-            category="aqua/evaluation", action="list", value=f"{compartment_id}"
-        )
+        self.telemetry.record_event_async(category="aqua/evaluation", action="list")
 
         return evaluations
 
