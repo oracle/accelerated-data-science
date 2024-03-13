@@ -22,6 +22,7 @@ from ads.aqua.utils import (
     get_base_model_from_tags,
     get_resource_name,
 )
+from ads.aqua.finetune import FineTuneCustomMetadata
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.utils import get_console_link, get_log_links
 from ads.common.auth import default_signer
@@ -299,10 +300,25 @@ class AquaDeploymentApp(AquaApp):
             model_path_prefix = os_path.filepath.rstrip("/")
 
         # todo: revisit this after new image is built
-        env_var.update({"MODEL": f"{AQUA_MODEL_DEPLOYMENT_FOLDER}{model_path_prefix}"})
+        env_var.update({"BASE_MODEL": f"{model_path_prefix}"})
         env_var.update({"PARAMS": f"--served-model-name {AQUA_SERVED_MODEL_NAME}"})
         env_var.update({"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"})
         env_var.update({"MODEL_DEPLOY_ENABLE_STREAMING": "true"})
+
+        if is_fine_tuned_model:
+            try:
+                fine_tune_output_path = aqua_model.custom_metadata_list.get(
+                    FineTuneCustomMetadata.FINE_TUNE_OUTPUT_PATH.value
+                ).value.rstrip("/")
+            except ValueError:
+                raise AquaValueError(
+                    f"{FineTuneCustomMetadata.FINE_TUNE_OUTPUT_PATH.value} key is not available in the custom metadata field."
+                )
+            if ObjectStorageDetails.is_oci_path(fine_tune_output_path):
+                os_path = ObjectStorageDetails.from_path(fine_tune_output_path)
+                fine_tune_output_path = os_path.filepath.rstrip("/")
+
+            env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
 
         # todo: added for testing, remove when TENSOR_PARALLELISM will be set inside the container
         try:
