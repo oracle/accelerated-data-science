@@ -548,7 +548,7 @@ class DataScienceModel(Builder):
     def artifact(self) -> Union[str, list]:
         return self.get_spec(self.CONST_ARTIFACT)
 
-    def with_artifact(self, *uri: str):
+    def with_artifact(self, uri: str, *args):
         """Sets the artifact location. Can be a local.
 
         Parameters
@@ -565,9 +565,8 @@ class DataScienceModel(Builder):
         >>> .with_artifact(uri="./model1.zip")
         >>> .with_artifact("./model1", "./model2")
         """
-        return self.set_spec(
-            self.CONST_ARTIFACT, uri[0] if len(uri) == 1 else list(uri)
-        )
+
+        return self.set_spec(self.CONST_ARTIFACT, [uri] + list(args) if args else uri)
 
     @property
     def model_version_set_id(self) -> str:
@@ -1287,7 +1286,7 @@ class DataScienceModel(Builder):
 
         bucket_uri = self.artifact
         if isinstance(bucket_uri, str):
-            bucket_uri = list(bucket_uri)
+            bucket_uri = [bucket_uri]
 
         for uri in bucket_uri:
             if not ObjectStorageDetails.from_path(uri).is_bucket_versioned():
