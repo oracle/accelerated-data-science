@@ -1,9 +1,8 @@
 -r test-requirements.txt
--e ".[bds,data,geo,huggingface,llm,notebook,onnx,opctl,optuna,pii,spark,tensorflow,text,torch,viz]"
+-e ".[bds,data,dask,geo,huggingface,llm,notebook,onnx,opctl,optuna,pii,spark,tensorflow,text,torch,viz]"
 arff
 category_encoders
 cohere
-dask
 faiss-cpu
 fastparquet>=2024.2.0
 imbalanced-learn

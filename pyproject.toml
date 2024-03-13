@@ -82,6 +82,10 @@ boosted = [
   "lightgbm<4.0.0", # relax when the official releases of skl2onnx (v1.16.0) and onnxmltools (1.11.3), https://github.com/sdpython/mlprodict/issues/488
   "xgboost",
 ]
+dask = [
+  "dask==2023.5.0; python_version<'3.9'",  # for tests only
+  "dask==2024.3.0; python_version>='3.9'",  # for tests only
+]
 data = [
   "datefinder>=0.7.1",
   "fastavro>=0.24.2",
