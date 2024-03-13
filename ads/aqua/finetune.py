@@ -14,7 +14,11 @@ from ads.common.object_storage_details import ObjectStorageDetails
 
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
-from ads.config import AQUA_CONFIG_FOLDER, AQUA_MODEL_FINETUNING_CONFIG
+from ads.config import (
+    AQUA_CONFIG_FOLDER,
+    AQUA_MODEL_FINETUNING_CONFIG,
+    ODSC_MODEL_COMPARTMENT_OCID
+)
 
 from ads.aqua.base import AquaApp
 from ads.aqua.job import AquaJobSummary
@@ -57,6 +61,8 @@ class FineTuneCustomMetadata(Enum):
     FINE_TUNE_OUTPUT_PATH = "fine_tune_output_path"
     FINE_TUNE_JOB_ID = "fine_tune_job_id"
     FINE_TUNE_JOB_RUN_ID = "fine_tune_job_run_id"
+    SERVICE_MODEL_ARTIFACT_LOCATION = "artifact_location"
+    SERVICE_MODEL_DEPLOYMENT_CONTAINER = "deployment-container"
 
 
 @dataclass(repr=False)
@@ -185,6 +191,13 @@ class AquaFineTuningApp(AquaApp):
                 )
 
         source = self.get_source(create_fine_tuning_details.ft_source_id)
+        # TODO: add the following validation for fine tuning aqua service model. Revisit it when all service models are available
+        # if source.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
+        #     raise AquaValueError(
+        #         f"Fine tuning is only supported for Aqua service models in {ODSC_MODEL_COMPARTMENT_OCID}. "
+        #         "Use a valid Aqua service model id instead."
+        #     )
+
         target_compartment = (
             create_fine_tuning_details.compartment_id or COMPARTMENT_OCID
         )
@@ -295,6 +308,22 @@ class AquaFineTuningApp(AquaApp):
             key=FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME.value,
             value=source.display_name,
         )
+        service_model_artifact_location = source.custom_metadata_list.get(
+            FineTuneCustomMetadata.SERVICE_MODEL_ARTIFACT_LOCATION.value
+        )
+        service_model_deployment_container = source.custom_metadata_list.get(
+            FineTuneCustomMetadata.SERVICE_MODEL_DEPLOYMENT_CONTAINER.value
+        )
+        ft_model_custom_metadata.add(
+            key=service_model_artifact_location.key,
+            value=service_model_artifact_location.value,
+            description=service_model_artifact_location.description,
+        )
+        ft_model_custom_metadata.add(
+            key=service_model_deployment_container.key,
+            value=service_model_deployment_container.value,
+            description=service_model_deployment_container.description
+        )
 
         ft_model_taxonomy_metadata = ModelTaxonomyMetadata()
         ft_model_taxonomy_metadata[MetadataTaxonomyKeys.HYPERPARAMETERS].value = {
@@ -341,7 +370,7 @@ class AquaFineTuningApp(AquaApp):
                 JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING
             )
         else:
-            ft_job.infrastructure.with_subnet_id(create_fine_tuning_details.subnet_id)
+            ft_job.infrastructure.with_subnet_id(subnet_id)
 
         ft_config = load_config(
             AQUA_CONFIG_FOLDER,
