@@ -314,15 +314,22 @@ class AquaDeploymentApp(AquaApp):
 
         logging.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
 
+        try:
+            container_type_key = aqua_model.custom_metadata_list.get(
+                AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
+            ).value
+        except ValueError:
+            raise AquaValueError(
+                f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field for model {aqua_model.id}"
+            )
+
         # fetch image name from config
         container_image = get_container_image(
-            custom_metadata_list=aqua_model.custom_metadata_list,
             config_file_name=AQUA_CONTAINER_INDEX_CONFIG,
-            container_type=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
+            container_type=container_type_key,
         )
-
         logging.info(
-            f"Aqua Image used for deploying {aqua_model.id} :{container_image}"
+            f"Aqua Image used for deploying {aqua_model.id} : {container_image}"
         )
 
         # Start model deployment

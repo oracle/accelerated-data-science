@@ -3,6 +3,10 @@
     {
       "name": "dsmc://odsc-llm-evaluate",
       "version": "0.0.2.6"
+    },
+    {
+      "name": "iad.ocir.io/ociodscdev/odsc-llm-evaluate",
+      "version": "0.0.2.11"
     }
   ],
   "odsc-llm-fine-tuning": [
@@ -19,6 +23,10 @@
     {
       "name": "dsmc://odsc-vllm-serving",
       "version": "0.3.0.2"
+    },
+    {
+      "name": "iad.ocir.io/ociodscdev/odsc-vllm-serving",
+      "version": "0.3.0.3"
     }
   ]
 }
