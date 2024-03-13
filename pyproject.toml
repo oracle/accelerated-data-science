@@ -163,11 +163,13 @@ pii = [
   "spacy-transformers==1.2.5",
   "spacy==3.6.1",
 ]
-llm = ["langchain>=0.0.295", "evaluate>=0.4.0"]
+llm = ["langchain>=0.1.10", "evaluate>=0.4.0"]
 aqua = ["fire", "cachetools"]
 
 # To reduce backtracking (descrese deps install time) during test/dev env setup reducing number of versions pip is
-# trying to use. Ref - https://pip.pypa.io/en/stable/topics/dependency-resolution/#possible-ways-to-reduce-backtracking
+# trying to use. Ref - https://pip.pypa.io/en/stable/topics/dependency-resolution/#possible-ways-to-reduce-backtracking.
+# This section includes heavy libraries and corrective dependencies for them, when env got unresolved condflict.
+# Example, when added cohere==4.53, fastavro and pandavro version must be specifed to resolve conflcits.
 # Revisit this section continuously to update to recent comaptible with python3.9/3.10 versions
 dev = [
   "dask==2023.5.0; python_version=='3.8'",
@@ -176,6 +178,7 @@ dev = [
   "fastparquet==2024.2.0",
   "fastavro==1.9.4",  # cohere 4.53 depends on fastavro<2.0 and >=1.8
   "pandavro==1.8.0",
+  "category_encoders==2.6.3",
 ]
 
 [project.urls]
