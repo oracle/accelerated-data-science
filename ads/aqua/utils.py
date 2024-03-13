@@ -510,14 +510,10 @@ def _build_job_identifier(
         return AquaResourceIdentifier()
 
 
-def get_container_image(
-    custom_metadata_list, config_file_name: str, container_type: str
-) -> str:
+def get_container_image(config_file_name: str, container_type: str) -> str:
     """Gets the image name from the given model and container type.
     Parameters
     ----------
-    custom_metadata_list:
-        custom metadata of a given model
     config_file_name: str
         name of the config file
     container_type: str
@@ -528,13 +524,6 @@ def get_container_image(
     Dict:
         A dict of allowed configs.
     """
-
-    try:
-        container_type = custom_metadata_list.get(container_type).value
-    except ValueError:
-        raise AquaValueError(
-            f"{container_type} key is not available in the custom metadata field."
-        )
 
     # todo: currently loads config within ads, artifact_path will be an external bucket
     config = load_config(
@@ -550,10 +539,10 @@ def get_container_image(
     container_image = None
     mapping = config[container_type]
     versions = [obj["version"] for obj in mapping]
-    # todo: assumes numbered versions, update if `latest` is used
-    latest = max(versions)
+    # assumes numbered versions, update if `latest` is used
+    latest = get_max_version(versions)
     for obj in mapping:
-        if obj["version"] == latest:
+        if obj["version"] == str(latest):
             container_image = f"{obj['name']}:{obj['version']}"
             break
 
@@ -563,6 +552,33 @@ def get_container_image(
         )
 
     return container_image
+
+
+def get_max_version(versions):
+    """Takes in a list of versions and returns the higher version."""
+    if not versions:
+        return UNKNOWN
+
+    def compare_versions(version1, version2):
+        # split version strings into parts and convert to int values for comparison
+        parts1 = list(map(int, version1.split(".")))
+        parts2 = list(map(int, version2.split(".")))
+
+        # compare each part
+        for idx in range(min(len(parts1), len(parts2))):
+            if parts1[idx] < parts2[idx]:
+                return version2
+            elif parts1[idx] > parts2[idx]:
+                return version1
+
+        # if all parts are equal up to this point, return the longer version string
+        return version1 if len(parts1) > len(parts2) else version2
+
+    max_version = versions[0]
+    for version in versions[1:]:
+        max_version = compare_versions(max_version, version)
+
+    return max_version
 
 
 def fire_and_forget(func):
