@@ -565,10 +565,10 @@ def get_max_version(versions):
         parts2 = list(map(int, version2.split(".")))
 
         # compare each part
-        for i in range(min(len(parts1), len(parts2))):
-            if parts1[i] < parts2[i]:
+        for idx in range(min(len(parts1), len(parts2))):
+            if parts1[idx] < parts2[idx]:
                 return version2
-            elif parts1[i] > parts2[i]:
+            elif parts1[idx] > parts2[idx]:
                 return version1
 
         # if all parts are equal up to this point, return the longer version string
