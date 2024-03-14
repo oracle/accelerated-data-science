@@ -43,7 +43,17 @@ class AquaModelHandler(AquaAPIhandler):
         project_id = self.get_argument("project_id", default=None)
         return self.finish(AquaModelApp().list(compartment_id, project_id))
 
+class AquaModelLicenseHandler(AquaAPIhandler):
+    """Handler for Aqua Model REST APIs."""
+
+    @handle_exceptions
+    def get(self, model_id):
+        """Handle GET request."""
+        
+        model_id = model_id.split("/")[0]
+        return self.finish(AquaModelApp().load_license(model_id))
 
 __handlers__ = [
     ("model/?([^/]*)", AquaModelHandler),
+    ("model/?([^/]*)/license", AquaModelLicenseHandler),
 ]

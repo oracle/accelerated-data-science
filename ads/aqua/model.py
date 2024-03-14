@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import json
 from dataclasses import InitVar, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
@@ -25,7 +24,16 @@ from ads.aqua.constants import (
 )
 from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaRuntimeError
-from ads.aqua.utils import CONDA_BUCKET_NS, README, UNKNOWN, create_word_icon, read_file
+from ads.aqua.utils import (
+    CONDA_BUCKET_NS,
+    LICENSE_TXT,
+    README,
+    UNKNOWN,
+    create_word_icon,
+    get_artifact_path,
+    read_file,
+)
+from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
@@ -65,6 +73,13 @@ class AquaFineTuningMetric(DataClassSerializable):
     category: str = field(default_factory=str)
     scores: list = field(default_factory=list)
 
+
+@dataclass(repr=False)
+class AquaModelLicense(DataClassSerializable):
+    """Represents the response of Get Model License."""
+    
+    id: str = field(default_factory=str)
+    license: str = field(default_factory=str)
 
 @dataclass(repr=False)
 class AquaModelSummary(DataClassSerializable):
@@ -667,55 +682,6 @@ class AquaModelApp(AquaApp):
                 }
         return res
 
-    def ModelCustomMetadata_process_model(
-        self, model: Union["ModelSummary", "Model", "ResourceSummary"], region: str
-    ) -> dict:
-        """Constructs required fields for AquaModelSummary."""
-
-        # todo: revisit icon generation code
-        # icon = self._load_icon(model.display_name)
-        icon = ""
-        tags = {}
-        tags.update(model.defined_tags or {})
-        tags.update(model.freeform_tags or {})
-
-        model_id = (
-            model.id
-            if (
-                isinstance(model, oci.data_science.models.ModelSummary)
-                or isinstance(model, oci.data_science.models.model.Model)
-            )
-            else model.identifier
-        )
-        console_link = (
-            get_console_link(
-                resource="models",
-                ocid=model_id,
-                region=region,
-            ),
-        )
-        # TODO: build search_text with description
-        search_text = self._build_search_text(tags) if tags else UNKNOWN
-
-        return dict(
-            compartment_id=model.compartment_id,
-            icon=icon or UNKNOWN,
-            id=model_id,
-            license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
-            name=model.display_name,
-            organization=model.freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
-            task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
-            time_created=model.time_created,
-            is_fine_tuned_model=(
-                True
-                if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
-                else False
-            ),
-            tags=tags,
-            console_link=console_link,
-            search_text=search_text,
-        )
-
     def _if_show(self, model: DataScienceModel) -> bool:
         """Determine if the given model should be return by `list`."""
         if model.freeform_tags is None:
@@ -757,3 +723,15 @@ class AquaModelApp(AquaApp):
         )
         separator = " " if description else ""
         return f"{description}{separator}{tags_text}"
+
+
+    def load_license(self, model_id: str) -> AquaModelLicense:
+        """Loads the license full text for the given model."""
+        oci_model = self.ds_client.get_model(model_id).data
+        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+        if not artifact_path:
+            raise AquaRuntimeError("Failed to get artifact path from custom metadata.")
+         
+        content = str(read_file(file_path=f"{artifact_path}/{LICENSE_TXT}", auth=default_signer()))
+            
+        return AquaModelLicense(id=model_id, license=content)
