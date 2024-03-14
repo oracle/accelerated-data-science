@@ -817,7 +817,7 @@ class DataScienceModel(Builder):
         # Upload artifact to the model catalog
         if model_by_reference and self.model_file_description:
             logger.info(
-                "Model artifact will be uploaded using model_file_description file, "
+                "Model artifact will be uploaded using model_file_description contents, "
                 "artifact location will not be used."
             )
         elif not self.artifact:

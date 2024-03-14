@@ -870,6 +870,7 @@ class TestDataScienceModel:
     @pytest.mark.parametrize(
         "test_args",
         [
+            "",
             "oci://my-bucket@my-tenancy/prefix/",
             (
                 "oci://my-bucket@my-tenancy/prefix/",
@@ -902,19 +903,23 @@ class TestDataScienceModel:
                         "ads.common.object_storage_details.ObjectStorageDetails.is_bucket_versioned",
                         return_value=True,
                     ) as mock_is_bucket_versioned:
-                        # self.mock_dsc_model.with_model_file_description(
-                        #     json_uri=self.mock_artifact_file_path
-                        # )
                         self.mock_dsc_model.upload_artifact(model_by_reference=True)
-                        mock_is_bucket_versioned.assert_called()
-                        assert self.mock_dsc_model.artifact.endswith(".json"), True
-                        assert not os.path.exists(self.mock_dsc_model.artifact), True
+                        if test_args == "":
+                            mock_is_bucket_versioned.assert_not_called()
+                            mock_init.assert_not_called()
+                            mock_upload.assert_not_called()
+                        else:
+                            mock_is_bucket_versioned.assert_called()
+                            assert self.mock_dsc_model.artifact.endswith(".json"), True
+                            assert not os.path.exists(
+                                self.mock_dsc_model.artifact
+                            ), True
 
-                        mock_init.assert_called_with(
-                            dsc_model=self.mock_dsc_model.dsc_model,
-                            artifact_path=self.mock_dsc_model.artifact,
-                        )
-                        mock_upload.assert_called()
+                            mock_init.assert_called_with(
+                                dsc_model=self.mock_dsc_model.dsc_model,
+                                artifact_path=self.mock_dsc_model.artifact,
+                            )
+                            mock_upload.assert_called()
 
     @pytest.mark.parametrize(
         "test_args",
