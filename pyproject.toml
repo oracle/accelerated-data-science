@@ -179,6 +179,7 @@ dev = [
   "fastavro==1.9.4",  # cohere 4.53 depends on fastavro<2.0 and >=1.8
   "pandavro==1.8.0",
   "category_encoders==2.6.3",
+  "statsmodels==0.14.1"
 ]
 
 [project.urls]
