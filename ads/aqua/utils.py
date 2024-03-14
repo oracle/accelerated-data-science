@@ -3,6 +3,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA utils and constants."""
+import asyncio
 import base64
 import json
 import logging
@@ -11,20 +12,18 @@ import random
 import re
 import sys
 from enum import Enum
+from functools import wraps
 from pathlib import Path
 from string import Template
 from typing import List, Union
-from functools import wraps
-import asyncio
 
 import fsspec
 import oci
 from oci.data_science.models import JobRun, Model
 
 from ads.aqua.constants import RqsAdditionalDetails
-from ads.aqua.data import AquaResourceIdentifier
+from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
-from ads.aqua.data import Tags
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link, upload_to_os
@@ -37,6 +36,7 @@ logger = logging.getLogger("ODSC_AQUA")
 UNKNOWN = ""
 UNKNOWN_DICT = {}
 README = "README.md"
+LICENSE_TXT= "license.txt"
 DEPLOYMENT_CONFIG = "deployment_config.json"
 EVALUATION_REPORT_JSON = "report.json"
 EVALUATION_REPORT_MD = "report.md"
