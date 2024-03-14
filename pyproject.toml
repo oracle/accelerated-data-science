@@ -165,20 +165,21 @@ pii = [
 llm = ["langchain>=0.1.10", "evaluate>=0.4.0"]
 aqua = ["fire", "cachetools"]
 
-# To reduce backtracking (descrese deps install time) during test/dev env setup reducing number of versions pip is
+# To reduce backtracking (decrese deps install time) during test/dev env setup reducing number of versions pip is
 # trying to use. Ref - https://pip.pypa.io/en/stable/topics/dependency-resolution/#possible-ways-to-reduce-backtracking.
 # This section includes heavy libraries and corrective dependencies for them, when env got unresolved condflict.
 # Example, when added cohere==4.53, fastavro and pandavro version must be specifed to resolve conflcits.
-# Revisit this section continuously to update to recent comaptible with python3.9/3.10 versions
+# Revisit this section continuously to update to recent comaptible versions with python3.9/3.10
 tests = [
   "dask==2023.5.0; python_version=='3.8'",
   "dask==2023.10.1; python_version>='3.9'", # oci-cli depends on click==8.0.4, dask>2023.10.1 depends on "click>=8.1"
   "cohere==4.53",
   "fastparquet==2024.2.0",
   "fastavro==1.9.4",  # cohere 4.53 depends on fastavro<2.0 and >=1.8
-  "pandavro==1.8.0",
-  "category_encoders==2.6.3",
-  "statsmodels==0.14.1"
+#  "pandavro==1.8.0",
+#  "category_encoders==2.6.3",
+  "statsmodels; python_version=='3.8'",
+  "statsmodels>=0.14.1; python_version>='3.9'",  # cython3.0 compatibility added in v0.14.1
 ]
 
 [project.urls]
