@@ -48,19 +48,11 @@ class AquaApp:
     def __init__(self) -> None:
         if OCI_RESOURCE_PRINCIPAL_VERSION:
             set_auth("resource_principal")
-        self._auth = default_signer({"service": AQUA_SERVICE_NAME})
-        self._ds_client_auth = default_signer(
-            {
-                "service_endpoint": OCI_ODSC_SERVICE_ENDPOINT,
-                "service": AQUA_SERVICE_NAME,
-            }
-        )
+        self._auth = default_signer({"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT})
+        self.ds_client = oc.OCIClientFactory(**self._auth).data_science
+        self.logging_client = oc.OCIClientFactory(**default_signer()).logging_management
+        self.identity_client = oc.OCIClientFactory(**default_signer()).identity
         self.region = extract_region(self._auth)
-        self._ds_client = None
-        self._logging_client = None
-        self._identity_client = None
-        self._vcn_client = None
-        self._os_client = None
         self._telemetry = None
 
     def list_resource(
@@ -276,36 +268,6 @@ class AquaApp:
             return {}
 
         return config[model_name]
-
-    @property
-    def ds_client(self):
-        if not self._ds_client:
-            self._ds_client = oc.OCIClientFactory(**self._ds_client_auth).data_science
-        return self._ds_client
-
-    @property
-    def logging_client(self):
-        if not self._logging_client:
-            self._logging_client = oc.OCIClientFactory(**self._auth).logging_management
-        return self._logging_client
-
-    @property
-    def identity_client(self):
-        if not self._identity_client:
-            self._identity_client = oc.OCIClientFactory(**self._auth).identity
-        return self._identity_client
-
-    @property
-    def vcn_client(self):
-        if not self._vcn_client:
-            self._vcn_client = oc.OCIClientFactory(**self._auth).virtual_network
-        return self._vcn_client
-
-    @property
-    def os_client(self):
-        if not self._os_client:
-            self._os_client = oc.OCIClientFactory(**self._auth).object_storage
-        return self._os_client
 
     @property
     def telemetry(self):

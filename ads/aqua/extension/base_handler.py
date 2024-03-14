@@ -8,17 +8,29 @@ import json
 import traceback
 import uuid
 from dataclasses import asdict, is_dataclass
-from http.client import responses
 from typing import Any
 
 from notebook.base.handlers import APIHandler
 from tornado.web import HTTPError
-
+from tornado import httputil
+from ads.telemetry.client import TelemetryClient
+from ads.config import AQUA_TELEMETRY_BUCKET, AQUA_TELEMETRY_BUCKET_NS
 from ads.aqua import logger
 
 
 class AquaAPIhandler(APIHandler):
     """Base handler for Aqua REST APIs."""
+
+    def __init__(
+        self,
+        application: "Application",
+        request: httputil.HTTPServerRequest,
+        **kwargs: Any,
+    ):
+        super().__init__(application, request, **kwargs)
+        telemetry = TelemetryClient(
+            bucket=AQUA_TELEMETRY_BUCKET, namespace=AQUA_TELEMETRY_BUCKET_NS
+        )
 
     @staticmethod
     def serialize(obj: Any):
@@ -74,6 +86,11 @@ class AquaAPIhandler(APIHandler):
                 reply["request_id"] = str(uuid.uuid4())
 
         logger.warning(reply["message"])
+
+        # telemetry.record_event_async(
+        #     category="aqua/error", action=status_code, value=reason,
+        # )
+
         self.finish(json.dumps(reply))
 
     @staticmethod

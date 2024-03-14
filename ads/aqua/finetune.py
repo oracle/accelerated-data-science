@@ -9,6 +9,7 @@ import json
 import os
 from typing import Optional, Dict
 from ads.aqua.exception import AquaFileExistsError, AquaValueError
+from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 
 from ads.common.serializer import DataClassSerializable
@@ -268,7 +269,7 @@ class AquaFineTuningApp(AquaApp):
                 upload_local_to_os(
                     src_uri=ft_dataset_path,
                     dst_uri=dst_uri,
-                    auth=self._auth,
+                    auth=default_signer(),
                     force_overwrite=False,
                 )
             except FileExistsError:
