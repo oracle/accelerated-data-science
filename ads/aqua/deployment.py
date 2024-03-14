@@ -395,8 +395,8 @@ class AquaDeploymentApp(AquaApp):
             )
         # tracks the shape used for fine-tuning the service models
         self.telemetry.record_event_async(
-            category="aqua/deployment",
-            action="create/shape",
+            category="aqua/deployment/create",
+            action="shape",
             detail=instance_shape,
         )
 

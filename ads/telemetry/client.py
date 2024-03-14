@@ -7,10 +7,10 @@
 import logging
 import threading
 import urllib.parse
-
 import requests
-
+from requests import Response
 from .base import TelemetryBase
+from ads.config import DEBUG_TELEMETRY
 
 
 logger = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ class TelemetryClient(TelemetryBase):
 
     def record_event(
         self, category: str = None, action: str = None, detail: str = None, **kwargs
-    ) -> None:
+    ) -> Response:
         """Send a head request to generate an event record.
 
         Parameters
@@ -61,23 +61,29 @@ class TelemetryClient(TelemetryBase):
         action (str)
             Filename of the object representing the event.
         detail (str)
-            Additional detail, if required. Can be used to pass values that identifies category and action type.
+            Additional Can be used to pass additional values, if required. When
+            set, detail is converted to an action and category and action are grouped together for telemetry parsing in
+            the backend.
 
         Returns
         -------
         Response
         """
-        if not category or not action:
-            raise ValueError("Please specify the category and the action.")
-        endpoint = f"{self.service_endpoint}/n/{self.namespace}/b/{self.bucket}/o/telemetry/{category}/{action}"
-        if detail:
-            endpoint = f"{endpoint}/{detail}"
-        headers = {"User-Agent": self._encode_user_agent(**kwargs)}
-        logger.debug(f"Sending telemetry to endpoint: {endpoint}")
-        signer = self._auth["signer"]
-        response = requests.head(endpoint, auth=signer, headers=headers)
-        logger.debug(f"Telemetry status code: {response.status_code}")
-        return response
+        try:
+            if not category or not action:
+                raise ValueError("Please specify the category and the action.")
+            if detail:
+                category, action = f"{category}/{action}", detail
+            endpoint = f"{self.service_endpoint}/n/{self.namespace}/b/{self.bucket}/o/telemetry/{category}/{action}"
+            headers = {"User-Agent": self._encode_user_agent(**kwargs)}
+            logger.debug(f"Sending telemetry to endpoint: {endpoint}")
+            signer = self._auth["signer"]
+            response = requests.head(endpoint, auth=signer, headers=headers)
+            logger.debug(f"Telemetry status code: {response.status_code}")
+            return response
+        except Exception as e:
+            if DEBUG_TELEMETRY:
+                logger.error(f"There is an error recording telemetry: {e}")
 
     def record_event_async(
         self, category: str = None, action: str = None, detail: str = None, **kwargs

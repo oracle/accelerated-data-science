@@ -281,8 +281,8 @@ class AquaFineTuningApp(AquaApp):
             )
             # tracks the size of dataset uploaded by user to the destination.
             self.telemetry.record_event_async(
-                category="aqua/finetune",
-                action="upload/size",
+                category="aqua/finetune/upload",
+                action="size",
                 detail=os.path.getsize(os.path.expanduser(ft_dataset_path)),
             )
             ft_dataset_path = dst_uri
@@ -450,8 +450,8 @@ class AquaFineTuningApp(AquaApp):
 
         # tracks the shape used for fine-tuning the service models
         self.telemetry.record_event_async(
-            category="aqua/finetune",
-            action="create/shape",
+            category="aqua/finetune/create",
+            action="shape",
             detail=create_fine_tuning_details.shape_name,
         )
         # tracks unique fine-tuned models that were created in the user compartment
