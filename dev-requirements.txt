@@ -1,6 +1,6 @@
 -r test-requirements.txt
 -e ".[bds,data,geo,huggingface,llm,notebook,onnx,opctl,optuna,spark,tensorflow,text,torch,viz]"
--e ".[dev]"
+-e ".[tests]"
 arff
 faiss-cpu
 imbalanced-learn

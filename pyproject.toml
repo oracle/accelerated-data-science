@@ -121,7 +121,8 @@ tensorflow = ["oracle_ads[viz]", "tensorflow"]
 text = ["spacy", "wordcloud>=1.8.1"]
 torch = ["oracle_ads[viz]", "torch", "torchvision"]
 viz = [
-  "bokeh==2.4.3",
+  "bokeh==2.4.3; extra='tests'",
+  "bokeh>=3.0.0, <3.2.0",
   "folium>=0.12.1",
   "graphviz<0.17",
   "scipy>=1.5.4",
@@ -169,7 +170,7 @@ aqua = ["fire", "cachetools"]
 # This section includes heavy libraries and corrective dependencies for them, when env got unresolved condflict.
 # Example, when added cohere==4.53, fastavro and pandavro version must be specifed to resolve conflcits.
 # Revisit this section continuously to update to recent comaptible with python3.9/3.10 versions
-dev = [
+tests = [
   "dask==2023.5.0; python_version=='3.8'",
   "dask==2023.10.1; python_version>='3.9'", # oci-cli depends on click==8.0.4, dask>2023.10.1 depends on "click>=8.1"
   "cohere==4.53",
