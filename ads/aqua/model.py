@@ -77,9 +77,10 @@ class AquaFineTuningMetric(DataClassSerializable):
 @dataclass(repr=False)
 class AquaModelLicense(DataClassSerializable):
     """Represents the response of Get Model License."""
-    
+
     id: str = field(default_factory=str)
     license: str = field(default_factory=str)
+
 
 @dataclass(repr=False)
 class AquaModelSummary(DataClassSerializable):
@@ -322,13 +323,10 @@ class AquaModelApp(AquaApp):
             .with_compartment_id(target_compartment)
             .with_project_id(target_project)
             .with_model_file_description(json_dict=service_model.model_file_description)
-            .with_artifact(service_model.artifact)
             .with_display_name(service_model.display_name)
             .with_description(service_model.description)
             .with_freeform_tags(**(service_model.freeform_tags or {}))
             .with_defined_tags(**(service_model.defined_tags or {}))
-            .with_model_version_set_id(service_model.model_version_set_id)
-            .with_version_label(service_model.version_label)
             .with_custom_metadata_list(service_model.custom_metadata_list)
             .with_defined_metadata_list(service_model.defined_metadata_list)
             .with_provenance_metadata(service_model.provenance_metadata)
@@ -724,10 +722,9 @@ class AquaModelApp(AquaApp):
         separator = " " if description else ""
         return f"{description}{separator}{tags_text}"
 
-
     def load_license(self, model_id: str) -> AquaModelLicense:
         """Loads the license full text for the given model.
-        
+
         Parameters
         ----------
         model_id: str
@@ -742,7 +739,9 @@ class AquaModelApp(AquaApp):
         artifact_path = get_artifact_path(oci_model.custom_metadata_list)
         if not artifact_path:
             raise AquaRuntimeError("Failed to get artifact path from custom metadata.")
-         
-        content = str(read_file(file_path=f"{artifact_path}/{LICENSE_TXT}", auth=default_signer()))
-            
+
+        content = str(
+            read_file(file_path=f"{artifact_path}/{LICENSE_TXT}", auth=default_signer())
+        )
+
         return AquaModelLicense(id=model_id, license=content)
