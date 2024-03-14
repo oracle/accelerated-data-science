@@ -15,6 +15,5 @@ runs:
         $CONDA/bin/conda init
         source /home/runner/.bashrc
         conda install python=${{ matrix.python-version }}
-        pip install -r test-requirements.txt
-        pip install -e ".[testsuite]"
+        pip install -r dev-requirements.txt
         conda list
