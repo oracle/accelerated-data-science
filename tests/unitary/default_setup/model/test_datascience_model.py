@@ -840,10 +840,36 @@ class TestDataScienceModel:
             # load using dict
             self.mock_dsc_model.with_model_file_description(json_dict=data_copy)
 
+    def test_upload_artifact_for_model_created_by_reference_with_json(self):
+        """for model passed by reference, check bucket, call small  artifact uploader and remove temp artifact"""
+
+        self.mock_artifact_file_path = os.path.join(
+            self.curr_dir, "test_files/model_description.json"
+        )
+        with patch.object(
+            SmallArtifactUploader, "__init__", return_value=None
+        ) as mock_init:
+            with patch.object(SmallArtifactUploader, "upload") as mock_upload:
+                with patch(
+                    "ads.common.utils.folder_size",
+                    return_value=_MAX_ARTIFACT_SIZE_IN_BYTES - 100,
+                ):
+                    self.mock_dsc_model.with_model_file_description(
+                        json_uri=self.mock_artifact_file_path
+                    )
+                    self.mock_dsc_model.upload_artifact(model_by_reference=True)
+                    assert self.mock_dsc_model.artifact.endswith(".json"), True
+                    assert not os.path.exists(self.mock_dsc_model.artifact), True
+
+                    mock_init.assert_called_with(
+                        dsc_model=self.mock_dsc_model.dsc_model,
+                        artifact_path=self.mock_dsc_model.artifact,
+                    )
+                    mock_upload.assert_called()
+
     @pytest.mark.parametrize(
         "test_args",
         [
-            "",
             "oci://my-bucket@my-tenancy/prefix/",
             (
                 "oci://my-bucket@my-tenancy/prefix/",
@@ -851,14 +877,18 @@ class TestDataScienceModel:
             ),
         ],
     )
-    def test_upload_artifact_for_model_created_by_reference(self, test_args):
-        # todo: for model passed by reference, check bucket, call small  artifact uploader
-        #  and remove temp artifact
+    @patch.object(DataScienceModel, "_prepare_file_description_artifact")
+    def test_upload_artifact_for_model_created_by_reference(
+        self, mock__prepare_file_description_artifact, test_args
+    ):
+        """For model passed by reference, check bucket, call small  artifact uploader and remove temp artifact"""
 
         self.mock_artifact_file_path = os.path.join(
             self.curr_dir, "test_files/model_description.json"
         )
         self.mock_dsc_model.with_artifact(test_args)
+        with open(self.mock_artifact_file_path, "r") as _file:
+            mock__prepare_file_description_artifact.return_value = json.load(_file)
 
         with patch.object(
             SmallArtifactUploader, "__init__", return_value=None
@@ -872,25 +902,19 @@ class TestDataScienceModel:
                         "ads.common.object_storage_details.ObjectStorageDetails.is_bucket_versioned",
                         return_value=True,
                     ) as mock_is_bucket_versioned:
-                        self.mock_dsc_model.with_model_file_description(
-                            json_uri=self.mock_artifact_file_path
-                        )
+                        # self.mock_dsc_model.with_model_file_description(
+                        #     json_uri=self.mock_artifact_file_path
+                        # )
                         self.mock_dsc_model.upload_artifact(model_by_reference=True)
-                        if test_args == "":
-                            mock_init.assert_not_called()
-                            mock_upload.assert_not_called()
-                        else:
-                            mock_is_bucket_versioned.assert_called()
-                            assert self.mock_dsc_model.artifact.endswith(".json"), True
-                            assert not os.path.exists(
-                                self.mock_dsc_model.artifact
-                            ), True
+                        mock_is_bucket_versioned.assert_called()
+                        assert self.mock_dsc_model.artifact.endswith(".json"), True
+                        assert not os.path.exists(self.mock_dsc_model.artifact), True
 
-                            mock_init.assert_called_with(
-                                dsc_model=self.mock_dsc_model.dsc_model,
-                                artifact_path=self.mock_dsc_model.artifact,
-                            )
-                            mock_upload.assert_called()
+                        mock_init.assert_called_with(
+                            dsc_model=self.mock_dsc_model.dsc_model,
+                            artifact_path=self.mock_dsc_model.artifact,
+                        )
+                        mock_upload.assert_called()
 
     @pytest.mark.parametrize(
         "test_args",
