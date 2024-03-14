@@ -11,7 +11,7 @@ import os
 import shutil
 import tempfile
 from copy import deepcopy
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Tuple
 
 import pandas
 from jsonschema import ValidationError, validate
@@ -67,6 +67,10 @@ class BucketNotVersionedError(Exception):  # pragma: no cover
 class ModelFileDescriptionError(Exception):  # pragma: no cover
     def __init__(self, msg="Model File Description file is not set up."):
         super().__init__(msg)
+
+
+class InvalidArtifactType(Exception):  # pragma: no cover
+    pass
 
 
 class DataScienceModel(Builder):
@@ -154,8 +158,9 @@ class DataScienceModel(Builder):
         Sets model custom metadata.
     with_provenance_metadata(self, metadata: Union[ModelProvenanceMetadata, Dict]) -> "DataScienceModel"
         Sets model provenance metadata.
-    with_artifact(self, uri: str)
-        Sets the artifact location. Can be a local.
+    with_artifact(self, *uri: str)
+        Sets the artifact location. Can be a local. For models created by reference, uri can take in single arg or multiple args in case
+        of a fine-tuned or multimodel setting.
     with_model_version_set_id(self, model_version_set_id: str):
         Sets the model version set ID.
     with_version_label(self, version_label: str):
@@ -548,10 +553,10 @@ class DataScienceModel(Builder):
         return self.set_spec(self.CONST_PROVENANCE_METADATA, metadata)
 
     @property
-    def artifact(self) -> str:
+    def artifact(self) -> Union[str, list]:
         return self.get_spec(self.CONST_ARTIFACT)
 
-    def with_artifact(self, uri: str):
+    def with_artifact(self, uri: str, *args):
         """Sets the artifact location. Can be a local.
 
         Parameters
@@ -560,13 +565,16 @@ class DataScienceModel(Builder):
             Path to artifact directory or to the ZIP archive.
             It could contain a serialized model(required) as well as any files needed for deployment.
             The content of the source folder will be zipped and uploaded to the model catalog.
-
+            For models created by reference, uri can take in single arg or multiple args in case of a fine-tuned or
+            multimodel setting.
         Examples
         --------
         >>> .with_artifact(uri="./model1/")
         >>> .with_artifact(uri="./model1.zip")
+        >>> .with_artifact("./model1", "./model2")
         """
-        return self.set_spec(self.CONST_ARTIFACT, uri)
+
+        return self.set_spec(self.CONST_ARTIFACT, [uri] + list(args) if args else uri)
 
     @property
     def model_version_set_id(self) -> str:
@@ -821,15 +829,20 @@ class DataScienceModel(Builder):
                 "timeout": timeout,
             }
 
-        if ObjectStorageDetails.is_oci_path(self.artifact):
-            if bucket_uri and bucket_uri != self.artifact:
-                logger.warn(
-                    "The `bucket_uri` will be ignored and the value of `self.artifact` will be used instead."
+        if model_by_reference:
+            self._validate_prepare_file_description_artifact()
+        else:
+            if isinstance(self.artifact, list):
+                raise InvalidArtifactType(
+                    "Multiple artifacts are only allowed for models created by reference."
                 )
-            bucket_uri = self.artifact
 
-            if model_by_reference:
-                self._validate_prepare_file_description_artifact(bucket_uri)
+            if ObjectStorageDetails.is_oci_path(self.artifact):
+                if bucket_uri and bucket_uri != self.artifact:
+                    logger.warn(
+                        "The `bucket_uri` will be ignored and the value of `self.artifact` will be used instead."
+                    )
+                bucket_uri = self.artifact
 
         if not model_by_reference and (
             bucket_uri or utils.folder_size(self.artifact) > _MAX_ARTIFACT_SIZE_IN_BYTES
@@ -932,18 +945,26 @@ class DataScienceModel(Builder):
             model_by_reference = False
 
         if model_by_reference:
-            bucket_uri, artifact_size = self._download_file_description_artifact()
+            _, artifact_size = self._download_file_description_artifact()
             logging.warning(
                 f"Model {self.dsc_model.id} was created by reference, artifacts will be downloaded from the bucket {bucket_uri}"
             )
+            # artifacts will be downloaded from model_file_description
+            bucket_uri = None
         else:
             artifact_info = self.dsc_model.get_artifact_info()
             artifact_size = int(artifact_info.get("content-length"))
 
-        if not bucket_uri and artifact_size > _MAX_ARTIFACT_SIZE_IN_BYTES:
-            raise ModelArtifactSizeError(utils.human_size(_MAX_ARTIFACT_SIZE_IN_BYTES))
+            if not bucket_uri and artifact_size > _MAX_ARTIFACT_SIZE_IN_BYTES:
+                raise ModelArtifactSizeError(
+                    utils.human_size(_MAX_ARTIFACT_SIZE_IN_BYTES)
+                )
 
-        if artifact_size > _MAX_ARTIFACT_SIZE_IN_BYTES or bucket_uri:
+        if (
+            artifact_size > _MAX_ARTIFACT_SIZE_IN_BYTES
+            or bucket_uri
+            or model_by_reference
+        ):
             artifact_downloader = LargeArtifactDownloader(
                 dsc_model=self.dsc_model,
                 target_dir=target_dir,
@@ -1279,14 +1300,23 @@ class DataScienceModel(Builder):
             return self.get_spec(item)
         raise AttributeError(f"Attribute {item} not found.")
 
-    def _validate_prepare_file_description_artifact(self, bucket_uri: str):
-        if not ObjectStorageDetails.from_path(bucket_uri).is_bucket_versioned():
-            message = f"Model artifact bucket {bucket_uri} is not versioned. Enable versioning on the bucket to proceed with model creation by reference."
-            logger.error(message)
-            raise BucketNotVersionedError(message)
+    def _validate_prepare_file_description_artifact(self):
+        """This helper method validates the path to check if the buckets are versioned and if the OSS location and
+        the files exist. Next, it creates a json dict with the path information and sets it as the artifact to be
+        uploaded."""
+
+        bucket_uri = self.artifact
+        if isinstance(bucket_uri, str):
+            bucket_uri = [bucket_uri]
+
+        for uri in bucket_uri:
+            if not ObjectStorageDetails.from_path(uri).is_bucket_versioned():
+                message = f"Model artifact bucket {uri} is not versioned. Enable versioning on the bucket to proceed with model creation by reference."
+                logger.error(message)
+                raise BucketNotVersionedError(message)
 
         if not self.model_file_description:
-            json_data = self._prepare_file_description_artifact()
+            json_data = self._prepare_file_description_artifact(bucket_uri)
             self.with_model_file_description(json_dict=json_data)
 
         self.local_copy_dir = tempfile.mkdtemp()
@@ -1296,76 +1326,80 @@ class DataScienceModel(Builder):
         )
         with open(json_file_path, "w") as outfile:
             json.dump(self.model_file_description, outfile, indent=2)
+
         self.with_artifact(json_file_path)
 
-    def _prepare_file_description_artifact(self) -> dict:
+    @staticmethod
+    def _prepare_file_description_artifact(bucket_uri: list) -> dict:
         """Prepares yaml file config if model is passed by reference and uploaded to catalog.
 
         Returns
         -------
-        str
-            Path to the model artifact yaml file.
+        dict
+            json dict with the model by reference artifact details
         """
-        # todo: check condition again
-        if not ObjectStorageDetails.is_oci_path(
-            self.artifact
-        ) or self.artifact.endswith(".zip"):
-            logging.error(
-                "Artifact path cannot be a zip file or local directory for model "
-                "creation by reference."
-            )
-            raise
-
-        # read list from objects from artifact location
-        oss_details = ObjectStorageDetails.from_path(self.artifact)
 
         # create json content
         content = dict()
         content["version"] = MODEL_BY_REFERENCE_VERSION
         content["type"] = "modelOSSReferenceDescription"
+        content["models"] = []
 
-        # first retrieve the etag and version id
-        object_versions = oss_details.list_object_versions(fields="etag")
-        version_dict = {
-            obj.etag: obj.version_id for obj in object_versions if obj.etag is not None
-        }
+        for uri in bucket_uri:
+            if not ObjectStorageDetails.is_oci_path(uri) or uri.endswith(".zip"):
+                msg = "Artifact path cannot be a zip file or local directory for model creation by reference."
+                logging.error(msg)
+                raise InvalidArtifactType(msg)
 
-        # add version id based on etag for each object
-        objects = oss_details.list_objects(fields="name,etag,size").objects
+            # read list from objects from artifact location
+            oss_details = ObjectStorageDetails.from_path(uri)
 
-        if len(objects) == 0:
-            raise ModelFileDescriptionError(
-                f"The path {oss_details.path} does not exist or no objects were found in the path. "
-            )
-
-        object_list = []
-        for obj in objects:
-            object_list.append(
-                {
-                    "name": obj.name,
-                    "version": version_dict[obj.etag],
-                    "sizeInBytes": obj.size,
-                }
-            )
-        content["models"] = [
-            {
-                "namespace": oss_details.namespace,
-                "bucketName": oss_details.bucket,
-                "prefix": oss_details.filepath,
-                "objects": object_list,
+            # first retrieve the etag and version id
+            object_versions = oss_details.list_object_versions(fields="etag")
+            version_dict = {
+                obj.etag: obj.version_id
+                for obj in object_versions
+                if obj.etag is not None
             }
-        ]
+
+            # add version id based on etag for each object
+            objects = oss_details.list_objects(fields="name,etag,size").objects
+
+            if len(objects) == 0:
+                raise ModelFileDescriptionError(
+                    f"The path {oss_details.path} does not exist or no objects were found in the path. "
+                )
+
+            object_list = []
+            for obj in objects:
+                object_list.append(
+                    {
+                        "name": obj.name,
+                        "version": version_dict[obj.etag],
+                        "sizeInBytes": obj.size,
+                    }
+                )
+            content["models"].extend(
+                [
+                    {
+                        "namespace": oss_details.namespace,
+                        "bucketName": oss_details.bucket,
+                        "prefix": oss_details.filepath,
+                        "objects": object_list,
+                    }
+                ]
+            )
 
         return content
 
-    def _download_file_description_artifact(self):
+    def _download_file_description_artifact(self) -> Tuple[Union[str, List[str]], int]:
         """Loads the json file from model artifact, updates the
         model file description property, and returns the bucket uri and artifact size details.
 
         Returns
         -------
-        bucket_uri: str
-            Location of bucket where model artifacts are present
+        bucket_uri: Union[str, List[str]]
+            Location(s) of bucket where model artifacts are present
         artifact_size: int
             estimated size of the model files in bytes
 
@@ -1385,14 +1419,17 @@ class DataScienceModel(Builder):
                 self.with_model_file_description(json_uri=json_file_path)
 
         model_file_desc_dict = self.model_file_description
-        # currently only supports downloading from the first model item
-        model = model_file_desc_dict["models"][0]
-        namespace = model["namespace"]
-        bucket_name = model["bucketName"]
-        prefix = model["prefix"]
-        objects = model["objects"]
+        models = model_file_desc_dict["models"]
 
-        bucket_uri = f"oci://{bucket_name}@{namespace}/{prefix}"
-        artifact_size = sum([obj["sizeInBytes"] for obj in objects])
+        bucket_uri = list()
+        artifact_size = 0
+        for model in models:
+            namespace = model["namespace"]
+            bucket_name = model["bucketName"]
+            prefix = model["prefix"]
+            objects = model["objects"]
+            uri = f"oci://{bucket_name}@{namespace}/{prefix}"
+            artifact_size += sum([obj["sizeInBytes"] for obj in objects])
+            bucket_uri.append(uri)
 
-        return bucket_uri, artifact_size
+        return bucket_uri[0] if len(bucket_uri) == 1 else bucket_uri, artifact_size
