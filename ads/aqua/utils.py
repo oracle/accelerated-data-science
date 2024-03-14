@@ -49,14 +49,6 @@ CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
     datasciencejobrun="jobruns",
     datasciencemodelversionset="model-version-sets",
 )
-CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS", "ociodscdev")
-SOURCE_FILE = "run.sh"
-CONDA_URI = f"oci://aqua-eval-test-bucket@{CONDA_BUCKET_NS}/conda_environments/gpu/PyTorch 2.1 for GPU on Python 3.9/1.0/pytorch21_p39_gpu_v1"
-CONDA_REGION = "us-ashburn-1"
-BERT_SCORE_PATH = "/home/datascience/conda/pytorch21_p39_gpu_v1/bertscore/bertscore.py"
-BERT_BASE_MULTILINGUAL_CASED = (
-    "/home/datascience/conda/pytorch21_p39_gpu_v1/bert-base-multilingual-cased/"
-)
 FINE_TUNING_RUNTIME_CONTAINER = "iad.ocir.io/ociodscdev/aqua_ft_cuda121:0.3.17.20"
 DEFAULT_FT_BLOCK_STORAGE_SIZE = 256
 DEFAULT_FT_REPLICA = 1
