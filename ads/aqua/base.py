@@ -56,7 +56,6 @@ class AquaApp:
         self._vcn_client = None
         self._os_client = None
         self._telemetry = None
-        # use this when auth is needed -> client.base_client.signer
 
     def list_resource(
         self,
@@ -276,7 +275,7 @@ class AquaApp:
     def ds_client(self):
         if not self._ds_client:
             self._ds_client = oc.OCIClientFactory(
-                default_signer(
+                **default_signer(
                     {
                         "service_endpoint": OCI_ODSC_SERVICE_ENDPOINT,
                         "service": AQUA_SERVICE_NAME,
