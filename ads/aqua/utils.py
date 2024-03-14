@@ -34,6 +34,8 @@ from ads.model import DataScienceModel
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
 
+CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS")
+
 UNKNOWN = ""
 UNKNOWN_DICT = {}
 README = "README.md"
