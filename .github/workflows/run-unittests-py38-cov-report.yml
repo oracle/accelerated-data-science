@@ -68,6 +68,11 @@ jobs:
       - name: "Install Forecasting dependencies"
         run: |
           pip install -e ".[forecast]"
+      # Installing pii deps for python3.8 test setup only, it will not work with python3.9/3.10, because
+      # 'datapane' library conflicts with pandas>2.2.0, which used in py3.9/3.10 setup
+      - name: "Install PII dependencies"
+        run: |
+          pip install -e ".[pii]"
       - name: "Install featurestore marketplace dependencies"
         run: |
           pip install -e ".[feature-store-marketplace]"
