@@ -425,7 +425,7 @@ class AquaEvaluationApp(AquaApp):
         try:
             evaluation_model_parameters = AquaEvalParams(
                 shape=create_aqua_evaluation_details.shape_name,
-                dataset_path=create_aqua_evaluation_details.dataset_path,
+                dataset_path=evaluation_dataset_path,
                 report_path=create_aqua_evaluation_details.report_path,
                 **create_aqua_evaluation_details.model_parameters,
             )
