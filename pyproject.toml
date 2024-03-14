@@ -183,7 +183,6 @@ aqua = ["fire", "cachetools"]
 # trying to use. Ref - https://pip.pypa.io/en/stable/topics/dependency-resolution/#possible-ways-to-reduce-backtracking.
 # Revisit this section continuously and update to recent version of libraries. focus on pyt3.9/3.10 versions.
 testsuite = [
-  ".[bds,data,geo,huggingface,llm,notebook,onnx,opctl,optuna,spark,tensorflow,text,torch,viz]",
   ".[pii]; python_version=='3.8'",  # datapane depnends on pandas ">=1.4.0,<2.0.0", in py3.9/3.10 ads depends on pandas>=2.2.0
   "dask==2023.5.0; python_version=='3.8'",
   "dask==2023.10.1; python_version>='3.9'", # oci-cli depends on click==8.0.4, dask>2023.10.1 depends on "click>=8.1"
