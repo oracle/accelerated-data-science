@@ -815,7 +815,7 @@ class DataScienceModel(Builder):
             Whether model artifact is made available to Model Store by reference.
         """
         # Upload artifact to the model catalog
-        if model_by_reference and not self.model_file_description:
+        if model_by_reference and self.model_file_description:
             logger.info(
                 "Model artifact will be uploaded using model_file_description file, "
                 "artifact location will not be used."
