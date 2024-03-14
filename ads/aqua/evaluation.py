@@ -50,7 +50,6 @@ from ads.config import (
     COMPARTMENT_OCID,
     PROJECT_OCID,
     AQUA_CONTAINER_INDEX_CONFIG,
-    AQUA_SERVICE_NAME,
 )
 from ads.jobs.ads_job import DataScienceJobRun, Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob

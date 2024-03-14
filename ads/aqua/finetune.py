@@ -9,15 +9,12 @@ import json
 import os
 from typing import Optional, Dict
 from ads.aqua.exception import AquaFileExistsError, AquaValueError
-from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 
 from ads.common.serializer import DataClassSerializable
-from ads.common.utils import get_console_link
 from ads.config import (
     AQUA_CONFIG_FOLDER,
     AQUA_MODEL_FINETUNING_CONFIG,
-    AQUA_SERVICE_NAME,
 )
 
 from ads.aqua.base import AquaApp

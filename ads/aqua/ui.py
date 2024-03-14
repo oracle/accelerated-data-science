@@ -12,9 +12,7 @@ from cachetools import TTLCache
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaValueError
-from ads.common.auth import default_signer
-from ads.common import oci_client as oc
-from ads.config import COMPARTMENT_OCID, TENANCY_OCID, AQUA_SERVICE_NAME
+from ads.config import COMPARTMENT_OCID, TENANCY_OCID
 from ads.aqua.utils import sanitize_response
 
 
