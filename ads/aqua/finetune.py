@@ -17,7 +17,7 @@ from ads.common.utils import get_console_link
 from ads.config import (
     AQUA_CONFIG_FOLDER,
     AQUA_MODEL_FINETUNING_CONFIG,
-    ODSC_MODEL_COMPARTMENT_OCID,
+    AQUA_SERVICE_NAME,
 )
 
 from ads.aqua.base import AquaApp
@@ -271,7 +271,7 @@ class AquaFineTuningApp(AquaApp):
                 upload_local_to_os(
                     src_uri=ft_dataset_path,
                     dst_uri=dst_uri,
-                    auth=default_signer(),
+                    auth=default_signer({"service": AQUA_SERVICE_NAME}),
                     force_overwrite=False,
                 )
             except FileExistsError:

@@ -76,6 +76,7 @@ AQUA_TELEMETRY_BUCKET = os.environ.get(
     "AQUA_TELEMETRY_BUCKET", "service-managed-models"
 )
 AQUA_TELEMETRY_BUCKET_NS = os.environ.get("AQUA_TELEMETRY_BUCKET_NS", "id19sfcrra6z")
+AQUA_SERVICE_NAME = "aqua"
 
 
 def export(

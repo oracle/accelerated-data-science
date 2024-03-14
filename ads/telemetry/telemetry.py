@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -25,7 +25,9 @@ UNKNOWN = "UNKNOWN"
 DELIMITER = "&"
 
 
-def update_oci_client_config(config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def update_oci_client_config(
+    config: Optional[Dict[str, Any]] = None, service: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Adds user agent information to the signer config if it is not setup yet.
 
@@ -33,6 +35,8 @@ def update_oci_client_config(config: Optional[Dict[str, Any]] = None) -> Dict[st
     ----------
     config: Dict
         The signer configuration.
+    service: str
+        calling service name.
 
     Returns
     -------
@@ -42,11 +46,12 @@ def update_oci_client_config(config: Optional[Dict[str, Any]] = None) -> Dict[st
 
     try:
         config = config or {}
+        service_name = f"{LIBRARY}/{service}" if service else LIBRARY
         if not config.get(USER_AGENT_KEY):
             config.update(
                 {
                     USER_AGENT_KEY: (
-                        f"{LIBRARY}/version={__version__}#"
+                        f"{service_name}/version={__version__}#"
                         f"surface={Surface.surface().name}#"
                         f"api={os.environ.get(EXTRA_USER_AGENT_INFO,UNKNOWN) or UNKNOWN}"
                     )

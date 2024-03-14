@@ -37,7 +37,7 @@ from ads.config import (
     AQUA_MODEL_DEPLOYMENT_CONFIG,
     COMPARTMENT_OCID,
     AQUA_CONFIG_FOLDER,
-    AQUA_MODEL_DEPLOYMENT_FOLDER,
+    AQUA_SERVICE_NAME,
     AQUA_CONTAINER_INDEX_CONFIG,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_SERVED_MODEL_NAME,
@@ -596,6 +596,8 @@ class MDInferenceResponse(AquaApp):
         body = {"prompt": self.prompt, **params_dict}
         request_kwargs = {"json": body, "headers": {"Content-Type": "application/json"}}
         response = requests.post(
-            endpoint, auth=default_signer()["signer"], **request_kwargs
+            endpoint,
+            auth=default_signer({"service": AQUA_SERVICE_NAME})["signer"],
+            **request_kwargs,
         )
         return json.loads(response.content)

@@ -27,6 +27,7 @@ from ads.config import (
     OCI_RESOURCE_PRINCIPAL_VERSION,
     AQUA_TELEMETRY_BUCKET,
     AQUA_TELEMETRY_BUCKET_NS,
+    AQUA_SERVICE_NAME,
 )
 from ads.telemetry.client import TelemetryClient
 from ads.model.datascience_model import DataScienceModel
@@ -47,10 +48,19 @@ class AquaApp:
     def __init__(self) -> None:
         if OCI_RESOURCE_PRINCIPAL_VERSION:
             set_auth("resource_principal")
-        self._auth = default_signer({"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT})
+        self._auth = default_signer(
+            {
+                "service_endpoint": OCI_ODSC_SERVICE_ENDPOINT,
+                "service": AQUA_SERVICE_NAME,
+            }
+        )
         self.ds_client = oc.OCIClientFactory(**self._auth).data_science
-        self.logging_client = oc.OCIClientFactory(**default_signer()).logging_management
-        self.identity_client = oc.OCIClientFactory(**default_signer()).identity
+        self.logging_client = oc.OCIClientFactory(
+            **default_signer({"service": AQUA_SERVICE_NAME})
+        ).logging_management
+        self.identity_client = oc.OCIClientFactory(
+            **default_signer({"service": AQUA_SERVICE_NAME})
+        ).identity
         self.region = extract_region(self._auth)
         self._telemetry = None
 

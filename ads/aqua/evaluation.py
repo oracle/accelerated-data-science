@@ -50,6 +50,7 @@ from ads.config import (
     COMPARTMENT_OCID,
     PROJECT_OCID,
     AQUA_CONTAINER_INDEX_CONFIG,
+    AQUA_SERVICE_NAME,
 )
 from ads.jobs.ads_job import DataScienceJobRun, Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
@@ -406,7 +407,7 @@ class AquaEvaluationApp(AquaApp):
                 upload_local_to_os(
                     src_uri=evaluation_dataset_path,
                     dst_uri=dst_uri,
-                    auth=default_signer(),
+                    auth=default_signer({"service": AQUA_SERVICE_NAME}),
                     force_overwrite=False,
                 )
             except FileExistsError:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
@@ -479,7 +479,10 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
     """
     auth_state = AuthState()
     if auth_state.oci_signer or auth_state.oci_signer_callable:
-        configuration = ads.telemetry.update_oci_client_config(auth_state.oci_config)
+        service = client_kwargs.get("service", None)
+        configuration = ads.telemetry.update_oci_client_config(
+            auth_state.oci_config, service
+        )
         signer = auth_state.oci_signer
         if auth_state.oci_signer_callable:
             signer_kwargs = auth_state.oci_signer_kwargs or {}
