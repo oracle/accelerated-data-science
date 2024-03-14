@@ -271,7 +271,7 @@ class AquaFineTuningApp(AquaApp):
                 upload_local_to_os(
                     src_uri=ft_dataset_path,
                     dst_uri=dst_uri,
-                    auth=default_signer({"service": AQUA_SERVICE_NAME}),
+                    auth=self._auth,
                     force_overwrite=False,
                 )
             except FileExistsError:

@@ -381,7 +381,10 @@ class AquaModelApp(AquaApp):
             **self._process_model(ds_model, self.region),
             project_id=ds_model.project_id,
             model_card=str(
-                read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
+                read_file(
+                    file_path=f"{artifact_path}/{README}",
+                    auth=self.ds_client.base_client.signer,
+                )
             ),
         )
 

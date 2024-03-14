@@ -407,7 +407,7 @@ class AquaEvaluationApp(AquaApp):
                 upload_local_to_os(
                     src_uri=evaluation_dataset_path,
                     dst_uri=dst_uri,
-                    auth=default_signer({"service": AQUA_SERVICE_NAME}),
+                    auth=self._auth,
                     force_overwrite=False,
                 )
             except FileExistsError:
@@ -1012,7 +1012,7 @@ class AquaEvaluationApp(AquaApp):
             logger.info(f"Downloading evaluation artifact: {eval_id}.")
             DataScienceModel.from_id(eval_id).download_artifact(
                 temp_dir,
-                auth=self._auth,
+                auth=self.ds_client.base_client.signer,
             )
 
             files_in_artifact = get_files(temp_dir)
@@ -1112,7 +1112,7 @@ class AquaEvaluationApp(AquaApp):
         with tempfile.TemporaryDirectory() as temp_dir:
             DataScienceModel.from_id(eval_id).download_artifact(
                 temp_dir,
-                auth=self._auth,
+                auth=self.ds_client.base_client.signer,
             )
             content = self._read_from_artifact(
                 temp_dir, get_files(temp_dir), utils.EVALUATION_REPORT

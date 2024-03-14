@@ -597,7 +597,7 @@ class MDInferenceResponse(AquaApp):
         request_kwargs = {"json": body, "headers": {"Content-Type": "application/json"}}
         response = requests.post(
             endpoint,
-            auth=default_signer({"service": AQUA_SERVICE_NAME})["signer"],
+            auth=self._auth["signer"],
             **request_kwargs,
         )
         return json.loads(response.content)
