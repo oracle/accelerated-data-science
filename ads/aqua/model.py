@@ -383,7 +383,7 @@ class AquaModelApp(AquaApp):
             model_card=str(
                 read_file(
                     file_path=f"{artifact_path}/{README}",
-                    auth=self.ds_client.base_client.signer,
+                    auth=self._auth,
                 )
             ),
         )
