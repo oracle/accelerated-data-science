@@ -726,7 +726,18 @@ class AquaModelApp(AquaApp):
 
 
     def load_license(self, model_id: str) -> AquaModelLicense:
-        """Loads the license full text for the given model."""
+        """Loads the license full text for the given model.
+        
+        Parameters
+        ----------
+        model_id: str
+            The model id.
+
+        Returns
+        -------
+        AquaModelLicense:
+            The instance of AquaModelLicense.
+        """
         oci_model = self.ds_client.get_model(model_id).data
         artifact_path = get_artifact_path(oci_model.custom_metadata_list)
         if not artifact_path:

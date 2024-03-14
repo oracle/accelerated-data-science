@@ -44,7 +44,7 @@ class AquaModelHandler(AquaAPIhandler):
         return self.finish(AquaModelApp().list(compartment_id, project_id))
 
 class AquaModelLicenseHandler(AquaAPIhandler):
-    """Handler for Aqua Model REST APIs."""
+    """Handler for Aqua Model license REST APIs."""
 
     @handle_exceptions
     def get(self, model_id):
