@@ -1012,7 +1012,7 @@ class AquaEvaluationApp(AquaApp):
             logger.info(f"Downloading evaluation artifact: {eval_id}.")
             DataScienceModel.from_id(eval_id).download_artifact(
                 temp_dir,
-                auth=self.ds_client.base_client.signer,
+                auth=self._ds_client_auth,
             )
 
             files_in_artifact = get_files(temp_dir)
@@ -1112,7 +1112,7 @@ class AquaEvaluationApp(AquaApp):
         with tempfile.TemporaryDirectory() as temp_dir:
             DataScienceModel.from_id(eval_id).download_artifact(
                 temp_dir,
-                auth=self.ds_client.base_client.signer,
+                auth=self._ds_client_auth,
             )
             content = self._read_from_artifact(
                 temp_dir, get_files(temp_dir), utils.EVALUATION_REPORT

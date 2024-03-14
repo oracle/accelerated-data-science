@@ -49,6 +49,12 @@ class AquaApp:
         if OCI_RESOURCE_PRINCIPAL_VERSION:
             set_auth("resource_principal")
         self._auth = default_signer({"service": AQUA_SERVICE_NAME})
+        self._ds_client_auth = default_signer(
+            {
+                "service_endpoint": OCI_ODSC_SERVICE_ENDPOINT,
+                "service": AQUA_SERVICE_NAME,
+            }
+        )
         self.region = extract_region(self._auth)
         self._ds_client = None
         self._logging_client = None
@@ -274,14 +280,7 @@ class AquaApp:
     @property
     def ds_client(self):
         if not self._ds_client:
-            self._ds_client = oc.OCIClientFactory(
-                **default_signer(
-                    {
-                        "service_endpoint": OCI_ODSC_SERVICE_ENDPOINT,
-                        "service": AQUA_SERVICE_NAME,
-                    }
-                )
-            ).data_science
+            self._ds_client = oc.OCIClientFactory(**self._ds_client_auth).data_science
         return self._ds_client
 
     @property
