@@ -31,7 +31,8 @@ from ads.aqua.utils import (
     UNKNOWN,
     UNKNOWN_LIST,
     create_word_icon,
-    get_artifact_path_and_commit,
+    get_artifact_path,
+    get_commit_path,
     read_file,
 )
 from ads.common.auth import default_signer
@@ -373,16 +374,19 @@ class AquaModelApp(AquaApp):
             else UNKNOWN_LIST
         )
 
-        artifact_path, commit = get_artifact_path_and_commit(
+
+        artifact_path= get_artifact_path(
             custom_metadata_list
         )
+
+        commit_path = get_commit_path(artifact_path)
 
         aqua_model_atttributes = dict(
             **self._process_model(ds_model, self.region),
             project_id=ds_model.project_id,
             model_card=str(
                 read_file(
-                    file_path=f"{artifact_path.rstrip('/')}/{commit}/{README}",
+                    file_path=f"{commit_path}/{README}",
                     auth=self._auth
                 )
             ),
@@ -735,18 +739,20 @@ class AquaModelApp(AquaApp):
             The instance of AquaModelLicense.
         """
         oci_model = self.ds_client.get_model(model_id).data
-        artifact_path, commit = get_artifact_path_and_commit(
+        artifact_path = get_artifact_path(
             oci_model.custom_metadata_list
         )
-        if not (artifact_path and commit):
+        if not artifact_path:
             raise AquaMissingKeyError(
-                "Failed to get artifact path or commit from custom metadata.",
+                "Failed to get artifact path from custom metadata.",
                 500
             )
 
+        commit_path = get_commit_path(artifact_path)
+
         content = str(
             read_file(
-                file_path=f"{artifact_path.rstrip('/')}/{commit}/{LICENSE_TXT}",
+                file_path=f"{commit_path}/{LICENSE_TXT}",
                 auth=default_signer()
             )
         )

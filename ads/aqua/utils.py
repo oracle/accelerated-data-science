@@ -134,7 +134,6 @@ LIFECYCLE_DETAILS_MAPPING = {
 }
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "artifact_location"
-COMMIT_KEY = "commit"
 
 
 def get_logger():
@@ -196,8 +195,8 @@ def create_word_icon(label: str, width: int = 150, return_as_datauri=True):
         return icon_svg
 
 
-def get_artifact_path_and_commit(custom_metadata_list: List) -> tuple:
-    """Get the artifact path and commit from the custom metadata list of model.
+def get_artifact_path(custom_metadata_list: List) -> str:
+    """Get the artifact path from the custom metadata list of model.
 
     Parameters
     ----------
@@ -206,11 +205,10 @@ def get_artifact_path_and_commit(custom_metadata_list: List) -> tuple:
 
     Returns
     -------
-    tuple:
-        The (artifact path, commit) from model custom metadata.
+    str:
+        The artifact path from model custom metadata.
     """
     artifact_path = UNKNOWN
-    commit = UNKNOWN
     for custom_metadata in custom_metadata_list:
         if custom_metadata.key == MODEL_BY_REFERENCE_OSS_PATH_KEY:
             if ObjectStorageDetails.is_oci_path(custom_metadata.value):
@@ -219,14 +217,11 @@ def get_artifact_path_and_commit(custom_metadata_list: List) -> tuple:
                 artifact_path = ObjectStorageDetails(
                     AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, custom_metadata.value
                 ).path
-        elif custom_metadata.key == COMMIT_KEY:
-            commit = custom_metadata.value
 
     if not artifact_path:
         logger.debug("Failed to get artifact path from custom metadata.")
-    if not commit:
-        logger.debug("Failed to get commit from custom metadata.")
-    return (artifact_path, commit)
+
+    return artifact_path
 
 
 def read_file(file_path: str, **kwargs) -> str:
@@ -252,6 +247,13 @@ def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
             f"Config file `{config_file_name}` is either empty or missing at {artifact_path}"
         )
     return config
+
+
+def get_commit_path(artifact_path: str) -> str:
+    # artifact_path format: oci://{bucket}@{namespace}/service_models/{model_name}/{commit}/artifact"
+    commit_index = artifact_path.rstrip("/").rfind("/")
+    commit_path = artifact_path[0:commit_index]
+    return commit_path
 
 
 def is_valid_ocid(ocid: str) -> bool:

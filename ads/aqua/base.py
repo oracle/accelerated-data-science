@@ -13,7 +13,8 @@ from ads.aqua import logger
 from ads.aqua.data import Tags
 from ads.aqua.utils import (
     UNKNOWN,
-    get_artifact_path_and_commit,
+    get_artifact_path,
+    get_commit_path,
     is_valid_ocid,
     load_config,
     logger,
@@ -258,7 +259,7 @@ class AquaApp:
         if is_fine_tuned_model:
             _, model_name = get_base_model_from_tags(oci_model.freeform_tags)
 
-        artifact_path, commit = get_artifact_path_and_commit(
+        artifact_path = get_artifact_path(
             oci_model.custom_metadata_list
         )
 
@@ -266,15 +267,17 @@ class AquaApp:
             "shape": default_shapes
         }
 
-        if not (artifact_path and commit):
+        if not artifact_path:
             logger.error(
                 f"Failed to retrieve {config_file_name} for aqua model {model_name} due to "
-                f"missing artifact path or commit. Using default {default_shapes} instead."
+                f"missing artifact path. Using default {default_shapes} instead."
             )
             return default_config
 
+        commit_path = get_commit_path(artifact_path)
+
         config = load_config(
-            file_path=f"{artifact_path.rstrip('/')}/{commit}/config",
+            file_path=f"{commit_path}/config",
             config_file_name=config_file_name,
         )
 
