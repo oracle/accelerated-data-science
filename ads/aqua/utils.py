@@ -504,7 +504,7 @@ def _build_job_identifier(
         return AquaResourceIdentifier()
 
 
-def get_container_image(config_file_name: str, container_type: str) -> str:
+def get_container_image(config_file_name: str=None, container_type: str=None) -> str:
     """Gets the image name from the given model and container type.
     Parameters
     ----------
@@ -518,8 +518,9 @@ def get_container_image(config_file_name: str, container_type: str) -> str:
     Dict:
         A dict of allowed configs.
     """
+    
+    config_file_name = f"{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service-models/config"
 
-    # todo: currently loads config within ads, artifact_path will be an external bucket
     config = load_config(
         AQUA_CONFIG_FOLDER,
         config_file_name=config_file_name,

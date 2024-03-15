@@ -33,6 +33,7 @@ from ads.aqua.exception import (
     AquaValueError,
 )
 from ads.aqua.utils import (
+    CONDA_BUCKET_NS,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     NB_SESSION_IDENTIFIER,
     UNKNOWN,
@@ -721,7 +722,6 @@ class AquaEvaluationApp(AquaApp):
 
         # fetch image name from config
         container_image = get_container_image(
-            config_file_name=AQUA_CONTAINER_INDEX_CONFIG,
             container_type="odsc-llm-evaluate",
         )
         logger.info(f"Aqua Image used for evaluating {source_id} :{container_image}")
