@@ -24,6 +24,7 @@ from oci.data_science.models import JobRun, Model
 from ads.aqua.constants import RqsAdditionalDetails
 from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
+from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link, upload_to_os
@@ -222,9 +223,13 @@ def read_file(file_path: str, **kwargs) -> str:
 
 
 def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
-    artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
+    artifact_path = f"{file_path.rstrip('/')}/{config_file_name}" if not file_path else config_file_name
+    if artifact_path.startswith("oci://"):
+        signer = default_signer()
+    else:
+        signer = {}
     config = json.loads(
-        read_file(file_path=artifact_path, **kwargs) or UNKNOWN_JSON_STR
+        read_file(file_path=artifact_path, auth=signer(), **kwargs) or UNKNOWN_JSON_STR
     )
     if not config:
         raise AquaFileNotFoundError(
@@ -522,7 +527,7 @@ def get_container_image(config_file_name: str=None, container_type: str=None) ->
     config_file_name = f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service-models/config"
 
     config = load_config(
-        AQUA_CONFIG_FOLDER,
+        None,
         config_file_name=config_file_name,
     )
 
