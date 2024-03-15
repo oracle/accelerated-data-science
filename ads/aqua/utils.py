@@ -525,7 +525,7 @@ def get_container_image(config_file_name: str=None, container_type: str=None) ->
         A dict of allowed configs.
     """
     
-    config_file_name = f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service-models/config"
+    config_file_name = f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
 
     config = load_config(
         file_path=config_file_name,
