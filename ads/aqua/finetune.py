@@ -33,6 +33,7 @@ from ads.aqua.utils import (
     UNKNOWN,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     UNKNOWN_DICT,
+    get_container_image,
     load_config,
     logger,
     upload_local_to_os,
@@ -63,6 +64,7 @@ class FineTuneCustomMetadata(Enum):
     FINE_TUNE_JOB_RUN_ID = "fine_tune_job_run_id"
     SERVICE_MODEL_ARTIFACT_LOCATION = "artifact_location"
     SERVICE_MODEL_DEPLOYMENT_CONTAINER = "deployment-container"
+    SERVICE_MODEL_FINE_TUNE_CONTAINER = "finetune-container"
 
 
 @dataclass(repr=False)
@@ -377,6 +379,8 @@ class AquaFineTuningApp(AquaApp):
             config_file_name="finetuning_config.json",
         )
 
+        ft_container = source.custom_metadata_list.get(FineTuneCustomMetadata.SERVICE_MODEL_FINE_TUNE_CONTAINER.value).value
+
         batch_size = (
             ft_config.get(source.display_name, UNKNOWN_DICT)
             .get("shape", UNKNOWN_DICT)
@@ -397,6 +401,7 @@ class AquaFineTuningApp(AquaApp):
                     or DEFAULT_FT_VALIDATION_SET_SIZE
                 ),
                 parameters=ft_parameters,
+                ft_container=ft_container,
             )
         ).create()
         logger.debug(
@@ -502,8 +507,12 @@ class AquaFineTuningApp(AquaApp):
         batch_size: int,
         val_set_size: float,
         parameters: AquaFineTuningParams,
+        ft_container: str = None
     ) -> Runtime:
         """Builds fine tuning runtime for Job."""
+        container = get_container_image(
+            container_type=ft_container,
+        )
         runtime = (
             ContainerRuntime()
             .with_environment_variable(
@@ -520,7 +529,7 @@ class AquaFineTuningApp(AquaApp):
                     "OCI__LAUNCH_CMD": f"--micro_batch_size {batch_size} --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size}",
                 }
             )
-            .with_image(image=FINE_TUNING_RUNTIME_CONTAINER)
+            .with_image(image=container)
             .with_replica(replica)
         )
 
