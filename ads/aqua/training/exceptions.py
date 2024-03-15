@@ -360,7 +360,7 @@ class OutOfMemoryErrorExit(TrainingExit):
     reason = (
         "CUDA out of memory. "
         "GPU does not have enough memory to train the model. "
-        "Please use a shape with more GPU memory.\n"
+        "Please use a shape with more GPU memory."
     )
 
 

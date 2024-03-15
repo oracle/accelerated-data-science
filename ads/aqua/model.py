@@ -254,6 +254,8 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
             match = re.search(r"exit code (\d+)", lifecycle_details)
             if match:
                 exit_code = int(match.group(1))
+                if exit_code == 1:
+                    return message
                 # Match exit code to message
                 exception = exit_code_dict().get(
                     exit_code,
