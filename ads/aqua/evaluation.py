@@ -968,13 +968,33 @@ class AquaEvaluationApp(AquaApp):
 
     def get_supported_metrics(self) -> dict:
         """Gets a list of supported metrics for evaluation."""
-        # TODO: implemente it when starting to support more metrics.
+        # TODO: implement it when starting to support more metrics.
         return [
             {
                 "use_case": ["text_generation"],
                 "key": "bertscore",
                 "name": "BERT Score",
-                "description": "BERT Score is a metric for evaluating the quality of text generation models, such as machine translation or summarization. It utilizes pre-trained BERT contextual embeddings for both the generated and reference texts, and then calculates the cosine similarity between these embeddings.",
+                "description": (
+                    "BERT Score is a metric for evaluating the quality of text "
+                    "generation models, such as machine translation or summarization. "
+                    "It utilizes pre-trained BERT contextual embeddings for both the "
+                    "generated and reference texts, and then calculates the cosine "
+                    "similarity between these embeddings."
+                ),
+                "args": {},
+            },
+            {
+                "use_case": ["text_generation"],
+                "key": "rouge",
+                "name": "ROUGE Score",
+                "description": (
+                    "ROUGE scores compare a candidate document to a collection of "
+                    "reference documents to evaluate the similarity between them. "
+                    "The metrics range from 0 to 1, with higher scores indicating "
+                    "greater similarity. ROUGE is more suitable for models that don't "
+                    "include paraphrasing and do not generate new text units that don't "
+                    "appear in the references."
+                ),
                 "args": {},
             },
         ]
@@ -990,7 +1010,7 @@ class AquaEvaluationApp(AquaApp):
         Returns
         -------
         AquaEvalMetrics:
-            An instancec of AquaEvalMetrics.
+            An instance of AquaEvalMetrics.
         """
         if eval_id in self._metrics_cache.keys():
             logger.info(f"Returning metrics from cache.")
