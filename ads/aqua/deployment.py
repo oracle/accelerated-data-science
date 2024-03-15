@@ -43,6 +43,7 @@ from ads.config import (
     AQUA_SERVED_MODEL_NAME,
 )
 from ads.common.object_storage_details import ObjectStorageDetails
+from ads.telemetry import telemetry
 
 
 @dataclass
@@ -172,6 +173,7 @@ class AquaDeploymentApp(AquaApp):
         with OCI services.
     """
 
+    @telemetry(entry_point="plugin=deployment&action=create", name="aqua")
     def create(
         self,
         model_id: str,
@@ -387,6 +389,7 @@ class AquaDeploymentApp(AquaApp):
             deployment.dsc_model_deployment, self.region
         )
 
+    @telemetry(entry_point="plugin=deployment&action=list", name="aqua")
     def list(self, **kwargs) -> List["AquaDeployment"]:
         """List Aqua model deployments in a given compartment and under certain project.
 
@@ -429,6 +432,7 @@ class AquaDeploymentApp(AquaApp):
 
         return results
 
+    @telemetry(entry_point="plugin=deployment&action=get", name="aqua")
     def get(self, model_deployment_id: str, **kwargs) -> "AquaDeploymentDetail":
         """Gets the information of Aqua model deployment.
 
@@ -495,6 +499,9 @@ class AquaDeploymentApp(AquaApp):
             log=AquaResourceIdentifier(log_id, log_name, log_url),
         )
 
+    @telemetry(
+        entry_point="plugin=deployment&action=get_deployment_config", name="aqua"
+    )
     def get_deployment_config(self, model_id: str) -> Dict:
         """Gets the deployment config of given Aqua model.
 
@@ -540,6 +547,7 @@ class MDInferenceResponse(AquaApp):
     prompt: str = None
     model_params: field(default_factory=ModelParams) = None
 
+    @telemetry(entry_point="plugin=inference&action=get_response", name="aqua")
     def get_model_deployment_response(self, endpoint):
         """
         Returns MD inference response

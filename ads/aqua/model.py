@@ -288,6 +288,7 @@ class AquaModelApp(AquaApp):
     )
     _cache_lock = Lock()
 
+    @telemetry(entry_point="plugin=model&action=create", name="aqua")
     def create(
         self, model_id: str, project_id: str, compartment_id: str = None, **kwargs
     ) -> DataScienceModel:
@@ -592,6 +593,7 @@ class AquaModelApp(AquaApp):
             search_text=search_text,
         )
 
+    @telemetry(entry_point="plugin=model&action=list", name="aqua")
     def list(
         self, compartment_id: str = None, project_id: str = None, **kwargs
     ) -> List["AquaModelSummary"]:
@@ -724,6 +726,7 @@ class AquaModelApp(AquaApp):
         separator = " " if description else ""
         return f"{description}{separator}{tags_text}"
 
+    @telemetry(entry_point="plugin=model&action=load_license", name="aqua")
     def load_license(self, model_id: str) -> AquaModelLicense:
         """Loads the license full text for the given model.
 
