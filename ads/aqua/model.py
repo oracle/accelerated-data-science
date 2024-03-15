@@ -28,6 +28,7 @@ from ads.aqua.utils import (
     CONDA_BUCKET_NS,
     LICENSE_TXT,
     README,
+    READY_TO_DEPLOY_STATUS,
     UNKNOWN,
     create_word_icon,
     get_artifact_path,
@@ -239,13 +240,6 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
             logger.debug(
                 f"Key={FineTuningDefinedMetadata.VAL_SET_SIZE.value} not found in model hyperparameters."
             )
-
-        self.ready_to_deploy = (
-            True
-            if model.freeform_tags
-            and model.freeform_tags.get(Tags.AQUA_TAG.value, "").upper() == "ACTIVE"
-            else False
-        )
 
 
 # TODO: merge metadata key used in create FT
@@ -585,7 +579,7 @@ class AquaModelApp(AquaApp):
         freeform_tags = model.freeform_tags or {}
         is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG.value in freeform_tags
         ready_to_deploy = (
-            freeform_tags.get(Tags.AQUA_TAG.value, "").upper() == "ACTIVE"
+            freeform_tags.get(Tags.AQUA_TAG.value, "").upper() == READY_TO_DEPLOY_STATUS
             if is_fine_tuned_model
             else True
         )
