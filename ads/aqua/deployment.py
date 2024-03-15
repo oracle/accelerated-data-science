@@ -331,7 +331,6 @@ class AquaDeploymentApp(AquaApp):
 
         # fetch image name from config
         container_image = get_container_image(
-            config_file_name=AQUA_CONTAINER_INDEX_CONFIG,
             container_type=container_type_key,
         )
         logging.info(

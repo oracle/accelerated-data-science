@@ -60,6 +60,9 @@ AQUA_MODEL_FINETUNING_CONFIG = os.environ.get(
 AQUA_CONTAINER_INDEX_CONFIG = os.environ.get(
     "AQUA_CONTAINER_INDEX_CONFIG", "container_index.json"
 )
+AQUA_RESOURCE_LIMIT_NAMES_CONFIG = os.environ.get(
+    "AQUA_RESOURCE_LIMIT_NAMES_CONFIG", "resource_limit_names.json"
+)
 AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME = "deployment-container"
 AQUA_FINETUNING_CONTAINER_METADATA_NAME = "finetune-container"
 AQUA_EVALUATION_CONTAINER_METADATA_NAME = "evaluation-container"
@@ -78,6 +81,7 @@ AQUA_TELEMETRY_BUCKET = os.environ.get(
 AQUA_TELEMETRY_BUCKET_NS = os.environ.get("AQUA_TELEMETRY_BUCKET_NS", "id19sfcrra6z")
 DEBUG_TELEMETRY = os.environ.get("DEBUG_TELEMETRY", None)
 AQUA_SERVICE_NAME = "aqua"
+DATA_SCIENCE_SERVICE_NAME = "data-science"
 
 
 def export(

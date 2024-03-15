@@ -3,6 +3,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA utils and constants."""
+import asyncio
 import base64
 import json
 import logging
@@ -11,20 +12,19 @@ import random
 import re
 import sys
 from enum import Enum
+from functools import wraps
 from pathlib import Path
 from string import Template
 from typing import List, Union
-from functools import wraps
-import asyncio
 
 import fsspec
 import oci
 from oci.data_science.models import JobRun, Model
 
 from ads.aqua.constants import RqsAdditionalDetails
-from ads.aqua.data import AquaResourceIdentifier
+from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
-from ads.aqua.data import Tags
+from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link, upload_to_os
@@ -34,10 +34,14 @@ from ads.model import DataScienceModel
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
 
+CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS")
+
 UNKNOWN = ""
 UNKNOWN_DICT = {}
 README = "README.md"
+LICENSE_TXT= "config/LICENSE.txt"
 DEPLOYMENT_CONFIG = "deployment_config.json"
+CONTAINER_INDEX = "container_index.json"
 EVALUATION_REPORT_JSON = "report.json"
 EVALUATION_REPORT_MD = "report.md"
 EVALUATION_REPORT = "report.html"
@@ -48,14 +52,6 @@ CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
     datasciencejob="jobs",
     datasciencejobrun="jobruns",
     datasciencemodelversionset="model-version-sets",
-)
-CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS", "ociodscdev")
-SOURCE_FILE = "run.sh"
-CONDA_URI = f"oci://aqua-eval-test-bucket@{CONDA_BUCKET_NS}/conda_environments/gpu/PyTorch 2.1 for GPU on Python 3.9/1.0/pytorch21_p39_gpu_v1"
-CONDA_REGION = "us-ashburn-1"
-BERT_SCORE_PATH = "/home/datascience/conda/pytorch21_p39_gpu_v1/bertscore/bertscore.py"
-BERT_BASE_MULTILINGUAL_CASED = (
-    "/home/datascience/conda/pytorch21_p39_gpu_v1/bert-base-multilingual-cased/"
 )
 FINE_TUNING_RUNTIME_CONTAINER = "iad.ocir.io/ociodscdev/aqua_ft_cuda121:0.3.17.20"
 DEFAULT_FT_BLOCK_STORAGE_SIZE = 256
@@ -229,8 +225,12 @@ def read_file(file_path: str, **kwargs) -> str:
 
 def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
     artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
+    if artifact_path.startswith("oci://"):
+        signer = default_signer()
+    else:
+        signer = {}
     config = json.loads(
-        read_file(file_path=artifact_path, **kwargs) or UNKNOWN_JSON_STR
+        read_file(file_path=artifact_path, auth=signer, **kwargs) or UNKNOWN_JSON_STR
     )
     if not config:
         raise AquaFileNotFoundError(
@@ -510,7 +510,7 @@ def _build_job_identifier(
         return AquaResourceIdentifier()
 
 
-def get_container_image(config_file_name: str, container_type: str) -> str:
+def get_container_image(config_file_name: str=None, container_type: str=None) -> str:
     """Gets the image name from the given model and container type.
     Parameters
     ----------
@@ -524,11 +524,12 @@ def get_container_image(config_file_name: str, container_type: str) -> str:
     Dict:
         A dict of allowed configs.
     """
+    
+    config_file_name = f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service-models/config"
 
-    # todo: currently loads config within ads, artifact_path will be an external bucket
     config = load_config(
-        AQUA_CONFIG_FOLDER,
-        config_file_name=config_file_name,
+        file_path=config_file_name,
+        config_file_name=CONTAINER_INDEX,
     )
 
     if container_type not in config:
