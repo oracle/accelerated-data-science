@@ -255,13 +255,11 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
             if match:
                 exit_code = int(match.group(1))
                 # Match exit code to message
-                message = (
-                    exit_code_dict().get(
-                        exit_code,
-                        lifecycle_details,
-                    )
-                    + f" (exit code {exit_code})"
+                exception = exit_code_dict().get(
+                    exit_code,
+                    lifecycle_details,
                 )
+                message = f"{exception.reason} (exit code {exit_code})"
         except:
             pass
 
