@@ -91,6 +91,7 @@ class EvaluationJobExitCode(Enum):
     COMPUTE_EVALUATION_ERROR = 27
     EVALUATION_REPORT_ERROR = 28
     MODEL_INFERENCE_WRONG_RESPONSE_FORMAT = 29
+    UNSUPPORTED_METRICS = 30
 
 
 EVALUATION_JOB_EXIT_CODE_MESSAGE = {
@@ -113,6 +114,7 @@ EVALUATION_JOB_EXIT_CODE_MESSAGE = {
     EvaluationJobExitCode.COMPUTE_EVALUATION_ERROR.value: "Evaluation process encountered an issue while calculating metrics",
     EvaluationJobExitCode.EVALUATION_REPORT_ERROR.value: "Failed to save the evaluation report due to an error. Ensure the evaluation model is currently active and the specified path for the output report is valid and accessible. Verify these conditions and reinitiate the evaluation process",
     EvaluationJobExitCode.MODEL_INFERENCE_WRONG_RESPONSE_FORMAT.value: "Evaluation encountered unsupported, or unexpected model output, verify the target evaluation model is compatible and produces the correct format.",
+    EvaluationJobExitCode.UNSUPPORTED_METRICS.value: "None of the provided metrics are supported by the framework.",
 }
 
 
