@@ -14,8 +14,14 @@ from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaValueError
 from ads.common.auth import default_signer
 from ads.common import oci_client as oc
-from ads.config import COMPARTMENT_OCID, TENANCY_OCID
-from ads.aqua.utils import sanitize_response
+from ads.config import (
+    COMPARTMENT_OCID,
+    TENANCY_OCID,
+    DATA_SCIENCE_SERVICE_NAME,
+    AQUA_CONFIG_FOLDER,
+    AQUA_RESOURCE_LIMIT_NAMES_CONFIG,
+)
+from ads.aqua.utils import sanitize_response, load_config
 
 
 class AquaUIApp(AquaApp):
@@ -302,3 +308,65 @@ class AquaUIApp(AquaApp):
         res = vcn_client.list_subnets(compartment_id=compartment_id, vcn_id=vcn_id).data
 
         return sanitize_response(oci_client=vcn_client, response=res)
+
+    def get_shape_availability(self, **kwargs):
+        """
+        For a given compartmentId, resource limit name, and scope, returns the number of available resources associated
+        with the given limit.
+        Parameters
+        ----------
+        kwargs
+            instance_shape: (str).
+                The shape of the instance used for deployment.
+
+            **kwargs
+            Addtional arguments, such as `compartment_id`,
+            for `get_resource_availability <https://docs.oracle.com/iaas/api/#/en/limits/20181025/ResourceAvailability/GetResourceAvailability>`_
+
+        Returns
+        -------
+        dict:
+            available resource count.
+
+        """
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        instance_shape = kwargs.pop("instance_shape", None)
+
+        if not instance_shape:
+            raise AquaValueError("instance_shape argument is required.")
+
+        limits_client = oc.OCIClientFactory(**default_signer()).limits
+
+        artifact_path = AQUA_CONFIG_FOLDER
+        config = load_config(
+            artifact_path,
+            config_file_name=AQUA_RESOURCE_LIMIT_NAMES_CONFIG,
+        )
+
+        if instance_shape not in config:
+            logger.error(
+                f"{instance_shape} does not have mapping details in {AQUA_RESOURCE_LIMIT_NAMES_CONFIG}"
+            )
+            return {}
+
+        limit_name = config[instance_shape]
+        res = limits_client.get_resource_availability(
+            DATA_SCIENCE_SERVICE_NAME, limit_name, compartment_id, **kwargs
+        ).data
+        available = res.available
+
+        try:
+            cards = int(instance_shape.split(".")[-1])
+        except:
+            cards = 1
+
+        response = dict(available_count=available)
+
+        if available < cards:
+            raise AquaValueError(
+                f"Inadequate resources are available to create the {instance_shape} resource. The number of available "
+                f"resources associated with the limit name {limit_name} are {available}.",
+                service_payload=response,
+            )
+
+        return response
