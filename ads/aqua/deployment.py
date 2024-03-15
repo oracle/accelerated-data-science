@@ -18,6 +18,7 @@ from ads.aqua.utils import (
     DEFAULT_DEPLOYMENT_SHAPE_LIST,
     UNKNOWN,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
+    UNKNOWN_DICT,
     get_container_image,
     get_resource_name,
 )
@@ -281,8 +282,19 @@ class AquaDeploymentApp(AquaApp):
             os_path = ObjectStorageDetails.from_path(model_path_prefix)
             model_path_prefix = os_path.filepath.rstrip("/")
 
+        params = f"--served-model-name {AQUA_SERVED_MODEL_NAME} --trust-remote-code"
+        vllm_params = (
+            deployment_config
+            .get("configuration", UNKNOWN_DICT)
+            .get(instance_shape, UNKNOWN_DICT)
+            .get("parameters", UNKNOWN_DICT)
+            .get("VLLM_PARAMS", UNKNOWN)
+        )
+        if vllm_params:
+            params = f"--served-model-name {AQUA_SERVED_MODEL_NAME} {vllm_params} --trust-remote-code"
+
         env_var.update({"BASE_MODEL": f"{model_path_prefix}"})
-        env_var.update({"PARAMS": f"--served-model-name {AQUA_SERVED_MODEL_NAME}"})
+        env_var.update({"PARAMS": params})
         env_var.update({"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"})
         env_var.update({"MODEL_DEPLOY_ENABLE_STREAMING": "true"})
 
