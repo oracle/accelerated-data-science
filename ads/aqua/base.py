@@ -27,7 +27,6 @@ from ads.config import (
     OCI_RESOURCE_PRINCIPAL_VERSION,
     AQUA_TELEMETRY_BUCKET,
     AQUA_TELEMETRY_BUCKET_NS,
-    AQUA_SERVICE_NAME,
 )
 from ads.telemetry.client import TelemetryClient
 from ads.model.datascience_model import DataScienceModel

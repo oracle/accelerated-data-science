@@ -12,6 +12,8 @@ from cachetools import TTLCache
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaValueError
+from ads.common.auth import default_signer
+from ads.common import oci_client as oc
 from ads.config import COMPARTMENT_OCID, TENANCY_OCID
 from ads.aqua.utils import sanitize_response
 
@@ -223,18 +225,17 @@ class AquaUIApp(AquaApp):
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         logger.info(f"Loading buckets summary from compartment: {compartment_id}")
 
-        namespace_name = self.os_client.get_namespace(
-            compartment_id=compartment_id
-        ).data
+        os_client = oc.OCIClientFactory(**default_signer()).object_storage
+        namespace_name = os_client.get_namespace(compartment_id=compartment_id).data
         logger.info(f"Object Storage namespace is `{namespace_name}`.")
 
-        res = self.os_client.list_buckets(
+        res = os_client.list_buckets(
             namespace_name=namespace_name,
             compartment_id=compartment_id,
             **kwargs,
         ).data
 
-        return sanitize_response(oci_client=self.os_client, response=res)
+        return sanitize_response(oci_client=os_client, response=res)
 
     def list_job_shapes(self, **kwargs) -> list:
         """Lists all availiable job shapes for the specified compartment.
@@ -272,8 +273,11 @@ class AquaUIApp(AquaApp):
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         logger.info(f"Loading VCN list from compartment: {compartment_id}")
 
-        res = self.vcn_client.list_vcns(compartment_id=compartment_id).data
-        return sanitize_response(oci_client=self.vcn_client, response=res)
+        # todo: add _vcn_client in init in AquaApp, then add a property vcn_client which does lazy init
+        #   of _vcn_client. Do this for all clients in AquaApp
+        vcn_client = oc.OCIClientFactory(**default_signer()).virtual_network
+        res = vcn_client.list_vcns(compartment_id=compartment_id).data
+        return sanitize_response(oci_client=vcn_client, response=res)
 
     def list_subnets(self, **kwargs) -> list:
         """Lists the subnets in the specified VCN and the specified compartment.
@@ -294,7 +298,7 @@ class AquaUIApp(AquaApp):
             f"Loading subnet list from compartment: {compartment_id} for VCN: {vcn_id}"
         )
 
-        res = self.vcn_client.list_subnets(
-            compartment_id=compartment_id, vcn_id=vcn_id
-        ).data
-        return sanitize_response(oci_client=self.vcn_client, response=res)
+        vcn_client = oc.OCIClientFactory(**default_signer()).virtual_network
+        res = vcn_client.list_subnets(compartment_id=compartment_id, vcn_id=vcn_id).data
+
+        return sanitize_response(oci_client=vcn_client, response=res)
