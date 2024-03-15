@@ -3,7 +3,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import Dict, Union
+from typing import Dict, List, Union
 
 import oci
 from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDetails
@@ -13,6 +13,7 @@ from ads.aqua import logger
 from ads.aqua.data import Tags
 from ads.aqua.utils import (
     UNKNOWN,
+    get_artifact_path_and_commit,
     is_valid_ocid,
     load_config,
     logger,
@@ -22,7 +23,6 @@ from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import extract_region
 from ads.config import (
-    AQUA_CONFIG_FOLDER,
     OCI_ODSC_SERVICE_ENDPOINT,
     OCI_RESOURCE_PRINCIPAL_VERSION,
 )
@@ -213,14 +213,22 @@ class AquaApp:
                 logger.info(f"Artifact not found in model {model_id}.")
                 return False
 
-    def get_config(self, model_id: str, config_file_name: str) -> Dict:
+    def get_config(
+        self,
+        model_id: str,
+        config_file_name: str,
+        default_shapes: Union[Dict, List],
+    ) -> Dict:
         """Gets the config for the given Aqua model.
+
         Parameters
         ----------
         model_id: str
             The OCID of the Aqua model.
         config_file_name: str
             name of the config file
+        default_shapes: Union[Dict, List]
+            The default returned shapes if config is invalid.
 
         Returns
         -------
@@ -228,14 +236,6 @@ class AquaApp:
             A dict of allowed configs.
         """
         oci_model = self.ds_client.get_model(model_id).data
-        model_name = oci_model.display_name
-
-        is_fine_tuned_model = (
-            Tags.AQUA_FINE_TUNED_MODEL_TAG.value in oci_model.freeform_tags
-        )
-
-        if is_fine_tuned_model:
-            _, model_name = get_base_model_from_tags(oci_model.freeform_tags)
 
         oci_aqua = (
             (
@@ -249,17 +249,40 @@ class AquaApp:
         if not oci_aqua:
             raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
 
-        # todo: currently loads config within ads, artifact_path will be an external bucket
-        artifact_path = AQUA_CONFIG_FOLDER
+        model_name = oci_model.display_name
+
+        is_fine_tuned_model = (
+            Tags.AQUA_FINE_TUNED_MODEL_TAG.value in oci_model.freeform_tags
+        )
+
+        if is_fine_tuned_model:
+            _, model_name = get_base_model_from_tags(oci_model.freeform_tags)
+
+        artifact_path, commit = get_artifact_path_and_commit(
+            oci_model.custom_metadata_list
+        )
+
+        default_config = {
+            "shape": default_shapes
+        }
+
+        if not (artifact_path and commit):
+            logger.error(
+                f"Failed to retrieve {config_file_name} for aqua model {model_name} due to "
+                f"missing artifact path or commit. Using default {default_shapes} instead."
+            )
+            return default_config
+
         config = load_config(
-            artifact_path,
+            file_path=f"{artifact_path.rstrip('/')}/{commit}/config",
             config_file_name=config_file_name,
         )
 
-        if model_name not in config:
+        if not config:
             logger.error(
-                f"{config_file_name} does not have config details for model: {model_name}"
+                f"Failed to retrieve {config_file_name} for aqua model {model_name} due to "
+                f"missing or empty config file. Using default {default_shapes} instead."
             )
-            return {}
+            return default_config
 
-        return config[model_name]
+        return config

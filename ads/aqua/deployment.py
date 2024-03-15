@@ -15,11 +15,10 @@ from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaRuntimeError, AquaValueError
 from ads.aqua.model import AquaModelApp, Tags
 from ads.aqua.utils import (
+    DEFAULT_DEPLOYMENT_SHAPE_LIST,
     UNKNOWN,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
-    load_config,
     get_container_image,
-    get_base_model_from_tags,
     get_resource_name,
 )
 from ads.aqua.finetune import FineTuneCustomMetadata
@@ -36,9 +35,6 @@ from ads.common.serializer import DataClassSerializable
 from ads.config import (
     AQUA_MODEL_DEPLOYMENT_CONFIG,
     COMPARTMENT_OCID,
-    AQUA_CONFIG_FOLDER,
-    AQUA_MODEL_DEPLOYMENT_FOLDER,
-    AQUA_CONTAINER_INDEX_CONFIG,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_SERVED_MODEL_NAME,
 )
@@ -255,27 +251,13 @@ class AquaDeploymentApp(AquaApp):
             if tag in aqua_model.freeform_tags:
                 tags[tag] = aqua_model.freeform_tags[tag]
 
-        deployment_config = load_config(
-            AQUA_CONFIG_FOLDER,
-            config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG,
-        )
-        # todo: revisit after create FT model is implemented
-
         is_fine_tuned_model = (
             Tags.AQUA_FINE_TUNED_MODEL_TAG.value in aqua_model.freeform_tags
         )
 
-        if is_fine_tuned_model:
-            _, model_name = get_base_model_from_tags(aqua_model.freeform_tags)
-        else:
-            model_name = aqua_model.display_name
+        deployment_config = self.get_deployment_config(model_id)
 
-        if model_name not in deployment_config:
-            raise AquaValueError(
-                f"{AQUA_MODEL_DEPLOYMENT_CONFIG} does not have config details for model: {model_name}"
-            )
-
-        shape_list = deployment_config[model_name]["shape"]
+        shape_list = deployment_config["shape"]
         if instance_shape not in shape_list:
             raise AquaValueError(
                 f"{instance_shape} is not supported by the model {aqua_model.id}. Available shapes are: {shape_list}"
@@ -508,8 +490,11 @@ class AquaDeploymentApp(AquaApp):
         Dict:
             A dict of allowed deployment configs.
         """
-
-        return self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG)
+        return self.get_config(
+            model_id=model_id,
+            config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG,
+            default_shapes=DEFAULT_DEPLOYMENT_SHAPE_LIST
+        )
 
 
 @dataclass

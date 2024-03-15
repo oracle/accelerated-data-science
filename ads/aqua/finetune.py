@@ -15,7 +15,6 @@ from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
 from ads.config import (
-    AQUA_CONFIG_FOLDER,
     AQUA_MODEL_FINETUNING_CONFIG,
     ODSC_MODEL_COMPARTMENT_OCID
 )
@@ -29,12 +28,10 @@ from ads.aqua.utils import (
     DEFAULT_FT_BLOCK_STORAGE_SIZE,
     DEFAULT_FT_REPLICA,
     DEFAULT_FT_VALIDATION_SET_SIZE,
-    FINE_TUNING_RUNTIME_CONTAINER,
     UNKNOWN,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     UNKNOWN_DICT,
     get_container_image,
-    load_config,
     logger,
     upload_local_to_os,
 )
@@ -374,15 +371,12 @@ class AquaFineTuningApp(AquaApp):
         else:
             ft_job.infrastructure.with_subnet_id(subnet_id)
 
-        ft_config = load_config(
-            AQUA_CONFIG_FOLDER,
-            config_file_name="finetuning_config.json",
-        )
+        ft_config = self.get_finetuning_config(source.id)
 
         ft_container = source.custom_metadata_list.get(FineTuneCustomMetadata.SERVICE_MODEL_FINE_TUNE_CONTAINER.value).value
 
         batch_size = (
-            ft_config.get(source.display_name, UNKNOWN_DICT)
+            ft_config
             .get("shape", UNKNOWN_DICT)
             .get(create_fine_tuning_details.shape_name, UNKNOWN_DICT)
             .get("batch_size", DEFAULT_FT_BATCH_SIZE)
@@ -548,5 +542,8 @@ class AquaFineTuningApp(AquaApp):
         Dict:
             A dict of allowed finetuning configs.
         """
-
-        return self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG)
+        return self.get_config(
+            model_id=model_id,
+            config_file_name=AQUA_MODEL_FINETUNING_CONFIG,
+            default_shapes=UNKNOWN_DICT
+        )

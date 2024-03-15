@@ -28,7 +28,7 @@ from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link, upload_to_os
-from ads.config import AQUA_CONFIG_FOLDER, AQUA_SERVICE_MODELS_BUCKET, TENANCY_OCID
+from ads.config import AQUA_SERVICE_MODELS_BUCKET, TENANCY_OCID
 from ads.model import DataScienceModel
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -38,9 +38,9 @@ CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS")
 
 UNKNOWN = ""
 UNKNOWN_DICT = {}
-README = "README.md"
+UNKNOWN_LIST = []
+README = "config/README.md"
 LICENSE_TXT= "config/LICENSE.txt"
-DEPLOYMENT_CONFIG = "deployment_config.json"
 CONTAINER_INDEX = "container_index.json"
 EVALUATION_REPORT_JSON = "report.json"
 EVALUATION_REPORT_MD = "report.md"
@@ -64,6 +64,13 @@ MAXIMUM_ALLOWED_DATASET_IN_BYTE = 52428800  # 1024 x 1024 x 50 = 50MB
 JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING = "ME_STANDALONE"
 NB_SESSION_IDENTIFIER = "NB_SESSION_OCID"
 LIFECYCLE_DETAILS_MISSING_JOBRUN = "The asscociated JobRun resource has been deleted."
+DEFAULT_DEPLOYMENT_SHAPE_LIST = [
+    "VM.GPU.A10.1",
+    "VM.GPU.A10.2",
+    "BM.GPU.A10.4",
+    "BM.GPU4.8",
+    "BM.GPU.A100-v2.8"
+]
 
 
 class LifecycleStatus(Enum):
@@ -127,6 +134,7 @@ LIFECYCLE_DETAILS_MAPPING = {
 }
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "artifact_location"
+COMMIT_KEY = "commit"
 
 
 def get_logger():
@@ -188,8 +196,8 @@ def create_word_icon(label: str, width: int = 150, return_as_datauri=True):
         return icon_svg
 
 
-def get_artifact_path(custom_metadata_list: List) -> str:
-    """Get the artifact path from the custom metadata list of model.
+def get_artifact_path_and_commit(custom_metadata_list: List) -> tuple:
+    """Get the artifact path and commit from the custom metadata list of model.
 
     Parameters
     ----------
@@ -198,9 +206,11 @@ def get_artifact_path(custom_metadata_list: List) -> str:
 
     Returns
     -------
-    str:
-        The artifact path from model.
+    tuple:
+        The (artifact path, commit) from model custom metadata.
     """
+    artifact_path = UNKNOWN
+    commit = UNKNOWN
     for custom_metadata in custom_metadata_list:
         if custom_metadata.key == MODEL_BY_REFERENCE_OSS_PATH_KEY:
             if ObjectStorageDetails.is_oci_path(custom_metadata.value):
@@ -209,9 +219,14 @@ def get_artifact_path(custom_metadata_list: List) -> str:
                 artifact_path = ObjectStorageDetails(
                     AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, custom_metadata.value
                 ).path
-            return artifact_path
-    logger.debug("Failed to get artifact path from custom metadata.")
-    return UNKNOWN
+        elif custom_metadata.key == COMMIT_KEY:
+            commit = custom_metadata.value
+
+    if not artifact_path:
+        logger.debug("Failed to get artifact path from custom metadata.")
+    if not commit:
+        logger.debug("Failed to get commit from custom metadata.")
+    return (artifact_path, commit)
 
 
 def read_file(file_path: str, **kwargs) -> str:
@@ -233,9 +248,8 @@ def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
         read_file(file_path=artifact_path, auth=signer, **kwargs) or UNKNOWN_JSON_STR
     )
     if not config:
-        raise AquaFileNotFoundError(
-            f"Config file `{config_file_name}` is either empty or missing at {artifact_path}",
-            500,
+        logger.error(
+            f"Config file `{config_file_name}` is either empty or missing at {artifact_path}"
         )
     return config
 

@@ -23,14 +23,15 @@ from ads.aqua.constants import (
     FineTuningDefinedMetadata,
 )
 from ads.aqua.data import AquaResourceIdentifier, Tags
-from ads.aqua.exception import AquaRuntimeError
+from ads.aqua.exception import AquaMissingKeyError, AquaRuntimeError
 from ads.aqua.utils import (
     CONDA_BUCKET_NS,
     LICENSE_TXT,
     README,
     UNKNOWN,
+    UNKNOWN_LIST,
     create_word_icon,
-    get_artifact_path,
+    get_artifact_path_and_commit,
     read_file,
 )
 from ads.common.auth import default_signer
@@ -366,26 +367,24 @@ class AquaModelApp(AquaApp):
             else False
         )
 
-        # todo: consolidate this logic in utils for model and deployment use
-        try:
-            artifact_path = ds_model.custom_metadata_list.get(
-                utils.MODEL_BY_REFERENCE_OSS_PATH_KEY
-            ).value.rstrip("/")
-            if not ObjectStorageDetails.is_oci_path(artifact_path):
-                artifact_path = ObjectStorageDetails(
-                    AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, artifact_path
-                ).path
-        except ValueError:
-            artifact_path = utils.UNKNOWN
+        custom_metadata_list = (
+            ds_model.dsc_model.custom_metadata_list
+            if ds_model.dsc_model and ds_model.dsc_model.custom_metadata_list != None
+            else UNKNOWN_LIST
+        )
 
-        if not artifact_path:
-            logger.debug("Failed to get artifact path from custom metadata.")
+        artifact_path, commit = get_artifact_path_and_commit(
+            custom_metadata_list
+        )
 
         aqua_model_atttributes = dict(
             **self._process_model(ds_model, self.region),
             project_id=ds_model.project_id,
             model_card=str(
-                read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
+                read_file(
+                    file_path=f"{artifact_path.rstrip('/')}/{commit}/{README}",
+                    auth=self._auth
+                )
             ),
         )
 
@@ -736,12 +735,20 @@ class AquaModelApp(AquaApp):
             The instance of AquaModelLicense.
         """
         oci_model = self.ds_client.get_model(model_id).data
-        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
-        if not artifact_path:
-            raise AquaRuntimeError("Failed to get artifact path from custom metadata.")
+        artifact_path, commit = get_artifact_path_and_commit(
+            oci_model.custom_metadata_list
+        )
+        if not (artifact_path and commit):
+            raise AquaMissingKeyError(
+                "Failed to get artifact path or commit from custom metadata.",
+                500
+            )
 
         content = str(
-            read_file(file_path=f"{artifact_path}/{LICENSE_TXT}", auth=default_signer())
+            read_file(
+                file_path=f"{artifact_path.rstrip('/')}/{commit}/{LICENSE_TXT}",
+                auth=default_signer()
+            )
         )
 
         return AquaModelLicense(id=model_id, license=content)
