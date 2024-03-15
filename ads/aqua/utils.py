@@ -41,6 +41,7 @@ UNKNOWN_DICT = {}
 README = "README.md"
 LICENSE_TXT= "config/LICENSE.txt"
 DEPLOYMENT_CONFIG = "deployment_config.json"
+CONTAINER_INDEX = "container_index.json"
 EVALUATION_REPORT_JSON = "report.json"
 EVALUATION_REPORT_MD = "report.md"
 EVALUATION_REPORT = "report.html"
@@ -223,7 +224,7 @@ def read_file(file_path: str, **kwargs) -> str:
 
 
 def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
-    artifact_path = f"{file_path.rstrip('/')}/{config_file_name}" if file_path else config_file_name
+    artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
     if artifact_path.startswith("oci://"):
         signer = default_signer()
     else:
@@ -527,8 +528,8 @@ def get_container_image(config_file_name: str=None, container_type: str=None) ->
     config_file_name = f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service-models/config"
 
     config = load_config(
-        None,
-        config_file_name=config_file_name,
+        file_path=config_file_name,
+        config_file_name=CONTAINER_INDEX,
     )
 
     if container_type not in config:
