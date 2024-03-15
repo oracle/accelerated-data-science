@@ -99,6 +99,7 @@ class AquaModelSummary(DataClassSerializable):
     time_created: str = None
     console_link: str = None
     search_text: str = None
+    ready_to_deploy: bool = True
 
 
 @dataclass(repr=False)
@@ -192,7 +193,6 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
     validation: AquaFineTuneValidation = field(default_factory=AquaFineTuneValidation)
     shape_info: FineTuningShapeInfo = field(default_factory=FineTuningShapeInfo)
     metrics: List[AquaFineTuningMetric] = field(default_factory=list)
-    ready_to_deploy: bool  = False
 
     def __post_init__(
         self,
@@ -240,7 +240,13 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
                 f"Key={FineTuningDefinedMetadata.VAL_SET_SIZE.value} not found in model hyperparameters."
             )
 
-        self.ready_to_deploy = True if model.freeform_tags and model.freeform_tags.get(Tags.AQUA_TAG.value, "").upper() == "ACTIVE" else False
+        self.ready_to_deploy = (
+            True
+            if model.freeform_tags
+            and model.freeform_tags.get(Tags.AQUA_TAG.value, "").upper() == "ACTIVE"
+            else False
+        )
+
 
 # TODO: merge metadata key used in create FT
 
@@ -577,6 +583,13 @@ class AquaModelApp(AquaApp):
         )
 
         freeform_tags = model.freeform_tags or {}
+        is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG.value in freeform_tags
+        ready_to_deploy = (
+            freeform_tags.get(Tags.AQUA_TAG.value, "").upper() == "ACTIVE"
+            if is_fine_tuned_model
+            else True
+        )
+
         return dict(
             compartment_id=model.compartment_id,
             icon=icon or UNKNOWN,
@@ -586,10 +599,11 @@ class AquaModelApp(AquaApp):
             organization=freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
             task=freeform_tags.get(Tags.TASK.value, UNKNOWN),
             time_created=model.time_created,
-            is_fine_tuned_model=Tags.AQUA_FINE_TUNED_MODEL_TAG.value in freeform_tags,
+            is_fine_tuned_model=is_fine_tuned_model,
             tags=tags,
             console_link=console_link,
             search_text=search_text,
+            ready_to_deploy=ready_to_deploy,
         )
 
     def list(
