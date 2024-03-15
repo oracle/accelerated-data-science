@@ -47,6 +47,7 @@ from ads.config import (
 )
 from ads.model import DataScienceModel
 from ads.model.model_metadata import MetadataTaxonomyKeys, ModelCustomMetadata
+from ads.telemetry import telemetry
 
 
 class FineTuningMetricCategories(Enum):
@@ -338,6 +339,7 @@ class AquaModelApp(AquaApp):
         )
         return custom_model
 
+    @telemetry(entry_point="plugin=model&action=get", name="aqua")
     def get(self, model_id) -> "AquaModel":
         """Gets the information of an Aqua model.
 
