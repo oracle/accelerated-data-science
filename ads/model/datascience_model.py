@@ -815,7 +815,12 @@ class DataScienceModel(Builder):
             Whether model artifact is made available to Model Store by reference.
         """
         # Upload artifact to the model catalog
-        if not self.artifact:
+        if model_by_reference and self.model_file_description:
+            logger.info(
+                "Model artifact will be uploaded using model_file_description contents, "
+                "artifact location will not be used."
+            )
+        elif not self.artifact:
             logger.warn(
                 "Model artifact location not provided. "
                 "Provide the artifact location to upload artifacts to the model catalog."
@@ -1305,17 +1310,17 @@ class DataScienceModel(Builder):
         the files exist. Next, it creates a json dict with the path information and sets it as the artifact to be
         uploaded."""
 
-        bucket_uri = self.artifact
-        if isinstance(bucket_uri, str):
-            bucket_uri = [bucket_uri]
-
-        for uri in bucket_uri:
-            if not ObjectStorageDetails.from_path(uri).is_bucket_versioned():
-                message = f"Model artifact bucket {uri} is not versioned. Enable versioning on the bucket to proceed with model creation by reference."
-                logger.error(message)
-                raise BucketNotVersionedError(message)
-
         if not self.model_file_description:
+            bucket_uri = self.artifact
+            if isinstance(bucket_uri, str):
+                bucket_uri = [bucket_uri]
+
+            for uri in bucket_uri:
+                if not ObjectStorageDetails.from_path(uri).is_bucket_versioned():
+                    message = f"Model artifact bucket {uri} is not versioned. Enable versioning on the bucket to proceed with model creation by reference."
+                    logger.error(message)
+                    raise BucketNotVersionedError(message)
+
             json_data = self._prepare_file_description_artifact(bucket_uri)
             self.with_model_file_description(json_dict=json_data)
 
