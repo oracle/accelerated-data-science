@@ -223,7 +223,7 @@ def read_file(file_path: str, **kwargs) -> str:
 
 
 def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
-    artifact_path = f"{file_path.rstrip('/')}/{config_file_name}" if not file_path else config_file_name
+    artifact_path = f"{file_path.rstrip('/')}/{config_file_name}" if file_path else config_file_name
     if artifact_path.startswith("oci://"):
         signer = default_signer()
     else:
