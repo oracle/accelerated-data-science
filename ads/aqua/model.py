@@ -192,6 +192,7 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
     validation: AquaFineTuneValidation = field(default_factory=AquaFineTuneValidation)
     shape_info: FineTuningShapeInfo = field(default_factory=FineTuningShapeInfo)
     metrics: List[AquaFineTuningMetric] = field(default_factory=list)
+    ready_to_deploy: bool  = False
 
     def __post_init__(
         self,
@@ -221,13 +222,13 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
             )
             model_hyperparameters = {}
 
-        # self.dataset = model_hyperparameters.get(
-        #     FineTuningDefinedMetadata.TRAINING_DATA.value
-        # )
-        # if not self.dataset:
-        #     logger.debug(
-        #         f"Key={FineTuningDefinedMetadata.TRAINING_DATA.value} not found in model hyperparameters."
-        #     )
+        self.dataset = model_hyperparameters.get(
+            FineTuningDefinedMetadata.TRAINING_DATA.value
+        )
+        if not self.dataset:
+            logger.debug(
+                f"Key={FineTuningDefinedMetadata.TRAINING_DATA.value} not found in model hyperparameters."
+            )
 
         self.validation = AquaFineTuneValidation(
             value=model_hyperparameters.get(
@@ -239,6 +240,7 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
                 f"Key={FineTuningDefinedMetadata.VAL_SET_SIZE.value} not found in model hyperparameters."
             )
 
+        self.ready_to_deploy = True if model.freeform_tags and model.freeform_tags.get(Tags.AQUA_TAG.value, "").upper() == "ACTIVE" else False
 
 # TODO: merge metadata key used in create FT
 
@@ -444,8 +446,7 @@ class AquaModelApp(AquaApp):
                 evaluation_status=ds_model.lifecycle_state,
                 job_run_status=job_run_status,
             )
-            # TODO: read ft_output_path from artifact.json
-            dataset = ""
+
             model_details = AquaFineTuneModel(
                 **aqua_model_atttributes,
                 source=source_identifier,
@@ -454,7 +455,6 @@ class AquaModelApp(AquaApp):
                     if lifecycle_state == JobRun.LIFECYCLE_STATE_SUCCEEDED
                     else lifecycle_state
                 ),
-                dataset=dataset,
                 metrics=ft_metrics,
                 model=ds_model,
                 jobrun=jobrun,
