@@ -53,6 +53,8 @@ class AquaUIHandler(AquaAPIhandler):
             return self.list_vcn()
         elif paths.startswith("aqua/subnets"):
             return self.list_subnets()
+        elif paths.startswith("aqua/shapes/limit"):
+            return self.get_shape_availability()
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
@@ -133,6 +135,19 @@ class AquaUIHandler(AquaAPIhandler):
             )
         )
 
+    @handle_exceptions
+    def get_shape_availability(self, **kwargs):
+        """For a given compartmentId, resource limit name, and scope, returns the number of available resources associated
+        with the given limit."""
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
+        instance_shape = self.get_argument("instance_shape")
+
+        return self.finish(
+            AquaUIApp().get_shape_availability(
+                compartment_id=compartment_id, instance_shape=instance_shape, **kwargs
+            )
+        )
+
 
 __handlers__ = [
     ("logging/?([^/]*)", AquaUIHandler),
@@ -142,4 +157,5 @@ __handlers__ = [
     ("job/shapes/?([^/]*)", AquaUIHandler),
     ("vcn/?([^/]*)", AquaUIHandler),
     ("subnets/?([^/]*)", AquaUIHandler),
+    ("shapes/limit/?([^/]*)", AquaUIHandler),
 ]
