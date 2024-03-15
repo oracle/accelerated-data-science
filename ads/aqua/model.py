@@ -242,15 +242,12 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
                 f"Key={FineTuningDefinedMetadata.VAL_SET_SIZE.value} not found in model hyperparameters."
             )
 
-        if jobrun:
+        if self.lifecycle_details:
             self.lifecycle_details = self._extract_job_lifecycle_details(
                 self.lifecycle_details
             )
 
     def _extract_job_lifecycle_details(self, lifecycle_details):
-        if not lifecycle_details:
-            return utils.LIFECYCLE_DETAILS_MISSING_JOBRUN
-
         message = lifecycle_details
         try:
             # Extract exit code
