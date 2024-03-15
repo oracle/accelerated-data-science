@@ -31,17 +31,11 @@ class TelemetryClient(TelemetryBase):
     >>> import os
     >>> import traceback
     >>> from ads.telemetry.client import TelemetryClient
-    >>> try:
-    >>>     AQUA_BUCKET = os.environ.get("AQUA_BUCKET", "service-managed-models")
-    >>>     AQUA_BUCKET_NS = os.environ.get("AQUA_BUCKET_NS", "ociodscdev")
-    >>>     category = "aqua/service/model"
-    >>>     action = "list"
-    >>>     telemetry = TelemetryClient(bucket=AQUA_BUCKET, namespace=AQUA_BUCKET_NS)
-    >>>     telemetry.record_event_async(category=category, action=action)
-    >>> except:
-    >>>    if "DEBUG_TELEMETRY" in os.environ:
-    >>>        print("There is an error recording telemetry.")
-    >>>        traceback.print_exc()
+    >>> AQUA_BUCKET = os.environ.get("AQUA_BUCKET", "service-managed-models")
+    >>> AQUA_BUCKET_NS = os.environ.get("AQUA_BUCKET_NS", "ociodscdev")
+    >>> telemetry = TelemetryClient(bucket=AQUA_BUCKET, namespace=AQUA_BUCKET_NS)
+    >>> telemetry.record_event_async(category="aqua/service/model", action="create") # records create action
+    >>> telemetry.record_event_async(category="aqua/service/model/create", action="shape", detail="VM.GPU.A10.1")
     """
 
     @staticmethod
@@ -56,14 +50,15 @@ class TelemetryClient(TelemetryBase):
 
         Parameters
         ----------
-        category (str)
+        category: (str)
             Category of the event, which is also the path to the directory containing the object representing the event.
-        action (str)
+        action: (str)
             Filename of the object representing the event.
-        detail (str)
-            Additional Can be used to pass additional values, if required. When
-            set, detail is converted to an action and category and action are grouped together for telemetry parsing in
-            the backend.
+        detail: (str)
+            Can be used to pass additional values, if required. When set, detail is converted to an action,
+            category and action are grouped together for telemetry parsing in the backend.
+        **kwargs:
+            Can be used to pass additional attributes like value that will be passed in the headers of the request.
 
         Returns
         -------

@@ -29,9 +29,12 @@ class AquaAPIhandler(APIHandler):
     ):
         super().__init__(application, request, **kwargs)
 
-        self.telemetry = TelemetryClient(
-            bucket=AQUA_TELEMETRY_BUCKET, namespace=AQUA_TELEMETRY_BUCKET_NS
-        )
+        try:
+            self.telemetry = TelemetryClient(
+                bucket=AQUA_TELEMETRY_BUCKET, namespace=AQUA_TELEMETRY_BUCKET_NS
+            )
+        except:
+            pass
 
     @staticmethod
     def serialize(obj: Any):
@@ -88,11 +91,13 @@ class AquaAPIhandler(APIHandler):
 
         logger.warning(reply["message"])
 
-        self.telemetry.record_event_async(
-            category="aqua/error",
-            action=str(status_code),
-            value=reason,
-        )
+        # telemetry may not be present if there is an error while initializing
+        if hasattr(self, "telemetry"):
+            self.telemetry.record_event_async(
+                category="aqua/error",
+                action=str(status_code),
+                value=reason,
+            )
 
         self.finish(json.dumps(reply))
 
