@@ -379,7 +379,7 @@ class AquaFineTuningApp(AquaApp):
             config_file_name="finetuning_config.json",
         )
 
-        ft_container = source.custom_metadata_list.get(FineTuneCustomMetadata.SERVICE_MODEL_FINE_TUNE_CONTAINER.value)
+        ft_container = source.custom_metadata_list.get(FineTuneCustomMetadata.SERVICE_MODEL_FINE_TUNE_CONTAINER.value).value
 
         batch_size = (
             ft_config.get(source.display_name, UNKNOWN_DICT)
