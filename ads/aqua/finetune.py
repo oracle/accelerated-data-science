@@ -401,7 +401,7 @@ class AquaFineTuningApp(AquaApp):
                     or DEFAULT_FT_VALIDATION_SET_SIZE
                 ),
                 parameters=ft_parameters,
-                container=ft_container,
+                ft_container=ft_container,
             )
         ).create()
         logger.debug(
