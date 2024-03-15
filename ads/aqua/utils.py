@@ -39,7 +39,7 @@ CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS")
 UNKNOWN = ""
 UNKNOWN_DICT = {}
 README = "README.md"
-LICENSE_TXT= "config/LICENSE.txt"
+LICENSE_TXT = "config/LICENSE.txt"
 DEPLOYMENT_CONFIG = "deployment_config.json"
 CONTAINER_INDEX = "container_index.json"
 EVALUATION_REPORT_JSON = "report.json"
@@ -510,7 +510,9 @@ def _build_job_identifier(
         return AquaResourceIdentifier()
 
 
-def get_container_image(config_file_name: str=None, container_type: str=None) -> str:
+def get_container_image(
+    config_file_name: str = None, container_type: str = None
+) -> str:
     """Gets the image name from the given model and container type.
     Parameters
     ----------
@@ -524,8 +526,10 @@ def get_container_image(config_file_name: str=None, container_type: str=None) ->
     Dict:
         A dict of allowed configs.
     """
-    
-    config_file_name = f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
+
+    config_file_name = (
+        f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
+    )
 
     config = load_config(
         file_path=config_file_name,
@@ -637,3 +641,24 @@ def get_resource_name(ocid: str) -> str:
     except:
         name = UNKNOWN
     return name
+
+
+def _is_valid_mvs(cls, mvs: "ads.model.ModelVersionSet", target_tag: str) -> bool:
+    """Returns whether the given model version sets has the target tag.
+
+    Parameters
+    ----------
+    mvs: str
+        The instance of `ads.model.ModelVersionSet`.
+    target_tag: list
+        Target tag expected to be in MVS.
+
+    Returns
+    -------
+    bool:
+        Return True if the given model version sets is valid.
+    """
+    if mvs.freeform_tags is None:
+        return False
+
+    return target_tag in mvs.freeform_tags

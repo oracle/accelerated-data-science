@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import re
 import base64
 import json
 import os
+import re
 import tempfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
@@ -25,6 +25,7 @@ from oci.data_science.models import (
 
 from ads.aqua import logger, utils
 from ads.aqua.base import AquaApp
+from ads.aqua.data import Tags
 from ads.aqua.exception import (
     AquaFileExistsError,
     AquaFileNotFoundError,
@@ -33,25 +34,19 @@ from ads.aqua.exception import (
     AquaValueError,
 )
 from ads.aqua.utils import (
-    CONDA_BUCKET_NS,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     NB_SESSION_IDENTIFIER,
     UNKNOWN,
-    is_valid_ocid,
-    upload_local_to_os,
     fire_and_forget,
     get_container_image,
+    is_valid_ocid,
+    upload_local_to_os,
 )
-from ads.common.auth import AuthType, default_signer
+from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link, get_files, upload_to_os
-from ads.config import (
-    AQUA_JOB_SUBNET_ID,
-    COMPARTMENT_OCID,
-    PROJECT_OCID,
-    AQUA_CONTAINER_INDEX_CONFIG,
-)
+from ads.config import AQUA_JOB_SUBNET_ID, COMPARTMENT_OCID, PROJECT_OCID
 from ads.jobs.ads_job import DataScienceJobRun, Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
@@ -462,11 +457,22 @@ class AquaEvaluationApp(AquaApp):
                     name=experiment_model_version_set_name,
                     compartment_id=target_compartment,
                 )
+                if not utils._is_valid_mvs(
+                    model_version_set, Tags.AQUA_EVALUATION.value
+                ):
+                    raise AquaValueError(
+                        f"Invalid experiment name. Please provide an experiment with `{Tags.AQUA_EVALUATION.value}` in tags."
+                    )
             except:
                 logger.debug(
                     f"Model version set {experiment_model_version_set_name} doesn't exist. "
                     "Creating new model version set."
                 )
+
+                evaluation_mvs_freeform_tags = {
+                    Tags.AQUA_EVALUATION.value: Tags.AQUA_EVALUATION.value,
+                }
+
                 model_version_set = (
                     ModelVersionSet()
                     .with_compartment_id(target_compartment)
@@ -475,6 +481,7 @@ class AquaEvaluationApp(AquaApp):
                     .with_description(
                         create_aqua_evaluation_details.experiment_description
                     )
+                    .with_freeform_tags(**evaluation_mvs_freeform_tags)
                     # TODO: decide what parameters will be needed
                     .create(**kwargs)
                 )
@@ -484,6 +491,10 @@ class AquaEvaluationApp(AquaApp):
             experiment_model_version_set_id = model_version_set.id
         else:
             model_version_set = ModelVersionSet.from_id(experiment_model_version_set_id)
+            if not utils._is_valid_mvs(model_version_set, Tags.AQUA_EVALUATION.value):
+                raise AquaValueError(
+                    f"Invalid experiment id. Please provide an experiment with `{Tags.AQUA_EVALUATION.value}` in tags."
+                )
             experiment_model_version_set_name = model_version_set.name
 
         evaluation_model_custom_metadata = ModelCustomMetadata()
@@ -863,6 +874,7 @@ class AquaEvaluationApp(AquaApp):
         List[AquaEvaluationSummary]:
             The list of the `ads.aqua.evalution.AquaEvaluationSummary`.
         """
+        # add cache for terminal state
         logger.info(f"Fetching evaluations from compartment {compartment_id}.")
         models = utils.query_resources(
             compartment_id=compartment_id,
@@ -877,6 +889,7 @@ class AquaEvaluationApp(AquaApp):
 
         # TODO: check if caching for service model list can be used
         evaluations = []
+        # TODO: use threadpool
         for model in models:
             job_run = self._get_jobrun(model, mapping)
 
@@ -1513,6 +1526,7 @@ class AquaEvaluationApp(AquaApp):
             )
             return AquaResourceIdentifier()
 
+    # TODO: fix the logic for determine termination state
     def _get_status(
         self,
         model: oci.resource_search.models.ResourceSummary,

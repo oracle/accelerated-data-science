@@ -3,25 +3,26 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from oci.exceptions import ServiceError
-from oci.identity.models import Compartment
 from datetime import datetime, timedelta
 from threading import Lock
-from cachetools import TTLCache
 
+from cachetools import TTLCache
+from oci.exceptions import ServiceError
+from oci.identity.models import Compartment
+from ads.aqua.data import Tags
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaValueError
-from ads.common.auth import default_signer
+from ads.aqua.utils import load_config, sanitize_response
 from ads.common import oci_client as oc
+from ads.common.auth import default_signer
 from ads.config import (
-    COMPARTMENT_OCID,
-    TENANCY_OCID,
-    DATA_SCIENCE_SERVICE_NAME,
     AQUA_CONFIG_FOLDER,
     AQUA_RESOURCE_LIMIT_NAMES_CONFIG,
+    COMPARTMENT_OCID,
+    DATA_SCIENCE_SERVICE_NAME,
+    TENANCY_OCID,
 )
-from ads.aqua.utils import sanitize_response, load_config
 
 
 class AquaUIApp(AquaApp):
@@ -194,11 +195,13 @@ class AquaUIApp(AquaApp):
                 }
         return res
 
-    def list_model_version_sets(self, **kwargs) -> str:
+    def list_model_version_sets(self, target_tag:str = None, **kwargs) -> str:
         """Lists all model version sets for the specified compartment or tenancy.
 
         Parameters
         ----------
+        target_tag: str
+            Required Tag for the targeting model version sets.
         **kwargs
             Addtional arguments, such as `compartment_id`,
             for `list_model_version_sets <https://docs.oracle.com/en-us/iaas/tools/python/2.121.0/api/data_science/client/oci.data_science.DataScienceClient.html#oci.data_science.DataScienceClient.list_model_version_sets>`_
@@ -208,12 +211,24 @@ class AquaUIApp(AquaApp):
             str has json representation of `oci.data_science.models.ModelVersionSetSummary`.
         """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
-        logger.info(f"Loading experiments from compartment: {compartment_id}")
+        logger.info(
+            f"Loading {"experiments" if target_tag == Tags.AQUA_EVALUATION.value else "modelversionsets"} from compartment: {compartment_id}"
+        )
 
-        res = self.ds_client.list_model_version_sets(
-            compartment_id=compartment_id, **kwargs
-        ).data
-
+        items = self.list_resource(
+            self.ds_client.list_model_version_sets,
+            compartment_id=compartment_id,
+            **kwargs,
+        )
+        
+        if target_tag is not None:
+            res = []
+            for item in items:
+                if target_tag in item.freeform_tags:
+                    res.append(item)
+        else:
+            res = items
+            
         return sanitize_response(oci_client=self.ds_client, response=res)
 
     def list_buckets(self, **kwargs) -> list:
