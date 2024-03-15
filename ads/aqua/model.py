@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import re
 from dataclasses import InitVar, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
@@ -23,6 +24,7 @@ from ads.aqua.constants import (
     FineTuningDefinedMetadata,
 )
 from ads.aqua.data import AquaResourceIdentifier, Tags
+
 from ads.aqua.exception import AquaRuntimeError
 from ads.aqua.utils import (
     CONDA_BUCKET_NS,
@@ -33,6 +35,7 @@ from ads.aqua.utils import (
     get_artifact_path,
     read_file,
 )
+from ads.aqua.training.exceptions import exit_code_dict
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
@@ -238,6 +241,34 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
             logger.debug(
                 f"Key={FineTuningDefinedMetadata.VAL_SET_SIZE.value} not found in model hyperparameters."
             )
+
+        if jobrun:
+            self.lifecycle_details = self._extract_job_lifecycle_details(
+                self.lifecycle_details
+            )
+
+    def _extract_job_lifecycle_details(self, lifecycle_details):
+        if not lifecycle_details:
+            return utils.LIFECYCLE_DETAILS_MISSING_JOBRUN
+
+        message = lifecycle_details
+        try:
+            # Extract exit code
+            match = re.search(r"exit code (\d+)", lifecycle_details)
+            if match:
+                exit_code = int(match.group(1))
+                # Match exit code to message
+                message = (
+                    exit_code_dict().get(
+                        exit_code,
+                        lifecycle_details,
+                    )
+                    + f" (exit code {exit_code})"
+                )
+        except:
+            pass
+
+        return message
 
 
 # TODO: merge metadata key used in create FT
