@@ -11,7 +11,7 @@ from dataclasses import asdict, is_dataclass
 from typing import Any
 
 from notebook.base.handlers import APIHandler
-from tornado.web import HTTPError
+from tornado.web import HTTPError, Application
 from tornado import httputil
 from ads.telemetry.client import TelemetryClient
 from ads.config import AQUA_TELEMETRY_BUCKET, AQUA_TELEMETRY_BUCKET_NS
@@ -28,7 +28,8 @@ class AquaAPIhandler(APIHandler):
         **kwargs: Any,
     ):
         super().__init__(application, request, **kwargs)
-        telemetry = TelemetryClient(
+
+        self.telemetry = TelemetryClient(
             bucket=AQUA_TELEMETRY_BUCKET, namespace=AQUA_TELEMETRY_BUCKET_NS
         )
 
@@ -87,9 +88,11 @@ class AquaAPIhandler(APIHandler):
 
         logger.warning(reply["message"])
 
-        # telemetry.record_event_async(
-        #     category="aqua/error", action=status_code, value=reason,
-        # )
+        self.telemetry.record_event_async(
+            category="aqua/error",
+            action=str(status_code),
+            value=reason,
+        )
 
         self.finish(json.dumps(reply))
 
