@@ -158,9 +158,10 @@ class AquaApp:
                     compartment_id=compartment_id,
                 )
                 # TODO: tag should be selected based on which operation (eval/FT) invoke this method
-                if not _is_valid_mvs(model_version_set, Tags.AQUA_FINE_TUNING.value):
+                tag = Tags.AQUA_FINE_TUNING.value
+                if not _is_valid_mvs(model_version_set, tag):
                     raise AquaValueError(
-                        f"Invalid model version set name. Please provide a model version set with `{Tags.AQUA_FINE_TUNING.value}` in tags."
+                        f"Invalid model version set name. Please provide a model version set with `{tag}` in tags."
                     )
 
             except:
@@ -169,7 +170,7 @@ class AquaApp:
                     "Creating new model version set."
                 )
                 mvs_freeform_tags = {
-                    Tags.AQUA_FINE_TUNING.value: Tags.AQUA_FINE_TUNING.value,
+                    tag: tag,
                 }
                 model_version_set = (
                     ModelVersionSet()
@@ -189,9 +190,9 @@ class AquaApp:
         else:
             model_version_set = ModelVersionSet.from_id(model_version_set_id)
             # TODO: tag should be selected based on which operation (eval/FT) invoke this method
-            if not _is_valid_mvs(model_version_set, Tags.AQUA_FINE_TUNING.value):
+            if not _is_valid_mvs(model_version_set, tag):
                 raise AquaValueError(
-                    f"Invalid model version set id. Please provide a model version set with `{Tags.AQUA_FINE_TUNING.value}` in tags."
+                    f"Invalid model version set id. Please provide a model version set with `{tag}` in tags."
                 )
             return (model_version_set_id, model_version_set.name)
 
