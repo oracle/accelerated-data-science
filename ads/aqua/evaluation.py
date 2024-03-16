@@ -426,6 +426,12 @@ class AquaEvaluationApp(AquaApp):
             logger.debug(
                 f"Uploaded local file {evaluation_dataset_path} to object storage {dst_uri}."
             )
+            # tracks the size of dataset uploaded by user to the destination.
+            self.telemetry.record_event_async(
+                category="aqua/evaluation/upload",
+                action="size",
+                detail=os.path.getsize(os.path.expanduser(evaluation_dataset_path)),
+            )
             evaluation_dataset_path = dst_uri
 
         evaluation_model_parameters = None
@@ -631,6 +637,13 @@ class AquaEvaluationApp(AquaApp):
             update_model_provenance_details=UpdateModelProvenanceDetails(
                 training_id=evaluation_job_run.id
             ),
+        )
+
+        # tracks unique evaluation that were created for the given evaluation source
+        self.telemetry.record_event_async(
+            category="aqua/evaluation",
+            action="create",
+            detail=evaluation_source.display_name,
         )
 
         return AquaEvaluationSummary(
@@ -898,6 +911,10 @@ class AquaEvaluationApp(AquaApp):
                     ),
                 )
             )
+
+        # tracks number of times deployment listing was called
+        self.telemetry.record_event_async(category="aqua/evaluation", action="list")
+
         return evaluations
 
     def _if_eval_artifact_exist(

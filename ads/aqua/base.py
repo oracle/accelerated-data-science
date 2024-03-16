@@ -26,7 +26,10 @@ from ads.config import (
     AQUA_CONFIG_FOLDER,
     OCI_ODSC_SERVICE_ENDPOINT,
     OCI_RESOURCE_PRINCIPAL_VERSION,
+    AQUA_TELEMETRY_BUCKET,
+    AQUA_TELEMETRY_BUCKET_NS,
 )
+from ads.telemetry.client import TelemetryClient
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import (
@@ -52,6 +55,7 @@ class AquaApp:
         self.logging_client = oc.OCIClientFactory(**default_signer()).logging_management
         self.identity_client = oc.OCIClientFactory(**default_signer()).identity
         self.region = extract_region(self._auth)
+        self._telemetry = None
 
     def list_resource(
         self,
@@ -267,3 +271,11 @@ class AquaApp:
             return config
 
         return config
+
+    @property
+    def telemetry(self):
+        if not self._telemetry:
+            self._telemetry = TelemetryClient(
+                bucket=AQUA_TELEMETRY_BUCKET, namespace=AQUA_TELEMETRY_BUCKET_NS
+            )
+        return self._telemetry

@@ -13,9 +13,7 @@ from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 
 from ads.common.serializer import DataClassSerializable
-from ads.common.utils import get_console_link
 from ads.config import (
-    AQUA_CONFIG_FOLDER,
     AQUA_MODEL_FINETUNING_CONFIG,
     ODSC_MODEL_COMPARTMENT_OCID,
 )
@@ -285,6 +283,12 @@ class AquaFineTuningApp(AquaApp):
             logger.debug(
                 f"Uploaded local file {ft_dataset_path} to object storage {dst_uri}."
             )
+            # tracks the size of dataset uploaded by user to the destination.
+            self.telemetry.record_event_async(
+                category="aqua/finetune/upload",
+                action="size",
+                detail=os.path.getsize(os.path.expanduser(ft_dataset_path)),
+            )
             ft_dataset_path = dst_uri
 
         (
@@ -443,6 +447,19 @@ class AquaFineTuningApp(AquaApp):
             update_model_provenance_details=UpdateModelProvenanceDetails(
                 training_id=ft_job_run.id
             ),
+        )
+
+        # tracks the shape used for fine-tuning the service models
+        self.telemetry.record_event_async(
+            category="aqua/finetune/create",
+            action="shape",
+            detail=create_fine_tuning_details.shape_name,
+        )
+        # tracks unique fine-tuned models that were created in the user compartment
+        self.telemetry.record_event_async(
+            category="aqua/service/finetune",
+            action="create",
+            detail=source.display_name,
         )
 
         return AquaFineTuningSummary(
