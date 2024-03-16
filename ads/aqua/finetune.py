@@ -370,18 +370,14 @@ class AquaFineTuningApp(AquaApp):
         else:
             ft_job.infrastructure.with_subnet_id(subnet_id)
 
-        ft_config = load_config(
-            AQUA_CONFIG_FOLDER,
-            config_file_name="finetuning_config.json",
-        )
+        ft_config = self.get_finetuning_config(source.id)
 
         ft_container = source.custom_metadata_list.get(
             FineTuneCustomMetadata.SERVICE_MODEL_FINE_TUNE_CONTAINER.value
         ).value
 
         batch_size = (
-            ft_config.get(source.display_name, UNKNOWN_DICT)
-            .get("shape", UNKNOWN_DICT)
+            ft_config.get("shape", UNKNOWN_DICT)
             .get(create_fine_tuning_details.shape_name, UNKNOWN_DICT)
             .get("batch_size", DEFAULT_FT_BATCH_SIZE)
         )

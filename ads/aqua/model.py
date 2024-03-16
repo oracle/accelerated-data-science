@@ -2,9 +2,11 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import re
 from dataclasses import InitVar, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
+import os
 from threading import Lock
 from typing import List, Union
 
@@ -23,16 +25,19 @@ from ads.aqua.constants import (
     FineTuningDefinedMetadata,
 )
 from ads.aqua.data import AquaResourceIdentifier, Tags
+
 from ads.aqua.exception import AquaRuntimeError
 from ads.aqua.utils import (
     CONDA_BUCKET_NS,
     LICENSE_TXT,
     README,
+    READY_TO_DEPLOY_STATUS,
     UNKNOWN,
     create_word_icon,
     get_artifact_path,
     read_file,
 )
+from ads.aqua.training.exceptions import exit_code_dict
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
@@ -99,6 +104,7 @@ class AquaModelSummary(DataClassSerializable):
     time_created: str = None
     console_link: str = None
     search_text: str = None
+    ready_to_deploy: bool = True
 
 
 @dataclass(repr=False)
@@ -238,6 +244,31 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
             logger.debug(
                 f"Key={FineTuningDefinedMetadata.VAL_SET_SIZE.value} not found in model hyperparameters."
             )
+
+        if self.lifecycle_details:
+            self.lifecycle_details = self._extract_job_lifecycle_details(
+                self.lifecycle_details
+            )
+
+    def _extract_job_lifecycle_details(self, lifecycle_details):
+        message = lifecycle_details
+        try:
+            # Extract exit code
+            match = re.search(r"exit code (\d+)", lifecycle_details)
+            if match:
+                exit_code = int(match.group(1))
+                if exit_code == 1:
+                    return message
+                # Match exit code to message
+                exception = exit_code_dict().get(
+                    exit_code,
+                    lifecycle_details,
+                )
+                message = f"{exception.reason} (exit code {exit_code})"
+        except:
+            pass
+
+        return message
 
 
 # TODO: merge metadata key used in create FT
@@ -575,6 +606,13 @@ class AquaModelApp(AquaApp):
         )
 
         freeform_tags = model.freeform_tags or {}
+        is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG.value in freeform_tags
+        ready_to_deploy = (
+            freeform_tags.get(Tags.AQUA_TAG.value, "").upper() == READY_TO_DEPLOY_STATUS
+            if is_fine_tuned_model
+            else True
+        )
+
         return dict(
             compartment_id=model.compartment_id,
             icon=icon or UNKNOWN,
@@ -584,10 +622,11 @@ class AquaModelApp(AquaApp):
             organization=freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
             task=freeform_tags.get(Tags.TASK.value, UNKNOWN),
             time_created=model.time_created,
-            is_fine_tuned_model=Tags.AQUA_FINE_TUNED_MODEL_TAG.value in freeform_tags,
+            is_fine_tuned_model=is_fine_tuned_model,
             tags=tags,
             console_link=console_link,
             search_text=search_text,
+            ready_to_deploy=ready_to_deploy,
         )
 
     def list(
@@ -741,7 +780,7 @@ class AquaModelApp(AquaApp):
             raise AquaRuntimeError("Failed to get artifact path from custom metadata.")
 
         content = str(
-            read_file(file_path=f"{artifact_path}/{LICENSE_TXT}", auth=default_signer())
+            read_file(file_path=f"{os.path.dirname(artifact_path)}/{LICENSE_TXT}", auth=default_signer())
         )
 
         return AquaModelLicense(id=model_id, license=content)

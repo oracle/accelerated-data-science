@@ -5,6 +5,7 @@
 
 from typing import Dict, Union
 
+import os
 import oci
 from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDetails
 
@@ -16,7 +17,7 @@ from ads.aqua.utils import (
     is_valid_ocid,
     load_config,
     logger,
-    get_base_model_from_tags,
+    get_artifact_path,
 )
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
@@ -228,15 +229,6 @@ class AquaApp:
             A dict of allowed configs.
         """
         oci_model = self.ds_client.get_model(model_id).data
-        model_name = oci_model.display_name
-
-        is_fine_tuned_model = (
-            Tags.AQUA_FINE_TUNED_MODEL_TAG.value in oci_model.freeform_tags
-        )
-
-        if is_fine_tuned_model:
-            _, model_name = get_base_model_from_tags(oci_model.freeform_tags)
-
         oci_aqua = (
             (
                 Tags.AQUA_TAG.value in oci_model.freeform_tags
@@ -249,17 +241,27 @@ class AquaApp:
         if not oci_aqua:
             raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
 
-        # todo: currently loads config within ads, artifact_path will be an external bucket
-        artifact_path = AQUA_CONFIG_FOLDER
-        config = load_config(
-            artifact_path,
-            config_file_name=config_file_name,
-        )
-
-        if model_name not in config:
+        config = {}
+        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+        if not artifact_path:
             logger.error(
-                f"{config_file_name} does not have config details for model: {model_name}"
+                f"Failed to get artifact path from custom metadata for the model: {model_id}"
             )
-            return {}
+            return config
 
-        return config[model_name]
+        try:
+            config_path = f"{os.path.dirname(artifact_path)}/config/"
+            config = load_config(
+                config_path,
+                config_file_name=config_file_name,
+            )
+        except:
+            pass
+
+        if not config:
+            logger.error(
+                f"{config_file_name} is not available for the model: {model_id}. Check if the custom metadata has the artifact path set."
+            )
+            return config
+
+        return config
