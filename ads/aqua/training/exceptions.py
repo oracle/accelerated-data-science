@@ -133,7 +133,7 @@ class InvalidDataFormatErrorExit(TrainingExit):
 
     reason = (
         "Unable to load training data. "
-        "Please provide training data in JSONL format with 'prompt' and 'completion'."
+        "Please provide training data in JSONL format with 'prompt' and 'completion' fields/columns."
     )
 
 
@@ -155,7 +155,7 @@ class InvalidDataValueErrorExit(TrainingExit):
 
     reason = (
         "Training data contain non-string values. "
-        "Please provide training data with only strings in JSONL"
+        "Please provide training data with only strings in JSONL format."
     )
 
 
