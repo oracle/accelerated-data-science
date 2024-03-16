@@ -39,7 +39,7 @@ CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS")
 UNKNOWN = ""
 UNKNOWN_DICT = {}
 README = "README.md"
-LICENSE_TXT= "config/LICENSE.txt"
+LICENSE_TXT = "config/LICENSE.txt"
 DEPLOYMENT_CONFIG = "deployment_config.json"
 CONTAINER_INDEX = "container_index.json"
 EVALUATION_REPORT_JSON = "report.json"
@@ -64,6 +64,7 @@ MAXIMUM_ALLOWED_DATASET_IN_BYTE = 52428800  # 1024 x 1024 x 50 = 50MB
 JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING = "ME_STANDALONE"
 NB_SESSION_IDENTIFIER = "NB_SESSION_OCID"
 LIFECYCLE_DETAILS_MISSING_JOBRUN = "The asscociated JobRun resource has been deleted."
+READY_TO_DEPLOY_STATUS = "ACTIVE"
 
 
 class LifecycleStatus(Enum):
@@ -510,7 +511,9 @@ def _build_job_identifier(
         return AquaResourceIdentifier()
 
 
-def get_container_image(config_file_name: str=None, container_type: str=None) -> str:
+def get_container_image(
+    config_file_name: str = None, container_type: str = None
+) -> str:
     """Gets the image name from the given model and container type.
     Parameters
     ----------
@@ -524,8 +527,10 @@ def get_container_image(config_file_name: str=None, container_type: str=None) ->
     Dict:
         A dict of allowed configs.
     """
-    
-    config_file_name = f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
+
+    config_file_name = (
+        f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
+    )
 
     config = load_config(
         file_path=config_file_name,

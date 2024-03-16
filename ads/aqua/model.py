@@ -30,6 +30,7 @@ from ads.aqua.utils import (
     CONDA_BUCKET_NS,
     LICENSE_TXT,
     README,
+    READY_TO_DEPLOY_STATUS,
     UNKNOWN,
     create_word_icon,
     get_artifact_path,
@@ -102,6 +103,7 @@ class AquaModelSummary(DataClassSerializable):
     time_created: str = None
     console_link: str = None
     search_text: str = None
+    ready_to_deploy: bool = True
 
 
 @dataclass(repr=False)
@@ -603,6 +605,13 @@ class AquaModelApp(AquaApp):
         )
 
         freeform_tags = model.freeform_tags or {}
+        is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG.value in freeform_tags
+        ready_to_deploy = (
+            freeform_tags.get(Tags.AQUA_TAG.value, "").upper() == READY_TO_DEPLOY_STATUS
+            if is_fine_tuned_model
+            else True
+        )
+
         return dict(
             compartment_id=model.compartment_id,
             icon=icon or UNKNOWN,
@@ -612,10 +621,11 @@ class AquaModelApp(AquaApp):
             organization=freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
             task=freeform_tags.get(Tags.TASK.value, UNKNOWN),
             time_created=model.time_created,
-            is_fine_tuned_model=Tags.AQUA_FINE_TUNED_MODEL_TAG.value in freeform_tags,
+            is_fine_tuned_model=is_fine_tuned_model,
             tags=tags,
             console_link=console_link,
             search_text=search_text,
+            ready_to_deploy=ready_to_deploy,
         )
 
     def list(
