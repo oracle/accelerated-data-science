@@ -303,10 +303,6 @@ class AquaFineTuningApp(AquaApp):
             value=create_fine_tuning_details.ft_source_id,
         )
         ft_model_custom_metadata.add(
-            key=FineTuneCustomMetadata.FINE_TUNE_OUTPUT_PATH.value,
-            value=create_fine_tuning_details.report_path,
-        )
-        ft_model_custom_metadata.add(
             key=FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME.value,
             value=source.display_name,
         )
