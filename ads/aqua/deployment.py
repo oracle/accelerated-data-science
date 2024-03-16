@@ -21,6 +21,7 @@ from ads.aqua.utils import (
     get_container_image,
     get_base_model_from_tags,
     get_resource_name,
+    get_model_by_reference_paths,
 )
 from ads.aqua.finetune import FineTuneCustomMetadata
 from ads.aqua.data import AquaResourceIdentifier
@@ -41,6 +42,7 @@ from ads.config import (
     AQUA_CONTAINER_INDEX_CONFIG,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_SERVED_MODEL_NAME,
+    AQUA_SERVICE_MODELS_BUCKET,
 )
 from ads.common.object_storage_details import ObjectStorageDetails
 
@@ -305,17 +307,17 @@ class AquaDeploymentApp(AquaApp):
         env_var.update({"MODEL_DEPLOY_ENABLE_STREAMING": "true"})
 
         if is_fine_tuned_model:
-            try:
-                fine_tune_output_path = aqua_model.custom_metadata_list.get(
-                    FineTuneCustomMetadata.FINE_TUNE_OUTPUT_PATH.value
-                ).value.rstrip("/")
-            except ValueError:
+            _, fine_tune_output_path = get_model_by_reference_paths(
+                aqua_model.model_file_description
+            )
+
+            if not fine_tune_output_path:
                 raise AquaValueError(
-                    f"{FineTuneCustomMetadata.FINE_TUNE_OUTPUT_PATH.value} key is not available in the custom metadata field."
+                    f"Fine tuned output path is not available in the model artifact."
                 )
-            if ObjectStorageDetails.is_oci_path(fine_tune_output_path):
-                os_path = ObjectStorageDetails.from_path(fine_tune_output_path)
-                fine_tune_output_path = os_path.filepath.rstrip("/")
+
+            os_path = ObjectStorageDetails.from_path(fine_tune_output_path)
+            fine_tune_output_path = os_path.filepath.rstrip("/")
 
             env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
 

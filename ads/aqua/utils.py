@@ -39,7 +39,7 @@ CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS")
 UNKNOWN = ""
 UNKNOWN_DICT = {}
 README = "README.md"
-LICENSE_TXT= "config/LICENSE.txt"
+LICENSE_TXT = "config/LICENSE.txt"
 DEPLOYMENT_CONFIG = "deployment_config.json"
 CONTAINER_INDEX = "container_index.json"
 EVALUATION_REPORT_JSON = "report.json"
@@ -510,7 +510,9 @@ def _build_job_identifier(
         return AquaResourceIdentifier()
 
 
-def get_container_image(config_file_name: str=None, container_type: str=None) -> str:
+def get_container_image(
+    config_file_name: str = None, container_type: str = None
+) -> str:
     """Gets the image name from the given model and container type.
     Parameters
     ----------
@@ -524,8 +526,10 @@ def get_container_image(config_file_name: str=None, container_type: str=None) ->
     Dict:
         A dict of allowed configs.
     """
-    
-    config_file_name = f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
+
+    config_file_name = (
+        f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
+    )
 
     config = load_config(
         file_path=config_file_name,
@@ -637,3 +641,40 @@ def get_resource_name(ocid: str) -> str:
     except:
         name = UNKNOWN
     return name
+
+
+def get_model_by_reference_paths(model_file_description: dict):
+    """Reads the model file description json dict and returns the base model path and fine-tuned path for
+        models created by reference.
+
+    Parameters
+    ----------
+    model_file_description: dict
+        json dict containing model paths and objects for models created by reference.
+
+    Returns
+    -------
+        a tuple with base_model_path and fine_tune_output_path
+    """
+    base_model_path = UNKNOWN
+    fine_tune_output_path = UNKNOWN
+    models = model_file_description["models"]
+
+    for model in models:
+        namespace, bucket_name, prefix = (
+            model["namespace"],
+            model["bucketName"],
+            model["prefix"],
+        )
+        bucket_uri = f"oci://{bucket_name}@{namespace}/{prefix}".rstrip("/")
+        if bucket_name == AQUA_SERVICE_MODELS_BUCKET:
+            base_model_path = bucket_uri
+        else:
+            fine_tune_output_path = bucket_uri
+
+    if not base_model_path:
+        raise AquaValueError(
+            f"Base Model should come from the bucket {AQUA_SERVICE_MODELS_BUCKET}. "
+            f"Other paths are not supported by Aqua."
+        )
+    return base_model_path, fine_tune_output_path
