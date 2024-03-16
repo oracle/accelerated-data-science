@@ -14,8 +14,8 @@ from ads.common.object_storage_details import ObjectStorageDetails
 
 from ads.common.serializer import DataClassSerializable
 from ads.config import (
-    AQUA_CONFIG_FOLDER,
     AQUA_MODEL_FINETUNING_CONFIG,
+    ODSC_MODEL_COMPARTMENT_OCID,
 )
 
 from ads.aqua.base import AquaApp
@@ -46,7 +46,7 @@ from ads.model.model_metadata import (
     ModelCustomMetadata,
     ModelTaxonomyMetadata,
 )
-
+from ads.telemetry import telemetry
 from oci.data_science.models import (
     Metadata,
     UpdateModelDetails,
@@ -162,6 +162,7 @@ class AquaFineTuningApp(AquaApp):
         with OCI services.
     """
 
+    @telemetry(entry_point="plugin=finetuning&action=create", name="aqua")
     def create(
         self, create_fine_tuning_details: CreateFineTuningDetails = None, **kwargs
     ) -> "AquaFineTuningSummary":
@@ -307,10 +308,6 @@ class AquaFineTuningApp(AquaApp):
             value=create_fine_tuning_details.ft_source_id,
         )
         ft_model_custom_metadata.add(
-            key=FineTuneCustomMetadata.FINE_TUNE_OUTPUT_PATH.value,
-            value=create_fine_tuning_details.report_path,
-        )
-        ft_model_custom_metadata.add(
             key=FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME.value,
             value=source.display_name,
         )
@@ -378,18 +375,14 @@ class AquaFineTuningApp(AquaApp):
         else:
             ft_job.infrastructure.with_subnet_id(subnet_id)
 
-        ft_config = load_config(
-            AQUA_CONFIG_FOLDER,
-            config_file_name="finetuning_config.json",
-        )
+        ft_config = self.get_finetuning_config(source.id)
 
         ft_container = source.custom_metadata_list.get(
             FineTuneCustomMetadata.SERVICE_MODEL_FINE_TUNE_CONTAINER.value
         ).value
 
         batch_size = (
-            ft_config.get(source.display_name, UNKNOWN_DICT)
-            .get("shape", UNKNOWN_DICT)
+            ft_config.get("shape", UNKNOWN_DICT)
             .get(create_fine_tuning_details.shape_name, UNKNOWN_DICT)
             .get("batch_size", DEFAULT_FT_BATCH_SIZE)
         )
@@ -554,6 +547,9 @@ class AquaFineTuningApp(AquaApp):
 
         return runtime
 
+    @telemetry(
+        entry_point="plugin=finetuning&action=get_finetuning_config", name="aqua"
+    )
     def get_finetuning_config(self, model_id: str) -> Dict:
         """Gets the finetuning config for given Aqua model.
 

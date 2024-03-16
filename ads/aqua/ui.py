@@ -22,6 +22,7 @@ from ads.config import (
     AQUA_RESOURCE_LIMIT_NAMES_CONFIG,
 )
 from ads.aqua.utils import sanitize_response, load_config
+from ads.telemetry import telemetry
 
 
 class AquaUIApp(AquaApp):
@@ -46,6 +47,7 @@ class AquaUIApp(AquaApp):
     )
     _cache_lock = Lock()
 
+    @telemetry(entry_point="plugin=ui&action=list_log_groups", name="aqua")
     def list_log_groups(self, **kwargs) -> str:
         """Lists all log groups for the specified compartment or tenancy. This is a pass through the OCI list_log_groups
         API.
@@ -68,6 +70,7 @@ class AquaUIApp(AquaApp):
         ).data
         return sanitize_response(oci_client=self.logging_client, response=res)
 
+    @telemetry(entry_point="plugin=ui&action=list_logs", name="aqua")
     def list_logs(self, **kwargs) -> str:
         """Lists the specified log group's log objects. This is a pass through the OCI list_log_groups
         API.
@@ -88,6 +91,7 @@ class AquaUIApp(AquaApp):
         res = self.logging_client.list_logs(log_group_id=log_group_id, **kwargs).data
         return sanitize_response(oci_client=self.logging_client, response=res)
 
+    @telemetry(entry_point="plugin=ui&action=list_compartments", name="aqua")
     def list_compartments(self) -> str:
         """Lists the compartments in a tenancy specified by TENANCY_OCID env variable. This is a pass through the OCI list_compartments
         API.
@@ -194,6 +198,7 @@ class AquaUIApp(AquaApp):
                 }
         return res
 
+    @telemetry(entry_point="plugin=ui&action=list_model_version_sets", name="aqua")
     def list_model_version_sets(self, **kwargs) -> str:
         """Lists all model version sets for the specified compartment or tenancy.
 
@@ -216,6 +221,7 @@ class AquaUIApp(AquaApp):
 
         return sanitize_response(oci_client=self.ds_client, response=res)
 
+    @telemetry(entry_point="plugin=ui&action=list_buckets", name="aqua")
     def list_buckets(self, **kwargs) -> list:
         """Lists all buckets for the specified compartment.
 
@@ -243,6 +249,7 @@ class AquaUIApp(AquaApp):
 
         return sanitize_response(oci_client=os_client, response=res)
 
+    @telemetry(entry_point="plugin=ui&action=list_job_shapes", name="aqua")
     def list_job_shapes(self, **kwargs) -> list:
         """Lists all availiable job shapes for the specified compartment.
 
@@ -263,6 +270,7 @@ class AquaUIApp(AquaApp):
         ).data
         return sanitize_response(oci_client=self.ds_client, response=res)
 
+    @telemetry(entry_point="plugin=ui&action=list_vcn", name="aqua")
     def list_vcn(self, **kwargs) -> list:
         """Lists the virtual cloud networks (VCNs) in the specified compartment.
 
@@ -285,6 +293,7 @@ class AquaUIApp(AquaApp):
         res = vcn_client.list_vcns(compartment_id=compartment_id).data
         return sanitize_response(oci_client=vcn_client, response=res)
 
+    @telemetry(entry_point="plugin=ui&action=list_subnets", name="aqua")
     def list_subnets(self, **kwargs) -> list:
         """Lists the subnets in the specified VCN and the specified compartment.
 
@@ -309,6 +318,7 @@ class AquaUIApp(AquaApp):
 
         return sanitize_response(oci_client=vcn_client, response=res)
 
+    @telemetry(entry_point="plugin=ui&action=get_shape_availability", name="aqua")
     def get_shape_availability(self, **kwargs):
         """
         For a given compartmentId, resource limit name, and scope, returns the number of available resources associated
@@ -364,8 +374,8 @@ class AquaUIApp(AquaApp):
 
         if available < cards:
             raise AquaValueError(
-                f"Inadequate resources are available to create the {instance_shape} resource. The number of available "
-                f"resources associated with the limit name {limit_name} are {available}.",
+                f"Inadequate resource is available to create the {instance_shape} resource. The number of available "
+                f"resource associated with the limit name {limit_name} is {available}.",
                 service_payload=response,
             )
 

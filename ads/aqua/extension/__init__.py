@@ -6,6 +6,7 @@
 
 from jupyter_server.utils import url_path_join
 
+from ads.aqua.extension.common_handler import __handlers__ as __common_handlers__
 from ads.aqua.extension.deployment_handler import (
     __handlers__ as __deployment_handlers__,
 )
@@ -17,6 +18,7 @@ from ads.aqua.extension.ui_handler import __handlers__ as __ui_handlers__
 __handlers__ = (
     __finetune_handlers__
     + __model_handlers__
+    + __common_handlers__
     + __deployment_handlers__
     + __ui_handlers__
     + __eval_handlers__
