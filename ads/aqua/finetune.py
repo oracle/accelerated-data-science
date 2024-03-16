@@ -3,42 +3,48 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from dataclasses import asdict, dataclass, field
-from enum import Enum
 import json
 import os
-from typing import Optional, Dict
-from ads.aqua.exception import AquaFileExistsError, AquaValueError
-from ads.common.auth import default_signer
-from ads.common.object_storage_details import ObjectStorageDetails
+from dataclasses import asdict, dataclass, field
+from enum import Enum
+from typing import Dict, Optional
 
-from ads.common.serializer import DataClassSerializable
-from ads.common.utils import get_console_link
-from ads.config import (
-    AQUA_CONFIG_FOLDER,
-    AQUA_MODEL_FINETUNING_CONFIG,
-    ODSC_MODEL_COMPARTMENT_OCID,
+from oci.data_science.models import (
+    Metadata,
+    UpdateModelDetails,
+    UpdateModelProvenanceDetails,
 )
 
 from ads.aqua.base import AquaApp
+from ads.aqua.data import AquaResourceIdentifier, Resource, Tags
+from ads.aqua.exception import AquaFileExistsError, AquaValueError
 from ads.aqua.job import AquaJobSummary
-from ads.aqua.data import Resource, AquaResourceIdentifier, Tags
-from ads.common.utils import get_console_link
 from ads.aqua.utils import (
     DEFAULT_FT_BATCH_SIZE,
     DEFAULT_FT_BLOCK_STORAGE_SIZE,
     DEFAULT_FT_REPLICA,
     DEFAULT_FT_VALIDATION_SET_SIZE,
     FINE_TUNING_RUNTIME_CONTAINER,
-    UNKNOWN,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
+    UNKNOWN,
     UNKNOWN_DICT,
     get_container_image,
     load_config,
     logger,
     upload_local_to_os,
 )
-from ads.config import AQUA_JOB_SUBNET_ID, COMPARTMENT_OCID, PROJECT_OCID
+from ads.common.auth import default_signer
+from ads.common.object_storage_details import ObjectStorageDetails
+from ads.common.serializer import DataClassSerializable
+from ads.common.utils import get_console_link
+from ads.config import (
+    AQUA_CONFIG_FOLDER,
+    AQUA_JOB_SUBNET_ID,
+    AQUA_MODEL_FINETUNING_CONFIG,
+    COMPARTMENT_OCID,
+    ODSC_MODEL_COMPARTMENT_OCID,
+    PROJECT_OCID,
+)
 from ads.jobs.ads_job import Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
@@ -47,12 +53,6 @@ from ads.model.model_metadata import (
     MetadataTaxonomyKeys,
     ModelCustomMetadata,
     ModelTaxonomyMetadata,
-)
-
-from oci.data_science.models import (
-    Metadata,
-    UpdateModelDetails,
-    UpdateModelProvenanceDetails,
 )
 
 
