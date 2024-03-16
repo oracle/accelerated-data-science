@@ -6,6 +6,7 @@ import re
 from dataclasses import InitVar, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
+import os
 from threading import Lock
 from typing import List, Union
 
@@ -779,7 +780,7 @@ class AquaModelApp(AquaApp):
             raise AquaRuntimeError("Failed to get artifact path from custom metadata.")
 
         content = str(
-            read_file(file_path=f"{artifact_path}/{LICENSE_TXT}", auth=default_signer())
+            read_file(file_path=f"{os.path.dirname(artifact_path)}/config/{LICENSE_TXT}", auth=default_signer())
         )
 
         return AquaModelLicense(id=model_id, license=content)
