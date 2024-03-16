@@ -37,11 +37,13 @@ from ads.model.model_metadata import (
 from ads.model.model_version_set import ModelVersionSet
 
 from ads.aqua.exception import AquaRuntimeError, AquaValueError
+from ads.telemetry import telemetry
 
 
 class AquaApp:
     """Base Aqua App to contain common components."""
 
+    @telemetry(name="aqua")
     def __init__(self) -> None:
         if OCI_RESOURCE_PRINCIPAL_VERSION:
             set_auth("resource_principal")

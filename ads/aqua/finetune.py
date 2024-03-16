@@ -48,7 +48,7 @@ from ads.model.model_metadata import (
     ModelCustomMetadata,
     ModelTaxonomyMetadata,
 )
-
+from ads.telemetry import telemetry
 from oci.data_science.models import (
     Metadata,
     UpdateModelDetails,
@@ -164,6 +164,7 @@ class AquaFineTuningApp(AquaApp):
         with OCI services.
     """
 
+    @telemetry(entry_point="plugin=finetuning&action=create", name="aqua")
     def create(
         self, create_fine_tuning_details: CreateFineTuningDetails = None, **kwargs
     ) -> "AquaFineTuningSummary":
@@ -529,6 +530,9 @@ class AquaFineTuningApp(AquaApp):
 
         return runtime
 
+    @telemetry(
+        entry_point="plugin=finetuning&action=get_finetuning_config", name="aqua"
+    )
     def get_finetuning_config(self, model_id: str) -> Dict:
         """Gets the finetuning config for given Aqua model.
 
