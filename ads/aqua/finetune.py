@@ -7,7 +7,7 @@ import json
 import os
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Dict, Optional
+from typing import Optional, Dict
 
 from ads.aqua.base import AquaApp
 from ads.aqua.data import AquaResourceIdentifier, Resource, Tags
@@ -18,7 +18,6 @@ from ads.aqua.utils import (
     DEFAULT_FT_BLOCK_STORAGE_SIZE,
     DEFAULT_FT_REPLICA,
     DEFAULT_FT_VALIDATION_SET_SIZE,
-    FINE_TUNING_RUNTIME_CONTAINER,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     UNKNOWN,
     UNKNOWN_DICT,
@@ -285,6 +284,12 @@ class AquaFineTuningApp(AquaApp):
             logger.debug(
                 f"Uploaded local file {ft_dataset_path} to object storage {dst_uri}."
             )
+            # tracks the size of dataset uploaded by user to the destination.
+            self.telemetry.record_event_async(
+                category="aqua/finetune/upload",
+                action="size",
+                detail=os.path.getsize(os.path.expanduser(ft_dataset_path)),
+            )
             ft_dataset_path = dst_uri
 
         (
@@ -447,6 +452,19 @@ class AquaFineTuningApp(AquaApp):
             update_model_provenance_details=UpdateModelProvenanceDetails(
                 training_id=ft_job_run.id
             ),
+        )
+
+        # tracks the shape used for fine-tuning the service models
+        self.telemetry.record_event_async(
+            category="aqua/finetune/create",
+            action="shape",
+            detail=create_fine_tuning_details.shape_name,
+        )
+        # tracks unique fine-tuned models that were created in the user compartment
+        self.telemetry.record_event_async(
+            category="aqua/service/finetune",
+            action="create",
+            detail=source.display_name,
         )
 
         return AquaFineTuningSummary(

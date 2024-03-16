@@ -369,6 +369,14 @@ class AquaModelApp(AquaApp):
         logger.debug(
             f"Aqua Model {custom_model.id} created with the service model {model_id}"
         )
+
+        # tracks unique models that were created in the user compartment
+        self.telemetry.record_event_async(
+            category="aqua/service/model",
+            action="create",
+            detail=service_model.display_name,
+        )
+
         return custom_model
 
     @telemetry(entry_point="plugin=model&action=get", name="aqua")
@@ -385,6 +393,7 @@ class AquaModelApp(AquaApp):
         AquaModel:
             The instance of AquaModel.
         """
+
         cached_item = self._service_model_details_cache.get(model_id)
         if cached_item:
             return cached_item
@@ -419,7 +428,10 @@ class AquaModelApp(AquaApp):
             **self._process_model(ds_model, self.region),
             project_id=ds_model.project_id,
             model_card=str(
-                read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
+                read_file(
+                    file_path=f"{artifact_path}/{README}",
+                    auth=self._auth,
+                )
             ),
         )
 
@@ -656,11 +668,22 @@ class AquaModelApp(AquaApp):
         List[AquaModelSummary]:
             The list of the `ads.aqua.model.AquaModelSummary`.
         """
+
         models = []
         if compartment_id:
+            # tracks number of times custom model listing was called
+            self.telemetry.record_event_async(
+                category="aqua/custom/model", action="list"
+            )
+
             logger.info(f"Fetching custom models from compartment_id={compartment_id}.")
             models = self._rqs(compartment_id)
         else:
+            # tracks number of times service model listing was called
+            self.telemetry.record_event_async(
+                category="aqua/service/model", action="list"
+            )
+
             if ODSC_MODEL_COMPARTMENT_OCID in self._service_models_cache.keys():
                 logger.info(
                     f"Returning service models list in {ODSC_MODEL_COMPARTMENT_OCID} from cache."

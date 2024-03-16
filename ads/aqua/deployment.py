@@ -38,7 +38,6 @@ from ads.config import (
     AQUA_MODEL_DEPLOYMENT_CONFIG,
     COMPARTMENT_OCID,
     AQUA_CONFIG_FOLDER,
-    AQUA_MODEL_DEPLOYMENT_FOLDER,
     AQUA_CONTAINER_INDEX_CONFIG,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_SERVED_MODEL_NAME,
@@ -387,6 +386,41 @@ class AquaDeploymentApp(AquaApp):
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
 
+        if is_fine_tuned_model:
+            # tracks unique deployments that were created in the user compartment
+            self.telemetry.record_event_async(
+                category="aqua/custom/deployment", action="create", detail=model_name
+            )
+            # tracks the shape used for deploying the custom models
+            self.telemetry.record_event_async(
+                category="aqua/custom/deployment/create",
+                action="shape",
+                detail=instance_shape,
+            )
+            # tracks the shape used for deploying the custom models by name
+            self.telemetry.record_event_async(
+                category=f"aqua/custom/{model_name}/deployment/create",
+                action="shape",
+                detail=instance_shape,
+            )
+        else:
+            # tracks unique deployments that were created in the user compartment
+            self.telemetry.record_event_async(
+                category="aqua/service/deployment", action="create", detail=model_name
+            )
+            # tracks the shape used for deploying the service models
+            self.telemetry.record_event_async(
+                category="aqua/service/deployment/create",
+                action="shape",
+                detail=instance_shape,
+            )
+            # tracks the shape used for deploying the service models by name
+            self.telemetry.record_event_async(
+                category=f"aqua/service/{model_name}/deployment/create",
+                action="shape",
+                detail=instance_shape,
+            )
+
         return AquaDeployment.from_oci_model_deployment(
             deployment.dsc_model_deployment, self.region
         )
@@ -431,6 +465,9 @@ class AquaDeploymentApp(AquaApp):
                         model_deployment, self.region
                     )
                 )
+
+        # tracks number of times deployment listing was called
+        self.telemetry.record_event_async(category="aqua/deployment", action="list")
 
         return results
 
