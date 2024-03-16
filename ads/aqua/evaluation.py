@@ -60,6 +60,7 @@ from ads.model.model_metadata import (
     ModelTaxonomyMetadata,
 )
 from ads.model.model_version_set import ModelVersionSet
+from ads.telemetry import telemetry
 
 
 class EvaluationJobExitCode(Enum):
@@ -345,6 +346,7 @@ class AquaEvaluationApp(AquaApp):
     _metrics_cache = TTLCache(maxsize=10, ttl=timedelta(hours=5), timer=datetime.now)
     _cache_lock = Lock()
 
+    @telemetry(entry_point="plugin=evaluation&action=create", name="aqua")
     def create(
         self,
         create_aqua_evaluation_details: CreateAquaEvaluationDetails,
@@ -768,6 +770,7 @@ class AquaEvaluationApp(AquaApp):
             params=model_parameters,
         )
 
+    @telemetry(entry_point="plugin=evaluation&action=get", name="aqua")
     def get(self, eval_id) -> AquaEvaluationDetail:
         """Gets the information of an Aqua evalution.
 
@@ -857,6 +860,7 @@ class AquaEvaluationApp(AquaApp):
         )
         return summary
 
+    @telemetry(entry_point="plugin=evaluation&action=list", name="aqua")
     def list(
         self, compartment_id: str = None, project_id: str = None, **kwargs
     ) -> List[AquaEvaluationSummary]:
@@ -921,6 +925,7 @@ class AquaEvaluationApp(AquaApp):
                 logger.info("Evaluation artifact not found.")
                 return False
 
+    @telemetry(entry_point="plugin=evaluation&action=get_status", name="aqua")
     def get_status(self, eval_id: str) -> dict:
         """Gets evaluation's current status.
 
@@ -1014,6 +1019,7 @@ class AquaEvaluationApp(AquaApp):
             },
         ]
 
+    @telemetry(entry_point="plugin=evaluation&action=load_metrics", name="aqua")
     def load_metrics(self, eval_id: str) -> AquaEvalMetrics:
         """Loads evalution metrics markdown from artifacts.
 
@@ -1110,6 +1116,7 @@ class AquaEvaluationApp(AquaApp):
             )
         return content
 
+    @telemetry(entry_point="plugin=evaluation&action=download_report", name="aqua")
     def download_report(self, eval_id) -> AquaEvalReport:
         """Downloads HTML report from model artifact.
 
@@ -1151,6 +1158,7 @@ class AquaEvaluationApp(AquaApp):
 
         return report
 
+    @telemetry(entry_point="plugin=evaluation&action=cancel", name="aqua")
     def cancel(self, eval_id) -> dict:
         """Cancels the job run for the given evaluation id.
         Parameters
@@ -1207,6 +1215,7 @@ class AquaEvaluationApp(AquaApp):
                 f"Exception message: {ex}"
             )
 
+    @telemetry(entry_point="plugin=evaluation&action=delete", name="aqua")
     def delete(self, eval_id):
         """Deletes the job and the associated model for the given evaluation id.
         Parameters
