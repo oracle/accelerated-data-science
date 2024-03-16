@@ -303,7 +303,12 @@ class AquaDeploymentApp(AquaApp):
             model_path_prefix = os_path.filepath.rstrip("/")
 
         env_var.update({"BASE_MODEL": f"{model_path_prefix}"})
-        env_var.update({"PARAMS": f"--served-model-name {AQUA_SERVED_MODEL_NAME}"})
+        # todo: remove max-model-len after we load from deployment_config.json
+        env_var.update(
+            {
+                "PARAMS": f"--served-model-name {AQUA_SERVED_MODEL_NAME} --max-model-len 4096 --trust-remote-code --seed 42"
+            }
+        )
         env_var.update({"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"})
         env_var.update({"MODEL_DEPLOY_ENABLE_STREAMING": "true"})
 
