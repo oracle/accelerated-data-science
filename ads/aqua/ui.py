@@ -374,8 +374,8 @@ class AquaUIApp(AquaApp):
 
         if available < cards:
             raise AquaValueError(
-                f"Inadequate resources are available to create the {instance_shape} resource. The number of available "
-                f"resources associated with the limit name {limit_name} are {available}.",
+                f"Inadequate resource is available to create the {instance_shape} resource. The number of available "
+                f"resource associated with the limit name {limit_name} is {available}.",
                 service_payload=response,
             )
 

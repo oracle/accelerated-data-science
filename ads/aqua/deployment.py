@@ -11,7 +11,7 @@ from typing import Dict, List, Union
 import requests
 from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 
-from ads.aqua.base import AquaApp
+from ads.aqua.base import AquaApp, logger
 from ads.aqua.exception import AquaRuntimeError, AquaValueError
 from ads.aqua.model import AquaModelApp, Tags
 from ads.aqua.utils import (
@@ -19,8 +19,9 @@ from ads.aqua.utils import (
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     load_config,
     get_container_image,
-    get_base_model_from_tags,
+    UNKNOWN_DICT,
     get_resource_name,
+    get_model_by_reference_paths,
 )
 from ads.aqua.finetune import FineTuneCustomMetadata
 from ads.aqua.data import AquaResourceIdentifier
@@ -37,10 +38,10 @@ from ads.config import (
     AQUA_MODEL_DEPLOYMENT_CONFIG,
     COMPARTMENT_OCID,
     AQUA_CONFIG_FOLDER,
-    AQUA_MODEL_DEPLOYMENT_FOLDER,
-    AQUA_CONTAINER_INDEX_CONFIG,
+    AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_SERVED_MODEL_NAME,
+    AQUA_SERVICE_MODELS_BUCKET,
 )
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.telemetry import telemetry
@@ -257,31 +258,35 @@ class AquaDeploymentApp(AquaApp):
             if tag in aqua_model.freeform_tags:
                 tags[tag] = aqua_model.freeform_tags[tag]
 
-        deployment_config = load_config(
-            AQUA_CONFIG_FOLDER,
-            config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG,
-        )
-        # todo: revisit after create FT model is implemented
+        # Set up info to get deployment config
+        config_source_id = model_id
+        model_name = aqua_model.display_name
 
         is_fine_tuned_model = (
             Tags.AQUA_FINE_TUNED_MODEL_TAG.value in aqua_model.freeform_tags
         )
 
         if is_fine_tuned_model:
-            _, model_name = get_base_model_from_tags(aqua_model.freeform_tags)
-        else:
-            model_name = aqua_model.display_name
+            try:
+                config_source_id = aqua_model.custom_metadata_list.get(
+                    FineTuneCustomMetadata.FINE_TUNE_SOURCE.value
+                )
+                model_name = aqua_model.custom_metadata_list.get(
+                    FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME.value
+                )
+            except:
+                raise AquaValueError(
+                    f"Either {FineTuneCustomMetadata.FINE_TUNE_SOURCE.value} or {FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME.value} is missing "
+                    f"from custom metadata for the model {config_source_id}"
+                )
 
-        if model_name not in deployment_config:
-            raise AquaValueError(
-                f"{AQUA_MODEL_DEPLOYMENT_CONFIG} does not have config details for model: {model_name}"
-            )
-
-        shape_list = deployment_config[model_name]["shape"]
-        if instance_shape not in shape_list:
-            raise AquaValueError(
-                f"{instance_shape} is not supported by the model {aqua_model.id}. Available shapes are: {shape_list}"
-            )
+        deployment_config = self.get_deployment_config(config_source_id)
+        vllm_params = (
+            deployment_config.get("configuration", UNKNOWN_DICT)
+            .get(instance_shape, UNKNOWN_DICT)
+            .get("parameters", UNKNOWN_DICT)
+            .get("VLLM_PARAMS", UNKNOWN)
+        )
 
         # set up env vars
         if not env_var:
@@ -302,22 +307,25 @@ class AquaDeploymentApp(AquaApp):
             model_path_prefix = os_path.filepath.rstrip("/")
 
         env_var.update({"BASE_MODEL": f"{model_path_prefix}"})
-        env_var.update({"PARAMS": f"--served-model-name {AQUA_SERVED_MODEL_NAME}"})
+        params = f"--served-model-name {AQUA_SERVED_MODEL_NAME} --trust-remote-code --seed 42 "
+        if vllm_params:
+            params += vllm_params
+        env_var.update({"PARAMS": params})
         env_var.update({"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"})
         env_var.update({"MODEL_DEPLOY_ENABLE_STREAMING": "true"})
 
         if is_fine_tuned_model:
-            try:
-                fine_tune_output_path = aqua_model.custom_metadata_list.get(
-                    FineTuneCustomMetadata.FINE_TUNE_OUTPUT_PATH.value
-                ).value.rstrip("/")
-            except ValueError:
+            _, fine_tune_output_path = get_model_by_reference_paths(
+                aqua_model.model_file_description
+            )
+
+            if not fine_tune_output_path:
                 raise AquaValueError(
-                    f"{FineTuneCustomMetadata.FINE_TUNE_OUTPUT_PATH.value} key is not available in the custom metadata field."
+                    f"Fine tuned output path is not available in the model artifact."
                 )
-            if ObjectStorageDetails.is_oci_path(fine_tune_output_path):
-                os_path = ObjectStorageDetails.from_path(fine_tune_output_path)
-                fine_tune_output_path = os_path.filepath.rstrip("/")
+
+            os_path = ObjectStorageDetails.from_path(fine_tune_output_path)
+            fine_tune_output_path = os_path.filepath.rstrip("/")
 
             env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
 
@@ -515,8 +523,14 @@ class AquaDeploymentApp(AquaApp):
         Dict:
             A dict of allowed deployment configs.
         """
-
-        return self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG)
+        config = self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG)
+        if not config:
+            logger.info(f"Fetching default deployment config for model: {model_id}")
+            config = load_config(
+                AQUA_CONFIG_FOLDER,
+                config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS,
+            )
+        return config
 
 
 @dataclass

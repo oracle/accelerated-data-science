@@ -93,29 +93,31 @@ class EvaluationJobExitCode(Enum):
     EVALUATION_REPORT_ERROR = 28
     MODEL_INFERENCE_WRONG_RESPONSE_FORMAT = 29
     UNSUPPORTED_METRICS = 30
+    METRIC_CALCULATION_FAILURE = 31
 
 
 EVALUATION_JOB_EXIT_CODE_MESSAGE = {
     EvaluationJobExitCode.SUCCESS.value: "Success",
-    EvaluationJobExitCode.COMMON_ERROR.value: "An error occurred during the evaluation, please check the log for more information",
-    EvaluationJobExitCode.INVALID_EVALUATION_CONFIG.value: "The provided evaluation configuration was not in the correct format, supported formats are YAML or JSON",
-    EvaluationJobExitCode.EVALUATION_CONFIG_NOT_PROVIDED.value: "The evaluation config was not provided",
-    EvaluationJobExitCode.INVALID_OUTPUT_DIR.value: "The specified output directory path is invalid",
-    EvaluationJobExitCode.INVALID_INPUT_DATASET_PATH.value: "Dataset path is invalid",
-    EvaluationJobExitCode.INVALID_EVALUATION_ID.value: "Evaluation ID was not found in the Model Catalog",
-    EvaluationJobExitCode.INVALID_TARGET_EVALUATION_ID.value: "Target evaluation ID was not found in the Model Deployment",
-    EvaluationJobExitCode.INVALID_EVALUATION_CONFIG_VALIDATION.value: "Validation errors in the evaluation config",
-    EvaluationJobExitCode.OUTPUT_DIR_NOT_FOUND.value: "Destination folder does not exist or cannot be used for writing, verify the folder's existence and permissions",
-    EvaluationJobExitCode.INVALID_INPUT_DATASET.value: "Input dataset is in an invalid format, ensure the dataset is in jsonl format and that includes the required columns: 'prompt', 'completion' (optional 'category')",
-    EvaluationJobExitCode.INPUT_DATA_NOT_FOUND.value: "Input data file does not exist or cannot be use for reading, verify the file's existence and permissions",
-    EvaluationJobExitCode.EVALUATION_ID_NOT_FOUND.value: "Evaluation ID does not match any resource in the Model Catalog, or access may be blocked by policies",
-    EvaluationJobExitCode.EVALUATION_ALREADY_PERFORMED.value: "Evaluation already has an attached artifact, indicating that the evaluation has already been performed",
-    EvaluationJobExitCode.EVALUATION_TARGET_NOT_FOUND.value: "Target evaluation ID does not match any resources in Model Deployment",
-    EvaluationJobExitCode.NO_SUCCESS_INFERENCE_RESULT.value: "Inference process completed without producing expected outcome, verify the model parameters and config",
-    EvaluationJobExitCode.COMPUTE_EVALUATION_ERROR.value: "Evaluation process encountered an issue while calculating metrics",
-    EvaluationJobExitCode.EVALUATION_REPORT_ERROR.value: "Failed to save the evaluation report due to an error. Ensure the evaluation model is currently active and the specified path for the output report is valid and accessible. Verify these conditions and reinitiate the evaluation process",
+    EvaluationJobExitCode.COMMON_ERROR.value: "An error occurred during the evaluation, please check the log for more information.",
+    EvaluationJobExitCode.INVALID_EVALUATION_CONFIG.value: "The provided evaluation configuration was not in the correct format, supported formats are YAML or JSON.",
+    EvaluationJobExitCode.EVALUATION_CONFIG_NOT_PROVIDED.value: "The evaluation config was not provided.",
+    EvaluationJobExitCode.INVALID_OUTPUT_DIR.value: "The specified output directory path is invalid.",
+    EvaluationJobExitCode.INVALID_INPUT_DATASET_PATH.value: "Dataset path is invalid.",
+    EvaluationJobExitCode.INVALID_EVALUATION_ID.value: "Evaluation ID was not found in the Model Catalog.",
+    EvaluationJobExitCode.INVALID_TARGET_EVALUATION_ID.value: "Target evaluation ID was not found in the Model Deployment.",
+    EvaluationJobExitCode.INVALID_EVALUATION_CONFIG_VALIDATION.value: "Validation errors in the evaluation config.",
+    EvaluationJobExitCode.OUTPUT_DIR_NOT_FOUND.value: "Destination folder does not exist or cannot be used for writing, verify the folder's existence and permissions.",
+    EvaluationJobExitCode.INVALID_INPUT_DATASET.value: "Input dataset is in an invalid format, ensure the dataset is in jsonl format and that includes the required columns: 'prompt', 'completion' (optional 'category').",
+    EvaluationJobExitCode.INPUT_DATA_NOT_FOUND.value: "Input data file does not exist or cannot be use for reading, verify the file's existence and permissions.",
+    EvaluationJobExitCode.EVALUATION_ID_NOT_FOUND.value: "Evaluation ID does not match any resource in the Model Catalog, or access may be blocked by policies.",
+    EvaluationJobExitCode.EVALUATION_ALREADY_PERFORMED.value: "Evaluation already has an attached artifact, indicating that the evaluation has already been performed.",
+    EvaluationJobExitCode.EVALUATION_TARGET_NOT_FOUND.value: "Target evaluation ID does not match any resources in Model Deployment.",
+    EvaluationJobExitCode.NO_SUCCESS_INFERENCE_RESULT.value: "Inference process completed without producing expected outcome, verify the model parameters and config.",
+    EvaluationJobExitCode.COMPUTE_EVALUATION_ERROR.value: "Evaluation process encountered an issue while calculating metrics.",
+    EvaluationJobExitCode.EVALUATION_REPORT_ERROR.value: "Failed to save the evaluation report due to an error. Ensure the evaluation model is currently active and the specified path for the output report is valid and accessible. Verify these conditions and reinitiate the evaluation process.",
     EvaluationJobExitCode.MODEL_INFERENCE_WRONG_RESPONSE_FORMAT.value: "Evaluation encountered unsupported, or unexpected model output, verify the target evaluation model is compatible and produces the correct format.",
     EvaluationJobExitCode.UNSUPPORTED_METRICS.value: "None of the provided metrics are supported by the framework.",
+    EvaluationJobExitCode.METRIC_CALCULATION_FAILURE.value: "All attempted metric calculations were unsuccessful. Please review the metric configurations and input data.",
 }
 
 
@@ -973,13 +975,33 @@ class AquaEvaluationApp(AquaApp):
 
     def get_supported_metrics(self) -> dict:
         """Gets a list of supported metrics for evaluation."""
-        # TODO: implemente it when starting to support more metrics.
+        # TODO: implement it when starting to support more metrics.
         return [
             {
                 "use_case": ["text_generation"],
                 "key": "bertscore",
                 "name": "BERT Score",
-                "description": "BERT Score is a metric for evaluating the quality of text generation models, such as machine translation or summarization. It utilizes pre-trained BERT contextual embeddings for both the generated and reference texts, and then calculates the cosine similarity between these embeddings.",
+                "description": (
+                    "BERT Score is a metric for evaluating the quality of text "
+                    "generation models, such as machine translation or summarization. "
+                    "It utilizes pre-trained BERT contextual embeddings for both the "
+                    "generated and reference texts, and then calculates the cosine "
+                    "similarity between these embeddings."
+                ),
+                "args": {},
+            },
+            {
+                "use_case": ["text_generation"],
+                "key": "rouge",
+                "name": "ROUGE Score",
+                "description": (
+                    "ROUGE scores compare a candidate document to a collection of "
+                    "reference documents to evaluate the similarity between them. "
+                    "The metrics range from 0 to 1, with higher scores indicating "
+                    "greater similarity. ROUGE is more suitable for models that don't "
+                    "include paraphrasing and do not generate new text units that don't "
+                    "appear in the references."
+                ),
                 "args": {},
             },
         ]
@@ -996,7 +1018,7 @@ class AquaEvaluationApp(AquaApp):
         Returns
         -------
         AquaEvalMetrics:
-            An instancec of AquaEvalMetrics.
+            An instance of AquaEvalMetrics.
         """
         if eval_id in self._metrics_cache.keys():
             logger.info(f"Returning metrics from cache.")
@@ -1618,11 +1640,9 @@ class AquaEvaluationApp(AquaApp):
             match = re.search(r"exit code (\d+)", lifecycle_details)
             if match:
                 exit_code = int(match.group(1))
-                # Match exit code to message
-                message = EVALUATION_JOB_EXIT_CODE_MESSAGE.get(
-                    exit_code,
-                    lifecycle_details,
-                )
+                exit_code_message = EVALUATION_JOB_EXIT_CODE_MESSAGE.get(exit_code)
+                if exit_code_message:
+                    message = f"{exit_code_message} Exit code: {exit_code}."
         except:
             pass
 
