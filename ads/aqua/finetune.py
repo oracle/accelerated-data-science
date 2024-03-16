@@ -17,7 +17,7 @@ from ads.common.utils import get_console_link
 from ads.config import (
     AQUA_CONFIG_FOLDER,
     AQUA_MODEL_FINETUNING_CONFIG,
-    ODSC_MODEL_COMPARTMENT_OCID
+    ODSC_MODEL_COMPARTMENT_OCID,
 )
 
 from ads.aqua.base import AquaApp
@@ -232,8 +232,8 @@ class AquaFineTuningApp(AquaApp):
 
         if create_fine_tuning_details.replica > DEFAULT_FT_REPLICA:
             if not (
-                create_fine_tuning_details.log_id and
-                create_fine_tuning_details.log_group_id
+                create_fine_tuning_details.log_id
+                and create_fine_tuning_details.log_group_id
             ):
                 raise AquaValueError(
                     f"Logging is required for fine tuning if replica is larger than {DEFAULT_FT_REPLICA}."
@@ -303,10 +303,6 @@ class AquaFineTuningApp(AquaApp):
             value=create_fine_tuning_details.ft_source_id,
         )
         ft_model_custom_metadata.add(
-            key=FineTuneCustomMetadata.FINE_TUNE_OUTPUT_PATH.value,
-            value=create_fine_tuning_details.report_path,
-        )
-        ft_model_custom_metadata.add(
             key=FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME.value,
             value=source.display_name,
         )
@@ -324,7 +320,7 @@ class AquaFineTuningApp(AquaApp):
         ft_model_custom_metadata.add(
             key=service_model_deployment_container.key,
             value=service_model_deployment_container.value,
-            description=service_model_deployment_container.description
+            description=service_model_deployment_container.description,
         )
 
         ft_model_taxonomy_metadata = ModelTaxonomyMetadata()
@@ -379,7 +375,9 @@ class AquaFineTuningApp(AquaApp):
             config_file_name="finetuning_config.json",
         )
 
-        ft_container = source.custom_metadata_list.get(FineTuneCustomMetadata.SERVICE_MODEL_FINE_TUNE_CONTAINER.value).value
+        ft_container = source.custom_metadata_list.get(
+            FineTuneCustomMetadata.SERVICE_MODEL_FINE_TUNE_CONTAINER.value
+        ).value
 
         batch_size = (
             ft_config.get(source.display_name, UNKNOWN_DICT)
@@ -507,7 +505,7 @@ class AquaFineTuningApp(AquaApp):
         batch_size: int,
         val_set_size: float,
         parameters: AquaFineTuningParams,
-        ft_container: str = None
+        ft_container: str = None,
     ) -> Runtime:
         """Builds fine tuning runtime for Job."""
         container = get_container_image(
