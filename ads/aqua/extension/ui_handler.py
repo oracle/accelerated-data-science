@@ -48,7 +48,7 @@ class AquaUIHandler(AquaAPIhandler):
             return self.list_compartments()
         elif paths.startswith("aqua/experiment"):
             return self.list_experiments()
-        elif paths.startswith("aqua/finetuning/modelversionsets"):
+        elif paths.startswith("aqua/versionsets"):
             return self.list_model_version_sets()
         elif paths.startswith("aqua/buckets"):
             return self.list_buckets()
@@ -177,7 +177,7 @@ __handlers__ = [
     ("compartments/?([^/]*)", AquaUIHandler),
     # TODO: change url to evaluation/experiements/?([^/]*)
     ("experiment/?([^/]*)", AquaUIHandler),
-    ("finetuning/modelversionsets/?([^/]*)", AquaUIHandler),
+    ("versionsets/?([^/]*)", AquaUIHandler),
     ("buckets/?([^/]*)", AquaUIHandler),
     ("job/shapes/?([^/]*)", AquaUIHandler),
     ("vcn/?([^/]*)", AquaUIHandler),
