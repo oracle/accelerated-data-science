@@ -269,10 +269,10 @@ class AquaDeploymentApp(AquaApp):
             try:
                 config_source_id = aqua_model.custom_metadata_list.get(
                     FineTuneCustomMetadata.FINE_TUNE_SOURCE.value
-                )
+                ).value
                 model_name = aqua_model.custom_metadata_list.get(
                     FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME.value
-                )
+                ).value
             except:
                 raise AquaValueError(
                     f"Either {FineTuneCustomMetadata.FINE_TUNE_SOURCE.value} or {FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME.value} is missing "
