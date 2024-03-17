@@ -386,7 +386,8 @@ class AquaFineTuningApp(AquaApp):
             .get(create_fine_tuning_details.shape_name, UNKNOWN_DICT)
             .get("batch_size", DEFAULT_FT_BATCH_SIZE)
         )
-
+        model_type = ft_config.get("model_type")
+        
         ft_job.with_runtime(
             self._build_fine_tuning_runtime(
                 source_id=source.id,
@@ -395,6 +396,7 @@ class AquaFineTuningApp(AquaApp):
                 report_path=create_fine_tuning_details.report_path,
                 replica=create_fine_tuning_details.replica,
                 batch_size=batch_size,
+                model_type=model_type,
                 val_set_size=(
                     create_fine_tuning_details.validation_set_size
                     or DEFAULT_FT_VALIDATION_SET_SIZE
@@ -520,6 +522,7 @@ class AquaFineTuningApp(AquaApp):
         val_set_size: float,
         parameters: AquaFineTuningParams,
         ft_container: str = None,
+        model_type: str = None
     ) -> Runtime:
         """Builds fine tuning runtime for Job."""
         container = get_container_image(
@@ -538,7 +541,7 @@ class AquaFineTuningApp(AquaApp):
                             },
                         }
                     ),
-                    "OCI__LAUNCH_CMD": f"--micro_batch_size {batch_size} --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} --trust_remote_code True",
+                    "OCI__LAUNCH_CMD": f"--micro_batch_size {batch_size} --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} --trust_remote_code True" + f" --model_type {model_type}" if model_type else "",
                 }
             )
             .with_image(image=container)
