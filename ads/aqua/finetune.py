@@ -538,7 +538,7 @@ class AquaFineTuningApp(AquaApp):
                             },
                         }
                     ),
-                    "OCI__LAUNCH_CMD": f"--micro_batch_size {batch_size} --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} --trust_remote_code true",
+                    "OCI__LAUNCH_CMD": f"--micro_batch_size {batch_size} --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} --trust_remote_code True",
                 }
             )
             .with_image(image=container)
