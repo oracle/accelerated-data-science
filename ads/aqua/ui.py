@@ -21,6 +21,7 @@ from ads.config import (
     AQUA_CONFIG_FOLDER,
     AQUA_RESOURCE_LIMIT_NAMES_CONFIG,
 )
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.aqua.utils import sanitize_response, load_config
 from ads.telemetry import telemetry
 
@@ -380,3 +381,27 @@ class AquaUIApp(AquaApp):
             )
 
         return response
+
+    @telemetry(entry_point="plugin=ui&action=is_bucket_versioned", name="aqua")
+    def is_bucket_versioned(self, bucket_uri: str):
+        """Check if the given bucket is versioned. Required check for fine-tuned model creation process where the model
+        weights are stored.
+
+        Parameters
+        ----------
+        bucket_uri
+
+        Returns
+        -------
+            dict:
+                is_versioned flag that informs whether it is versioned or not.
+
+        """
+        if ObjectStorageDetails.from_path(bucket_uri).is_bucket_versioned():
+            is_versioned = True
+            message = f"Model artifact bucket {bucket_uri} is versioned."
+        else:
+            is_versioned = False
+            message = f"Model artifact bucket {bucket_uri} is not versioned. Check if the path exists and enable versioning on the bucket to proceed with model creation."
+
+        return dict(is_versioned=is_versioned, message=message)
