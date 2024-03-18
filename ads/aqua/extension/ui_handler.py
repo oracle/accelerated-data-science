@@ -4,7 +4,10 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from urllib.parse import urlparse
+
 from tornado.web import HTTPError
+
+from ads.aqua.data import Tags
 from ads.aqua.decorator import handle_exceptions
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.ui import AquaUIApp
@@ -44,6 +47,8 @@ class AquaUIHandler(AquaAPIhandler):
         elif paths.startswith("aqua/compartments"):
             return self.list_compartments()
         elif paths.startswith("aqua/experiment"):
+            return self.list_experiments()
+        elif paths.startswith("aqua/versionsets"):
             return self.list_model_version_sets()
         elif paths.startswith("aqua/buckets"):
             return self.list_buckets()
@@ -97,9 +102,27 @@ class AquaUIHandler(AquaAPIhandler):
     @handle_exceptions
     def list_model_version_sets(self, **kwargs):
         """Lists all model version sets for the specified compartment or tenancy."""
+
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
         return self.finish(
-            AquaUIApp().list_model_version_sets(compartment_id=compartment_id, **kwargs)
+            AquaUIApp().list_model_version_sets(
+                compartment_id=compartment_id,
+                target_tag=Tags.AQUA_FINE_TUNING.value,
+                **kwargs,
+            )
+        )
+
+    @handle_exceptions
+    def list_experiments(self, **kwargs):
+        """Lists all experiments for the specified compartment or tenancy."""
+
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
+        return self.finish(
+            AquaUIApp().list_model_version_sets(
+                compartment_id=compartment_id,
+                target_tag=Tags.AQUA_EVALUATION.value,
+                **kwargs,
+            )
         )
 
     @handle_exceptions
@@ -161,7 +184,9 @@ class AquaUIHandler(AquaAPIhandler):
 __handlers__ = [
     ("logging/?([^/]*)", AquaUIHandler),
     ("compartments/?([^/]*)", AquaUIHandler),
+    # TODO: change url to evaluation/experiements/?([^/]*)
     ("experiment/?([^/]*)", AquaUIHandler),
+    ("versionsets/?([^/]*)", AquaUIHandler),
     ("buckets/?([^/]*)", AquaUIHandler),
     ("job/shapes/?([^/]*)", AquaUIHandler),
     ("vcn/?([^/]*)", AquaUIHandler),
