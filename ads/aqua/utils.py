@@ -29,7 +29,7 @@ from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link, upload_to_os
 from ads.config import AQUA_CONFIG_FOLDER, AQUA_SERVICE_MODELS_BUCKET, TENANCY_OCID
-from ads.model import DataScienceModel
+from ads.model import DataScienceModel, ModelVersionSet
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
@@ -690,7 +690,7 @@ def get_model_by_reference_paths(model_file_description: dict):
     return base_model_path, fine_tune_output_path
 
 
-def _is_valid_mvs(cls, mvs: "ads.model.ModelVersionSet", target_tag: str) -> bool:
+def _is_valid_mvs(mvs: ModelVersionSet, target_tag: str) -> bool:
     """Returns whether the given model version sets has the target tag.
 
     Parameters

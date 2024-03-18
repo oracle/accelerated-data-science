@@ -143,21 +143,27 @@ class AquaApp:
 
         Parameters
         ----------
-        model_version_set_id (str, optional):
+        model_version_set_id: (str, optional):
             ModelVersionSet OCID.
-        model_version_set_name (str, optional):
+        model_version_set_name: (str, optional):
             ModelVersionSet Name.
-        description (str, optional):
+        description: (str, optional):
             TBD
-        compartment_id (str, optional):
+        compartment_id: (str, optional):
             Compartment OCID.
-        project_id (str, optional):
+        project_id: (str, optional):
             Project OCID.
+        tag: (str, optional)
+            calling tag, can be Tags.AQUA_FINE_TUNING or Tags.AQUA_EVALUATION
 
         Returns
         -------
         tuple: (model_version_set_id, model_version_set_name)
         """
+        # TODO: tag should be selected based on which operation (eval/FT) invoke this method
+        #   currently only used by fine-tuning flow.
+        tag = Tags.AQUA_FINE_TUNING.value
+
         if not model_version_set_id:
             tag = Tags.AQUA_FINE_TUNING.value # TODO: Fix this
             try:
@@ -165,8 +171,7 @@ class AquaApp:
                     name=model_version_set_name,
                     compartment_id=compartment_id,
                 )
-                # TODO: tag should be selected based on which operation (eval/FT) invoke this method
-                tag = Tags.AQUA_FINE_TUNING.value
+
                 if not _is_valid_mvs(model_version_set, tag):
                     raise AquaValueError(
                         f"Invalid model version set name. Please provide a model version set with `{tag}` in tags."
