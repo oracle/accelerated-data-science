@@ -547,7 +547,7 @@ class AquaFineTuningApp(AquaApp):
                     "OCI__LAUNCH_CMD": (
                         f"--micro_batch_size {batch_size} --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} "
                         + f"{finetuning_params}"
-                        if model_type
+                        if finetuning_params
                         else ""
                     ),
                 }
