@@ -49,6 +49,7 @@ class AnomalyDatasets:
             The anomaly operator spec.
         """
         self._data = AnomalyData(spec)
+        self.data_with_all_cols = self._data.get_data_with_all_cols()
         self.data = self._data.get_data_long()
         self.full_data_dict = self._data.get_dict_by_series()
         if spec.validation_data is not None:

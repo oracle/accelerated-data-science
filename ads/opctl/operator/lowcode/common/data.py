@@ -24,7 +24,13 @@ class AbstractData(ABC):
         self.data = None
         self._data_dict = dict()
         self.name = name
+        self.data_with_all_cols = None
         self.load_transform_ingest_data(spec)
+
+
+    def get_data_with_all_cols(self):
+        return self.data_with_all_cols.reset_index(drop=False)
+
 
     def get_dict_by_series(self):
         if not self._data_dict:
@@ -65,7 +71,10 @@ class AbstractData(ABC):
     def _transform_data(self, spec, raw_data, **kwargs):
         transformation_start_time = time.time()
         self._data_transformer = self.Transformations(spec, name=self.name)
-        data = self._data_transformer.run(raw_data)
+        self.data_with_all_cols = self._data_transformer.run(raw_data)
+        data = self.data_with_all_cols
+        if spec.target_category_columns:
+            data = data.drop(spec.target_category_columns, axis=1)
         transformation_end_time = time.time()
         logger.info(
             f"{self.name} transformations completed in {transformation_end_time - transformation_start_time} seconds"

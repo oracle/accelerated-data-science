@@ -85,7 +85,7 @@ class Transformations(ABC):
             df[DataColumns.Series] = merge_category_columns(
                 df, self.target_category_columns
             )
-            df = df.drop(self.target_category_columns, axis=1)
+            #df = df.drop(self.target_category_columns, axis=1)
         return df
 
     def _format_datetime_col(self, df):
