@@ -690,7 +690,7 @@ def get_model_by_reference_paths(model_file_description: dict):
     return base_model_path, fine_tune_output_path
 
 
-def _is_valid_mvs(cls, mvs: "ads.model.ModelVersionSet", target_tag: str) -> bool:
+def _is_valid_mvs(mvs: "ads.model.ModelVersionSet", target_tag: str) -> bool:
     """Returns whether the given model version sets has the target tag.
 
     Parameters
