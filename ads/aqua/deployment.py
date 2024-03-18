@@ -531,7 +531,11 @@ class AquaDeploymentApp(AquaApp):
 
         log_group_url = get_log_links(region=self.region, log_group_id=log_group_id)
         log_url = get_log_links(
-            region=self.region, log_group_id=log_group_id, log_id=log_id
+            region=self.region,
+            log_group_id=log_group_id,
+            log_id=log_id,
+            compartment_id=model_deployment.compartment_id,
+            source_id=model_deployment.id
         )
 
         return AquaDeploymentDetail(
