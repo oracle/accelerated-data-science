@@ -306,7 +306,7 @@ class AquaDeploymentApp(AquaApp):
             model_path_prefix = os_path.filepath.rstrip("/")
 
         env_var.update({"BASE_MODEL": f"{model_path_prefix}"})
-        params = f"--served-model-name {AQUA_SERVED_MODEL_NAME} --trust-remote-code --seed 42 "
+        params = f"--served-model-name {AQUA_SERVED_MODEL_NAME} --seed 42 "
         if vllm_params:
             params += vllm_params
         env_var.update({"PARAMS": params})
