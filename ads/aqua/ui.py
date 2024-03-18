@@ -9,13 +9,15 @@ from threading import Lock
 from cachetools import TTLCache
 from oci.exceptions import ServiceError
 from oci.identity.models import Compartment
-from ads.aqua.data import Tags
+
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
+from ads.aqua.data import Tags
 from ads.aqua.exception import AquaValueError
 from ads.aqua.utils import load_config, sanitize_response
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import (
     AQUA_CONFIG_FOLDER,
     AQUA_RESOURCE_LIMIT_NAMES_CONFIG,
@@ -23,8 +25,6 @@ from ads.config import (
     DATA_SCIENCE_SERVICE_NAME,
     TENANCY_OCID,
 )
-from ads.common.object_storage_details import ObjectStorageDetails
-from ads.aqua.utils import sanitize_response, load_config
 from ads.telemetry import telemetry
 
 
@@ -202,7 +202,7 @@ class AquaUIApp(AquaApp):
         return res
 
     @telemetry(entry_point="plugin=ui&action=list_model_version_sets", name="aqua")
-    def list_model_version_sets(self, target_tag:str = None, **kwargs) -> str:
+    def list_model_version_sets(self, target_tag: str = None, **kwargs) -> str:
         """Lists all model version sets for the specified compartment or tenancy.
 
         Parameters
@@ -218,16 +218,19 @@ class AquaUIApp(AquaApp):
             str has json representation of `oci.data_science.models.ModelVersionSetSummary`.
         """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
-        logger.info(
-            f"Loading {"experiments" if target_tag == Tags.AQUA_EVALUATION.value else "modelversionsets"} from compartment: {compartment_id}"
+        target_resource = (
+            "experiments"
+            if target_tag == Tags.AQUA_EVALUATION.value
+            else "modelversionsets"
         )
+        logger.info(f"Loading {target_resource} from compartment: {compartment_id}")
 
         items = self.list_resource(
             self.ds_client.list_model_version_sets,
             compartment_id=compartment_id,
             **kwargs,
         )
-        
+
         if target_tag is not None:
             res = []
             for item in items:
@@ -235,7 +238,7 @@ class AquaUIApp(AquaApp):
                     res.append(item)
         else:
             res = items
-            
+
         return sanitize_response(oci_client=self.ds_client, response=res)
 
     @telemetry(entry_point="plugin=ui&action=list_buckets", name="aqua")
