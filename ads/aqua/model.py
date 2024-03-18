@@ -146,9 +146,9 @@ class AquaEvalFTCommon(DataClassSerializable):
             logger.debug(f"No associated loggroup found. {str(e)}")
             loggroup_id = ""
 
-        loggroup_url = get_log_links(region=self.region, log_group_id=loggroup_id)
+        loggroup_url = get_log_links(region=region, log_group_id=loggroup_id)
         log_url = get_log_links(
-            region=self.region,
+            region=region,
             log_group_id=loggroup_id,
             log_id=log_id,
             compartment_id=jobrun.compartment_id,
