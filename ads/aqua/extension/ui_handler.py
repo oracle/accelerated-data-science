@@ -55,6 +55,8 @@ class AquaUIHandler(AquaAPIhandler):
             return self.list_subnets()
         elif paths.startswith("aqua/shapes/limit"):
             return self.get_shape_availability()
+        elif paths.startswith("aqua/bucket/versioning"):
+            return self.is_bucket_versioned()
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
@@ -148,6 +150,13 @@ class AquaUIHandler(AquaAPIhandler):
             )
         )
 
+    @handle_exceptions
+    def is_bucket_versioned(self):
+        """For a given compartmentId, resource limit name, and scope, returns the number of available resources associated
+        with the given limit."""
+        bucket_uri = self.get_argument("bucket_uri")
+        return self.finish(AquaUIApp().is_bucket_versioned(bucket_uri=bucket_uri))
+
 
 __handlers__ = [
     ("logging/?([^/]*)", AquaUIHandler),
@@ -158,4 +167,5 @@ __handlers__ = [
     ("vcn/?([^/]*)", AquaUIHandler),
     ("subnets/?([^/]*)", AquaUIHandler),
     ("shapes/limit/?([^/]*)", AquaUIHandler),
+    ("bucket/versioning/?([^/]*)", AquaUIHandler),
 ]
