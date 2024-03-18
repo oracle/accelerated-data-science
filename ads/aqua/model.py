@@ -42,7 +42,7 @@ from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
-from ads.common.utils import get_console_link
+from ads.common.utils import get_console_link, get_log_links
 from ads.config import (
     AQUA_SERVICE_MODELS_BUCKET,
     COMPARTMENT_OCID,
@@ -146,17 +146,15 @@ class AquaEvalFTCommon(DataClassSerializable):
             logger.debug(f"No associated loggroup found. {str(e)}")
             loggroup_id = ""
 
-        loggroup_url = (
-            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}?region={region}"
-            if loggroup_id
-            else ""
-        )
+        loggroup_url = get_log_links(region=self.region, log_group_id=loggroup_id)
+        log_url = get_log_links(
+            region=self.region,
+            log_group_id=loggroup_id,
+            log_id=log_id,
+            compartment_id=jobrun.compartment_id,
+            source_id=jobrun.id
+        ) if jobrun else ""
 
-        log_url = (
-            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}/logs/{log_id}?region={region}"
-            if (loggroup_id and log_id)
-            else ""
-        )
         log_name = None
         loggroup_name = None
 
