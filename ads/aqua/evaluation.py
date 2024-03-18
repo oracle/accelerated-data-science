@@ -925,7 +925,7 @@ class AquaEvaluationApp(AquaApp):
 
             if model.identifier in self._eval_cache.keys():
                 logger.debug(f"Retrieving evaluation {model.identifier} from cache.")
-                evaluation_summary = self._eval_cache.get(model.identifier)
+                evaluations.append(self._eval_cache.get(model.identifier))
 
             else:
                 jobrun_id = self._get_attribute_from_model_metadata(
@@ -936,11 +936,7 @@ class AquaEvaluationApp(AquaApp):
                 if not job_run:
                     async_tasks.append((model, jobrun_id))
                 else:
-                    evaluation_summary = self._process_evaluation_summary(
-                        model, job_run
-                    )
-
-            evaluations.append(evaluation_summary)
+                    evaluations.append(self._process_evaluation_summary(model, job_run))
 
         with ThreadPoolExecutor(max_workers=10) as executor:
             future_to_model = {
