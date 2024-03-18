@@ -459,9 +459,8 @@ class AquaFineTuningApp(AquaApp):
             {"ocid": ft_job.id[-6:]} if ft_job and len(ft_job.id) > 6 else {}
         )
         self.telemetry.record_event_async(
-            category="aqua/finetune/create",
-            action=source.display_name,
-            detail=f"{create_fine_tuning_details.shape_name}x{create_fine_tuning_details.replica}",
+            category=f"aqua/service/{source.display_name}/finetune/create/shape/",
+            action=f"{create_fine_tuning_details.shape_name}x{create_fine_tuning_details.replica}",
             **telemetry_kwargs,
         )
         # tracks unique fine-tuned models that were created in the user compartment
