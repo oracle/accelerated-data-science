@@ -644,6 +644,7 @@ def get_resource_name(ocid: str) -> str:
     return name
 
 
+<<<<<<< HEAD
 def get_model_by_reference_paths(model_file_description: dict):
     """Reads the model file description json dict and returns the base model path and fine-tuned path for
         models created by reference.
@@ -679,3 +680,24 @@ def get_model_by_reference_paths(model_file_description: dict):
             f"Other paths are not supported by Aqua."
         )
     return base_model_path, fine_tune_output_path
+=======
+def _is_valid_mvs(cls, mvs: "ads.model.ModelVersionSet", target_tag: str) -> bool:
+    """Returns whether the given model version sets has the target tag.
+
+    Parameters
+    ----------
+    mvs: str
+        The instance of `ads.model.ModelVersionSet`.
+    target_tag: list
+        Target tag expected to be in MVS.
+
+    Returns
+    -------
+    bool:
+        Return True if the given model version sets is valid.
+    """
+    if mvs.freeform_tags is None:
+        return False
+
+    return target_tag in mvs.freeform_tags
+>>>>>>> 18fc23a5 (FT/EVAL improvement regarding MVS)

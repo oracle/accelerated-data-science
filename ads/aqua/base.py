@@ -3,33 +3,34 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import os
 from typing import Dict, Union
 
-import os
 import oci
 from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDetails
 
 from ads import set_auth
 from ads.aqua import logger
 from ads.aqua.data import Tags
+from ads.aqua.exception import AquaRuntimeError, AquaValueError
 from ads.aqua.utils import (
     UNKNOWN,
+    _is_valid_mvs,
+    get_artifact_path,
+    get_base_model_from_tags,
     is_valid_ocid,
     load_config,
     logger,
-    get_artifact_path,
 )
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import extract_region
 from ads.config import (
-    AQUA_CONFIG_FOLDER,
-    OCI_ODSC_SERVICE_ENDPOINT,
-    OCI_RESOURCE_PRINCIPAL_VERSION,
     AQUA_TELEMETRY_BUCKET,
     AQUA_TELEMETRY_BUCKET_NS,
+    OCI_ODSC_SERVICE_ENDPOINT,
+    OCI_RESOURCE_PRINCIPAL_VERSION,
 )
-from ads.telemetry.client import TelemetryClient
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import (
@@ -38,9 +39,8 @@ from ads.model.model_metadata import (
     ModelTaxonomyMetadata,
 )
 from ads.model.model_version_set import ModelVersionSet
-
-from ads.aqua.exception import AquaRuntimeError, AquaValueError
 from ads.telemetry import telemetry
+from ads.telemetry.client import TelemetryClient
 
 
 class AquaApp:
@@ -139,24 +139,54 @@ class AquaApp:
         project_id: str = None,
         **kwargs,
     ) -> tuple:
+        """Creates ModelVersionSet from given ID or Name.
+
+        Parameters
+        ----------
+        model_version_set_id (str, optional):
+            ModelVersionSet OCID.
+        model_version_set_name (str, optional):
+            ModelVersionSet Name.
+        description (str, optional):
+            TBD
+        compartment_id (str, optional):
+            Compartment OCID.
+        project_id (str, optional):
+            Project OCID.
+
+        Returns
+        -------
+        tuple: (model_version_set_id, model_version_set_name)
+        """
         if not model_version_set_id:
             try:
                 model_version_set = ModelVersionSet.from_name(
                     name=model_version_set_name,
                     compartment_id=compartment_id,
                 )
+                # TODO: tag should be selected based on which operation (eval/FT) invoke this method
+                if not _is_valid_mvs(model_version_set, Tags.AQUA_FINE_TUNING.value):
+                    raise AquaValueError(
+                        f"Invalid model version set name. Please provide a model version set with `{Tags.AQUA_FINE_TUNING.value}` in tags."
+                    )
+
             except:
                 logger.debug(
                     f"Model version set {model_version_set_name} doesn't exist. "
                     "Creating new model version set."
                 )
+                mvs_freeform_tags = {
+                    Tags.AQUA_FINE_TUNING.value: Tags.AQUA_FINE_TUNING.value,
+                }
                 model_version_set = (
                     ModelVersionSet()
                     .with_compartment_id(compartment_id)
                     .with_project_id(project_id)
                     .with_name(model_version_set_name)
                     .with_description(description)
+                    .with_freeform_tags(**mvs_freeform_tags)
                     # TODO: decide what parameters will be needed
+                    # when refactor eval to use this method, we need to pass tag here.
                     .create(**kwargs)
                 )
                 logger.debug(
@@ -165,6 +195,11 @@ class AquaApp:
             return (model_version_set.id, model_version_set_name)
         else:
             model_version_set = ModelVersionSet.from_id(model_version_set_id)
+            # TODO: tag should be selected based on which operation (eval/FT) invoke this method
+            if not _is_valid_mvs(model_version_set, Tags.AQUA_FINE_TUNING.value):
+                raise AquaValueError(
+                    f"Invalid model version set id. Please provide a model version set with `{Tags.AQUA_FINE_TUNING.value}` in tags."
+                )
             return (model_version_set_id, model_version_set.name)
 
     # TODO: refactor model evaluation implementation to use it.
@@ -222,6 +257,7 @@ class AquaApp:
 
     def get_config(self, model_id: str, config_file_name: str) -> Dict:
         """Gets the config for the given Aqua model.
+
         Parameters
         ----------
         model_id: str
