@@ -32,50 +32,13 @@ class ChainSerializationTest(TestCase):
     # We expect users to use the same LangChain version for serialize and de-serialize
 
     def setUp(self) -> None:
-        self.maxDiff = None
+        # self.maxDiff = None
         return super().setUp()
 
     PROMPT_TEMPLATE = "Tell me a joke about {subject}"
     COMPARTMENT_ID = "<ocid>"
     GEN_AI_KWARGS = {"service_endpoint": "https://endpoint.oraclecloud.com"}
     ENDPOINT = "https://modeldeployment.customer-oci.com/ocid/predict"
-
-    EXPECTED_LLM_CHAIN_WITH_OCI_MD = {
-        "lc": 1,
-        "type": "constructor",
-        "id": ["langchain", "chains", "llm", "LLMChain"],
-        "kwargs": {
-            "prompt": {
-                "lc": 1,
-                "type": "constructor",
-                "kwargs": {
-                    "input_variables": ["subject"],
-                    "template": "Tell me a joke about {subject}",
-                    "template_format": "f-string",
-                    "partial_variables": {},
-                },
-            },
-            "llm": {
-                "lc": 1,
-                "type": "constructor",
-                "id": ["ads", "llm", "ModelDeploymentVLLM"],
-                "kwargs": {
-                    "endpoint": "https://modeldeployment.customer-oci.com/ocid/predict",
-                    "model": "my_model",
-                },
-            },
-        },
-    }
-
-    EXPECTED_GEN_AI_LLM = {
-        "lc": 1,
-        "type": "constructor",
-        "id": ["ads", "llm", "GenerativeAI"],
-        "kwargs": {
-            "compartment_id": "<ocid>",
-            "client_kwargs": {"service_endpoint": "https://endpoint.oraclecloud.com"},
-        },
-    }
 
     EXPECTED_GEN_AI_EMBEDDINGS = {
         "lc": 1,

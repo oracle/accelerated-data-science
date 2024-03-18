@@ -10,6 +10,6 @@ More details in the documentation here: https://docs.oracle.com/en-us/iaas/tools
 
 More details in the documentation here: https://winedarksea.github.io/AutoTS/build/html/source/tutorial.html
 
-**Pip Install Failing with "ERROR: No matching distribution found for oracle-automlx==23.2.3; extra == "forecast""**
+**Pip Install Failing with "ERROR: No matching distribution found for oracle-automlx==23.4.1; extra == "forecast""**
 
 Automlx only supports Python<=3.8, != 3.9, <= 3.10.7 . If you are builing in Python 3.9 or 3.10.8+, no automlx distribution will be available. It's recommended to use the conda pack available through Notebook Sessions, or to use Python 3.8
