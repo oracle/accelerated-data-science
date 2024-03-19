@@ -7,6 +7,7 @@ import json
 import os
 import re
 import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
@@ -46,7 +47,12 @@ from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link, get_files, upload_to_os
-from ads.config import AQUA_JOB_SUBNET_ID, COMPARTMENT_OCID, PROJECT_OCID
+from ads.config import (
+    AQUA_JOB_SUBNET_ID,
+    COMPARTMENT_OCID,
+    CONDA_BUCKET_NS,
+    PROJECT_OCID,
+)
 from ads.jobs.ads_job import DataScienceJobRun, Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
@@ -61,6 +67,11 @@ from ads.model.model_metadata import (
 )
 from ads.model.model_version_set import ModelVersionSet
 from ads.telemetry import telemetry
+
+EVAL_TERMINATION_STATE = [
+    JobRun.LIFECYCLE_STATE_SUCCEEDED,
+    JobRun.LIFECYCLE_STATE_FAILED,
+]
 
 
 class EvaluationJobExitCode(Enum):
@@ -134,6 +145,7 @@ class EvaluationCustomMetadata(Enum):
     EVALUATION_JOB_RUN_ID = "evaluation_job_run_id"
     EVALUATION_OUTPUT_PATH = "evaluation_output_path"
     EVALUATION_SOURCE_NAME = "evaluation_source_name"
+    EVALUATION_ERROR = "aqua_evaluate_error"
 
 
 class EvaluationModelTags(Enum):
@@ -344,6 +356,7 @@ class AquaEvaluationApp(AquaApp):
 
     _report_cache = TTLCache(maxsize=10, ttl=timedelta(hours=5), timer=datetime.now)
     _metrics_cache = TTLCache(maxsize=10, ttl=timedelta(hours=5), timer=datetime.now)
+    _eval_cache = TTLCache(maxsize=200, ttl=timedelta(hours=10), timer=datetime.now)
     _cache_lock = Lock()
 
     @telemetry(entry_point="plugin=evaluation&action=create", name="aqua")
@@ -738,7 +751,8 @@ class AquaEvaluationApp(AquaApp):
                             )
                         )
                     ),
-                }
+                    "CONDA_BUCKET_NS": CONDA_BUCKET_NS,
+                },
             )
         )
 
@@ -893,7 +907,6 @@ class AquaEvaluationApp(AquaApp):
         List[AquaEvaluationSummary]:
             The list of the `ads.aqua.evalution.AquaEvaluationSummary`.
         """
-        # add cache for terminal state
         logger.info(f"Fetching evaluations from compartment {compartment_id}.")
         models = utils.query_resources(
             compartment_id=compartment_id,
@@ -906,29 +919,75 @@ class AquaEvaluationApp(AquaApp):
 
         mapping = self._prefetch_resources(compartment_id)
 
-        # TODO: check if caching for service model list can be used
         evaluations = []
-        # TODO: use threadpool
+        async_tasks = []
         for model in models:
-            job_run = self._get_jobrun(model, mapping)
 
-            evaluations.append(
-                AquaEvaluationSummary(
-                    **self._process(model),
-                    **self._get_status(
-                        model=model,
-                        jobrun=job_run,
-                    ),
-                    job=self._build_job_identifier(
-                        job_run_details=job_run,
-                    ),
+            if model.identifier in self._eval_cache.keys():
+                logger.debug(f"Retrieving evaluation {model.identifier} from cache.")
+                evaluations.append(self._eval_cache.get(model.identifier))
+
+            else:
+                jobrun_id = self._get_attribute_from_model_metadata(
+                    model, EvaluationCustomMetadata.EVALUATION_JOB_RUN_ID.value
                 )
-            )
+                job_run = mapping.get(jobrun_id)
+
+                if not job_run:
+                    async_tasks.append((model, jobrun_id))
+                else:
+                    evaluations.append(self._process_evaluation_summary(model, job_run))
+
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            future_to_model = {
+                executor.submit(
+                    self._fetch_jobrun, model, use_rqs=True, jobrun_id=jobrun_id
+                ): model
+                for model, jobrun_id in async_tasks
+            }
+            for future in as_completed(future_to_model):
+                model = future_to_model[future]
+                try:
+                    jobrun = future.result()
+                    evaluations.append(
+                        self._process_evaluation_summary(model=model, jobrun=jobrun)
+                    )
+                except Exception as exc:
+                    logger.error(
+                        f"Processing evaluation: {model.identifier} generated an exception: {exc}"
+                    )
+                    evaluations.append(
+                        self._process_evaluation_summary(model=model, jobrun=None)
+                    )
 
         # tracks number of times deployment listing was called
         self.telemetry.record_event_async(category="aqua/evaluation", action="list")
 
         return evaluations
+
+    def _process_evaluation_summary(
+        self,
+        model: oci.resource_search.models.ResourceSummary,
+        jobrun: oci.resource_search.models.ResourceSummary = None,
+    ) -> AquaEvaluationSummary:
+        """Builds AquaEvaluationSummary from model and jobrun."""
+
+        evaluation_summary = AquaEvaluationSummary(
+            **self._process(model),
+            **self._get_status(
+                model=model,
+                jobrun=jobrun,
+            ),
+            job=self._build_job_identifier(
+                job_run_details=jobrun,
+            ),
+        )
+
+        # Add evaluation in terminal state into cache
+        if evaluation_summary.lifecycle_state in EVAL_TERMINATION_STATE:
+            self._eval_cache.__setitem__(key=model.identifier, value=evaluation_summary)
+
+        return evaluation_summary
 
     def _if_eval_artifact_exist(
         self, model: oci.resource_search.models.ResourceSummary
@@ -1393,6 +1452,7 @@ class AquaEvaluationApp(AquaApp):
             if not source_name:
                 resource_type = utils.get_resource_type(source_id)
 
+                # TODO: adjust resource principal mapping
                 if resource_type == "datasciencemodel":
                     source_name = self.ds_client.get_model(source_id).data.display_name
                 elif resource_type == "datasciencemodeldeployment":
@@ -1582,9 +1642,23 @@ class AquaEvaluationApp(AquaApp):
             oci.resource_search.models.ResourceSummary, oci.data_science.models.JobRun
         ] = None,
     ) -> dict:
-        """Builds evaluation status based on the model status and job run status."""
-        model_status = model.lifecycle_state
+        """Builds evaluation status based on the model status and job run status.
+        When detect `aqua_evaluation_error` in custom metadata, the jobrun is failed.
+        However, if jobrun failed before saving this meta, we need to check the existance
+        of the evaluation artifact.
+
+        """
+        # TODO: revisit for CANCELED evaluation
         job_run_status = (
+            JobRun.LIFECYCLE_STATE_FAILED
+            if self._get_attribute_from_model_metadata(
+                model, EvaluationCustomMetadata.EVALUATION_ERROR.value
+            )
+            else None
+        )
+
+        model_status = model.lifecycle_state
+        job_run_status = job_run_status or (
             jobrun.lifecycle_state
             if jobrun and not jobrun.lifecycle_state == JobRun.LIFECYCLE_STATE_DELETED
             else (
@@ -1628,7 +1702,7 @@ class AquaEvaluationApp(AquaApp):
             connect_by_ampersands=False,
             return_all=False,
         )
-        logger.info(f"Fetched {len(resources)} AQUA resources.")
+        logger.debug(f"Fetched {len(resources)} AQUA resources.")
         return {item.identifier: item for item in resources}
 
     def _extract_job_lifecycle_details(self, lifecycle_details: str) -> str:

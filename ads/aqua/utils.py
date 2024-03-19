@@ -36,6 +36,7 @@ from ads.config import (
 )
 from ads.model import DataScienceModel, ModelVersionSet
 
+# TODO: allow the user to setup the logging level?
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
 
@@ -318,7 +319,7 @@ def query_resource(
     return_all = " return allAdditionalFields " if return_all else " "
     resource_type = get_resource_type(ocid)
     query = f"query {resource_type} resources{return_all}where (identifier = '{ocid}')"
-    logger.info(query)
+    logger.debug(query)
 
     resources = OCIResource.search(
         query,
@@ -379,8 +380,8 @@ def query_resources(
         connect_by_ampersands=connect_by_ampersands,
     )
     query = f"query {resource_type} resources{return_all}where (compartmentId = '{compartment_id}'{condition_lifecycle}{condition_tags})"
-    logger.info(query)
-    logger.info(f"tenant_id=`{TENANCY_OCID}`")
+    logger.debug(query)
+    logger.debug(f"tenant_id=`{TENANCY_OCID}`")
 
     return OCIResource.search(
         query, type=SEARCH_TYPE.STRUCTURED, tenant_id=TENANCY_OCID, **kwargs
