@@ -8,12 +8,31 @@
 import json
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from ads.common.serializer import DataClassSerializable
 
 from ads.opctl.operator.common.utils import OperatorValidator
-from ads.opctl.operator.common.errors import OperatorSchemaYamlError
+from ads.opctl.operator.common.errors import InvalidParameterError
+
+@dataclass(repr=True)
+class InputData(DataClassSerializable):
+    """Class representing operator specification input data details."""
+
+    connect_args: Dict = None
+    format: str = None
+    columns: List[str] = None
+    url: str = None
+    filters: List[str] = None
+    options: Dict = None
+    limit: int = None
+    sql: str = None
+    table_name: str = None
+
+
+@dataclass(repr=True)
+class OutputDirectory(InputData):
+    """Class representing operator specification output directory details."""
 
 
 @dataclass(repr=True)
@@ -65,7 +84,7 @@ class OperatorConfig(DataClassSerializable):
         result = validator.validate(obj_dict)
 
         if not result:
-            raise OperatorSchemaYamlError(json.dumps(validator.errors, indent=2))
+            raise InvalidParameterError(json.dumps(validator.errors, indent=2))
         return True
 
     @classmethod

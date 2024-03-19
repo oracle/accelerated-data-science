@@ -907,8 +907,12 @@ class ConsolidatedLog:
 
     def _print(self, logs: List[Dict]) -> None:
         self._print_log_annotation_message()
+        printed = set()
         for log in logs:
-            self._print_log_details(log)
+            log_id = log.get("id")
+            if log_id not in printed:
+                self._print_log_details(log)
+                printed.add(log_id)
 
     @staticmethod
     def _print_log_details(log) -> None:

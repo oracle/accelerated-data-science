@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import importlib
@@ -8,7 +8,6 @@ import oci
 from unittest.mock import patch
 
 import pytest
-
 import ads
 from ads.telemetry.telemetry import (
     EXTRA_USER_AGENT_INFO,
@@ -50,7 +49,6 @@ class TestUserAgent:
         monkeypatch.delenv("OCI_RESOURCE_PRINCIPAL_VERSION", raising=False)
         monkeypatch.delenv(EXTRA_USER_AGENT_INFO, raising=False)
         importlib.reload(ads.config)
-        importlib.reload(ads.telemetry)
         auth_info = ads.auth.resource_principal()
         assert (
             auth_info["config"].get("additional_user_agent")
@@ -125,12 +123,7 @@ class TestUserAgent:
         monkeypatch.delenv(EXTRA_USER_AGENT_INFO, raising=False)
         if INPUT_DATA[EXTRA_USER_AGENT_INFO] is not None:
             monkeypatch.setenv(EXTRA_USER_AGENT_INFO, INPUT_DATA[EXTRA_USER_AGENT_INFO])
-
         importlib.reload(ads.config)
-        importlib.reload(ads)
-        importlib.reload(ads.auth)
-        importlib.reload(ads.telemetry)
-
         with patch("oci.config.from_file", return_value=self.test_config):
             auth_info = ads.auth.default_signer()
             assert (
@@ -151,10 +144,7 @@ class TestUserAgent:
     ):
         monkeypatch.setenv("OCI_RESOURCE_PRINCIPAL_VERSION", "1.1")
         monkeypatch.delenv(EXTRA_USER_AGENT_INFO, raising=False)
-
         importlib.reload(ads.config)
-        importlib.reload(ads.telemetry)
-
         with patch("oci.config.from_file", return_value=self.test_config):
             auth_info = ads.auth.default_signer()
             assert (

@@ -93,7 +93,7 @@ version: v1
             yaml_string=self.yaml_content_simple()
         )
         guardrail = PIIGuardrail(config=operator_config)
-        guardrail.load_data()
+        guardrail._load_data()
 
         assert guardrail.datasets is not None
         assert guardrail.storage_options == {}

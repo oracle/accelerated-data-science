@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import inspect
@@ -46,7 +45,7 @@ class Transformation(Builder):
         Sets the compartment ID.
     with_feature_store_id(self, feature_store_id: str) -> "Transformation"
         Sets the feature store ID.
-    with_display_name(self, name: str) -> "Transformation"
+    with_name(self, name: str) -> "Transformation"
         Sets the name.
     with_transformation_mode(self, transformation_mode: TransformationMode) -> "Transformation"
         Sets the transformation mode.
@@ -65,7 +64,7 @@ class Transformation(Builder):
     >>> transformation = transformation.Transformation()
     >>>     .with_description("Feature store description")
     >>>     .with_compartment_id(os.environ["PROJECT_COMPARTMENT_OCID"])
-    >>>     .with_display_name("FeatureStore")
+    >>>     .with_name("FeatureStore")
     >>>     .with_feature_store_id("feature_store_id")
     >>>     .with_transformation_mode(TransformationMode.SQL)
     >>>     .with_source_code_function(transactions_df)
@@ -76,7 +75,7 @@ class Transformation(Builder):
 
     CONST_ID = "id"
     CONST_COMPARTMENT_ID = "compartmentId"
-    CONST_DISPLAY_NAME = "displayName"
+    CONST_NAME = "name"
     CONST_DESCRIPTION = "description"
     CONST_FREEFORM_TAG = "freeformTags"
     CONST_DEFINED_TAG = "definedTags"
@@ -88,7 +87,7 @@ class Transformation(Builder):
     attribute_map = {
         CONST_ID: "id",
         CONST_COMPARTMENT_ID: "compartment_id",
-        CONST_DISPLAY_NAME: "display_name",
+        CONST_NAME: "name",
         CONST_DESCRIPTION: "description",
         CONST_FREEFORM_TAG: "freeform_tags",
         CONST_DEFINED_TAG: "defined_tags",
@@ -186,14 +185,14 @@ class Transformation(Builder):
         return self.set_spec(self.CONST_FEATURE_STORE_ID, feature_store_id)
 
     @property
-    def display_name(self) -> str:
-        return self.get_spec(self.CONST_DISPLAY_NAME)
+    def name(self) -> str:
+        return self.get_spec(self.CONST_NAME)
 
-    @display_name.setter
-    def display_name(self, name: str):
-        self.with_display_name(name)
+    @name.setter
+    def name(self, name: str):
+        self.with_name(name)
 
-    def with_display_name(self, name: str) -> "Transformation":
+    def with_name(self, name: str) -> "Transformation":
         """Sets the name.
 
         Parameters
@@ -206,7 +205,7 @@ class Transformation(Builder):
         Transformation
             The Transformation instance (self)
         """
-        return self.set_spec(self.CONST_DISPLAY_NAME, name)
+        return self.set_spec(self.CONST_NAME, name)
 
     @property
     def transformation_mode(self) -> str:
@@ -346,13 +345,14 @@ class Transformation(Builder):
         if not self.source_code_function:
             raise ValueError("Transformation source code function must be provided.")
 
-        if not self.display_name:
-            self.display_name = self._transformation_function_name
+        if not self.transformation_mode:
+            raise ValueError("Transformation Mode must be provided.")
 
-        if self.display_name != self._transformation_function_name:
-            raise ValueError(
-                "Transformation display name and function name must be same."
-            )
+        if not self.name:
+            self.name = self._transformation_function_name
+
+        if self.name != self._transformation_function_name:
+            raise ValueError("Transformation name and function name must be same.")
 
         payload = deepcopy(self._spec)
         payload.pop("id", None)

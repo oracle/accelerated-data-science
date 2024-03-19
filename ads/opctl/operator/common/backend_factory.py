@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -9,16 +9,22 @@ The module contains the factory method to create the backend object for the oper
 The factory validates the backend type and runtime type before creating the backend object.
 """
 
-import os
 from typing import Dict, List, Tuple, Union
 
 import yaml
+from ads.opctl.operator.common.utils import print_traceback
+
+from ads.opctl.backend.marketplace.local_marketplace import (
+    LocalMarketplaceOperatorBackend,
+)
 
 from ads.opctl import logger
 from ads.opctl.backend.ads_dataflow import DataFlowOperatorBackend
 from ads.opctl.backend.ads_ml_job import MLJobOperatorBackend
 from ads.opctl.backend.base import Backend
-from ads.opctl.backend.local import LocalOperatorBackend
+from ads.opctl.backend.local import (
+    LocalOperatorBackend,
+)
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.constants import (
@@ -42,6 +48,7 @@ class BackendFactory:
     BACKENDS = (
         BACKEND_NAME.JOB.value,
         BACKEND_NAME.DATAFLOW.value,
+        BACKEND_NAME.MARKETPLACE.value,
     )
 
     LOCAL_BACKENDS = (
@@ -76,6 +83,12 @@ class BackendFactory:
                 RUNTIME_TYPE.CONTAINER.value.lower(),
             ),
         },
+        BACKEND_NAME.MARKETPLACE.value.lower(): {
+            RUNTIME_TYPE.PYTHON.value.lower(): (
+                BACKEND_NAME.MARKETPLACE.value.lower(),
+                RUNTIME_TYPE.PYTHON.value.lower(),
+            )
+        },
     }
 
     BACKEND_MAP = {
@@ -83,6 +96,7 @@ class BackendFactory:
         BACKEND_NAME.DATAFLOW.value.lower(): DataFlowOperatorBackend,
         BACKEND_NAME.OPERATOR_LOCAL.value.lower(): LocalOperatorBackend,
         BACKEND_NAME.LOCAL.value.lower(): LocalOperatorBackend,
+        BACKEND_NAME.MARKETPLACE.value.lower(): LocalMarketplaceOperatorBackend,
     }
 
     @classmethod
@@ -137,14 +151,7 @@ class BackendFactory:
         operator_info = OperatorLoader.from_uri(uri=operator_type).load()
 
         supported_backends = tuple(
-            set(cls.BACKENDS + cls.LOCAL_BACKENDS)
-            & set(
-                operator_info.backends
-                + [
-                    BACKEND_NAME.OPERATOR_LOCAL.value,
-                    BACKEND_NAME.LOCAL.value,
-                ]
-            )
+            set(cls.BACKENDS + cls.LOCAL_BACKENDS) & set(operator_info.backends)
         )
 
         runtime_type = None
@@ -390,17 +397,19 @@ class BackendFactory:
                     }
                 },
             ],
+            BACKEND_NAME.MARKETPLACE.value: [
+                {
+                    RUNTIME_TYPE.PYTHON: {
+                        "kind": "marketplace",
+                        "type": operator_info.type,
+                        "version": operator_info.version,
+                    }
+                }
+            ],
         }
 
         supported_backends = tuple(
-            set(RUNTIME_TYPE_MAP.keys())
-            & set(
-                operator_info.backends
-                + [
-                    BACKEND_NAME.OPERATOR_LOCAL.value,
-                    BACKEND_NAME.LOCAL.value,
-                ]
-            )
+            set(RUNTIME_TYPE_MAP.keys()) & set(operator_info.backends)
         )
 
         if backend_kind:
@@ -450,5 +459,6 @@ class BackendFactory:
                     f"Unable to generate the configuration for the `{resource_type}` backend. "
                     f"{ex}"
                 )
+                print_traceback()
 
         return result

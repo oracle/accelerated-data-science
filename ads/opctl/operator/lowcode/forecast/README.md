@@ -38,8 +38,9 @@ To run forecasting locally, create and activate a new conda environment (`ads-fo
 - datapane
 - cerberus
 - sktime
-- optuna==2.9.0
-- oracle-automlx==23.2.3
+- optuna==3.1.0
+- oracle-automlx==23.4.1
+- oracle-automlx[forecasting]==23.4.1
 - oracle-ads>=2.9.0
 ```
 
@@ -54,7 +55,7 @@ ads operator verify -f ~/forecast/forecast.yaml
 Use the following command to run the forecasting within the `ads-forecasting` conda environment.
 
 ```bash
-ads operator run -f ~/forecast/forecast.yaml -b local
+  ads operator run -f ~/forecast/forecast.yaml -b local
 ```
 
 The operator will run in your local environment without requiring any additional modifications.
@@ -104,7 +105,7 @@ version: v1
 Run the forecasting within a container using the command below:
 
 ```bash
-ads operator run -f ~/forecast/forecast.yaml --backend-config ~/forecast/backend_operator_local_container_config.yaml
+    ads operator run -f ~/forecast/forecast.yaml --backend-config ~/forecast/backend_operator_local_container_config.yaml
 ```
 
 ## 5. Running forecasting in the Data Science job within container runtime

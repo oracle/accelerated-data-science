@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
 import logging
 from copy import deepcopy
 from typing import Dict, List, Any, Union
@@ -54,7 +54,7 @@ class DatasetJob(Builder):
     >>> dataset_run = dataset_run.DatasetJob()
     >>>     .with_compartment_id(os.environ["PROJECT_COMPARTMENT_OCID"])
     >>>     .with_dataset_id("dataset_id")
-    >>>     .with_ingestion_mode(IngestionMode.SQL)
+    >>>     .with_ingestion_mode(BatchIngestionMode.SQL)
     >>> dataset_run.create()
     """
 

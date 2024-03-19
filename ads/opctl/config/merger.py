@@ -11,7 +11,7 @@ import json
 
 import yaml
 
-from ads.common.auth import AuthType
+from ads.common.auth import AuthType, ResourcePrincipal
 from ads.opctl import logger
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.utils import read_from_ini, _DefaultNoneDict
@@ -115,7 +115,7 @@ class ConfigMerger(ConfigProcessor):
         )
         # set default auth
         if not self.config["execution"].get("auth", None):
-            if is_in_notebook_session():
+            if ResourcePrincipal.supported():
                 self.config["execution"]["auth"] = (
                     exec_config.get("auth") or AuthType.RESOURCE_PRINCIPAL
                 )

@@ -1,6 +1,6 @@
-====================
-Forecasting Operator
-====================
+===========
+Forecasting
+===========
 
 The Forecasting Operator leverages historical time series data to generate accurate forecasts for future trends. This operator aims to simplify and expedite the data science process by automating the selection of appropriate models and hyperparameters, as well as identifying relevant features for a given prediction task.
 
@@ -41,12 +41,10 @@ This documentation will explore these concepts in greater depth, demonstrating h
 .. toctree::
   :maxdepth: 1
 
+  ./quickstart
   ./use_cases
   ./install
-  ./getting_started
-  ./forecast
-  ./interpret_results
-  ./examples
+  ./productionize
   ./advanced_use_cases
   ./yaml_schema
   ./faq
