@@ -6,8 +6,6 @@
 
 import logging
 import os
-import sys
-from argparse import ArgumentParser
 
 
 def get_logger_level():
