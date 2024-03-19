@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -102,7 +102,10 @@ def telemetry(
                 entry_point
             )
             try:
-                return func(*args, **{**kwargs, **{TELEMETRY_ARGUMENT_NAME: telemetry}})
+                # todo: inject telemetry arg and later update all functions that use the @telemetry
+                #   decorator to accept **kwargs. Comment the below line as some aqua apis don't support kwargs.
+                # return func(*args, **{**kwargs, **{TELEMETRY_ARGUMENT_NAME: telemetry}})
+                return func(*args, **kwargs)
             except:
                 raise
             finally:
@@ -178,7 +181,7 @@ class Telemetry:
         self: Telemetry
             An instance of the Telemetry.
         """
-        os.environ[self.environ_variable] = self._original_value
+        os.environ[self.environ_variable] = self._original_value or ""
         return self
 
     def clean(self) -> "Telemetry":

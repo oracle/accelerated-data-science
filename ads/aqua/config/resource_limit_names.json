@@ -1,0 +1,7 @@
+{
+  "BM.GPU.A10.4": "ds-gpu-a10-count",
+  "BM.GPU.A100-v2.8": "ds-gpu-a100-v2-count",
+  "BM.GPU4.8": "ds-gpu4-count",
+  "VM.GPU.A10.1": "ds-gpu-a10-count",
+  "VM.GPU.A10.2": "ds-gpu-a10-count"
+}

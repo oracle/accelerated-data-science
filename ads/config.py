@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import contextlib
@@ -33,8 +33,10 @@ CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS", "id19sfcrra6z")
 OCI_RESOURCE_PRINCIPAL_RPT_ENDPOINT = os.environ.get(
     "OCI_RESOURCE_PRINCIPAL_RPT_ENDPOINT"
 )
+PROJECT_COMPARTMENT_OCID = os.environ.get("PROJECT_COMPARTMENT_OCID")
 COMPARTMENT_OCID = (
     NB_SESSION_COMPARTMENT_OCID
+    or PROJECT_COMPARTMENT_OCID
     or JOB_RUN_COMPARTMENT_OCID
     or PIPELINE_RUN_COMPARTMENT_OCID
 )
@@ -46,6 +48,43 @@ RESOURCE_OCID = (
 )
 NO_CONTAINER = os.environ.get("NO_CONTAINER")
 TMPDIR = os.environ.get("TMPDIR")
+
+ODSC_MODEL_COMPARTMENT_OCID = os.environ.get("ODSC_MODEL_COMPARTMENT_OCID")
+AQUA_MODEL_DEPLOYMENT_IMAGE = os.environ.get("AQUA_MODEL_DEPLOYMENT_IMAGE")
+AQUA_MODEL_DEPLOYMENT_CONFIG = os.environ.get(
+    "AQUA_DEPLOYMENT_CONFIG", "deployment_config.json"
+)
+AQUA_MODEL_FINETUNING_CONFIG = os.environ.get(
+    "AQUA_MODEL_FINETUNING_CONFIG", "ft_config.json"
+)
+AQUA_CONTAINER_INDEX_CONFIG = os.environ.get(
+    "AQUA_CONTAINER_INDEX_CONFIG", "container_index.json"
+)
+AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS = os.environ.get(
+    "AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS", "deployment_config_defaults.json"
+)
+AQUA_RESOURCE_LIMIT_NAMES_CONFIG = os.environ.get(
+    "AQUA_RESOURCE_LIMIT_NAMES_CONFIG", "resource_limit_names.json"
+)
+AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME = "deployment-container"
+AQUA_FINETUNING_CONTAINER_METADATA_NAME = "finetune-container"
+AQUA_EVALUATION_CONTAINER_METADATA_NAME = "evaluation-container"
+AQUA_MODEL_DEPLOYMENT_FOLDER = "/opt/ds/model/deployed_model/"
+AQUA_SERVED_MODEL_NAME = "odsc-llm"
+AQUA_CONFIG_FOLDER = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), "aqua/config/"
+)
+AQUA_JOB_SUBNET_ID = os.environ.get("AQUA_JOB_SUBNET_ID", None)
+AQUA_SERVICE_MODELS_BUCKET = os.environ.get(
+    "AQUA_SERVICE_MODELS_BUCKET", "service-managed-models"
+)
+AQUA_TELEMETRY_BUCKET = os.environ.get(
+    "AQUA_TELEMETRY_BUCKET", "service-managed-models"
+)
+AQUA_TELEMETRY_BUCKET_NS = os.environ.get("AQUA_TELEMETRY_BUCKET_NS", CONDA_BUCKET_NS)
+DEBUG_TELEMETRY = os.environ.get("DEBUG_TELEMETRY", None)
+AQUA_SERVICE_NAME = "aqua"
+DATA_SCIENCE_SERVICE_NAME = "data-science"
 
 
 def export(

@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import inspect
 import time
 from typing import List, Union, Dict
 from urllib.parse import urlparse
@@ -10,12 +11,13 @@ from urllib.parse import urlparse
 import fsspec
 import oci
 from ads.common.auth import default_signer
+from ads.common.decorator.utils import class_or_instance_method
 from ads.jobs.builders.base import Builder
 from ads.jobs.builders.infrastructure.dataflow import DataFlow, DataFlowRun
 from ads.jobs.builders.infrastructure.dsc_job import (
-    DataScienceJob, 
-    DataScienceJobRun, 
-    SLEEP_INTERVAL
+    DataScienceJob,
+    DataScienceJobRun,
+    SLEEP_INTERVAL,
 )
 from ads.jobs.builders.runtimes.pytorch_runtime import PyTorchDistributedRuntime
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
@@ -143,8 +145,10 @@ class Job(Builder):
         ]
     }
 
-    @staticmethod
-    def from_datascience_job(job_id) -> "Job":
+    auth = {}
+
+    @class_or_instance_method
+    def from_datascience_job(cls, job_id) -> "Job":
         """Loads a data science job from OCI.
 
         Parameters
@@ -158,16 +162,18 @@ class Job(Builder):
             A job instance.
 
         """
-        dsc_infra = DataScienceJob.from_id(job_id)
+        dsc_infra = DataScienceJob(**cls.auth).from_id(job_id)
         job = (
-            Job(name=dsc_infra.name)
+            Job(name=dsc_infra.name, **cls.auth)
             .with_infrastructure(dsc_infra)
             .with_runtime(dsc_infra.runtime)
         )
         return job
 
-    @staticmethod
-    def datascience_job(compartment_id: str = None, **kwargs) -> List["DataScienceJob"]:
+    @class_or_instance_method
+    def datascience_job(
+        cls, compartment_id: str = None, **kwargs
+    ) -> List["DataScienceJob"]:
         """Lists the existing data science jobs in the compartment.
 
         Parameters
@@ -183,10 +189,12 @@ class Job(Builder):
             A list of Job objects.
         """
         return [
-            Job(name=dsc_job.name)
+            Job(name=dsc_job.name, **cls.auth)
             .with_infrastructure(dsc_job)
             .with_runtime(dsc_job.runtime)
-            for dsc_job in DataScienceJob.list_jobs(compartment_id, **kwargs)
+            for dsc_job in DataScienceJob(**cls.auth).list_jobs(
+                compartment_id, **kwargs
+            )
         ]
 
     @staticmethod
@@ -229,7 +237,9 @@ class Job(Builder):
             for df in DataFlow.list_jobs(compartment_id, **kwargs)
         ]
 
-    def __init__(self, name: str = None, infrastructure=None, runtime=None) -> None:
+    def __init__(
+        self, name: str = None, infrastructure=None, runtime=None, **kwargs
+    ) -> None:
         """Initializes a job.
 
         The infrastructure and runtime can be configured when initializing the job,
@@ -253,6 +263,9 @@ class Job(Builder):
             Job runtime, by default None.
 
         """
+        for key in ["config", "signer", "client_kwargs"]:
+            if kwargs.get(key):
+                self.auth[key] = kwargs.pop(key)
         super().__init__()
         if name:
             self.set_spec("name", name)
@@ -398,7 +411,7 @@ class Job(Builder):
         freeform_tags=None,
         defined_tags=None,
         wait=False,
-        **kwargs
+        **kwargs,
     ) -> Union[DataScienceJobRun, DataFlowRun]:
         """Runs the job.
 
@@ -454,7 +467,7 @@ class Job(Builder):
             freeform_tags=freeform_tags,
             defined_tags=defined_tags,
             wait=wait,
-            **kwargs
+            **kwargs,
         )
 
     def run_list(self, **kwargs) -> list:
@@ -466,7 +479,7 @@ class Job(Builder):
             A list of job run instances, the actual object type depends on the infrastructure.
         """
         return self.infrastructure.run_list(**kwargs)
-    
+
     def cancel(self, wait_for_completion: bool = True) -> None:
         """Cancels the runs of the job.
 
@@ -479,16 +492,16 @@ class Job(Builder):
         runs = self.run_list()
         for run in runs:
             run.cancel(wait_for_completion=False)
-        
+
         if wait_for_completion:
             for run in runs:
                 while (
-                    run.lifecycle_state !=
-                    oci.data_science.models.JobRun.LIFECYCLE_STATE_CANCELED
+                    run.lifecycle_state
+                    != oci.data_science.models.JobRun.LIFECYCLE_STATE_CANCELED
                 ):
                     run.sync()
                     time.sleep(SLEEP_INTERVAL)
-        
+
     def delete(self) -> None:
         """Deletes the job from the infrastructure."""
         self.infrastructure.delete()
@@ -532,7 +545,7 @@ class Job(Builder):
             "spec": spec,
         }
 
-    @classmethod
+    @class_or_instance_method
     def from_dict(cls, config: dict) -> "Job":
         """Initializes a job from a dictionary containing the configurations.
 
@@ -559,7 +572,10 @@ class Job(Builder):
             "infrastructure": cls._INFRASTRUCTURE_MAPPING,
             "runtime": cls._RUNTIME_MAPPING,
         }
-        job = cls()
+        if inspect.isclass(cls):
+            job = cls()
+        else:
+            job = cls.__class__()
 
         for key, value in spec.items():
             if key in mappings:
@@ -569,9 +585,11 @@ class Job(Builder):
                     raise NotImplementedError(
                         f"{key.title()} type: {child_config.get('type')} is not supported."
                     )
-                job.set_spec(
-                    key, mapping[child_config.get("type")].from_dict(child_config)
-                )
+                spec_class = mapping[child_config.get("type")]
+                if spec_class == DataScienceJob:
+                    spec_class = DataScienceJob(**job.auth)
+
+                job.set_spec(key, spec_class.from_dict(child_config))
             else:
                 job.set_spec(key, value)
 
