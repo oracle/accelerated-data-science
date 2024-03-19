@@ -13,8 +13,6 @@ from oci.data_science.models import (
     ImportModelArtifactDetails,
     Model,
     ModelProvenance,
-    WorkRequest,
-    WorkRequestLogEntry,
 )
 from oci.exceptions import ServiceError
 from oci.response import Response
@@ -22,7 +20,6 @@ from oci.response import Response
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_mixin import OCIModelMixin
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.dataset.progress import TqdmProgressBar
 from ads.model.datascience_model import _MAX_ARTIFACT_SIZE_IN_BYTES
 from ads.model.service.oci_datascience_model import (
     ModelArtifactNotFoundError,
@@ -30,6 +27,8 @@ from ads.model.service.oci_datascience_model import (
     ModelWithActiveDeploymentError,
     OCIDataScienceModel,
 )
+from ads.model.model_metadata import ModelCustomMetadataItem
+
 
 MODEL_OCID = "ocid1.datasciencemodel.oc1.iad.<unique_ocid>"
 
@@ -343,16 +342,21 @@ class TestOCIDataScienceModel:
             self.mock_model.get_model_artifact_content()
             mock_client.get_model_artifact_content.assert_called_with(MODEL_OCID)
 
+    @pytest.mark.parametrize(
+        "file_ext",
+        [".zip", ".json", "", None],
+    )
     @patch.object(OCIDataScienceModel, "client")
-    def test_create_model_artifact(self, mock_client):
+    def test_create_model_artifact(self, mock_client, file_ext):
         """Tests creating model artifact for specified model."""
         mock_client.create_model_artifact = MagicMock()
         test_data = b"test"
-        self.mock_model.create_model_artifact(test_data)
+        self.mock_model.create_model_artifact(test_data, file_ext)
+        ext = ".json" if file_ext and file_ext.lower() == ".json" else ".zip"
         mock_client.create_model_artifact.assert_called_with(
             MODEL_OCID,
             test_data,
-            content_disposition=f'attachment; filename="{MODEL_OCID}.zip"',
+            content_disposition=f'attachment; filename="{MODEL_OCID}{ext}"',
         )
 
     @patch.object(OCIResource, "search")
@@ -375,7 +379,9 @@ class TestOCIDataScienceModel:
             **{"kwargkey": "kwargvalue"},
         )
 
-    @patch("ads.model.service.oci_datascience_model.DataScienceWorkRequest.wait_work_request")
+    @patch(
+        "ads.model.service.oci_datascience_model.DataScienceWorkRequest.wait_work_request"
+    )
     @patch("ads.model.service.oci_datascience_model.DataScienceWorkRequest.__init__")
     def test_import_model_artifact_success(
         self,
@@ -405,7 +411,7 @@ class TestOCIDataScienceModel:
             )
             mock_data_science_work_request.assert_called_with("work_request_id")
             mock_wait_work_request.assert_called_with(
-                progress_bar_description='Importing model artifacts.'
+                progress_bar_description="Importing model artifacts."
             )
 
     @patch.object(OCIDataScienceModel, "client")
@@ -422,7 +428,9 @@ class TestOCIDataScienceModel:
                 bucket_uri=test_bucket_uri, region="test_region"
             )
 
-    @patch("ads.model.service.oci_datascience_model.DataScienceWorkRequest.wait_work_request")
+    @patch(
+        "ads.model.service.oci_datascience_model.DataScienceWorkRequest.wait_work_request"
+    )
     @patch("ads.model.service.oci_datascience_model.DataScienceWorkRequest.__init__")
     def test_export_model_artifact(
         self,
@@ -452,5 +460,27 @@ class TestOCIDataScienceModel:
             )
             mock_data_science_work_request.assert_called_with("work_request_id")
             mock_wait_work_request.assert_called_with(
-                progress_bar_description='Exporting model artifacts.'
+                progress_bar_description="Exporting model artifacts."
             )
+
+    def test_is_model_by_reference(self):
+        """Test to check if  model is created by reference using custom metadata information"""
+
+        metadata_item = ModelCustomMetadataItem(
+            key="test_key",
+            value="test_value",
+            description="test_desc",
+            category="Other",
+        )
+        self.mock_model.custom_metadata_list = [metadata_item]
+        assert not self.mock_model.is_model_by_reference()
+
+        metadata_item = ModelCustomMetadataItem(
+            key="modelDescription",
+            value="true",
+            description="model by reference flag",
+            category="Other",
+        )
+        self.mock_model.custom_metadata_list = [metadata_item]
+
+        assert self.mock_model.is_model_by_reference()

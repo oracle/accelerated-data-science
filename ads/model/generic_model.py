@@ -2054,6 +2054,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         remove_existing_artifact: Optional[bool] = True,
         reload: Optional[bool] = True,
         version_label: Optional[str] = None,
+        model_by_reference: Optional[bool] = False,
         **kwargs,
     ) -> str:
         """Saves model artifacts to the model catalog.
@@ -2091,6 +2092,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
         reload: (bool, optional)
             Whether to reload to check if `load_model()` works in `score.py`. Default to `True`.
+        model_by_reference: (bool, optional)
+            Whether model artifact is made available to Model Store by reference.
         kwargs:
             project_id: (str, optional).
                 Project OCID. If not specified, the value will be taken either
@@ -2220,6 +2223,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             overwrite_existing_artifact=overwrite_existing_artifact,
             remove_existing_artifact=remove_existing_artifact,
             parallel_process_count=parallel_process_count,
+            model_by_reference=model_by_reference,
             **kwargs,
         )
 
@@ -2620,6 +2624,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         remove_existing_artifact: Optional[bool] = True,
         model_version_set: Optional[Union[str, ModelVersionSet]] = None,
         version_label: Optional[str] = None,
+        model_by_reference: Optional[bool] = False,
         **kwargs: Dict,
     ) -> "ModelDeployment":
         """Shortcut for prepare, save and deploy steps.
@@ -2724,6 +2729,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The Model version set OCID, or name, or `ModelVersionSet` instance.
         version_label: (str, optional). Defaults to None.
             The model version lebel.
+        model_by_reference: (bool, optional)
+            Whether model artifact is made available to Model Store by reference.
         kwargs:
             impute_values: (dict, optional).
                 The dictionary where the key is the column index(or names is accepted
@@ -2827,6 +2834,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             model_version_set=model_version_set,
             version_label=version_label,
             region=kwargs.pop("region", None),
+            model_by_reference=model_by_reference,
         )
         # Set default deployment_display_name if not specified - randomly generated easy to remember name generated
         if not deployment_display_name:

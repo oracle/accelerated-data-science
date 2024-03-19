@@ -178,7 +178,7 @@ pii = [
   "spacy==3.6.1",
 ]
 llm = ["langchain>=0.1.10", "evaluate>=0.4.0"]
-aqua = ["fire", "cachetools"]
+aqua = ["fire", "cachetools", "jupyter_server"]
 
 # To reduce backtracking (decrese deps install time) during test/dev env setup reducing number of versions pip is
 # trying to use. Ref - https://pip.pypa.io/en/stable/topics/dependency-resolution/#possible-ways-to-reduce-backtracking.
@@ -197,6 +197,7 @@ testsuite = [
   "lxml",
   "mysql-connector-python",
   "nltk",
+  "notebook==6.4.12",
   "opensearch-py",
   "pdfplumber",
   "py4j",
