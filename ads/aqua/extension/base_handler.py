@@ -123,7 +123,7 @@ class AquaAPIhandler(APIHandler):
                 elif operation_name.startswith("list") or operation_name.startswith(
                     "get"
                 ):
-                    return messages["get"]
+                    return messages["get"] + f" Operation Name: {operation_name}."
 
         if status_code in messages:
             return messages[status_code]
