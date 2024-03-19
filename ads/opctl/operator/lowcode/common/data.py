@@ -16,6 +16,7 @@ from ads.opctl.operator.lowcode.common.errors import (
     DataMismatchError,
 )
 from abc import ABC
+import pandas as pd
 
 
 class AbstractData(ABC):
@@ -27,7 +28,6 @@ class AbstractData(ABC):
         self.load_transform_ingest_data(spec)
 
     def get_raw_data_by_cat(self, category):
-        import pandas as pd
         mapping = self._data_transformer.get_target_category_columns_map()
         # For given category, mapping gives the target_category_columns and it's values.
         # condition filters raw_data based on the values of target_category_columns for the given category
