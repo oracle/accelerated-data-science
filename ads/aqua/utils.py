@@ -28,13 +28,17 @@ from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link, upload_to_os
-from ads.config import AQUA_CONFIG_FOLDER, AQUA_SERVICE_MODELS_BUCKET, TENANCY_OCID
-from ads.model import DataScienceModel
+from ads.config import (
+    AQUA_CONFIG_FOLDER,
+    AQUA_SERVICE_MODELS_BUCKET,
+    TENANCY_OCID,
+    CONDA_BUCKET_NS,
+)
+from ads.model import DataScienceModel, ModelVersionSet
 
+# TODO: allow the user to setup the logging level?
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
-
-CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS")
 
 UNKNOWN = ""
 UNKNOWN_DICT = {}
@@ -315,7 +319,7 @@ def query_resource(
     return_all = " return allAdditionalFields " if return_all else " "
     resource_type = get_resource_type(ocid)
     query = f"query {resource_type} resources{return_all}where (identifier = '{ocid}')"
-    logger.info(query)
+    logger.debug(query)
 
     resources = OCIResource.search(
         query,
@@ -376,8 +380,8 @@ def query_resources(
         connect_by_ampersands=connect_by_ampersands,
     )
     query = f"query {resource_type} resources{return_all}where (compartmentId = '{compartment_id}'{condition_lifecycle}{condition_tags})"
-    logger.info(query)
-    logger.info(f"tenant_id=`{TENANCY_OCID}`")
+    logger.debug(query)
+    logger.debug(f"tenant_id=`{TENANCY_OCID}`")
 
     return OCIResource.search(
         query, type=SEARCH_TYPE.STRUCTURED, tenant_id=TENANCY_OCID, **kwargs
@@ -690,7 +694,7 @@ def get_model_by_reference_paths(model_file_description: dict):
     return base_model_path, fine_tune_output_path
 
 
-def _is_valid_mvs(cls, mvs: "ads.model.ModelVersionSet", target_tag: str) -> bool:
+def _is_valid_mvs(mvs: ModelVersionSet, target_tag: str) -> bool:
     """Returns whether the given model version sets has the target tag.
 
     Parameters
