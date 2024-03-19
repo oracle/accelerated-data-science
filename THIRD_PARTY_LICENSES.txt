@@ -411,6 +411,12 @@ cachetools
 * Source code: https://github.com/tkem/cachetools/
 * Project home: https://cachetools.readthedocs.io/
 
+python-fire
+* Copyright 2017 Google Inc. All rights reserved.
+* License: Apache License 2.0
+* Source code: https://github.com/google/python-fire
+* Project home: https://github.com/google/python-fire
+
 =============================== Licenses ===============================
 ------------------------------------------------------------------------
 
