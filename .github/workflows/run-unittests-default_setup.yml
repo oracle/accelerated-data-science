@@ -3,7 +3,6 @@ name: "[Py3.8][Py3.9][Py3.10] tests/unitary/default_setup/**"
 on:
   workflow_dispatch:
   pull_request:
-    branches: [ "main" ]
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
