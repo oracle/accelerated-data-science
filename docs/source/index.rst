@@ -38,6 +38,17 @@ Oracle Accelerated Data Science (ADS)
 .. toctree::
    :hidden:
    :maxdepth: 5
+   :caption: AI Quick Actions:
+
+   user_guide/aqua/index
+   user_guide/aqua/common/index
+   user_guide/aqua/models/index
+   user_guide/aqua/fine-tuning/index
+   user_guide/aqua/evaluation/index
+
+.. toctree::
+   :hidden:
+   :maxdepth: 5
    :caption: Operators:
 
    user_guide/operators/index
