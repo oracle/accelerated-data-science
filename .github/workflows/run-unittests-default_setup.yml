@@ -3,6 +3,7 @@ name: "[Py3.8][Py3.9][Py3.10] tests/unitary/default_setup/**"
 on:
   workflow_dispatch:
   pull_request:
+    branches: [ "main" ]
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -43,7 +44,7 @@ jobs:
         name: "Test config setup"
 
       - name: "Run default_setup tests folder ONLY with minimum ADS dependencies"
-        timeout-minutes: 15
+        timeout-minutes: 30
         shell: bash
         env:
           NoDependency: True
@@ -51,5 +52,7 @@ jobs:
           set -x # print commands that are executed
           $CONDA/bin/conda init
           source /home/runner/.bashrc
+          conda install python=${{ matrix.python-version }}
           pip install -r test-requirements.txt
+          conda list
           python -m pytest -v -p no:warnings --durations=5 tests/unitary/default_setup
