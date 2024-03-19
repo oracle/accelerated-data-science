@@ -674,7 +674,6 @@ class AquaModelApp(AquaApp):
         List[AquaModelSummary]:
             The list of the `ads.aqua.model.AquaModelSummary`.
         """
-
         models = []
         if compartment_id:
             # tracks number of times custom model listing was called

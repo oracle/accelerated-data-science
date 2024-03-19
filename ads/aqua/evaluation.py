@@ -923,7 +923,6 @@ class AquaEvaluationApp(AquaApp):
             tag_list=[EvaluationModelTags.AQUA_EVALUATION.value],
         )
         logger.info(f"Fetched {len(models)} evaluations.")
-
         # TODO: add filter based on project_id if needed.
 
         mapping = self._prefetch_resources(compartment_id)
