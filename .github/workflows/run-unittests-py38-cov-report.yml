@@ -3,6 +3,7 @@ name: "[Py3.8][COV REPORT] tests/unitary/**"
 on:
   workflow_dispatch:
   pull_request:
+    branches: [ "main" ]
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -33,6 +34,7 @@ jobs:
             test-path: "tests/unitary"
             # `model` tests running in "slow_tests",
             # `feature_store` tests has its own test suite
+            # 'hpo' tests hangs if run together with all unitary tests. Tests running in separate command before running all unitary
             ignore-path: |
               --ignore tests/unitary/with_extras/model \
               --ignore tests/unitary/with_extras/feature_store \
@@ -59,13 +61,18 @@ jobs:
 
       - uses: ./.github/workflows/test-env-setup
         name: "Test env setup"
-        timeout-minutes: 20
+        timeout-minutes: 30
 
       # Installing forecast deps for python3.8 test setup only, it will not work with python3.9/3.10, because
       # automlx do not support py3.9 and some versions of py3.10. This step omitted in -py39-py30.yml workflow
       - name: "Install Forecasting dependencies"
         run: |
           pip install -e ".[forecast]"
+      # Installing pii deps for python3.8 test setup only, it will not work with python3.9/3.10, because
+      # 'datapane' library conflicts with pandas>2.2.0, which used in py3.9/3.10 setup
+      - name: "Install PII dependencies"
+        run: |
+          pip install -e ".[pii]"
       - name: "Install featurestore marketplace dependencies"
         run: |
           pip install -e ".[feature-store-marketplace]"
