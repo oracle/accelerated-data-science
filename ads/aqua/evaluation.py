@@ -356,7 +356,7 @@ class AquaEvaluationApp(AquaApp):
 
     _report_cache = TTLCache(maxsize=10, ttl=timedelta(hours=5), timer=datetime.now)
     _metrics_cache = TTLCache(maxsize=10, ttl=timedelta(hours=5), timer=datetime.now)
-    _eval_cache = TTLCache(maxsize=100, ttl=timedelta(hours=5), timer=datetime.now)
+    _eval_cache = TTLCache(maxsize=200, ttl=timedelta(hours=10), timer=datetime.now)
     _cache_lock = Lock()
 
     @telemetry(entry_point="plugin=evaluation&action=create", name="aqua")
@@ -1642,8 +1642,13 @@ class AquaEvaluationApp(AquaApp):
             oci.resource_search.models.ResourceSummary, oci.data_science.models.JobRun
         ] = None,
     ) -> dict:
-        """Builds evaluation status based on the model status and job run status."""
+        """Builds evaluation status based on the model status and job run status.
+        When detect `aqua_evaluation_error` in custom metadata, the jobrun is failed.
+        However, if jobrun failed before saving this meta, we need to check the existance
+        of the evaluation artifact.
 
+        """
+        # TODO: revisit for CANCELED evaluation
         job_run_status = (
             JobRun.LIFECYCLE_STATE_FAILED
             if self._get_attribute_from_model_metadata(
