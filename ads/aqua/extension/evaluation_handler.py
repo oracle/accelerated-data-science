@@ -9,9 +9,10 @@ from requests import HTTPError
 
 from ads.aqua.decorator import handle_exceptions
 from ads.aqua.evaluation import AquaEvaluationApp, CreateAquaEvaluationDetails
+from ads.aqua.exception import AquaError
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.aqua.extension.utils import validate_function_parameters
-from ads.config import COMPARTMENT_OCID, PROJECT_OCID
+from ads.config import COMPARTMENT_OCID
 
 
 class AquaEvaluationHandler(AquaAPIhandler):
@@ -49,38 +50,24 @@ class AquaEvaluationHandler(AquaAPIhandler):
             data_class=CreateAquaEvaluationDetails, input_data=input_data
         )
 
-        try:
-            self.finish(
-                # TODO: decide what other kwargs will be needed for create aqua evaluation.
-                AquaEvaluationApp().create(
-                    create_aqua_evaluation_details=(
-                        CreateAquaEvaluationDetails(**input_data)
-                    )
+        self.finish(
+            # TODO: decide what other kwargs will be needed for create aqua evaluation.
+            AquaEvaluationApp().create(
+                create_aqua_evaluation_details=(
+                    CreateAquaEvaluationDetails(**input_data)
                 )
             )
-        except Exception as ex:
-            raise HTTPError(500, str(ex))
+        )
 
     @handle_exceptions
     def put(self, eval_id):
         """Handles PUT request for the evaluation APIs"""
-        self.finish(
-            {
-                "evaluation_id": eval_id,
-                "status": "CANCELLED",
-                "time_accepted": "2024-02-15 20:18:34.225000+00:00",
-            }
-        )
+        eval_id = eval_id.split("/")[0]
+        return self.finish(AquaEvaluationApp().cancel(eval_id))
 
     @handle_exceptions
     def delete(self, eval_id):
-        self.finish(
-            {
-                "evaluation_id": eval_id,
-                "status": "DELETING",
-                "time_accepted": "2024-02-15 20:18:34.225000+00:00",
-            }
-        )
+        return self.finish(AquaEvaluationApp().delete(eval_id))
 
     def read(self, eval_id):
         """Read the information of an Aqua model."""
@@ -93,8 +80,8 @@ class AquaEvaluationHandler(AquaAPIhandler):
         project_id = self.get_argument("project_id", default=None)
         return self.finish(AquaEvaluationApp().list(compartment_id, project_id))
 
-    def get_default_metrics(self, **kwargs):
-        """Lists supported metrics."""
+    def get_default_metrics(self):
+        """Lists supported metrics for evaluation."""
         return self.finish(AquaEvaluationApp().get_supported_metrics())
 
 

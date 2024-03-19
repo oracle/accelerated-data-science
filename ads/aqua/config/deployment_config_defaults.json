@@ -1,0 +1,9 @@
+{
+  "shape": [
+    "VM.GPU.A10.1",
+    "VM.GPU.A10.2",
+    "BM.GPU.A10.4",
+    "BM.GPU4.8",
+    "BM.GPU.A100-v2.8"
+  ]
+}

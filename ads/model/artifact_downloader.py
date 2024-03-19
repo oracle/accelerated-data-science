@@ -171,14 +171,12 @@ class LargeArtifactDownloader(ArtifactDownloader):
         """Downloads model artifacts."""
         self.progress.update(f"Importing model artifacts from catalog")
 
-        bucket_uri = self.bucket_uri
-
         if self.dsc_model.is_model_by_reference() and self.model_file_description:
-            message = f"Copying model artifacts by reference from {bucket_uri} to {self.target_dir}"
-            self.progress.update(message)
             self.download_from_model_file_description()
             self.progress.update()
             return
+
+        bucket_uri = self.bucket_uri
 
         if not os.path.basename(bucket_uri):
             bucket_uri = os.path.join(bucket_uri, f"{self.dsc_model.id}.zip")
@@ -220,6 +218,10 @@ class LargeArtifactDownloader(ArtifactDownloader):
                 model["prefix"],
             )
             bucket_uri = f"oci://{bucket_name}@{namespace}/{prefix}"
+
+            message = f"Copying model artifacts by reference from {bucket_uri} to {self.target_dir}"
+            self.progress.update(message)
+
             objects = model["objects"]
             os_details_list = list()
 

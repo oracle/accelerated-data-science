@@ -3,6 +3,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA utils and constants."""
+import asyncio
 import base64
 import json
 import logging
@@ -11,64 +12,72 @@ import random
 import re
 import sys
 from enum import Enum
+from functools import wraps
 from pathlib import Path
 from string import Template
-from typing import List
+from typing import List, Union
 
 import fsspec
+import oci
 from oci.data_science.models import JobRun, Model
 
+from ads.aqua.constants import RqsAdditionalDetails
+from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaError, AquaFileNotFoundError, AquaRuntimeError, AquaValueError
+from ads.common.auth import default_signer
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import upload_to_os
-from ads.config import TENANCY_OCID
+from ads.common.utils import get_console_link, upload_to_os
+from ads.config import (
+    AQUA_CONFIG_FOLDER,
+    AQUA_SERVICE_MODELS_BUCKET,
+    TENANCY_OCID,
+    CONDA_BUCKET_NS,
+)
+from ads.model import DataScienceModel, ModelVersionSet
 
+# TODO: allow the user to setup the logging level?
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
 
 UNKNOWN = ""
+UNKNOWN_DICT = {}
 README = "README.md"
+LICENSE_TXT = "config/LICENSE.txt"
 DEPLOYMENT_CONFIG = "deployment_config.json"
+CONTAINER_INDEX = "container_index.json"
 EVALUATION_REPORT_JSON = "report.json"
+EVALUATION_REPORT_MD = "report.md"
 EVALUATION_REPORT = "report.html"
 UNKNOWN_JSON_STR = "{}"
 CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
     datasciencemodel="models",
     datasciencemodeldeployment="model-deployments",
+    datasciencemodeldeploymentdev="model-deployments",
+    datasciencemodeldeploymentint="model-deployments",
+    datasciencemodeldeploymentpre="model-deployments",
     datasciencejob="jobs",
+    datasciencejobrun="job-runs",
+    datasciencejobrundev="job-runs",
+    datasciencejobrunint="job-runs",
+    datasciencejobrunpre="job-runs",
+    datasciencemodelversionset="model-version-sets",
+    datasciencemodelversionsetpre="model-version-sets",
+    datasciencemodelversionsetint="model-version-sets",
+    datasciencemodelversionsetdev="model-version-sets",
 )
-CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS", "ociodscdev")
-SOURCE_FILE = "run.sh"
-CONDA_URI = f"oci://ads-evaluation@{CONDA_BUCKET_NS}/conda_environments/gpu/PyTorch 2.1 for GPU on Python 3.9/1.0/pytorch21_p39_gpu_v1"
-CONDA_REGION = "us-ashburn-1"
-BERT_SCORE_PATH = "/home/datascience/conda/pytorch21_p39_gpu_v1/bertscore/bertscore.py"
-BERT_BASE_MULTILINGUAL_CASED = (
-    "/home/datascience/conda/pytorch21_p39_gpu_v1/bert-base-multilingual-cased/"
-)
-DEFAULT_MAX_TOKEN = 500
-DEFAULT_TEMPERATURE = 0.7
-DEFAULT_TOP_P = 1.0
-DEFAULT_TOP_K = 50
-DEFAULT_BLOCK_STORAGE_SIZE = 100
-DEFAULT_MEMORY_IN_GBS = 32
-DEFAULT_OCPUS = 2
+FINE_TUNING_RUNTIME_CONTAINER = "iad.ocir.io/ociodscdev/aqua_ft_cuda121:0.3.17.20"
+DEFAULT_FT_BLOCK_STORAGE_SIZE = 256
+DEFAULT_FT_REPLICA = 1
+DEFAULT_FT_BATCH_SIZE = 1
+DEFAULT_FT_VALIDATION_SET_SIZE = 0.1
 
-DEFAULT_MODEL_PARAMS_CONFIGS = {
-    "model_params": {
-        "max_tokens": DEFAULT_MAX_TOKEN,
-        "temperature": DEFAULT_TEMPERATURE,
-        "top_p": DEFAULT_TOP_P,
-        "top_k": DEFAULT_TOP_K,
-    },
-    "default": {
-        "ocpus": DEFAULT_OCPUS,
-        "memory_in_gbs": DEFAULT_MEMORY_IN_GBS,
-        "block_storage_size": DEFAULT_BLOCK_STORAGE_SIZE,
-    },
-}
-
-# TODO: remove later
-SUBNET_ID = os.environ.get("SUBNET_ID", None)
+HF_MODELS = "/home/datascience/conda/pytorch21_p39_gpu_v1/"
+MAXIMUM_ALLOWED_DATASET_IN_BYTE = 52428800  # 1024 x 1024 x 50 = 50MB
+JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING = "ME_STANDALONE"
+NB_SESSION_IDENTIFIER = "NB_SESSION_OCID"
+LIFECYCLE_DETAILS_MISSING_JOBRUN = "The asscociated JobRun resource has been deleted."
+READY_TO_DEPLOY_STATUS = "ACTIVE"
 
 
 class LifecycleStatus(Enum):
@@ -131,8 +140,7 @@ LIFECYCLE_DETAILS_MAPPING = {
     JobRun.LIFECYCLE_STATE_NEEDS_ATTENTION: "Missing jobrun information.",
 }
 SUPPORTED_FILE_FORMATS = ["jsonl"]
-MODEL_BY_REFERENCE_OSS_PATH_KEY = "Object Storage Path"
-MODEL_PARAMETERS = ["max_tokens", "temperature", "top_p", "top_k"]
+MODEL_BY_REFERENCE_OSS_PATH_KEY = "artifact_location"
 
 
 def get_logger():
@@ -209,7 +217,13 @@ def get_artifact_path(custom_metadata_list: List) -> str:
     """
     for custom_metadata in custom_metadata_list:
         if custom_metadata.key == MODEL_BY_REFERENCE_OSS_PATH_KEY:
-            return custom_metadata.value
+            if ObjectStorageDetails.is_oci_path(custom_metadata.value):
+                artifact_path = custom_metadata.value
+            else:
+                artifact_path = ObjectStorageDetails(
+                    AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, custom_metadata.value
+                ).path
+            return artifact_path
     logger.debug("Failed to get artifact path from custom metadata.")
     return UNKNOWN
 
@@ -221,6 +235,23 @@ def read_file(file_path: str, **kwargs) -> str:
     except Exception as e:
         logger.error(f"Failed to read file {file_path}. {e}")
         return UNKNOWN
+
+
+def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
+    artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
+    if artifact_path.startswith("oci://"):
+        signer = default_signer()
+    else:
+        signer = {}
+    config = json.loads(
+        read_file(file_path=artifact_path, auth=signer, **kwargs) or UNKNOWN_JSON_STR
+    )
+    if not config:
+        raise AquaFileNotFoundError(
+            f"Config file `{config_file_name}` is either empty or missing at {artifact_path}",
+            500,
+        )
+    return config
 
 
 def is_valid_ocid(ocid: str) -> bool:
@@ -288,7 +319,7 @@ def query_resource(
     return_all = " return allAdditionalFields " if return_all else " "
     resource_type = get_resource_type(ocid)
     query = f"query {resource_type} resources{return_all}where (identifier = '{ocid}')"
-    logger.info(query)
+    logger.debug(query)
 
     resources = OCIResource.search(
         query,
@@ -297,7 +328,7 @@ def query_resource(
     )
     if len(resources) == 0:
         raise AquaRuntimeError(
-            f"Failed to retreive source {resource_type}'s information.",
+            f"Failed to retreive {resource_type}'s information.",
             service_payload={"query": query, "tenant_id": TENANCY_OCID},
         )
     return resources[0]
@@ -349,8 +380,8 @@ def query_resources(
         connect_by_ampersands=connect_by_ampersands,
     )
     query = f"query {resource_type} resources{return_all}where (compartmentId = '{compartment_id}'{condition_lifecycle}{condition_tags})"
-    logger.info(query)
-    logger.info(f"tenant_id=`{TENANCY_OCID}`")
+    logger.debug(query)
+    logger.debug(f"tenant_id=`{TENANCY_OCID}`")
 
     return OCIResource.search(
         query, type=SEARCH_TYPE.STRUCTURED, tenant_id=TENANCY_OCID, **kwargs
@@ -388,7 +419,7 @@ def _construct_condition(
     return condition
 
 
-def upload_file_to_os(
+def upload_local_to_os(
     src_uri: str, dst_uri: str, auth: dict = None, force_overwrite: bool = False
 ):
     expanded_path = os.path.expanduser(src_uri)
@@ -400,6 +431,10 @@ def upload_file_to_os(
         )
     if os.path.getsize(expanded_path) == 0:
         raise AquaValueError("Empty input file. Specify a valid file path.")
+    if os.path.getsize(expanded_path) > MAXIMUM_ALLOWED_DATASET_IN_BYTE:
+        raise AquaValueError(
+            f"Local dataset file can't exceed {MAXIMUM_ALLOWED_DATASET_IN_BYTE} bytes."
+        )
 
     upload_to_os(
         src_uri=expanded_path,
@@ -418,3 +453,273 @@ def load_default_aqua_config(artifact_path: str, **kwargs) -> dict:
             500,
         )
     return config
+
+def sanitize_response(oci_client, response: list):
+    """Builds a JSON POST object for the response from OCI clients.
+
+    Parameters
+    ----------
+    oci_client
+        OCI client object
+
+    response
+        list of results from the OCI client
+
+    Returns
+    -------
+        The serialized form of data.
+
+    """
+    return oci_client.base_client.sanitize_for_serialization(response)
+
+
+def _build_resource_identifier(
+    id: str = None, name: str = None, region: str = None
+) -> AquaResourceIdentifier:
+    """Constructs AquaResourceIdentifier based on the given ocid and display name."""
+    try:
+        resource_type = CONSOLE_LINK_RESOURCE_TYPE_MAPPING.get(get_resource_type(id))
+
+        return AquaResourceIdentifier(
+            id=id,
+            name=name,
+            url=get_console_link(
+                resource=resource_type,
+                ocid=id,
+                region=region,
+            ),
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to construct AquaResourceIdentifier from given id=`{id}`, and name=`{name}`, {str(e)}"
+        )
+        return AquaResourceIdentifier()
+
+
+def _get_experiment_info(
+    model: Union[oci.resource_search.models.ResourceSummary, DataScienceModel]
+) -> tuple:
+    """Returns ocid and name of the experiment."""
+    return (
+        (
+            model.additional_details.get(RqsAdditionalDetails.MODEL_VERSION_SET_ID),
+            model.additional_details.get(RqsAdditionalDetails.MODEL_VERSION_SET_NAME),
+        )
+        if isinstance(model, oci.resource_search.models.ResourceSummary)
+        else (model.model_version_set_id, model.model_version_set_name)
+    )
+
+
+def _build_job_identifier(
+    job_run_details: Union[
+        oci.data_science.models.JobRun, oci.resource_search.models.ResourceSummary
+    ] = None,
+    **kwargs,
+) -> AquaResourceIdentifier:
+    try:
+        job_id = (
+            job_run_details.id
+            if isinstance(job_run_details, oci.data_science.models.JobRun)
+            else job_run_details.identifier
+        )
+        return _build_resource_identifier(
+            id=job_id, name=job_run_details.display_name, **kwargs
+        )
+
+    except Exception as e:
+        logger.debug(
+            f"Failed to get job details from job_run_details: {job_run_details}"
+            f"DEBUG INFO:{str(e)}"
+        )
+        return AquaResourceIdentifier()
+
+
+def get_container_image(
+    config_file_name: str = None, container_type: str = None
+) -> str:
+    """Gets the image name from the given model and container type.
+    Parameters
+    ----------
+    config_file_name: str
+        name of the config file
+    container_type: str
+        type of container, can be either deployment-container, finetune-container, evaluation-container
+
+    Returns
+    -------
+    Dict:
+        A dict of allowed configs.
+    """
+
+    config_file_name = (
+        f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
+    )
+
+    config = load_config(
+        file_path=config_file_name,
+        config_file_name=CONTAINER_INDEX,
+    )
+
+    if container_type not in config:
+        raise AquaValueError(
+            f"{config_file_name} does not have config details for model: {container_type}"
+        )
+
+    container_image = None
+    mapping = config[container_type]
+    versions = [obj["version"] for obj in mapping]
+    # assumes numbered versions, update if `latest` is used
+    latest = get_max_version(versions)
+    for obj in mapping:
+        if obj["version"] == str(latest):
+            container_image = f"{obj['name']}:{obj['version']}"
+            break
+
+    if not container_image:
+        raise AquaValueError(
+            f"{config_file_name} is missing name and/or version details."
+        )
+
+    return container_image
+
+
+def get_max_version(versions):
+    """Takes in a list of versions and returns the higher version."""
+    if not versions:
+        return UNKNOWN
+
+    def compare_versions(version1, version2):
+        # split version strings into parts and convert to int values for comparison
+        parts1 = list(map(int, version1.split(".")))
+        parts2 = list(map(int, version2.split(".")))
+
+        # compare each part
+        for idx in range(min(len(parts1), len(parts2))):
+            if parts1[idx] < parts2[idx]:
+                return version2
+            elif parts1[idx] > parts2[idx]:
+                return version1
+
+        # if all parts are equal up to this point, return the longer version string
+        return version1 if len(parts1) > len(parts2) else version2
+
+    max_version = versions[0]
+    for version in versions[1:]:
+        max_version = compare_versions(max_version, version)
+
+    return max_version
+
+
+def fire_and_forget(func):
+    """Decorator to push execution of methods to the background."""
+
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        return asyncio.get_event_loop().run_in_executor(None, func, *args, *kwargs)
+
+    return wrapped
+
+
+def get_base_model_from_tags(tags):
+    base_model_ocid = ""
+    base_model_name = ""
+    if Tags.AQUA_FINE_TUNED_MODEL_TAG.value in tags:
+        tag = tags[Tags.AQUA_FINE_TUNED_MODEL_TAG.value]
+        if "#" in tag:
+            base_model_ocid, base_model_name = tag.split("#")
+
+        if not (is_valid_ocid(base_model_ocid) and base_model_name):
+            raise AquaValueError(
+                f"{Tags.AQUA_FINE_TUNED_MODEL_TAG.value} tag should have the format `Service Model OCID#Model Name`."
+            )
+
+    return base_model_ocid, base_model_name
+
+
+def get_resource_name(ocid: str) -> str:
+    """Gets resource name based on the given ocid.
+
+    Parameters
+    ----------
+    ocid: str
+        Oracle Cloud Identifier (OCID).
+
+    Returns
+    -------
+    str:
+        The resource name indicated in the given ocid.
+
+    Raises
+    -------
+    ValueError:
+        When the given ocid is not a valid ocid.
+    """
+    if not is_valid_ocid(ocid):
+        raise ValueError(
+            f"The given ocid {ocid} is not a valid ocid."
+            "Check out this page https://docs.oracle.com/en-us/iaas/Content/General/Concepts/identifiers.htm to see more details."
+        )
+    try:
+        resource = query_resource(ocid, return_all=False)
+        name = resource.display_name if resource else UNKNOWN
+    except:
+        name = UNKNOWN
+    return name
+
+
+def get_model_by_reference_paths(model_file_description: dict):
+    """Reads the model file description json dict and returns the base model path and fine-tuned path for
+        models created by reference.
+
+    Parameters
+    ----------
+    model_file_description: dict
+        json dict containing model paths and objects for models created by reference.
+
+    Returns
+    -------
+        a tuple with base_model_path and fine_tune_output_path
+    """
+    base_model_path = UNKNOWN
+    fine_tune_output_path = UNKNOWN
+    models = model_file_description["models"]
+
+    for model in models:
+        namespace, bucket_name, prefix = (
+            model["namespace"],
+            model["bucketName"],
+            model["prefix"],
+        )
+        bucket_uri = f"oci://{bucket_name}@{namespace}/{prefix}".rstrip("/")
+        if bucket_name == AQUA_SERVICE_MODELS_BUCKET:
+            base_model_path = bucket_uri
+        else:
+            fine_tune_output_path = bucket_uri
+
+    if not base_model_path:
+        raise AquaValueError(
+            f"Base Model should come from the bucket {AQUA_SERVICE_MODELS_BUCKET}. "
+            f"Other paths are not supported by Aqua."
+        )
+    return base_model_path, fine_tune_output_path
+
+
+def _is_valid_mvs(mvs: ModelVersionSet, target_tag: str) -> bool:
+    """Returns whether the given model version sets has the target tag.
+
+    Parameters
+    ----------
+    mvs: str
+        The instance of `ads.model.ModelVersionSet`.
+    target_tag: list
+        Target tag expected to be in MVS.
+
+    Returns
+    -------
+    bool:
+        Return True if the given model version sets is valid.
+    """
+    if mvs.freeform_tags is None:
+        return False
+
+    return target_tag in mvs.freeform_tags

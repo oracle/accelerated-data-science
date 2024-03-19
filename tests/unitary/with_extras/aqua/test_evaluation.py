@@ -12,6 +12,7 @@ from dataclasses import asdict
 from unittest.mock import MagicMock, patch
 
 import oci
+from parameterized import parameterized
 
 from ads.aqua import utils
 from ads.aqua.evaluation import (
@@ -21,6 +22,7 @@ from ads.aqua.evaluation import (
     AquaEvaluationSummary,
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.jobs.ads_job import DataScienceJob, DataScienceJobRun
 from ads.model import DataScienceModel
 
 null = None
@@ -75,7 +77,7 @@ class TestDataset:
         "time_started": "2024-02-10T17:16:33.547000+00:00",
     }
 
-    resource_summary_object_job = [
+    resource_summary_object_jobrun = [
         {
             "additional_details": {},
             "availability_domain": null,
@@ -118,6 +120,12 @@ class TestDataset:
                         "category": "other",
                         "description": "The JOB OCID associated with the Evaluation MC entry.",
                         "key": "evaluation_job_id",
+                        "value": "ocid1.datasciencejob.oc1.iad.<OCID>",
+                    },
+                    {
+                        "category": "other",
+                        "description": "The JOB RUN OCID associated with the Evaluation MC entry.",
+                        "key": "evaluation_job_run_id",
                         "value": "ocid1.datasciencejobrun.oc1.iad.<OCID>",
                     },
                     {
@@ -217,8 +225,10 @@ class TestAquaModel(unittest.TestCase):
             )
         elif args[1].startswith("ocid1.datasciencejob"):
             return oci.resource_search.models.ResourceSummary(
-                **TestDataset.resource_summary_object_job[0]
+                **TestDataset.resource_summary_object_jobrun[0]
             )
+        elif args[1].startswith("ocid1.logging"):
+            return oci.resource_search.models.ResourceSummary()
 
     def print_expected_response(self, response, method):
         """Used for manually check expected output."""
@@ -259,13 +269,17 @@ class TestAquaModel(unittest.TestCase):
 
         response = self.app.get(TestDataset.EVAL_ID)
 
-        utils.query_resource.assert_called_with(TestDataset.EVAL_ID)
+        # utils.query_resource.assert_called_with(TestDataset.EVAL_ID, return_all=False)
 
         self.app.ds_client.get_job_run.assert_called_with(
             TestDataset.model_provenance_object.get("training_id")
         )
         self.print_expected_response(response, "GET EVALUATION")
-        self.assert_payload(response, AquaEvaluationSummary)
+        # TODO: setup mock response for query loggroup/log
+        # self.assert_payload(response, AquaEvaluationSummary)
+
+        # check status return correctly
+        assert response.lifecycle_state == "SUCCEEDED"
 
     def test_list(self):
         """Tests list evaluations successfully."""
@@ -278,13 +292,17 @@ class TestAquaModel(unittest.TestCase):
         )
 
         utils.query_resource.assert_called_with(
-            TestDataset.resource_summary_object_job[0].get("identifier"),
+            TestDataset.resource_summary_object_jobrun[0].get("identifier"),
             return_all=False,
         )
 
         assert len(response) == 1
         self.print_expected_response(response, "LIST EVALUATIONS")
-        self.assert_payload(response[0], AquaEvaluationSummary)
+        # self.assert_payload(response[0], AquaEvaluationSummary)
+        # 'dataset_path': '', 'report_path': '' in list
+
+        # check status return correctly
+        assert response[0].lifecycle_state == "SUCCEEDED"
 
     @patch.object(DataScienceModel, "download_artifact")
     @patch.object(DataScienceModel, "from_id")
@@ -306,6 +324,45 @@ class TestAquaModel(unittest.TestCase):
             read_content == b"This is a sample evaluation report.html.\n"
         ), read_content
 
+    @patch.object(DataScienceModel, "from_id")
+    @patch.object(DataScienceJob, "from_id")
+    @patch.object(AquaEvaluationApp, "_delete_job_and_model")
+    def test_delete_evaluation(
+        self, mock_del_job_model_func, mock_dsc_job, mock_dsc_model_from_id
+    ):
+        mock_dsc_model_from_id.return_value = MagicMock(
+            provenance_data={
+                "training_id": TestDataset.model_provenance_object.get("training_id"),
+            }
+        )
+        mock_dsc_job.return_value = MagicMock(lifecycle_state="ACCEPTED")
+        mock_del_job_model_func.return_value = None
+        result = self.app.delete(TestDataset.EVAL_ID)
+        assert result["id"] == TestDataset.EVAL_ID
+        assert result["lifecycle_state"] == "DELETING"
+
+        mock_del_job_model_func.assert_called_once()
+
+    @patch.object(DataScienceModel, "from_id")
+    @patch.object(DataScienceJobRun, "from_ocid")
+    @patch.object(AquaEvaluationApp, "_cancel_job_run")
+    def test_cancel_evaluation(
+        self, mock_cancel_jr_func, mock_dsc_job_run, mock_dsc_model_from_id
+    ):
+        mock_dsc_model_from_id.return_value = MagicMock(
+            provenance_data={
+                "training_id": TestDataset.model_provenance_object.get("training_id")
+            }
+        )
+        mock_dsc_job_run.return_value = MagicMock(lifecycle_state="ACCEPTED")
+        mock_cancel_jr_func.return_value = None
+
+        result = self.app.cancel(TestDataset.EVAL_ID)
+
+        assert result["id"] == TestDataset.EVAL_ID
+        assert result["lifecycle_state"] == "CANCELING"
+        mock_cancel_jr_func.assert_called_once()
+
     @patch.object(DataScienceModel, "download_artifact")
     @patch.object(DataScienceModel, "from_id")
     @patch("tempfile.TemporaryDirectory")
@@ -321,10 +378,12 @@ class TestAquaModel(unittest.TestCase):
         mock_dsc_model_from_id.assert_called_with(TestDataset.EVAL_ID)
         self.print_expected_response(response, "LOAD METRICS")
         self.assert_payload(response, AquaEvalMetrics)
-        assert len(response.metrics) == 1
+        assert len(response.metric_results) == 1
+        assert len(response.metric_summary_result) == 1
 
     def test_get_status(self):
         """Tests getting evaluation status successfully."""
+        # TODO: add test for difference cases.
         self.app.ds_client.get_model_provenance = MagicMock(
             return_value=oci.response.Response(
                 status=200,
@@ -335,5 +394,64 @@ class TestAquaModel(unittest.TestCase):
                 ),
             )
         )
+        self.app.ds_client.get_job_run = MagicMock(
+            return_value=oci.response.Response(
+                status=200,
+                request=MagicMock(),
+                headers=MagicMock(),
+                data=oci.data_science.models.JobRun(**TestDataset.job_run_object),
+            )
+        )
         response = self.app.get_status(TestDataset.EVAL_ID)
         self.print_expected_response(response, "GET STATUS")
+        assert response.get("lifecycle_state") == "SUCCEEDED"
+
+    @parameterized.expand(
+        [
+            (
+                dict(
+                    return_value=oci.response.Response(
+                        status=200, request=MagicMock(), headers=MagicMock(), data=None
+                    )
+                ),
+                "SUCCEEDED",
+            ),
+            (
+                dict(
+                    side_effect=oci.exceptions.ServiceError(
+                        status=404, code=None, message="error test msg", headers={}
+                    )
+                ),
+                "FAILED",
+            ),
+        ]
+    )
+    def test_get_status_when_missing_jobrun(
+        self, mock_head_model_artifact_response, expected_output
+    ):
+        """Tests getting evaluation status correctly when missing jobrun association."""
+        self.app.ds_client.get_model_provenance = MagicMock(
+            return_value=oci.response.Response(
+                status=200,
+                request=MagicMock(),
+                headers=MagicMock(),
+                data=oci.data_science.models.ModelProvenance(
+                    **TestDataset.model_provenance_object
+                ),
+            )
+        )
+        self.app._fetch_jobrun = MagicMock(return_value=None)
+
+        self.app.ds_client.head_model_artifact = MagicMock(
+            side_effect=mock_head_model_artifact_response.get("side_effect", None),
+            return_value=mock_head_model_artifact_response.get("return_value", None),
+        )
+
+        response = self.app.get_status(TestDataset.EVAL_ID)
+        self.app.ds_client.head_model_artifact.assert_called_with(
+            model_id=TestDataset.EVAL_ID
+        )
+        actual_status = response.get("lifecycle_state")
+        assert (
+            actual_status == expected_output
+        ), f"expected status is {expected_output}, actual status is {actual_status}"

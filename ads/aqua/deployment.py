@@ -11,16 +11,21 @@ from typing import Dict, List, Union
 import requests
 from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 
-from ads.aqua.base import AquaApp
+from ads.aqua.base import AquaApp, logger
 from ads.aqua.exception import AquaRuntimeError, AquaValueError
 from ads.aqua.model import AquaModelApp, Tags
 from ads.aqua.utils import (
     UNKNOWN,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
-    get_artifact_path,
-    load_default_aqua_config,
+    load_config,
+    get_container_image,
+    UNKNOWN_DICT,
+    get_resource_name,
+    get_model_by_reference_paths,
 )
-from ads.common.utils import get_console_link
+from ads.aqua.finetune import FineTuneCustomMetadata
+from ads.aqua.data import AquaResourceIdentifier
+from ads.common.utils import get_console_link, get_log_links
 from ads.common.auth import default_signer
 from ads.model.deployment import (
     ModelDeployment,
@@ -29,7 +34,16 @@ from ads.model.deployment import (
     ModelDeploymentMode,
 )
 from ads.common.serializer import DataClassSerializable
-from ads.config import AQUA_MODEL_DEPLOYMENT_CONFIG, COMPARTMENT_OCID, AQUA_MODEL_DEPLOYMENT_IMAGE
+from ads.config import (
+    AQUA_MODEL_DEPLOYMENT_CONFIG,
+    COMPARTMENT_OCID,
+    AQUA_CONFIG_FOLDER,
+    AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS,
+    AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
+    AQUA_SERVED_MODEL_NAME,
+)
+from ads.common.object_storage_details import ObjectStorageDetails
+from ads.telemetry import telemetry
 
 
 @dataclass
@@ -127,6 +141,14 @@ class AquaDeployment(DataClassSerializable):
         )
 
 
+@dataclass(repr=False)
+class AquaDeploymentDetail(AquaDeployment, DataClassSerializable):
+    """Represents a details of Aqua deployment."""
+
+    log_group: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    log: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+
+
 class AquaDeploymentApp(AquaApp):
     """Provides a suite of APIs to interact with Aqua model deployments within the Oracle
     Cloud Infrastructure Data Science service, serving as an interface for deploying
@@ -141,6 +163,8 @@ class AquaDeploymentApp(AquaApp):
         Retrieves details of an Aqua model deployment by its unique identifier.
     list(**kwargs) -> List[AquaModelSummary]:
         Lists all Aqua deployments within a specified compartment and/or project.
+    get_deployment_config(self, model_id: str) -> Dict:
+        Gets the deployment config of given Aqua model.
 
     Note:
         Use `ads aqua deployment <method_name> --help` to get more details on the parameters available.
@@ -149,6 +173,7 @@ class AquaDeploymentApp(AquaApp):
         with OCI services.
     """
 
+    @telemetry(entry_point="plugin=deployment&action=create", name="aqua")
     def create(
         self,
         model_id: str,
@@ -184,7 +209,7 @@ class AquaDeploymentApp(AquaApp):
             The description of the deployment.
         instance_count: (int, optional). Defaults to 1.
             The number of instance used for deployment.
-        instance_shape: (str). Default to `VM.Standard2.1`.
+        instance_shape: (str).
             The shape of the instance used for deployment.
         log_group_id: (str)
             The oci logging group id. The access log and predict log share the same log group.
@@ -211,11 +236,11 @@ class AquaDeploymentApp(AquaApp):
 
         """
         # todo: revisit error handling and pull deployment image info from config
-        if not AQUA_MODEL_DEPLOYMENT_IMAGE:
-            raise AquaValueError(
-                f"AQUA_MODEL_DEPLOYMENT_IMAGE must be available in environment variables to "
-                f"continue with Aqua model deployment."
-            )
+        # if not AQUA_MODEL_DEPLOYMENT_IMAGE:
+        #     raise AquaValueError(
+        #         f"AQUA_MODEL_DEPLOYMENT_IMAGE must be available in environment variables to "
+        #         f"continue with Aqua model deployment."
+        #     )
 
         # todo: for fine tuned models, skip model creation.
         # Create a model catalog entry in the user compartment
@@ -232,30 +257,95 @@ class AquaDeploymentApp(AquaApp):
             if tag in aqua_model.freeform_tags:
                 tags[tag] = aqua_model.freeform_tags[tag]
 
-        # todo: temporary code, move this from here to container
+        # Set up info to get deployment config
+        config_source_id = model_id
+        model_name = aqua_model.display_name
+
+        is_fine_tuned_model = (
+            Tags.AQUA_FINE_TUNED_MODEL_TAG.value in aqua_model.freeform_tags
+        )
+
+        if is_fine_tuned_model:
+            try:
+                config_source_id = aqua_model.custom_metadata_list.get(
+                    FineTuneCustomMetadata.FINE_TUNE_SOURCE.value
+                ).value
+                model_name = aqua_model.custom_metadata_list.get(
+                    FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME.value
+                ).value
+            except:
+                raise AquaValueError(
+                    f"Either {FineTuneCustomMetadata.FINE_TUNE_SOURCE.value} or {FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME.value} is missing "
+                    f"from custom metadata for the model {config_source_id}"
+                )
+
+        deployment_config = self.get_deployment_config(config_source_id)
+        vllm_params = (
+            deployment_config.get("configuration", UNKNOWN_DICT)
+            .get(instance_shape, UNKNOWN_DICT)
+            .get("parameters", UNKNOWN_DICT)
+            .get("VLLM_PARAMS", UNKNOWN)
+        )
+
+        # set up env vars
         if not env_var:
             env_var = dict()
-        if aqua_model.model_file_description:
-            model_path_prefix = aqua_model.model_file_description["models"][0][
-                "prefix"
-            ].rstrip("/")
-            env_var.update(
-                {"MODEL": f"/opt/ds/model/deployed_model/{model_path_prefix}"}
-            )
+
         try:
-            artifact_path = aqua_model.custom_metadata_list.get(
+            model_path_prefix = aqua_model.custom_metadata_list.get(
                 MODEL_BY_REFERENCE_OSS_PATH_KEY
-            ).value
+            ).value.rstrip("/")
         except ValueError:
             raise AquaValueError(
                 f"{MODEL_BY_REFERENCE_OSS_PATH_KEY} key is not available in the custom metadata field."
             )
 
-        deployment_config = self._load_deployment_config(artifact_path, auth=self._auth)
+        # todo: remove this after absolute path is removed from env var
+        if ObjectStorageDetails.is_oci_path(model_path_prefix):
+            os_path = ObjectStorageDetails.from_path(model_path_prefix)
+            model_path_prefix = os_path.filepath.rstrip("/")
 
-        if "environmentVariables" in deployment_config:
-            env_var.update(deployment_config["environmentVariables"])
+        env_var.update({"BASE_MODEL": f"{model_path_prefix}"})
+        params = f"--served-model-name {AQUA_SERVED_MODEL_NAME} --seed 42 "
+        if vllm_params:
+            params += vllm_params
+        env_var.update({"PARAMS": params})
+        env_var.update({"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"})
+        env_var.update({"MODEL_DEPLOY_ENABLE_STREAMING": "true"})
+
+        if is_fine_tuned_model:
+            _, fine_tune_output_path = get_model_by_reference_paths(
+                aqua_model.model_file_description
+            )
+
+            if not fine_tune_output_path:
+                raise AquaValueError(
+                    f"Fine tuned output path is not available in the model artifact."
+                )
+
+            os_path = ObjectStorageDetails.from_path(fine_tune_output_path)
+            fine_tune_output_path = os_path.filepath.rstrip("/")
+
+            env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
+
         logging.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
+
+        try:
+            container_type_key = aqua_model.custom_metadata_list.get(
+                AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
+            ).value
+        except ValueError:
+            raise AquaValueError(
+                f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field for model {aqua_model.id}"
+            )
+
+        # fetch image name from config
+        container_image = get_container_image(
+            container_type=container_type_key,
+        )
+        logging.info(
+            f"Aqua Image used for deploying {aqua_model.id} : {container_image}"
+        )
 
         # Start model deployment
         # configure model deployment infrastructure
@@ -281,7 +371,7 @@ class AquaDeploymentApp(AquaApp):
         # todo : any other runtime params needed?
         container_runtime = (
             ModelDeploymentContainerRuntime()
-            .with_image(AQUA_MODEL_DEPLOYMENT_IMAGE)
+            .with_image(container_image)
             .with_server_port(server_port)
             .with_health_check_port(health_check_port)
             .with_env(env_var)
@@ -302,10 +392,46 @@ class AquaDeploymentApp(AquaApp):
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
 
+        if is_fine_tuned_model:
+            # tracks unique deployments that were created in the user compartment
+            self.telemetry.record_event_async(
+                category="aqua/custom/deployment", action="create", detail=model_name
+            )
+            # tracks the shape used for deploying the custom models
+            self.telemetry.record_event_async(
+                category="aqua/custom/deployment/create",
+                action="shape",
+                detail=instance_shape,
+            )
+            # tracks the shape used for deploying the custom models by name
+            self.telemetry.record_event_async(
+                category=f"aqua/custom/{model_name}/deployment/create",
+                action="shape",
+                detail=instance_shape,
+            )
+        else:
+            # tracks unique deployments that were created in the user compartment
+            self.telemetry.record_event_async(
+                category="aqua/service/deployment", action="create", detail=model_name
+            )
+            # tracks the shape used for deploying the service models
+            self.telemetry.record_event_async(
+                category="aqua/service/deployment/create",
+                action="shape",
+                detail=instance_shape,
+            )
+            # tracks the shape used for deploying the service models by name
+            self.telemetry.record_event_async(
+                category=f"aqua/service/{model_name}/deployment/create",
+                action="shape",
+                detail=instance_shape,
+            )
+
         return AquaDeployment.from_oci_model_deployment(
             deployment.dsc_model_deployment, self.region
         )
 
+    @telemetry(entry_point="plugin=deployment&action=list", name="aqua")
     def list(self, **kwargs) -> List["AquaDeployment"]:
         """List Aqua model deployments in a given compartment and under certain project.
 
@@ -346,9 +472,13 @@ class AquaDeploymentApp(AquaApp):
                     )
                 )
 
+        # tracks number of times deployment listing was called
+        self.telemetry.record_event_async(category="aqua/deployment", action="list")
+
         return results
 
-    def get(self, model_deployment_id: str, **kwargs) -> "AquaDeployment":
+    @telemetry(entry_point="plugin=deployment&action=get", name="aqua")
+    def get(self, model_deployment_id: str, **kwargs) -> "AquaDeploymentDetail":
         """Gets the information of Aqua model deployment.
 
         Parameters
@@ -361,8 +491,8 @@ class AquaDeploymentApp(AquaApp):
 
         Returns
         -------
-        AquaDeployment:
-            The instance of the Aqua model deployment.
+        AquaDeploymentDetail:
+            The instance of the Aqua model deployment details.
         """
         model_deployment = self.ds_client.get_model_deployment(
             model_deployment_id=model_deployment_id, **kwargs
@@ -382,8 +512,45 @@ class AquaDeploymentApp(AquaApp):
                 f"Target deployment {model_deployment_id} is not Aqua deployment."
             )
 
-        return AquaDeployment.from_oci_model_deployment(model_deployment, self.region)
+        log_id = ""
+        log_group_id = ""
+        log_name = ""
+        log_group_name = ""
 
+        logs = (
+            model_deployment.category_log_details.access
+            or model_deployment.category_log_details.predict
+        )
+        if logs:
+            log_id = logs.log_id
+            log_group_id = logs.log_group_id
+        if log_id:
+            log_name = get_resource_name(log_id)
+        if log_group_id:
+            log_group_name = get_resource_name(log_group_id)
+
+        log_group_url = get_log_links(region=self.region, log_group_id=log_group_id)
+        log_url = get_log_links(
+            region=self.region,
+            log_group_id=log_group_id,
+            log_id=log_id,
+            compartment_id=model_deployment.compartment_id,
+            source_id=model_deployment.id
+        )
+
+        return AquaDeploymentDetail(
+            **vars(
+                AquaDeployment.from_oci_model_deployment(model_deployment, self.region)
+            ),
+            log_group=AquaResourceIdentifier(
+                log_group_id, log_group_name, log_group_url
+            ),
+            log=AquaResourceIdentifier(log_id, log_name, log_url),
+        )
+
+    @telemetry(
+        entry_point="plugin=deployment&action=get_deployment_config", name="aqua"
+    )
     def get_deployment_config(self, model_id: str) -> Dict:
         """Gets the deployment config of given Aqua model.
 
@@ -397,29 +564,14 @@ class AquaDeploymentApp(AquaApp):
         Dict:
             A dict of allowed deployment configs.
         """
-        oci_model = self.ds_client.get_model(model_id).data
-
-        oci_aqua = (
-            (
-                Tags.AQUA_TAG.value in oci_model.freeform_tags
-                or Tags.AQUA_TAG.value.lower() in oci_model.freeform_tags
+        config = self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG)
+        if not config:
+            logger.info(f"Fetching default deployment config for model: {model_id}")
+            config = load_config(
+                AQUA_CONFIG_FOLDER,
+                config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS,
             )
-            if oci_model.freeform_tags
-            else False
-        )
-
-        if not oci_aqua:
-            raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
-
-        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
-        deployment_config = load_default_aqua_config(
-            artifact_path = (
-                f"{artifact_path.rstrip('/')}/{AQUA_MODEL_DEPLOYMENT_CONFIG}"
-            ),
-            auth=self._auth
-        )
-
-        return deployment_config
+        return config
 
 
 @dataclass
@@ -450,6 +602,7 @@ class MDInferenceResponse(AquaApp):
     prompt: str = None
     model_params: field(default_factory=ModelParams) = None
 
+    @telemetry(entry_point="plugin=inference&action=get_response", name="aqua")
     def get_model_deployment_response(self, endpoint):
         """
         Returns MD inference response

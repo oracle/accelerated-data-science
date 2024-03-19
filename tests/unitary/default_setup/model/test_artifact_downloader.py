@@ -196,14 +196,7 @@ class TestArtifactDownloader:
         with open(self.mock_artifact_file_path, "r") as file_data:
             model_file_description = json.load(file_data)
 
-        model = model_file_description["models"][0]
-        namespace, bucket_name, prefix = (
-            model["namespace"],
-            model["bucketName"],
-            model["prefix"],
-        )
-        bucket_uri = f"oci://{bucket_name}@{namespace}/{prefix}"
-        objects = model["objects"]
+        bucket_uri = None
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             target_dir = os.path.join(tmp_dir, "model_artifacts/")

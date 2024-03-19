@@ -5,6 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """This module requires oracle-ads>=2.6.8
 """
+import getpass
 import ipaddress
 import logging
 import multiprocessing
@@ -40,17 +41,32 @@ logger = logging.getLogger(__name__)
 logger = driver_utils.set_log_level(logger)
 
 
+# Envs provisioned by the service
 CONST_ENV_HOST_JOB_RUN_OCID = "MAIN_JOB_RUN_OCID"
 CONST_ENV_JOB_RUN_OCID = "JOB_RUN_OCID"
-CONST_ENV_LD_PRELOAD = "LD_PRELOAD"
+# Envs set by the ADS API
+OCI__WORKER_COUNT = "OCI__WORKER_COUNT"
+CONST_ENV_NODE_RANK = "NODE_RANK"
+CONST_ENV_NODE_COUNT = "NODE_COUNT"
 CONST_ENV_LAUNCH_CMD = "OCI__LAUNCH_CMD"
 CONST_ENV_DEEPSPEED = "OCI__DEEPSPEED"
+# Envs set by this module
+CONST_ENV_WORLD_SIZE = "WORLD_SIZE"
+CONST_ENV_LD_PRELOAD = "LD_PRELOAD"
+# Envs for debugging only
+# OCI_ODSC_SERVICE_ENDPOINT is used for all processes in the job run
+CONST_ENV_ODSC_SERVICE_ENDPOINT = "OCI_ODSC_SERVICE_ENDPOINT"
+# OCI_DS_SERVICE_ENDPOINT is used only by the training process
+CONST_ENV_DS_SERVICE_ENDPOINT = "OCI_DS_SERVICE_ENDPOINT"
+
+# Constants used in logs
 LOG_PREFIX_HOST_IP = "Distributed Training HOST IP: "
 LOG_PREFIX_NODE_IP = "Node IP: "
 LOG_PREFIX_PUBLIC_KEY = "HOST PUBLIC KEY: "
-SSH_DIR = "/home/datascience/.ssh"
-# Working count is the number of node - 1
-OCI__WORKER_COUNT = "OCI__WORKER_COUNT"
+# Other constants used within this script
+# Other constants used within this script
+USER_HOME = os.environ.get("HOME", f"/home/{getpass.getuser()}")
+SSH_DIR = os.environ.get("OCI__SSH_DIR", os.path.join(USER_HOME, ".ssh"))
 DEFAULT_LAUNCHER = "torchrun"
 
 # Set authentication method to resource principal
@@ -131,8 +147,11 @@ class Runner(driver_utils.JobRunner):
 
         self.host_job_run = DataScienceJobRun.from_ocid(self.host_ocid)
         self.entrypoint_env = PythonRuntimeHandler.CONST_CODE_ENTRYPOINT
-        # The total number of node is OCI__WORKER_COUNT + 1
-        self.node_count = int(os.environ.get(OCI__WORKER_COUNT, 0)) + 1
+        # The total number of nodes is OCI__WORKER_COUNT + 1
+        if CONST_ENV_NODE_COUNT in os.environ:
+            self.node_count = int(os.environ[CONST_ENV_NODE_COUNT])
+        else:
+            self.node_count = int(os.environ.get(OCI__WORKER_COUNT, 0)) + 1
         logger.debug("Node count: %s", self.node_count)
         self.gpu_count = torch.cuda.device_count()
         logger.debug("GPU count on this node: %s", self.gpu_count)
@@ -343,9 +362,7 @@ class Runner(driver_utils.JobRunner):
         if self.launch_cmd:
             if self.LAUNCHER:
                 if not self.launch_cmd.startswith(self.LAUNCHER):
-                    raise ValueError(
-                        f"Command not supported: '{self.launch_cmd}'. "
-                    )
+                    raise ValueError(f"Command not supported: '{self.launch_cmd}'. ")
 
                 launch_args.append(self.launch_cmd[len(self.LAUNCHER) + 1 :])
             else:
@@ -689,7 +706,7 @@ class GenericRunner(TorchRunner, DeepSpeedRunner):
     def set_env_var(self):
         """Set default environment variables."""
         defaults = {
-            "WORLD_SIZE": self.node_count,
+            "WORLD_SIZE": self.node_count * self.gpu_count,
             "MASTER_ADDR": self.host_ip,
             "MASTER_PORT": self.RDZV_PORT,
         }
