@@ -20,12 +20,14 @@ from oci.object_storage import ObjectStorageClient
 from oci.resource_search import ResourceSearchClient
 from oci.secrets import SecretsClient
 from oci.vault import VaultsClient
+from oci.logging import LoggingManagementClient
+from oci.core import VirtualNetworkClient
+from oci.limits import LimitsClient
 
 logger = logging.getLogger(__name__)
 
 
 class OCIClientFactory:
-
     """
     A factory class to create OCI client objects. The constructor takes in config, signer and client_kwargs. `client_kwargs` is passed
     to the client constructor as key word arguments.
@@ -72,6 +74,9 @@ class OCIClientFactory:
             "data_labeling_cp": DataLabelingManagementClient,
             "resource_search": ResourceSearchClient,
             "data_catalog": DataCatalogClient,
+            "logging_management": LoggingManagementClient,
+            "virtual_network": VirtualNetworkClient,
+            "limits": LimitsClient,
             "marketplace": MarketplaceClient,
             "artifacts": ArtifactsClient,
         }
@@ -148,6 +153,18 @@ class OCIClientFactory:
     @property
     def data_catalog(self):
         return self.create_client("data_catalog")
+
+    @property
+    def logging_management(self):
+        return self.create_client("logging_management")
+
+    @property
+    def virtual_network(self):
+        return self.create_client("virtual_network")
+
+    @property
+    def limits(self):
+        return self.create_client("limits")
 
     @property
     def marketplace(self):

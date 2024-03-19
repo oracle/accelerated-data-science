@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "models": {
+      "items": {
+        "properties": {
+          "bucketName": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "objects": {
+            "items": {
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "sizeInBytes": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "version",
+                "sizeInBytes"
+              ],
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "prefix": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "bucketName",
+          "prefix",
+          "objects"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "type": {
+      "enum": [
+        "modelOSSReferenceDescription"
+      ],
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "version",
+    "type",
+    "models"
+  ],
+  "type": "object"
+}

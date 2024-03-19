@@ -1,8 +1,10 @@
 #!/usr/bin/env python
+import copy
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import os
 import datetime
 import hashlib
 import json
@@ -22,11 +24,16 @@ from ads.model.datascience_model import (
     _MAX_ARTIFACT_SIZE_IN_BYTES,
     DataScienceModel,
     ModelArtifactSizeError,
+    BucketNotVersionedError,
+    ModelFileDescriptionError,
+    InvalidArtifactType,
 )
 from ads.model.model_metadata import (
     ModelCustomMetadata,
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
+    ModelCustomMetadataItem,
+    MetadataCustomCategory,
 )
 from ads.model.service.oci_datascience_model import (
     ModelProvenanceNotFoundError,
@@ -164,6 +171,7 @@ class TestDataScienceModel:
 
     def setup_class(cls):
         cls.mock_date = datetime.datetime(2022, 7, 1)
+        cls.curr_dir = os.path.dirname(os.path.abspath(__file__))
 
     def setup_method(self):
         self.payload = deepcopy(DSC_MODEL_PAYLOAD)
@@ -214,6 +222,7 @@ class TestDataScienceModel:
     @patch.object(DataScienceModel, "_load_default_properties", return_value={})
     def test__init__(self, mock_load_default_properties):
         dsc_model = DataScienceModel(**self.payload)
+        print(dsc_model.to_dict()["spec"])
         assert self.prepare_dict(dsc_model.to_dict()["spec"]) == self.prepare_dict(
             self.payload
         )
@@ -342,6 +351,13 @@ class TestDataScienceModel:
             self.payload
         )
 
+    @pytest.mark.parametrize(
+        "test_args",
+        [
+            {"model_by_reference": True},
+            {"model_by_reference": False},
+        ],
+    )
     @patch.object(OCIDataScienceModel, "create_model_provenance")
     @patch.object(OCIDataScienceModel, "create")
     @patch.object(DataScienceModel, "sync")
@@ -356,6 +372,7 @@ class TestDataScienceModel:
         mock_sync,
         mock_oci_dsc_model_create,
         mock_create_model_provenance,
+        test_args,
     ):
         """Tests creating datascience model."""
         oci_dsc_model = OCIDataScienceModel(**OCI_MODEL_PAYLOAD)
@@ -368,24 +385,40 @@ class TestDataScienceModel:
             overwrite_existing_artifact=False,
             remove_existing_artifact=False,
             parallel_process_count=3,
+            **test_args,
         )
         mock_oci_dsc_model_create.assert_called()
         mock_create_model_provenance.assert_called_with(
             self.mock_dsc_model.provenance_metadata._to_oci_metadata()
         )
-        mock_upload_artifact.assert_called_with(
-            bucket_uri="test_bucket_uri",
-            overwrite_existing_artifact=False,
-            remove_existing_artifact=False,
-            region=None,
-            auth=None,
-            timeout=None,
-            parallel_process_count=3,
-        )
+        if test_args.get("model_by_reference"):
+            mock_upload_artifact.assert_called_with(
+                bucket_uri="test_bucket_uri",
+                overwrite_existing_artifact=False,
+                remove_existing_artifact=False,
+                region=None,
+                auth=None,
+                timeout=None,
+                parallel_process_count=3,
+                model_by_reference=True,
+            )
+            assert result.custom_metadata_list.get("modelDescription").value == "true"
+        else:
+            mock_upload_artifact.assert_called_with(
+                bucket_uri="test_bucket_uri",
+                overwrite_existing_artifact=False,
+                remove_existing_artifact=False,
+                region=None,
+                auth=None,
+                timeout=None,
+                parallel_process_count=3,
+                model_by_reference=False,
+            )
+            assert self.prepare_dict(result.to_dict()["spec"]) == self.prepare_dict(
+                {**self.payload, "displayName": "random_name"}
+            )
+
         mock_sync.assert_called()
-        assert self.prepare_dict(result.to_dict()["spec"]) == self.prepare_dict(
-            {**self.payload, "displayName": "random_name"}
-        )
 
     @patch.object(DataScienceModel, "_load_default_properties", return_value={})
     def test_create_fail(self, mock__load_default_properties):
@@ -478,10 +511,24 @@ class TestDataScienceModel:
                 self.mock_dsc_model._to_oci_dsc_model(display_name="new_name").to_dict()
             )
 
+    @pytest.mark.parametrize(
+        "test_args",
+        [
+            False,
+            True,
+        ],
+    )
+    @patch.object(OCIDataScienceModel, "is_model_by_reference")
     @patch.object(OCIDataScienceModel, "get_artifact_info")
     @patch.object(OCIDataScienceModel, "get_model_provenance")
+    @patch.object(DataScienceModel, "_download_file_description_artifact")
     def test__update_from_oci_dsc_model(
-        self, mock_get_model_provenance, mock_get_artifact_info
+        self,
+        mock__download_file_description_artifact,
+        mock_get_model_provenance,
+        mock_get_artifact_info,
+        mock_is_model_by_reference,
+        test_args,
     ):
         """Tests updating the properties from an OCIDataScienceModel object."""
         oci_model_payload = {
@@ -510,6 +557,11 @@ class TestDataScienceModel:
             "input_schema": '{"schema": [{"dtype": "int64", "feature_type": "Integer", "name": 1, "domain": {"values": "", "stats": {}, "constraints": []}, "required": true, "description": "0", "order": 0}], "version": "1.1"}',
             "output_schema": '{"schema": [{"dtype": "int64", "feature_type": "Integer", "name": 1, "domain": {"values": "", "stats": {}, "constraints": []}, "required": true, "description": "0", "order": 0}], "version": "1.1"}',
         }
+        artifact_path = (
+            "oci://my-bucket@my-tenancy/prefix/"
+            if test_args
+            else "new_ocid1.datasciencemodel.oc1.iad.<unique_ocid>.zip"
+        )
 
         dsc_model_payload = {
             "compartmentId": "new ocid1.compartment.oc1..<unique_ocid>",
@@ -574,7 +626,7 @@ class TestDataScienceModel:
                 "training_id": None,
                 "artifact_dir": "test_script_dir",
             },
-            "artifact": "new_ocid1.datasciencemodel.oc1.iad.<unique_ocid>.zip",
+            "artifact": artifact_path,
         }
 
         with patch.object(OCIDataScienceModel, "sync"):
@@ -582,6 +634,18 @@ class TestDataScienceModel:
             mock_model_provenance = ModelProvenance(**OCI_MODEL_PROVENANCE_PAYLOAD)
             mock_get_model_provenance.return_value = mock_model_provenance
             mock_get_artifact_info.return_value = ARTIFACT_HEADER_INFO
+            mock_is_model_by_reference.return_value = test_args
+
+            if test_args:
+                # when model_by_reference is True, update payload
+                mock_oci_dsc_model.get_artifact_info.return_value = {
+                    "Content-Disposition": "attachment; filename=artifact.json",
+                }
+                mock__download_file_description_artifact.return_value = (
+                    artifact_path,
+                    0,
+                )
+
             self.mock_dsc_model._update_from_oci_dsc_model(mock_oci_dsc_model)
             assert self.prepare_dict(
                 self.mock_dsc_model.to_dict()["spec"]
@@ -686,6 +750,7 @@ class TestDataScienceModel:
                     bucket_uri="test_bucket_uri",
                     overwrite_existing_artifact=False,
                     remove_existing_artifact=False,
+                    model_file_description=None,
                 )
                 mock_download.assert_called()
 
@@ -712,3 +777,268 @@ class TestDataScienceModel:
                 )
                 assert self.mock_dsc_model.dsc_model.__class__.kwargs == {"timeout": 2}
                 mock_download.assert_called()
+
+    @patch("ads.common.object_storage_details.ObjectStorageDetails.is_bucket_versioned")
+    def test_bucket_not_versioned_error(self, mock_is_bucket_versioned):
+        """For model passed by reference, check if bucket is not versioned."""
+        mock_is_bucket_versioned.return_value = False
+        self.mock_dsc_model.with_artifact(uri="oci://my-bucket@my-tenancy/prefix/")
+        with pytest.raises(BucketNotVersionedError):
+            self.mock_dsc_model.upload_artifact(model_by_reference=True)
+
+    def test_setup_model_file_description_property(self):
+        """read the json file, json_string and json_uri and load the model_file_description property"""
+        self.mock_artifact_file_path = os.path.join(
+            self.curr_dir, "test_files/model_description.json"
+        )
+
+        # load using uri
+        self.mock_dsc_model.with_model_file_description(
+            json_uri=self.mock_artifact_file_path
+        )
+        assert self.mock_dsc_model.model_file_description is not None
+
+        # load using json dict
+        with open(self.mock_artifact_file_path, "r") as _file:
+            data = json.load(_file)
+
+        self.mock_dsc_model.with_model_file_description(json_dict=data)
+        assert self.mock_dsc_model.model_file_description is not None
+
+        # load using json string
+        self.mock_dsc_model.with_model_file_description(json_string=json.dumps(data))
+        assert self.mock_dsc_model.model_file_description is not None
+
+    def test_invalidate_model_file_description_json_schema(self):
+        """Read the json file, load the model_file_description property with incorrect json schema. Validate
+        for ModelFileDescriptionError"""
+
+        self.mock_artifact_file_path = os.path.join(
+            self.curr_dir, "test_files/model_description.json"
+        )
+        # load using json dict
+        with open(self.mock_artifact_file_path, "r") as _file:
+            data = json.load(_file)
+        # json should have at least 1 model object. Set to empty to check for validation error
+        with pytest.raises(ModelFileDescriptionError):
+            data_copy = copy.deepcopy(data)
+            data_copy["models"] = []
+            # load using dict
+            self.mock_dsc_model.with_model_file_description(json_dict=data_copy)
+
+        # json should have at least 1 object within the model. Set to empty to check for validation error
+        with pytest.raises(ModelFileDescriptionError):
+            data_copy = copy.deepcopy(data)
+            data_copy["models"][0]["objects"] = []
+            # load using dict
+            self.mock_dsc_model.with_model_file_description(json_dict=data_copy)
+
+        # json should have at bucket name. Set to empty to check for validation error
+        with pytest.raises(ModelFileDescriptionError):
+            data_copy = copy.deepcopy(data)
+            del data_copy["models"][0]["bucketName"]
+            # load using dict
+            self.mock_dsc_model.with_model_file_description(json_dict=data_copy)
+
+    def test_upload_artifact_for_model_created_by_reference_with_json(self):
+        """for model passed by reference, check bucket, call small  artifact uploader and remove temp artifact"""
+
+        self.mock_artifact_file_path = os.path.join(
+            self.curr_dir, "test_files/model_description.json"
+        )
+        with patch.object(
+            SmallArtifactUploader, "__init__", return_value=None
+        ) as mock_init:
+            with patch.object(SmallArtifactUploader, "upload") as mock_upload:
+                with patch(
+                    "ads.common.utils.folder_size",
+                    return_value=_MAX_ARTIFACT_SIZE_IN_BYTES - 100,
+                ):
+                    self.mock_dsc_model.with_model_file_description(
+                        json_uri=self.mock_artifact_file_path
+                    )
+                    self.mock_dsc_model.upload_artifact(model_by_reference=True)
+                    assert self.mock_dsc_model.artifact.endswith(".json"), True
+                    assert not os.path.exists(self.mock_dsc_model.artifact), True
+
+                    mock_init.assert_called_with(
+                        dsc_model=self.mock_dsc_model.dsc_model,
+                        artifact_path=self.mock_dsc_model.artifact,
+                    )
+                    mock_upload.assert_called()
+
+    @pytest.mark.parametrize(
+        "test_args",
+        [
+            "",
+            "oci://my-bucket@my-tenancy/prefix/",
+            (
+                "oci://my-bucket@my-tenancy/prefix/",
+                "oci://user-bucket@user-tenancy/prefix/",
+            ),
+        ],
+    )
+    @patch.object(DataScienceModel, "_prepare_file_description_artifact")
+    def test_upload_artifact_for_model_created_by_reference(
+        self, mock__prepare_file_description_artifact, test_args
+    ):
+        """For model passed by reference, check bucket, call small  artifact uploader and remove temp artifact"""
+
+        self.mock_artifact_file_path = os.path.join(
+            self.curr_dir, "test_files/model_description.json"
+        )
+        self.mock_dsc_model.with_artifact(test_args)
+        with open(self.mock_artifact_file_path, "r") as _file:
+            mock__prepare_file_description_artifact.return_value = json.load(_file)
+
+        with patch.object(
+            SmallArtifactUploader, "__init__", return_value=None
+        ) as mock_init:
+            with patch.object(SmallArtifactUploader, "upload") as mock_upload:
+                with patch(
+                    "ads.common.utils.folder_size",
+                    return_value=_MAX_ARTIFACT_SIZE_IN_BYTES - 100,
+                ):
+                    with patch(
+                        "ads.common.object_storage_details.ObjectStorageDetails.is_bucket_versioned",
+                        return_value=True,
+                    ) as mock_is_bucket_versioned:
+                        self.mock_dsc_model.upload_artifact(model_by_reference=True)
+                        if test_args == "":
+                            mock_is_bucket_versioned.assert_not_called()
+                            mock_init.assert_not_called()
+                            mock_upload.assert_not_called()
+                        else:
+                            mock_is_bucket_versioned.assert_called()
+                            assert self.mock_dsc_model.artifact.endswith(".json"), True
+                            assert not os.path.exists(
+                                self.mock_dsc_model.artifact
+                            ), True
+
+                            mock_init.assert_called_with(
+                                dsc_model=self.mock_dsc_model.dsc_model,
+                                artifact_path=self.mock_dsc_model.artifact,
+                            )
+                            mock_upload.assert_called()
+
+    @pytest.mark.parametrize(
+        "test_args",
+        [
+            [""],
+            ["oci://my-bucket@my-tenancy/prefix/"],
+            [
+                "oci://my-bucket@my-tenancy/prefix/",
+                "oci://user-bucket@user-tenancy/prefix/",
+            ],
+            ["prefix/"],
+            ["file.zip"],
+        ],
+    )
+    @patch(
+        "ads.common.object_storage_details.ObjectStorageDetails.list_object_versions"
+    )
+    @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
+    def test_prepare_file_description_artifact(
+        self, mock_list_objects, mock_list_object_versions, test_args
+    ):
+        """read list from objects from artifact location and return content of json as dict"""
+
+        # The name attribute cannot be mocked during creation of the mock object,
+        # hence attach it separately to the mocked objects.
+        obj1 = MagicMock(etag="72f7e9ad-fa0b-49c5-99d9-3dc604565bb2", size=0)
+        obj1.name = "prefix/"
+        obj2 = MagicMock(etag="84fef893-a8b1-49dd-a1a9-a03e0b94641b", size=2230303000)
+        obj2.name = "prefix/model.pkl"
+        mock_list_objects.return_value = MagicMock(objects=[obj1, obj2])
+
+        obj3 = MagicMock(
+            etag="72f7e9ad-fa0b-49c5-99d9-3dc604565bb2",
+            version_id="e6588c0f-0bf1-4e32-8876-e4b1cd261d61",
+        )
+        obj3.name = "prefix/"
+        obj4 = MagicMock(
+            etag="84fef893-a8b1-49dd-a1a9-a03e0b94641b",
+            version_id="84fef893-a8b1-49dd-a1a9-a03e0b94641b",
+        )
+        obj4.name = "prefix/model.pkl"
+        obj5 = MagicMock(
+            etag=None,
+            size=0,
+            is_delete_marker=True,
+            version_id="1154bc82-fb0a-4f5d-9dc6-ad4ecdfa31c0",
+        )
+        obj5.name = "prefix/model.pkl"
+        mock_list_object_versions.return_value = [obj3, obj4, obj5]
+
+        if len(test_args) == 1 and (
+            test_args[0] == ""
+            or test_args[0].endswith(".zip")
+            or not test_args[0].startswith("oci:")
+        ):
+            with pytest.raises(InvalidArtifactType):
+                self.mock_dsc_model._prepare_file_description_artifact(test_args)
+        else:
+            result = self.mock_dsc_model._prepare_file_description_artifact(test_args)
+            # validate if result is a json dict and can be validated with the schema when loaded using
+            # with_model_file_description
+            assert len(result["models"][0]["objects"]), 2
+            assert isinstance(
+                self.mock_dsc_model.with_model_file_description(json_dict=result),
+                DataScienceModel,
+            )
+
+    @pytest.mark.parametrize(
+        "test_args",
+        [
+            ["oci://my-bucket@my-tenancy/prefix/"],
+            [
+                "oci://my-bucket@my-tenancy/prefix/",
+                "oci://user-bucket@user-tenancy/prefix/",
+            ],
+        ],
+    )
+    @patch.object(SmallArtifactDownloader, "download")
+    @patch("tempfile.TemporaryDirectory")
+    @patch.object(LargeArtifactDownloader, "__init__")
+    @patch.object(LargeArtifactDownloader, "download")
+    def test_download_artifact_for_model_created_by_reference(
+        self,
+        mock_large_download,
+        mock_init,
+        mock_temp_dir,
+        mock_small_downloader,
+        test_args,
+    ):
+        """Check if model is passed by reference using custom metadata, then download json file and get artifact info and size"""
+
+        mock_small_downloader.return_value = None
+        # there's a model_description.json file at this location
+        mock_temp_dir.return_value.__enter__.return_value = os.path.join(
+            self.curr_dir, "test_files"
+        )
+        mock_init.return_value = None
+
+        self.mock_dsc_model.with_artifact(test_args)
+        metadata_item = ModelCustomMetadataItem(
+            key="modelDescription",
+            value="true",
+            description="model by reference flag",
+            category=MetadataCustomCategory.OTHER,
+        )
+        self.mock_dsc_model.custom_metadata_list._add(metadata_item)
+
+        self.mock_dsc_model.download_artifact(target_dir="test_target_dir")
+
+        mock_init.assert_called_with(
+            dsc_model=self.mock_dsc_model.dsc_model,
+            target_dir="test_target_dir",
+            auth=None,
+            force_overwrite=False,
+            region=None,
+            bucket_uri=None,
+            overwrite_existing_artifact=True,
+            remove_existing_artifact=True,
+            model_file_description=self.mock_dsc_model.model_file_description,
+        )
+
+        mock_large_download.assert_called()

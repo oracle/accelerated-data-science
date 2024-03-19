@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from __future__ import absolute_import, print_function
@@ -33,29 +33,25 @@ import fsspec
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
-from ads.common import logger
-from ads.common.decorator.deprecate import deprecated
-from ads.common.word_lists import adjectives, animals
-from ads.dataset.progress import TqdmProgressBar
 from cycler import cycler
+from oci import object_storage
 from pandas.core.dtypes.common import is_datetime64_dtype, is_numeric_dtype
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
+from ads import config
 from ads.common import logger
 from ads.common.decorator.deprecate import deprecated
 from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
     runtime_dependency,
 )
+from ads.common.object_storage_details import ObjectStorageDetails
+from ads.common.oci_client import OCIClientFactory
 from ads.common.word_lists import adjectives, animals
-from ads import config
-from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
+from ads.dataset.progress import TqdmProgressBar
 
 from . import auth as authutil
-from oci import object_storage
-from ads.common.oci_client import OCIClientFactory
-from ads.common.object_storage_details import ObjectStorageDetails
 
 # For Model / Model Artifact libraries
 lib_translator = {"sklearn": "scikit-learn"}
@@ -1717,3 +1713,72 @@ def upload_to_os(
         )
 
     return response
+
+
+def get_console_link(
+    resource: str,
+    ocid: str,
+    region: str,
+) -> str:
+    """
+    This method returns the web console link for the given resource.
+    Parameters
+    ----------
+    resource: str
+        identify the type of OCI resource. {model, model-deployments, notebook-sessions, jobs} is supported.
+    ocid: str
+        OCID of the resource
+    region: str
+        The Region Identifier that the client should connect to.
+
+    Returns
+    -------
+    console_link_url: str
+        a valid link to the console for the given resource
+    """
+    console_link_url = (
+        f"https://cloud.oracle.com/data-science/{resource}/{ocid}?region={region}"
+    )
+    return console_link_url
+
+
+def get_log_links(
+    region: str,
+    log_group_id: str,
+    compartment_id: str = None,
+    log_id: str = None,
+    source_id: str = None,
+) -> str:
+    """
+    This method returns the web console link for the given log ids.
+    
+    Parameters
+    ----------
+    log_group_id: str, required
+        OCID of the resource
+    log_id: str, optional
+        OCID of the resource
+    region: str
+        The Region Identifier that the client should connect to.
+    compartment_id: str, optional
+        The compartment OCID of the resource.
+    source_id: str, optional
+        The OCID of the resource.
+
+    Returns
+    -------
+    console_link_url: str
+        a valid link to the console for the given resource.
+    """
+    console_link_url = ""
+    if log_group_id and log_id:
+        # format: https://cloud.oracle.com/logging/search?searchQuery=search "<compartment>/<log_group>/<log>" | source='<source>' | sort by datetime desc&regions=<region>
+        query_range = f'''search "{compartment_id}/{log_group_id}/{log_id}"'''
+        query_source = f"source='{source_id}'"
+        sort_condition = f"sort by datetime desc&regions={region}"
+        search_query = f"search?searchQuery={query_range} | {query_source} | {sort_condition}"
+        console_link_url = f"https://cloud.oracle.com/logging/{search_query}"
+    elif log_group_id:
+        console_link_url = f"https://cloud.oracle.com/logging/log-groups/{log_group_id}?region={region}"
+
+    return console_link_url

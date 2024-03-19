@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
+import logging
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -38,7 +39,7 @@ class ArtifactUploader(ABC):
 
         self.dsc_model = dsc_model
         self.artifact_path = artifact_path
-        self.artifact_zip_path = None
+        self.artifact_file_path = None
         self.progress = None
 
     def upload(self):
@@ -48,8 +49,8 @@ class ArtifactUploader(ABC):
                 ArtifactUploader.PROGRESS_STEPS_COUNT + self.PROGRESS_STEPS_COUNT
             ) as progress:
                 self.progress = progress
-                self.progress.update("Preparing model artifacts ZIP archive.")
-                self._prepare_artifact_tmp_zip()
+                self.progress.update("Preparing model artifacts file.")
+                self._prepare_artifact_tmp_file()
                 self.progress.update("Uploading model artifacts.")
                 self._upload()
                 self.progress.update(
@@ -59,35 +60,35 @@ class ArtifactUploader(ABC):
         except Exception:
             raise
         finally:
-            self._remove_artifact_tmp_zip()
+            self._remove_artifact_tmp_file()
 
-    def _prepare_artifact_tmp_zip(self) -> str:
-        """Prepares model artifacts ZIP archive.
+    def _prepare_artifact_tmp_file(self) -> str:
+        """Prepares model artifacts file.
 
         Returns
         -------
         str
-            Path to the model artifact ZIP archive.
+            Path to the model artifact file.
         """
         if ObjectStorageDetails.is_oci_path(self.artifact_path):
-            self.artifact_zip_path = self.artifact_path
+            self.artifact_file_path = self.artifact_path
         elif os.path.isfile(self.artifact_path) and self.artifact_path.lower().endswith(
-            ".zip"
+            (".zip", ".json")
         ):
-            self.artifact_zip_path = self.artifact_path
+            self.artifact_file_path = self.artifact_path
         else:
-            self.artifact_zip_path = model_utils.zip_artifact(
+            self.artifact_file_path = model_utils.zip_artifact(
                 artifact_dir=self.artifact_path
             )
-        return self.artifact_zip_path
+        return self.artifact_file_path
 
-    def _remove_artifact_tmp_zip(self):
-        """Removes temporary created artifact zip archive."""
+    def _remove_artifact_tmp_file(self):
+        """Removes temporary created artifact file."""
         if (
-            self.artifact_zip_path
-            and self.artifact_zip_path.lower() != self.artifact_path.lower()
+            self.artifact_file_path
+            and self.artifact_file_path.lower() != self.artifact_path.lower()
         ):
-            shutil.rmtree(self.artifact_zip_path, ignore_errors=True)
+            shutil.rmtree(self.artifact_file_path, ignore_errors=True)
 
     @abstractmethod
     def _upload(self):
@@ -101,9 +102,10 @@ class SmallArtifactUploader(ArtifactUploader):
 
     def _upload(self):
         """Uploads model artifacts to the model catalog."""
+        _, ext = os.path.splitext(self.artifact_file_path)
         self.progress.update("Uploading model artifacts to the catalog")
-        with open(self.artifact_zip_path, "rb") as file_data:
-            self.dsc_model.create_model_artifact(file_data)
+        with open(self.artifact_file_path, "rb") as file_data:
+            self.dsc_model.create_model_artifact(bytes_content=file_data, extension=ext)
 
 
 class LargeArtifactUploader(ArtifactUploader):
@@ -117,7 +119,7 @@ class LargeArtifactUploader(ArtifactUploader):
             - object storage path to zip archive. Example: `oci://<bucket_name>@<namespace>/prefix/mymodel.zip`.
             - local path to zip archive. Example: `./mymodel.zip`.
             - local path to folder with artifacts. Example: `./mymodel`.
-    artifact_zip_path: str
+    artifact_file_path: str
         The uri of the zip of model artifact.
     auth: dict
         The default authetication is set using `ads.set_auth` API.
@@ -222,7 +224,7 @@ class LargeArtifactUploader(ArtifactUploader):
         """Uploads model artifacts to the model catalog."""
         bucket_uri = self.bucket_uri
         self.progress.update("Copying model artifact to the Object Storage bucket")
-        if not bucket_uri == self.artifact_zip_path:
+        if not bucket_uri == self.artifact_file_path:
             bucket_uri_file_name = os.path.basename(bucket_uri)
 
             if not bucket_uri_file_name:
@@ -240,7 +242,7 @@ class LargeArtifactUploader(ArtifactUploader):
 
             try:
                 utils.upload_to_os(
-                    src_uri=self.artifact_zip_path,
+                    src_uri=self.artifact_file_path,
                     dst_uri=bucket_uri,
                     auth=self.auth,
                     parallel_process_count=self._parallel_process_count,
