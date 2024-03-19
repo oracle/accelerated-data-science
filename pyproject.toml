@@ -197,6 +197,7 @@ testsuite = [
   "lxml",
   "mysql-connector-python",
   "nltk",
+  "notebook==6.4.12",
   "opensearch-py",
   "pdfplumber",
   "py4j",
