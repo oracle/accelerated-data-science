@@ -5,7 +5,7 @@
 
 import os
 from typing import Dict, Union
-
+import concurrent.futures
 import oci
 from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDetails
 
@@ -17,10 +17,10 @@ from ads.aqua.utils import (
     UNKNOWN,
     _is_valid_mvs,
     get_artifact_path,
-    get_base_model_from_tags,
     is_valid_ocid,
     load_config,
     logger,
+    THREAD_POOL_MAX_WORKERS,
 )
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
@@ -56,6 +56,9 @@ class AquaApp:
         self.identity_client = oc.OCIClientFactory(**default_signer()).identity
         self.region = extract_region(self._auth)
         self._telemetry = None
+        self.executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=THREAD_POOL_MAX_WORKERS
+        )
 
     def list_resource(
         self,
@@ -165,7 +168,7 @@ class AquaApp:
         tag = Tags.AQUA_FINE_TUNING.value
 
         if not model_version_set_id:
-            tag = Tags.AQUA_FINE_TUNING.value # TODO: Fix this
+            tag = Tags.AQUA_FINE_TUNING.value  # TODO: Fix this
             try:
                 model_version_set = ModelVersionSet.from_name(
                     name=model_version_set_name,

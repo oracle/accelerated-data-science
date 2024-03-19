@@ -7,7 +7,7 @@ import json
 import os
 import re
 import tempfile
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
@@ -839,13 +839,17 @@ class AquaEvaluationApp(AquaApp):
             loggroup_id = ""
 
         loggroup_url = get_log_links(region=self.region, log_group_id=loggroup_id)
-        log_url = get_log_links(
-            region=self.region,
-            log_group_id=loggroup_id,
-            log_id=log_id,
-            compartment_id=job_run_details.compartment_id,
-            source_id=jobrun_id
-        ) if job_run_details else ""
+        log_url = (
+            get_log_links(
+                region=self.region,
+                log_group_id=loggroup_id,
+                log_id=log_id,
+                compartment_id=job_run_details.compartment_id,
+                source_id=jobrun_id,
+            )
+            if job_run_details
+            else ""
+        )
 
         log_name = None
         loggroup_name = None
@@ -921,7 +925,6 @@ class AquaEvaluationApp(AquaApp):
         evaluations = []
         async_tasks = []
         for model in models:
-
             if model.identifier in self._eval_cache.keys():
                 logger.debug(f"Retrieving evaluation {model.identifier} from cache.")
                 evaluations.append(self._eval_cache.get(model.identifier))
@@ -937,7 +940,7 @@ class AquaEvaluationApp(AquaApp):
                 else:
                     evaluations.append(self._process_evaluation_summary(model, job_run))
 
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with self.executor as executor:
             future_to_model = {
                 executor.submit(
                     self._fetch_jobrun, model, use_rqs=True, jobrun_id=jobrun_id
@@ -1039,13 +1042,17 @@ class AquaEvaluationApp(AquaApp):
             loggroup_id = ""
 
         loggroup_url = get_log_links(region=self.region, log_group_id=loggroup_id)
-        log_url = get_log_links(
-            region=self.region,
-            log_group_id=loggroup_id,
-            log_id=log_id,
-            compartment_id=job_run_details.compartment_id,
-            source_id=jobrun_id
-        ) if job_run_details else ""
+        log_url = (
+            get_log_links(
+                region=self.region,
+                log_group_id=loggroup_id,
+                log_id=log_id,
+                compartment_id=job_run_details.compartment_id,
+                source_id=jobrun_id,
+            )
+            if job_run_details
+            else ""
+        )
 
         return dict(
             id=eval_id,
