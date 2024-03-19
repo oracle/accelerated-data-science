@@ -46,7 +46,7 @@ from ads.aqua.utils import (
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
-from ads.common.utils import get_console_link, get_files, upload_to_os
+from ads.common.utils import get_console_link, get_files, get_log_links, upload_to_os
 from ads.config import (
     AQUA_JOB_SUBNET_ID,
     COMPARTMENT_OCID,
@@ -838,16 +838,15 @@ class AquaEvaluationApp(AquaApp):
             logger.debug(f"Failed to get associated loggroup. {str(e)}")
             loggroup_id = ""
 
-        loggroup_url = (
-            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}?region={self.region}"
-            if loggroup_id
-            else ""
-        )
-        log_url = (
-            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}/logs/{log_id}?region={self.region}"
-            if (loggroup_id and log_id)
-            else ""
-        )
+        loggroup_url = get_log_links(region=self.region, log_group_id=loggroup_id)
+        log_url = get_log_links(
+            region=self.region,
+            log_group_id=loggroup_id,
+            log_id=log_id,
+            compartment_id=job_run_details.compartment_id,
+            source_id=jobrun_id
+        ) if job_run_details else ""
+
         log_name = None
         loggroup_name = None
 
@@ -1039,16 +1038,14 @@ class AquaEvaluationApp(AquaApp):
             logger.debug(f"Failed to get associated log. {str(e)}")
             loggroup_id = ""
 
-        loggroup_url = (
-            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}?region={self.region}"
-            if loggroup_id
-            else ""
-        )
-        log_url = (
-            f"https://cloud.oracle.com/logging/log-groups/{loggroup_id}/logs/{log_id}?region={self.region}"
-            if (loggroup_id and log_id)
-            else ""
-        )
+        loggroup_url = get_log_links(region=self.region, log_group_id=loggroup_id)
+        log_url = get_log_links(
+            region=self.region,
+            log_group_id=loggroup_id,
+            log_id=log_id,
+            compartment_id=job_run_details.compartment_id,
+            source_id=jobrun_id
+        ) if job_run_details else ""
 
         return dict(
             id=eval_id,
