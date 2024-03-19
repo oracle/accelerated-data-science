@@ -38,11 +38,10 @@ from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
 from ads.config import (
-    AQUA_CONFIG_FOLDER,
     AQUA_JOB_SUBNET_ID,
     AQUA_MODEL_FINETUNING_CONFIG,
     COMPARTMENT_OCID,
-    ODSC_MODEL_COMPARTMENT_OCID,
+    CONDA_BUCKET_NS,
     PROJECT_OCID,
 )
 from ads.jobs.ads_job import Job
@@ -551,6 +550,7 @@ class AquaFineTuningApp(AquaApp):
                         f"--micro_batch_size {batch_size} --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} "
                         + (f"{finetuning_params}" if finetuning_params else "")
                     ),
+                    "CONDA_BUCKET_NS": CONDA_BUCKET_NS,
                 }
             )
             .with_image(image=container)
