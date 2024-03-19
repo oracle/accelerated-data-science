@@ -129,8 +129,13 @@ class AquaUIHandler(AquaAPIhandler):
     def list_buckets(self, **kwargs):
         """Lists all model version sets for the specified compartment or tenancy."""
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
+        versioned = self.get_argument("versioned", default=None)
+        versioned = True if versioned and versioned.lower() == "true" else False
+
         return self.finish(
-            AquaUIApp().list_buckets(compartment_id=compartment_id, **kwargs)
+            AquaUIApp().list_buckets(
+                compartment_id=compartment_id, versioned=versioned, **kwargs
+            )
         )
 
     @handle_exceptions

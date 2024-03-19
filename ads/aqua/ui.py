@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
+import concurrent.futures
 from datetime import datetime, timedelta
 from threading import Lock
 
@@ -257,17 +257,37 @@ class AquaUIApp(AquaApp):
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         logger.info(f"Loading buckets summary from compartment: {compartment_id}")
 
+        versioned = kwargs.pop("versioned", False)
+
         os_client = oc.OCIClientFactory(**default_signer()).object_storage
         namespace_name = os_client.get_namespace(compartment_id=compartment_id).data
         logger.info(f"Object Storage namespace is `{namespace_name}`.")
 
-        res = os_client.list_buckets(
+        response = os_client.list_buckets(
             namespace_name=namespace_name,
             compartment_id=compartment_id,
             **kwargs,
         ).data
 
-        return sanitize_response(oci_client=os_client, response=res)
+        if response and versioned:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                result = list(
+                    filter(None, executor.map(self._is_bucket_versioned, response))
+                )
+        else:
+            result = response
+
+        return sanitize_response(oci_client=os_client, response=result)
+
+    @staticmethod
+    def _is_bucket_versioned(response):
+        bucket_name = response.name
+        namespace = response.namespace
+        bucket_uri = f"oci://{bucket_name}@{namespace}"
+        if ObjectStorageDetails.from_path(bucket_uri).is_bucket_versioned():
+            return response
+        else:
+            return None
 
     @telemetry(entry_point="plugin=ui&action=list_job_shapes", name="aqua")
     def list_job_shapes(self, **kwargs) -> list:
