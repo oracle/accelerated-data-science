@@ -1066,7 +1066,7 @@ class AquaEvaluationApp(AquaApp):
             {
                 "use_case": ["text_generation"],
                 "key": "bertscore",
-                "name": "BERT Score",
+                "name": "bertscore",
                 "description": (
                     "BERT Score is a metric for evaluating the quality of text "
                     "generation models, such as machine translation or summarization. "
@@ -1079,7 +1079,7 @@ class AquaEvaluationApp(AquaApp):
             {
                 "use_case": ["text_generation"],
                 "key": "rouge",
-                "name": "ROUGE Score",
+                "name": "rouge",
                 "description": (
                     "ROUGE scores compare a candidate document to a collection of "
                     "reference documents to evaluate the similarity between them. "
