@@ -404,9 +404,10 @@ class AquaUIApp(AquaApp):
             res = limits_client.get_resource_availability(
                 DATA_SCIENCE_SERVICE_NAME, limit_name, compartment_id, **kwargs
             ).data
-        except:
+        except ServiceError as se:
             raise AquaResourceAccessError(
-                f"Could not check limits availability for the shape {instance_shape}."
+                f"Could not check limits availability for the shape {instance_shape}.",
+                service_payload=se.args[0] if se.args else None,
             )
 
         available = res.available
