@@ -28,7 +28,6 @@ from ads.aqua.data import AquaResourceIdentifier, Tags
 
 from ads.aqua.exception import AquaRuntimeError
 from ads.aqua.utils import (
-    CONDA_BUCKET_NS,
     LICENSE_TXT,
     README,
     READY_TO_DEPLOY_STATUS,
@@ -49,6 +48,7 @@ from ads.config import (
     ODSC_MODEL_COMPARTMENT_OCID,
     PROJECT_OCID,
     TENANCY_OCID,
+    CONDA_BUCKET_NS,
 )
 from ads.model import DataScienceModel
 from ads.model.model_metadata import MetadataTaxonomyKeys, ModelCustomMetadata
@@ -147,13 +147,17 @@ class AquaEvalFTCommon(DataClassSerializable):
             loggroup_id = ""
 
         loggroup_url = get_log_links(region=region, log_group_id=loggroup_id)
-        log_url = get_log_links(
-            region=region,
-            log_group_id=loggroup_id,
-            log_id=log_id,
-            compartment_id=jobrun.compartment_id,
-            source_id=jobrun.id
-        ) if jobrun else ""
+        log_url = (
+            get_log_links(
+                region=region,
+                log_group_id=loggroup_id,
+                log_id=log_id,
+                compartment_id=jobrun.compartment_id,
+                source_id=jobrun.id,
+            )
+            if jobrun
+            else ""
+        )
 
         log_name = None
         loggroup_name = None
