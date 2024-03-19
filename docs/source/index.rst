@@ -43,7 +43,7 @@ Oracle Accelerated Data Science (ADS)
    user_guide/aqua/index
    user_guide/aqua/common/index
    user_guide/aqua/models/index
-   user_guide/aqua/fine-tuning/index
+   user_guide/aqua/fine_tuning/index
    user_guide/aqua/evaluation/index
 
 .. toctree::
