@@ -27,9 +27,18 @@ class AbstractData(ABC):
         self.data_with_all_cols = None
         self.load_transform_ingest_data(spec)
 
-
-    def get_data_with_all_cols(self):
-        return self.data_with_all_cols.reset_index(drop=False)
+    def get_raw_data_by_cat(self, category):
+        import pandas as pd
+        mapping = self._data_transformer.get_target_category_columns_map()
+        # For given category, mapping gives the target_category_columns and it's values.
+        # condition filters raw_data based on the values of target_category_columns for the given category
+        condition = pd.Series(True, index=self.raw_data.index)
+        if category in mapping:
+            for col, val in mapping[category].items():
+                condition &= (self.raw_data[col] == val)
+        data_by_cat = self.raw_data[condition].reset_index(drop=True)
+        data_by_cat = self._data_transformer._format_datetime_col(data_by_cat)
+        return data_by_cat
 
 
     def get_dict_by_series(self):
@@ -71,10 +80,7 @@ class AbstractData(ABC):
     def _transform_data(self, spec, raw_data, **kwargs):
         transformation_start_time = time.time()
         self._data_transformer = self.Transformations(spec, name=self.name)
-        self.data_with_all_cols = self._data_transformer.run(raw_data)
-        data = self.data_with_all_cols
-        if spec.target_category_columns:
-            data = data.drop(spec.target_category_columns, axis=1)
+        data = self._data_transformer.run(raw_data)
         transformation_end_time = time.time()
         logger.info(
             f"{self.name} transformations completed in {transformation_end_time - transformation_start_time} seconds"
@@ -82,8 +88,8 @@ class AbstractData(ABC):
         return data
 
     def load_transform_ingest_data(self, spec):
-        raw_data = self._load_data(getattr(spec, self.name))
-        self.data = self._transform_data(spec, raw_data)
+        self.raw_data = self._load_data(getattr(spec, self.name))
+        self.data = self._transform_data(spec, self.raw_data)
         self._ingest_data(spec)
 
     def _ingest_data(self, spec):
