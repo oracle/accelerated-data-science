@@ -46,7 +46,12 @@ from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link, get_files, upload_to_os
-from ads.config import AQUA_JOB_SUBNET_ID, COMPARTMENT_OCID, PROJECT_OCID
+from ads.config import (
+    AQUA_JOB_SUBNET_ID,
+    COMPARTMENT_OCID,
+    CONDA_BUCKET_NS,
+    PROJECT_OCID,
+)
 from ads.jobs.ads_job import DataScienceJobRun, Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
@@ -738,7 +743,8 @@ class AquaEvaluationApp(AquaApp):
                             )
                         )
                     ),
-                }
+                    "CONDA_BUCKET_NS": CONDA_BUCKET_NS,
+                },
             )
         )
 
