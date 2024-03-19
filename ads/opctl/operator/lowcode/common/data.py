@@ -24,7 +24,6 @@ class AbstractData(ABC):
         self.data = None
         self._data_dict = dict()
         self.name = name
-        self.data_with_all_cols = None
         self.load_transform_ingest_data(spec)
 
     def get_raw_data_by_cat(self, category):
