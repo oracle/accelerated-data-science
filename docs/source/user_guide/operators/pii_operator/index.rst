@@ -1,6 +1,6 @@
-============
-PII Operator
-============
+===
+PII
+===
 
 The PII operator aims to detect and redact Personally Identifiable Information(PII) in datasets by combining pattern match and machine learning solution.
 

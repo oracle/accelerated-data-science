@@ -1,5 +1,9 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
+
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+import logging
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -13,6 +17,7 @@ from typing import Any, Dict, Union
 
 import fsspec
 import yaml
+from ads.opctl.operator.common.utils import print_traceback
 from tabulate import tabulate
 
 from ads.common import utils as ads_common_utils
@@ -32,7 +37,7 @@ from ads.opctl.operator.common.const import (
     OPERATOR_BASE_DOCKER_GPU_FILE,
     OPERATOR_BASE_GPU_IMAGE,
     OPERATOR_BASE_IMAGE,
-    OPERATOR_BACKEND_SECTION_NAME
+    OPERATOR_BACKEND_SECTION_NAME,
 )
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
 from ads.opctl.utils import publish_image as publish_image_cmd
@@ -43,7 +48,7 @@ from .common.backend_factory import BackendFactory
 from .common.errors import (
     OperatorCondaNotFoundError,
     OperatorImageNotFoundError,
-    OperatorSchemaYamlError,
+    InvalidParameterError,
 )
 from .common.operator_loader import _operator_info_list
 
@@ -162,7 +167,7 @@ def init(
             )
     else:
         overwrite = True
-        output = os.path.join(tempfile.TemporaryDirectory().name, "")
+        output = operator_utils.create_output_folder(name=type + "/")
 
     # generating operator specification
     operator_config = {}
@@ -186,6 +191,7 @@ def init(
             "Use --debug option to see the error details."
         )
         logger.debug(ex)
+        print_traceback()
 
     # copy README and original schema files into a destination folder
     for src_file in ("README.md", "schema.yaml", "environment.yaml"):
@@ -416,7 +422,7 @@ def verify(
             run_name="verify",
         )
         operator_module.get("verify")(config, **kwargs)
-    except OperatorSchemaYamlError as ex:
+    except InvalidParameterError as ex:
         logger.debug(ex)
         raise ValueError(
             f"The operator's specification is not valid for the `{operator_info.type}` operator. "
@@ -424,6 +430,7 @@ def verify(
         )
     except Exception as ex:
         logger.debug(ex)
+        print_traceback()
         raise ValueError(
             f"The validator is not implemented for the `{operator_info.type}` operator."
         )

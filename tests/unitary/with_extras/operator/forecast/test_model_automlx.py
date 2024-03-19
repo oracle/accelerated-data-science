@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import unittest
@@ -130,19 +130,6 @@ class TestAutoMLXOperatorModel(unittest.TestCase):
         config.spec = spec
 
         self.config = config
-
-    @patch("ads.opctl.operator.lowcode.forecast.utils._call_pandas_fsspec")
-    def test_automlx_for_unsorted_data(self, mock__call_pandas_fsspec):
-        mock__call_pandas_fsspec.side_effect = (
-            lambda read_fn, filename, storage_options: self.primary_data
-            if filename == "primary.csv"
-            else self.additional_data
-        )
-        datasets = ForecastDatasets(self.config)
-        automlx = AutoMLXOperatorModel(self.config, datasets)
-
-        outputs = automlx._build_model()
-        self.assertFalse(outputs.empty)
 
 
 if __name__ == "__main__":

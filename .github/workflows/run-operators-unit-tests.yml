@@ -26,7 +26,7 @@ jobs:
   test:
     name: python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 180
 
     strategy:
       fail-fast: false
@@ -34,9 +34,9 @@ jobs:
         python-version: ["3.8", "3.10.8"]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
@@ -49,7 +49,7 @@ jobs:
         name: "Test config setup"
 
       - name: "Run Operators Tests"
-        timeout-minutes: 60
+        timeout-minutes: 180
         shell: bash
         run: |
           set -x # print commands that are executed

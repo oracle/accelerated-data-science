@@ -7,15 +7,9 @@ Oracle Cloud Infrastructure (OCI) `Data Science Jobs (Jobs) <https://docs.oracle
 provides fully managed infrastructure to enable training large language model at scale.
 This page shows an example of fine-tuning the `Llama 2 <https://ai.meta.com/llama/>`_ model. For model details on the APIs, see :doc:`../jobs/run_pytorch_ddp`.
 
-.. admonition:: Distributed Training with OCI Data Science
-  :class: note
+.. include:: ../_template/distributed_training_policies.rst
 
-  You need to configure your `networking <https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/overview.htm>`_
-  and `IAM <https://docs.oracle.com/en-us/iaas/Content/Identity/Concepts/overview.htm>`_ policies.
-  We recommend running the training on a private subnet.
-  In this example, internet access is needed to download the source code and the pre-trained model.
-
-The `llama-recipes <llama-recipes>`_ repository contains example code to fine-tune llama2 model.
+The `llama-recipes <https://github.com/facebookresearch/llama-recipes>`_ repository contains example code to fine-tune llama2 model.
 The example `fine-tuning script <https://github.com/facebookresearch/llama-recipes/blob/1aecd00924738239f8d86f342b36bacad180d2b3/examples/finetuning.py>`_ supports both full parameter fine-tuning
 and `Parameter-Efficient Fine-Tuning (PEFT) <https://huggingface.co/blog/peft>`_.
 With ADS, you can start the training job by taking the source code directly from Github with no code change.

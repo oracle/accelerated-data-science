@@ -101,7 +101,8 @@ To run all unit test install extra dependencies to test all modules of ADS ASD.
 
 ```bash
   # Update your environment with tests dependencies
-  pip install -r dev-requirements.txt
+  pip install -r test-requirements.txt
+  pip install -e ".[testsuite]"
   # Run all unit tests
   python3 -m pytest tests/unitary
 ```
@@ -113,7 +114,8 @@ To run all but opctl integration tests, you can run:
 
 ```bash
   # Update your environment with tests dependencies
-  pip install -r dev-requirements.txt
+  pip install -r test-requirements.txt
+  pip install -e ".[testsuite]"
   # Run integration tests
   python3 -m pytest tests/integration --ignore=tests/integration/opctl
 ```

@@ -1,0 +1,15 @@
+type: anomaly
+version: v1
+conda_type: service
+name: Anomaly Detection Operator
+gpu: no
+keywords:
+  - Anomaly Detection
+backends:
+  - job
+  - operator.local
+description: |
+  Anomaly Detection is the identification of rare items, events, or observations in data that
+  differ significantly from the expectation. This can be used for several scenarios like asset
+  monitoring, maintenance and prognostic surveillance in industries such as utility,
+  aviation and manufacturing.

@@ -9,6 +9,7 @@ keywords:
   - Spacy
 backends:
   - job
+  - operator.local
 description: |
   PII operator, that detects detect and redact Personally Identifiable Information
   (PII) data in datasets by combining pattern match and machine learning solution.

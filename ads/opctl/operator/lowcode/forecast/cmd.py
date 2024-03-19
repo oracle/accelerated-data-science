@@ -32,13 +32,14 @@ def init(**kwargs: Dict) -> str:
     str
         The YAML specification generated based on the schema.
     """
-    logger.info("==== Forecasting related options ====")
+    # logger.info("==== Forecasting related options ====")
 
-    model_type = click.prompt(
-        "Provide a model type:",
-        type=click.Choice(SupportedModels.values()),
-        default=SupportedModels.Auto,
-    )
+    # model_type = click.prompt(
+    #     "Provide a model type:",
+    #     type=click.Choice(SupportedModels.values()),
+    #     default=SupportedModels.Auto,
+    # )
+    model_type = "auto"
 
     return YamlGenerator(
         schema=_load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))

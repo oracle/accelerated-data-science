@@ -1,12 +1,11 @@
-autodoc
-nbsphinx
+autodoc nbsphinx
 sphinx
 sphinxcontrib-napoleon
 sphinx_copybutton
 sphinx_code_tabs
 sphinx-autobuild
 sphinx-autorun
-oracle_ads==2.9.0rc0
+oracle_ads
 furo
 IPython
 pandoc

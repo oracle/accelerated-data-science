@@ -7,7 +7,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from ads.opctl.operator.common.errors import OperatorSchemaYamlError
+from ads.opctl.operator.common.errors import InvalidParameterError
 from ads.opctl.operator.runtime.runtime import (
     OPERATOR_LOCAL_RUNTIME_TYPE,
     ContainerRuntime,
@@ -45,7 +45,7 @@ class TestRuntime(unittest.TestCase):
             errors=[{"error": "error"}], validate=MagicMock(return_value=False)
         )
         mock_validator.return_value.validate.return_value = False
-        with self.assertRaises(OperatorSchemaYamlError):
+        with self.assertRaises(InvalidParameterError):
             Runtime._validate_dict({})
         mock_load_yaml.assert_called_once()
         mock_validator.assert_called_once()
@@ -89,7 +89,7 @@ class TestContainerRuntime(unittest.TestCase):
                 "volume": ["/data"],
             },
         }
-        with self.assertRaises(OperatorSchemaYamlError):
+        with self.assertRaises(InvalidParameterError):
             ContainerRuntime._validate_dict(invalid_dict)
 
 

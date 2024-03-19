@@ -14,7 +14,9 @@ def __registered_operators():
     return [
         f
         for f in os.listdir(target_dir)
-        if os.path.isdir(os.path.join(target_dir, f)) and not f.startswith("__")
+        if os.path.isdir(os.path.join(target_dir, f))
+        and not f.startswith("__")
+        and f != "common"
     ]
 
 

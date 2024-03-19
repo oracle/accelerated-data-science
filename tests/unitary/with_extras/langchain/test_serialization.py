@@ -142,6 +142,7 @@ class ChainSerializationTest(TestCase):
         self.assertEqual(llm_chain.llm.model, "my_model")
         self.assertEqual(llm_chain.input_keys, ["subject"])
 
+
     def test_oci_gen_ai_serialization(self):
         """Tests serialization of OCI Gen AI LLM."""
         try:

@@ -3,11 +3,7 @@ name: "[Py3.8][COV REPORT] tests/unitary/**"
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - "ads/**"
-      - pyproject.toml
-      - "**requirements.txt"
-      - ".github/workflows/run-unittests*.yml"
+    branches: [ "main" ]
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -38,6 +34,7 @@ jobs:
             test-path: "tests/unitary"
             # `model` tests running in "slow_tests",
             # `feature_store` tests has its own test suite
+            # 'hpo' tests hangs if run together with all unitary tests. Tests running in separate command before running all unitary
             ignore-path: |
               --ignore tests/unitary/with_extras/model \
               --ignore tests/unitary/with_extras/feature_store \
@@ -46,12 +43,12 @@ jobs:
             test-path: "tests/unitary/with_extras/model"
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: ./.github/workflows/create-more-space
         name: "Create more disk space"
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.8"
           cache: "pip"
@@ -64,14 +61,21 @@ jobs:
 
       - uses: ./.github/workflows/test-env-setup
         name: "Test env setup"
-        timeout-minutes: 20
+        timeout-minutes: 30
 
       # Installing forecast deps for python3.8 test setup only, it will not work with python3.9/3.10, because
       # automlx do not support py3.9 and some versions of py3.10. This step omitted in -py39-py30.yml workflow
       - name: "Install Forecasting dependencies"
         run: |
           pip install -e ".[forecast]"
-
+      # Installing pii deps for python3.8 test setup only, it will not work with python3.9/3.10, because
+      # 'datapane' library conflicts with pandas>2.2.0, which used in py3.9/3.10 setup
+      - name: "Install PII dependencies"
+        run: |
+          pip install -e ".[pii]"
+      - name: "Install featurestore marketplace dependencies"
+        run: |
+          pip install -e ".[feature-store-marketplace]"
       - name: "Run unitary tests folder with maximum ADS dependencies"
         timeout-minutes: 40
         shell: bash
@@ -101,7 +105,7 @@ jobs:
           ${{ matrix.test-path }} ${{ matrix.ignore-path }}
 
       - name: "Save coverage files"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cov-reports-${{ matrix.name }}
           path: |
@@ -114,17 +118,17 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     needs: test
-    if: ${{ success() }} && && github.event_name == 'pull_request'
+    if: ${{ success() }} && github.event_name == 'pull_request'
     env:
       COMPARE_BRANCH: main
 
     steps:
       - name: "Checkout current branch"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: "Download coverage files"
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
       - name: "Calculate overall coverage"
         run: |
           set -x # print commands that are executed
@@ -153,7 +157,6 @@ jobs:
           fi
 
       - name: "Calculate coverage diff"
-        if: always()
         run: |
           set -x # print commands that are executed
 
@@ -183,8 +186,8 @@ jobs:
           fi
 
       - name: "Add comment with cov diff to PR"
-        uses: actions/github-script@v6
-        if: always()
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
         with:
           github-token: ${{ github.token }}
           script: |
@@ -200,7 +203,7 @@ jobs:
           --compare-branch=origin/${{ env.COMPARE_BRANCH }} \
           --html-report=cov-diff.html
       - name: "Save coverage difference report"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cov-html-reports
           path: |
