@@ -25,6 +25,7 @@ from ads.aqua.constants import (
     FineTuningDefinedMetadata,
 )
 from ads.aqua.data import AquaResourceIdentifier, Tags
+from ads.aqua.exception import AquaRuntimeError
 
 from ads.aqua.training.exceptions import exit_code_dict
 from ads.aqua.utils import (
