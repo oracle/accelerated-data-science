@@ -121,7 +121,7 @@ class AquaDeployment(DataClassSerializable):
         aqua_service_model_tag = freeform_tags.get(
             Tags.AQUA_SERVICE_MODEL_TAG.value, None
         )
-        aqua_model_name = freeform_tags.get(Tags.AQUA_MODEL_NAME_TAG.value, None)
+        aqua_model_name = freeform_tags.get(Tags.AQUA_MODEL_NAME_TAG.value, UNKNOWN)
 
         return AquaDeployment(
             id=oci_model_deployment.id,
