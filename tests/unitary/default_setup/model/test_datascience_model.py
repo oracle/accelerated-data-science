@@ -791,7 +791,7 @@ class TestDataScienceModel:
     @patch("ads.common.object_storage_details.ObjectStorageDetails.is_bucket_versioned")
     @patch.object(DataScienceModel, "_prepare_file_description_artifact")
     @patch.object(SmallArtifactUploader, "upload")
-    def test_ski_versioning_check_for_service_bucket(
+    def test_skip_versioning_check_for_service_bucket(
         self,
         mock_upload,
         mock__prepare_file_description_artifact,
