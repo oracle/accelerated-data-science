@@ -1373,40 +1373,35 @@ class AquaEvaluationApp(AquaApp):
             },
             "shape": {
                 "VM.Standard.E3.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
-                },
-                "VM.Standard.E3.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
+                    "ocpu": 8,
+                    "memory_in_gbs": 128,
+                    "block_storage_size": 200,
                 },
                 "VM.Standard.E4.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
+                    "ocpu": 8,
+                    "memory_in_gbs": 128,
+                    "block_storage_size": 200,
                 },
                 "VM.Standard3.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
+                    "ocpu": 8,
+                    "memory_in_gbs": 128,
+                    "block_storage_size": 200,
                 },
                 "VM.Optimized3.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
+                    "ocpu": 8,
+                    "memory_in_gbs": 128,
+                    "block_storage_size": 200,
                 },
                 "VM.Standard.A1.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
+                    "ocpu": 8,
+                    "memory_in_gbs": 128,
+                    "block_storage_size": 200,
                 },
             },
             "default": {
-                "ocpu": 2,
-                "memory_in_gbs": 64,
-                "block_storage_size": 100,
+                "ocpu": 8,
+                "memory_in_gbs": 128,
+                "block_storage_size": 200,
             },
         }
 
