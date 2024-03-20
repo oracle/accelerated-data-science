@@ -432,7 +432,7 @@ class AquaFineTuningApp(AquaApp):
         ]
 
         if source.freeform_tags:
-            source.freeform_tags.pop(Tags.LICENSE)
+            source.freeform_tags.pop(Tags.LICENSE.value)
 
         self.update_model(
             model_id=ft_model.id,
