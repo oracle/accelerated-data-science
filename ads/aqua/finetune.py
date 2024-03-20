@@ -24,12 +24,10 @@ from ads.aqua.utils import (
     DEFAULT_FT_BLOCK_STORAGE_SIZE,
     DEFAULT_FT_REPLICA,
     DEFAULT_FT_VALIDATION_SET_SIZE,
-    FINE_TUNING_RUNTIME_CONTAINER,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     UNKNOWN,
     UNKNOWN_DICT,
     get_container_image,
-    load_config,
     logger,
     upload_local_to_os,
 )
@@ -432,6 +430,9 @@ class AquaFineTuningApp(AquaApp):
             Metadata(**metadata)
             for metadata in ft_model_custom_metadata.to_dict()["data"]
         ]
+
+        if source.freeform_tags:
+            source.freeform_tags.pop(Tags.LICENSE)
 
         self.update_model(
             model_id=ft_model.id,
