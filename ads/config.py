@@ -8,7 +8,6 @@ import contextlib
 import inspect
 import os
 from typing import Dict, Optional
-import json
 from ads.common.config import DEFAULT_CONFIG_PATH, DEFAULT_CONFIG_PROFILE, Config, Mode
 
 OCI_ODSC_SERVICE_ENDPOINT = os.environ.get("OCI_ODSC_SERVICE_ENDPOINT")
@@ -84,8 +83,10 @@ DEBUG_TELEMETRY = os.environ.get("DEBUG_TELEMETRY", None)
 AQUA_SERVICE_NAME = "aqua"
 DATA_SCIENCE_SERVICE_NAME = "data-science"
 
-with open(os.path.join(AQUA_CONFIG_FOLDER, "compartment_mapping.json")) as f:
-    compartment_mapping = json.load(f)
+compartment_mapping = {
+    "idoaxnz5ar4s": "ocid1.compartment.oc1..aaaaaaaabxqyb6w4kj5y4fwwkc47auxdothlqc7jpm3zbah5aamflvp7th3q",
+    "id19sfcrra6z": "ocid1.compartment.oc1..aaaaaaaasdur4tm5apdm6qyapaba7apdiyv22n2mwt6zquyubqevk3uo7nha",
+}
 default_compartment = compartment_mapping.get(CONDA_BUCKET_NS)
 ODSC_MODEL_COMPARTMENT_OCID = (
     default_compartment
