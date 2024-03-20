@@ -431,8 +431,8 @@ class AquaFineTuningApp(AquaApp):
             for metadata in ft_model_custom_metadata.to_dict()["data"]
         ]
 
-        if source.freeform_tags:
-            source.freeform_tags.pop(Tags.LICENSE.value)
+        source_freeform_tags = source.freeform_tags or {}
+        source_freeform_tags.pop(Tags.LICENSE.value, None)
 
         self.update_model(
             model_id=ft_model.id,
@@ -442,7 +442,7 @@ class AquaFineTuningApp(AquaApp):
                     Tags.AQUA_FINE_TUNED_MODEL_TAG.value: (
                         f"{source.id}#{source.display_name}"
                     ),
-                    **source.freeform_tags,
+                    **source_freeform_tags,
                 },
             ),
         )
