@@ -8,7 +8,7 @@ import contextlib
 import inspect
 import os
 from typing import Dict, Optional
-
+import json
 from ads.common.config import DEFAULT_CONFIG_PATH, DEFAULT_CONFIG_PROFILE, Config, Mode
 
 OCI_ODSC_SERVICE_ENDPOINT = os.environ.get("OCI_ODSC_SERVICE_ENDPOINT")
@@ -49,8 +49,6 @@ RESOURCE_OCID = (
 NO_CONTAINER = os.environ.get("NO_CONTAINER")
 TMPDIR = os.environ.get("TMPDIR")
 
-ODSC_MODEL_COMPARTMENT_OCID = os.environ.get("ODSC_MODEL_COMPARTMENT_OCID")
-AQUA_MODEL_DEPLOYMENT_IMAGE = os.environ.get("AQUA_MODEL_DEPLOYMENT_IMAGE")
 AQUA_MODEL_DEPLOYMENT_CONFIG = os.environ.get(
     "AQUA_DEPLOYMENT_CONFIG", "deployment_config.json"
 )
@@ -85,6 +83,15 @@ AQUA_TELEMETRY_BUCKET_NS = os.environ.get("AQUA_TELEMETRY_BUCKET_NS", CONDA_BUCK
 DEBUG_TELEMETRY = os.environ.get("DEBUG_TELEMETRY", None)
 AQUA_SERVICE_NAME = "aqua"
 DATA_SCIENCE_SERVICE_NAME = "data-science"
+
+with open(os.path.join(AQUA_CONFIG_FOLDER, "compartment_mapping.json")) as f:
+    compartment_mapping = json.load(f)
+default_compartment = compartment_mapping.get(CONDA_BUCKET_NS)
+ODSC_MODEL_COMPARTMENT_OCID = (
+    default_compartment
+    if default_compartment
+    else os.environ.get("ODSC_MODEL_COMPARTMENT_OCID")
+)
 
 
 def export(
