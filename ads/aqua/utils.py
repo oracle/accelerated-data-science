@@ -31,8 +31,8 @@ from ads.common.utils import get_console_link, upload_to_os
 from ads.config import (
     AQUA_CONFIG_FOLDER,
     AQUA_SERVICE_MODELS_BUCKET,
-    TENANCY_OCID,
     CONDA_BUCKET_NS,
+    TENANCY_OCID,
 )
 from ads.model import DataScienceModel, ModelVersionSet
 
@@ -78,6 +78,7 @@ JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING = "ME_STANDALONE"
 NB_SESSION_IDENTIFIER = "NB_SESSION_OCID"
 LIFECYCLE_DETAILS_MISSING_JOBRUN = "The asscociated JobRun resource has been deleted."
 READY_TO_DEPLOY_STATUS = "ACTIVE"
+READY_TO_FINE_TUNE_STATUS = "TRUE"
 
 
 class LifecycleStatus(Enum):
