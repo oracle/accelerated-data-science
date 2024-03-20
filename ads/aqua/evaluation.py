@@ -362,7 +362,7 @@ class AquaEvaluationApp(AquaApp):
     @telemetry(entry_point="plugin=evaluation&action=create", name="aqua")
     def create(
         self,
-        create_aqua_evaluation_details: CreateAquaEvaluationDetails,
+        create_aqua_evaluation_details: CreateAquaEvaluationDetails = None,
         **kwargs,
     ) -> "AquaEvaluationSummary":
         """Creates Aqua evaluation for resource.
@@ -373,13 +373,23 @@ class AquaEvaluationApp(AquaApp):
             The CreateAquaEvaluationDetails data class which contains all
             required and optional fields to create the aqua evaluation.
         kwargs:
-            The kwargs for the evaluation.
+            The kwargs for creating CreateAquaEvaluationDetails instance if
+            no create_aqua_evaluation_details provided.
 
         Returns
         -------
         AquaEvaluationSummary:
             The instance of AquaEvaluationSummary.
         """
+        if not create_aqua_evaluation_details:
+            try:
+                create_aqua_evaluation_details = CreateAquaEvaluationDetails(**kwargs)
+            except:
+                raise AquaValueError(
+                    "Invalid create evaluation parameters. Allowable parameters are: "
+                    f"{', '.join(list(asdict(CreateAquaEvaluationDetails).keys()))}."
+                )
+
         if not is_valid_ocid(create_aqua_evaluation_details.evaluation_source_id):
             raise AquaValueError(
                 f"Invalid evaluation source {create_aqua_evaluation_details.evaluation_source_id}. "
