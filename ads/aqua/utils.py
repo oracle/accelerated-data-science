@@ -610,18 +610,18 @@ def fire_and_forget(func):
     return wrapped
 
 
-def get_base_model_from_tags(tags):
-    base_model_ocid = ""
-    base_model_name = ""
-    if Tags.AQUA_FINE_TUNED_MODEL_TAG.value in tags:
-        tag = tags[Tags.AQUA_FINE_TUNED_MODEL_TAG.value]
-        if "#" in tag:
-            base_model_ocid, base_model_name = tag.split("#")
+def extract_id_and_name_from_tag(tag: str):
+    base_model_ocid = UNKNOWN
+    base_model_name = UNKNOWN
+    try:
+        base_model_ocid, base_model_name = tag.split("#")
+    except:
+        pass
 
-        if not (is_valid_ocid(base_model_ocid) and base_model_name):
-            raise AquaValueError(
-                f"{Tags.AQUA_FINE_TUNED_MODEL_TAG.value} tag should have the format `Service Model OCID#Model Name`."
-            )
+    if not (is_valid_ocid(base_model_ocid) and base_model_name):
+        logger.debug(
+            f"Invalid {tag}. Specify tag in the format as <service_model_id>#<service_model_name>."
+        )
 
     return base_model_ocid, base_model_name
 

@@ -17,7 +17,6 @@ from ads.aqua.utils import (
     UNKNOWN,
     _is_valid_mvs,
     get_artifact_path,
-    get_base_model_from_tags,
     is_valid_ocid,
     load_config,
     logger,

@@ -32,6 +32,7 @@ from ads.aqua.utils import (
     README,
     READY_TO_DEPLOY_STATUS,
     UNKNOWN,
+    UNKNOWN_DICT,
     create_word_icon,
     get_artifact_path,
     read_file,
@@ -353,6 +354,17 @@ class AquaModelApp(AquaApp):
             )
             return service_model
 
+        if not service_model.freeform_tags:
+            raise AquaRuntimeError(
+                f"Invalid aqua service model. Required tags are missing for {model_id}.",
+                500
+            )
+
+        freeform_tags = service_model.freeform_tags
+        freeform_tags[
+            Tags.AQUA_SERVICE_MODEL_TAG.value
+        ] = f"{service_model.id}#{service_model.display_name}"
+
         custom_model = (
             DataScienceModel()
             .with_compartment_id(target_compartment)
@@ -360,7 +372,7 @@ class AquaModelApp(AquaApp):
             .with_model_file_description(json_dict=service_model.model_file_description)
             .with_display_name(service_model.display_name)
             .with_description(service_model.description)
-            .with_freeform_tags(**(service_model.freeform_tags or {}))
+            .with_freeform_tags(**freeform_tags)
             .with_defined_tags(**(service_model.defined_tags or {}))
             .with_custom_metadata_list(service_model.custom_metadata_list)
             .with_defined_metadata_list(service_model.defined_metadata_list)
