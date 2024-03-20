@@ -40,6 +40,8 @@ from ads.model.service.oci_datascience_model import (
     OCIDataScienceModel,
 )
 from oci.data_science.models import ModelProvenance
+from ads.config import AQUA_SERVICE_MODELS_BUCKET as SERVICE_MODELS_BUCKET
+
 
 MODEL_OCID = "ocid1.datasciencemodel.oc1.iad.<unique_ocid>"
 
@@ -785,6 +787,32 @@ class TestDataScienceModel:
         self.mock_dsc_model.with_artifact(uri="oci://my-bucket@my-tenancy/prefix/")
         with pytest.raises(BucketNotVersionedError):
             self.mock_dsc_model.upload_artifact(model_by_reference=True)
+
+    @patch("ads.common.object_storage_details.ObjectStorageDetails.is_bucket_versioned")
+    @patch.object(DataScienceModel, "_prepare_file_description_artifact")
+    @patch.object(SmallArtifactUploader, "upload")
+    def test_ski_versioning_check_for_service_bucket(
+        self,
+        mock_upload,
+        mock__prepare_file_description_artifact,
+        mock_is_bucket_versioned,
+    ):
+        """For model passed by reference, check if bucket is not versioned."""
+        mock_is_bucket_versioned.return_value = True
+        mock_upload.return_value = None
+        self.mock_artifact_file_path = os.path.join(
+            self.curr_dir, "test_files/model_description.json"
+        )
+        with open(self.mock_artifact_file_path, "r") as _file:
+            mock__prepare_file_description_artifact.return_value = json.load(_file)
+
+        self.mock_dsc_model.with_artifact(
+            uri=f"oci://{SERVICE_MODELS_BUCKET}@my-tenancy/prefix/"
+        )
+        self.mock_dsc_model.upload_artifact(model_by_reference=True)
+
+        mock_is_bucket_versioned.assert_not_called()
+        mock_upload.assert_called()
 
     def test_setup_model_file_description_property(self):
         """read the json file, json_string and json_uri and load the model_file_description property"""
