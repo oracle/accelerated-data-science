@@ -17,6 +17,7 @@ from ads.aqua.model import AquaModelApp, Tags
 from ads.aqua.utils import (
     UNKNOWN,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
+    extract_id_and_name_from_tag,
     load_config,
     get_container_image,
     UNKNOWN_DICT,
@@ -61,6 +62,7 @@ class AquaDeployment(DataClassSerializable):
     id: str = None
     display_name: str = None
     aqua_service_model: bool = None
+    aqua_service_model_name: str = None
     state: str = None
     description: str = None
     created_on: str = None
@@ -116,13 +118,18 @@ class AquaDeployment(DataClassSerializable):
             ),
         )
 
+        freeform_tags = oci_model_deployment.freeform_tags or UNKNOWN_DICT
+        aqua_service_model_tag = freeform_tags.get(
+            Tags.AQUA_SERVICE_MODEL_TAG.value, None
+        )
+
         return AquaDeployment(
             id=oci_model_deployment.id,
             display_name=oci_model_deployment.display_name,
-            aqua_service_model=oci_model_deployment.freeform_tags.get(
-                Tags.AQUA_SERVICE_MODEL_TAG.value
-            )
-            is not None,
+            aqua_service_model=aqua_service_model_tag is not None,
+            aqua_service_model_name=extract_id_and_name_from_tag(
+                aqua_service_model_tag
+            )[1],
             shape_info=shape_info,
             state=oci_model_deployment.lifecycle_state,
             lifecycle_details=getattr(
@@ -137,7 +144,7 @@ class AquaDeployment(DataClassSerializable):
                 ocid=oci_model_deployment.id,
                 region=region,
             ),
-            tags=oci_model_deployment.freeform_tags,
+            tags=freeform_tags,
         )
 
 
