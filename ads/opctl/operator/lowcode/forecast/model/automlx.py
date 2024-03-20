@@ -45,7 +45,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             model_kwargs_cleaned.get("score_metric", AUTOMLX_DEFAULT_SCORE_METRIC),
         )
         model_kwargs_cleaned.pop("task", None)
-        time_budget = model_kwargs_cleaned.pop("time_budget", None)
+        time_budget = model_kwargs_cleaned.pop("time_budget", -1)
         model_kwargs_cleaned[
             "preprocessing"
         ] = self.spec.preprocessing or model_kwargs_cleaned.get("preprocessing", True)
@@ -55,9 +55,11 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         return data.set_index(self.spec.datetime_column.name)
 
     @runtime_dependency(
-        module="automl",
+        module="automlx",
         err_msg=(
-            "Please run `pip3 install oracle-automlx==23.2.3` to install the required dependencies for automlx."
+            "Please run `pip3 install oracle-automlx==23.4.1` and "
+            "`pip3 install oracle-automlx[forecasting]==23.4.1` "
+            "to install the required dependencies for automlx."
         ),
     )
     @runtime_dependency(
@@ -67,15 +69,13 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         ),
     )
     def _build_model(self) -> pd.DataFrame:
-        from automl import init
+        from automlx import init
         from sktime.forecasting.model_selection import temporal_train_test_split
+        try:
+            init(engine="ray", engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}})
+        except Exception as e:
+            logger.info("Ray already initialized")
 
-        init(
-            engine="local",
-            engine_opts={"n_jobs": -1, "model_n_jobs": -1},
-            check_deprecation_warnings=False,
-            logger=50,
-        )
 
         full_data_dict = self.datasets.get_data_by_series()
 
@@ -95,7 +95,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
         for i, (s_id, df) in enumerate(full_data_dict.items()):
             try:
-                logger.debug(f"Running automl on series {s_id}")
+                logger.debug(f"Running automlx on series {s_id}")
                 model_kwargs = model_kwargs_cleaned.copy()
                 target = self.original_target_column
                 self.forecast_output.init_series_output(
@@ -110,7 +110,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 if self.loaded_models is not None and s_id in self.loaded_models:
                     model = self.loaded_models[s_id]
                 else:
-                    model = automl.Pipeline(
+                    model = automlx.Pipeline(
                         task="forecasting",
                         **model_kwargs,
                     )
@@ -149,18 +149,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
                 self.model_parameters[s_id] = {
                     "framework": SupportedModels.AutoMLX,
-                    "score_metric": model.score_metric,
-                    "random_state": model.random_state,
-                    "model_list": model.model_list,
-                    "n_algos_tuned": model.n_algos_tuned,
-                    "adaptive_sampling": model.adaptive_sampling,
-                    "min_features": model.min_features,
-                    "optimization": model.optimization,
-                    "preprocessing": model.preprocessing,
-                    "search_space": model.search_space,
                     "time_series_period": model.time_series_period,
-                    "min_class_instances": model.min_class_instances,
-                    "max_tuning_trials": model.max_tuning_trials,
                     "selected_model": model.selected_model_,
                     "selected_model_params": model.selected_model_params_,
                 }

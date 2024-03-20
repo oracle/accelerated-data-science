@@ -2,10 +2,7 @@ name: "[Py3.9][Py3.10] - tests/unitary/**"
 
 on:
   workflow_dispatch:
-  push:
   pull_request:
-    types: [opened, reopened]
-    branches: [ "main" ]
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -38,22 +35,24 @@ jobs:
             # `model` tests running in "slow_tests",
             # `feature_store` tests has its own test suite
             # `forecast` tests not supported in python 3.9,3.10 (automlx dependency). Tests are running in python3.8 test env, see run-unittests-py38-cov-report.yml
+            # 'pii' tests run only with py3.8, 'datapane' library conflicts with pandas>2.2.0, which used in py3.9/3.10 setup
             # 'hpo' tests hangs if run together with all unitary tests. Tests running in separate command before running all unitary
             ignore-path: |
               --ignore tests/unitary/with_extras/model \
               --ignore tests/unitary/with_extras/feature_store \
               --ignore tests/unitary/with_extras/operator/forecast \
+              --ignore tests/unitary/with_extras/operator/pii \
               --ignore tests/unitary/with_extras/hpo
           - name: "slow_tests"
             test-path: "tests/unitary/with_extras/model"
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: ./.github/workflows/create-more-space
         name: "Create more disk space"
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
@@ -66,7 +65,7 @@ jobs:
 
       - uses: ./.github/workflows/test-env-setup
         name: "Test env setup"
-        timeout-minutes: 20
+        timeout-minutes: 30
 
       - name: "Run hpo tests"
         timeout-minutes: 10

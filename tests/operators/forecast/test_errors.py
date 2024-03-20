@@ -216,7 +216,7 @@ def populate_yaml(
     if model == "autots":
         yaml_i["spec"]["model_kwargs"] = {"model_list": "superfast"}
     if model == "automlx":
-        yaml_i["spec"]["model_kwargs"] = {"time_budget": 1}
+        yaml_i["spec"]["model_kwargs"] = {"time_budget": 50}
 
     return yaml_i, output_data_path
 

@@ -36,11 +36,17 @@ def operate(operator_config: AnomalyOperatorConfig) -> None:
             operator_config.spec.model = "autots"
             operator_config.spec.model_kwargs = dict()
             datasets = AnomalyDatasets(operator_config.spec)
-            AnomalyOperatorModelFactory.get_model(
-                operator_config, datasets
-            ).generate_report()
+            try:
+                AnomalyOperatorModelFactory.get_model(
+                    operator_config, datasets
+                ).generate_report()
+            except Exception as e2:
+                logger.debug(
+                    f"Failed to backup forecast with error {e2.args}. Raising original error."
+                )
+            raise e
         else:
-            raise
+            raise e
 
 
 def verify(spec: Dict, **kwargs: Dict) -> bool:

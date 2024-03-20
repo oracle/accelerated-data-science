@@ -1,22 +1,35 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import cgi
+import json
 import logging
+import os
+import shutil
+import tempfile
 from copy import deepcopy
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Tuple
 
 import pandas
+from jsonschema import ValidationError, validate
+
 from ads.common import utils
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import COMPARTMENT_OCID, PROJECT_OCID
 from ads.feature_engineering.schema import Schema
 from ads.jobs.builders.base import Builder
+from ads.model.artifact_downloader import (
+    LargeArtifactDownloader,
+    SmallArtifactDownloader,
+)
+from ads.model.artifact_uploader import LargeArtifactUploader, SmallArtifactUploader
 from ads.model.model_metadata import (
+    MetadataCustomCategory,
     ModelCustomMetadata,
+    ModelCustomMetadataItem,
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
 )
@@ -24,16 +37,13 @@ from ads.model.service.oci_datascience_model import (
     ModelProvenanceNotFoundError,
     OCIDataScienceModel,
 )
-from ads.model.artifact_downloader import (
-    LargeArtifactDownloader,
-    SmallArtifactDownloader,
-)
-from ads.model.artifact_uploader import LargeArtifactUploader, SmallArtifactUploader
 
 logger = logging.getLogger(__name__)
 
 
 _MAX_ARTIFACT_SIZE_IN_BYTES = 2147483648  # 2GB
+MODEL_BY_REFERENCE_VERSION = "1.0"
+MODEL_BY_REFERENCE_JSON_FILE_NAME = "model_description.json"
 
 
 class ModelArtifactSizeError(Exception):  # pragma: no cover
@@ -44,6 +54,23 @@ class ModelArtifactSizeError(Exception):  # pragma: no cover
             "copy artifacts to the object storage bucket. "
             "Example: `bucket_uri=oci://<bucket_name>@<namespace>/prefix/`"
         )
+
+
+class BucketNotVersionedError(Exception):  # pragma: no cover
+    def __init__(
+        self,
+        msg="Model artifact bucket is not versioned. Enable versioning on the bucket to proceed with model creation by reference.",
+    ):
+        super().__init__(msg)
+
+
+class ModelFileDescriptionError(Exception):  # pragma: no cover
+    def __init__(self, msg="Model File Description file is not set up."):
+        super().__init__(msg)
+
+
+class InvalidArtifactType(Exception):  # pragma: no cover
+    pass
 
 
 class DataScienceModel(Builder):
@@ -84,6 +111,8 @@ class DataScienceModel(Builder):
         Model version set ID
     version_label: str
         Model version label
+    model_file_description: dict
+        Contains object path details for models created by reference.
 
     Methods
     -------
@@ -129,12 +158,16 @@ class DataScienceModel(Builder):
         Sets model custom metadata.
     with_provenance_metadata(self, metadata: Union[ModelProvenanceMetadata, Dict]) -> "DataScienceModel"
         Sets model provenance metadata.
-    with_artifact(self, uri: str)
-        Sets the artifact location. Can be a local.
+    with_artifact(self, *uri: str)
+        Sets the artifact location. Can be a local. For models created by reference, uri can take in single arg or multiple args in case
+        of a fine-tuned or multimodel setting.
     with_model_version_set_id(self, model_version_set_id: str):
         Sets the model version set ID.
     with_version_label(self, version_label: str):
         Sets the model version label.
+    with_model_file_description: dict
+        Sets path details for models created by reference. Input can be either a dict, string or json file and
+        the schema is dictated by model_file_description_schema.json
 
 
     Examples
@@ -170,7 +203,11 @@ class DataScienceModel(Builder):
     CONST_PROVENANCE_METADATA = "provenanceMetadata"
     CONST_ARTIFACT = "artifact"
     CONST_MODEL_VERSION_SET_ID = "modelVersionSetId"
+    CONST_MODEL_VERSION_SET_NAME = "modelVersionSetName"
     CONST_MODEL_VERSION_LABEL = "versionLabel"
+    CONST_TIME_CREATED = "timeCreated"
+    CONST_LIFECYCLE_STATE = "lifecycleState"
+    CONST_MODEL_FILE_DESCRIPTION = "modelDescription"
 
     attribute_map = {
         CONST_ID: "id",
@@ -187,7 +224,11 @@ class DataScienceModel(Builder):
         CONST_PROVENANCE_METADATA: "provenance_metadata",
         CONST_ARTIFACT: "artifact",
         CONST_MODEL_VERSION_SET_ID: "model_version_set_id",
+        CONST_MODEL_VERSION_SET_NAME: "model_version_set_name",
         CONST_MODEL_VERSION_LABEL: "version_label",
+        CONST_TIME_CREATED: "time_created",
+        CONST_LIFECYCLE_STATE: "lifecycle_state",
+        CONST_MODEL_FILE_DESCRIPTION: "model_file_description",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -221,6 +262,7 @@ class DataScienceModel(Builder):
         self._init_complex_attributes()
         # Specify oci datascience model instance
         self.dsc_model = self._to_oci_dsc_model()
+        self.local_copy_dir = None
 
     @property
     def id(self) -> Optional[str]:
@@ -231,6 +273,19 @@ class DataScienceModel(Builder):
 
     @property
     def status(self) -> Union[str, None]:
+        """Status of the model.
+
+        Returns
+        -------
+        str
+            Status of the model.
+        """
+        if self.dsc_model:
+            return self.dsc_model.status
+        return None
+
+    @property
+    def lifecycle_state(self) -> Union[str, None]:
         """Status of the model.
 
         Returns
@@ -265,6 +320,10 @@ class DataScienceModel(Builder):
             The DataScienceModel instance (self)
         """
         return self.set_spec(self.CONST_PROJECT_ID, project_id)
+
+    @property
+    def time_created(self) -> str:
+        return self.get_spec(self.CONST_TIME_CREATED)
 
     @property
     def description(self) -> str:
@@ -358,7 +417,7 @@ class DataScienceModel(Builder):
         return self.set_spec(self.CONST_DEFINED_TAG, kwargs)
 
     @property
-    def input_schema(self) -> Schema:
+    def input_schema(self) -> Union[Schema, Dict]:
         """Returns model input schema.
 
         Returns
@@ -382,11 +441,15 @@ class DataScienceModel(Builder):
             The DataScienceModel instance (self)
         """
         if schema and isinstance(schema, Dict):
-            schema = Schema.from_dict(schema)
+            try:
+                schema = Schema.from_dict(schema)
+            except Exception as err:
+                logger.warn(err)
+
         return self.set_spec(self.CONST_INPUT_SCHEMA, schema)
 
     @property
-    def output_schema(self) -> Schema:
+    def output_schema(self) -> Union[Schema, Dict]:
         """Returns model output schema.
 
         Returns
@@ -410,7 +473,11 @@ class DataScienceModel(Builder):
             The DataScienceModel instance (self)
         """
         if schema and isinstance(schema, Dict):
-            schema = Schema.from_dict(schema)
+            try:
+                schema = Schema.from_dict(schema)
+            except Exception as err:
+                logger.warn(err)
+
         return self.set_spec(self.CONST_OUTPUT_SCHEMA, schema)
 
     @property
@@ -486,10 +553,10 @@ class DataScienceModel(Builder):
         return self.set_spec(self.CONST_PROVENANCE_METADATA, metadata)
 
     @property
-    def artifact(self) -> str:
+    def artifact(self) -> Union[str, list]:
         return self.get_spec(self.CONST_ARTIFACT)
 
-    def with_artifact(self, uri: str):
+    def with_artifact(self, uri: str, *args):
         """Sets the artifact location. Can be a local.
 
         Parameters
@@ -498,13 +565,16 @@ class DataScienceModel(Builder):
             Path to artifact directory or to the ZIP archive.
             It could contain a serialized model(required) as well as any files needed for deployment.
             The content of the source folder will be zipped and uploaded to the model catalog.
-
+            For models created by reference, uri can take in single arg or multiple args in case of a fine-tuned or
+            multimodel setting.
         Examples
         --------
         >>> .with_artifact(uri="./model1/")
         >>> .with_artifact(uri="./model1.zip")
+        >>> .with_artifact("./model1", "./model2")
         """
-        return self.set_spec(self.CONST_ARTIFACT, uri)
+
+        return self.set_spec(self.CONST_ARTIFACT, [uri] + list(args) if args else uri)
 
     @property
     def model_version_set_id(self) -> str:
@@ -521,6 +591,10 @@ class DataScienceModel(Builder):
         return self.set_spec(self.CONST_MODEL_VERSION_SET_ID, model_version_set_id)
 
     @property
+    def model_version_set_name(self) -> str:
+        return self.get_spec(self.CONST_MODEL_VERSION_SET_NAME)
+
+    @property
     def version_label(self) -> str:
         return self.get_spec(self.CONST_MODEL_VERSION_LABEL)
 
@@ -533,6 +607,58 @@ class DataScienceModel(Builder):
             The model version label.
         """
         return self.set_spec(self.CONST_MODEL_VERSION_LABEL, version_label)
+
+    @property
+    def model_file_description(self) -> dict:
+        return self.get_spec(self.CONST_MODEL_FILE_DESCRIPTION)
+
+    def with_model_file_description(
+        self, json_dict: dict = None, json_string: str = None, json_uri: str = None
+    ):
+        """Sets the json file description for model passed by reference
+        Parameters
+        ----------
+        json_dict : dict, optional
+            json dict, by default None
+        json_string : str, optional
+            json string, by default None
+        json_uri : str, optional
+            URI location of file containing json, by default None
+
+        Examples
+        --------
+        >>> DataScienceModel().with_model_file_description(json_string="<json_string>")
+        >>> DataScienceModel().with_model_file_description(json_dict=dict())
+        >>> DataScienceModel().with_model_file_description(json_uri="./model_description.json")
+        """
+        if json_dict:
+            json_data = json_dict
+        elif json_string:
+            json_data = json.loads(json_string)
+        elif json_uri:
+            with open(json_uri, "r") as json_file:
+                json_data = json.load(json_file)
+        else:
+            raise ValueError("Must provide either a valid json string or URI location.")
+
+        schema_file_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "model_file_description_schema.json",
+        )
+        with open(schema_file_path, encoding="utf-8") as schema_file:
+            schema = json.load(schema_file)
+
+        try:
+            validate(json_data, schema)
+        except ValidationError as ve:
+            message = (
+                f"model_file_description_schema.json validation failed. "
+                f"See Exception: {ve}"
+            )
+            logging.error(message)
+            raise ModelFileDescriptionError(message)
+
+        return self.set_spec(self.CONST_MODEL_FILE_DESCRIPTION, json_data)
 
     def create(self, **kwargs) -> "DataScienceModel":
         """Creates datascience model.
@@ -570,6 +696,9 @@ class DataScienceModel(Builder):
                 The connection timeout in seconds for the client.
             parallel_process_count: (int, optional).
                 The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
+            model_by_reference: (bool, optional)
+                Whether model artifact is made available to Model Store by reference. Requires artifact location to be
+                provided using with_artifact method.
 
         Returns
         -------
@@ -590,6 +719,23 @@ class DataScienceModel(Builder):
 
         if not self.display_name:
             self.display_name = self._random_display_name()
+
+        model_by_reference = kwargs.pop("model_by_reference", False)
+        if model_by_reference:
+            # Update custom metadata
+            logger.info("Update custom metadata field with model by reference flag.")
+            metadata_item = ModelCustomMetadataItem(
+                key=self.CONST_MODEL_FILE_DESCRIPTION,
+                value="true",
+                description="model by reference flag",
+                category=MetadataCustomCategory.OTHER,
+            )
+            if self.custom_metadata_list:
+                self.custom_metadata_list._add(metadata_item, replace=True)
+            else:
+                custom_metadata = ModelCustomMetadata()
+                custom_metadata._add(metadata_item)
+                self.with_custom_metadata_list(custom_metadata)
 
         payload = deepcopy(self._spec)
         payload.pop("id", None)
@@ -616,6 +762,7 @@ class DataScienceModel(Builder):
             auth=kwargs.pop("auth", None),
             timeout=kwargs.pop("timeout", None),
             parallel_process_count=kwargs.pop("parallel_process_count", None),
+            model_by_reference=model_by_reference,
         )
 
         # Sync up model
@@ -633,6 +780,7 @@ class DataScienceModel(Builder):
         remove_existing_artifact: Optional[bool] = True,
         timeout: Optional[int] = None,
         parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
+        model_by_reference: Optional[bool] = False,
     ) -> None:
         """Uploads model artifacts to the model catalog.
 
@@ -663,9 +811,16 @@ class DataScienceModel(Builder):
             The connection timeout in seconds for the client.
         parallel_process_count: (int, optional)
             The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
+        model_by_reference: (bool, optional)
+            Whether model artifact is made available to Model Store by reference.
         """
         # Upload artifact to the model catalog
-        if not self.artifact:
+        if model_by_reference and self.model_file_description:
+            logger.info(
+                "Model artifact will be uploaded using model_file_description contents, "
+                "artifact location will not be used."
+            )
+        elif not self.artifact:
             logger.warn(
                 "Model artifact location not provided. "
                 "Provide the artifact location to upload artifacts to the model catalog."
@@ -679,14 +834,24 @@ class DataScienceModel(Builder):
                 "timeout": timeout,
             }
 
-        if ObjectStorageDetails.is_oci_path(self.artifact):
-            if bucket_uri and bucket_uri != self.artifact:
-                logger.warn(
-                    "The `bucket_uri` will be ignored and the value of `self.artifact` will be used instead."
+        if model_by_reference:
+            self._validate_prepare_file_description_artifact()
+        else:
+            if isinstance(self.artifact, list):
+                raise InvalidArtifactType(
+                    "Multiple artifacts are only allowed for models created by reference."
                 )
-            bucket_uri = self.artifact
 
-        if bucket_uri or utils.folder_size(self.artifact) > _MAX_ARTIFACT_SIZE_IN_BYTES:
+            if ObjectStorageDetails.is_oci_path(self.artifact):
+                if bucket_uri and bucket_uri != self.artifact:
+                    logger.warn(
+                        "The `bucket_uri` will be ignored and the value of `self.artifact` will be used instead."
+                    )
+                bucket_uri = self.artifact
+
+        if not model_by_reference and (
+            bucket_uri or utils.folder_size(self.artifact) > _MAX_ARTIFACT_SIZE_IN_BYTES
+        ):
             if not bucket_uri:
                 raise ModelArtifactSizeError(
                     max_artifact_size=utils.human_size(_MAX_ARTIFACT_SIZE_IN_BYTES)
@@ -707,8 +872,15 @@ class DataScienceModel(Builder):
                 dsc_model=self.dsc_model,
                 artifact_path=self.artifact,
             )
-
         artifact_uploader.upload()
+
+        self._remove_file_description_artifact()
+
+    def _remove_file_description_artifact(self):
+        """Removes temporary model file description artifact for model by reference."""
+        # delete if local copy directory was created
+        if self.local_copy_dir:
+            shutil.rmtree(self.local_copy_dir, ignore_errors=True)
 
     def download_artifact(
         self,
@@ -767,13 +939,37 @@ class DataScienceModel(Builder):
                 **(self.dsc_model.__class__.kwargs or {}),
                 "timeout": timeout,
             }
+        try:
+            model_by_reference = self.custom_metadata_list.get(
+                self.CONST_MODEL_FILE_DESCRIPTION
+            ).value
+            logging.info(
+                f"modelDescription tag found in custom metadata list with value {model_by_reference}"
+            )
+        except ValueError:
+            model_by_reference = False
 
-        artifact_info = self.dsc_model.get_artifact_info()
-        artifact_size = int(artifact_info.get("content-length"))
-        if not bucket_uri and artifact_size > _MAX_ARTIFACT_SIZE_IN_BYTES:
-            raise ModelArtifactSizeError(utils.human_size(_MAX_ARTIFACT_SIZE_IN_BYTES))
+        if model_by_reference:
+            _, artifact_size = self._download_file_description_artifact()
+            logging.warning(
+                f"Model {self.dsc_model.id} was created by reference, artifacts will be downloaded from the bucket {bucket_uri}"
+            )
+            # artifacts will be downloaded from model_file_description
+            bucket_uri = None
+        else:
+            artifact_info = self.dsc_model.get_artifact_info()
+            artifact_size = int(artifact_info.get("content-length"))
 
-        if artifact_size > _MAX_ARTIFACT_SIZE_IN_BYTES or bucket_uri:
+            if not bucket_uri and artifact_size > _MAX_ARTIFACT_SIZE_IN_BYTES:
+                raise ModelArtifactSizeError(
+                    utils.human_size(_MAX_ARTIFACT_SIZE_IN_BYTES)
+                )
+
+        if (
+            artifact_size > _MAX_ARTIFACT_SIZE_IN_BYTES
+            or bucket_uri
+            or model_by_reference
+        ):
             artifact_downloader = LargeArtifactDownloader(
                 dsc_model=self.dsc_model,
                 target_dir=target_dir,
@@ -783,6 +979,7 @@ class DataScienceModel(Builder):
                 bucket_uri=bucket_uri,
                 overwrite_existing_artifact=overwrite_existing_artifact,
                 remove_existing_artifact=remove_existing_artifact,
+                model_file_description=self.model_file_description,
             )
         else:
             artifact_downloader = SmallArtifactDownloader(
@@ -790,7 +987,6 @@ class DataScienceModel(Builder):
                 target_dir=target_dir,
                 force_overwrite=force_overwrite,
             )
-
         artifact_downloader.download()
 
     def update(self, **kwargs) -> "DataScienceModel":
@@ -965,9 +1161,13 @@ class DataScienceModel(Builder):
         for infra_attr, dsc_attr in self.attribute_map.items():
             value = self.get_spec(infra_attr)
             if infra_attr in COMPLEX_ATTRIBUTES_CONVERTER and value:
-                dsc_spec[dsc_attr] = getattr(
-                    self.get_spec(infra_attr), COMPLEX_ATTRIBUTES_CONVERTER[infra_attr]
-                )()
+                if isinstance(value, dict):
+                    dsc_spec[dsc_attr] = json.dumps(value)
+                else:
+                    dsc_spec[dsc_attr] = getattr(
+                        self.get_spec(infra_attr),
+                        COMPLEX_ATTRIBUTES_CONVERTER[infra_attr],
+                    )()
             else:
                 dsc_spec[dsc_attr] = value
 
@@ -990,8 +1190,8 @@ class DataScienceModel(Builder):
             The DataScienceModel instance (self).
         """
         COMPLEX_ATTRIBUTES_CONVERTER = {
-            self.CONST_INPUT_SCHEMA: Schema.from_json,
-            self.CONST_OUTPUT_SCHEMA: Schema.from_json,
+            self.CONST_INPUT_SCHEMA: [Schema.from_json, json.loads],
+            self.CONST_OUTPUT_SCHEMA: [Schema.from_json, json.loads],
             self.CONST_CUSTOM_METADATA: ModelCustomMetadata._from_oci_metadata,
             self.CONST_DEFINED_METADATA: ModelTaxonomyMetadata._from_oci_metadata,
         }
@@ -1002,7 +1202,16 @@ class DataScienceModel(Builder):
             value = utils.get_value(dsc_model, dsc_attr)
             if value:
                 if infra_attr in COMPLEX_ATTRIBUTES_CONVERTER:
-                    value = COMPLEX_ATTRIBUTES_CONVERTER[infra_attr](value)
+                    converter = COMPLEX_ATTRIBUTES_CONVERTER[infra_attr]
+                    if isinstance(converter, List):
+                        for converter_item in converter:
+                            try:
+                                value = converter_item(value)
+                            except Exception as err:
+                                logger.warn(err)
+                                pass
+                    else:
+                        value = converter(value)
                 self.set_spec(infra_attr, value)
 
         # Update provenance metadata
@@ -1020,7 +1229,14 @@ class DataScienceModel(Builder):
         try:
             artifact_info = self.dsc_model.get_artifact_info()
             _, file_name_info = cgi.parse_header(artifact_info["Content-Disposition"])
-            self.set_spec(self.CONST_ARTIFACT, file_name_info["filename"])
+
+            if self.dsc_model.is_model_by_reference():
+                _, file_extension = os.path.splitext(file_name_info["filename"])
+                if file_extension.lower() == ".json":
+                    bucket_uri, _ = self._download_file_description_artifact()
+                    self.set_spec(self.CONST_ARTIFACT, bucket_uri)
+            else:
+                self.set_spec(self.CONST_ARTIFACT, file_name_info["filename"])
         except:
             pass
 
@@ -1088,3 +1304,137 @@ class DataScienceModel(Builder):
         if f"with_{item}" in self.__dir__():
             return self.get_spec(item)
         raise AttributeError(f"Attribute {item} not found.")
+
+    def _validate_prepare_file_description_artifact(self):
+        """This helper method validates the path to check if the buckets are versioned and if the OSS location and
+        the files exist. Next, it creates a json dict with the path information and sets it as the artifact to be
+        uploaded."""
+
+        if not self.model_file_description:
+            bucket_uri = self.artifact
+            if isinstance(bucket_uri, str):
+                bucket_uri = [bucket_uri]
+
+            for uri in bucket_uri:
+                if not ObjectStorageDetails.from_path(uri).is_bucket_versioned():
+                    message = f"Model artifact bucket {uri} is not versioned. Enable versioning on the bucket to proceed with model creation by reference."
+                    logger.error(message)
+                    raise BucketNotVersionedError(message)
+
+            json_data = self._prepare_file_description_artifact(bucket_uri)
+            self.with_model_file_description(json_dict=json_data)
+
+        self.local_copy_dir = tempfile.mkdtemp()
+        # create temp directory for model description file
+        json_file_path = os.path.join(
+            self.local_copy_dir, MODEL_BY_REFERENCE_JSON_FILE_NAME
+        )
+        with open(json_file_path, "w") as outfile:
+            json.dump(self.model_file_description, outfile, indent=2)
+
+        self.with_artifact(json_file_path)
+
+    @staticmethod
+    def _prepare_file_description_artifact(bucket_uri: list) -> dict:
+        """Prepares yaml file config if model is passed by reference and uploaded to catalog.
+
+        Returns
+        -------
+        dict
+            json dict with the model by reference artifact details
+        """
+
+        # create json content
+        content = dict()
+        content["version"] = MODEL_BY_REFERENCE_VERSION
+        content["type"] = "modelOSSReferenceDescription"
+        content["models"] = []
+
+        for uri in bucket_uri:
+            if not ObjectStorageDetails.is_oci_path(uri) or uri.endswith(".zip"):
+                msg = "Artifact path cannot be a zip file or local directory for model creation by reference."
+                logging.error(msg)
+                raise InvalidArtifactType(msg)
+
+            # read list from objects from artifact location
+            oss_details = ObjectStorageDetails.from_path(uri)
+
+            # first retrieve the etag and version id
+            object_versions = oss_details.list_object_versions(fields="etag")
+            version_dict = {
+                obj.etag: obj.version_id
+                for obj in object_versions
+                if obj.etag is not None
+            }
+
+            # add version id based on etag for each object
+            objects = oss_details.list_objects(fields="name,etag,size").objects
+
+            if len(objects) == 0:
+                raise ModelFileDescriptionError(
+                    f"The path {oss_details.path} does not exist or no objects were found in the path. "
+                )
+
+            object_list = []
+            for obj in objects:
+                object_list.append(
+                    {
+                        "name": obj.name,
+                        "version": version_dict[obj.etag],
+                        "sizeInBytes": obj.size,
+                    }
+                )
+            content["models"].extend(
+                [
+                    {
+                        "namespace": oss_details.namespace,
+                        "bucketName": oss_details.bucket,
+                        "prefix": oss_details.filepath,
+                        "objects": object_list,
+                    }
+                ]
+            )
+
+        return content
+
+    def _download_file_description_artifact(self) -> Tuple[Union[str, List[str]], int]:
+        """Loads the json file from model artifact, updates the
+        model file description property, and returns the bucket uri and artifact size details.
+
+        Returns
+        -------
+        bucket_uri: Union[str, List[str]]
+            Location(s) of bucket where model artifacts are present
+        artifact_size: int
+            estimated size of the model files in bytes
+
+        """
+        if not self.model_file_description:
+            # get model file description from model artifact json
+            with tempfile.TemporaryDirectory() as temp_dir:
+                artifact_downloader = SmallArtifactDownloader(
+                    dsc_model=self.dsc_model,
+                    target_dir=temp_dir,
+                )
+                artifact_downloader.download()
+                # create temp directory for model description file
+                json_file_path = os.path.join(
+                    temp_dir, MODEL_BY_REFERENCE_JSON_FILE_NAME
+                )
+                self.with_model_file_description(json_uri=json_file_path)
+
+        model_file_desc_dict = self.model_file_description
+        models = model_file_desc_dict["models"]
+
+        bucket_uri = list()
+        artifact_size = 0
+        for model in models:
+            namespace = model["namespace"]
+            bucket_name = model["bucketName"]
+            prefix = model["prefix"]
+            objects = model["objects"]
+            uri = f"oci://{bucket_name}@{namespace}/{prefix}"
+            artifact_size += sum([obj["sizeInBytes"] for obj in objects])
+            bucket_uri.append(uri)
+
+        return bucket_uri[0] if len(bucket_uri) == 1 else bucket_uri, artifact_size
