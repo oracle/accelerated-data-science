@@ -26,7 +26,6 @@ from ads.aqua.constants import (
 )
 from ads.aqua.data import AquaResourceIdentifier, Tags
 
-from ads.aqua.exception import AquaRuntimeError, AquaValueError
 from ads.aqua.training.exceptions import exit_code_dict
 from ads.aqua.utils import (
     LICENSE_TXT,
@@ -355,16 +354,6 @@ class AquaModelApp(AquaApp):
             )
             return service_model
 
-        if not service_model.freeform_tags:
-            raise AquaValueError(
-                f"Invalid aqua service model. Required tags are missing for {model_id}.",
-            )
-
-        freeform_tags = service_model.freeform_tags
-        freeform_tags[
-            Tags.AQUA_SERVICE_MODEL_TAG.value
-        ] = f"{service_model.id}#{service_model.display_name}"
-
         custom_model = (
             DataScienceModel()
             .with_compartment_id(target_compartment)
@@ -372,7 +361,7 @@ class AquaModelApp(AquaApp):
             .with_model_file_description(json_dict=service_model.model_file_description)
             .with_display_name(service_model.display_name)
             .with_description(service_model.description)
-            .with_freeform_tags(**freeform_tags)
+            .with_freeform_tags(**(service_model.freeform_tags or {}))
             .with_defined_tags(**(service_model.defined_tags or {}))
             .with_custom_metadata_list(service_model.custom_metadata_list)
             .with_defined_metadata_list(service_model.defined_metadata_list)
