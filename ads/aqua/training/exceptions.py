@@ -66,6 +66,16 @@ class TrainingExit(SystemExit):
             traceback.print_exc()
 
 
+class TrustRemoteCodeErrorExit(TrainingExit):
+    """Error when the model contains custom code while `trust_remote_code` is not set to True."""
+
+    code = 30
+    reason = (
+        "The model contains custom code which must be executed in order to correctly load the model."
+        "However, `trust_remote_code` is not enabled."
+    )
+
+
 class DistributedTrainingLoggingError(TrainingExit):
     """Error when fetching job run logs for setting up distributed training."""
 
@@ -133,7 +143,7 @@ class InvalidDataFormatErrorExit(TrainingExit):
 
     reason = (
         "Unable to load training data. "
-        "Please provide training data in JSONL format with 'prompt' and 'completion' fields/columns."
+        "Please provide training data in JSONL format with 'prompt' and 'completion'."
     )
 
 
@@ -155,7 +165,7 @@ class InvalidDataValueErrorExit(TrainingExit):
 
     reason = (
         "Training data contain non-string values. "
-        "Please provide training data with only strings in JSONL format."
+        "Please provide training data with only strings in JSONL"
     )
 
 
@@ -349,7 +359,7 @@ class ObjectStorageErrorExit(ServiceErrorExit):
     target_service = "object_storage"
     reason = (
         "Failed to access object storage service. "
-        "Please make sure the job run has permission to access the object stroage."
+        "Please make sure the job run has permission to access the object storage."
     )
 
 
@@ -364,7 +374,7 @@ class OutOfMemoryErrorExit(TrainingExit):
     )
 
 
-class NetworkTimeoutError(TrainingExit):
+class NetworkTimeoutErrorExit(TrainingExit):
     """Error due to network connection timeout."""
 
     code = 101
@@ -372,8 +382,15 @@ class NetworkTimeoutError(TrainingExit):
         "Network connection timeout. "
         "If you are using custom networking, "
         "please check the VCN/subnet setting to make sure service or NAT gateway is configured correctly. "
-        "This could also be a temperoary issue."
+        "This could also be a temporary issue."
     )
+
+
+class GPUNotAvailableErrorExit(TrainingExit):
+    """Error when GPU is not available."""
+
+    code = 102
+    reason = "GPU is not available."
 
 
 def exception_list():
@@ -437,14 +454,13 @@ def service_dict():
     }
 
 
-def log_reason_and_raise(exception_cause: BaseException, exit_ex: TrainingExit = None):
+def log_reason_and_print_exc(exit_ex: TrainingExit = None):
     """Log the exit reason and raise a TrainingExit exception to exit with exit code."""
     logger.error(traceback.format_exc())
     logger.critical(exit_ex.reason)
-    raise exit_ex from exception_cause
 
 
-def raise_service_exit(ex: oci.exceptions.ServiceError):
+def prepare_service_exit(ex: oci.exceptions.ServiceError):
     """Raise ServiceErrorExit base on OCI ServiceError."""
     operations = operation_dict()
     services = service_dict()
@@ -456,4 +472,5 @@ def raise_service_exit(ex: oci.exceptions.ServiceError):
         exit_ex = ServiceErrorExit(
             service=ex.target_service, operation=ex.operation_name
         )
-    log_reason_and_raise(exception_cause=ex, exit_ex=exit_ex)
+    log_reason_and_print_exc(exit_ex=exit_ex)
+    return exit_ex
