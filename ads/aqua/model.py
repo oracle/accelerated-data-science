@@ -26,13 +26,12 @@ from ads.aqua.constants import (
 )
 from ads.aqua.data import AquaResourceIdentifier, Tags
 
-from ads.aqua.exception import AquaRuntimeError
+from ads.aqua.exception import AquaRuntimeError, AquaValueError
 from ads.aqua.utils import (
     LICENSE_TXT,
     README,
     READY_TO_DEPLOY_STATUS,
     UNKNOWN,
-    UNKNOWN_DICT,
     create_word_icon,
     get_artifact_path,
     read_file,
@@ -355,9 +354,8 @@ class AquaModelApp(AquaApp):
             return service_model
 
         if not service_model.freeform_tags:
-            raise AquaRuntimeError(
+            raise AquaValueError(
                 f"Invalid aqua service model. Required tags are missing for {model_id}.",
-                500
             )
 
         freeform_tags = service_model.freeform_tags
