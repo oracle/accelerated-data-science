@@ -270,7 +270,7 @@ class AquaUIApp(AquaApp):
         ).data
 
         if response and versioned:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            with self.executor as executor:
                 result = list(
                     filter(None, executor.map(self._is_bucket_versioned, response))
                 )
