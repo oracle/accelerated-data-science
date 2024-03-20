@@ -31,8 +31,8 @@ from ads.common.utils import get_console_link, upload_to_os
 from ads.config import (
     AQUA_CONFIG_FOLDER,
     AQUA_SERVICE_MODELS_BUCKET,
-    TENANCY_OCID,
     CONDA_BUCKET_NS,
+    TENANCY_OCID,
 )
 from ads.model import DataScienceModel, ModelVersionSet
 
