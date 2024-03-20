@@ -82,7 +82,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
             data = self.preprocess(df, series_id)
             data_i = self.drop_horizon(data)
-            if self.loaded_models is not None:
+            if self.loaded_models is not None and series_id in self.loaded_models:
                 model = self.loaded_models[series_id]
             else:
                 if self.perform_tuning:
@@ -245,54 +245,55 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
     def _generate_report(self):
         import datapane as dp
         from prophet.plot import add_changepoints_to_plot
-
-        series_ids = self.datasets.list_series_ids()
-
-        sec1_text = dp.Text(
-            "## Forecast Overview \n"
-            "These plots show your forecast in the context of historical data."
-        )
-        sec1 = _select_plot_list(
-            lambda s_id: self.models[s_id].plot(
-                self.outputs[s_id], include_legend=True
-            ),
-            series_ids=series_ids,
-        )
-
-        sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
-        sec2 = _select_plot_list(
-            lambda s_id: self.models[s_id].plot_components(self.outputs[s_id]),
-            series_ids=series_ids,
-        )
-
-        sec3_text = dp.Text(f"## Forecast Changepoints")
-        sec3_figs = {
-            s_id: self.models[s_id].plot(self.outputs[s_id]) for s_id in series_ids
-        }
-        for s_id in series_ids:
-            add_changepoints_to_plot(
-                sec3_figs[s_id].gca(), self.models[s_id], self.outputs[s_id]
+        self.models = dict()
+        series_ids = self.models.keys()
+        all_sections = []
+        if len(series_ids) > 0:
+            sec1_text = dp.Text(
+                "## Forecast Overview \n"
+                "These plots show your forecast in the context of historical data."
             )
-        sec3 = _select_plot_list(lambda s_id: sec3_figs[s_id], series_ids=series_ids)
+            sec1 = _select_plot_list(
+                lambda s_id: self.models[s_id].plot(
+                    self.outputs[s_id], include_legend=True
+                ),
+                series_ids=series_ids,
+            )
 
-        all_sections = [sec1_text, sec1, sec2_text, sec2, sec3_text, sec3]
+            sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
+            sec2 = _select_plot_list(
+                lambda s_id: self.models[s_id].plot_components(self.outputs[s_id]),
+                series_ids=series_ids,
+            )
 
-        sec5_text = dp.Text(f"## Prophet Model Seasonality Components")
-        model_states = []
-        for s_id in series_ids:
-            m = self.models[s_id]
-            model_states.append(
-                pd.Series(
-                    m.seasonalities,
-                    index=pd.Index(m.seasonalities.keys(), dtype="object"),
-                    name=s_id,
-                    dtype="object",
+            sec3_text = dp.Text(f"## Forecast Changepoints")
+            sec3_figs = {
+                s_id: self.models[s_id].plot(self.outputs[s_id]) for s_id in series_ids
+            }
+            for s_id in series_ids:
+                add_changepoints_to_plot(
+                    sec3_figs[s_id].gca(), self.models[s_id], self.outputs[s_id]
                 )
-            )
-        all_model_states = pd.concat(model_states, axis=1)
-        if not all_model_states.empty:
-            sec5 = dp.DataTable(all_model_states)
-            all_sections = all_sections + [sec5_text, sec5]
+            sec3 = _select_plot_list(lambda s_id: sec3_figs[s_id], series_ids=series_ids)
+
+            all_sections = [sec1_text, sec1, sec2_text, sec2, sec3_text, sec3]
+
+            sec5_text = dp.Text(f"## Prophet Model Seasonality Components")
+            model_states = []
+            for s_id in series_ids:
+                m = self.models[s_id]
+                model_states.append(
+                    pd.Series(
+                        m.seasonalities,
+                        index=pd.Index(m.seasonalities.keys(), dtype="object"),
+                        name=s_id,
+                        dtype="object",
+                    )
+                )
+            all_model_states = pd.concat(model_states, axis=1)
+            if not all_model_states.empty:
+                sec5 = dp.DataTable(all_model_states)
+                all_sections = all_sections + [sec5_text, sec5]
 
         if self.spec.generate_explanations:
             try:

@@ -107,7 +107,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
                 logger.debug(f"Time Index Monotonic: {data_i.index.is_monotonic}")
 
-                if self.loaded_models is not None:
+                if self.loaded_models is not None and s_id in self.loaded_models:
                     model = self.loaded_models[s_id]
                 else:
                     model = automl.Pipeline(
@@ -208,82 +208,85 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         )
         selected_models = dict()
         models = self.models
-        for i, (s_id, df) in enumerate(self.full_data_dict.items()):
-            selected_models[s_id] = {
-                "series_id": s_id,
-                "selected_model": models[s_id].selected_model_,
-                "model_params": models[s_id].selected_model_params_,
-            }
-        selected_models_df = pd.DataFrame(
-            selected_models.items(), columns=["series_id", "best_selected_model"]
-        )
-        selected_df = selected_models_df["best_selected_model"].apply(pd.Series)
-        selected_models_section = dp.Blocks(
-            "### Best Selected Model", dp.DataTable(selected_df)
-        )
+        all_sections = []
 
-        all_sections = [selected_models_text, selected_models_section]
+        if len(self.models) > 0:
+            for i, (s_id, m) in enumerate(models.items()):
+                selected_models[s_id] = {
+                    "series_id": s_id,
+                    "selected_model": m.selected_model_,
+                    "model_params": m.selected_model_params_,
+                }
+            selected_models_df = pd.DataFrame(
+                selected_models.items(), columns=["series_id", "best_selected_model"]
+            )
+            selected_df = selected_models_df["best_selected_model"].apply(pd.Series)
+            selected_models_section = dp.Blocks(
+                "### Best Selected Model", dp.DataTable(selected_df)
+            )
+
+            all_sections = [selected_models_text, selected_models_section]
 
         if self.spec.generate_explanations:
-            # try:
-            # If the key is present, call the "explain_model" method
-            self.explain_model()
+            try:
+                # If the key is present, call the "explain_model" method
+                self.explain_model()
 
-            # Create a markdown text block for the global explanation section
-            global_explanation_text = dp.Text(
-                f"## Global Explanation of Models \n "
-                "The following tables provide the feature attribution for the global explainability."
-            )
-
-            # Convert the global explanation data to a DataFrame
-            global_explanation_df = pd.DataFrame(self.global_explanation)
-
-            self.formatted_global_explanation = (
-                global_explanation_df / global_explanation_df.sum(axis=0) * 100
-            )
-            self.formatted_global_explanation = (
-                self.formatted_global_explanation.rename(
-                    {self.spec.datetime_column.name: ForecastOutputColumns.DATE}, axis=1
+                # Create a markdown text block for the global explanation section
+                global_explanation_text = dp.Text(
+                    f"## Global Explanation of Models \n "
+                    "The following tables provide the feature attribution for the global explainability."
                 )
-            )
 
-            # Create a markdown section for the global explainability
-            global_explanation_section = dp.Blocks(
-                "### Global Explainability ",
-                dp.DataTable(self.formatted_global_explanation),
-            )
+                # Convert the global explanation data to a DataFrame
+                global_explanation_df = pd.DataFrame(self.global_explanation)
 
-            aggregate_local_explanations = pd.DataFrame()
-            for s_id, local_ex_df in self.local_explanation.items():
-                local_ex_df_copy = local_ex_df.copy()
-                local_ex_df_copy["Series"] = s_id
-                aggregate_local_explanations = pd.concat(
-                    [aggregate_local_explanations, local_ex_df_copy], axis=0
+                self.formatted_global_explanation = (
+                        global_explanation_df / global_explanation_df.sum(axis=0) * 100
                 )
-            self.formatted_local_explanation = aggregate_local_explanations
-
-            local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
-            blocks = [
-                dp.DataTable(
-                    local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                    label=s_id,
+                self.formatted_global_explanation = (
+                    self.formatted_global_explanation.rename(
+                        {self.spec.datetime_column.name: ForecastOutputColumns.DATE}, axis=1
+                    )
                 )
-                for s_id, local_ex_df in self.local_explanation.items()
-            ]
-            local_explanation_section = (
-                dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
-            )
 
-            # Append the global explanation text and section to the "all_sections" list
-            all_sections = all_sections + [
-                global_explanation_text,
-                global_explanation_section,
-                local_explanation_text,
-                local_explanation_section,
-            ]
-            # except Exception as e:
-            #     logger.warn(f"Failed to generate Explanations with error: {e}.")
-            #     logger.debug(f"Full Traceback: {traceback.format_exc()}")
+                # Create a markdown section for the global explainability
+                global_explanation_section = dp.Blocks(
+                    "### Global Explainability ",
+                    dp.DataTable(self.formatted_global_explanation),
+                )
+
+                aggregate_local_explanations = pd.DataFrame()
+                for s_id, local_ex_df in self.local_explanation.items():
+                    local_ex_df_copy = local_ex_df.copy()
+                    local_ex_df_copy["Series"] = s_id
+                    aggregate_local_explanations = pd.concat(
+                        [aggregate_local_explanations, local_ex_df_copy], axis=0
+                    )
+                self.formatted_local_explanation = aggregate_local_explanations
+
+                local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
+                blocks = [
+                    dp.DataTable(
+                        local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
+                        label=s_id,
+                    )
+                    for s_id, local_ex_df in self.local_explanation.items()
+                ]
+                local_explanation_section = (
+                    dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+                )
+
+                # Append the global explanation text and section to the "all_sections" list
+                all_sections = all_sections + [
+                    global_explanation_text,
+                    global_explanation_section,
+                    local_explanation_text,
+                    local_explanation_section,
+                ]
+            except Exception as e:
+                logger.warn(f"Failed to generate Explanations with error: {e}.")
+                logger.debug(f"Full Traceback: {traceback.format_exc()}")
 
         model_description = dp.Text(
             "The AutoMLx model automatically preprocesses, selects and engineers "

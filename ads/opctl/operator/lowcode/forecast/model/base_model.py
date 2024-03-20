@@ -270,17 +270,20 @@ class ForecastOperatorBaseModel(ABC):
                     sec9 = dp.DataTable(self.eval_metrics)
                     train_metrics_sections = [sec9_text, sec9]
 
-                forecast_text = dp.Text(f"## Forecasted Data Overlaying Historical")
-                forecast_sec = get_forecast_plots(
-                    self.forecast_output,
-                    horizon=self.spec.horizon,
-                    test_data=test_data,
-                    ci_interval_width=self.spec.confidence_interval_width,
-                )
-                if series_name is not None and len(self.datasets.list_series_ids()) > 1:
-                    forecast_plots = [forecast_text, series_subtext, forecast_sec]
-                else:
-                    forecast_plots = [forecast_text, forecast_sec]
+
+                forecast_plots = []
+                if len(self.forecast_output.list_series_ids()) > 0:
+                    forecast_text = dp.Text(f"## Forecasted Data Overlaying Historical")
+                    forecast_sec = get_forecast_plots(
+                        self.forecast_output,
+                        horizon=self.spec.horizon,
+                        test_data=test_data,
+                        ci_interval_width=self.spec.confidence_interval_width,
+                    )
+                    if series_name is not None and len(self.datasets.list_series_ids()) > 1:
+                        forecast_plots = [forecast_text, series_subtext, forecast_sec]
+                    else:
+                        forecast_plots = [forecast_text, forecast_sec]
 
                 yaml_appendix_title = dp.Text(f"## Reference: YAML File")
                 yaml_appendix = dp.Code(code=self.config.to_yaml(), language="yaml")
@@ -557,13 +560,14 @@ class ForecastOperatorBaseModel(ABC):
         )
         if self.errors_dict:
             write_data(
-                data=pd.DataFrame(self.errors_dict.items(), columns=["model", "error"]),
+                data=pd.DataFrame.from_dict(self.errors_dict),
                 filename=os.path.join(
                     unique_output_dir, self.spec.errors_dict_filename
                 ),
-                format="csv",
+                format="json",
                 storage_options=storage_options,
                 index=True,
+                indent=4,
             )
         else:
             logger.info(f"All modeling completed successfully.")
@@ -650,38 +654,48 @@ class ForecastOperatorBaseModel(ABC):
         for s_id, data_i in self.datasets.get_data_by_series(
             include_horizon=False
         ).items():
-            explain_predict_fn = self.get_explain_predict_fn(series_id=s_id)
+            if s_id in self.models:
 
-            data_trimmed = data_i.tail(max(int(len(data_i) * ratio), 5)).reset_index(
-                drop=True
-            )
-            data_trimmed[datetime_col_name] = data_trimmed[datetime_col_name].apply(
-                lambda x: x.timestamp()
-            )
-
-            kernel_explnr = PermutationExplainer(
-                model=explain_predict_fn, masker=data_trimmed
-            )
-            kernel_explnr_vals = kernel_explnr.shap_values(data_trimmed)
-
-            exp_end_time = time.time()
-            global_ex_time = global_ex_time + exp_end_time - exp_start_time
-
-            self.local_explainer(
-                kernel_explnr, series_id=s_id, datetime_col_name=datetime_col_name
-            )
-            local_ex_time = local_ex_time + time.time() - exp_end_time
-
-            if not len(kernel_explnr_vals):
-                logger.warn(
-                    f"No explanations generated. Ensure that additional data has been provided."
+                explain_predict_fn = self.get_explain_predict_fn(series_id=s_id)
+                if self.spec.model == SupportedModels.Arima and s_id in self.constant_cols:
+                    data_i = data_i.drop(columns=self.constant_cols[s_id])
+                data_trimmed = data_i.tail(max(int(len(data_i) * ratio), 5)).reset_index(
+                    drop=True
                 )
-            else:
-                self.global_explanation[s_id] = dict(
-                    zip(
-                        data_trimmed.columns[1:],
-                        np.average(np.absolute(kernel_explnr_vals[:, 1:]), axis=0),
+                data_trimmed[datetime_col_name] = data_trimmed[datetime_col_name].apply(
+                    lambda x: x.timestamp()
+                )
+
+                # Explainer fails when boolean columns are passed
+                _, data_trimmed_encoded = _label_encode_dataframe(
+                    data_trimmed, no_encode={datetime_col_name, self.original_target_column}
+                )
+
+                kernel_explnr = PermutationExplainer(
+                    model=explain_predict_fn, masker=data_trimmed_encoded
+                )
+                kernel_explnr_vals = kernel_explnr.shap_values(data_trimmed_encoded)
+                exp_end_time = time.time()
+                global_ex_time = global_ex_time + exp_end_time - exp_start_time
+                self.local_explainer(
+                    kernel_explnr, series_id=s_id, datetime_col_name=datetime_col_name
+                )
+                local_ex_time = local_ex_time + time.time() - exp_end_time
+
+                if not len(kernel_explnr_vals):
+                    logger.warn(
+                        f"No explanations generated. Ensure that additional data has been provided."
                     )
+                else:
+                    self.global_explanation[s_id] = dict(
+                        zip(
+                            data_trimmed.columns[1:],
+                            np.average(np.absolute(kernel_explnr_vals[:, 1:]), axis=0),
+                        )
+                    )
+            else:
+                logger.warn(
+                    f"Skipping explanations for {s_id}, as forecast was not generated."
                 )
 
         logger.info(
@@ -700,9 +714,15 @@ class ForecastOperatorBaseModel(ABC):
             kernel_explainer: The kernel explainer object to use for generating explanations.
         """
         data = self.datasets.get_horizon_at_series(s_id=series_id)
-
+        if self.spec.model == SupportedModels.Arima and series_id in self.constant_cols:
+            data = data.drop(columns=self.constant_cols[series_id])
         data[datetime_col_name] = datetime_to_seconds(data[datetime_col_name])
         data = data.reset_index(drop=True)
+
+        # Explainer fails when boolean columns are passed
+        _, data = _label_encode_dataframe(
+            data, no_encode={datetime_col_name, self.original_target_column}
+        )
         # Generate local SHAP values using the kernel explainer
         local_kernel_explnr_vals = kernel_explainer.shap_values(data)
 
