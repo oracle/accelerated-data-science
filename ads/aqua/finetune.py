@@ -433,6 +433,7 @@ class AquaFineTuningApp(AquaApp):
 
         source_freeform_tags = source.freeform_tags or {}
         source_freeform_tags.pop(Tags.LICENSE.value, None)
+        source_freeform_tags.update({Tags.READY_TO_FINE_TUNE.value: False})
 
         self.update_model(
             model_id=ft_model.id,

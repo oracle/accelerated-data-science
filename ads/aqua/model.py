@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import os
 import re
 from dataclasses import InitVar, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import os
 from threading import Lock
 from typing import List, Union
 
@@ -27,16 +27,17 @@ from ads.aqua.constants import (
 from ads.aqua.data import AquaResourceIdentifier, Tags
 
 from ads.aqua.exception import AquaRuntimeError, AquaValueError
+from ads.aqua.training.exceptions import exit_code_dict
 from ads.aqua.utils import (
     LICENSE_TXT,
     README,
     READY_TO_DEPLOY_STATUS,
+    READY_TO_FINE_TUNE_STATUS,
     UNKNOWN,
     create_word_icon,
     get_artifact_path,
     read_file,
 )
-from ads.aqua.training.exceptions import exit_code_dict
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
@@ -45,10 +46,10 @@ from ads.common.utils import get_console_link, get_log_links
 from ads.config import (
     AQUA_SERVICE_MODELS_BUCKET,
     COMPARTMENT_OCID,
+    CONDA_BUCKET_NS,
     ODSC_MODEL_COMPARTMENT_OCID,
     PROJECT_OCID,
     TENANCY_OCID,
-    CONDA_BUCKET_NS,
 )
 from ads.model import DataScienceModel
 from ads.model.model_metadata import MetadataTaxonomyKeys, ModelCustomMetadata
@@ -106,6 +107,7 @@ class AquaModelSummary(DataClassSerializable):
     console_link: str = None
     search_text: str = None
     ready_to_deploy: bool = True
+    ready_to_finetune: bool = False
 
 
 @dataclass(repr=False)
@@ -636,8 +638,10 @@ class AquaModelApp(AquaApp):
         is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG.value in freeform_tags
         ready_to_deploy = (
             freeform_tags.get(Tags.AQUA_TAG.value, "").upper() == READY_TO_DEPLOY_STATUS
-            if is_fine_tuned_model
-            else True
+        )
+        ready_to_finetune = (
+            freeform_tags.get(Tags.READY_TO_FINE_TUNE.value, "").upper()
+            == READY_TO_FINE_TUNE_STATUS
         )
 
         return dict(
@@ -654,6 +658,7 @@ class AquaModelApp(AquaApp):
             console_link=console_link,
             search_text=search_text,
             ready_to_deploy=ready_to_deploy,
+            ready_to_finetune=ready_to_finetune,
         )
 
     @telemetry(entry_point="plugin=model&action=list", name="aqua")
