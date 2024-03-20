@@ -34,10 +34,12 @@ jobs:
             test-path: "tests/unitary"
             # `model` tests running in "slow_tests",
             # `feature_store` tests has its own test suite
+            # `forecast` tests has its own test suite
             # 'hpo' tests hangs if run together with all unitary tests. Tests running in separate command before running all unitary
             ignore-path: |
               --ignore tests/unitary/with_extras/model \
               --ignore tests/unitary/with_extras/feature_store \
+              --ignore tests/unitary/with_extras/operator/forecast \
               --ignore tests/unitary/with_extras/hpo
           - name: "slow_tests"
             test-path: "tests/unitary/with_extras/model"
@@ -63,11 +65,6 @@ jobs:
         name: "Test env setup"
         timeout-minutes: 30
 
-      # Installing forecast deps for python3.8 test setup only, it will not work with python3.9/3.10, because
-      # automlx do not support py3.9 and some versions of py3.10. This step omitted in -py39-py30.yml workflow
-      - name: "Install Forecasting dependencies"
-        run: |
-          pip install -e ".[forecast]"
       # Installing pii deps for python3.8 test setup only, it will not work with python3.9/3.10, because
       # 'datapane' library conflicts with pandas>2.2.0, which used in py3.9/3.10 setup
       - name: "Install PII dependencies"
