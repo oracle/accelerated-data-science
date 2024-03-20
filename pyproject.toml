@@ -21,7 +21,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads" # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.11.0"
+version = "2.11.1"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -114,6 +114,8 @@ opctl = [
   "oci-cli",
   "py-cpuinfo",
   "rich",
+  "fire",
+  "cachetools",
 ]
 optuna = ["optuna==2.9.0", "oracle_ads[viz]"]
 spark = ["pyspark>=3.0.0"]
@@ -178,7 +180,7 @@ pii = [
   "spacy==3.6.1",
 ]
 llm = ["langchain>=0.1.10", "evaluate>=0.4.0"]
-aqua = ["fire", "cachetools", "jupyter_server"]
+aqua = ["jupyter_server"]
 
 # To reduce backtracking (decrese deps install time) during test/dev env setup reducing number of versions pip is
 # trying to use. Ref - https://pip.pypa.io/en/stable/topics/dependency-resolution/#possible-ways-to-reduce-backtracking.
