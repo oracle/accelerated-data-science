@@ -23,7 +23,7 @@ def configure_aqua_logger():
 
     handler = logging.StreamHandler(sys.stdout)
     formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        "%(asctime)s - %(name)s.%(module)s - %(levelname)s - %(message)s"
     )
     handler.setFormatter(formatter)
     handler.setLevel(log_level)
