@@ -6,13 +6,13 @@ Release Notes
 ------
 Release date: March 21, 2024
 
-* Fixed the bugs
+* Fixed bugs and introduced enhancements following our recent release, which included internal adjustments for future features and updates for the Jupyter Lab 3 upgrade.
 
 2.11.1
 ------
 Release date: March 20, 2024
 
-* Internal changes to support upcoming features and changes in Notebook related to Jupyter Lab 3 upgrade
+* Internal changes to support upcoming features and changes in Notebook related to Jupyter Lab 3 upgrade.
 
 2.10.1
 ------
