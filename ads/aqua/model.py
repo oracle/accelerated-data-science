@@ -26,7 +26,6 @@ from ads.aqua.constants import (
 )
 from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaRuntimeError
-
 from ads.aqua.training.exceptions import exit_code_dict
 from ads.aqua.utils import (
     LICENSE_TXT,
@@ -228,7 +227,7 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
             ).value
         except Exception as e:
             logger.debug(
-                f"Failed to extract model hyperparameters from {model.id}:" f"{str(e)}"
+                f"Failed to extract model hyperparameters from {model.id}: " f"{str(e)}"
             )
             model_hyperparameters = {}
 

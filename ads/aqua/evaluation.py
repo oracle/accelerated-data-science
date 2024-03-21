@@ -962,7 +962,7 @@ class AquaEvaluationApp(AquaApp):
                         self._process_evaluation_summary(model=model, jobrun=jobrun)
                     )
                 except Exception as exc:
-                    logger.error(
+                    logger.warning(
                         f"Processing evaluation: {model.identifier} generated an exception: {exc}"
                     )
                     evaluations.append(
@@ -1007,7 +1007,7 @@ class AquaEvaluationApp(AquaApp):
             return True if response.status == 200 else False
         except oci.exceptions.ServiceError as ex:
             if ex.status == 404:
-                logger.info("Evaluation artifact not found.")
+                logger.debug(f"Evaluation artifact not found for {model.identifier}.")
                 return False
 
     @telemetry(entry_point="plugin=evaluation&action=get_status", name="aqua")
@@ -1416,10 +1416,11 @@ class AquaEvaluationApp(AquaApp):
                 target_attribute,
             )
         except:
-            logger.debug(
-                f"Missing `{target_attribute}` in custom metadata of the evaluation."
-                f"Evaluation id: {model.identifier} "
-            )
+            if target_attribute != EvaluationCustomMetadata.EVALUATION_ERROR:
+                logger.debug(
+                    f"Missing `{target_attribute}` in custom metadata of the evaluation."
+                    f"Evaluation id: {model.identifier} "
+                )
             return ""
 
     def _extract_metadata(self, metadata_list: List[Dict], key: str) -> Any:
@@ -1468,6 +1469,7 @@ class AquaEvaluationApp(AquaApp):
         except Exception as e:
             logger.debug(
                 f"Failed to retrieve source information for evaluation {evaluation.identifier}."
+                f"DEBUG INFO : {str(e)}"
             )
             source_name = ""
 
@@ -1538,8 +1540,9 @@ class AquaEvaluationApp(AquaApp):
                 ),
             )
         except Exception as e:
-            logger.error(
-                f"Failed to construct AquaResourceIdentifier from given id=`{id}`, and name=`{name}`, {str(e)}"
+            logger.debug(
+                f"Failed to construct AquaResourceIdentifier from given id=`{id}`, and name=`{name}`."
+                f"DEBUG INFO: {str(e)}"
             )
             return AquaResourceIdentifier()
 
@@ -1608,7 +1611,7 @@ class AquaEvaluationApp(AquaApp):
             return AquaEvalParams(**params[EvaluationConfig.PARAMS])
         except Exception as e:
             logger.debug(
-                f"Failed to retrieve model parameters for the model: {str(resource)}."
+                f"Failed to retrieve model parameters for the model: {str(resource)}. "
                 f"DEBUG INFO: {str(e)}."
             )
             return AquaEvalParams()
@@ -1631,7 +1634,7 @@ class AquaEvaluationApp(AquaApp):
 
         except Exception as e:
             logger.debug(
-                f"Failed to get job details from job_run_details: {job_run_details}"
+                f"Failed to get job details from job_run_details: {job_run_details} "
                 f"DEBUG INFO:{str(e)}"
             )
             return AquaResourceIdentifier()

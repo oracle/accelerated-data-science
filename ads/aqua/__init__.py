@@ -18,12 +18,9 @@ def get_logger_level():
 def configure_aqua_logger():
     """Configures the AQUA logger."""
 
-    # duplicate with utils?
     log_level = get_logger_level()
     logger = logging.getLogger(__name__)
     logger.setLevel(log_level)
-    # logger.log(log_level, "Log level set to %r", log_level)
-    logger.info("Log level set to %r", log_level)
 
     handler = logging.StreamHandler()  # sys.stdout
     formatter = logging.Formatter(
@@ -33,6 +30,7 @@ def configure_aqua_logger():
     handler.setLevel(log_level)
 
     logger.addHandler(handler)
+    logger.propagate = False
     return logger
 
 
