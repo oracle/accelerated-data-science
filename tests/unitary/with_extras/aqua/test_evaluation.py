@@ -206,6 +206,9 @@ class TestAquaModel(unittest.TestCase):
 
     def setUp(self):
         self.app = AquaEvaluationApp()
+
+        self._query_resources = utils.query_resources
+        self._query_resource = utils.query_resource
         utils.query_resources = MagicMock(
             return_value=[
                 oci.resource_search.models.ResourceSummary(**item)
@@ -214,24 +217,30 @@ class TestAquaModel(unittest.TestCase):
         )
         utils.query_resource = MagicMock(side_effect=self.side_effect_func)
 
+    def tearDown(self) -> None:
+        utils.query_resources = self._query_resources
+        utils.query_resource = self._query_resource
+
+    @staticmethod
     def side_effect_func(*args, **kwargs):
-        if args[1].startswith("ocid1.datasciencemodeldeployment"):
+        if args[0].startswith("ocid1.datasciencemodeldeployment"):
             return oci.resource_search.models.ResourceSummary(
                 **TestDataset.resource_summary_object_md[0]
             )
-        elif args[1].startswith("ocid1.datasciencemodel"):
+        elif args[0].startswith("ocid1.datasciencemodel"):
             return oci.resource_search.models.ResourceSummary(
                 **TestDataset.resource_summary_object_eval[0]
             )
-        elif args[1].startswith("ocid1.datasciencejob"):
+        elif args[0].startswith("ocid1.datasciencejob"):
             return oci.resource_search.models.ResourceSummary(
                 **TestDataset.resource_summary_object_jobrun[0]
             )
-        elif args[1].startswith("ocid1.logging"):
+        elif args[0].startswith("ocid1.logging"):
             return oci.resource_search.models.ResourceSummary()
 
     def print_expected_response(self, response, method):
         """Used for manually check expected output."""
+
         print(f"############ Expected Response For {method} ############")
         if isinstance(response, list):
             response = {"data": response}
@@ -240,6 +249,7 @@ class TestAquaModel(unittest.TestCase):
 
     def assert_payload(self, response, response_type):
         """Checks each field is not empty."""
+
         attributes = response_type.__annotations__.keys()
         rdict = asdict(response)
 
@@ -248,6 +258,7 @@ class TestAquaModel(unittest.TestCase):
 
     def test_get(self):
         """Tests get evaluation details successfully."""
+
         self.app.ds_client.get_model_provenance = MagicMock(
             return_value=oci.response.Response(
                 status=200,

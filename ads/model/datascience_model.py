@@ -18,7 +18,11 @@ from jsonschema import ValidationError, validate
 
 from ads.common import utils
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.config import COMPARTMENT_OCID, PROJECT_OCID
+from ads.config import (
+    COMPARTMENT_OCID,
+    PROJECT_OCID,
+    AQUA_SERVICE_MODELS_BUCKET as SERVICE_MODELS_BUCKET,
+)
 from ads.feature_engineering.schema import Schema
 from ads.jobs.builders.base import Builder
 from ads.model.artifact_downloader import (
@@ -1316,7 +1320,11 @@ class DataScienceModel(Builder):
                 bucket_uri = [bucket_uri]
 
             for uri in bucket_uri:
-                if not ObjectStorageDetails.from_path(uri).is_bucket_versioned():
+                os_path = ObjectStorageDetails.from_path(uri)
+                # for aqua use case, user may not have access to the service bucket.
+                if os_path.bucket == SERVICE_MODELS_BUCKET:
+                    continue
+                if not os_path.is_bucket_versioned():
                     message = f"Model artifact bucket {uri} is not versioned. Enable versioning on the bucket to proceed with model creation by reference."
                     logger.error(message)
                     raise BucketNotVersionedError(message)
