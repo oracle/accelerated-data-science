@@ -21,6 +21,7 @@ import fsspec
 import oci
 from oci.data_science.models import JobRun, Model
 
+from ads.aqua import logger
 from ads.aqua.constants import RqsAdditionalDetails
 from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
@@ -36,9 +37,8 @@ from ads.config import (
 )
 from ads.model import DataScienceModel, ModelVersionSet
 
-# TODO: allow the user to setup the logging level?
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-logger = logging.getLogger("ODSC_AQUA")
+# for not breaking current change
+logger = logger
 
 UNKNOWN = ""
 UNKNOWN_DICT = {}

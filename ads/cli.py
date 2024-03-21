@@ -4,19 +4,21 @@
 # Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import traceback
 import sys
+import traceback
 
 import fire
-from ads.common import logger
+
 from ads.aqua.cli import AquaCommand
+from ads.common import logger
 
 try:
     import click
-    import ads.opctl.cli
+
     import ads.jobs.cli
-    import ads.pipeline.cli
+    import ads.opctl.cli
     import ads.opctl.operator.cli
+    import ads.pipeline.cli
 except Exception as ex:
     print(
         "Please run `pip install oracle-ads[opctl]` to install "
