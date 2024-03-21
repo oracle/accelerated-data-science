@@ -406,7 +406,7 @@ class AquaUIApp(AquaApp):
             ).data
         except ServiceError as se:
             raise AquaResourceAccessError(
-                f"Could not check limits availability for the shape {instance_shape}.",
+                f"Could not check limits availability for the shape {instance_shape}. Make sure you have the necessary policy to check limits availability.",
                 service_payload=se.args[0] if se.args else None,
             )
 
