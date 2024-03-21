@@ -563,8 +563,7 @@ class AquaEvaluationApp(AquaApp):
             .with_custom_metadata_list(evaluation_model_custom_metadata)
             .with_defined_metadata_list(evaluation_model_taxonomy_metadata)
             .with_provenance_metadata(ModelProvenanceMetadata(training_id=UNKNOWN))
-            # TODO uncomment this once the evaluation container will get the updated version of the ADS
-            # .with_input_schema(create_aqua_evaluation_details.to_dict())
+            .with_input_schema(create_aqua_evaluation_details.to_dict())
             # TODO: decide what parameters will be needed
             .create(
                 remove_existing_artifact=False,  # TODO: added here for the purpose of demo and will revisit later
