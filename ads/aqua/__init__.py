@@ -5,8 +5,37 @@
 
 
 import logging
+import os
 import sys
+from argparse import ArgumentParser
 
-logger = logging.getLogger(__name__)
-handler = logging.StreamHandler(sys.stdout)
-logger.setLevel(logging.INFO)
+
+def get_logger_level():
+    """Retrieves logging level from environment variable `LOG_LEVEL`."""
+
+    level = os.environ.get("LOG_LEVEL", "INFO").upper()
+    return level
+
+
+def configure_aqua_logger():
+    """Configures the AQUA logger."""
+
+    # duplicate with utils?
+    log_level = get_logger_level()
+    logger = logging.getLogger(__name__)
+    logger.setLevel(log_level)
+    # logger.log(log_level, "Log level set to %r", log_level)
+    logger.info("Log level set to %r", log_level)
+
+    handler = logging.StreamHandler()  # sys.stdout
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    handler.setFormatter(formatter)
+    handler.setLevel(log_level)
+
+    logger.addHandler(handler)
+    return logger
+
+
+logger = configure_aqua_logger()
