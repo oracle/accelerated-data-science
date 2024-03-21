@@ -666,10 +666,11 @@ class ForecastOperatorBaseModel(ABC):
                     lambda x: x.timestamp()
                 )
 
-                # Explainer fails when boolean columns are passed
-                _, data_trimmed_encoded = _label_encode_dataframe(
-                    data_trimmed, no_encode={datetime_col_name, self.original_target_column}
-                )
+                # Explainer fails when boolean columns are passed for arima
+                if self.spec.model == SupportedModels.Arima:
+                    _, data_trimmed_encoded = _label_encode_dataframe(
+                        data_trimmed, no_encode={datetime_col_name, self.original_target_column}
+                    )
 
                 kernel_explnr = PermutationExplainer(
                     model=explain_predict_fn, masker=data_trimmed_encoded
@@ -714,15 +715,17 @@ class ForecastOperatorBaseModel(ABC):
             kernel_explainer: The kernel explainer object to use for generating explanations.
         """
         data = self.datasets.get_horizon_at_series(s_id=series_id)
+        # columns that were dropped in train_model in arima, should be dropped here as well
         if self.spec.model == SupportedModels.Arima and series_id in self.constant_cols:
             data = data.drop(columns=self.constant_cols[series_id])
         data[datetime_col_name] = datetime_to_seconds(data[datetime_col_name])
         data = data.reset_index(drop=True)
 
-        # Explainer fails when boolean columns are passed
-        _, data = _label_encode_dataframe(
-            data, no_encode={datetime_col_name, self.original_target_column}
-        )
+        # Explainer fails when boolean columns are passed for arima
+        if self.spec.model == SupportedModels.Arima:
+            _, data = _label_encode_dataframe(
+                data, no_encode={datetime_col_name, self.original_target_column}
+            )
         # Generate local SHAP values using the kernel explainer
         local_kernel_explnr_vals = kernel_explainer.shap_values(data)
 

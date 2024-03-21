@@ -133,8 +133,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             }
 
     def _build_model(self) -> pd.DataFrame:
-        from prophet import Prophet
-        from prophet.diagnostics import cross_validation, performance_metrics
 
         full_data_dict = self.datasets.get_data_by_series()
         self.models = dict()
@@ -160,6 +158,8 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         return self.forecast_output.get_forecast_long()
 
     def run_tuning(self, data_i, model_kwargs_i):
+        from prophet import Prophet
+        from prophet.diagnostics import cross_validation, performance_metrics
         def objective(trial):
             params = {
                 "seasonality_mode": trial.suggest_categorical(
@@ -245,7 +245,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
     def _generate_report(self):
         import datapane as dp
         from prophet.plot import add_changepoints_to_plot
-        self.models = dict()
         series_ids = self.models.keys()
         all_sections = []
         if len(series_ids) > 0:
