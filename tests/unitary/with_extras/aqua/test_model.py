@@ -82,6 +82,7 @@ class TestAquaModel(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        os.environ.pop("CONDA_BUCKET_NS", None)
         os.environ.pop("ODSC_MODEL_COMPARTMENT_OCID", None)
         reload(ads.config)
         reload(ads.aqua.model)
