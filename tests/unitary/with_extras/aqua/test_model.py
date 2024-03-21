@@ -75,6 +75,7 @@ class TestAquaModel(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        os.environ["CONDA_BUCKET_NS"] = "test-namespace"
         os.environ["ODSC_MODEL_COMPARTMENT_OCID"] = TestDataset.SERVICE_COMPARTMENT_ID
         reload(ads.config)
         reload(ads.aqua.model)
