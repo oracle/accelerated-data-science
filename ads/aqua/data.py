@@ -36,6 +36,7 @@ class Tags(Enum):
     AQUA_TAG = "OCI_AQUA"
     AQUA_SERVICE_MODEL_TAG = "aqua_service_model"
     AQUA_FINE_TUNED_MODEL_TAG = "aqua_fine_tuned_model"
+    AQUA_MODEL_NAME_TAG = "aqua_model_name"
     AQUA_EVALUATION = "aqua_evaluation"
     AQUA_FINE_TUNING = "aqua_finetuning"
     READY_TO_FINE_TUNE = "ready_to_fine_tune"

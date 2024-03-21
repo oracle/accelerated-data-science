@@ -17,7 +17,6 @@ from ads.aqua.model import AquaModelApp, Tags
 from ads.aqua.utils import (
     UNKNOWN,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
-    extract_id_and_name_from_tag,
     load_config,
     get_container_image,
     UNKNOWN_DICT,
@@ -62,7 +61,7 @@ class AquaDeployment(DataClassSerializable):
     id: str = None
     display_name: str = None
     aqua_service_model: bool = None
-    aqua_service_model_name: str = None
+    aqua_model_name: str = None
     state: str = None
     description: str = None
     created_on: str = None
@@ -122,14 +121,13 @@ class AquaDeployment(DataClassSerializable):
         aqua_service_model_tag = freeform_tags.get(
             Tags.AQUA_SERVICE_MODEL_TAG.value, None
         )
+        aqua_model_name = freeform_tags.get(Tags.AQUA_MODEL_NAME_TAG.value, UNKNOWN)
 
         return AquaDeployment(
             id=oci_model_deployment.id,
             display_name=oci_model_deployment.display_name,
             aqua_service_model=aqua_service_model_tag is not None,
-            aqua_service_model_name=extract_id_and_name_from_tag(
-                aqua_service_model_tag
-            )[1],
+            aqua_model_name=aqua_model_name,
             shape_info=shape_info,
             state=oci_model_deployment.lifecycle_state,
             lifecycle_details=getattr(
@@ -242,17 +240,9 @@ class AquaDeploymentApp(AquaApp):
             An Aqua deployment instance
 
         """
-        # todo: revisit error handling and pull deployment image info from config
-        # if not AQUA_MODEL_DEPLOYMENT_IMAGE:
-        #     raise AquaValueError(
-        #         f"AQUA_MODEL_DEPLOYMENT_IMAGE must be available in environment variables to "
-        #         f"continue with Aqua model deployment."
-        #     )
-
-        # todo: for fine tuned models, skip model creation.
         # Create a model catalog entry in the user compartment
         aqua_model = AquaModelApp().create(
-            model_id=model_id, comparment_id=compartment_id, project_id=project_id
+            model_id=model_id, compartment_id=compartment_id, project_id=project_id
         )
 
         tags = {}
@@ -263,6 +253,8 @@ class AquaDeploymentApp(AquaApp):
         ]:
             if tag in aqua_model.freeform_tags:
                 tags[tag] = aqua_model.freeform_tags[tag]
+
+        tags.update({Tags.AQUA_MODEL_NAME_TAG.value: aqua_model.display_name})
 
         # Set up info to get deployment config
         config_source_id = model_id
@@ -542,7 +534,7 @@ class AquaDeploymentApp(AquaApp):
             log_group_id=log_group_id,
             log_id=log_id,
             compartment_id=model_deployment.compartment_id,
-            source_id=model_deployment.id
+            source_id=model_deployment.id,
         )
 
         return AquaDeploymentDetail(
