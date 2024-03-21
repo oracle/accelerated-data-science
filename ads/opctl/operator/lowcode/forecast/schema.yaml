@@ -354,6 +354,7 @@ spec:
         - prophet
         - arima
         - neuralprophet
+        - xgboost
         - automlx
         - autots
         - auto

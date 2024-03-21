@@ -12,8 +12,10 @@ from .autots import AutoTSOperatorModel
 from .base_model import ForecastOperatorBaseModel
 from .neuralprophet import NeuralProphetOperatorModel
 from .prophet import ProphetOperatorModel
+from .xgboost import XGBoostOperatorModel
 from ..utils import select_auto_model
 from .forecast_datasets import ForecastDatasets
+
 
 class UnSupportedModelError(Exception):
     def __init__(self, model_type: str):
@@ -32,8 +34,9 @@ class ForecastOperatorModelFactory:
         SupportedModels.Prophet: ProphetOperatorModel,
         SupportedModels.Arima: ArimaOperatorModel,
         SupportedModels.NeuralProphet: NeuralProphetOperatorModel,
+        SupportedModels.XGBoost: XGBoostOperatorModel,
         SupportedModels.AutoMLX: AutoMLXOperatorModel,
-        SupportedModels.AutoTS: AutoTSOperatorModel
+        SupportedModels.AutoTS: AutoTSOperatorModel,
     }
 
     @classmethod

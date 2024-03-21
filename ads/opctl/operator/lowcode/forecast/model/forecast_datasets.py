@@ -224,19 +224,6 @@ class ForecastDatasets:
                 pass
         return series_ids
 
-    def format_wide(self):
-        data_merged = pd.concat(
-            [
-                v[v[k].notna()].set_index(self._datetime_column_name)
-                for k, v in self.get_data_by_series().items()
-            ],
-            axis=1,
-        ).reset_index()
-        return data_merged
-
-    def get_longest_datetime_column(self):
-        return self.format_wide()[self._datetime_column_name]
-
 
 class ForecastOutput:
     def __init__(
@@ -323,6 +310,7 @@ class ForecastOutput:
             start_idx = output_i.shape[0] - self.horizon - len(fit_val)
             output_i["fitted_value"].iloc[start_idx : -self.horizon] = fit_val
         else:
+            start_idx = output_i.shape[0] - self.horizon - len(fit_val)
             output_i["fitted_value"].iloc[start_idx : -self.horizon] = fit_val[
                 -(output_i.shape[0] - self.horizon) :
             ]

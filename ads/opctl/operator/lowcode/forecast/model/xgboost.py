@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import pandas as pd
 import numpy as np
-import pmdarima as pm
-from joblib import Parallel, delayed
+from xgboost import XGBRegressor
+from scipy.fft import fft
 
 from ads.opctl import logger
 
@@ -20,8 +20,8 @@ from .forecast_datasets import ForecastDatasets, ForecastOutput
 from ..const import ForecastOutputColumns, SupportedModels
 
 
-class ArimaOperatorModel(ForecastOperatorBaseModel):
-    """Class representing ARIMA operator model."""
+class XGBoostOperatorModel(ForecastOperatorBaseModel):
+    """Class representing XGBoost operator model."""
 
     def __init__(self, config: ForecastOperatorConfig, datasets: ForecastDatasets):
         super().__init__(config, datasets=datasets)
@@ -31,71 +31,131 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         self.formatted_local_explanation = None
 
     def set_kwargs(self):
-        # Extract the Confidence Interval Width and convert to arima's equivalent - alpha
-        if self.spec.confidence_interval_width is None:
-            self.spec.confidence_interval_width = 1 - self.spec.model_kwargs.get(
-                "alpha", 0.05
-            )
+        # # Extract the Confidence Interval Width and convert to arima's equivalent - alpha
+        # if self.spec.confidence_interval_width is None:
+        #     self.spec.confidence_interval_width = 1 - self.spec.model_kwargs.get(
+        #         "alpha", 0.05
+        #     )
         model_kwargs = self.spec.model_kwargs
-        model_kwargs["alpha"] = 1 - self.spec.confidence_interval_width
-        if "error_action" not in model_kwargs.keys():
-            model_kwargs["error_action"] = "ignore"
+        # model_kwargs["alpha"] = 1 - self.spec.confidence_interval_width
+        # if "error_action" not in model_kwargs.keys():
+        #     model_kwargs["error_action"] = "ignore"
         return model_kwargs
 
     def preprocess(self, data, series_id):  # TODO: re-use self.le for explanations
         self.le[series_id], df_encoded = _label_encode_dataframe(
             data,
-            no_encode={self.spec.datetime_column.name, self.original_target_column},
         )
-        return df_encoded.set_index(self.spec.datetime_column.name)
+        original_y = df_encoded[self.original_target_column].values
+        df_encoded["__new_target"] = (
+            df_encoded[self.original_target_column].diff().fillna(0)
+        )
+        # df_encoded['__fft_target'] = np.abs(fft(df_encoded[self.original_target_column].values))
+        return df_encoded.drop(self.original_target_column, axis=1), original_y
 
-    def _train_model(self, i, s_id, df, model_kwargs):
+    def reverse_diff(self, y, diff):
+        return diff.cumsum() + y[-1 * (self.spec.horizon + 1) : -self.spec.horizon]
+
+    def deconstruct_timestamp(self, df, dt_col_name):
+        dt_col = df[dt_col_name]
+        df["__Year"] = dt_col.dt.year
+        df["__Month"] = dt_col.dt.month
+        df["__Day"] = dt_col.dt.day
+        df["__DOW"] = dt_col.dt.dayofweek
+        df["__Week"] = dt_col.dt.week
+        return df.drop(dt_col_name, axis=1)
+
+    def add_lag(self, df, nlags=5):
+        for i in range(nlags):
+            df[f"__lag{i}"] = df[self.original_target_column].shift(i)
+        return df
+
+    def _train_model(self, data_long, model_kwargs):
         """Trains the ARIMA model for a given series of the dataset.
 
         Parameters
         ----------
-        i: int
-            The index of the series
-        s_id: str
-            The name of the series
         df: pd.DataFrame
             The dataframe containing the target data
         """
-        try:
-            target = self.original_target_column
-            self.forecast_output.init_series_output(series_id=s_id, data_at_series=df)
 
-            # format the dataframe for this target. Dropping NA on target[df] will remove all future data
-            data = self.preprocess(df, s_id)
-            data_i = self.drop_horizon(data)
+        # data_clean = self.deconstruct_timestamp(data_long.reset_index(), self.spec.datetime_column.name)
+        # data_clean = self.preprocess(data_clean, series_id="1")
+        # model = XGBRegressor(objective='reg:squarederror', n_estimators=10000)
 
-            # Split data into X and y for arima tune method
-            y = data_i[target]
-            X_in = data_i.drop(target, axis=1) if len(data_i.columns) > 1 else None
-            X_pred = self.get_horizon(data).drop(target, axis=1)
+        # X, y = data_clean.drop(self.original_target_column, axis=1), data_clean[self.original_target_column]
+        # model.fit(X, y)
+        # data_wide = self.datasets.format_wide()
 
-            if self.loaded_models is not None:
-                model = self.loaded_models[s_id]
+        from sklearn.metrics import mean_squared_error
+        from sklearn.model_selection import train_test_split
+        import optuna
+
+        for s_id in self.datasets.list_series_ids():
+            data = self.datasets.get_data_at_series(s_id, include_horizon=True)
+            self.forecast_output.init_series_output(series_id=s_id, data_at_series=data)
+            data_clean = self.deconstruct_timestamp(
+                data, self.spec.datetime_column.name
+            )
+            data_clean, original_y = self.preprocess(data_clean, series_id=s_id)
+            # data_clean = self.add_lag(data_clean)
+
+            horizon = self.get_horizon(data_clean)
+            historical = self.drop_horizon(data_clean)
+
+            X = historical.drop("__new_target", axis=1)
+            y = historical["__new_target"]
+
+            X_train, X_val, y_train, y_val = train_test_split(
+                X, y, test_size=0.2, random_state=42
+            )
+
+            if self.spec.tuning is not None:
+
+                def objective(trial):
+                    params = {
+                        "objective": "reg:squarederror",
+                        "n_estimators": 1000,
+                        "verbosity": 0,
+                        "learning_rate": trial.suggest_float(
+                            "learning_rate", 1e-3, 0.1, log=True
+                        ),
+                        "max_depth": trial.suggest_int("max_depth", 1, 10),
+                        "subsample": trial.suggest_float("subsample", 0.05, 1.0),
+                        "colsample_bytree": trial.suggest_float(
+                            "colsample_bytree", 0.05, 1.0
+                        ),
+                        "min_child_weight": trial.suggest_int(
+                            "min_child_weight", 1, 20
+                        ),
+                    }
+
+                    model = XGBRegressor(**params)
+                    model.fit(X_train, y_train, verbose=False)
+                    predictions = model.predict(X_val)
+                    rmse = mean_squared_error(y_val, predictions, squared=False)
+                    return rmse
+
+                study = optuna.create_study(direction="minimize")
+                study.optimize(objective, n_trials=self.spec.tuning.n_trials)
+
+                model = XGBRegressor(
+                    objective="reg:squarederror", n_estimators=1000, **study.best_params
+                )
             else:
-                # Build and fit model
-                model = pm.auto_arima(y=y, X=X_in, **model_kwargs)
+                model = XGBRegressor(objective="reg:squarederror", n_estimators=1000)
+            model.fit(X, y)
 
-            fitted_values = model.predict_in_sample(X=X_in).values
+            X_pred = horizon.drop("__new_target", axis=1)
+            pred = model.predict(X_pred)
+            yhat = self.reverse_diff(original_y, model.predict(X_pred))
 
-            # Predict and format forecast
-            yhat, conf_int = model.predict(
-                n_periods=self.spec.horizon,
-                X=X_pred,
-                return_conf_int=True,
-                alpha=model_kwargs["alpha"],
-            )
-            yhat_clean = pd.DataFrame(yhat, index=yhat.index, columns=["yhat"])
+            fitted_values = model.predict(X)
 
-            conf_int_clean = pd.DataFrame(
-                conf_int, index=yhat.index, columns=["yhat_lower", "yhat_upper"]
-            )
-            forecast = pd.concat([yhat_clean, conf_int_clean], axis=1)
-            logger.debug(f"-----------------Model {i}----------------------")
+            forecast = pd.DataFrame(yhat, columns=["yhat"])
+            forecast["yhat_lower"] = None
+            forecast["yhat_upper"] = None
+            logger.debug(f"-----------------Model {s_id}----------------------")
             logger.debug(forecast[["yhat", "yhat_lower", "yhat_upper"]].tail())
 
             self.forecast_output.populate_series_output(
@@ -108,21 +168,18 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
             self.models[s_id] = model
 
-            params = vars(model).copy()
-            for param in ["arima_res_", "endog_index_"]:
-                if param in params:
-                    params.pop(param)
+            params = model.get_params()
             self.model_parameters[s_id] = {
-                "framework": SupportedModels.Arima,
+                "framework": SupportedModels.XGBoost,
                 **params,
             }
 
             logger.debug("===========Done===========")
-        except Exception as e:
-            self.errors_dict[s_id] = {"model_name": self.spec.model, "error": str(e)}
+            # except Exception as e:
+            #     self.errors_dict[s_id] = {"model_name": self.spec.model, "error": str(e)}
 
     def _build_model(self) -> pd.DataFrame:
-        full_data_dict = self.datasets.get_data_by_series()
+        data_long = self.datasets.get_all_data_long(include_horizon=False)
         self.models = dict()
         model_kwargs = self.set_kwargs()
         self.forecast_output = ForecastOutput(
@@ -131,11 +188,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             target_column=self.original_target_column,
             dt_column=self.spec.datetime_column.name,
         )
-
-        Parallel(n_jobs=-1, require="sharedmem")(
-            delayed(self._train_model)(i, s_id, df, model_kwargs.copy())
-            for (i, (s_id, df)) in enumerate(full_data_dict.items())
-        )
+        self._train_model(data_long, model_kwargs)
 
         return self.forecast_output.get_forecast_long()
 
@@ -143,10 +196,10 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         """The method that needs to be implemented on the particular model level."""
         import datapane as dp
 
-        sec5_text = dp.Text(f"## ARIMA Model Parameters")
+        sec5_text = dp.Text(f"## XGBoost Model Parameters")
         blocks = [
-            dp.HTML(
-                m.summary().as_html(),
+            dp.DataTable(
+                pd.DataFrame(m.get_xgb_params(), index=["values"]).T,
                 label=s_id,
             )
             for i, (s_id, m) in enumerate(self.models.items())
@@ -216,10 +269,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
 
         model_description = dp.Text(
-            "An autoregressive integrated moving average, or ARIMA, is a statistical "
-            "analysis model that uses time series data to either better understand the "
-            "data set or to predict future trends. A statistical model is autoregressive if "
-            "it predicts future values based on past values."
+            "XGBoost leverages bagging and boosting to create complex models from simpler parts."
         )
         other_sections = all_sections
 

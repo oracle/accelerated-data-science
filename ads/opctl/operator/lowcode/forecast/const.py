@@ -14,6 +14,7 @@ class SupportedModels(str, metaclass=ExtendedEnumMeta):
     Prophet = "prophet"
     Arima = "arima"
     NeuralProphet = "neuralprophet"
+    XGBoost = "xgboost"
     AutoMLX = "automlx"
     AutoTS = "autots"
     Auto = "auto"
