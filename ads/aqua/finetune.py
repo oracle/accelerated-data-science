@@ -40,6 +40,7 @@ from ads.config import (
     AQUA_MODEL_FINETUNING_CONFIG,
     COMPARTMENT_OCID,
     CONDA_BUCKET_NS,
+    ODSC_MODEL_COMPARTMENT_OCID,
     PROJECT_OCID,
 )
 from ads.jobs.ads_job import Job
@@ -192,12 +193,11 @@ class AquaFineTuningApp(AquaApp):
                 )
 
         source = self.get_source(create_fine_tuning_details.ft_source_id)
-        # TODO: add the following validation for fine tuning aqua service model. Revisit it when all service models are available
-        # if source.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
-        #     raise AquaValueError(
-        #         f"Fine tuning is only supported for Aqua service models in {ODSC_MODEL_COMPARTMENT_OCID}. "
-        #         "Use a valid Aqua service model id instead."
-        #     )
+        if source.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
+            raise AquaValueError(
+                f"Fine tuning is only supported for Aqua service models in {ODSC_MODEL_COMPARTMENT_OCID}. "
+                "Use a valid Aqua service model id instead."
+            )
 
         target_compartment = (
             create_fine_tuning_details.compartment_id or COMPARTMENT_OCID
