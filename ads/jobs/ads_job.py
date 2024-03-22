@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 
 import fsspec
 import oci
+import yaml
 from ads.common.auth import default_signer
 from ads.common.decorator.utils import class_or_instance_method
 from ads.jobs.builders.base import Builder
@@ -545,6 +546,26 @@ class Job(Builder):
             # "apiVersion": self.api_version,
             "spec": spec,
         }
+
+    @class_or_instance_method
+    def from_yaml(
+        cls,
+        yaml_string: str = None,
+        uri: str = None,
+        loader: callable = yaml.SafeLoader,
+        **kwargs,
+    ):
+        if inspect.isclass(cls):
+            job = cls(**cls.auth)
+        else:
+            job = cls.__class__(**cls.auth)
+
+        if yaml_string:
+            return job.from_dict(yaml.load(yaml_string, Loader=loader))
+        if uri:
+            yaml_dict = yaml.load(cls._read_from_file(uri=uri, **kwargs), Loader=loader)
+            return job.from_dict(yaml_dict)
+        raise ValueError("Must provide either YAML string or URI location")
 
     @class_or_instance_method
     def from_dict(cls, config: dict) -> "Job":
