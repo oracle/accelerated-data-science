@@ -263,6 +263,7 @@ class Job(Builder):
             Job runtime, by default None.
 
         """
+        self.auth = self.auth.copy()
         for key in ["config", "signer", "client_kwargs"]:
             if kwargs.get(key):
                 self.auth[key] = kwargs.pop(key)
@@ -573,9 +574,9 @@ class Job(Builder):
             "runtime": cls._RUNTIME_MAPPING,
         }
         if inspect.isclass(cls):
-            job = cls()
+            job = cls(**cls.auth)
         else:
-            job = cls.__class__()
+            job = cls.__class__(**cls.auth)
 
         for key, value in spec.items():
             if key in mappings:
