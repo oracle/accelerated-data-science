@@ -1392,11 +1392,6 @@ class AquaEvaluationApp(AquaApp):
                     "memory_in_gbs": 128,
                     "block_storage_size": 200,
                 },
-                "VM.Standard.A1.Flex": {
-                    "ocpu": 8,
-                    "memory_in_gbs": 128,
-                    "block_storage_size": 200,
-                },
             },
             "default": {
                 "ocpu": 8,
