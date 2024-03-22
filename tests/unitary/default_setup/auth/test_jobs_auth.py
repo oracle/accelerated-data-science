@@ -41,7 +41,10 @@ class JobsAuthTest(TestCase):
         auth2 = {"client_kwargs": {"endpoint": "endpoint2.com"}}
         job1 = Job(**auth1).from_yaml(JOB_YAML)
         job2 = Job(**auth2).from_yaml(JOB_YAML)
+        job3 = Job.from_yaml(JOB_YAML)
         self.assertEqual(job1.auth, auth1)
         self.assertEqual(job1.infrastructure.auth, auth1)
         self.assertEqual(job2.auth, auth2)
         self.assertEqual(job2.infrastructure.auth, auth2)
+        self.assertEqual(job3.auth, {})
+        self.assertEqual(job3.infrastructure.auth, {})
