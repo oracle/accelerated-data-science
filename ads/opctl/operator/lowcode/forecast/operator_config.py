@@ -30,6 +30,22 @@ class DateTimeColumn(DataClassSerializable):
 
 
 @dataclass(repr=True)
+class PreprocessingSteps(DataClassSerializable):
+    """Class representing operator specification preprocessing details."""
+
+    missing_value_imputation: bool = True
+    outlier_treatment: bool = True
+
+
+@dataclass(repr=True)
+class DataPreprocessor(DataClassSerializable):
+    """Class representing operator specification preprocessing details."""
+
+    enabled: bool = True
+    steps: PreprocessingSteps = field(default_factory=PreprocessingSteps)
+
+
+@dataclass(repr=True)
 class Tuning(DataClassSerializable):
     """Class representing operator specification tuning details."""
 
@@ -54,7 +70,7 @@ class ForecastOperatorSpec(DataClassSerializable):
     global_explanation_filename: str = None
     local_explanation_filename: str = None
     target_column: str = None
-    preprocessing: bool = None
+    preprocessing: DataPreprocessor = field(default_factory=DataPreprocessor)
     datetime_column: DateTimeColumn = field(default_factory=DateTimeColumn)
     target_category_columns: List[str] = field(default_factory=list)
     generate_report: bool = None
@@ -79,7 +95,7 @@ class ForecastOperatorSpec(DataClassSerializable):
         self.confidence_interval_width = self.confidence_interval_width or 0.80
         self.report_filename = self.report_filename or "report.html"
         self.preprocessing = (
-            self.preprocessing if self.preprocessing is not None else True
+            self.preprocessing if self.preprocessing is not None else DataPreprocessor(enabled=True)
         )
         # For Report Generation. When user doesn't specify defaults to True
         self.generate_report = (

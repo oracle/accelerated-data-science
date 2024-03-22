@@ -185,6 +185,7 @@ def populate_yaml(
     additional_data_path=None,
     test_data_path=None,
     output_data_path=None,
+    preprocessing=None,
 ):
     if historical_data_path is None:
         historical_data_path, additional_data_path, test_data_path = setup_rossman()
@@ -204,7 +205,7 @@ def populate_yaml(
     yaml_i["spec"]["datetime_column"]["name"] = "Date"
     yaml_i["spec"]["target_category_columns"] = ["Store"]
     yaml_i["spec"]["horizon"] = HORIZON
-
+    yaml_i["spec"]["preprocessing"] = preprocessing
     if generate_train_metrics:
         yaml_i["spec"]["generate_metrics"] = generate_train_metrics
     if model == "autots":
@@ -372,6 +373,7 @@ def test_0_series(operator_setup, model):
         historical_data_path=historical_data_path,
         additional_data_path=additional_data_path,
         test_data_path=test_data_path,
+        preprocessing={"enabled": False}
     )
     with pytest.raises(DataMismatchError):
         run_yaml(
@@ -454,12 +456,14 @@ def test_2_series(operator_setup, model):
     historical_data_path, additional_data_path, test_data_path = setup_artificial_data(
         tmpdirname, hist_data, add_data, test_data
     )
+    preprocessing_steps = {"missing_value_imputation": True, "outlier_detection": False}
     yaml_i, output_data_path = populate_yaml(
         tmpdirname=tmpdirname,
         model=model,
         historical_data_path=historical_data_path,
         additional_data_path=additional_data_path,
         test_data_path=test_data_path,
+        preprocessing={"enabled": True, "steps": preprocessing_steps}
     )
     with pytest.raises(DataMismatchError):
         # 4 columns in historical data, but only 1 cat col specified

@@ -286,11 +286,23 @@ spec:
       default: target
 
     preprocessing:
-      type: boolean
+      type: dict
       required: false
-      default: true
-      meta:
-        description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
+      schema:
+        enabled:
+          type: boolean
+          required: false
+          default: true
+          meta:
+            description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
+        missing_value_imputation:
+          type: boolean
+          required: false
+          default: true
+        outlier_detection:
+          type: boolean
+          required: false
+          default: true
 
     generate_explanations:
       type: boolean
