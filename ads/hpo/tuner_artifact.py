@@ -53,7 +53,7 @@ class UploadTunerArtifact:
         Args:
             script_dict (dict): dict which contains the script names and path
         """
-        tuner_path = "tuner_artifacts" + str(uuid.uuid4()) + ".zip"
+        tuner_path = f"tuner_artifacts{uuid.uuid4()}.zip"
         tuner_path_name = os.path.splitext(tuner_path)[0]
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -198,7 +198,7 @@ class DownloadTunerArtifact:
     def __init__(self, file_uri, target_file_path=None, auth=None):
         self.file_uri = file_uri
         self.target_file_path = (
-            os.path.join("/tmp", "hpo_" + str(uuid.uuid4()) + ".zip")
+            os.path.join("/tmp", f"hpo_{uuid.uuid4()}.zip")
             if target_file_path is None
             else target_file_path
         )
@@ -352,7 +352,7 @@ class DownloadTunerArtifact:
     def load_target_from_script(script_path):
         script_name = os.path.basename(script_path).replace(".py", "")
         spec = importlib.util.spec_from_file_location(
-            script_name + "%s" % uuid.uuid4(), script_path
+            f"{script_name}{uuid.uuid4()}", script_path
         )
         func = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(func)
