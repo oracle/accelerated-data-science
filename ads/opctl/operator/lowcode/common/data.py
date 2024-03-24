@@ -16,6 +16,7 @@ from ads.opctl.operator.lowcode.common.errors import (
     DataMismatchError,
 )
 from abc import ABC
+import pandas as pd
 
 
 class AbstractData(ABC):
@@ -25,6 +26,19 @@ class AbstractData(ABC):
         self._data_dict = dict()
         self.name = name
         self.load_transform_ingest_data(spec)
+
+    def get_raw_data_by_cat(self, category):
+        mapping = self._data_transformer.get_target_category_columns_map()
+        # For given category, mapping gives the target_category_columns and it's values.
+        # condition filters raw_data based on the values of target_category_columns for the given category
+        condition = pd.Series(True, index=self.raw_data.index)
+        if category in mapping:
+            for col, val in mapping[category].items():
+                condition &= (self.raw_data[col] == val)
+        data_by_cat = self.raw_data[condition].reset_index(drop=True)
+        data_by_cat = self._data_transformer._format_datetime_col(data_by_cat)
+        return data_by_cat
+
 
     def get_dict_by_series(self):
         if not self._data_dict:
@@ -73,8 +87,8 @@ class AbstractData(ABC):
         return data
 
     def load_transform_ingest_data(self, spec):
-        raw_data = self._load_data(getattr(spec, self.name))
-        self.data = self._transform_data(spec, raw_data)
+        self.raw_data = self._load_data(getattr(spec, self.name))
+        self.data = self._transform_data(spec, self.raw_data)
         self._ingest_data(spec)
 
     def _ingest_data(self, spec):
