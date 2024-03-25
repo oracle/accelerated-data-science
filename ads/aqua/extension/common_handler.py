@@ -7,6 +7,8 @@
 from importlib import metadata
 
 from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
+from ads.aqua.exception import AquaResourceAccessError
 
 
 class ADSVersionHandler(AquaAPIhandler):
@@ -16,6 +18,19 @@ class ADSVersionHandler(AquaAPIhandler):
         self.finish({"data": metadata.version("oracle_ads")})
 
 
+class CompatibilityCheckHandler(AquaAPIhandler):
+    """The handler to check if the extension is compatible."""
+
+    def get(self):
+        if ODSC_MODEL_COMPARTMENT_OCID:
+            return self.finish(dict(status="ok"))
+        else:
+            raise AquaResourceAccessError(
+                f"The AI Quick actions extension is not compatible in the given region."
+            )
+
+
 __handlers__ = [
     ("ads_version", ADSVersionHandler),
+    ("hello", CompatibilityCheckHandler),
 ]
