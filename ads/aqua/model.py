@@ -47,10 +47,10 @@ from ads.config import (
     AQUA_SERVICE_MODELS_BUCKET,
     COMPARTMENT_OCID,
     CONDA_BUCKET_NS,
-    ODSC_MODEL_COMPARTMENT_OCID,
     PROJECT_OCID,
     TENANCY_OCID,
 )
+from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.model import DataScienceModel
 from ads.model.model_metadata import MetadataTaxonomyKeys, ModelCustomMetadata
 from ads.telemetry import telemetry
