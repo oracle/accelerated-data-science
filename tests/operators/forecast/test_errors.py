@@ -26,7 +26,7 @@ from ads.opctl.operator.lowcode.forecast.errors import (
     ForecastInputDataError,
 )
 from ads.opctl.operator.cmd import run
-
+import math
 
 NUM_ROWS = 1000
 NUM_SERIES = 10
@@ -172,8 +172,9 @@ def run_yaml(tmpdirname, yaml_i, output_data_path):
     run(yaml_i, backend="operator.local", debug=True)
     subprocess.run(f"ls -a {output_data_path}", shell=True)
 
-    test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")
-    print(test_metrics)
+    if 'test_data' in yaml_i['spec']:
+        test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")
+        print(test_metrics)
     train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
     print(train_metrics)
 
@@ -185,6 +186,7 @@ def populate_yaml(
     additional_data_path=None,
     test_data_path=None,
     output_data_path=None,
+    preprocessing=None,
 ):
     if historical_data_path is None:
         historical_data_path, additional_data_path, test_data_path = setup_rossman()
@@ -204,7 +206,8 @@ def populate_yaml(
     yaml_i["spec"]["datetime_column"]["name"] = "Date"
     yaml_i["spec"]["target_category_columns"] = ["Store"]
     yaml_i["spec"]["horizon"] = HORIZON
-
+    if preprocessing:
+        yaml_i["spec"]["preprocessing"] = preprocessing
     if generate_train_metrics:
         yaml_i["spec"]["generate_metrics"] = generate_train_metrics
     if model == "autots":
@@ -372,6 +375,7 @@ def test_0_series(operator_setup, model):
         historical_data_path=historical_data_path,
         additional_data_path=additional_data_path,
         test_data_path=test_data_path,
+        preprocessing={"enabled": False}
     )
     with pytest.raises(DataMismatchError):
         run_yaml(
@@ -429,6 +433,49 @@ def test_invalid_dates(operator_setup, model):
         )
 
 
+def test_disabling_outlier_treatment(operator_setup):
+    tmpdirname = operator_setup
+    NUM_ROWS = 100
+    hist_data_0 = pd.concat(
+        [
+            HISTORICAL_DATETIME_COL[: NUM_ROWS - HORIZON],
+            TARGET_COL[: NUM_ROWS - HORIZON],
+        ],
+        axis=1,
+    )
+    outliers = [1000, -800]
+    hist_data_0.at[40, 'Sales'] = outliers[0]
+    hist_data_0.at[75, 'Sales'] = outliers[1]
+    historical_data_path, additional_data_path, test_data_path = setup_artificial_data(
+        tmpdirname, hist_data_0
+    )
+
+    yaml_i, output_data_path = populate_yaml(
+        tmpdirname=tmpdirname,
+        model="arima",
+        historical_data_path=historical_data_path
+    )
+    yaml_i["spec"].pop("target_category_columns")
+    yaml_i["spec"].pop("additional_data")
+
+    # running default pipeline where outlier will be treated
+    run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
+    forecast_without_outlier = pd.read_csv(f"{tmpdirname}/results/forecast.csv")
+    input_vals_without_outlier = set(forecast_without_outlier['input_value'])
+    assert all(
+        item not in input_vals_without_outlier for item in outliers), "forecast file should not contain any outliers"
+
+    # switching off outlier_treatment
+    preprocessing_steps = {"missing_value_imputation": True, "outlier_treatment": False}
+    preprocessing = {"enabled": True, "steps": preprocessing_steps}
+    yaml_i["spec"]["preprocessing"] = preprocessing
+    run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
+    forecast_with_outlier = pd.read_csv(f"{tmpdirname}/results/forecast.csv")
+    input_vals_with_outlier = set(forecast_with_outlier['input_value'])
+    assert all(
+        item in input_vals_with_outlier for item in outliers), "forecast file should contain all the outliers"
+
+
 @pytest.mark.parametrize("model", MODELS)
 def test_2_series(operator_setup, model):
     # Test w and w/o add data
@@ -454,12 +501,14 @@ def test_2_series(operator_setup, model):
     historical_data_path, additional_data_path, test_data_path = setup_artificial_data(
         tmpdirname, hist_data, add_data, test_data
     )
+    preprocessing_steps = {"missing_value_imputation": True, "outlier_treatment": False}
     yaml_i, output_data_path = populate_yaml(
         tmpdirname=tmpdirname,
         model=model,
         historical_data_path=historical_data_path,
         additional_data_path=additional_data_path,
         test_data_path=test_data_path,
+        preprocessing={"enabled": True, "steps": preprocessing_steps}
     )
     with pytest.raises(DataMismatchError):
         # 4 columns in historical data, but only 1 cat col specified

@@ -10,7 +10,6 @@ from ads.opctl.operator.lowcode.common.utils import (
     merge_category_columns,
 )
 from ads.opctl.operator.lowcode.common.data import AbstractData
-from ads.opctl.operator.lowcode.common.data import AbstractData
 from ads.opctl.operator.lowcode.anomaly.utils import get_frequency_of_datetime
 from ads.opctl import logger
 import pandas as pd
