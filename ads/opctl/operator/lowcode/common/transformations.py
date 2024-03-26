@@ -58,7 +58,7 @@ class Transformations(ABC):
         clean_df = self._format_datetime_col(clean_df)
         clean_df = self._set_multi_index(clean_df)
 
-        if self.preprocessing.enabled:
+        if self.preprocessing and self.preprocessing.enabled:
             if self.name == "historical_data":
                 if self.preprocessing.steps.missing_value_imputation:
                     try:
