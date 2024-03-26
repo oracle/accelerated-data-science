@@ -31,7 +31,7 @@ class DateTimeColumn(DataClassSerializable):
 
 @dataclass(repr=True)
 class PreprocessingSteps(DataClassSerializable):
-    """Class representing operator specification preprocessing details."""
+    """Class representing preprocessing steps for operator."""
 
     missing_value_imputation: bool = True
     outlier_treatment: bool = True
