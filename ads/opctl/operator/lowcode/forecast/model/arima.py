@@ -29,6 +29,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         self.local_explanation = {}
         self.formatted_global_explanation = None
         self.formatted_local_explanation = None
+        self.constant_cols = {}
 
     def set_kwargs(self):
         # Extract the Confidence Interval Width and convert to arima's equivalent - alpha
@@ -64,6 +65,10 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         try:
             target = self.original_target_column
             self.forecast_output.init_series_output(series_id=s_id, data_at_series=df)
+            # If trend is constant, remove constant columns
+            if 'trend' not in model_kwargs or model_kwargs['trend'] == 'c':
+                self.constant_cols[s_id] = df.columns[df.nunique() == 1]
+                df = df.drop(columns=self.constant_cols[s_id])
 
             # format the dataframe for this target. Dropping NA on target[df] will remove all future data
             data = self.preprocess(df, s_id)
@@ -74,7 +79,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             X_in = data_i.drop(target, axis=1) if len(data_i.columns) > 1 else None
             X_pred = self.get_horizon(data).drop(target, axis=1)
 
-            if self.loaded_models is not None:
+            if self.loaded_models is not None and s_id in self.loaded_models:
                 model = self.loaded_models[s_id]
             else:
                 # Build and fit model
@@ -143,17 +148,18 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
     def _generate_report(self):
         """The method that needs to be implemented on the particular model level."""
         import datapane as dp
-
-        sec5_text = dp.Text(f"## ARIMA Model Parameters")
-        blocks = [
-            dp.HTML(
-                m.summary().as_html(),
-                label=s_id,
-            )
-            for i, (s_id, m) in enumerate(self.models.items())
-        ]
-        sec5 = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
-        all_sections = [sec5_text, sec5]
+        all_sections = []
+        if len(self.models) > 0:
+            sec5_text = dp.Text(f"## ARIMA Model Parameters")
+            blocks = [
+                dp.HTML(
+                    m.summary().as_html(),
+                    label=s_id,
+                )
+                for i, (s_id, m) in enumerate(self.models.items())
+            ]
+            sec5 = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+            all_sections = [sec5_text, sec5]
 
         if self.spec.generate_explanations:
             try:
