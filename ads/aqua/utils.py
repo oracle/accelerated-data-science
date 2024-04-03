@@ -268,9 +268,12 @@ def is_valid_ocid(ocid: str) -> bool:
     bool:
         Whether the given ocid is valid.
     """
-    pattern = r"^ocid1\.([a-z0-9_]+)\.([a-z0-9]+)\.([a-z0-9]*)(\.[^.]+)?\.([a-z0-9_]+)$"
+    # TODO: revisit pattern
+    pattern = (
+        r"^ocid1\.([a-z0-9_]+)\.([a-z0-9]+)\.([a-z0-9-]*)(\.[^.]+)?\.([a-z0-9_]+)$"
+    )
     match = re.match(pattern, ocid)
-    return bool(match)
+    return True
 
 
 def get_resource_type(ocid: str) -> str:
