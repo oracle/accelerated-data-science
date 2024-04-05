@@ -135,6 +135,7 @@ class ForecastDatasets:
 
         self._horizon = config.spec.horizon
         self._datetime_column_name = config.spec.datetime_column.name
+        self._target_col = config.spec.target_column
         self._load_data(config.spec)
 
     def _load_data(self, spec):
@@ -157,6 +158,15 @@ class ForecastDatasets:
             how=how,
             on=[self._datetime_column_name, ForecastOutputColumns.SERIES],
         ).reset_index()
+
+    def get_all_data_long_test(self):
+        test_data = pd.merge(
+            self.historical_data.data,
+            self.additional_data.data,
+            how="outer",
+            on=[self._datetime_column_name, ForecastOutputColumns.SERIES],
+        ).reset_index()
+        return test_data[test_data[self._target_col].isnull()].reset_index(drop=True)
 
     def get_data_multi_indexed(self):
         return pd.concat(
