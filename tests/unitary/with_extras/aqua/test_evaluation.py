@@ -4,6 +4,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import asyncio
 import base64
 import copy
 import json
@@ -676,10 +677,10 @@ class TestAquaEvaluation(unittest.TestCase):
     @parameterized.expand(
         [
             (None, AquaRuntimeError),
-            # (
-            #     DataScienceModel(),
-            #     AquaMissingKeyError,
-            # ),
+            (
+                DataScienceModel(),
+                AquaMissingKeyError,
+            ),
         ]
     )
     @patch.object(DataScienceModel, "from_id")

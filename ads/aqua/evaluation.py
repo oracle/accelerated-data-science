@@ -833,13 +833,13 @@ class AquaEvaluationApp(AquaApp):
         logger.info(f"Fetching evaluation: {eval_id} details ...")
 
         resource = utils.query_resource(eval_id)
-        model_provenance = self.ds_client.get_model_provenance(eval_id).data
-
         if not resource:
             raise AquaRuntimeError(
                 f"Failed to retrieve evalution {eval_id}."
                 "Please check if the OCID is correct."
             )
+        model_provenance = self.ds_client.get_model_provenance(eval_id).data
+
         jobrun_id = model_provenance.training_id
         job_run_details = self._fetch_jobrun(
             resource, use_rqs=False, jobrun_id=jobrun_id
@@ -1037,14 +1037,15 @@ class AquaEvaluationApp(AquaApp):
         """
         eval = utils.query_resource(eval_id)
 
-        # TODO: add job_run_id as input param to skip the query below
-        model_provenance = self.ds_client.get_model_provenance(eval_id).data
-
         if not eval:
             raise AquaRuntimeError(
                 f"Failed to retrieve evalution {eval_id}."
                 "Please check if the OCID is correct."
             )
+
+        # TODO: add job_run_id as input param to skip the query below
+        model_provenance = self.ds_client.get_model_provenance(eval_id).data
+
         jobrun_id = model_provenance.training_id
         job_run_details = self._fetch_jobrun(eval, use_rqs=False, jobrun_id=jobrun_id)
 
@@ -1294,7 +1295,10 @@ class AquaEvaluationApp(AquaApp):
             raise AquaRuntimeError(
                 f"Failed to get evaluation details for model {eval_id}"
             )
-        job_run_id = model.provenance_metadata.training_id
+
+        job_run_id = (
+            model.provenance_metadata.training_id if model.provenance_metadata else None
+        )
         if not job_run_id:
             raise AquaMissingKeyError(
                 "Model provenance is missing job run training_id key"
@@ -1357,7 +1361,7 @@ class AquaEvaluationApp(AquaApp):
             job_id = model.custom_metadata_list.get(
                 EvaluationCustomMetadata.EVALUATION_JOB_ID.value
             ).value
-        except ValueError:
+        except Exception:
             raise AquaMissingKeyError(
                 f"Custom metadata is missing {EvaluationCustomMetadata.EVALUATION_JOB_ID.value} key"
             )
@@ -1389,6 +1393,7 @@ class AquaEvaluationApp(AquaApp):
             )
 
     def load_evaluation_config(self, eval_id):
+        """Loads evaluation config."""
         # TODO
         return {
             "model_params": {
@@ -1567,20 +1572,6 @@ class AquaEvaluationApp(AquaApp):
             )
             return AquaResourceIdentifier()
 
-    def _get_jobrun(
-        self, model: oci.resource_search.models.ResourceSummary, mapping: dict = {}
-    ) -> Union[
-        oci.resource_search.models.ResourceSummary, oci.data_science.models.JobRun
-    ]:
-        jobrun_id = self._get_attribute_from_model_metadata(
-            model, EvaluationCustomMetadata.EVALUATION_JOB_RUN_ID.value
-        )
-        job_run = mapping.get(jobrun_id)
-
-        if not job_run:
-            job_run = self._fetch_jobrun(model, use_rqs=True, jobrun_id=jobrun_id)
-        return job_run
-
     def _fetch_jobrun(
         self,
         resource: oci.resource_search.models.ResourceSummary,
@@ -1757,7 +1748,7 @@ class AquaEvaluationApp(AquaApp):
         Examples
         --------
         >>> _extract_job_lifecycle_details("Job run artifact execution failed with exit code 16")
-        'The evaluation configuration is invalid due to content validation errors.'
+        'Validation errors in the evaluation config. Exit code: 16.'
 
         >>> _extract_job_lifecycle_details("Job completed successfully.")
         'Job completed successfully.'
