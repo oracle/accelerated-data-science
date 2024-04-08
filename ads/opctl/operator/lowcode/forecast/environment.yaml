@@ -18,3 +18,4 @@ dependencies:
       - optuna==3.1.0
       - oracle-automlx==23.4.1
       - oracle-automlx[forecasting]==23.4.1
+      - fire
