@@ -228,7 +228,7 @@ class TestDataset:
                         "category": null,
                         "description": null,
                         "key": "Hyperparameters",
-                        "value": '{"model_params": {"max_tokens": 500, "top_p": 1, "top_k": 50, "temperature": 0.7, "presence_penalty": 0, "frequency_penalty": 0, "stop": [], "shape": "VM.Standard.E3.Flex", "dataset_path": "oci://mybucket@mytenancy/data.jsonl", "report_path": "oci://oci://mybucket@mytenancy/report"}}',
+                        "value": '{"model_params": {"max_tokens": 500, "top_p": 1, "top_k": 50, "temperature": 0.7, "presence_penalty": 0, "frequency_penalty": 0, "stop": [], "shape": "VM.Standard.E3.Flex", "dataset_path": "oci://mybucket@mytenancy/data.jsonl", "report_path": "oci://mybucket@mytenancy/report"}}',
                     },
                     {
                         "category": null,
@@ -294,7 +294,7 @@ class TestDataset:
                         "category": null,
                         "description": null,
                         "key": "Hyperparameters",
-                        "value": '{"model_params": {"max_tokens": 500, "top_p": 1, "top_k": 50, "temperature": 0.7, "presence_penalty": 0, "frequency_penalty": 0, "stop": [], "shape": "VM.Standard.E3.Flex", "dataset_path": "oci://mybucket@mytenancy/data.jsonl", "report_path": "oci://oci://mybucket@mytenancy/report"}}',
+                        "value": '{"model_params": {"max_tokens": 500, "top_p": 1, "top_k": 50, "temperature": 0.7, "presence_penalty": 0, "frequency_penalty": 0, "stop": [], "shape": "VM.Standard.E3.Flex", "dataset_path": "oci://mybucket@mytenancy/data.jsonl", "report_path": "oci://mybucket@mytenancy/report"}}',
                     },
                     {
                         "category": null,
