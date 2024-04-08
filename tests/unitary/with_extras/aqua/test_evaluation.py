@@ -824,9 +824,6 @@ class TestAquaEvaluationList(unittest.TestCase):
         assert len(response) == 1
 
 
-from ads.aqua import logger
-
-
 class TestCancelDeleteEvaluation(unittest.IsolatedAsyncioTestCase):
     """More test cases for cancel and delete evaluation."""
 
