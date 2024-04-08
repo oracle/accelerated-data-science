@@ -820,7 +820,16 @@ class TestAquaEvaluationList(unittest.TestCase):
         mock_query_resources.return_value = [
             oci.resource_search.models.ResourceSummary(**eval_without_meta)
         ]
+        self.app.ds_client.head_model_artifact = MagicMock(
+            return_value=oci.response.Response(
+                status=200,
+                request=MagicMock(),
+                headers=MagicMock(),
+                data=MagicMock(),
+            ),
+        )
         response = self.app.list(TestDataset.COMPARTMENT_ID)
+
         assert len(response) == 1
 
 
