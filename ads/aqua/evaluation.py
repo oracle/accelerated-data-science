@@ -935,6 +935,7 @@ class AquaEvaluationApp(AquaApp):
         evaluations = []
         async_tasks = []
         for model in models:
+
             if model.identifier in self._eval_cache.keys():
                 logger.debug(f"Retrieving evaluation {model.identifier} from cache.")
                 evaluations.append(self._eval_cache.get(model.identifier))
@@ -1335,7 +1336,6 @@ class AquaEvaluationApp(AquaApp):
             job_id = model.custom_metadata_list.get(
                 EvaluationCustomMetadata.EVALUATION_JOB_ID.value
             ).value
-        # TODO: Handle AttributeError caused by None type
         except ValueError:
             raise AquaMissingKeyError(
                 f"Custom metadata is missing {EvaluationCustomMetadata.EVALUATION_JOB_ID.value} key"
@@ -1368,7 +1368,6 @@ class AquaEvaluationApp(AquaApp):
             )
 
     def load_evaluation_config(self, eval_id):
-        """Loads evaluation config."""
         # TODO
         return {
             "model_params": {
@@ -1737,7 +1736,7 @@ class AquaEvaluationApp(AquaApp):
         Examples
         --------
         >>> _extract_job_lifecycle_details("Job run artifact execution failed with exit code 16")
-        'Validation errors in the evaluation config. Exit code: 16.'
+        'The evaluation configuration is invalid due to content validation errors.'
 
         >>> _extract_job_lifecycle_details("Job completed successfully.")
         'Job completed successfully.'
