@@ -1,8 +1,9 @@
-name: "[Py3.9][Py3.10] - tests/unitary/**"
+name: "[Py3.9-3.12] - tests/unitary/**"
 
 on:
   workflow_dispatch:
   pull_request:
+    branches: [ "main" ]
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -27,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
         name: ["unitary", "slow_tests"]
         include:
           - name: "unitary"
