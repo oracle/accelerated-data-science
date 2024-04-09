@@ -262,7 +262,6 @@ class TestAquaModel(unittest.TestCase):
     @patch("ads.jobs.ads_job.Job.name", new_callable=PropertyMock)
     @patch("ads.jobs.ads_job.Job.id", new_callable=PropertyMock)
     @patch.object(Job, "create")
-    @patch("json.dumps")
     @patch("ads.aqua.evaluation.get_container_image")
     @patch.object(DataScienceModel, "create")
     @patch.object(ModelVersionSet, "create")
@@ -273,7 +272,6 @@ class TestAquaModel(unittest.TestCase):
         mock_mvs_create,
         mock_ds_model_create,
         mock_get_container_image,
-        mock_json_dumps,
         mock_job_create,
         mock_job_id,
         mock_job_name,
@@ -297,7 +295,6 @@ class TestAquaModel(unittest.TestCase):
         mock_ds_model_create.return_value = evaluation_model
 
         mock_get_container_image.return_value = "test_container_image"
-        mock_json_dumps.return_value = "test_json_string"
 
         mock_job_id.return_value = "test_evaluation_job_id"
         mock_job_name.return_value = "test_evaluation_job_name"
@@ -340,8 +337,8 @@ class TestAquaModel(unittest.TestCase):
                 'name': f'{mock_job_name.return_value}',
                 'url': f'https://cloud.oracle.com/data-science/jobs/{mock_job_id.return_value}?region=us-ashburn-1'
             },
-            'lifecycle_details': 'Job run artifact execution in progress.',
-            'lifecycle_state': 'IN_PROGRESS',
+            'lifecycle_details': f'{evaluation_job_run.lifecycle_details}',
+            'lifecycle_state': f'{evaluation_job_run.lifecycle_state}',
             'name': f'{evaluation_model.display_name}',
             'parameters': {
                 'dataset_path': '',
