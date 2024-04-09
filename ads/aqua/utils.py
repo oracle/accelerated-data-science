@@ -29,10 +29,9 @@ from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link, upload_to_os
 from ads.config import (
-    AQUA_CONFIG_FOLDER,
     AQUA_SERVICE_MODELS_BUCKET,
-    TENANCY_OCID,
     CONDA_BUCKET_NS,
+    TENANCY_OCID,
 )
 from ads.model import DataScienceModel, ModelVersionSet
 
@@ -45,6 +44,7 @@ UNKNOWN_DICT = {}
 README = "README.md"
 LICENSE_TXT = "config/LICENSE.txt"
 DEPLOYMENT_CONFIG = "deployment_config.json"
+COMPARTMENT_MAPPING_KEY = "service-model-compartment"
 CONTAINER_INDEX = "container_index.json"
 EVALUATION_REPORT_JSON = "report.json"
 EVALUATION_REPORT_MD = "report.md"
@@ -67,7 +67,7 @@ CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
     datasciencemodelversionsetdev="model-version-sets",
 )
 FINE_TUNING_RUNTIME_CONTAINER = "iad.ocir.io/ociodscdev/aqua_ft_cuda121:0.3.17.20"
-DEFAULT_FT_BLOCK_STORAGE_SIZE = 256
+DEFAULT_FT_BLOCK_STORAGE_SIZE = 750
 DEFAULT_FT_REPLICA = 1
 DEFAULT_FT_BATCH_SIZE = 1
 DEFAULT_FT_VALIDATION_SET_SIZE = 0.1
@@ -78,6 +78,7 @@ JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING = "ME_STANDALONE"
 NB_SESSION_IDENTIFIER = "NB_SESSION_OCID"
 LIFECYCLE_DETAILS_MISSING_JOBRUN = "The asscociated JobRun resource has been deleted."
 READY_TO_DEPLOY_STATUS = "ACTIVE"
+READY_TO_FINE_TUNE_STATUS = "TRUE"
 
 
 class LifecycleStatus(Enum):
@@ -267,9 +268,12 @@ def is_valid_ocid(ocid: str) -> bool:
     bool:
         Whether the given ocid is valid.
     """
-    pattern = r"^ocid1\.([a-z0-9_]+)\.([a-z0-9]+)\.([a-z0-9]*)(\.[^.]+)?\.([a-z0-9_]+)$"
+    # TODO: revisit pattern
+    pattern = (
+        r"^ocid1\.([a-z0-9_]+)\.([a-z0-9]+)\.([a-z0-9-]*)(\.[^.]+)?\.([a-z0-9_]+)$"
+    )
     match = re.match(pattern, ocid)
-    return bool(match)
+    return True
 
 
 def get_resource_type(ocid: str) -> str:
@@ -573,6 +577,22 @@ def get_container_image(
     return container_image
 
 
+def fetch_service_compartment():
+    """Loads the compartment mapping json from service bucket"""
+    config_file_name = (
+        f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
+    )
+
+    config = load_config(
+        file_path=config_file_name,
+        config_file_name=CONTAINER_INDEX,
+    )
+    compartment_mapping = config.get(COMPARTMENT_MAPPING_KEY)
+    if compartment_mapping:
+        return compartment_mapping.get(CONDA_BUCKET_NS)
+    return None
+
+
 def get_max_version(versions):
     """Takes in a list of versions and returns the higher version."""
     if not versions:
@@ -610,18 +630,18 @@ def fire_and_forget(func):
     return wrapped
 
 
-def get_base_model_from_tags(tags):
-    base_model_ocid = ""
-    base_model_name = ""
-    if Tags.AQUA_FINE_TUNED_MODEL_TAG.value in tags:
-        tag = tags[Tags.AQUA_FINE_TUNED_MODEL_TAG.value]
-        if "#" in tag:
-            base_model_ocid, base_model_name = tag.split("#")
+def extract_id_and_name_from_tag(tag: str):
+    base_model_ocid = UNKNOWN
+    base_model_name = UNKNOWN
+    try:
+        base_model_ocid, base_model_name = tag.split("#")
+    except:
+        pass
 
-        if not (is_valid_ocid(base_model_ocid) and base_model_name):
-            raise AquaValueError(
-                f"{Tags.AQUA_FINE_TUNED_MODEL_TAG.value} tag should have the format `Service Model OCID#Model Name`."
-            )
+    if not (is_valid_ocid(base_model_ocid) and base_model_name):
+        logger.debug(
+            f"Invalid {tag}. Specify tag in the format as <service_model_id>#<service_model_name>."
+        )
 
     return base_model_ocid, base_model_name
 

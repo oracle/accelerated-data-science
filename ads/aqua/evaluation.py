@@ -362,7 +362,7 @@ class AquaEvaluationApp(AquaApp):
     @telemetry(entry_point="plugin=evaluation&action=create", name="aqua")
     def create(
         self,
-        create_aqua_evaluation_details: CreateAquaEvaluationDetails,
+        create_aqua_evaluation_details: CreateAquaEvaluationDetails = None,
         **kwargs,
     ) -> "AquaEvaluationSummary":
         """Creates Aqua evaluation for resource.
@@ -373,13 +373,23 @@ class AquaEvaluationApp(AquaApp):
             The CreateAquaEvaluationDetails data class which contains all
             required and optional fields to create the aqua evaluation.
         kwargs:
-            The kwargs for the evaluation.
+            The kwargs for creating CreateAquaEvaluationDetails instance if
+            no create_aqua_evaluation_details provided.
 
         Returns
         -------
         AquaEvaluationSummary:
             The instance of AquaEvaluationSummary.
         """
+        if not create_aqua_evaluation_details:
+            try:
+                create_aqua_evaluation_details = CreateAquaEvaluationDetails(**kwargs)
+            except:
+                raise AquaValueError(
+                    "Invalid create evaluation parameters. Allowable parameters are: "
+                    f"{', '.join(list(asdict(CreateAquaEvaluationDetails).keys()))}."
+                )
+
         if not is_valid_ocid(create_aqua_evaluation_details.evaluation_source_id):
             raise AquaValueError(
                 f"Invalid evaluation source {create_aqua_evaluation_details.evaluation_source_id}. "
@@ -1066,7 +1076,7 @@ class AquaEvaluationApp(AquaApp):
             {
                 "use_case": ["text_generation"],
                 "key": "bertscore",
-                "name": "BERT Score",
+                "name": "bertscore",
                 "description": (
                     "BERT Score is a metric for evaluating the quality of text "
                     "generation models, such as machine translation or summarization. "
@@ -1079,7 +1089,7 @@ class AquaEvaluationApp(AquaApp):
             {
                 "use_case": ["text_generation"],
                 "key": "rouge",
-                "name": "ROUGE Score",
+                "name": "rouge",
                 "description": (
                     "ROUGE scores compare a candidate document to a collection of "
                     "reference documents to evaluate the similarity between them. "
@@ -1363,40 +1373,30 @@ class AquaEvaluationApp(AquaApp):
             },
             "shape": {
                 "VM.Standard.E3.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
-                },
-                "VM.Standard.E3.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
+                    "ocpu": 8,
+                    "memory_in_gbs": 128,
+                    "block_storage_size": 200,
                 },
                 "VM.Standard.E4.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
+                    "ocpu": 8,
+                    "memory_in_gbs": 128,
+                    "block_storage_size": 200,
                 },
                 "VM.Standard3.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
+                    "ocpu": 8,
+                    "memory_in_gbs": 128,
+                    "block_storage_size": 200,
                 },
                 "VM.Optimized3.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
-                },
-                "VM.Standard.A1.Flex": {
-                    "ocpu": 2,
-                    "memory_in_gbs": 64,
-                    "block_storage_size": 100,
+                    "ocpu": 8,
+                    "memory_in_gbs": 128,
+                    "block_storage_size": 200,
                 },
             },
             "default": {
-                "ocpu": 2,
-                "memory_in_gbs": 64,
-                "block_storage_size": 100,
+                "ocpu": 8,
+                "memory_in_gbs": 128,
+                "block_storage_size": 200,
             },
         }
 

@@ -82,9 +82,6 @@ class TestAquaUtils(unittest.TestCase):
         ]
     )
     @patch.object(OCIResource, "search")
-    @pytest.mark.skip(
-        reason="Passing locally, but failed in GH actions, investigate parameterized.expand behaviour"
-    )
     def test_query_resource(self, input, mock_response, expected_query, mock_search):
         """Tests use Search service to find a single resource."""
         utils.is_valid_ocid = MagicMock(return_value=True)
@@ -121,9 +118,6 @@ class TestAquaUtils(unittest.TestCase):
         ]
     )
     @patch.object(OCIResource, "search")
-    @pytest.mark.skip(
-        reason="Passing locally, but failed in GH actions, investigate parameterized.expand behaviour"
-    )
     def test_query_resources(self, input, mock_response, expected_query, mock_search):
         """Tests use Search service to find resources."""
         utils.is_valid_ocid = MagicMock(return_value=True)
