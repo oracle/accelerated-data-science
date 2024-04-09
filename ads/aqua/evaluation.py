@@ -849,17 +849,13 @@ class AquaEvaluationApp(AquaApp):
             loggroup_id = ""
 
         loggroup_url = get_log_links(region=self.region, log_group_id=loggroup_id)
-        log_url = (
-            get_log_links(
-                region=self.region,
-                log_group_id=loggroup_id,
-                log_id=log_id,
-                compartment_id=job_run_details.compartment_id,
-                source_id=jobrun_id,
-            )
-            if job_run_details
-            else ""
-        )
+        log_url = get_log_links(
+            region=self.region,
+            log_group_id=loggroup_id,
+            log_id=log_id,
+            compartment_id=job_run_details.compartment_id,
+            source_id=jobrun_id
+        ) if job_run_details else ""
 
         log_name = None
         loggroup_name = None
@@ -1053,17 +1049,13 @@ class AquaEvaluationApp(AquaApp):
             loggroup_id = ""
 
         loggroup_url = get_log_links(region=self.region, log_group_id=loggroup_id)
-        log_url = (
-            get_log_links(
-                region=self.region,
-                log_group_id=loggroup_id,
-                log_id=log_id,
-                compartment_id=job_run_details.compartment_id,
-                source_id=jobrun_id,
-            )
-            if job_run_details
-            else ""
-        )
+        log_url = get_log_links(
+            region=self.region,
+            log_group_id=loggroup_id,
+            log_id=log_id,
+            compartment_id=job_run_details.compartment_id,
+            source_id=jobrun_id
+        ) if job_run_details else ""
 
         return dict(
             id=eval_id,
