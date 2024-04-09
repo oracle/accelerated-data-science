@@ -9,12 +9,13 @@ import json
 import os
 import unittest
 from dataclasses import asdict
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import oci
 from parameterized import parameterized
 
 from ads.aqua import utils
+from ads.aqua.base import AquaApp
 from ads.aqua.evaluation import (
     AquaEvalMetrics,
     AquaEvalReport,
@@ -22,8 +23,9 @@ from ads.aqua.evaluation import (
     AquaEvaluationSummary,
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
-from ads.jobs.ads_job import DataScienceJob, DataScienceJobRun
+from ads.jobs.ads_job import DataScienceJob, DataScienceJobRun, Job
 from ads.model import DataScienceModel
+from ads.model.model_version_set import ModelVersionSet
 
 null = None
 
@@ -255,6 +257,117 @@ class TestAquaModel(unittest.TestCase):
 
         for attr in attributes:
             assert rdict.get(attr)
+
+    @patch.object(Job, "run")
+    @patch("ads.jobs.ads_job.Job.name", new_callable=PropertyMock)
+    @patch("ads.jobs.ads_job.Job.id", new_callable=PropertyMock)
+    @patch.object(Job, "create")
+    @patch("json.dumps")
+    @patch("ads.aqua.evaluation.get_container_image")
+    @patch.object(DataScienceModel, "create")
+    @patch.object(ModelVersionSet, "create")
+    @patch.object(DataScienceModel, "from_id")
+    def test_create_evaluation(
+        self,
+        mock_from_id,
+        mock_mvs_create,
+        mock_ds_model_create,
+        mock_get_container_image,
+        mock_json_dumps,
+        mock_job_create,
+        mock_job_id,
+        mock_job_name,
+        mock_job_run
+    ):
+        foundation_model = MagicMock()
+        foundation_model.display_name = "test_foundation_model"
+        mock_from_id.return_value = foundation_model
+
+        experiment = MagicMock()
+        experiment.id = "test_experiment_id"
+        mock_mvs_create.return_value = experiment
+
+        evaluation_model = MagicMock()
+        evaluation_model.id = "test_evaluation_model_id"
+        evaluation_model.display_name = "test_evaluation_model_name"
+
+        oci_dsc_model = MagicMock()
+        oci_dsc_model.time_created = "test_time_created"
+        evaluation_model.dsc_model = oci_dsc_model
+        mock_ds_model_create.return_value = evaluation_model
+
+        mock_get_container_image.return_value = "test_container_image"
+        mock_json_dumps.return_value = "test_json_string"
+
+        mock_job_id.return_value = "test_evaluation_job_id"
+        mock_job_name.return_value = "test_evaluation_job_name"
+
+        evaluation_job_run = MagicMock()
+        evaluation_job_run.id = "test_evaluation_job_run_id"
+        evaluation_job_run.lifecycle_details = "Job run artifact execution in progress."
+        evaluation_job_run.lifecycle_state = "IN_PROGRESS"
+        mock_job_run.return_value = evaluation_job_run
+
+        self.app.ds_client.update_model = MagicMock()
+        self.app.ds_client.update_model_provenance = MagicMock()
+
+        create_aqua_evaluation_details = dict(
+            evaluation_source_id="ocid1.datasciencemodel.oc1.iad.<OCID>",
+            evaluation_name="test_evaluation_name",
+            dataset_path="oci://dataset_bucket@namespace/prefix/dataset.jsonl",
+            report_path="oci://report_bucket@namespace/prefix/",
+            model_parameters={},
+            shape_name="VM.Standard.E3.Flex",
+            block_storage_size=1,
+            experiment_name="test_experiment_name",
+            memory_in_gbs=1,
+            ocpus=1,
+        )
+        aqua_evaluation_summary = self.app.create(
+            **create_aqua_evaluation_details
+        )
+
+        assert asdict(aqua_evaluation_summary) == {
+            'console_url': f'https://cloud.oracle.com/data-science/models/{evaluation_model.id}?region=us-ashburn-1',
+            'experiment': {
+                'id': f'{experiment.id}',
+                'name': 'test_experiment_name',
+                'url': f'https://cloud.oracle.com/data-science/model-version-sets/{experiment.id}?region=us-ashburn-1'
+            },
+            'id': f'{evaluation_model.id}',
+            'job': {
+                'id': f'{mock_job_id.return_value}',
+                'name': f'{mock_job_name.return_value}',
+                'url': f'https://cloud.oracle.com/data-science/jobs/{mock_job_id.return_value}?region=us-ashburn-1'
+            },
+            'lifecycle_details': 'Job run artifact execution in progress.',
+            'lifecycle_state': 'IN_PROGRESS',
+            'name': f'{evaluation_model.display_name}',
+            'parameters': {
+                'dataset_path': '',
+                'frequency_penalty': 0.0,
+                'max_tokens': '',
+                'presence_penalty': 0.0,
+                'report_path': '',
+                'shape': '',
+                'stop': [],
+                'temperature': '',
+                'top_k': '',
+                'top_p': ''
+            },
+            'source': {
+                'id': 'ocid1.datasciencemodel.oc1.iad.<OCID>',
+                'name': f'{foundation_model.display_name}',
+                'url': 'https://cloud.oracle.com/data-science/models/ocid1.datasciencemodel.oc1.iad.<OCID>?region=us-ashburn-1'
+            },
+            'tags': {
+                'aqua_evaluation': 'aqua_evaluation',
+                'evaluation_experiment_id': f'{experiment.id}',
+                'evaluation_job_id': f'{mock_job_id.return_value}',
+                'evaluation_source': 'ocid1.datasciencemodel.oc1.iad.<OCID>'
+            },
+            'time_created': f'{oci_dsc_model.time_created}'
+        }
 
     def test_get(self):
         """Tests get evaluation details successfully."""
