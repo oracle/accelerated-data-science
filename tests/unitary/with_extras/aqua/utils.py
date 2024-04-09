@@ -4,6 +4,8 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from typing import Dict
+
 from pydantic import BaseModel, PositiveInt, ValidationError
 
 
@@ -21,8 +23,8 @@ class EvaluationConfigFormat(BaseModel):
     """Evaluation config format."""
 
     model_params: dict
-    shape: dict[str, dict]
-    default: dict[str, PositiveInt]
+    shape: Dict[str, dict]
+    default: Dict[str, PositiveInt]
 
 
 def check(conf_schema, conf):
