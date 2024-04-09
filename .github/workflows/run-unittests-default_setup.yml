@@ -1,4 +1,4 @@
-name: "[Py3.8][Py3.9][Py3.10] tests/unitary/default_setup/**"
+name: "[Py3.8-3.12] tests/unitary/default_setup/**"
 
 on:
   workflow_dispatch:
