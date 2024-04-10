@@ -203,6 +203,7 @@ testsuite = [
   "nltk",
   "notebook==6.4.12",
   "opensearch-py",
+  "pkg_resources; python_version>='3.12'",
   "pdfplumber",
   "py4j",
   "pyarrow",
