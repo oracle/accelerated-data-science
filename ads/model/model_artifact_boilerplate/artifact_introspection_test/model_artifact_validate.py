@@ -29,7 +29,7 @@ _cwd = os.path.dirname(__file__)
 TESTS_PATH = os.path.join(_cwd, "resources", "tests.yaml")
 HTML_PATH = os.path.join(_cwd, "resources", "template.html")
 CONFIG_PATH = os.path.join(_cwd, "resources", "config.yaml")
-PYTHON_VER_PATTERN = "^([3])(\.[6-9])(\.\d+)?$"
+PYTHON_VER_PATTERN = "^([3])(\.([6-9]|1[0-2]))(\.\d+)?$"
 PAR_URL = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/WyjtfVIG0uda-P3-2FmAfwaLlXYQZbvPZmfX1qg0-sbkwEQO6jpwabGr2hMDBmBp/n/ociodscdev/b/service-conda-packs/o/service_pack/index.json"
 
 TESTS = {

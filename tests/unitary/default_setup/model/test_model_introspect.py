@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Unit Tests for model introspection module."""
@@ -249,3 +249,21 @@ class TestPrintItem(TestCase):
         """Tests converting instance to a list representation."""
         expected_result = ["test_key", "test_case", "test_result", "test_message"]
         assert self.mock_print_item.to_list() == expected_result
+
+
+class TestPythonVersionCheck(TestCase):
+    def test_python_version_check(self):
+        from ads.model.model_artifact_boilerplate.artifact_introspection_test import (
+            model_artifact_validate as at,
+        )
+        import re
+
+        supported_python_version = [f"3.{minor}" for minor in range(6, 12)]
+        for version in supported_python_version:
+            m = re.match(at.PYTHON_VER_PATTERN, str(version))
+            assert m and m.group(), "Python version check failed."
+
+        unsupported_python_version = ["3.5", "3.13"]
+        for version in unsupported_python_version:
+            m = re.match(at.PYTHON_VER_PATTERN, str(version))
+            assert not m, "Python version check failed."
