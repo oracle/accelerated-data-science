@@ -972,6 +972,8 @@ class DataScienceJob(Infrastructure):
             Specification as keyword arguments.
             If spec contains the same key as the one in kwargs, the value from kwargs will be used.
         """
+        # Saves a copy of the auth object from the class to the instance.
+        # Future changes to the class level Job.auth will not affect the auth of existing instances.
         self.auth = self.auth.copy()
         for key in ["config", "signer", "client_kwargs"]:
             if kwargs.get(key):
