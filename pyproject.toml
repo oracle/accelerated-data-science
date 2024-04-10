@@ -181,7 +181,7 @@ pii = [
   "spacy-transformers==1.2.5",
   "spacy==3.6.1",
 ]
-llm = ["langchain>=0.1.10", "evaluate>=0.4.0"]
+llm = ["langchain-community<0.0.32", "langchain>=0.1.10,<0.1.14", "evaluate>=0.4.0"]
 aqua = ["jupyter_server"]
 
 # To reduce backtracking (decrese deps install time) during test/dev env setup reducing number of versions pip is
@@ -209,7 +209,7 @@ testsuite = [
   "pyarrow",
   "statsmodels; python_version=='3.8'",
   "statsmodels>=0.14.1; python_version>='3.9'",  # cython3.0 compatibility added in v0.14.1
-  "tables",
+  "tables>3.9.0",
   "xlrd>=1.2.0",
 ]
 
