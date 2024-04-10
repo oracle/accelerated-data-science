@@ -39,7 +39,6 @@ from ads.common.function.fn_util import (
 from ads.common.model_artifact import ModelArtifact
 from ads.model.model_metadata import UseCaseType
 from ads.feature_engineering.schema import DataSizeTooWide
-from pkg_resources import DistributionNotFound, get_distribution
 
 from ads.model.transformer.onnx_transformer import (
     ONNXTransformer,
@@ -206,6 +205,8 @@ def prepare_generic_model(
     model_artifact: ads.model_artifact.model_artifact
         A generic model artifact
     """
+    from pkg_resources import DistributionNotFound, get_distribution
+
     if "function_artifacts" in kwargs:
         if (
             fn_artifact_files_included

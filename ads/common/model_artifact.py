@@ -38,7 +38,6 @@ import numpy as np
 import oci.data_science
 import oci.exceptions
 import pandas as pd
-import pkg_resources
 import yaml
 
 from ads.common.decorator.runtime_dependency import (
@@ -982,6 +981,7 @@ class ModelArtifact(Introspectable):
             IGNORE: Use the installed version in  case of a conflict.
             UPDATE: Force update dependency to the version required by model artifact in case of conflict.
         """
+        import pkg_resources
         importlib.reload(pkg_resources)
         from pkg_resources import DistributionNotFound, VersionConflict
 
