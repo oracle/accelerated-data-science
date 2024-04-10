@@ -54,7 +54,7 @@ jobs:
           source /home/runner/.bashrc
           conda install python=${{ matrix.python-version }}
           pip install -r test-requirements.txt
-          if [[ ${{ matrix.python-version }} ==  "3.12" ]]; then
+          if [[ ${{ matrix.python-version }} == "3.12" ]]; then
             pip install setuptools
           fi
           conda list
