@@ -116,17 +116,17 @@ class FineTuningTestCase(TestCase):
         )
 
         assert asdict(aqua_ft_summary) == {
-            'console_url': f'https://cloud.oracle.com/data-science/models/{ft_model.id}?region=us-ashburn-1',
+            'console_url': f'https://cloud.oracle.com/data-science/models/{ft_model.id}?region={self.app.region}',
             'experiment': {
                 'id': f'{mock_mvs_create.return_value[0]}',
                 'name': f'{mock_mvs_create.return_value[1]}',
-                'url': f'https://cloud.oracle.com/data-science/model-version-sets/{mock_mvs_create.return_value[0]}?region=us-ashburn-1'
+                'url': f'https://cloud.oracle.com/data-science/model-version-sets/{mock_mvs_create.return_value[0]}?region={self.app.region}'
             },
             'id': f'{ft_model.id}',
             'job': {
                 'id': f'{mock_job_id.return_value}',
                 'name': f'{mock_job_name.return_value}',
-                'url': f'https://cloud.oracle.com/data-science/jobs/{mock_job_id.return_value}?region=us-ashburn-1'
+                'url': f'https://cloud.oracle.com/data-science/jobs/{mock_job_id.return_value}?region={self.app.region}'
             },
             'lifecycle_details': f'{ft_job_run.lifecycle_details}',
             'lifecycle_state': f'{ft_job_run.lifecycle_state}',
@@ -138,7 +138,7 @@ class FineTuningTestCase(TestCase):
             'source': {
                 'id': f'{ft_source.id}',
                 'name': f'{ft_source.display_name}',
-                'url': f'https://cloud.oracle.com/data-science/models/{ft_source.id}?region=us-ashburn-1'
+                'url': f'https://cloud.oracle.com/data-science/models/{ft_source.id}?region={self.app.region}'
             },
             'tags': {
                 'aqua_finetuning': 'aqua_finetuning',

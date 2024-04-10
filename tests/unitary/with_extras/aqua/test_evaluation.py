@@ -485,17 +485,17 @@ class TestAquaEvaluation(unittest.TestCase):
         )
 
         assert asdict(aqua_evaluation_summary) == {
-            'console_url': f'https://cloud.oracle.com/data-science/models/{evaluation_model.id}?region=us-ashburn-1',
+            'console_url': f'https://cloud.oracle.com/data-science/models/{evaluation_model.id}?region={self.app.region}',
             'experiment': {
                 'id': f'{experiment.id}',
                 'name': 'test_experiment_name',
-                'url': f'https://cloud.oracle.com/data-science/model-version-sets/{experiment.id}?region=us-ashburn-1'
+                'url': f'https://cloud.oracle.com/data-science/model-version-sets/{experiment.id}?region={self.app.region}'
             },
             'id': f'{evaluation_model.id}',
             'job': {
                 'id': f'{mock_job_id.return_value}',
                 'name': f'{mock_job_name.return_value}',
-                'url': f'https://cloud.oracle.com/data-science/jobs/{mock_job_id.return_value}?region=us-ashburn-1'
+                'url': f'https://cloud.oracle.com/data-science/jobs/{mock_job_id.return_value}?region={self.app.region}'
             },
             'lifecycle_details': f'{evaluation_job_run.lifecycle_details}',
             'lifecycle_state': f'{evaluation_job_run.lifecycle_state}',
@@ -515,7 +515,7 @@ class TestAquaEvaluation(unittest.TestCase):
             'source': {
                 'id': 'ocid1.datasciencemodel.oc1.iad.<OCID>',
                 'name': f'{foundation_model.display_name}',
-                'url': 'https://cloud.oracle.com/data-science/models/ocid1.datasciencemodel.oc1.iad.<OCID>?region=us-ashburn-1'
+                'url': f'https://cloud.oracle.com/data-science/models/ocid1.datasciencemodel.oc1.iad.<OCID>?region={self.app.region}'
             },
             'tags': {
                 'aqua_evaluation': 'aqua_evaluation',
