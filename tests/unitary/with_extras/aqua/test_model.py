@@ -89,6 +89,12 @@ class TestAquaModel(unittest.TestCase):
         reload(ads.aqua)
         reload(ads.aqua.model)
 
+    def test_create_model(self):
+        pass
+
+    def test_get_model(self):
+        pass
+
     def test_list_service_models(self):
         """Tests listing service models succesfully."""
 
