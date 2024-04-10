@@ -17,7 +17,13 @@ import yaml
 import oci
 import ads.aqua.deployment
 import ads.config
-from ads.aqua.deployment import AquaDeployment, AquaDeploymentDetail, AquaDeploymentApp
+from ads.aqua.deployment import (
+    AquaDeployment,
+    AquaDeploymentDetail,
+    AquaDeploymentApp,
+    MDInferenceResponse,
+    ModelParams,
+)
 from ads.aqua.exception import AquaRuntimeError
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
@@ -139,6 +145,14 @@ class TestDataset:
         },
     }
 
+    model_params = {
+        "model": "odsc-llm",
+        "max_tokens": 500,
+        "temperature": 0.8,
+        "top_p": 0.8,
+        "top_k": 10,
+    }
+
 
 class TestAquaDeployment(unittest.TestCase):
     def setUp(self):
@@ -157,6 +171,7 @@ class TestAquaDeployment(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        cls.curr_dir = None
         os.environ.pop("CONDA_BUCKET_NS", None)
         os.environ.pop("ODSC_MODEL_COMPARTMENT_OCID", None)
         os.environ.pop("PROJECT_COMPARTMENT_OCID", None)
@@ -213,10 +228,13 @@ class TestAquaDeployment(unittest.TestCase):
         )
         actual_attributes = asdict(result)
         assert set(expected_attributes) == set(actual_attributes), "Attributes mismatch"
-        self.assertEqual(actual_attributes, TestDataset.aqua_deployment_detail)
+        self.assertEqual(TestDataset.aqua_deployment_detail, actual_attributes)
 
-        self.assertEqual(result.log.name, "log-name")
-        self.assertEqual(result.log_group.name, "log-group-name")
+        self.assertEqual(
+            "log-name",
+            result.log.name,
+        )
+        self.assertEqual("log-group-name", result.log_group.name)
 
     def test_get_deployment_missing_tags(self):
         """Test for returning a runtime error if OCI_AQUA tag is missing."""
@@ -251,12 +269,12 @@ class TestAquaDeployment(unittest.TestCase):
 
         self.app.get_config = MagicMock(return_value=config)
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
-        self.assertEqual(result, config)
+        self.assertEqual(config, result)
 
         self.app.get_config = MagicMock(return_value=None)
         mock_load_config.return_value = config
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
-        self.assertEqual(result, config)
+        self.assertEqual(config, result)
 
     @patch("ads.aqua.model.AquaModelApp.create")
     @patch("ads.aqua.deployment.get_container_image")
@@ -264,6 +282,7 @@ class TestAquaDeployment(unittest.TestCase):
     def test_create_deployment_for_foundation_model(
         self, mock_deploy, mock_get_container_image, mock_create
     ):
+        """Test to create a deployment for foundational model"""
         aqua_model = os.path.join(
             self.curr_dir, "test_data/deployment/aqua_foundation_model.yaml"
         )
@@ -305,16 +324,18 @@ class TestAquaDeployment(unittest.TestCase):
         expected_attributes = set(AquaDeployment.__annotations__.keys())
         actual_attributes = asdict(result)
         assert set(expected_attributes) == set(actual_attributes), "Attributes mismatch"
-        expected_result = TestDataset.aqua_deployment_object
+        expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
         expected_result["state"] = "CREATING"
-        self.assertEqual(TestDataset.aqua_deployment_object, actual_attributes)
+        self.assertEqual(expected_result, actual_attributes)
 
     @patch("ads.aqua.model.AquaModelApp.create")
     @patch("ads.aqua.deployment.get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
-    def test_create_deployment_for_foundation_model(
+    def test_create_deployment_for_fine_tuned_model(
         self, mock_deploy, mock_get_container_image, mock_create
     ):
+        """Test to create a deployment for fine-tuned model"""
+
         # todo: DataScienceModel.from_yaml should update model_file_description attribute, current workaround is to
         #   load using with_model_file_description property.
         def yaml_to_json(input_file):
@@ -370,6 +391,40 @@ class TestAquaDeployment(unittest.TestCase):
         expected_attributes = set(AquaDeployment.__annotations__.keys())
         actual_attributes = asdict(result)
         assert set(expected_attributes) == set(actual_attributes), "Attributes mismatch"
-        expected_result = TestDataset.aqua_deployment_object
+        expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
         expected_result["state"] = "CREATING"
-        self.assertEqual(TestDataset.aqua_deployment_object, actual_attributes)
+        self.assertEqual(expected_result, actual_attributes)
+
+
+class TestMDInferenceResponse(unittest.TestCase):
+    def setUp(self):
+        self.app = MDInferenceResponse()
+
+    @classmethod
+    def setUpClass(cls):
+        cls.curr_dir = os.path.dirname(os.path.abspath(__file__))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.curr_dir = None
+
+    @patch("requests.post")
+    def test_get_model_deployment_response(self, mock_post):
+        """Test to check if model deployment response is returned correctly."""
+
+        endpoint = TestDataset.MODEL_DEPLOYMENT_URL + "/predict"
+        self.app.prompt = "What is 1+1?"
+        self.app.model_params = ModelParams(**TestDataset.model_params)
+
+        mock_response = MagicMock()
+        response_json = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_deployment_response.json"
+        )
+        with open(response_json, "r") as _file:
+            mock_response.content = _file.read()
+        mock_response.status_code = 200
+        mock_post.return_value = mock_response
+
+        result = self.app.get_model_deployment_response(endpoint)
+
+        self.assertEqual(" The answer is 2", result["choices"][0]["text"])

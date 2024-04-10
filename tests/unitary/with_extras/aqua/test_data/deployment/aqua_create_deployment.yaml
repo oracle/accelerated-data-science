@@ -26,7 +26,7 @@ spec:
         BASE_MODEL: service_models/model-name/artifact
         MODEL_DEPLOY_ENABLE_STREAMING: 'true'
         MODEL_DEPLOY_PREDICT_ENDPOINT: /v1/completions
-        PARAMS: --served-model-name odsc-llm --seed 42 --trust-remote-code
+        PARAMS: --served-model-name odsc-llm --seed 42 --trust-remote-code --max-model-len 4096
       healthCheckPort: 8080
       image: "dsmc://image-name:1.0.0.0"
       modelUri: "ocid1.datasciencemodeldeployment.oc1.<region>.<MODEL_OCID>"
