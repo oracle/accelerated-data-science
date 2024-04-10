@@ -200,7 +200,7 @@ testsuite = [
   "mysql-connector-python",
   "nltk",
   "notebook==6.4.12",
-  "opensearch-py",
+  "opensearch-py<2.5.0",
   "pdfplumber",
   "py4j",
   "pyarrow",
