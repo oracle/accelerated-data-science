@@ -54,5 +54,8 @@ jobs:
           source /home/runner/.bashrc
           conda install python=${{ matrix.python-version }}
           pip install -r test-requirements.txt
+          if [[ ${{ matrix.python-version }} ==  "3.12" ]]; then
+            pip install pkg_resources
+          fi
           conda list
           python -m pytest -v -p no:warnings --durations=5 tests/unitary/default_setup
