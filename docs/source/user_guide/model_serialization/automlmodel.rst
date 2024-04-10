@@ -23,8 +23,8 @@ Example
     from sklearn.model_selection import train_test_split
 
     import ads
-    import automl
-    from automl import init
+    import automlx as automl
+    from automlx import init
     from ads.model import GenericModel
     from ads.common.model_metadata import UseCaseType
 
@@ -48,8 +48,8 @@ Example
 
     ads.set_auth("resource_principal")
     automl_model = GenericModel(estimator=est, artifact_dir="automl_model_artifact")
-    automl_model.prepare(inference_conda_env="automlx_p38_cpu_v1",
-                         training_conda_env="automlx_p38_cpu_v1",
+    automl_model.prepare(inference_conda_env="automlx234_p38_cpu_x86_64_v1",
+                         training_conda_env="automlx234_p38_cpu_x86_64_v1",
                          use_case_type=UseCaseType.BINARY_CLASSIFICATION,
                          X_sample=X_test,
                          force_overwrite=True)
@@ -70,7 +70,7 @@ Open ``automl_model_artifact/score.py`` and edit the code to instantiate the mod
     from io import StringIO
     import logging
     import sys
-    import automl
+    import automlx as automl
     import pandas as pd
     import numpy as np
 
