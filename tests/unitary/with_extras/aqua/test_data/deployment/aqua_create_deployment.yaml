@@ -1,0 +1,36 @@
+kind: deployment
+spec:
+  createdBy: ocid1.user.oc1..<OCID>
+  displayName: model-deployment-name
+  freeformTags:
+    OCI_AQUA: active
+    aqua_model_name: model-name
+  id: "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>"
+  infrastructure:
+    kind: infrastructure
+    spec:
+      bandwidthMbps: 10
+      compartmentId: ocid1.compartment.oc1..<OCID>
+      deploymentType: SINGLE_MODEL
+      policyType: FIXED_SIZE
+      projectId: ocid1.datascienceproject.oc1.iad.<OCID>
+      replica: 1
+      shapeName: "VM.GPU.A10.1"
+    type: datascienceModelDeployment
+  lifecycleState: CREATING
+  modelDeploymentUrl: "https://modeldeployment.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>"
+  runtime:
+    kind: runtime
+    spec:
+      env:
+        BASE_MODEL: service_models/model-name/artifact
+        MODEL_DEPLOY_ENABLE_STREAMING: 'true'
+        MODEL_DEPLOY_PREDICT_ENDPOINT: /v1/completions
+        PARAMS: --served-model-name odsc-llm --seed 42 --trust-remote-code
+      healthCheckPort: 8080
+      image: "dsmc://image-name:1.0.0.0"
+      modelUri: "ocid1.datasciencemodeldeployment.oc1.<region>.<MODEL_OCID>"
+      serverPort: 8080
+    type: container
+  timeCreated: 2024-01-01T00:00:00.000000+00:00
+type: modelDeployment
