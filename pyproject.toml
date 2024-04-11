@@ -102,7 +102,7 @@ onnx = [
   "onnxmltools>=1.10.0",
   "onnxruntime>=1.10.0,!=1.16.0", # avoid v1.16 https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
   "oracle_ads[viz]",
-  "protobuf<=3.20",
+  "protobuf",
   "skl2onnx>=1.10.4",
   "tf2onnx",
   "xgboost<=1.7",

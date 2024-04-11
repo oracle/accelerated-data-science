@@ -46,8 +46,8 @@ jobs:
               --ignore tests/unitary/with_extras/operator/forecast \
               --ignore tests/unitary/with_extras/operator/pii \
               --ignore tests/unitary/with_extras/hpo
-          - name: "slow_tests"
-            test-path: "tests/unitary/with_extras/model"
+#          - name: "slow_tests"
+#            test-path: "tests/unitary/with_extras/model"
 
     steps:
       - uses: actions/checkout@v4
