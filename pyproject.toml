@@ -179,7 +179,7 @@ pii = [
   "scrubadub==2.0.1",
   "scrubadub_spacy",
   "spacy-transformers==1.2.5",
-  "spacy==3.6.1",
+  "spacy>=3.4.2",
 ]
 llm = ["langchain-community<0.0.32", "langchain>=0.1.10,<0.1.14", "evaluate>=0.4.0"]
 aqua = ["jupyter_server"]
