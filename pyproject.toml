@@ -122,7 +122,10 @@ opctl = [
 optuna = ["optuna==2.9.0", "oracle_ads[viz]"]
 spark = ["pyspark>=3.0.0"]
 tensorflow = ["oracle_ads[viz]", "tensorflow"]
-text = ["spacy", "wordcloud>=1.8.1"]
+text = [
+  "spacy>=3.4.2",   # the first version of spacy that supports python 3.11 is spacy v3.4.2
+  "wordcloud>=1.8.1"
+]
 torch = ["oracle_ads[viz]", "torch", "torchvision"]
 viz = [
   "bokeh>=3.0.0, <3.2.0",  # starting 3.2.0 bokeh not supporting python3.8; relax after ADS will drop py3.8 support
@@ -179,7 +182,7 @@ pii = [
   "scrubadub==2.0.1",
   "scrubadub_spacy",
   "spacy-transformers==1.2.5",
-  "spacy>=3.4.2",
+  "spacy==3.6.1",
 ]
 llm = ["langchain-community<0.0.32", "langchain>=0.1.10,<0.1.14", "evaluate>=0.4.0"]
 aqua = ["jupyter_server"]
@@ -203,7 +206,7 @@ testsuite = [
   "nltk",
   "notebook==6.4.12",
   "opensearch-py",
-  "pkg_resources; python_version>='3.12'",
+  "setuptools; python_version>='3.12'",
   "pdfplumber",
   "py4j",
   "pyarrow",
