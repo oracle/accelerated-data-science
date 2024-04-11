@@ -74,8 +74,6 @@ class TestAquaModel(unittest.TestCase):
     """Contains unittests for AquaModelApp."""
 
     def setUp(self):
-        import ads
-        ads.set_auth("security_token")
         self.app = AquaModelApp()
 
     @classmethod
