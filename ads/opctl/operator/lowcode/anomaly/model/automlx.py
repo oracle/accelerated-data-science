@@ -26,8 +26,9 @@ class AutoMLXOperatorModel(AnomalyOperatorBaseModel):
     )
     def _build_model(self) -> pd.DataFrame:
         from automlx import init
+        import logging
         try:
-            init(engine="ray", engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}})
+            init(engine="ray", engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}}, loglevel=logging.CRITICAL)
         except Exception as e:
             logger.info("Ray already initialized")
         date_column = self.spec.datetime_column.name

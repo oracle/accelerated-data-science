@@ -70,17 +70,15 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     )
     def _build_model(self) -> pd.DataFrame:
         from automlx import init
-        from sktime.forecasting.model_selection import temporal_train_test_split
+        import logging
         try:
-            init(engine="ray", engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}})
+            init(engine="ray", engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}}, loglevel=logging.CRITICAL)
         except Exception as e:
             logger.info("Ray already initialized")
-
 
         full_data_dict = self.datasets.get_data_by_series()
 
         self.models = dict()
-        date_column = self.spec.datetime_column.name
         horizon = self.spec.horizon
         self.spec.confidence_interval_width = self.spec.confidence_interval_width or 0.8
         self.forecast_output = ForecastOutput(
