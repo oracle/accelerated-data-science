@@ -16,7 +16,6 @@ import oci
 from parameterized import parameterized
 
 from ads.aqua import utils
-from ads.aqua.base import AquaApp
 from ads.aqua.evaluation import (
     AquaEvalMetrics,
     AquaEvalReport,
@@ -435,7 +434,7 @@ class TestAquaEvaluation(unittest.TestCase):
         mock_job_create,
         mock_job_id,
         mock_job_name,
-        mock_job_run
+        mock_job_run,
     ):
         foundation_model = MagicMock()
         foundation_model.display_name = "test_foundation_model"
@@ -480,50 +479,48 @@ class TestAquaEvaluation(unittest.TestCase):
             memory_in_gbs=1,
             ocpus=1,
         )
-        aqua_evaluation_summary = self.app.create(
-            **create_aqua_evaluation_details
-        )
+        aqua_evaluation_summary = self.app.create(**create_aqua_evaluation_details)
 
         assert asdict(aqua_evaluation_summary) == {
-            'console_url': f'https://cloud.oracle.com/data-science/models/{evaluation_model.id}?region={self.app.region}',
-            'experiment': {
-                'id': f'{experiment.id}',
-                'name': 'test_experiment_name',
-                'url': f'https://cloud.oracle.com/data-science/model-version-sets/{experiment.id}?region={self.app.region}'
+            "console_url": f"https://cloud.oracle.com/data-science/models/{evaluation_model.id}?region={self.app.region}",
+            "experiment": {
+                "id": f"{experiment.id}",
+                "name": "test_experiment_name",
+                "url": f"https://cloud.oracle.com/data-science/model-version-sets/{experiment.id}?region={self.app.region}",
             },
-            'id': f'{evaluation_model.id}',
-            'job': {
-                'id': f'{mock_job_id.return_value}',
-                'name': f'{mock_job_name.return_value}',
-                'url': f'https://cloud.oracle.com/data-science/jobs/{mock_job_id.return_value}?region={self.app.region}'
+            "id": f"{evaluation_model.id}",
+            "job": {
+                "id": f"{mock_job_id.return_value}",
+                "name": f"{mock_job_name.return_value}",
+                "url": f"https://cloud.oracle.com/data-science/jobs/{mock_job_id.return_value}?region={self.app.region}",
             },
-            'lifecycle_details': f'{evaluation_job_run.lifecycle_details}',
-            'lifecycle_state': f'{evaluation_job_run.lifecycle_state}',
-            'name': f'{evaluation_model.display_name}',
-            'parameters': {
-                'dataset_path': '',
-                'frequency_penalty': 0.0,
-                'max_tokens': '',
-                'presence_penalty': 0.0,
-                'report_path': '',
-                'shape': '',
-                'stop': [],
-                'temperature': '',
-                'top_k': '',
-                'top_p': ''
+            "lifecycle_details": f"{evaluation_job_run.lifecycle_details}",
+            "lifecycle_state": f"{evaluation_job_run.lifecycle_state}",
+            "name": f"{evaluation_model.display_name}",
+            "parameters": {
+                "dataset_path": "",
+                "frequency_penalty": 0.0,
+                "max_tokens": "",
+                "presence_penalty": 0.0,
+                "report_path": "",
+                "shape": "",
+                "stop": [],
+                "temperature": "",
+                "top_k": "",
+                "top_p": "",
             },
-            'source': {
-                'id': 'ocid1.datasciencemodel.oc1.iad.<OCID>',
-                'name': f'{foundation_model.display_name}',
-                'url': f'https://cloud.oracle.com/data-science/models/ocid1.datasciencemodel.oc1.iad.<OCID>?region={self.app.region}'
+            "source": {
+                "id": "ocid1.datasciencemodel.oc1.iad.<OCID>",
+                "name": f"{foundation_model.display_name}",
+                "url": f"https://cloud.oracle.com/data-science/models/ocid1.datasciencemodel.oc1.iad.<OCID>?region={self.app.region}",
             },
-            'tags': {
-                'aqua_evaluation': 'aqua_evaluation',
-                'evaluation_experiment_id': f'{experiment.id}',
-                'evaluation_job_id': f'{mock_job_id.return_value}',
-                'evaluation_source': 'ocid1.datasciencemodel.oc1.iad.<OCID>'
+            "tags": {
+                "aqua_evaluation": "aqua_evaluation",
+                "evaluation_experiment_id": f"{experiment.id}",
+                "evaluation_job_id": f"{mock_job_id.return_value}",
+                "evaluation_source": "ocid1.datasciencemodel.oc1.iad.<OCID>",
             },
-            'time_created': f'{oci_dsc_model.time_created}'
+            "time_created": f"{oci_dsc_model.time_created}",
         }
 
     @parameterized.expand(
