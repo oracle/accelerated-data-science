@@ -96,21 +96,27 @@ class TestAquaModel(unittest.TestCase):
     @patch("ads.model.datascience_model.validate")
     @patch.object(DataScienceModel, "from_id")
     def test_create_model(self, mock_from_id, mock_validate, mock_create):
-        service_model = MagicMock()
-        service_model.model_file_description = {"test_key":"test_value"}
-        service_model.display_name = "test_display_name"
-        service_model.description = "test_description"
-        service_model.freeform_tags = {"test_key":"test_value"}
+        mock_model = MagicMock()
+        mock_model.model_file_description = {"test_key":"test_value"}
+        mock_model.display_name = "test_display_name"
+        mock_model.description = "test_description"
+        mock_model.freeform_tags = {
+            "OCI_AQUA":"ACTIVE",
+            "license":"test_license",
+            "organization":"test_organization",
+            "task":"test_task",
+            "ready_to_fine_tune":"true"
+        }
         custom_metadata_list = ModelCustomMetadata()
         custom_metadata_list.add(
             key="test_metadata_item_key",
             value="test_metadata_item_value"
         )
-        service_model.custom_metadata_list = custom_metadata_list
-        service_model.provenance_metadata = ModelProvenanceMetadata(
+        mock_model.custom_metadata_list = custom_metadata_list
+        mock_model.provenance_metadata = ModelProvenanceMetadata(
             training_id="test_training_id"
         )
-        mock_from_id.return_value = service_model
+        mock_from_id.return_value = mock_model
 
         # will not copy service model 
         self.app.create(
@@ -123,11 +129,12 @@ class TestAquaModel(unittest.TestCase):
         mock_validate.assert_not_called()
         mock_create.assert_not_called()
 
-        service_model.compartment_id = TestDataset.SERVICE_COMPARTMENT_ID
-        mock_from_id.return_value = service_model
+        mock_model.compartment_id = TestDataset.SERVICE_COMPARTMENT_ID
+        mock_from_id.return_value = mock_model
+        mock_create.return_value = mock_model
 
         # will copy service model
-        self.app.create(
+        model = self.app.create(
             model_id="test_model_id",
             project_id="test_project_id",
             compartment_id="test_compartment_id"
@@ -138,6 +145,21 @@ class TestAquaModel(unittest.TestCase):
         mock_create.assert_called_with(
             model_by_reference=True
         )
+
+        assert model.display_name == "test_display_name"
+        assert model.description == "test_description"
+        assert model.description == "test_description"
+        assert model.freeform_tags == {
+            "OCI_AQUA":"ACTIVE",
+            "license":"test_license",
+            "organization":"test_organization",
+            "task":"test_task",
+            "ready_to_fine_tune":"true"
+        }
+        assert model.custom_metadata_list.get(
+            "test_metadata_item_key"
+        ).value == "test_metadata_item_value"
+        assert model.provenance_metadata.training_id == "test_training_id"
 
     @patch("ads.aqua.model.read_file")
     @patch.object(DataScienceModel, "from_id")
