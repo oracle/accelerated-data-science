@@ -125,6 +125,7 @@ opctl = [
   "oci-cli",
   "py-cpuinfo",
   "rich",
+  "fire",
 ]
 optuna = [
   "optuna==2.9.0",
