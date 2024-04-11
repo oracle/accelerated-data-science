@@ -10,6 +10,7 @@ from notebook.base.handlers import IPythonHandler
 from parameterized import parameterized
 
 from ads.aqua.evaluation import AquaEvaluationApp, CreateAquaEvaluationDetails
+from ads.aqua.extension.base_handler import Errors
 from ads.aqua.extension.evaluation_handler import (
     AquaEvaluationConfigHandler,
     AquaEvaluationHandler,
@@ -33,6 +34,7 @@ class TestDataset:
         memory_in_gbs=1,
         ocpus=1,
     )
+    mock_invalid_input = dict(name="myvalue")
 
     def mock_url(self, action):
         return f"{self.EVAL_ID}/{action}"
@@ -79,6 +81,40 @@ class TestEvaluationHandler(unittest.TestCase):
                 CreateAquaEvaluationDetails(**TestDataset.mock_valid_input)
             )
         )
+
+    @parameterized.expand(
+        [
+            (
+                dict(return_value=TestDataset.mock_invalid_input),
+                400,
+                "Missing required parameter:",
+            ),
+            (dict(side_effect=Exception()), 400, Errors.INVALID_INPUT_DATA_FORMAT),
+            (dict(return_value=None), 400, Errors.NO_INPUT_DATA),
+        ]
+    )
+    @unittest.skip(
+        "Need a fix in `handle_exceptions` decorator before enabling this test."
+    )
+    def test_post_fail(
+        self, mock_get_json_body_response, expected_status_code, expected_error_msg
+    ):
+        """Tests POST when encounter error."""
+        self.test_instance.get_json_body = MagicMock(
+            side_effect=mock_get_json_body_response.get("side_effect", None),
+            return_value=mock_get_json_body_response.get("return_value", None),
+        )
+        self.test_instance.write_error = MagicMock()
+
+        self.test_instance.post()
+
+        assert (
+            self.test_instance.write_error.call_args[1].get("status_code")
+            == expected_status_code
+        ), "Raised wrong status code."
+        assert expected_error_msg in self.test_instance.write_error.call_args[1].get(
+            "reason"
+        ), "Error message is incorrect."
 
     @parameterized.expand(
         [
