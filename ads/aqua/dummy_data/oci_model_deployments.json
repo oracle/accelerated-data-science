@@ -1,0 +1,56 @@
+[
+  {
+    "categoryLogDetails": {
+      "access": {
+        "logGroupId": "ocid1.loggroup.oc1.iad.xxxx",
+        "logId": "ocid1.log.oc1.iad.xxxx"
+      },
+      "predict": {
+        "logGroupId": "ocid1.loggroup.oc1.iad.xxxx",
+        "logId": "ocid1.log.oc1.iad.xxxx"
+      }
+    },
+    "compartmentId": "ocid1.compartment.oc1..xxxx",
+    "createdBy": "ocid1.user.oc1..xxxx",
+    "description": "service model 1.",
+    "displayName": "Test deployment of Mock service model 1 via UI",
+    "freeformTags": {
+      "aqua_service_model": "ocid1.datasciencemodel.oc1.iad.xxxx"
+    },
+    "id": "ocid1.datasciencemodeldeployment.oc1.iad.xxxx",
+    "lifecycleDetails": "Model Deployment is Active.",
+    "lifecycleState": "ACTIVE",
+    "modelDeploymentConfigurationDetails": {
+      "deploymentType": "SINGLE_MODEL",
+      "environmentConfigurationDetails": {
+        "entrypoint": [
+          "python",
+          "/opt/api/api.py"
+        ],
+        "environmentConfigurationType": "OCIR_CONTAINER",
+        "healthCheckPort": 5000,
+        "image": "iad.ocir.io/ociodscdev/aqua_deploy:1.0.0",
+        "imageDigest": "sha256:07f43194badef8973b4bd59d649a456b90b57e632f03927896232e904e02cdf1",
+        "serverPort": 5000
+      },
+      "modelConfigurationDetails": {
+        "bandwidthMbps": 10,
+        "instanceConfiguration": {
+          "instanceShapeName": "VM.Standard.E4.Flex",
+          "modelDeploymentInstanceShapeConfigDetails": {
+            "memoryInGBs": 16.0,
+            "ocpus": 1.0
+          }
+        },
+        "modelId": "ocid1.datasciencemodel.oc1.iad.xxxx",
+        "scalingPolicy": {
+          "instanceCount": 1,
+          "policyType": "FIXED_SIZE"
+        }
+      }
+    },
+    "modelDeploymentUrl": "https://modeldeployment.us-ashburn-1.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.iad.xxx",
+    "projectId": "ocid1.datascienceproject.oc1.iad.xxxx",
+    "timeCreated": "2024-01-25T00:26:14.542000Z"
+  }
+]

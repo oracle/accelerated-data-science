@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from typing import Union
-from ads.jobs.builders.runtimes.base import Runtime
+from ads.jobs.builders.runtimes.base import MultiNodeRuntime
 
 
-class ContainerRuntime(Runtime):
+class ContainerRuntime(MultiNodeRuntime):
     """Represents a container job runtime
 
     To define container runtime:
@@ -51,7 +51,7 @@ class ContainerRuntime(Runtime):
         CONST_ENTRYPOINT: CONST_ENTRYPOINT,
         CONST_CMD: CONST_CMD,
     }
-    attribute_map.update(Runtime.attribute_map)
+    attribute_map.update(MultiNodeRuntime.attribute_map)
 
     @property
     def image(self) -> str:

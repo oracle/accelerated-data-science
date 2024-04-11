@@ -1,0 +1,17 @@
+{
+  "data": [],
+  "metric_results": {
+    "metric1": {
+      "description": "This is a description.",
+      "key": "metric1",
+      "name": "METRIC 1"
+    }
+  },
+  "metric_summary_result": [
+    {
+      "grade": "Poor, There is significant room for improvement, either in the model's ability to generalize from its training data or in the data itself (e.g., it might be imbalanced or noisy)",
+      "metric": "METRIC 1",
+      "score": "Median F1: 0.598 (SD: 0.018)"
+    }
+  ]
+}

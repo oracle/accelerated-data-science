@@ -2,6 +2,43 @@
 Release Notes
 =============
 
+2.11.6
+------
+Release date: April 3, 2024
+
+* Fixed bugs and introduced enhancements following our recent release, which included internal adjustments for future features and updates for the Jupyter Lab 3 upgrade.
+
+
+2.11.5
+------
+Release date: March 25, 2024
+
+* Fixed bugs and introduced enhancements following our recent release, which included internal adjustments for future features and updates for the Jupyter Lab 3 upgrade.
+
+2.11.4
+------
+Release date: March 25, 2024
+
+* Fixed bugs and introduced enhancements following our recent release, which included internal adjustments for future features and updates for the Jupyter Lab 3 upgrade.
+
+2.11.3
+------
+Release date: March 22, 2024
+
+* Fixed bugs and introduced enhancements following our recent release, which included internal adjustments for future features and updates for the Jupyter Lab 3 upgrade.
+
+2.11.2
+------
+Release date: March 21, 2024
+
+* Fixed bugs and introduced enhancements following our recent release, which included internal adjustments for future features and updates for the Jupyter Lab 3 upgrade.
+
+2.11.1
+------
+Release date: March 20, 2024
+
+* Internal changes to support upcoming features and changes in Notebook related to Jupyter Lab 3 upgrade.
+
 2.10.1
 ------
 Release date: February 7, 2024
