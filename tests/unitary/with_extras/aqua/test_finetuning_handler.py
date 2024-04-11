@@ -88,4 +88,3 @@ class FineTuningHandlerTestCase(TestCase):
         mock_get_finetuning_config.assert_called_with(
             model_id="test_model_id"
         )
-        
