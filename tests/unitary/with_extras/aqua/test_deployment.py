@@ -196,8 +196,8 @@ class TestAquaDeployment(unittest.TestCase):
         expected_attributes = AquaDeployment.__annotations__.keys()
         for r in results:
             actual_attributes = asdict(r)
-            assert set(expected_attributes) == set(
-                actual_attributes
+            assert set(actual_attributes) == set(
+                expected_attributes
             ), "Attributes mismatch"
 
     @patch("ads.aqua.deployment.get_resource_name")
@@ -227,14 +227,10 @@ class TestAquaDeployment(unittest.TestCase):
             AquaDeployment.__annotations__.keys()
         )
         actual_attributes = asdict(result)
-        assert set(expected_attributes) == set(actual_attributes), "Attributes mismatch"
-        self.assertEqual(TestDataset.aqua_deployment_detail, actual_attributes)
-
-        self.assertEqual(
-            "log-name",
-            result.log.name,
-        )
-        self.assertEqual("log-group-name", result.log_group.name)
+        assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
+        assert actual_attributes == TestDataset.aqua_deployment_detail
+        assert result.log.name == "log-name"
+        assert result.log_group.name == "log-group-name"
 
     def test_get_deployment_missing_tags(self):
         """Test for returning a runtime error if OCI_AQUA tag is missing."""
@@ -269,12 +265,12 @@ class TestAquaDeployment(unittest.TestCase):
 
         self.app.get_config = MagicMock(return_value=config)
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
-        self.assertEqual(config, result)
+        assert result == config
 
         self.app.get_config = MagicMock(return_value=None)
         mock_load_config.return_value = config
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
-        self.assertEqual(config, result)
+        assert result == config
 
     @patch("ads.aqua.model.AquaModelApp.create")
     @patch("ads.aqua.deployment.get_container_image")
@@ -323,10 +319,10 @@ class TestAquaDeployment(unittest.TestCase):
 
         expected_attributes = set(AquaDeployment.__annotations__.keys())
         actual_attributes = asdict(result)
-        assert set(expected_attributes) == set(actual_attributes), "Attributes mismatch"
+        assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
         expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
         expected_result["state"] = "CREATING"
-        self.assertEqual(expected_result, actual_attributes)
+        assert actual_attributes == expected_result
 
     @patch("ads.aqua.model.AquaModelApp.create")
     @patch("ads.aqua.deployment.get_container_image")
@@ -390,10 +386,10 @@ class TestAquaDeployment(unittest.TestCase):
 
         expected_attributes = set(AquaDeployment.__annotations__.keys())
         actual_attributes = asdict(result)
-        assert set(expected_attributes) == set(actual_attributes), "Attributes mismatch"
+        assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
         expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
         expected_result["state"] = "CREATING"
-        self.assertEqual(expected_result, actual_attributes)
+        assert actual_attributes == expected_result
 
 
 class TestMDInferenceResponse(unittest.TestCase):
@@ -426,5 +422,4 @@ class TestMDInferenceResponse(unittest.TestCase):
         mock_post.return_value = mock_response
 
         result = self.app.get_model_deployment_response(endpoint)
-
-        self.assertEqual(" The answer is 2", result["choices"][0]["text"])
+        assert result["choices"][0]["text"] == " The answer is 2"
