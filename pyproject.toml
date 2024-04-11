@@ -81,7 +81,7 @@ dependencies = [
 # Copied from extras_require list in setup.py, setup.py got removed in favor of this config file
 bds = ["hdfs[kerberos]", "ibis-framework[impala]", "sqlalchemy"]
 boosted = [
-  "lightgbm<4.0.0", # relax when the official releases of skl2onnx (v1.16.0) and onnxmltools (1.11.3), https://github.com/sdpython/mlprodict/issues/488
+  "lightgbm",
   "xgboost",
 ]
 data = [
@@ -97,7 +97,7 @@ geo = ["geopandas", "oracle_ads[viz]"]
 huggingface = ["transformers"]
 notebook = ["ipython>=7.23.1, <8.0", "ipywidgets~=7.6.3"]
 onnx = [
-  "lightgbm<4.0.0",            # relax when the official releases of skl2onnx (v1.16.0) and onnxmltools (1.11.3), https://github.com/sdpython/mlprodict/issues/488
+  "lightgbm",
   "onnx>=1.12.0",
   "onnxmltools>=1.10.0",
   "onnxruntime>=1.10.0,!=1.16.0", # avoid v1.16 https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
