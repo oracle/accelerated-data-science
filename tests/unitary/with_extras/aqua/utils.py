@@ -9,6 +9,26 @@ from typing import Dict
 from pydantic import BaseModel, PositiveInt, ValidationError
 
 
+class HandlerTestDataset:
+    MOCK_OCID = "ocid.datasciencemdoel.<ocid>"
+    mock_valid_input = dict(
+        evaluation_source_id="ocid1.datasciencemodel.oc1.iad.<OCID>",
+        evaluation_name="test_evaluation_name",
+        dataset_path="oci://dataset_bucket@namespace/prefix/dataset.jsonl",
+        report_path="oci://report_bucket@namespace/prefix/",
+        model_parameters=dict(max_token=500),
+        shape_name="VM.Standard.E3.Flex",
+        block_storage_size=1,
+        experiment_name="test_experiment_name",
+        memory_in_gbs=1,
+        ocpus=1,
+    )
+    mock_invalid_input = dict(name="myvalue")
+
+    def mock_url(self, action):
+        return f"{self.MOCK_OCID}/{action}"
+
+
 class SupportMetricsFormat(BaseModel):
     """Format for supported evaluation metrics."""
 
