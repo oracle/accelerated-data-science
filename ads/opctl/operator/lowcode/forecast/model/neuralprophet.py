@@ -120,11 +120,11 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             data = self.preprocess(df, s_id)
             data_i = self.drop_horizon(data)
 
-            if self.loaded_models is not None:
+            if self.loaded_models is not None and s_id in self.loaded_models:
                 model = self.loaded_models[s_id]
                 accepted_regressors_config = model.config_regressors or dict()
                 self.accepted_regressors[s_id] = list(accepted_regressors_config.keys())
-                if self.loaded_trainers is not None:
+                if self.loaded_trainers is not None and s_id in self.loaded_trainers:
                     model.trainer = self.loaded_trainers[s_id]
             else:
                 if self.perform_tuning:
@@ -310,56 +310,56 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
     def _generate_report(self):
         import datapane as dp
-
+        series_ids = self.models.keys()
         all_sections = []
-
-        try:
-            sec1_text = dp.Text(
-                "## Forecast Overview \nThese plots show your "
-                "forecast in the context of historical data."
-            )
-            sec1 = _select_plot_list(
-                lambda s_id: self.models[s_id].plot(self.outputs[s_id]),
-                series_ids=self.datasets.list_series_ids(),
-            )
-            all_sections = all_sections + [sec1_text, sec1]
-        except Exception as e:
-            logger.debug(f"Failed to plot with exception: {e.args}")
-
-        try:
-            sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
-            sec2 = _select_plot_list(
-                lambda s_id: self.models[s_id].plot_components(self.outputs[s_id]),
-                series_ids=self.datasets.list_series_ids(),
-            )
-            all_sections = all_sections + [sec2_text, sec2]
-        except Exception as e:
-            logger.debug(f"Failed to plot with exception: {e.args}")
-
-        try:
-            sec3_text = dp.Text(f"## Forecast Parameter Plots")
-            sec3 = _select_plot_list(
-                lambda s_id: self.models[s_id].plot_parameters(),
-                series_ids=self.datasets.list_series_ids(),
-            )
-            all_sections = all_sections + [sec3_text, sec3]
-        except Exception as e:
-            logger.debug(f"Failed to plot with exception: {e.args}")
-
-        sec5_text = dp.Text(f"## Neural Prophet Model Parameters")
-        model_states = []
-        for i, (s_id, m) in enumerate(self.models.items()):
-            model_states.append(
-                pd.Series(
-                    m.state_dict(),
-                    index=m.state_dict().keys(),
-                    name=s_id,
+        if len(series_ids) > 0:
+            try:
+                sec1_text = dp.Text(
+                    "## Forecast Overview \nThese plots show your "
+                    "forecast in the context of historical data."
                 )
-            )
-        all_model_states = pd.concat(model_states, axis=1)
-        sec5 = dp.DataTable(all_model_states)
+                sec1 = _select_plot_list(
+                    lambda s_id: self.models[s_id].plot(self.outputs[s_id]),
+                    series_ids=series_ids,
+                )
+                all_sections = all_sections + [sec1_text, sec1]
+            except Exception as e:
+                logger.debug(f"Failed to plot with exception: {e.args}")
 
-        all_sections = all_sections + [sec5_text, sec5]
+            try:
+                sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
+                sec2 = _select_plot_list(
+                    lambda s_id: self.models[s_id].plot_components(self.outputs[s_id]),
+                    series_ids=series_ids,
+                )
+                all_sections = all_sections + [sec2_text, sec2]
+            except Exception as e:
+                logger.debug(f"Failed to plot with exception: {e.args}")
+
+            try:
+                sec3_text = dp.Text(f"## Forecast Parameter Plots")
+                sec3 = _select_plot_list(
+                    lambda s_id: self.models[s_id].plot_parameters(),
+                    series_ids=series_ids,
+                )
+                all_sections = all_sections + [sec3_text, sec3]
+            except Exception as e:
+                logger.debug(f"Failed to plot with exception: {e.args}")
+
+            sec5_text = dp.Text(f"## Neural Prophet Model Parameters")
+            model_states = []
+            for i, (s_id, m) in enumerate(self.models.items()):
+                model_states.append(
+                    pd.Series(
+                        m.state_dict(),
+                        index=m.state_dict().keys(),
+                        name=s_id,
+                    )
+                )
+            all_model_states = pd.concat(model_states, axis=1)
+            sec5 = dp.DataTable(all_model_states)
+
+            all_sections = all_sections + [sec5_text, sec5]
 
         if self.spec.generate_explanations:
             try:
