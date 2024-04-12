@@ -7,7 +7,6 @@
 from dataclasses import dataclass
 from typing import Dict
 
-import pandas as pd
 from pydantic import BaseModel, PositiveInt, ValidationError
 
 
