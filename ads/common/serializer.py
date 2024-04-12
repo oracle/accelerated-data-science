@@ -464,7 +464,7 @@ class DataClassSerializable(Serializable):
             )
 
         obj = cls(
-            **{key: obj_dict.get(key) for key in allowed_fields if key in obj_dict}
+            **{key: obj_dict.get(key) for key in allowed_fields}
         )
 
         for key, value in obj_dict.items():
