@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*--
 import traceback
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import pandas as pd
@@ -57,8 +57,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     @runtime_dependency(
         module="automlx",
         err_msg=(
-            "Please run `pip3 install oracle-automlx==23.4.1` and "
-            "`pip3 install oracle-automlx[forecasting]==23.4.1` "
+            "Please run `pip3 install oracle-automlx>=23.4.1` and "
+            "`pip3 install oracle-automlx[forecasting]>=23.4.1` "
             "to install the required dependencies for automlx."
         ),
     )
@@ -71,8 +71,13 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     def _build_model(self) -> pd.DataFrame:
         from automlx import init
         import logging
+
         try:
-            init(engine="ray", engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}}, loglevel=logging.CRITICAL)
+            init(
+                engine="ray",
+                engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}},
+                loglevel=logging.CRITICAL,
+            )
         except Exception as e:
             logger.info("Ray already initialized")
 

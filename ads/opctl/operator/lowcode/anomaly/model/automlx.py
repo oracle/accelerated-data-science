@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import pandas as pd
@@ -19,16 +19,21 @@ class AutoMLXOperatorModel(AnomalyOperatorBaseModel):
     @runtime_dependency(
         module="automlx",
         err_msg=(
-            "Please run `pip3 install oracle-automlx==23.4.1` and "
-            "`pip3 install oracle-automlx[classic]==23.4.1` "
+            "Please run `pip3 install oracle-automlx>=23.4.1` and "
+            "`pip3 install oracle-automlx[classic]>=23.4.1` "
             "to install the required dependencies for automlx."
         ),
     )
     def _build_model(self) -> pd.DataFrame:
         from automlx import init
         import logging
+
         try:
-            init(engine="ray", engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}}, loglevel=logging.CRITICAL)
+            init(
+                engine="ray",
+                engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}},
+                loglevel=logging.CRITICAL,
+            )
         except Exception as e:
             logger.info("Ray already initialized")
         date_column = self.spec.datetime_column.name

@@ -3,3 +3,5 @@
 -e ".[feature-store-marketplace]"
 darts>=0.28
 plotly
+--extra-index-url=https://artifacthub-phx.oci.oraclecorp.com/artifactory/api/pypi/automlx-pypi/simple
+oracle_automlx==24.2
