@@ -573,8 +573,10 @@ def test_arima_automlx_errors(operator_setup, model):
     """
 
     """
-    explanations generation is failing when boolean columns are passed. So we added label_encode before passing data to
-     explainer
+    explanations generation is failing when boolean columns are passed. 
+    TypeError: ufunc 'isfinite' not supported for the input types, and the inputs could not be safely coerced 
+     any supported types according to the casting rule ''safe''
+    Added label encoding before passing data to explainer
     """
 
     yaml_i['spec']['horizon'] = 10
