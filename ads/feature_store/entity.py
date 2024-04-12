@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -194,7 +194,7 @@ class Entity(Builder):
 
         Returns
         -------
-        FeatureStore
+        Entity
             The Entity instance (self)
         """
         return self.set_spec(self.CONST_NAME, name)
@@ -224,7 +224,7 @@ class Entity(Builder):
 
         Returns
         -------
-        FeatureStore
+        Entity
             The Entity instance (self)
         """
         return self.set_spec(self.CONST_DESCRIPTION, description)
@@ -240,7 +240,7 @@ class Entity(Builder):
 
         Returns
         -------
-        FeatureStore
+        Entity
             An instance of Entity resource.
         """
         return cls()._update_from_oci_fs_entity_model(OCIEntity.from_id(id))
@@ -256,7 +256,7 @@ class Entity(Builder):
 
         Returns
         -------
-        FeatureStore
+        Entity
             The Entity instance (self)
 
         Raises

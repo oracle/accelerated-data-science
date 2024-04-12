@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -18,6 +18,7 @@ from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.common.errors import InvalidParameterError
 
 
+
 class OPERATOR_LOCAL_RUNTIME_TYPE(ExtendedEnum):
     PYTHON = "python"
     CONTAINER = "container"
@@ -31,10 +32,13 @@ class Runtime(DataClassSerializable):
     """Base class for the operator's runtimes."""
 
     _schema: ClassVar[str] = ""
-    kind: str = OPERATOR_LOCAL_RUNTIME_KIND
     type: str = None
     version: str = None
     spec: Any = None
+    kind: str = None
+
+    def __init__(self, kind: str = OPERATOR_LOCAL_RUNTIME_KIND, **kwargs):
+        self.kind = kind
 
     @classmethod
     def _validate_dict(cls, obj_dict: Dict) -> bool:
@@ -77,6 +81,7 @@ class ContainerRuntime(Runtime):
     _schema: ClassVar[str] = "container_runtime_schema.yaml"
     type: str = OPERATOR_LOCAL_RUNTIME_TYPE.CONTAINER.value
     version: str = "v1"
+    kind: str = OPERATOR_LOCAL_RUNTIME_KIND
     spec: ContainerRuntimeSpec = field(default_factory=ContainerRuntimeSpec)
 
     @classmethod
@@ -96,6 +101,7 @@ class PythonRuntime(Runtime):
     """Represents a python operator runtime."""
 
     _schema: ClassVar[str] = "python_runtime_schema.yaml"
+    kind: str = OPERATOR_LOCAL_RUNTIME_KIND
     type: str = OPERATOR_LOCAL_RUNTIME_TYPE.PYTHON.value
     version: str = "v1"
 

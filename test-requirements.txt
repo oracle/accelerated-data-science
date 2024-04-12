@@ -3,7 +3,9 @@ click
 coverage
 faker
 mock
+parameterized
 pip
 pytest
 pytest-cov
 pytest-xdist
+kubernetes

@@ -49,15 +49,15 @@ class OperatorConfig(DataClassSerializable):
         The version of the operator.
     spec: object
         The operator specification details.
-    runtime: dict
-        The runtime details of the operator.
+    backend: dict
+        The operator's backend details.
     """
 
     kind: str = "operator"
     type: str = None
     version: str = None
     spec: Any = None
-    runtime: Dict = None
+    backend: Dict = None
 
     @classmethod
     def _validate_dict(cls, obj_dict: Dict) -> bool:

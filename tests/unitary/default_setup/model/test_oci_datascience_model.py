@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from unittest.mock import MagicMock, patch, call, PropertyMock
@@ -13,8 +13,6 @@ from oci.data_science.models import (
     ImportModelArtifactDetails,
     Model,
     ModelProvenance,
-    WorkRequest,
-    WorkRequestLogEntry,
 )
 from oci.exceptions import ServiceError
 from oci.response import Response
@@ -22,7 +20,6 @@ from oci.response import Response
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_mixin import OCIModelMixin
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.dataset.progress import TqdmProgressBar
 from ads.model.datascience_model import _MAX_ARTIFACT_SIZE_IN_BYTES
 from ads.model.service.oci_datascience_model import (
     ModelArtifactNotFoundError,
@@ -30,6 +27,8 @@ from ads.model.service.oci_datascience_model import (
     ModelWithActiveDeploymentError,
     OCIDataScienceModel,
 )
+from ads.model.model_metadata import ModelCustomMetadataItem
+
 
 MODEL_OCID = "ocid1.datasciencemodel.oc1.iad.<unique_ocid>"
 
@@ -343,16 +342,21 @@ class TestOCIDataScienceModel:
             self.mock_model.get_model_artifact_content()
             mock_client.get_model_artifact_content.assert_called_with(MODEL_OCID)
 
+    @pytest.mark.parametrize(
+        "file_ext",
+        [".zip", ".json", "", None],
+    )
     @patch.object(OCIDataScienceModel, "client")
-    def test_create_model_artifact(self, mock_client):
+    def test_create_model_artifact(self, mock_client, file_ext):
         """Tests creating model artifact for specified model."""
         mock_client.create_model_artifact = MagicMock()
         test_data = b"test"
-        self.mock_model.create_model_artifact(test_data)
+        self.mock_model.create_model_artifact(test_data, file_ext)
+        ext = ".json" if file_ext and file_ext.lower() == ".json" else ".zip"
         mock_client.create_model_artifact.assert_called_with(
             MODEL_OCID,
             test_data,
-            content_disposition=f'attachment; filename="{MODEL_OCID}.zip"',
+            content_disposition=f'attachment; filename="{MODEL_OCID}{ext}"',
         )
 
     @patch.object(OCIResource, "search")
@@ -375,16 +379,21 @@ class TestOCIDataScienceModel:
             **{"kwargkey": "kwargvalue"},
         )
 
-    @patch.object(OCIDataScienceModel, "_wait_for_work_request")
+    @patch(
+        "ads.model.service.oci_datascience_model.DataScienceWorkRequest.wait_work_request"
+    )
+    @patch("ads.model.service.oci_datascience_model.DataScienceWorkRequest.__init__")
     def test_import_model_artifact_success(
         self,
-        mock_wait_for_work_request,
+        mock_data_science_work_request,
+        mock_wait_work_request,
         mock_client,
     ):
         """Tests importing model artifact content from the model catalog."""
         test_bucket_uri = "oci://bucket@namespace/prefix"
         test_bucket_details = ObjectStorageDetails.from_path(test_bucket_uri)
         test_region = "test_region"
+        mock_data_science_work_request.return_value = None
         with patch.object(OCIDataScienceModel, "client", mock_client):
             self.mock_model.import_model_artifact(
                 bucket_uri=test_bucket_uri, region=test_region
@@ -400,9 +409,9 @@ class TestOCIDataScienceModel:
                     )
                 ),
             )
-            mock_wait_for_work_request.assert_called_with(
-                work_request_id="work_request_id",
-                num_steps=2,
+            mock_data_science_work_request.assert_called_with("work_request_id")
+            mock_wait_work_request.assert_called_with(
+                progress_bar_description="Importing model artifacts."
             )
 
     @patch.object(OCIDataScienceModel, "client")
@@ -419,16 +428,21 @@ class TestOCIDataScienceModel:
                 bucket_uri=test_bucket_uri, region="test_region"
             )
 
-    @patch.object(OCIDataScienceModel, "_wait_for_work_request")
+    @patch(
+        "ads.model.service.oci_datascience_model.DataScienceWorkRequest.wait_work_request"
+    )
+    @patch("ads.model.service.oci_datascience_model.DataScienceWorkRequest.__init__")
     def test_export_model_artifact(
         self,
-        mock_wait_for_work_request,
+        mock_data_science_work_request,
+        mock_wait_work_request,
         mock_client,
     ):
         """Tests exporting model artifact to the model catalog."""
         test_bucket_uri = "oci://bucket@namespace/prefix"
         test_bucket_details = ObjectStorageDetails.from_path(test_bucket_uri)
         test_region = "test_region"
+        mock_data_science_work_request.return_value = None
         with patch.object(OCIDataScienceModel, "client", mock_client):
             self.mock_model.export_model_artifact(
                 bucket_uri=test_bucket_uri, region=test_region
@@ -444,115 +458,29 @@ class TestOCIDataScienceModel:
                     )
                 ),
             )
-            mock_wait_for_work_request.assert_called_with(
-                work_request_id="work_request_id",
-                num_steps=2,
+            mock_data_science_work_request.assert_called_with("work_request_id")
+            mock_wait_work_request.assert_called_with(
+                progress_bar_description="Exporting model artifacts."
             )
 
-    @patch.object(TqdmProgressBar, "update")
-    def test__wait_for_work_request_fail(self, mock_tqdm_update, mock_client):
-        mock_client.get_work_request = MagicMock(
-            return_value=Response(
-                data=WorkRequest(id="work_request_id", status="FAILED"),
-                status=None,
-                headers={"opc-work-request-id": "work_request_id"},
-                request=None,
-            )
-        )
-        mock_client.list_work_request_logs = MagicMock(
-            return_value=Response(
-                data=[
-                    WorkRequestLogEntry(message="test_message_1"),
-                    WorkRequestLogEntry(message="error_message_1"),
-                ],
-                status=None,
-                headers=None,
-                request=None,
-            )
-        )
-        with patch.object(
-            OCIDataScienceModel,
-            "client",
-            new_callable=PropertyMock,
-            return_value=mock_client,
-        ):
-            with pytest.raises(Exception, match="error_message_1"):
-                self.mock_model._wait_for_work_request(
-                    work_request_id="work_request_id", num_steps=2
-                )
-                mock_tqdm_update.assert_has_calls(
-                    [
-                        call("test_message_1"),
-                        call("error_message_1"),
-                    ]
-                )
-                assert mock_tqdm_update.call_count == 2
+    def test_is_model_by_reference(self):
+        """Test to check if  model is created by reference using custom metadata information"""
 
-    @patch.object(TqdmProgressBar, "update")
-    def test__wait_for_work_request_fail_generic(self, mock_tqdm_update, mock_client):
-        mock_client.get_work_request = MagicMock(
-            return_value=Response(
-                data=WorkRequest(id="work_request_id", status="FAILED"),
-                status=None,
-                headers={"opc-work-request-id": "work_request_id"},
-                request=None,
-            )
+        metadata_item = ModelCustomMetadataItem(
+            key="test_key",
+            value="test_value",
+            description="test_desc",
+            category="Other",
         )
-        mock_client.list_work_request_logs = MagicMock(
-            return_value=Response(
-                data=[],
-                status=None,
-                headers=None,
-                request=None,
-            )
-        )
-        with patch.object(
-            OCIDataScienceModel,
-            "client",
-            new_callable=PropertyMock,
-            return_value=mock_client,
-        ):
-            with pytest.raises(
-                Exception, match="^Error occurred in attempt to perform the operation*"
-            ):
-                self.mock_model._wait_for_work_request(
-                    work_request_id="work_request_id", num_steps=2
-                )
-                mock_tqdm_update.assert_not_called()
+        self.mock_model.custom_metadata_list = [metadata_item]
+        assert not self.mock_model.is_model_by_reference()
 
-    @patch.object(TqdmProgressBar, "update")
-    def test__wait_for_work_request_success(self, mock_tqdm_update, mock_client):
-        mock_client.get_work_request = MagicMock(
-            return_value=Response(
-                data=WorkRequest(id="work_request_id", status="SUCCEEDED"),
-                status=None,
-                headers={"opc-work-request-id": "work_request_id"},
-                request=None,
-            )
+        metadata_item = ModelCustomMetadataItem(
+            key="modelDescription",
+            value="true",
+            description="model by reference flag",
+            category="Other",
         )
-        mock_client.list_work_request_logs = MagicMock(
-            return_value=Response(
-                data=[
-                    WorkRequestLogEntry(message="test_message_1"),
-                    WorkRequestLogEntry(message="test_message_2"),
-                ],
-                status=None,
-                headers=None,
-                request=None,
-            )
-        )
-        with patch.object(
-            OCIDataScienceModel,
-            "client",
-            new_callable=PropertyMock,
-            return_value=mock_client,
-        ):
-            self.mock_model._wait_for_work_request(
-                work_request_id="work_request_id", num_steps=2
-            )
-            # mock_tqdm_update.assert_has_calls(
-            #     [call("test_message_1"), call("test_message_2")]
-            # )
-            # assert mock_tqdm_update.call_count == 2
-            # mock_tqdm_update.assert_called()
-            # assert mock_tqdm_update.call_count == 2
+        self.mock_model.custom_metadata_list = [metadata_item]
+
+        assert self.mock_model.is_model_by_reference()

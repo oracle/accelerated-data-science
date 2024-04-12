@@ -13,7 +13,7 @@ To create and start running the job:
     run.watch()
 
   .. code-tab:: bash
-    :caption: YAML
+    :caption: CLI
 
     # Use the following command to start the job run
     ads opctl run -f your_job.yaml

@@ -405,6 +405,19 @@ delta
 * Source code: https://github.com/delta-io/delta/
 * Project home: https://delta.io/
 
+cachetools
+* Copyright (c) 2014-2024 Thomas Kemmer
+* License: The MIT License (MIT)
+* Source code: https://github.com/tkem/cachetools/
+* Project home: https://cachetools.readthedocs.io/
+
+python-fire
+* Copyright 2017 Google Inc. All rights reserved.
+* License: Apache License 2.0
+* Source code: https://github.com/google/python-fire
+* Project home: https://github.com/google/python-fire
+
+=======
 =============================== Licenses ===============================
 ------------------------------------------------------------------------
 

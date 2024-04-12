@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from functools import wraps
 import logging
 from typing import Callable, List
 from ads.common.oci_datascience import OCIDataScienceMixin
-from ads.common.oci_mixin import OCIWorkRequestMixin
+from ads.common.work_request import DataScienceWorkRequest
 from ads.config import PROJECT_OCID
 from ads.model.deployment.common.utils import OCIClientManager, State
 import oci
@@ -67,17 +67,16 @@ def check_for_model_deployment_id(msg: str = MODEL_DEPLOYMENT_NEEDS_TO_BE_DEPLOY
     return decorator
 
 
-class MissingModelDeploymentIdError(Exception):   # pragma: no cover
+class MissingModelDeploymentIdError(Exception):  # pragma: no cover
     pass
 
 
-class MissingModelDeploymentWorkflowIdError(Exception):   # pragma: no cover
+class MissingModelDeploymentWorkflowIdError(Exception):  # pragma: no cover
     pass
 
 
 class OCIDataScienceModelDeployment(
     OCIDataScienceMixin,
-    OCIWorkRequestMixin,
     oci.data_science.models.ModelDeployment,
 ):
     """Represents an OCI Data Science Model Deployment.
@@ -175,32 +174,25 @@ class OCIDataScienceModelDeployment(
             The `OCIDataScienceModelDeployment` instance (self).
         """
         dsc_model_deployment = OCIDataScienceModelDeployment.from_id(self.id)
-        if (
-            dsc_model_deployment.lifecycle_state
-            == self.LIFECYCLE_STATE_ACTIVE
-        ):
+        if dsc_model_deployment.lifecycle_state == self.LIFECYCLE_STATE_ACTIVE:
             raise Exception(
                 f"Model deployment {dsc_model_deployment.id} is already in active state."
             )
 
-        if (
-            dsc_model_deployment.lifecycle_state
-            == self.LIFECYCLE_STATE_INACTIVE
-        ):
+        if dsc_model_deployment.lifecycle_state == self.LIFECYCLE_STATE_INACTIVE:
             logger.info(f"Activating model deployment `{self.id}`.")
             response = self.client.activate_model_deployment(
                 self.id,
             )
 
             if wait_for_completion:
-
                 self.workflow_req_id = response.headers.get("opc-work-request-id", None)
 
                 try:
-                    self.wait_for_progress(
-                        self.workflow_req_id, 
-                        max_wait_time, 
-                        poll_interval
+                    DataScienceWorkRequest(self.workflow_req_id).wait_work_request(
+                        progress_bar_description="Activating model deployment",
+                        max_wait_time=max_wait_time, 
+                        poll_interval=poll_interval
                     )
                 except Exception as e:
                     logger.error(
@@ -241,21 +233,19 @@ class OCIDataScienceModelDeployment(
         response = self.client.create_model_deployment(create_model_deployment_details)
         self.update_from_oci_model(response.data)
         logger.info(f"Creating model deployment `{self.id}`.")
+        print(f"Model Deployment OCID: {self.id}")
 
         if wait_for_completion:
-
             self.workflow_req_id = response.headers.get("opc-work-request-id", None)
 
             try:
-                self.wait_for_progress(
-                    self.workflow_req_id, 
-                    max_wait_time, 
-                    poll_interval
+                DataScienceWorkRequest(self.workflow_req_id).wait_work_request(
+                    progress_bar_description="Creating model deployment",
+                    max_wait_time=max_wait_time, 
+                    poll_interval=poll_interval
                 )
             except Exception as e:
-                logger.error(
-                    "Error while trying to create model deployment: " + str(e)
-                )
+                logger.error("Error while trying to create model deployment: " + str(e))
 
         return self.sync()
 
@@ -287,32 +277,25 @@ class OCIDataScienceModelDeployment(
             The `OCIDataScienceModelDeployment` instance (self).
         """
         dsc_model_deployment = OCIDataScienceModelDeployment.from_id(self.id)
-        if (
-            dsc_model_deployment.lifecycle_state
-            == self.LIFECYCLE_STATE_INACTIVE
-        ):
+        if dsc_model_deployment.lifecycle_state == self.LIFECYCLE_STATE_INACTIVE:
             raise Exception(
                 f"Model deployment {dsc_model_deployment.id} is already in inactive state."
             )
 
-        if (
-            dsc_model_deployment.lifecycle_state
-            == self.LIFECYCLE_STATE_ACTIVE
-        ):
+        if dsc_model_deployment.lifecycle_state == self.LIFECYCLE_STATE_ACTIVE:
             logger.info(f"Deactivating model deployment `{self.id}`.")
             response = self.client.deactivate_model_deployment(
                 self.id,
             )
 
             if wait_for_completion:
-
                 self.workflow_req_id = response.headers.get("opc-work-request-id", None)
 
                 try:
-                    self.wait_for_progress(
-                        self.workflow_req_id, 
-                        max_wait_time, 
-                        poll_interval
+                    DataScienceWorkRequest(self.workflow_req_id).wait_work_request(
+                        progress_bar_description="Deactivating model deployment",
+                        max_wait_time=max_wait_time, 
+                        poll_interval=poll_interval
                     )
                 except Exception as e:
                     logger.error(
@@ -355,7 +338,7 @@ class OCIDataScienceModelDeployment(
         dsc_model_deployment = OCIDataScienceModelDeployment.from_id(self.id)
         if dsc_model_deployment.lifecycle_state in [
             self.LIFECYCLE_STATE_DELETED,
-            self.LIFECYCLE_STATE_DELETING
+            self.LIFECYCLE_STATE_DELETING,
         ]:
             raise Exception(
                 f"Model deployment {dsc_model_deployment.id} is either deleted or being deleted."
@@ -374,19 +357,16 @@ class OCIDataScienceModelDeployment(
         )
 
         if wait_for_completion:
-
             self.workflow_req_id = response.headers.get("opc-work-request-id", None)
 
             try:
-                self.wait_for_progress(
-                    self.workflow_req_id, 
-                    max_wait_time, 
-                    poll_interval
+                DataScienceWorkRequest(self.workflow_req_id).wait_work_request(
+                    progress_bar_description="Deleting model deployment",
+                    max_wait_time=max_wait_time, 
+                    poll_interval=poll_interval
                 )
             except Exception as e:
-                logger.error(
-                    "Error while trying to delete model deployment: " + str(e)
-                )
+                logger.error("Error while trying to delete model deployment: " + str(e))
 
         return self.sync()
 
@@ -440,9 +420,7 @@ class OCIDataScienceModelDeployment(
             )
             self.workflow_req_id = response.headers.get("opc-work-request-id", None)
         except Exception as e:
-            logger.error(
-                "Error while trying to update model deployment: " + str(e)
-            )
+            logger.error("Error while trying to update model deployment: " + str(e))
 
         return self.sync()
 

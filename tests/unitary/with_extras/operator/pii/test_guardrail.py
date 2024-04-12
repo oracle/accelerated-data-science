@@ -31,6 +31,8 @@ spec:
     url: {self.test_files_uri}/test_data.csv
   output_directory:
     url: {self.test_files_uri}
+  report:
+    report_filename: {DEFAULT_REPORT_FILENAME}
   target_column: text
 type: pii
 version: v1
@@ -91,7 +93,7 @@ version: v1
             yaml_string=self.yaml_content_simple()
         )
         guardrail = PIIGuardrail(config=operator_config)
-        guardrail.load_data()
+        guardrail._load_data()
 
         assert guardrail.datasets is not None
         assert guardrail.storage_options == {}

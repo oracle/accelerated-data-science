@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import unittest
@@ -57,9 +57,9 @@ class FeatureStoreTestCase:
     TIME_NOW = str.format(
         "{}_{}", datetime.utcnow().strftime("%Y_%m_%d_%H_%M_%S"), int(random() * 1000)
     )
-    TENANCY_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
-    COMPARTMENT_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
-    METASTORE_ID = "ocid1.datacatalogmetastore.oc1.iad.amaaaaaabiudgxyap7tizm4gscwz7amu7dixz7ml3mtesqzzwwg3urvvdgua"
+    TENANCY_ID = os.getenv("TENANCY_ID")
+    COMPARTMENT_ID = os.getenv("COMPARTMENT_ID")
+    METASTORE_ID = os.getenv("METASTORE_ID")
     INPUT_FEATURE_DETAILS = [
         FeatureDetail("flower")
         .with_feature_type(FeatureType.STRING)
@@ -373,19 +373,19 @@ class FeatureStoreTestCase:
             FeatureStore()
             .with_description("Feature Store Description")
             .with_compartment_id(self.COMPARTMENT_ID)
-            .with_display_name(name)
+            .with_name(name)
             .with_offline_config(metastore_id=self.METASTORE_ID)
         )
         return feature_store_resource
 
     def create_entity_resource(self, feature_store) -> "Entity":
-        entity = feature_store.create_entity(display_name=self.get_name("entity"))
+        entity = feature_store.create_entity(name=self.get_name("entity"))
         return entity
 
     def create_transformation_resource(self, feature_store) -> "Transformation":
         transformation = feature_store.create_transformation(
             source_code_func=transformation_with_kwargs,
-            display_name="transformation_with_kwargs",
+            name="transformation_with_kwargs",
             transformation_mode=TransformationMode.PANDAS,
         )
         return transformation
@@ -498,7 +498,7 @@ class FeatureStoreTestCase:
 
     @staticmethod
     def assert_dataset_job(dataset, dataset_job):
-        assert dataset_job.display_name == dataset.name
+        assert dataset_job.name == dataset.name
         assert dataset_job.id is not None
         assert dataset_job.compartment_id == dataset.compartment_id
 

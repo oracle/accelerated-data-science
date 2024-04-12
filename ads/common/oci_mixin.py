@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Contains Mixins for integrating OCI data models
@@ -11,21 +11,21 @@ import json
 import logging
 import os
 import re
-import time
 import traceback
 from datetime import date, datetime
-from typing import Callable, Optional, Union
 from enum import Enum
+from typing import Callable, Optional, Union
 
 import oci
 import yaml
-from ads.common import auth
-from ads.common.decorator.utils import class_or_instance_method
-from ads.common.utils import camel_to_snake, get_progress_bar
-from ads.config import COMPARTMENT_OCID
 from dateutil import tz
 from dateutil.parser import parse
 from oci._vendor import six
+
+from ads.common import auth
+from ads.common.decorator.utils import class_or_instance_method
+from ads.common.utils import camel_to_snake
+from ads.config import COMPARTMENT_OCID
 
 logger = logging.getLogger(__name__)
 
@@ -274,7 +274,7 @@ class OCISerializableMixin(OCIClientMixin):
         else:
             return cls.__deserialize_model(data, to_cls)
 
-    @classmethod
+    @class_or_instance_method
     def __deserialize_model(cls, data, to_cls):
         """De-serializes list or dict to model."""
         if isinstance(data, to_cls):
@@ -798,14 +798,13 @@ class OCIModelMixin(OCISerializableMixin):
                         logger.error(
                             "Failed to synchronize the properties of %s due to service error:\n%s",
                             self.__class__,
-                            str(ex),
+                            traceback.format_exc(),
                         )
-                except Exception as ex:
+                except Exception:
                     logger.error(
-                        "Failed to synchronize the properties of %s: %s\n%s",
+                        "Failed to synchronize the properties of %s.\n%s",
                         self.__class__,
-                        type(ex),
-                        str(ex),
+                        traceback.format_exc(),
                     )
         return super().__getattribute__(name)
 
@@ -935,88 +934,6 @@ class OCIWorkRequestMixin:
                 f"opc-work-request-id not found in response headers: {response.headers}"
             )
         return work_request_response
-
-    def wait_for_progress(
-        self,
-        work_request_id: str,
-        max_wait_time: int = DEFAULT_WAIT_TIME,
-        poll_interval: int = DEFAULT_POLL_INTERVAL,
-    ):
-        """Waits for the work request progress bar to be completed.
-
-        Parameters
-        ----------
-        work_request_id: str
-            Work Request OCID.
-        max_wait_time: int
-            Maximum amount of time to wait in seconds (Defaults to 1200).
-            Negative implies infinite wait time.
-        poll_interval: int
-            Poll interval in seconds (Defaults to 10).
-
-        Returns
-        -------
-        None
-        """
-        work_request_logs = []
-
-        i = 0
-        start_time = time.time()
-        with get_progress_bar(WORK_REQUEST_PERCENTAGE) as progress:
-            seconds_since = time.time() - start_time
-            exceed_max_time = max_wait_time > 0 and seconds_since >= max_wait_time
-            if exceed_max_time:
-                logger.error(f"Max wait time ({max_wait_time} seconds) exceeded.")
-            previous_percent_complete = 0
-            while not exceed_max_time and (
-                not work_request_logs or previous_percent_complete <= WORK_REQUEST_PERCENTAGE
-            ):
-                time.sleep(poll_interval)
-                new_work_request_logs = []
-
-                try:
-                    work_request = self.client.get_work_request(work_request_id).data
-                    work_request_logs = self.client.list_work_request_logs(
-                        work_request_id
-                    ).data
-                except Exception as ex:
-                    logger.warn(ex)
-
-                new_work_request_logs = (
-                    work_request_logs[i:] if work_request_logs else []
-                )
-
-                percent_change = work_request.percent_complete - previous_percent_complete
-                previous_percent_complete = work_request.percent_complete
-
-                if len(new_work_request_logs) > 0:
-                    start_index = True
-                    for wr_item in new_work_request_logs:
-                        if start_index:
-                            progress.update(wr_item.message, percent_change)
-                            start_index = False
-                        else:
-                            progress.update(wr_item.message, 0)
-                        i += 1
-                else:
-                    # if there is new percent change but the new work request logs is empty
-                    # needs to add this percent change to the bar to ensure the final percentage is 100
-                    if percent_change != 0:
-                        progress.update(n=percent_change)
-
-                if work_request and work_request.status in WORK_REQUEST_STOP_STATE:
-                    if work_request.status != "SUCCEEDED":
-                        if new_work_request_logs:
-                            raise Exception(new_work_request_logs[-1].message)
-                        else:
-                            raise Exception(
-                                "Error occurred in attempt to perform the operation. "
-                                "Check the service logs to get more details. "
-                                f"{work_request}"
-                            )
-                    else:
-                        break
-            progress.update("Done")
 
 
 class OCIModelWithNameMixin:

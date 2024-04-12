@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """This module requires oracle-ads>=2.6.8
 """
+import getpass
 import ipaddress
 import logging
 import multiprocessing
@@ -40,17 +41,32 @@ logger = logging.getLogger(__name__)
 logger = driver_utils.set_log_level(logger)
 
 
+# Envs provisioned by the service
 CONST_ENV_HOST_JOB_RUN_OCID = "MAIN_JOB_RUN_OCID"
 CONST_ENV_JOB_RUN_OCID = "JOB_RUN_OCID"
-CONST_ENV_LD_PRELOAD = "LD_PRELOAD"
+# Envs set by the ADS API
+OCI__WORKER_COUNT = "OCI__WORKER_COUNT"
+CONST_ENV_NODE_RANK = "NODE_RANK"
+CONST_ENV_NODE_COUNT = "NODE_COUNT"
 CONST_ENV_LAUNCH_CMD = "OCI__LAUNCH_CMD"
 CONST_ENV_DEEPSPEED = "OCI__DEEPSPEED"
+# Envs set by this module
+CONST_ENV_WORLD_SIZE = "WORLD_SIZE"
+CONST_ENV_LD_PRELOAD = "LD_PRELOAD"
+# Envs for debugging only
+# OCI_ODSC_SERVICE_ENDPOINT is used for all processes in the job run
+CONST_ENV_ODSC_SERVICE_ENDPOINT = "OCI_ODSC_SERVICE_ENDPOINT"
+# OCI_DS_SERVICE_ENDPOINT is used only by the training process
+CONST_ENV_DS_SERVICE_ENDPOINT = "OCI_DS_SERVICE_ENDPOINT"
+
+# Constants used in logs
 LOG_PREFIX_HOST_IP = "Distributed Training HOST IP: "
 LOG_PREFIX_NODE_IP = "Node IP: "
 LOG_PREFIX_PUBLIC_KEY = "HOST PUBLIC KEY: "
-SSH_DIR = "/home/datascience/.ssh"
-# Working count is the number of node - 1
-OCI__WORKER_COUNT = "OCI__WORKER_COUNT"
+# Other constants used within this script
+# Other constants used within this script
+USER_HOME = os.environ.get("HOME", f"/home/{getpass.getuser()}")
+SSH_DIR = os.environ.get("OCI__SSH_DIR", os.path.join(USER_HOME, ".ssh"))
 DEFAULT_LAUNCHER = "torchrun"
 
 # Set authentication method to resource principal
@@ -131,8 +147,11 @@ class Runner(driver_utils.JobRunner):
 
         self.host_job_run = DataScienceJobRun.from_ocid(self.host_ocid)
         self.entrypoint_env = PythonRuntimeHandler.CONST_CODE_ENTRYPOINT
-        # The total number of node is OCI__WORKER_COUNT + 1
-        self.node_count = int(os.environ.get(OCI__WORKER_COUNT, 0)) + 1
+        # The total number of nodes is OCI__WORKER_COUNT + 1
+        if CONST_ENV_NODE_COUNT in os.environ:
+            self.node_count = int(os.environ[CONST_ENV_NODE_COUNT])
+        else:
+            self.node_count = int(os.environ.get(OCI__WORKER_COUNT, 0)) + 1
         logger.debug("Node count: %s", self.node_count)
         self.gpu_count = torch.cuda.device_count()
         logger.debug("GPU count on this node: %s", self.gpu_count)
@@ -341,13 +360,13 @@ class Runner(driver_utils.JobRunner):
             launch_args = []
         # Append launch cmd args specified by the user.
         if self.launch_cmd:
-            if not self.launch_cmd.startswith(self.LAUNCHER):
-                raise ValueError(
-                    f"Command not supported: '{self.launch_cmd}'. "
-                    f"The command should start with '{self.LAUNCHER}'."
-                )
+            if self.LAUNCHER:
+                if not self.launch_cmd.startswith(self.LAUNCHER):
+                    raise ValueError(f"Command not supported: '{self.launch_cmd}'. ")
 
-            launch_args.append(self.launch_cmd[len(self.LAUNCHER) + 1 :])
+                launch_args.append(self.launch_cmd[len(self.LAUNCHER) + 1 :])
+            else:
+                launch_args.append(self.launch_cmd)
         else:
             launch_args.append(self.get_cmd_with_entrypoint_and_args())
 
@@ -673,7 +692,51 @@ class DeepSpeedRunner(Runner):
             self.run_deepspeed_worker()
 
 
+class GenericRunner(TorchRunner, DeepSpeedRunner):
+    """Runner for running command other than ``torchrun``, ``deepspeed`` or ``accelerate``."""
+
+    LAUNCHER = ""
+
+    def use_deepspeed(self) -> bool:
+        """Indicate if DeepSpeed is used."""
+        if os.environ.get(CONST_ENV_DEEPSPEED):
+            return True
+        return False
+
+    def set_env_var(self):
+        """Set default environment variables."""
+        defaults = {
+            "WORLD_SIZE": self.node_count * self.gpu_count,
+            "MASTER_ADDR": self.host_ip,
+            "MASTER_PORT": self.RDZV_PORT,
+        }
+        for k, v in defaults.items():
+            if k not in os.environ:
+                os.environ[k] = str(v)
+
+    def run(self):
+        """Runs the user's command.
+        Note that for TorchRunner or DeepSpeedRunner,
+        we automatically add arguments for some settings,
+        like the number of nodes and the host node address.
+
+        This generic runner does not modify the command specified by the user.
+        User needs to make sure the command can work on all nodes.
+        User may use the environment variables in the command.
+        """
+        self.set_env_var()
+        if self.use_deepspeed():
+            if self.is_host:
+                self.run_deepspeed_host()
+            else:
+                self.run_deepspeed_worker()
+        else:
+            self.time_cmd(cmd=self.prepare_cmd(prefix=self.env_ld_preload()))
+
+
 class AccelerateRunner(TorchRunner, DeepSpeedRunner):
+    """Runner for HuggingFace Accelerate."""
+
     # accelerate launch will add main_process_port for deepspeed cmd even if it is not needed.
     # https://github.com/huggingface/accelerate/blob/70920895e80f78d96d8f91e0beeb3ebdb8e5e5d6/src/accelerate/utils/launch.py#L233
     DEFAULT_ARGS = [
@@ -704,11 +767,18 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
         self.main_process_ip = None
 
     def use_deepspeed(self):
-        return os.environ.get(CONST_ENV_DEEPSPEED) or self.launch_cmd_contains(
+        """Indicate if DeepSpeed is used."""
+        # Accelerate support using DeepSpeed by adding the "--use_deepspeed" argument.
+        if os.environ.get(CONST_ENV_DEEPSPEED) or self.launch_cmd_contains(
             "use_deepspeed"
-        )
+        ):
+            return True
+        return False
 
     def accelerate_args(self):
+        """Gets the default arguments for the accelerate command.
+        The value of the default arguments are assigned in ``__init__()``.
+        """
         args = []
         for arg in self.DEFAULT_ARGS:
             arg_val = getattr(self, arg, None)
@@ -720,6 +790,7 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
         return args
 
     def run_with_torchrun(self):
+        """Runs the job with torchrun."""
         launch_args = self.accelerate_args()
         for arg in self.TORCHRUN_ARGS:
             if not self.launch_cmd_contains(arg):
@@ -728,6 +799,7 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
         self.time_cmd(cmd=cmd)
 
     def run_with_deepspeed(self):
+        """Runs the job with DeepSpeed."""
         if self.is_host:
             launch_args = self.accelerate_args()
             if self.num_machines > 1:
@@ -758,6 +830,8 @@ def main():
         runner_class = DeepSpeedRunner
     elif launch_cmd.startswith("accelerate "):
         runner_class = AccelerateRunner
+    else:
+        runner_class = GenericRunner
 
     runner = runner_class()
     runner: Runner

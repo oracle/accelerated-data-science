@@ -2,16 +2,16 @@ Quick start
 ************
 1. Create a `Data Science notebook session <https://docs.oracle.com/en-us/iaas/data-science/using/create-notebook-sessions.htm>`__ to access jupyterlab interface.
 
-2. Open a terminal in the notebook session, and then install the ``fspyspark32_p38_cpu_v1`` plugin:
+2. Open a terminal in the notebook session, and then install the ``fspyspark32_p38_cpu_v2`` plugin:
 
   ..  code-block:: shell
 
-     odsc conda install -s fspyspark32_p38_cpu_v1
+     odsc conda install -s fspyspark32_p38_cpu_v3
 
 3. Download the notebook examples from the example notebook section.
 
 .. seealso::
-   Refer :ref:`Notebook Examples` contains more examples for using feature store.
+   Refer to :ref:`Notebook Examples` which contains more examples for using feature store.
 
 4. Upload the notebook in the notebook session, and then run the notebook after replacing the required variables.
 
@@ -37,10 +37,10 @@ Quick start
 
 .. warning::
 
-   1. Feature store doesn’t allow parallel execution of similar logical constructs. Creation is sequential..
+   1. Feature store doesn’t allow parallel execution of similar logical constructs. Creation is sequential.
    2. If a failure occurs, processing stops, and rollback can’t happen. Retrying the operation isn’t supported.
    3. Define exactly one feature store construct in the YAML file. Creation of multiple feature store constructs in the YAML file causes a failure.
-   4. To allow reference in the feature store definition,the name of the defined logical constructs in the YAML file must be unique.
+   4. To allow references in the feature store definition, the name of the defined logical constructs in the YAML file must be unique.
 
 .. tabs::
 
@@ -60,7 +60,7 @@ Quick start
 
     ads.set_auth(auth="api_key")
 
-    # step1: Create feature store
+    # step1: Create the feature store
     feature_store_resource = (
         FeatureStore()
         .with_description("<feature_store_description>")
@@ -73,10 +73,10 @@ Quick start
     entity = feature_store.create_entity(name="product")
 
 
-    # step2: Create feature store
+    # step2: Create the feature store
     def transactions_df(dataframe, **kwargs):
-        columns = kwargs.get('columns', '*')  # Default to select all columns if 'columns' not provided
-        where_clause = kwargs.get('where_clause', '')  # Default to empty where clause if 'where_clause' not provided
+        columns = kwargs.get('columns', '*')  # The default is to select all columns if 'columns' isn't provided
+        where_clause = kwargs.get('where_clause', '')  # The default is to an empty where clause if 'where_clause' not provided
 
         sql_query = f"""
                     SELECT
@@ -93,7 +93,7 @@ Quick start
     )
 
 
-    # step3: Create expectation
+    # step3: Create the expectation
     expectation_suite = ExpectationSuite(expectation_suite_name="feature_definition")
     expectation_suite.add_expectation(
         ExpectationConfiguration(
@@ -104,10 +104,10 @@ Quick start
 
     input_feature_details = [FeatureDetail("rule_name").with_feature_type(FeatureType.STRING).with_order_number(1)]
 
-    # step4: Create stats configuration
+    # step4: Create the statistics configuration
     stats_config = StatisticsConfig().with_is_enabled(False)
 
-    # step5: Create feature group
+    # step5: Create the feature group
     transformation_args = {"columns": "col1, col2", "where_clause": "col3 > 100"}
     feature_group = entity.create_feature_group(
                         primary_keys=["name"],

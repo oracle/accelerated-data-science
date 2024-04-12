@@ -6,6 +6,7 @@
 
 
 import os
+from copy import deepcopy
 from unittest import TestCase, mock, SkipTest
 
 from langchain.llms import Cohere
@@ -25,85 +26,19 @@ from ads.llm import (
 class ChainSerializationTest(TestCase):
     """Contains tests for chain serialization."""
 
+    # LangChain is updating frequently on the module organization,
+    # mainly affecting the id field of the serialization.
+    # In the test, we will not check the id field of some components.
+    # We expect users to use the same LangChain version for serialize and de-serialize
+
     def setUp(self) -> None:
-        self.maxDiff = None
+        # self.maxDiff = None
         return super().setUp()
 
     PROMPT_TEMPLATE = "Tell me a joke about {subject}"
     COMPARTMENT_ID = "<ocid>"
     GEN_AI_KWARGS = {"service_endpoint": "https://endpoint.oraclecloud.com"}
     ENDPOINT = "https://modeldeployment.customer-oci.com/ocid/predict"
-
-    EXPECTED_LLM_CHAIN_WITH_COHERE = {
-        "memory": None,
-        "verbose": True,
-        "tags": None,
-        "metadata": None,
-        "prompt": {
-            "input_variables": ["subject"],
-            "input_types": {},
-            "output_parser": None,
-            "partial_variables": {},
-            "template": "Tell me a joke about {subject}",
-            "template_format": "f-string",
-            "validate_template": False,
-            "_type": "prompt",
-        },
-        "llm": {
-            "model": None,
-            "max_tokens": 256,
-            "temperature": 0.75,
-            "k": 0,
-            "p": 1,
-            "frequency_penalty": 0.0,
-            "presence_penalty": 0.0,
-            "truncate": None,
-            "_type": "cohere",
-        },
-        "output_key": "text",
-        "output_parser": {"_type": "default"},
-        "return_final_only": True,
-        "llm_kwargs": {},
-        "_type": "llm_chain",
-    }
-
-    EXPECTED_LLM_CHAIN_WITH_OCI_MD = {
-        "lc": 1,
-        "type": "constructor",
-        "id": ["langchain", "chains", "llm", "LLMChain"],
-        "kwargs": {
-            "prompt": {
-                "lc": 1,
-                "type": "constructor",
-                "id": ["langchain_core", "prompts", "prompt", "PromptTemplate"],
-                "kwargs": {
-                    "input_variables": ["subject"],
-                    "template": "Tell me a joke about {subject}",
-                    "template_format": "f-string",
-                    "partial_variables": {},
-                },
-            },
-            "llm": {
-                "lc": 1,
-                "type": "constructor",
-                "id": ["ads", "llm", "ModelDeploymentVLLM"],
-                "kwargs": {
-                    "endpoint": "https://modeldeployment.customer-oci.com/ocid/predict",
-                    "model": "my_model",
-                },
-            },
-        },
-    }
-
-    EXPECTED_GEN_AI_LLM = {
-        "lc": 1,
-        "type": "constructor",
-        "id": ["ads", "llm", "GenerativeAI"],
-        "kwargs": {
-            "compartment_id": "<ocid>",
-            "client_kwargs": {"service_endpoint": "https://endpoint.oraclecloud.com"},
-        },
-    }
 
     EXPECTED_GEN_AI_EMBEDDINGS = {
         "lc": 1,
@@ -118,12 +53,10 @@ class ChainSerializationTest(TestCase):
     EXPECTED_RUNNABLE_SEQUENCE = {
         "lc": 1,
         "type": "constructor",
-        "id": ["langchain_core", "runnables", "RunnableSequence"],
         "kwargs": {
             "first": {
                 "lc": 1,
                 "type": "constructor",
-                "id": ["langchain_core", "runnables", "RunnableParallel"],
                 "kwargs": {
                     "steps": {
                         "text": {
@@ -144,7 +77,6 @@ class ChainSerializationTest(TestCase):
                 {
                     "lc": 1,
                     "type": "constructor",
-                    "id": ["langchain_core", "prompts", "prompt", "PromptTemplate"],
                     "kwargs": {
                         "input_variables": ["subject"],
                         "template": "Tell me a joke about {subject}",
@@ -171,7 +103,23 @@ class ChainSerializationTest(TestCase):
         template = PromptTemplate.from_template(self.PROMPT_TEMPLATE)
         llm_chain = LLMChain(prompt=template, llm=llm, verbose=True)
         serialized = dump(llm_chain)
-        self.assertEqual(serialized, self.EXPECTED_LLM_CHAIN_WITH_COHERE)
+
+        # Check the serialized chain
+        self.assertTrue(serialized.get("verbose"))
+        self.assertEqual(serialized.get("_type"), "llm_chain")
+
+        # Check the serialized prompt template
+        serialized_prompt = serialized.get("prompt")
+        self.assertIsInstance(serialized_prompt, dict)
+        self.assertEqual(serialized_prompt.get("_type"), "prompt")
+        self.assertEqual(set(serialized_prompt.get("input_variables")), {"subject"})
+        self.assertEqual(serialized_prompt.get("template"), self.PROMPT_TEMPLATE)
+
+        # Check the serialized LLM
+        serialized_llm = serialized.get("llm")
+        self.assertIsInstance(serialized_llm, dict)
+        self.assertEqual(serialized_llm.get("_type"), "cohere")
+
         llm_chain = load(serialized)
         self.assertIsInstance(llm_chain, LLMChain)
         self.assertIsInstance(llm_chain.prompt, PromptTemplate)
@@ -185,7 +133,6 @@ class ChainSerializationTest(TestCase):
         template = PromptTemplate.from_template(self.PROMPT_TEMPLATE)
         llm_chain = LLMChain(prompt=template, llm=llm)
         serialized = dump(llm_chain)
-        self.assertEqual(serialized, self.EXPECTED_LLM_CHAIN_WITH_OCI_MD)
         llm_chain = load(serialized)
         self.assertIsInstance(llm_chain, LLMChain)
         self.assertIsInstance(llm_chain.prompt, PromptTemplate)
@@ -195,6 +142,7 @@ class ChainSerializationTest(TestCase):
         self.assertEqual(llm_chain.llm.model, "my_model")
         self.assertEqual(llm_chain.input_keys, ["subject"])
 
+
     def test_oci_gen_ai_serialization(self):
         """Tests serialization of OCI Gen AI LLM."""
         try:
@@ -202,13 +150,13 @@ class ChainSerializationTest(TestCase):
                 compartment_id=self.COMPARTMENT_ID,
                 client_kwargs=self.GEN_AI_KWARGS,
             )
-        except ImportError:
-            raise SkipTest("OCI SDK does not support Generative AI.")
+        except ImportError as ex:
+            raise SkipTest("OCI SDK does not support Generative AI.") from ex
         serialized = dump(llm)
-        self.assertEqual(serialized, self.EXPECTED_GEN_AI_LLM)
         llm = load(serialized)
         self.assertIsInstance(llm, GenerativeAI)
         self.assertEqual(llm.compartment_id, self.COMPARTMENT_ID)
+        self.assertEqual(llm.client_kwargs, self.GEN_AI_KWARGS)
 
     def test_gen_ai_embeddings_serialization(self):
         """Tests serialization of OCI Gen AI embeddings."""
@@ -216,8 +164,8 @@ class ChainSerializationTest(TestCase):
             embeddings = GenerativeAIEmbeddings(
                 compartment_id=self.COMPARTMENT_ID, client_kwargs=self.GEN_AI_KWARGS
             )
-        except ImportError:
-            raise SkipTest("OCI SDK does not support Generative AI.")
+        except ImportError as ex:
+            raise SkipTest("OCI SDK does not support Generative AI.") from ex
         serialized = dump(embeddings)
         self.assertEqual(serialized, self.EXPECTED_GEN_AI_EMBEDDINGS)
         embeddings = load(serialized)
@@ -232,13 +180,37 @@ class ChainSerializationTest(TestCase):
 
         chain = map_input | template | llm
         serialized = dump(chain)
-        self.assertEqual(serialized, self.EXPECTED_RUNNABLE_SEQUENCE)
+
+        self.assertEqual(serialized.get("type"), "constructor")
+        self.assertNotIn("_type", serialized)
+
+        kwargs = serialized.get("kwargs")
+        self.assertIsInstance(kwargs, dict)
+
+        element_1 = kwargs.get("first")
+        self.assertEqual(element_1.get("_type"), "RunnableParallel")
+        step = element_1.get("kwargs").get("steps").get("text")
+        self.assertEqual(step.get("id")[-1], "RunnablePassthrough")
+
+        element_2 = kwargs.get("middle")[0]
+        self.assertNotIn("_type", element_2)
+        self.assertEqual(element_2.get("kwargs").get("template"), self.PROMPT_TEMPLATE)
+        self.assertEqual(element_2.get("kwargs").get("input_variables"), ["subject"])
+
+        element_3 = kwargs.get("last")
+        self.assertNotIn("_type", element_3)
+        self.assertEqual(element_3.get("id"), ["ads", "llm", "ModelDeploymentTGI"])
+        self.assertEqual(
+            element_3.get("kwargs"),
+            {"endpoint": "https://modeldeployment.customer-oci.com/ocid/predict"},
+        )
+
         chain = load(serialized)
         self.assertEqual(len(chain.steps), 3)
         self.assertIsInstance(chain.steps[0], RunnableParallel)
         self.assertEqual(
-            chain.steps[0].dict(),
-            {"steps": {"text": {"input_type": None, "func": None, "afunc": None}}},
+            list(chain.steps[0].dict().get("steps").keys()),
+            ["text"],
         )
         self.assertIsInstance(chain.steps[1], PromptTemplate)
         self.assertIsInstance(chain.steps[2], ModelDeploymentTGI)
