@@ -3,6 +3,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 import os
 import unittest
 from dataclasses import asdict
@@ -10,8 +11,11 @@ from importlib import metadata, reload
 from unittest.mock import MagicMock, patch
 
 from notebook.base.handlers import APIHandler, IPythonHandler
+from oci.exceptions import ServiceError
 from parameterized import parameterized
 from tornado.httpserver import HTTPRequest
+from tornado.httputil import HTTPServerRequest
+from tornado.web import Application, HTTPError
 
 import ads.aqua
 import ads.aqua.exception
@@ -20,6 +24,7 @@ import ads.aqua.extension.common_handler
 import ads.config
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.evaluation import AquaEvaluationApp
+from ads.aqua.exception import AquaError
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.common_handler import (
     ADSVersionHandler,
@@ -42,7 +47,10 @@ class TestBaseHandlers(unittest.TestCase):
     @patch.object(APIHandler, "__init__")
     def setUp(self, mock_init) -> None:
         mock_init.return_value = None
-        self.test_instance = AquaAPIhandler(MagicMock(), MagicMock())
+        application = Application()
+        request = HTTPServerRequest(method="GET", uri="/test", connection=MagicMock())
+        self.test_instance = AquaAPIhandler(application, request)
+        self.test_instance.telemetry.record_event_async = MagicMock()
 
     @parameterized.expand(
         [
@@ -71,18 +79,91 @@ class TestBaseHandlers(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (dict(status_code=400), None),
-            (dict(status_code=400), {"data": [1, 2, 3]}),
+            (
+                dict(
+                    status_code=400,
+                    exc_info=(None, HTTPError(400, "Bad Request"), None),
+                ),
+                "Bad Request",
+            ),
+            (
+                dict(
+                    status_code=500,
+                    reason="Testing ADS Internal Error.",
+                    exc_info=(None, ValueError("Invalid parameter."), None),
+                ),
+                "An error occurred while creating the resource.",
+                # This error message doesn't make sense. Need to revisit the code to fix.
+            ),
+            (
+                dict(
+                    status_code=404,
+                    reason="Testing AquaError happen during create operation.",
+                    service_payload=TestDataset.mock_service_payload_create,
+                    exc_info=(
+                        None,
+                        AquaError(
+                            status=404,
+                            reason="Testing AquaError happen during create operation.",
+                            service_payload=TestDataset.mock_service_payload_create,
+                        ),
+                        None,
+                    ),
+                ),
+                "Authorization Failed: Could not create resource.",
+            ),
+            (
+                dict(
+                    status_code=404,
+                    reason="Testing ServiceError happen when get_job_run.",
+                    service_payload=TestDataset.mock_service_payload_get,
+                    exc_info=(
+                        None,
+                        ServiceError(
+                            headers={},
+                            **TestDataset.mock_service_payload_get,
+                        ),
+                        None,
+                    ),
+                ),
+                "Authorization Failed: The resource you're looking for isn't accessible. Operation Name: get_job_run.",
+            ),
         ]
     )
-    def test_write_error(self, input, expected_call):
+    @patch("ads.aqua.extension.base_handler.logger")
+    @patch("uuid.uuid4")
+    def test_write_error(self, input, expected_msg, mock_uuid, mock_logger):
         """Tests AquaAPIhandler.write_error"""
+        mock_uuid.return_value = "1234"
+        self.test_instance.set_header = MagicMock()
+        self.test_instance.set_status = MagicMock()
         self.test_instance.finish = MagicMock()
-        self.test_instance.telemetry.record_event_async = MagicMock()
 
         self.test_instance.write_error(**input)
 
-        self.test_instance.finish.assert_called_with()
+        self.test_instance.set_header.assert_called_once_with(
+            "Content-Type", "application/json"
+        )
+        self.test_instance.set_status.assert_called_once_with(
+            input.get("status_code"), reason=input.get("reason")
+        )
+        expected_reply = {
+            "status": input.get("status_code"),
+            "message": expected_msg,
+            "service_payload": input.get("service_payload", {}),
+            "reason": input.get("reason"),
+            "request_id": "1234",
+        }
+        self.test_instance.finish.assert_called_once_with(json.dumps(expected_reply))
+        self.test_instance.telemetry.record_event_async.assert_called_with(
+            category="aqua/error",
+            action=str(
+                input.get("status_code"),
+            ),
+            value=input.get("reason"),
+        )
+
+        mock_logger.warning.assert_called_with(expected_msg)
 
 
 class TestHandlers(unittest.TestCase):

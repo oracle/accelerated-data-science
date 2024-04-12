@@ -35,6 +35,26 @@ class HandlerTestDataset:
     )
     mock_invalid_input = dict(name="myvalue")
     mock_dataclass_obj = MockData(id="myid", name="myname")
+    mock_service_payload_create = {
+        "target_service": "data_science",
+        "status": 404,
+        "code": "NotAuthenticated",
+        "opc-request-id": "1234",
+        "message": "The required information to complete authentication was not provided or was incorrect.",
+        "operation_name": "create_resources",
+        "timestamp": "2024-04-12T02:51:24.977404+00:00",
+        "request_endpoint": "POST xxx",
+    }
+    mock_service_payload_get = {
+        "target_service": "data_science",
+        "status": 404,
+        "code": "NotAuthenticated",
+        "opc-request-id": "1234",
+        "message": "The required information to complete authentication was not provided or was incorrect.",
+        "operation_name": "get_job_run",
+        "timestamp": "2024-04-12T02:51:24.977404+00:00",
+        "request_endpoint": "GET xxx",
+    }
 
     def mock_url(self, action):
         return f"{self.MOCK_OCID}/{action}"
