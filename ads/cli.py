@@ -9,7 +9,6 @@ import sys
 
 import fire
 from ads.common import logger
-from ads.aqua.cli import AquaCommand
 
 try:
     import click
@@ -73,6 +72,8 @@ fire.core.parser.SeparateFlagArgs = _SeparateFlagArgs
 
 def cli():
     if len(sys.argv) > 1 and sys.argv[1] == "aqua":
+        from ads.aqua.cli import AquaCommand
+
         fire.Fire(AquaCommand, command=sys.argv[2:], name="ads aqua")
     else:
         click_cli()
