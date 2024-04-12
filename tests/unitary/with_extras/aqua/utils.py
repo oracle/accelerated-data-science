@@ -4,9 +4,19 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from dataclasses import dataclass
 from typing import Dict
 
+import pandas as pd
 from pydantic import BaseModel, PositiveInt, ValidationError
+
+
+@dataclass(repr=False)
+class MockData:
+    """Used for testing serializing dataclass in handler."""
+
+    id: str = ""
+    name: str = ""
 
 
 class HandlerTestDataset:
@@ -24,6 +34,7 @@ class HandlerTestDataset:
         ocpus=1,
     )
     mock_invalid_input = dict(name="myvalue")
+    mock_dataclass_obj = MockData(id="myid", name="myname")
 
     def mock_url(self, action):
         return f"{self.MOCK_OCID}/{action}"

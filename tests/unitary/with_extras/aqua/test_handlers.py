@@ -5,18 +5,22 @@
 
 import os
 import unittest
+from dataclasses import asdict
 from importlib import metadata, reload
 from unittest.mock import MagicMock, patch
 
-from notebook.base.handlers import IPythonHandler
+from notebook.base.handlers import APIHandler, IPythonHandler
 from parameterized import parameterized
+from tornado.httpserver import HTTPRequest
 
 import ads.aqua
 import ads.aqua.exception
 import ads.aqua.extension
 import ads.aqua.extension.common_handler
 import ads.config
+from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.evaluation import AquaEvaluationApp
+from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.common_handler import (
     ADSVersionHandler,
     CompatibilityCheckHandler,
@@ -30,6 +34,55 @@ from ads.aqua.extension.evaluation_handler import (
 from ads.aqua.extension.model_handler import AquaModelHandler, AquaModelLicenseHandler
 from ads.aqua.model import AquaModelApp
 from tests.unitary.with_extras.aqua.utils import HandlerTestDataset as TestDataset
+
+
+class TestBaseHandlers(unittest.TestCase):
+    """Contains test cases for base handler."""
+
+    @patch.object(APIHandler, "__init__")
+    def setUp(self, mock_init) -> None:
+        mock_init.return_value = None
+        self.test_instance = AquaAPIhandler(MagicMock(), MagicMock())
+
+    @parameterized.expand(
+        [
+            (None, None),
+            ([1, 2, 3], {"data": [1, 2, 3]}),
+            (
+                AquaResourceIdentifier(id="123", name="myname"),
+                {"id": "123", "name": "myname", "url": ""},
+            ),
+            (
+                TestDataset.mock_dataclass_obj,
+                asdict(TestDataset.mock_dataclass_obj),
+            ),
+        ]
+    )
+    @patch.object(APIHandler, "finish")
+    def test_finish(self, payload, expected_call, mock_super_finish):
+        """Tests AquaAPIhandler.finish"""
+        mock_super_finish.return_value = None
+
+        self.test_instance.finish(payload)
+        if expected_call:
+            mock_super_finish.assert_called_with(expected_call)
+        else:
+            mock_super_finish.assert_called_with()
+
+    @parameterized.expand(
+        [
+            (dict(status_code=400), None),
+            (dict(status_code=400), {"data": [1, 2, 3]}),
+        ]
+    )
+    def test_write_error(self, input, expected_call):
+        """Tests AquaAPIhandler.write_error"""
+        self.test_instance.finish = MagicMock()
+        self.test_instance.telemetry.record_event_async = MagicMock()
+
+        self.test_instance.write_error(**input)
+
+        self.test_instance.finish.assert_called_with()
 
 
 class TestHandlers(unittest.TestCase):
