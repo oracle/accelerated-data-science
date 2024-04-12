@@ -64,7 +64,7 @@ class TestAquaDeploymentHandler(unittest.TestCase):
         reload(ads.aqua)
         reload(ads.aqua.extension.deployment_handler)
 
-    @patch.object(AquaDeploymentApp, "get_deployment_config")
+    @patch("ads.aqua.deployment.AquaDeploymentApp.get_deployment_config")
     def test_get_deployment_config(self, mock_get_deployment_config):
         """Test get method to return deployment config"""
         self.deployment_handler.request.path = "aqua/deployments/config"
