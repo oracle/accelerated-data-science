@@ -202,7 +202,7 @@ testsuite = [
   "dask==2023.10.1; python_version>='3.9'", # oci-cli depends on click==8.0.4, dask>2023.10.1 depends on "click>=8.1"
   "dask==2023.5.0; python_version=='3.8'",
   "faiss-cpu",
-  "fastparquet==2024.2.0",  # set version to avoid backtracking
+  "fastparquet==2024.2.0",  # set version to avoid backtracking, change it to fresher version from time to time
   "imbalanced-learn",
   "lxml",
   "mysql-connector-python",

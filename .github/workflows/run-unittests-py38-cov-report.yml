@@ -1,4 +1,4 @@
-name: "[Py3.8][COV REPORT] tests/unitary/**"
+name: "[Py3.8][COV REPORT] - All Unit Tests"
 
 on:
   workflow_dispatch:
