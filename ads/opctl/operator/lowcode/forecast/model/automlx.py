@@ -22,6 +22,7 @@ from ads.opctl.operator.lowcode.common.utils import (
     seconds_to_datetime,
     datetime_to_seconds,
 )
+from ads.opctl.operator.lowcode.forecast.utils import _label_encode_dataframe
 
 AUTOMLX_N_ALGOS_TUNED = 4
 AUTOMLX_DEFAULT_SCORE_METRIC = "neg_sym_mean_abs_percent_error"
@@ -51,8 +52,13 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         ] = self.spec.preprocessing or model_kwargs_cleaned.get("preprocessing", True)
         return model_kwargs_cleaned, time_budget
 
-    def preprocess(self, data, series_id=None):
-        return data.set_index(self.spec.datetime_column.name)
+
+    def preprocess(self, data, series_id=None):  # TODO: re-use self.le for explanations
+        _, df_encoded = _label_encode_dataframe(
+            data,
+            no_encode={self.spec.datetime_column.name, self.original_target_column},
+        )
+        return df_encoded.set_index(self.spec.datetime_column.name)
 
     @runtime_dependency(
         module="automlx",

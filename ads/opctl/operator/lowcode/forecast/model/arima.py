@@ -245,6 +245,9 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             """
             data: ForecastDatasets.get_data_at_series(s_id)
             """
+            if series_id in self.constant_cols:
+                data = data.drop(columns=self.constant_cols[series_id])
+
             data = data.drop([target_col], axis=1)
             data[dt_column_name] = seconds_to_datetime(
                 data[dt_column_name], dt_format=self.spec.datetime_column.format

@@ -524,7 +524,7 @@ def test_all_series_failure(model):
     module_to_patch = {
         "arima": 'pmdarima.auto_arima',
         "autots": 'autots.AutoTS',
-        "automlx": 'automl.Pipeline',
+        "automlx": 'automlx.Pipeline',
         "prophet": 'prophet.Prophet',
         "neuralprophet": 'neuralprophet.NeuralProphet'
     }
@@ -551,7 +551,7 @@ def test_all_series_failure(model):
             local_fn = f"{tmpdirname}/results/local_explanation.csv"
             assert os.path.exists(local_fn), f"Local explanation file not found at {report_path}"
 
-@pytest.mark.parametrize("model", ["arima", "automlx"])
+@pytest.mark.parametrize("model", MODELS)
 def test_arima_automlx_errors(operator_setup, model):
     tmpdirname = operator_setup
     historical_data_path, additional_data_path = setup_faulty_rossman()
@@ -572,14 +572,15 @@ def test_arima_automlx_errors(operator_setup, model):
     outputs get generated and that error is shown in errors.json
     """
 
+    """
+    explanations generation is failing when boolean columns are passed. So we added label_encode before passing data to
+     explainer
+    """
+
     yaml_i['spec']['horizon'] = 10
     yaml_i['spec']['preprocessing'] = True
     yaml_i['spec']['generate_explanations'] = True
     yaml_i['spec']['model'] = model
-    if model == "automlx":
-        yaml_i['spec']['model_kwargs'] = {
-            'model_list': ['ProphetForecaster']
-        }
 
     run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path, test_metrics_check=False)
 
@@ -594,23 +595,24 @@ def test_arima_automlx_errors(operator_setup, model):
     error_path = f"{tmpdirname}/results/errors.json"
     if model == "arima":
         assert not os.path.exists(error_path), f"Error file not found at {error_path}"
-    else:
+    elif model == "automlx":
         assert os.path.exists(error_path), f"Error file not found at {error_path}"
         with open(error_path, 'r') as error_file:
             error_content = json.load(error_file)
             assert "Input data does not have a consistent (in terms of diff) DatetimeIndex." in error_content["13"][
                 "error"], "Error message mismatch"
 
-    global_fn = f"{tmpdirname}/results/global_explanation.csv"
-    assert os.path.exists(global_fn), f"Global explanation file not found at {report_path}"
+    if model != "autots":
+        global_fn = f"{tmpdirname}/results/global_explanation.csv"
+        assert os.path.exists(global_fn), f"Global explanation file not found at {report_path}"
 
-    local_fn = f"{tmpdirname}/results/local_explanation.csv"
-    assert os.path.exists(local_fn), f"Local explanation file not found at {report_path}"
+        local_fn = f"{tmpdirname}/results/local_explanation.csv"
+        assert os.path.exists(local_fn), f"Local explanation file not found at {report_path}"
 
-    glb_expl = pd.read_csv(global_fn, index_col=0)
-    loc_expl = pd.read_csv(local_fn)
-    assert not glb_expl.empty
-    assert not loc_expl.empty
+        glb_expl = pd.read_csv(global_fn, index_col=0)
+        loc_expl = pd.read_csv(local_fn)
+        assert not glb_expl.empty
+        assert not loc_expl.empty
 
 
 def test_smape_error():
@@ -631,11 +633,7 @@ def test_date_format(operator_setup, model):
     yaml_i["spec"]["model"] = model
     if model == "autots":
         yaml_i["spec"]["model_kwargs"] = {"model_list": "superfast"}
-    if model == "automlx":
-        yaml_i['spec']['model_kwargs'] = {
-            'model_list': ['ProphetForecaster'],
-            "time_budget": 1
-        }
+
     run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path, test_metrics_check=False)
     assert pd.read_csv(additional_data_path)['Date'].equals(pd.read_csv(f"{tmpdirname}/results/forecast.csv")['Date'])
 

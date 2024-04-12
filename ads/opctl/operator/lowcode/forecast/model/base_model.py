@@ -88,7 +88,7 @@ class ForecastOperatorBaseModel(ABC):
         self.formatted_local_explanation = None
 
         self.forecast_col_name = "yhat"
-        self.perform_tuning = self.spec.tuning != None
+        self.perform_tuning = (self.spec.tuning != None) and (self.spec.tuning.n_trials != None)
 
     def generate_report(self):
         """Generates the forecasting report."""
@@ -657,8 +657,6 @@ class ForecastOperatorBaseModel(ABC):
             if s_id in self.models:
 
                 explain_predict_fn = self.get_explain_predict_fn(series_id=s_id)
-                if self.spec.model == SupportedModels.Arima and s_id in self.constant_cols:
-                    data_i = data_i.drop(columns=self.constant_cols[s_id])
                 data_trimmed = data_i.tail(max(int(len(data_i) * ratio), 5)).reset_index(
                     drop=True
                 )
@@ -666,11 +664,11 @@ class ForecastOperatorBaseModel(ABC):
                     lambda x: x.timestamp()
                 )
 
-                # Explainer fails when boolean columns are passed for arima
-                if self.spec.model == SupportedModels.Arima:
-                    _, data_trimmed_encoded = _label_encode_dataframe(
-                        data_trimmed, no_encode={datetime_col_name, self.original_target_column}
-                    )
+                # Explainer fails when boolean columns are passed
+
+                _, data_trimmed_encoded = _label_encode_dataframe(
+                    data_trimmed, no_encode={datetime_col_name, self.original_target_column}
+                )
 
                 kernel_explnr = PermutationExplainer(
                     model=explain_predict_fn, masker=data_trimmed_encoded
@@ -716,16 +714,13 @@ class ForecastOperatorBaseModel(ABC):
         """
         data = self.datasets.get_horizon_at_series(s_id=series_id)
         # columns that were dropped in train_model in arima, should be dropped here as well
-        if self.spec.model == SupportedModels.Arima and series_id in self.constant_cols:
-            data = data.drop(columns=self.constant_cols[series_id])
         data[datetime_col_name] = datetime_to_seconds(data[datetime_col_name])
         data = data.reset_index(drop=True)
 
-        # Explainer fails when boolean columns are passed for arima
-        if self.spec.model == SupportedModels.Arima:
-            _, data = _label_encode_dataframe(
-                data, no_encode={datetime_col_name, self.original_target_column}
-            )
+        # Explainer fails when boolean columns are passed
+        _, data = _label_encode_dataframe(
+            data, no_encode={datetime_col_name, self.original_target_column}
+        )
         # Generate local SHAP values using the kernel explainer
         local_kernel_explnr_vals = kernel_explainer.shap_values(data)
 
