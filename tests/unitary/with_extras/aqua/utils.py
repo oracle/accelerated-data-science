@@ -4,10 +4,9 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from dataclasses import dataclass
+import typing
+from dataclasses import dataclass, fields
 from typing import Dict
-
-from pydantic import BaseModel, PositiveInt, ValidationError
 
 
 @dataclass(repr=False)
@@ -59,7 +58,26 @@ class HandlerTestDataset:
         return f"{self.MOCK_OCID}/{action}"
 
 
-class SupportMetricsFormat(BaseModel):
+@dataclass
+class BaseFormat:
+    """Implements type checking for each format."""
+
+    def __post_init__(self):
+        for field in fields(self):
+            value = getattr(self, field.name)
+            field_type = (
+                field.type.__origin__
+                if isinstance(field.type, typing._GenericAlias)
+                else field.type
+            )
+            if not isinstance(value, field_type):
+                raise TypeError(
+                    f"Expected {field.name} to be {field_type}, " f"got {repr(value)}"
+                )
+
+
+@dataclass
+class SupportMetricsFormat(BaseFormat):
     """Format for supported evaluation metrics."""
 
     use_case: list
@@ -69,12 +87,13 @@ class SupportMetricsFormat(BaseModel):
     args: dict
 
 
-class EvaluationConfigFormat(BaseModel):
+@dataclass
+class EvaluationConfigFormat(BaseFormat):
     """Evaluation config format."""
 
     model_params: dict
     shape: Dict[str, dict]
-    default: Dict[str, PositiveInt]
+    default: Dict[str, int]
 
 
 def check(conf_schema, conf):
@@ -82,5 +101,5 @@ def check(conf_schema, conf):
     try:
         conf_schema(**conf)
         return True
-    except ValidationError:
+    except TypeError:
         return False
