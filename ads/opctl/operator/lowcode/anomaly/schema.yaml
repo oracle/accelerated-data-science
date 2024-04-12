@@ -307,11 +307,23 @@ spec:
         description: "When provided, target_category_columns [list] indexes the data into multiple related datasets for anomaly detection"
 
     preprocessing:
-      type: boolean
+      type: dict
       required: false
-      default: true
-      meta:
-        description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
+      schema:
+        enabled:
+          type: boolean
+          required: false
+          default: true
+          meta:
+            description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
+        steps:
+          type: dict
+          required: false
+          schema:
+            missing_value_imputation:
+              type: boolean
+              required: false
+              default: true
 
     generate_report:
       type: boolean
