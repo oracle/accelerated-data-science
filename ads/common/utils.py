@@ -22,6 +22,7 @@ import sys
 import tempfile
 from datetime import datetime
 from enum import Enum
+from importlib.metadata import version
 from io import DEFAULT_BUFFER_SIZE
 from pathlib import Path
 from textwrap import fill
@@ -55,7 +56,7 @@ from . import auth as authutil
 
 # For Model / Model Artifact libraries
 lib_translator = {"sklearn": "scikit-learn"}
-module_ignore = ["builtins", "ads", "automl", "mlx"]
+module_ignore = ["builtins", "ads", "automl", "mlx", "automlx"]
 
 # up-sample if length of dataframe is less than or equal to MAX_LEN_FOR_UP_SAMPLING
 MAX_LEN_FOR_UP_SAMPLING = 5000
@@ -903,8 +904,6 @@ def extract_lib_dependencies_from_model(model) -> dict:
     -------
     Dict: A dictionary of library dependencies.
     """
-    from pkg_resources import get_distribution
-
     module_versions = {}
     modules_to_include = set(
         mod.__module__.split(".")[0]
@@ -915,7 +914,7 @@ def extract_lib_dependencies_from_model(model) -> dict:
         if mod not in module_ignore:
             try:
                 mod_name = lib_translator.get(mod, mod)
-                module_versions[mod_name] = get_distribution(mod_name).version
+                module_versions[mod_name] = version(mod_name)
             except:
                 pass
     return module_versions

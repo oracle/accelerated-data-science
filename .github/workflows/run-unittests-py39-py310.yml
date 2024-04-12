@@ -1,8 +1,9 @@
-name: "[Py3.9][Py3.10] - tests/unitary/**"
+name: "[Py3.9-3.12] - All Unit Tests"
 
 on:
   workflow_dispatch:
   pull_request:
+    branches: [ "main" ]
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -27,7 +28,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10"]
+        # dask, which is used for tests and some use-cases incompatible with latest py3.11.9, py3.12.3 (https://github.com/dask/dask/issues/11038)
+        # To fix issues with dask, set python to "3.11.8", "3.12.2". Relax it to "3.11", "3.12" after issue with dask resolved.
+        # To relax python to "3.11", "3.12" may need to relax dask. But oci-cli depends on click==8.0.4, dask>2023.10.1 depends on "click>=8.1".
+        python-version: ["3.9", "3.10",  "3.11.8", "3.12.2"]
         name: ["unitary", "slow_tests"]
         include:
           - name: "unitary"

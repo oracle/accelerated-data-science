@@ -11,7 +11,6 @@ import shlex
 import shutil
 import tempfile
 import time
-from distutils import dir_util
 from typing import Dict, Tuple, Union
 
 from ads.common.auth import AuthContext, AuthType, create_signer
@@ -291,7 +290,7 @@ class MLJobBackend(Backend):
         if ConfigResolver(self.config)._is_ads_operator():
             with tempfile.TemporaryDirectory() as td:
                 os.makedirs(os.path.join(td, "operators"), exist_ok=True)
-                dir_util.copy_tree(
+                shutil.copytree(
                     src_folder,
                     os.path.join(td, "operators", os.path.basename(src_folder)),
                 )
@@ -311,7 +310,7 @@ class MLJobBackend(Backend):
                 run_id = job.run().id
         else:
             with tempfile.TemporaryDirectory() as td:
-                dir_util.copy_tree(
+                shutil.copytree(
                     src_folder, os.path.join(td, os.path.basename(src_folder))
                 )
                 payload.runtime.with_source(

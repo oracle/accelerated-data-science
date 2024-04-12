@@ -4,7 +4,6 @@
 # Copyright (c) 2020, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from distutils import dir_util
 import os
 import shutil
 from collections.abc import Iterable
@@ -495,7 +494,8 @@ class ADSModel(object):
                 ),
                 os.path.join(target_dir, ".model-ignore"),
             )
-            dir_util._path_created = {}
+            # from distutils import dir_util
+            # dir_util._path_created = {}
 
             progress.update("Serializing model")
             # Transform the data to be onnx-ready

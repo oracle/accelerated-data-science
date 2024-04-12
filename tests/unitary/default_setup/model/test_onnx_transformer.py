@@ -192,4 +192,4 @@ def test__handle_missing_value_series(df):
 
 
 def teardown_module():
-    shutil.rmtree(tmp_model_dir)
+    shutil.rmtree(tmp_model_dir, ignore_errors=True)
