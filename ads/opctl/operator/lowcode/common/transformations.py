@@ -58,20 +58,26 @@ class Transformations(ABC):
         clean_df = self._format_datetime_col(clean_df)
         clean_df = self._set_multi_index(clean_df)
 
-        if self.name == "historical_data":
-            try:
-                clean_df = self._missing_value_imputation_hist(clean_df)
-            except Exception as e:
-                logger.debug(f"Missing value imputation failed with {e.args}")
-            if self.preprocessing:
-                try:
-                    clean_df = self._outlier_treatment(clean_df)
-                except Exception as e:
-                    logger.debug(f"Outlier Treatment failed with {e.args}")
-            else:
-                logger.debug("Skipping outlier treatment as preprocessing is disabled")
-        elif self.name == "additional_data":
-            clean_df = self._missing_value_imputation_add(clean_df)
+        if self.preprocessing and self.preprocessing.enabled:
+            if self.name == "historical_data":
+                if self.preprocessing.steps.missing_value_imputation:
+                    try:
+                        clean_df = self._missing_value_imputation_hist(clean_df)
+                    except Exception as e:
+                        logger.debug(f"Missing value imputation failed with {e.args}")
+                else:
+                    logger.info("Skipping missing value imputation because it is disabled")
+                if self.preprocessing.steps.outlier_treatment:
+                    try:
+                        clean_df = self._outlier_treatment(clean_df)
+                    except Exception as e:
+                        logger.debug(f"Outlier Treatment failed with {e.args}")
+                else:
+                    logger.info("Skipping outlier treatment because it is disabled")
+            elif self.name == "additional_data":
+                clean_df = self._missing_value_imputation_add(clean_df)
+        else:
+            logger.info("Skipping all preprocessing steps because preprocessing is disabled")
         return clean_df
 
     def _remove_trailing_whitespace(self, df):
