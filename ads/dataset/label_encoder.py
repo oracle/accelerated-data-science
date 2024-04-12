@@ -52,7 +52,7 @@ class DataFrameLabelEncoder(TransformerMixin):
 
         """
         for column in X.columns:
-            if X[column].dtype.name in ["object", "category"]:
+            if X[column].dtype.name in ["object", "category", "bool"]:
                 X[column] = X[column].astype(str)
                 self.label_encoders[column] = LabelEncoder()
                 self.label_encoders[column].fit(X[column])
