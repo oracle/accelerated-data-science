@@ -84,6 +84,7 @@ class Transformations(ABC):
         return df.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
 
     def _set_series_id_column(self, df):
+        self._target_category_columns_map = dict()
         if not self.target_category_columns:
             df[DataColumns.Series] = "Series 1"
             self.has_artificial_series = True
@@ -91,6 +92,11 @@ class Transformations(ABC):
             df[DataColumns.Series] = merge_category_columns(
                 df, self.target_category_columns
             )
+            merged_values = df[DataColumns.Series].unique().tolist()
+            if self.target_category_columns:
+                for value in merged_values:
+                    self._target_category_columns_map[value] = df[df[DataColumns.Series] == value][self.target_category_columns].drop_duplicates().iloc[0].to_dict()
+
             df = df.drop(self.target_category_columns, axis=1)
         return df
 
@@ -195,3 +201,25 @@ class Transformations(ABC):
             raise DataMismatchError(
                 f"Expected {self.name} to have columns: {expected_names}, but instead found column names: {df.columns}. Is the {self.name} path correct?"
             )
+
+    """
+        Map between merged target category column values and target category column and its value
+        If target category columns are PPG_Code, Class, Num
+        Merged target category column values are Product Category 1__A__1, Product Category 2__A__2
+        Then target_category_columns_map would be
+        {
+            "Product Category 1__A__1": {
+                "PPG_Code": "Product Category 1",
+                "Class": "A",
+                "Num": 1
+            },
+             "Product Category 2__A__2": {
+                "PPG_Code": "Product Category 2",
+                "Class": "A",
+                "Num": 2
+            },
+            
+        }
+    """
+    def get_target_category_columns_map(self):
+        return self._target_category_columns_map

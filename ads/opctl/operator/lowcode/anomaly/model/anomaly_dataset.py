@@ -55,6 +55,10 @@ class AnomalyDatasets:
             self.X_valid_dict = self.valid_data.X_valid_dict
             self.y_valid_dict = self.valid_data.y_valid_dict
 
+    # Returns raw data based on the series_id i.e; the merged target_category_column value
+    def get_raw_data_by_cat(self, category):
+        return self._data.get_raw_data_by_cat(category)
+
 
 class AnomalyOutput:
     def __init__(self, date_column):
@@ -93,38 +97,28 @@ class AnomalyOutput:
             outliers = pd.merge(outliers, scores, on=self.date_column, how="inner")
         return outliers
 
-    def get_inliers(self, data):
+    def get_inliers(self, datasets):
         inliers = pd.DataFrame()
 
         for category in self.list_categories():
             inliers = pd.concat(
                 [
                     inliers,
-                    self.get_inliers_by_cat(
-                        category,
-                        data[data[OutputColumns.Series] == category]
-                        .reset_index(drop=True)
-                        .drop(OutputColumns.Series, axis=1),
-                    ),
+                    self.get_inliers_by_cat(category, datasets.get_raw_data_by_cat(category)),
                 ],
                 axis=0,
                 ignore_index=True,
             )
         return inliers
 
-    def get_outliers(self, data):
+    def get_outliers(self, datasets):
         outliers = pd.DataFrame()
 
         for category in self.list_categories():
             outliers = pd.concat(
                 [
                     outliers,
-                    self.get_outliers_by_cat(
-                        category,
-                        data[data[OutputColumns.Series] == category]
-                        .reset_index(drop=True)
-                        .drop(OutputColumns.Series, axis=1),
-                    ),
+                    self.get_outliers_by_cat(category, datasets.get_raw_data_by_cat(category)),
                 ],
                 axis=0,
                 ignore_index=True,
