@@ -37,6 +37,21 @@ class TestData(InputData):
 
 
 @dataclass(repr=True)
+class PreprocessingSteps(DataClassSerializable):
+    """Class representing preprocessing steps for operator."""
+
+    missing_value_imputation: bool = True
+    outlier_treatment: bool = False
+
+
+@dataclass(repr=True)
+class DataPreprocessor(DataClassSerializable):
+    """Class representing operator specification preprocessing details."""
+
+    enabled: bool = True
+    steps: PreprocessingSteps = field(default_factory=PreprocessingSteps)
+
+@dataclass(repr=True)
 class AnomalyOperatorSpec(DataClassSerializable):
     """Class representing operator specification."""
 
@@ -74,7 +89,9 @@ class AnomalyOperatorSpec(DataClassSerializable):
             self.generate_inliers if self.generate_inliers is not None else False
         )
         self.model_kwargs = self.model_kwargs or dict()
-
+        self.preprocessing = (
+            self.preprocessing if self.preprocessing is not None else DataPreprocessor(enabled=True)
+        )
 
 @dataclass(repr=True)
 class AnomalyOperatorConfig(OperatorConfig):
