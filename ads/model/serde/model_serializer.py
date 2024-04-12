@@ -465,6 +465,7 @@ class SklearnOnnxModelSerializer(OnnxModelSerializer):
                         **kwargs,
                     )
                 except Exception as e:
+                    logger.exception("Exception details:")
                     raise ValueError(
                         "`initial_types` can not be autodetected. Please directly pass `initial_types`."
                     )
@@ -792,6 +793,7 @@ class XgboostOnnxModelSerializer(OnnxModelSerializer):
                         **kwargs,
                     )
                 except:
+                    logger.exception("Exception details:")
                     raise ValueError(
                         "`initial_types` can not be autodetected. Please directly pass `initial_types`."
                     )
@@ -815,6 +817,7 @@ class XgboostOnnxModelSerializer(OnnxModelSerializer):
                         **kwargs,
                     )
                 except:
+                    logger.exception("Exception details:")
                     raise ValueError(
                         "`initial_types` can not be autodetected. Please directly pass `initial_types`."
                     )

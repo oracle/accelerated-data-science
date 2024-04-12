@@ -96,7 +96,7 @@ data = [
 geo = ["geopandas", "oracle_ads[viz]"]
 huggingface = [
   "transformers",
-  "tf-keras; python_version>='3.11'"  # Keras 3 installed in py3.11+, but this is not yet supported in Transformers. Need to install the backwards-compatible tf-keras
+  "tf-keras"  # Keras 3 installed in py3.11+, but this is not yet supported in Transformers. Need to install the backwards-compatible tf-keras
 ]
 notebook = ["ipython>=7.23.1, <8.0", "ipywidgets~=7.6.3"]
 onnx = [

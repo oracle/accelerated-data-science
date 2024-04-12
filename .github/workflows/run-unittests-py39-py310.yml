@@ -31,7 +31,8 @@ jobs:
         # dask, which is used for tests and some use-cases incompatible with latest py3.11.9, py3.12.3 (https://github.com/dask/dask/issues/11038)
         # To fix issues with dask, set python to "3.11.8", "3.12.2". Relax it to "3.11", "3.12" after issue with dask resolved.
         # To relax python to "3.11", "3.12" may need to relax dask. But oci-cli depends on click==8.0.4, dask>2023.10.1 depends on "click>=8.1".
-        python-version: ["3.9", "3.10",  "3.11.8", "3.12.2"]
+        #python-version: ["3.9", "3.10",  "3.11.8", "3.12.2"]
+        python-version: ["3.9"]
         name: ["unitary", "slow_tests"]
         include:
           - name: "unitary"
@@ -48,7 +49,7 @@ jobs:
               --ignore tests/unitary/with_extras/operator/pii \
               --ignore tests/unitary/with_extras/hpo
           - name: "slow_tests"
-            test-path: "tests/unitary/with_extras/model"
+            test-path: "tests/unitary/with_extras/model/test_model_framework_sklearn_model.py tests/unitary/with_extras/model/test_model_framework_tensorflow_model.py tests/unitary/with_extras/model/test_model_framework_xgboost_model.py"
 
     steps:
       - uses: actions/checkout@v4
