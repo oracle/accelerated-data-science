@@ -28,6 +28,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # dask, which is used for tests and some use-cases incompatible with latest py3.11.9, py3.12.3 (https://github.com/dask/dask/issues/11038)
+        # to fix issues with dask, set python to "3.11.8", "3.12.2". Relax it to "3.11", "3.12" after issue with dask resolved
         python-version: ["3.11.8", "3.12.2"]
         name: ["unitary",
               # "slow_tests"
