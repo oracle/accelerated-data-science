@@ -82,14 +82,14 @@ class TestAquaDeploymentHandler(unittest.TestCase):
         mock_error.assert_called_once()
         assert result["status"] == 400
 
-    @patch.object(AquaDeploymentApp, "get")
+    @patch("ads.aqua.deployment.AquaDeploymentApp.get")
     def test_get_deployment(self, mock_get):
         """Test get method to return deployment information."""
         self.deployment_handler.request.path = "aqua/deployments"
         self.deployment_handler.get(id="mock-model-id")
         mock_get.assert_called()
 
-    @patch.object(AquaDeploymentApp, "list")
+    @patch("ads.aqua.deployment.AquaDeploymentApp.list")
     def test_list_deployment(self, mock_list):
         """Test get method to return a list of model deployments."""
         self.deployment_handler.request.path = "aqua/deployments"
@@ -98,7 +98,7 @@ class TestAquaDeploymentHandler(unittest.TestCase):
             compartment_id=TestDataset.USER_COMPARTMENT_ID, project_id=None
         )
 
-    @patch.object(AquaDeploymentApp, "create")
+    @patch("ads.aqua.deployment.AquaDeploymentApp.create")
     def test_post(self, mock_create):
         """Test post method to create a model deployment."""
         self.deployment_handler.get_json_body = MagicMock(
@@ -131,7 +131,7 @@ class TestAquaDeploymentInferenceHandler(unittest.TestCase):
         self.inference_handler.request = MagicMock()
         self.inference_handler.finish = MagicMock()
 
-    @patch.object(MDInferenceResponse, "get_model_deployment_response")
+    @patch("ads.aqua.deployment.MDInferenceResponse.get_model_deployment_response")
     def test_post(self, mock_get_model_deployment_response):
         """Test post method to return model deployment response."""
         self.inference_handler.get_json_body = MagicMock(
