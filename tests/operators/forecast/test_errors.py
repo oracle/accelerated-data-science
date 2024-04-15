@@ -559,10 +559,10 @@ def test_all_series_failure(model):
         historical_data_path=historical_data_path,
         additional_data_path=additional_data_path,
     )
-
+    preprocessing_steps = {"missing_value_imputation": True, "outlier_treatment": False}
     yaml_i["spec"]["model"] = model
     yaml_i['spec']['horizon'] = 10
-    yaml_i['spec']['preprocessing'] = True
+    yaml_i['spec']['preprocessing'] = preprocessing_steps
     if yaml_i["spec"].get("additional_data") is not None and model != "autots":
         yaml_i["spec"]["generate_explanations"] = True
     if model == "autots":
@@ -627,9 +627,9 @@ def test_arima_automlx_errors(operator_setup, model):
      any supported types according to the casting rule ''safe''
     Added label encoding before passing data to explainer
     """
-
+    preprocessing_steps = {"missing_value_imputation": True, "outlier_treatment": False}
     yaml_i['spec']['horizon'] = 10
-    yaml_i['spec']['preprocessing'] = True
+    yaml_i['spec']['preprocessing'] = preprocessing_steps
     yaml_i['spec']['generate_explanations'] = True
     yaml_i['spec']['model'] = model
 
