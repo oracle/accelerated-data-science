@@ -27,26 +27,6 @@ from ads.aqua.extension.base_handler import AquaAPIhandler
 
 class TestDataset:
     mock_request_id = "1234"
-    mock_service_error = dict(status=501, code="code", message="message", headers={})
-    mock_service_error_reply = {
-        "status": 404,
-        "message": "Authorization Failed: The resource you're looking for isn't accessible.",
-        "service_payload": {
-            "target_service": None,
-            "status": 404,
-            "code": "code",
-            "opc-request-id": None,
-            "message": "message",
-            "operation_name": None,
-            "timestamp": None,
-            "client_version": None,
-            "request_endpoint": None,
-            "logging_tips": "To get more info on the failing request, refer to https://docs.oracle.com/en-us/iaas/tools/python/latest/logging.html for ways to log the request/response details.",
-            "troubleshooting_tips": "See https://docs.oracle.com/iaas/Content/API/References/apierrors.htm#apierrors_404__404_code for more information about resolving this error. If you are unable to resolve this None issue, please contact Oracle support and provide them this full error message.",
-        },
-        "reason": "message",
-        "request_id": "1234",
-    }
 
 
 class TestAquaDecorators(TestCase):
@@ -81,7 +61,7 @@ class TestAquaDecorators(TestCase):
                         "troubleshooting_tips": "See https://docs.oracle.com/iaas/Content/API/References/apierrors.htm#apierrors_501__501_code for more information about resolving this error. If you are unable to resolve this None issue, please contact Oracle support and provide them this full error message.",
                     },
                     "reason": "message",
-                    "request_id": "1234",
+                    "request_id": TestDataset.mock_request_id,
                 },
             ),
             (
@@ -149,12 +129,12 @@ class TestAquaDecorators(TestCase):
                 },
             ),
             (
-                AquaError(reason="This is test.", status=403, service_payload={}),
+                AquaError(reason="Mocking AQUA error.", status=403, service_payload={}),
                 {
                     "status": 403,
                     "message": "We're having trouble processing your request with the information provided.",
                     "service_payload": {},
-                    "reason": "This is test.",
+                    "reason": "Mocking AQUA error.",
                     "request_id": TestDataset.mock_request_id,
                 },
             ),
@@ -169,12 +149,12 @@ class TestAquaDecorators(TestCase):
                 },
             ),
             (
-                ValueError("This is test."),
+                ValueError("Mocking ADS internal error."),
                 {
                     "status": 500,
                     "message": "An error occurred while creating the resource.",
                     "service_payload": {},
-                    "reason": "ValueError: This is test.",
+                    "reason": "ValueError: Mocking ADS internal error.",
                     "request_id": TestDataset.mock_request_id,
                 },
             ),
