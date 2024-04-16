@@ -10,6 +10,7 @@ from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.decorator import handle_exceptions
 from ads.aqua.exception import AquaResourceAccessError
 from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.aqua.utils import known_realm
 
 
 class ADSVersionHandler(AquaAPIhandler):
@@ -27,6 +28,8 @@ class CompatibilityCheckHandler(AquaAPIhandler):
     def get(self):
         if ODSC_MODEL_COMPARTMENT_OCID:
             return self.finish(dict(status="ok"))
+        elif known_realm():
+            return self.finish(dict(status="compatible"))
         else:
             raise AquaResourceAccessError(
                 f"The AI Quick actions extension is not compatible in the given region."
