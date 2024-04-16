@@ -79,6 +79,13 @@ Oracle Accelerated Data Science (ADS)
 
    modules
 
+.. admonition:: Introducing AI Quick Actions
+   :class: note
+
+   Deploy, Fine Tune and Evaluate Large language models such as `Mistral-7B-Instruct-v0.2 <https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.2>`__, `CodeLlama-13b-Instruct-hf <https://huggingface.co/codellama/CodeLlama-13b-Instruct-hf>`__, etc with just a couple of clicks.
+
+   Visit `AI Quick Actions documentation <https://github.com/oracle-samples/oci-data-science-ai-samples/tree/main/ai-quick-actions>`__ for the latest information
+  
 .. admonition:: Oracle Accelerated Data Science (ADS)
    :class: note
 
