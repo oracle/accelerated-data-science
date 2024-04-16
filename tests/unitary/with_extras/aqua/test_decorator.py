@@ -42,7 +42,8 @@ class TestAquaDecorators(TestCase):
 
     @parameterized.expand(
         [
-            (
+            [
+                "oci ServiceError",
                 ServiceError(status=501, code="code", message="message", headers={}),
                 {
                     "status": 501,
@@ -63,8 +64,9 @@ class TestAquaDecorators(TestCase):
                     "reason": "message",
                     "request_id": TestDataset.mock_request_id,
                 },
-            ),
-            (
+            ],
+            [
+                "oci ClientError",
                 ConfigFileNotFound(),
                 {
                     "status": 400,
@@ -73,8 +75,9 @@ class TestAquaDecorators(TestCase):
                     "reason": "ConfigFileNotFound: ",
                     "request_id": TestDataset.mock_request_id,
                 },
-            ),
-            (
+            ],
+            [
+                "oci MissingEndpointForNonRegionalServiceClientError",
                 MissingEndpointForNonRegionalServiceClientError(
                     "An endpoint must be provided for a non-regional service client"
                 ),
@@ -85,8 +88,9 @@ class TestAquaDecorators(TestCase):
                     "reason": "MissingEndpointForNonRegionalServiceClientError: An endpoint must be provided for a non-regional service client",
                     "request_id": TestDataset.mock_request_id,
                 },
-            ),
-            (
+            ],
+            [
+                "oci RequestException",
                 RequestException("An exception occurred when making the request"),
                 {
                     "status": 400,
@@ -95,8 +99,9 @@ class TestAquaDecorators(TestCase):
                     "reason": "RequestException: An exception occurred when making the request",
                     "request_id": TestDataset.mock_request_id,
                 },
-            ),
-            (
+            ],
+            [
+                "oci ConnectTimeout",
                 ConnectTimeout(
                     "The request timed out while trying to connect to the remote server."
                 ),
@@ -107,8 +112,9 @@ class TestAquaDecorators(TestCase):
                     "reason": "ConnectTimeout: The request timed out while trying to connect to the remote server.",
                     "request_id": TestDataset.mock_request_id,
                 },
-            ),
-            (
+            ],
+            [
+                "oci MultipartUploadError",
                 MultipartUploadError(),
                 {
                     "status": 500,
@@ -117,8 +123,9 @@ class TestAquaDecorators(TestCase):
                     "reason": "MultipartUploadError: MultipartUploadError exception has occured. Client Version: Oracle-PythonSDK/2.124.1, OS Version: macOS-14.3-arm64-arm-64bit, See https://docs.oracle.com/iaas/Content/API/Concepts/sdk_troubleshooting.htm for common issues and steps to resolve them. If you need to contact support, or file a GitHub issue, please include this full error message.",
                     "request_id": TestDataset.mock_request_id,
                 },
-            ),
-            (
+            ],
+            [
+                "oci CompositeOperationError",
                 CompositeOperationError(),
                 {
                     "status": 500,
@@ -127,8 +134,9 @@ class TestAquaDecorators(TestCase):
                     "reason": "CompositeOperationError: ",
                     "request_id": TestDataset.mock_request_id,
                 },
-            ),
-            (
+            ],
+            [
+                "AquaError",
                 AquaError(reason="Mocking AQUA error.", status=403, service_payload={}),
                 {
                     "status": 403,
@@ -137,8 +145,9 @@ class TestAquaDecorators(TestCase):
                     "reason": "Mocking AQUA error.",
                     "request_id": TestDataset.mock_request_id,
                 },
-            ),
-            (
+            ],
+            [
+                "HTTPError",
                 HTTPError(400, "The request `/test` is invalid."),
                 {
                     "status": 400,
@@ -147,8 +156,9 @@ class TestAquaDecorators(TestCase):
                     "reason": "The request `/test` is invalid.",
                     "request_id": TestDataset.mock_request_id,
                 },
-            ),
-            (
+            ],
+            [
+                "ADS Error",
                 ValueError("Mocking ADS internal error."),
                 {
                     "status": 500,
@@ -157,11 +167,11 @@ class TestAquaDecorators(TestCase):
                     "reason": "ValueError: Mocking ADS internal error.",
                     "request_id": TestDataset.mock_request_id,
                 },
-            ),
+            ],
         ]
     )
     @patch("uuid.uuid4")
-    def test_handle_exceptions(self, error, expected_reply, mock_uuid):
+    def test_handle_exceptions(self, name, error, expected_reply, mock_uuid):
         """Tests handling error decorator."""
         from ads.aqua.decorator import handle_exceptions
 
