@@ -673,6 +673,14 @@ class AquaEvaluationApp(AquaApp):
             ),
         )
 
+        # tracks shapes used in evaluation that were created for the given evaluation source
+        self.telemetry.record_event_async(
+            category="aqua/evaluation/create",
+            action="shape",
+            detail=create_aqua_evaluation_details.shape_name,
+            value=evaluation_source.display_name
+        )
+
         # tracks unique evaluation that were created for the given evaluation source
         self.telemetry.record_event_async(
             category="aqua/evaluation",
