@@ -737,8 +737,7 @@ def _is_valid_mvs(mvs: ModelVersionSet, target_tag: str) -> bool:
 
 
 def known_realm():
-    """This helper function returns True if the Aqua service is available by default in the
-    given namespace.
+    """This helper function returns True if the Aqua service is available by default in the given namespace.
     Returns
     -------
     bool:
