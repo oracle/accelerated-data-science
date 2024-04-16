@@ -396,34 +396,24 @@ class AquaDeploymentApp(AquaApp):
             self.telemetry.record_event_async(
                 category="aqua/custom/deployment", action="create", detail=model_name
             )
-            # tracks the shape used for deploying the custom models
-            self.telemetry.record_event_async(
-                category="aqua/custom/deployment/create",
-                action="shape",
-                detail=instance_shape,
-            )
             # tracks the shape used for deploying the custom models by name
             self.telemetry.record_event_async(
-                category=f"aqua/custom/{model_name}/deployment/create",
+                category=f"aqua/custom/deployment/create",
                 action="shape",
                 detail=instance_shape,
+                value=model_name
             )
         else:
             # tracks unique deployments that were created in the user compartment
             self.telemetry.record_event_async(
                 category="aqua/service/deployment", action="create", detail=model_name
             )
-            # tracks the shape used for deploying the service models
+            # tracks the shape used for deploying the service models by name
             self.telemetry.record_event_async(
                 category="aqua/service/deployment/create",
                 action="shape",
                 detail=instance_shape,
-            )
-            # tracks the shape used for deploying the service models by name
-            self.telemetry.record_event_async(
-                category=f"aqua/service/{model_name}/deployment/create",
-                action="shape",
-                detail=instance_shape,
+                value=model_name
             )
 
         return AquaDeployment.from_oci_model_deployment(
