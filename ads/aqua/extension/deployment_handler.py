@@ -133,6 +133,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
 
 
 class AquaDeploymentInferenceHandler(AquaAPIhandler):
+    @staticmethod
     def validate_predict_url(endpoint):
         try:
             url = urlparse(endpoint)
