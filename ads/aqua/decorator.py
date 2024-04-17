@@ -59,6 +59,7 @@ def handle_exceptions(func):
         except ServiceError as error:
             self.write_error(
                 status_code=error.status or 500,
+                message=error.message,
                 reason=error.message,
                 service_payload=error.args[0] if error.args else None,
                 exc_info=sys.exc_info(),

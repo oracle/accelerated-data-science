@@ -8,6 +8,7 @@ import json
 import traceback
 import uuid
 from dataclasses import asdict, is_dataclass
+from http.client import responses
 from typing import Any
 
 from notebook.base.handlers import APIHandler
@@ -71,7 +72,11 @@ class AquaAPIhandler(APIHandler):
         reason = kwargs.get("reason")
         self.set_status(status_code, reason=reason)
         service_payload = kwargs.get("service_payload", {})
-        message = self.get_default_error_messages(service_payload, str(status_code))
+        default_msg = responses.get(status_code, "Unknown HTTP Error")
+        message = self.get_default_error_messages(
+            service_payload, str(status_code), kwargs.get("message", default_msg)
+        )
+
         reply = {
             "status": status_code,
             "message": message,
@@ -102,7 +107,11 @@ class AquaAPIhandler(APIHandler):
         self.finish(json.dumps(reply))
 
     @staticmethod
-    def get_default_error_messages(service_payload: dict, status_code: str):
+    def get_default_error_messages(
+        service_payload: dict,
+        status_code: str,
+        default_msg: str = "Unknown HTTP Error.",
+    ):
         """Method that maps the error messages based on the operation performed or the status codes encountered."""
 
         messages = {
@@ -110,7 +119,6 @@ class AquaAPIhandler(APIHandler):
             "403": "We're having trouble processing your request with the information provided.",
             "404": "Authorization Failed: The resource you're looking for isn't accessible.",
             "408": "Server is taking too long to response, please try again.",
-            "500": "An error occurred while creating the resource.",
             "create": "Authorization Failed: Could not create resource.",
             "get": "Authorization Failed: The resource you're looking for isn't accessible.",
         }
@@ -128,7 +136,7 @@ class AquaAPIhandler(APIHandler):
         if status_code in messages:
             return messages[status_code]
         else:
-            return "Unknown HTTP Error."
+            return default_msg
 
 
 # todo: remove after error handler is implemented

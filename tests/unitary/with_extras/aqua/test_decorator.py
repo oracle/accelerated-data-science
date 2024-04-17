@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 from notebook.base.handlers import IPythonHandler
 from oci.exceptions import (
+    UPLOAD_MANAGER_DEBUG_INFORMATION_LOG,
     CompositeOperationError,
     ConfigFileNotFound,
     ConnectTimeout,
@@ -44,35 +45,40 @@ class TestAquaDecorators(TestCase):
         [
             [
                 "oci ServiceError",
-                ServiceError(status=501, code="code", message="message", headers={}),
+                ServiceError(
+                    status=500,
+                    code="InternalError",
+                    message="An internal error occurred.",
+                    headers={},
+                ),
                 {
-                    "status": 501,
-                    "message": "Unknown HTTP Error.",
+                    "status": 500,
+                    "message": "An internal error occurred.",
                     "service_payload": {
                         "target_service": None,
-                        "status": 501,
-                        "code": "code",
+                        "status": 500,
+                        "code": "InternalError",
                         "opc-request-id": None,
-                        "message": "message",
+                        "message": "An internal error occurred.",
                         "operation_name": None,
                         "timestamp": None,
                         "client_version": None,
                         "request_endpoint": None,
                         "logging_tips": "To get more info on the failing request, refer to https://docs.oracle.com/en-us/iaas/tools/python/latest/logging.html for ways to log the request/response details.",
-                        "troubleshooting_tips": "See https://docs.oracle.com/iaas/Content/API/References/apierrors.htm#apierrors_501__501_code for more information about resolving this error. If you are unable to resolve this None issue, please contact Oracle support and provide them this full error message.",
+                        "troubleshooting_tips": "See https://docs.oracle.com/iaas/Content/API/References/apierrors.htm#apierrors_500__500_internalerror for more information about resolving this error. If you are unable to resolve this None issue, please contact Oracle support and provide them this full error message.",
                     },
-                    "reason": "message",
+                    "reason": "An internal error occurred.",
                     "request_id": TestDataset.mock_request_id,
                 },
             ],
             [
                 "oci ClientError",
-                ConfigFileNotFound(),
+                ConfigFileNotFound("Could not find config file at the given path."),
                 {
                     "status": 400,
                     "message": "Something went wrong with your request.",
                     "service_payload": {},
-                    "reason": "ConfigFileNotFound: ",
+                    "reason": "ConfigFileNotFound: Could not find config file at the given path.",
                     "request_id": TestDataset.mock_request_id,
                 },
             ],
@@ -118,9 +124,9 @@ class TestAquaDecorators(TestCase):
                 MultipartUploadError(),
                 {
                     "status": 500,
-                    "message": "An error occurred while creating the resource.",
+                    "message": "Internal Server Error",
                     "service_payload": {},
-                    "reason": "MultipartUploadError: MultipartUploadError exception has occured. Client Version: Oracle-PythonSDK/2.124.1, OS Version: macOS-14.3-arm64-arm-64bit, See https://docs.oracle.com/iaas/Content/API/Concepts/sdk_troubleshooting.htm for common issues and steps to resolve them. If you need to contact support, or file a GitHub issue, please include this full error message.",
+                    "reason": f"MultipartUploadError: MultipartUploadError exception has occured. {UPLOAD_MANAGER_DEBUG_INFORMATION_LOG}",
                     "request_id": TestDataset.mock_request_id,
                 },
             ],
@@ -129,7 +135,7 @@ class TestAquaDecorators(TestCase):
                 CompositeOperationError(),
                 {
                     "status": 500,
-                    "message": "An error occurred while creating the resource.",
+                    "message": "Internal Server Error",
                     "service_payload": {},
                     "reason": "CompositeOperationError: ",
                     "request_id": TestDataset.mock_request_id,
@@ -162,7 +168,7 @@ class TestAquaDecorators(TestCase):
                 ValueError("Mocking ADS internal error."),
                 {
                     "status": 500,
-                    "message": "An error occurred while creating the resource.",
+                    "message": "Internal Server Error",
                     "service_payload": {},
                     "reason": "ValueError: Mocking ADS internal error.",
                     "request_id": TestDataset.mock_request_id,
