@@ -6,8 +6,8 @@
 from __future__ import annotations
 
 import datetime
+import inspect
 import logging
-import oci
 import os
 import time
 import traceback
@@ -17,11 +17,12 @@ from string import Template
 from typing import Any, Dict, List, Optional, Union
 
 import fsspec
+import oci
 import oci.data_science
 import oci.util as oci_util
-import yaml
 from oci.data_science.models import JobInfrastructureConfigurationDetails
 from oci.exceptions import ServiceError
+import yaml
 from ads.common import utils
 from ads.common.oci_datascience import DSCNotebookSession, OCIDataScienceMixin
 from ads.common.oci_logging import OCILog
@@ -782,7 +783,7 @@ class DataScienceJobRun(
         # Update runtime from job run
         from ads.jobs import Job
 
-        job = Job.from_dict(job_dict)
+        job = Job(**self.auth).from_dict(job_dict)
         envs = job.runtime.envs
         run_config_override = run_dict.get("jobConfigurationOverrideDetails", {})
         envs.update(run_config_override.get("environmentVariables", {}))
@@ -811,7 +812,7 @@ class DataScienceJobRun(
         """
         from ads.jobs import Job
 
-        return Job.from_datascience_job(self.job_id)
+        return Job(**self.auth).from_datascience_job(self.job_id)
 
     def download(self, to_dir):
         """Downloads files from job run output URI to local.
@@ -953,9 +954,9 @@ class DataScienceJob(Infrastructure):
             if key not in attribute_map and key.lower() in snake_to_camel_map:
                 value = spec.pop(key)
                 if isinstance(value, dict):
-                    spec[
-                        snake_to_camel_map[key.lower()]
-                    ] = DataScienceJob.standardize_spec(value)
+                    spec[snake_to_camel_map[key.lower()]] = (
+                        DataScienceJob.standardize_spec(value)
+                    )
                 else:
                     spec[snake_to_camel_map[key.lower()]] = value
         return spec
@@ -971,6 +972,9 @@ class DataScienceJob(Infrastructure):
             Specification as keyword arguments.
             If spec contains the same key as the one in kwargs, the value from kwargs will be used.
         """
+        # Saves a copy of the auth object from the class to the instance.
+        # Future changes to the class level Job.auth will not affect the auth of existing instances.
+        self.auth = self.auth.copy()
         for key in ["config", "signer", "client_kwargs"]:
             if kwargs.get(key):
                 self.auth[key] = kwargs.pop(key)
@@ -1709,6 +1713,15 @@ class DataScienceJob(Infrastructure):
 
         """
         return cls.from_dsc_job(DSCJob(**cls.auth).from_ocid(job_id))
+
+    @class_or_instance_method
+    def from_dict(cls, obj_dict: dict):
+        """Initialize the object from a Python dictionary"""
+        if inspect.isclass(cls):
+            job_cls = cls
+        else:
+            job_cls = cls.__class__
+        return job_cls(spec=obj_dict.get("spec"), **cls.auth)
 
     @class_or_instance_method
     def list_jobs(cls, compartment_id: str = None, **kwargs) -> List[DataScienceJob]:
