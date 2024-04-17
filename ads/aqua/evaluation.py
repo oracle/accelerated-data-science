@@ -916,6 +916,7 @@ class AquaEvaluationApp(AquaApp):
         List[AquaEvaluationSummary]:
             The list of the `ads.aqua.evalution.AquaEvaluationSummary`.
         """
+        compartment_id = compartment_id or COMPARTMENT_OCID
         logger.info(f"Fetching evaluations from compartment {compartment_id}.")
         models = utils.query_resources(
             compartment_id=compartment_id,
