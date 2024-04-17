@@ -357,8 +357,6 @@ class TestAquaEvaluation(unittest.TestCase):
         utils.is_valid_ocid = MagicMock(return_value=True)
 
     def setUp(self):
-        import ads
-        ads.set_auth("security_token")
         self.app = AquaEvaluationApp()
 
         self._query_resources = utils.query_resources
