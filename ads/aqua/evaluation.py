@@ -38,6 +38,7 @@ from ads.aqua.utils import (
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     NB_SESSION_IDENTIFIER,
     UNKNOWN,
+    extract_id_and_name_from_tag,
     fire_and_forget,
     get_container_image,
     is_valid_ocid,
@@ -677,7 +678,7 @@ class AquaEvaluationApp(AquaApp):
         self.telemetry.record_event_async(
             category="aqua/evaluation",
             action="create",
-            detail=evaluation_source.display_name,
+            detail=self._get_service_model_name(evaluation_source),
         )
 
         return AquaEvaluationSummary(
@@ -767,6 +768,34 @@ class AquaEvaluationApp(AquaApp):
         )
 
         return runtime
+    
+    @staticmethod
+    def _get_service_model_name(
+        source: Union[ModelDeployment, DataScienceModel]
+    ) -> str:
+        """Gets the service model name from source. If it's ModelDeployment, needs to check
+        if its model has been fine tuned or not.
+
+        Parameters
+        ----------
+        source: Union[ModelDeployment, DataScienceModel]
+            An instance of either ModelDeployment or DataScienceModel
+
+        Returns
+        -------
+        str:
+            The service model name of source.
+        """
+        if isinstance(source, ModelDeployment):
+            fine_tuned_model_tag = source.freeform_tags.get(
+                Tags.AQUA_FINE_TUNED_MODEL_TAG.value, UNKNOWN
+            )
+            if not fine_tuned_model_tag:
+                return source.freeform_tags.get(Tags.AQUA_MODEL_NAME_TAG.value)
+            else:
+                return extract_id_and_name_from_tag(fine_tuned_model_tag)[1]
+        
+        return source.display_name
 
     @staticmethod
     def _get_evaluation_container(source_id: str) -> str:
