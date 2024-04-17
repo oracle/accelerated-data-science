@@ -58,7 +58,9 @@ class TestYourHandler(AsyncHTTPTestCase):
         reload(ads.aqua)
         reload(ads.aqua.extension.common_handler)
         response = self.fetch("/hello", method="GET")
+        body = json.loads(response.body)
+        assert body["status"] == 404
         assert (
-            json.loads(response.body)["message"]
-            == "Authorization Failed: The resource you're looking for isn't accessible."
+            body["reason"]
+            == "The AI Quick actions extension is not compatible in the given region."
         )
