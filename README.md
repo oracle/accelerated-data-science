@@ -181,4 +181,4 @@ Consult the security guide [SECURITY.md](https://github.com/oracle/accelerated-d
 
 ## License
 
-Copyright (c) 2020, 2022 Oracle and/or its affiliates. Licensed under the [Universal Permissive License v1.0](https://oss.oracle.com/licenses/upl/)
+Copyright (c) 2020, 2024 Oracle and/or its affiliates. Licensed under the [Universal Permissive License v1.0](https://oss.oracle.com/licenses/upl/)
