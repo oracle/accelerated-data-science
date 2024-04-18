@@ -1,0 +1,200 @@
+kind: datascienceModel
+spec:
+  artifact:
+  - oci://service-managed-models@namespace/service_models/model-name/commit-id/artifact
+  - oci://user-bucket-name@namespace/prefix/ocid1.datasciencejob.oc1.iad.<OCID>
+  compartmentId: ocid1.compartment.oc1..<OCID>
+  customMetadataList:
+    data:
+    - category: Other
+      description: val_metrics_final
+      key: val_metrics_final
+      value:
+        accuracy: 0.986
+        epoch: 1.0
+        loss: 0.0327
+        runtime: 30.2809
+        step: 140
+    - category: Other
+      description: train_metrics_epoch
+      key: train_metrics_1.00
+      value:
+        accuracy: 0.9626
+        epoch: 1.0
+        loss: 0.1894
+        step: 140
+    - category: Other
+      description: null
+      key: fine_tune_job_run_id
+      value: ocid1.datasciencejobrun.oc1.iad.<OCID>
+    - category: Other
+      description: train_metrics_final
+      key: train_metrics_final
+      value:
+        accuracy: 0.9626
+        epoch: 1.0
+        loss: 0.1894
+        step: 140
+    - category: Other
+      description: null
+      key: fine_tune_source
+      value: ocid1.datasciencemodel.oc1.iad.<OCID>
+    - category: Other
+      description: null
+      key: fine_tune_source_name
+      value: model-name
+    - category: Other
+      description: val_metrics_epoch
+      key: val_metrics_1.00
+      value:
+        accuracy: 0.986
+        epoch: 1.0
+        loss: 0.0327
+        runtime: 30.2809
+        step: 140
+    - category: Other
+      description: null
+      key: fine_tune_output_path
+      value: oci://user-bucket-name@namespace/prefix/ocid1.datasciencejob.oc1.iad.<OCID>
+    - category: other
+      description: flag for model by reference
+      key: modelDescription
+      value: true
+    - category: Other
+      description: Deployment container mapping for SMC
+      key: deployment-container
+      value: odsc-vllm-serving
+    - category: Other
+      description: artifact location
+      key: artifact_location
+      value: service_models/model-name/commit-id/artifact
+    - category: Other
+      description: null
+      key: fine_tune_job_id
+      value: ocid1.datasciencejob.oc1.iad.<OCID>
+  definedMetadataList:
+    data:
+    - key: FrameworkVersion
+      value: null
+    - key: ArtifactTestResults
+      value: null
+    - key: Hyperparameters
+      value:
+        epochs: 1
+        learning_rate: 0.0002
+        training_data: oci://user-bucket-name@namespace/prefix/dataset/train-data.jsonl
+        val_set_size: 0.1
+    - key: Algorithm
+      value: null
+    - key: Framework
+      value: null
+    - key: UseCaseType
+      value: null
+  displayName: finetuned-model-deployment-name
+  freeformTags:
+    OCI_AQUA: active
+    aqua_fine_tuned_model: ocid1.datasciencemodel.oc1.iad.<OCID>#model-name
+    license: Apache 2.0
+    organization: Organization
+    task: text_generation
+  id: ocid1.datasciencemodel.oc1.iad.<OCID>
+  lifecycleState: ACTIVE
+  modelDescription:
+    models:
+    - bucketName: service-managed-models
+      namespace: namespace
+      objects:
+      - name: service_models/model-name/commit-id/artifact/README.md
+        sizeInBytes: 3836
+        version: 5707cfc1-499b-4ce0-aeec-32e2336c5195
+      - name: service_models/model-name/commit-id/artifact/config.json
+        sizeInBytes: 596
+        version: 3f83de16-a74a-4230-994f-9f6b89e9efd2
+      - name: service_models/model-name/commit-id/artifact/generation_config.json
+        sizeInBytes: 111
+        version: d680f906-0449-4abe-a8b6-fdc45b8d1767
+      - name: service_models/model-name/commit-id/artifact/model-00001-of-00003.safetensors
+        sizeInBytes: 4943162336
+        version: f3819ad0-e587-4ba5-95d3-b6b2ee0d3063
+      - name: service_models/model-name/commit-id/artifact/model-00002-of-00003.safetensors
+        sizeInBytes: 4999819336
+        version: 0afce241-0093-4c60-a2b3-09a562d452a6
+      - name: service_models/model-name/commit-id/artifact/model-00003-of-00003.safetensors
+        sizeInBytes: 4540516344
+        version: fb47ce57-f90e-4bb5-8ec3-9530b5ca8c56
+      - name: service_models/model-name/commit-id/artifact/model.safetensors.index.json
+        sizeInBytes: 25125
+        version: c928ae04-4148-4619-8333-78eb93920dcd
+      - name: service_models/model-name/commit-id/artifact/pytorch_model-00001-of-00003.bin
+        sizeInBytes: 4943184288
+        version: 9da9d3c2-0e44-4cba-b73d-b199a5e95691
+      - name: service_models/model-name/commit-id/artifact/pytorch_model-00002-of-00003.bin
+        sizeInBytes: 4999843272
+        version: 051d8e4c-ea3b-4839-acd2-b78a202f3289
+      - name: service_models/model-name/commit-id/artifact/pytorch_model-00003-of-00003.bin
+        sizeInBytes: 5064824210
+        version: b67cb586-0652-4c83-af55-2a6fb82d75c3
+      - name: service_models/model-name/commit-id/artifact/pytorch_model.bin.index.json
+        sizeInBytes: 23950
+        version: a967052d-a096-415b-9398-de9a97dd2de0
+      - name: service_models/model-name/commit-id/artifact/special_tokens_map.json
+        sizeInBytes: 72
+        version: 798c5869-3ed4-46ce-ab17-94f55ba9fe57
+      - name: service_models/model-name/commit-id/artifact/tokenizer.json
+        sizeInBytes: 1795303
+        version: 041436f2-4374-48b9-9fbc-7b1afa9e5f47
+      - name: service_models/model-name/commit-id/artifact/tokenizer.model
+        sizeInBytes: 493443
+        version: 360b0b6b-2fef-4a6f-ba80-696491373b0e
+      - name: service_models/model-name/commit-id/artifact/tokenizer_config.json
+        sizeInBytes: 1460
+        version: a39686af-1813-4d36-b983-921950a292bf
+      prefix: service_models/model-name/commit-id/artifact
+    - bucketName: user-bucket-name
+      namespace: namespace
+      objects:
+      - name: prefix/ocid1.datasciencejob.oc1.iad.<OCID>/README.md
+        sizeInBytes: 5182
+        version: cc4afb6b-10a6-411f-9866-0f0f3ff76034
+      - name: prefix/ocid1.datasciencejob.oc1.iad.<OCID>/adapter_config.json
+        sizeInBytes: 761
+        version: 450c7f79-f582-4384-8430-4cfe957efdfa
+      - name: prefix/ocid1.datasciencejob.oc1.iad.<OCID>/adapter_model.safetensors
+        sizeInBytes: 167832688
+        version: 2eb2b24f-9024-42be-ae03-11adbacc8e3c
+      - name: prefix/ocid1.datasciencejob.oc1.iad.<OCID>/added_tokens.json
+        sizeInBytes: 21
+        version: 832a6279-f8b6-4aac-af41-b4b05c236953
+      - name: prefix/ocid1.datasciencejob.oc1.iad.<OCID>/aqua
+        sizeInBytes: 0
+        version: d3fc2142-eca5-4e58-8003-37a587722912
+      - name: prefix/ocid1.datasciencejob.oc1.iad.<OCID>/aqua_log_event.jsonl
+        sizeInBytes: 607
+        version: b6e3be51-3c70-4981-a876-1e47c9ba8e2f
+      - name: prefix/ocid1.datasciencejob.oc1.iad.<OCID>/config.json
+        sizeInBytes: 729
+        version: 20464399-b00b-4d7c-a1f6-a167c8167bb5
+      - name: prefix/ocid1.datasciencejob.oc1.iad.<OCID>/special_tokens_map.json
+        sizeInBytes: 552
+        version: eeb9a230-a78e-4a36-80aa-09a2c20e547f
+      - name: prefix/ocid1.datasciencejob.oc1.iad.<OCID>/tokenizer.model
+        sizeInBytes: 493443
+        version: 687165fa-1f81-4c5b-afb2-d77f91c8cf3b
+      - name: prefix/ocid1.datasciencejob.oc1.iad.<OCID>/tokenizer_config.json
+        sizeInBytes: 1634
+        version: 38d944ec-de3c-4b74-8709-66d5906564d2
+      prefix: prefix/ocid1.datasciencejob.oc1.iad.<OCID>
+    type: modelOSSReferenceDescription
+    version: '1.0'
+  modelVersionSetId: ocid1.datasciencemodelversionset.oc1.iad.<OCID>
+  modelVersionSetName: mvs-name
+  projectId: ocid1.datascienceproject.oc1.iad.<OCID>
+  provenanceMetadata:
+    artifact_dir: null
+    git_branch: null
+    git_commit: null
+    repository_url: null
+    training_id: ocid1.datasciencejobrun.oc1.iad.<OCID>
+    training_script_path: null
+  timeCreated: 2024-01-01T00:00:00.000000+00:00
+type: dataScienceModel
