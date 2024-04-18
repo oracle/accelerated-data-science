@@ -54,20 +54,22 @@ class TestBaseHandlers(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (None, None),
-            ([1, 2, 3], {"data": [1, 2, 3]}),
+            ("with None", None, None),
+            ("with list", [1, 2, 3], {"data": [1, 2, 3]}),
             (
+                "with DataClassSerializable",
                 AquaResourceIdentifier(id="123", name="myname"),
                 {"id": "123", "name": "myname", "url": ""},
             ),
             (
+                "with dataclass",
                 TestDataset.mock_dataclass_obj,
                 asdict(TestDataset.mock_dataclass_obj),
             ),
         ]
     )
     @patch.object(APIHandler, "finish")
-    def test_finish(self, payload, expected_call, mock_super_finish):
+    def test_finish(self, name, payload, expected_call, mock_super_finish):
         """Tests AquaAPIhandler.finish"""
         mock_super_finish.return_value = None
 
@@ -79,23 +81,25 @@ class TestBaseHandlers(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (
+            [
+                "HTTPError",
                 dict(
                     status_code=400,
                     exc_info=(None, HTTPError(400, "Bad Request"), None),
                 ),
                 "Bad Request",
-            ),
-            (
+            ],
+            [
+                "ADS Error",
                 dict(
                     status_code=500,
                     reason="Testing ADS Internal Error.",
                     exc_info=(None, ValueError("Invalid parameter."), None),
                 ),
-                "An error occurred while creating the resource.",
-                # This error message doesn't make sense. Need to revisit the code to fix.
-            ),
-            (
+                "Internal Server Error",
+            ],
+            [
+                "AQUA Error",
                 dict(
                     status_code=404,
                     reason="Testing AquaError happen during create operation.",
@@ -111,8 +115,9 @@ class TestBaseHandlers(unittest.TestCase):
                     ),
                 ),
                 "Authorization Failed: Could not create resource.",
-            ),
-            (
+            ],
+            [
+                "oci ServiceError",
                 dict(
                     status_code=404,
                     reason="Testing ServiceError happen when get_job_run.",
@@ -127,12 +132,12 @@ class TestBaseHandlers(unittest.TestCase):
                     ),
                 ),
                 "Authorization Failed: The resource you're looking for isn't accessible. Operation Name: get_job_run.",
-            ),
+            ],
         ]
     )
     @patch("ads.aqua.extension.base_handler.logger")
     @patch("uuid.uuid4")
-    def test_write_error(self, input, expected_msg, mock_uuid, mock_logger):
+    def test_write_error(self, name, input, expected_msg, mock_uuid, mock_logger):
         """Tests AquaAPIhandler.write_error"""
         mock_uuid.return_value = "1234"
         self.test_instance.set_header = MagicMock()
@@ -200,6 +205,7 @@ class TestHandlers(unittest.TestCase):
     @parameterized.expand(
         [
             (
+                "AquaEvaluationConfigHandler",
                 AquaEvaluationConfigHandler,
                 AquaEvaluationApp,
                 "load_evaluation_config",
@@ -207,6 +213,7 @@ class TestHandlers(unittest.TestCase):
                 TestDataset.MOCK_OCID,
             ),
             (
+                "AquaEvaluationMetricsHandler",
                 AquaEvaluationMetricsHandler,
                 AquaEvaluationApp,
                 "load_metrics",
@@ -214,6 +221,7 @@ class TestHandlers(unittest.TestCase):
                 TestDataset.MOCK_OCID,
             ),
             (
+                "AquaEvaluationReportHandler",
                 AquaEvaluationReportHandler,
                 AquaEvaluationApp,
                 "download_report",
@@ -221,6 +229,7 @@ class TestHandlers(unittest.TestCase):
                 TestDataset.MOCK_OCID,
             ),
             (
+                "AquaEvaluationStatusHandler",
                 AquaEvaluationStatusHandler,
                 AquaEvaluationApp,
                 "get_status",
@@ -228,6 +237,7 @@ class TestHandlers(unittest.TestCase):
                 TestDataset.MOCK_OCID,
             ),
             (
+                "ADSVersionHandler",
                 ADSVersionHandler,
                 None,
                 None,
@@ -235,6 +245,7 @@ class TestHandlers(unittest.TestCase):
                 {"data": metadata.version("oracle_ads")},
             ),
             (
+                "CompatibilityCheckHandler",
                 CompatibilityCheckHandler,
                 None,
                 None,
@@ -242,6 +253,7 @@ class TestHandlers(unittest.TestCase):
                 dict(status="ok"),
             ),
             (
+                "AquaModelLicenseHandler",
                 AquaModelLicenseHandler,
                 AquaModelApp,
                 "load_license",
@@ -249,18 +261,27 @@ class TestHandlers(unittest.TestCase):
                 TestDataset.MOCK_OCID,
             ),
             (
+                "AquaModelHandler",
                 AquaModelHandler,
                 AquaModelApp,
                 "get",
                 TestDataset.MOCK_OCID,
                 TestDataset.MOCK_OCID,
             ),
-            (AquaModelHandler, AquaModelApp, "list", "", (None, None)),
+            (
+                "AquaModelHandler_list",
+                AquaModelHandler,
+                AquaModelApp,
+                "list",
+                "",
+                (None, None),
+            ),
         ]
     )
     @patch.object(IPythonHandler, "__init__")
     def test_get(
         self,
+        name,
         target_handler,
         target_app,
         associated_api,
