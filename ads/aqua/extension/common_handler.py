@@ -26,6 +26,19 @@ class CompatibilityCheckHandler(AquaAPIhandler):
 
     @handle_exceptions
     def get(self):
+        """This method provides the availability status of Aqua. If ODSC_MODEL_COMPARTMENT_OCID environment variable
+        is set, then status `ok` is returned. For regions where Aqua is available but the environment variable is not
+        set due to accesses/policies, we return the `compatible` status to indicate that the extension can be enabled
+        for the selected notebook session.
+
+        Returns
+        -------
+            status dict:
+                ok or compatible
+        Raises:
+            AquaResourceAccessError: raised when aqua is not accessible in the given session/region.
+
+        """
         if ODSC_MODEL_COMPARTMENT_OCID:
             return self.finish(dict(status="ok"))
         elif known_realm():

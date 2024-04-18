@@ -744,4 +744,4 @@ def known_realm():
         Return True if aqua service is available.
 
     """
-    return os.environ.get("CONDA_BUCKET_NS", "#") in AQUA_GA_LIST
+    return os.environ.get("CONDA_BUCKET_NS") in AQUA_GA_LIST
