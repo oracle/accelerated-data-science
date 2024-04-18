@@ -1,0 +1,32 @@
+[
+  {
+    "core_count": 1,
+    "memory_in_gbs": 15,
+    "name": "VM.Standard2.1",
+    "shape_series": "INTEL_SKYLAKE"
+  },
+  {
+    "core_count": 64,
+    "memory_in_gbs": 1024,
+    "name": "VM.Standard.E3.Flex",
+    "shape_series": "AMD_ROME"
+  },
+  {
+    "core_count": 32,
+    "memory_in_gbs": 512,
+    "name": "VM.Standard.x86.Generic",
+    "shape_series": "UNKNOWN_ENUM_VALUE"
+  },
+  {
+    "core_count": 15,
+    "memory_in_gbs": 240,
+    "name": "VM.GPU.A10.1",
+    "shape_series": "NVIDIA_GPU"
+  },
+  {
+    "core_count": 80,
+    "memory_in_gbs": 512,
+    "name": "VM.Standard.A1.Flex",
+    "shape_series": "ARM"
+  }
+]
