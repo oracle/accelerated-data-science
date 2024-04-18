@@ -627,7 +627,7 @@ class TestAquaEvaluation(unittest.TestCase):
         read_content = base64.b64decode(response.content).decode()
         assert (
             read_content
-            == "This is a sample evaluation report.html.\nStandard deviation (σ)"
+            == "This is a sample evaluation report.html.\nStandard deviation (σ)\n"
         ), read_content
         assert self.app._report_cache.currsize == 1
 
