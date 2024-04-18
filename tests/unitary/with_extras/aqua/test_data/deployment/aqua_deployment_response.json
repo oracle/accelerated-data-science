@@ -1,0 +1,19 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "logprobs": null,
+      "text": " The answer is 2"
+    }
+  ],
+  "created": 12119,
+  "id": "cmpl-379653f5a2a0425f9a6de24979542efc",
+  "model": "odsc-llm",
+  "object": "text_completion",
+  "usage": {
+    "completion_tokens": 6,
+    "prompt_tokens": 8,
+    "total_tokens": 14
+  }
+}
