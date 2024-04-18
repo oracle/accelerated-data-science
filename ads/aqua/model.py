@@ -14,7 +14,7 @@ import oci
 from cachetools import TTLCache
 from oci.data_science.models import JobRun, Model
 
-from ads.aqua import logger, utils
+from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger, utils
 from ads.aqua.base import AquaApp
 from ads.aqua.constants import (
     TRAINING_METRICS_FINAL,
@@ -26,7 +26,6 @@ from ads.aqua.constants import (
 )
 from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaRuntimeError
-
 from ads.aqua.training.exceptions import exit_code_dict
 from ads.aqua.utils import (
     LICENSE_TXT,
@@ -50,7 +49,6 @@ from ads.config import (
     PROJECT_OCID,
     TENANCY_OCID,
 )
-from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.model import DataScienceModel
 from ads.model.model_metadata import MetadataTaxonomyKeys, ModelCustomMetadata
 from ads.telemetry import telemetry
@@ -228,7 +226,7 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
             ).value
         except Exception as e:
             logger.debug(
-                f"Failed to extract model hyperparameters from {model.id}:" f"{str(e)}"
+                f"Failed to extract model hyperparameters from {model.id}: " f"{str(e)}"
             )
             model_hyperparameters = {}
 

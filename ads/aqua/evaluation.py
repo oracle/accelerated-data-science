@@ -975,7 +975,7 @@ class AquaEvaluationApp(AquaApp):
                         self._process_evaluation_summary(model=model, jobrun=jobrun)
                     )
                 except Exception as exc:
-                    logger.error(
+                    logger.warning(
                         f"Processing evaluation: {model.identifier} generated an exception: {exc}"
                     )
                     evaluations.append(
@@ -1020,7 +1020,7 @@ class AquaEvaluationApp(AquaApp):
             return True if response.status == 200 else False
         except oci.exceptions.ServiceError as ex:
             if ex.status == 404:
-                logger.info("Evaluation artifact not found.")
+                logger.debug(f"Evaluation artifact not found for {model.identifier}.")
                 return False
 
     @telemetry(entry_point="plugin=evaluation&action=get_status", name="aqua")
@@ -1566,8 +1566,9 @@ class AquaEvaluationApp(AquaApp):
                 ),
             )
         except Exception as e:
-            logger.error(
-                f"Failed to construct AquaResourceIdentifier from given id=`{id}`, and name=`{name}`, {str(e)}"
+            logger.debug(
+                f"Failed to construct AquaResourceIdentifier from given id=`{id}`, and name=`{name}`. "
+                f"DEBUG INFO: {str(e)}"
             )
             return AquaResourceIdentifier()
 
@@ -1613,7 +1614,7 @@ class AquaEvaluationApp(AquaApp):
             )
             if not params.get(EvaluationConfig.PARAMS):
                 raise AquaMissingKeyError(
-                    "model parameters have not been saved in correct format in model taxonomy.",
+                    "model parameters have not been saved in correct format in model taxonomy. ",
                     service_payload={"params": params},
                 )
             # TODO: validate the format of parameters.
@@ -1645,7 +1646,7 @@ class AquaEvaluationApp(AquaApp):
 
         except Exception as e:
             logger.debug(
-                f"Failed to get job details from job_run_details: {job_run_details}"
+                f"Failed to get job details from job_run_details: {job_run_details} "
                 f"DEBUG INFO:{str(e)}"
             )
             return AquaResourceIdentifier()

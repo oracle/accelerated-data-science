@@ -29,7 +29,6 @@ from ads.aqua.utils import (
     UNKNOWN,
     UNKNOWN_DICT,
     get_container_image,
-    logger,
     upload_local_to_os,
 )
 from ads.common.auth import default_signer

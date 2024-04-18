@@ -5,15 +5,48 @@
 
 
 import logging
-import sys
 import os
+import sys
+
+from ads import set_auth
 from ads.aqua.utils import fetch_service_compartment
 from ads.config import NB_SESSION_OCID, OCI_RESOURCE_PRINCIPAL_VERSION
-from ads import set_auth
 
-logger = logging.getLogger(__name__)
-handler = logging.StreamHandler(sys.stdout)
-logger.setLevel(logging.INFO)
+
+def get_logger_level():
+    """Retrieves logging level from environment variable `LOG_LEVEL`."""
+    level = os.environ.get("LOG_LEVEL", "INFO").upper()
+    return level
+
+
+def configure_aqua_logger():
+    """Configures the AQUA logger."""
+    log_level = get_logger_level()
+    logger = logging.getLogger(__name__)
+    logger.setLevel(log_level)
+
+    handler = logging.StreamHandler(sys.stdout)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s.%(module)s - %(levelname)s - %(message)s"
+    )
+    handler.setFormatter(formatter)
+    handler.setLevel(log_level)
+
+    logger.addHandler(handler)
+    logger.propagate = False
+    return logger
+
+
+logger = configure_aqua_logger()
+
+
+def set_log_level(log_level: str):
+    """Global for setting logging level."""
+
+    log_level = log_level.upper()
+    logger.setLevel(log_level)
+    logger.handlers[0].setLevel(log_level)
+
 
 if OCI_RESOURCE_PRINCIPAL_VERSION:
     set_auth("resource_principal")
