@@ -624,9 +624,10 @@ class TestAquaEvaluation(unittest.TestCase):
         mock_dsc_model_from_id.assert_called_with(TestDataset.EVAL_ID)
         self.print_expected_response(response, "DOWNLOAD REPORT")
         self.assert_payload(response, AquaEvalReport)
-        read_content = base64.b64decode(response.content)
+        read_content = base64.b64decode(response.content).decode()
         assert (
-            read_content == b"This is a sample evaluation report.html.\n"
+            read_content
+            == "This is a sample evaluation report.html.\nStandard deviation (σ)"
         ), read_content
         assert self.app._report_cache.currsize == 1
 
