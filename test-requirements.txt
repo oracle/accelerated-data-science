@@ -5,7 +5,6 @@ faker
 mock
 parameterized
 pip
-pydantic
 pytest
 pytest-cov
 pytest-xdist
