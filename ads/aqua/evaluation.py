@@ -317,6 +317,8 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
         The log id for the evaluation job infrastructure.
     metrics: (list, optional). Defaults to `None`.
         The metrics for the evaluation.
+    force_overwrite: (bool, optional). Defaults to `False`.
+        Whether to force overwrite the existing file in object storage.
     """
 
     evaluation_source_id: str
@@ -337,6 +339,7 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
     log_group_id: Optional[str] = None
     log_id: Optional[str] = None
     metrics: Optional[List] = None
+    force_overwrite: Optional[bool] = False
 
 
 class AquaEvaluationApp(AquaApp):
@@ -440,12 +443,12 @@ class AquaEvaluationApp(AquaApp):
                     src_uri=evaluation_dataset_path,
                     dst_uri=dst_uri,
                     auth=default_signer(),
-                    force_overwrite=False,
+                    force_overwrite=create_aqua_evaluation_details.force_overwrite,
                 )
             except FileExistsError:
                 raise AquaFileExistsError(
                     f"Dataset {dataset_file} already exists in {create_aqua_evaluation_details.report_path}. "
-                    "Please use a new dataset file name or report path."
+                    "Please use a new dataset file name, report path or set `force_overwrite` as True."
                 )
             logger.debug(
                 f"Uploaded local file {evaluation_dataset_path} to object storage {dst_uri}."
