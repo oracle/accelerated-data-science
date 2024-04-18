@@ -1,0 +1,32 @@
+[
+  {
+    "compartment_id": "ocid1.compartment.oc1..<OCID>",
+    "configuration": null,
+    "defined_tags": {},
+    "display_name": "log-name-1",
+    "freeform_tags": {},
+    "id": "ocid1.log.oc1.iad.<OCID>",
+    "is_enabled": true,
+    "lifecycle_state": "ACTIVE",
+    "log_group_id": "ocid1.loggroup.oc1.iad.<OCID>",
+    "log_type": "CUSTOM",
+    "retention_duration": 30,
+    "time_created": "2024-02-16T06:19:42.637000+00:00",
+    "time_last_modified": "2024-02-16T06:20:16.711000+00:00"
+  },
+  {
+    "compartment_id": "ocid1.compartment.oc1..<OCID>",
+    "configuration": null,
+    "defined_tags": {},
+    "display_name": "log-name-2",
+    "freeform_tags": {},
+    "id": "ocid1.log.oc1.iad.<OCID>",
+    "is_enabled": true,
+    "lifecycle_state": "ACTIVE",
+    "log_group_id": "ocid1.loggroup.oc1.iad.<OCID>",
+    "log_type": "CUSTOM",
+    "retention_duration": 30,
+    "time_created": "2023-11-21T16:02:31.592000+00:00",
+    "time_last_modified": "2023-11-21T16:02:31.592000+00:00"
+  }
+]
