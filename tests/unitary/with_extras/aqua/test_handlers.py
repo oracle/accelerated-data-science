@@ -114,7 +114,7 @@ class TestBaseHandlers(unittest.TestCase):
                         None,
                     ),
                 ),
-                "Authorization Failed: Could not create resource.",
+                "Authorization Failed: Could not create resource. Operation Name: create_resources.",
             ],
             [
                 "oci ServiceError",
