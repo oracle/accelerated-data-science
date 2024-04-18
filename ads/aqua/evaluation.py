@@ -777,7 +777,7 @@ class AquaEvaluationApp(AquaApp):
         )
 
         return runtime
-    
+
     @staticmethod
     def _get_service_model_name(
         source: Union[ModelDeployment, DataScienceModel]
@@ -803,7 +803,7 @@ class AquaEvaluationApp(AquaApp):
                 return source.freeform_tags.get(Tags.AQUA_MODEL_NAME_TAG.value)
             else:
                 return extract_id_and_name_from_tag(fine_tuned_model_tag)[1]
-        
+
         return source.display_name
 
     @staticmethod

@@ -20,6 +20,7 @@ import fsspec
 import oci
 from oci.data_science.models import JobRun, Model
 
+from ads.aqua import logger
 from ads.aqua.constants import RqsAdditionalDetails
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
