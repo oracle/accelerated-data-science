@@ -6,14 +6,16 @@
 
 from importlib import metadata
 
-from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
+from ads.aqua.decorator import handle_exceptions
 from ads.aqua.exception import AquaResourceAccessError
+from ads.aqua.extension.base_handler import AquaAPIhandler
 
 
 class ADSVersionHandler(AquaAPIhandler):
     """The handler to get the current version of the ADS."""
 
+    @handle_exceptions
     def get(self):
         self.finish({"data": metadata.version("oracle_ads")})
 
@@ -21,6 +23,7 @@ class ADSVersionHandler(AquaAPIhandler):
 class CompatibilityCheckHandler(AquaAPIhandler):
     """The handler to check if the extension is compatible."""
 
+    @handle_exceptions
     def get(self):
         if ODSC_MODEL_COMPARTMENT_OCID:
             return self.finish(dict(status="ok"))
