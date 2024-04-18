@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
@@ -82,13 +82,19 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                     drop_data_older_than_periods=self.spec.model_kwargs.get(
                         "drop_data_older_than_periods", None
                     ),
-                    model_list=self.spec.model_kwargs.get("model_list", "fast_parallel"),
-                    transformer_list=self.spec.model_kwargs.get("transformer_list", "auto"),
+                    model_list=self.spec.model_kwargs.get(
+                        "model_list", "fast_parallel"
+                    ),
+                    transformer_list=self.spec.model_kwargs.get(
+                        "transformer_list", "auto"
+                    ),
                     transformer_max_depth=self.spec.model_kwargs.get(
                         "transformer_max_depth", 6
                     ),
                     models_mode=self.spec.model_kwargs.get("models_mode", "random"),
-                    num_validations=self.spec.model_kwargs.get("num_validations", "auto"),
+                    num_validations=self.spec.model_kwargs.get(
+                        "num_validations", "auto"
+                    ),
                     models_to_validate=self.spec.model_kwargs.get(
                         "models_to_validate", AUTOTS_MODELS_TO_VALIDATE
                     ),
@@ -138,14 +144,15 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                     values=additional_regressors,
                 )
                 future_reg = future_regressor[: -self.spec.horizon]
-                regr_fcst = future_regressor[-self.spec.horizon:]
+                regr_fcst = future_regressor[-self.spec.horizon :]
             else:
                 future_reg = None
                 regr_fcst = None
 
             for s_id in self.datasets.list_series_ids():
                 self.forecast_output.init_series_output(
-                    series_id=s_id, data_at_series=self.datasets.get_data_at_series(s_id)
+                    series_id=s_id,
+                    data_at_series=self.datasets.get_data_at_series(s_id),
                 )
 
             if self.loaded_models is None:
@@ -213,7 +220,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
 
         Returns:
             tuple: A tuple containing the following elements:
-            - model_description (dp.Text): A text object containing the description of the AutoTS model.
+            - model_description (rc.Text): A text object containing the description of the AutoTS model.
             - other_sections (list): A list of sections to be included in the report.
             - forecast_col_name (str): The name of the forecast column.
             - train_metrics (bool): A boolean indicating whether to include train metrics.
@@ -221,37 +228,48 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             - ds_forecast_col (pd.Index): A pandas Index containing the forecast column values.
             - ci_col_names (list): A list of column names for confidence intervals.
         """
-        import datapane as dp
+        import report_creator as rc
+
         all_sections = []
         if self.models:
             # Section 1: Forecast Overview
-            sec1_text = dp.Text(
-                "## Forecast Overview \n"
-                "These plots show your forecast in the context of historical data."
-            )
-            sec_1 = _select_plot_list(
-                lambda s_id: self.outputs.plot(self.models.df_wide_numeric, series=s_id),
+
+            sec_1_plots = _select_plot_list(
+                lambda s_id: self.outputs.plot(
+                    self.models.df_wide_numeric, series=s_id
+                ),
                 self.datasets.list_series_ids(),
+            )
+            section_1 = rc.Block(
+                rc.Heading("Forecast Overview", level=2),
+                rc.Text(
+                    "These plots show your forecast in the context of historical data."
+                ),
+                sec_1_plots,
             )
 
             # Section 2: AutoTS Model Parameters
-            sec2_text = dp.Text(f"## AutoTS Model Parameters")
+            sec2_text = rc.Heading("AutoTS Model Parameters", level=2)
             try:
-                sec2 = dp.Code(
-                    code=yaml.dump(list(self.models.best_model.T.to_dict().values())[0]),
-                    language="yaml",
+                sec2 = rc.Yaml(
+                    yaml.dump(list(self.models.best_model.T.to_dict().values())[0]),
                 )
 
             except KeyError as ke:
-                logger.warn(f"Issue generating Model Parameters Table Section. Skipping")
-                sec2 = dp.Text(f"Error generating model parameters.")
-            all_sections = [sec1_text, sec_1, sec2_text, sec2]
+                logger.warn(
+                    f"Issue generating Model Parameters Table Section. Skipping"
+                )
+                sec2 = rc.Text("Error generating model parameters.")
+
+            section_2 = rc.Block(sec2_text, sec2)
+
+            all_sections = [sec_1_plots, section_2]
 
         if self.spec.generate_explanations:
             logger.warn(f"Explanations not yet supported for the AutoTS Module")
 
         # Model Description
-        model_description = dp.Text(
+        model_description = rc.Text(
             "AutoTS is a time series package for Python designed for rapidly deploying high-accuracy forecasts at scale. "
             "In 2023, AutoTS has won in the M6 forecasting competition, "
             "delivering the highest performance investment decisions across 12 months of stock market forecasting."
@@ -284,9 +302,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             ).T
             df = pd.concat([mapes, scores])
         except Exception as e:
-            logger.debug(
-                f"Failed to generate training metrics"
-            )
+            logger.debug(f"Failed to generate training metrics")
             logger.debug(f"Received Error Statement: {e}")
 
         return df

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -57,7 +57,7 @@ class AnomalyOperatorBaseModel(ABC):
 
     def generate_report(self):
         """Generates the report."""
-        import datapane as dp
+        import report_creator as rc
         import matplotlib.pyplot as plt
 
         start_time = time.time()
@@ -79,11 +79,11 @@ class AnomalyOperatorBaseModel(ABC):
                 anomaly_output, test_data, elapsed_time
             )
         table_blocks = [
-            dp.DataTable(df, label=col)
+            rc.DataTable(df, label=col)
             for col, df in self.datasets.full_data_dict.items()
         ]
         data_table = (
-            dp.Select(blocks=table_blocks) if len(table_blocks) > 1 else table_blocks[0]
+            rc.Select(blocks=table_blocks) if len(table_blocks) > 1 else table_blocks[0]
         )
         date_column = self.spec.datetime_column.name
 
@@ -107,23 +107,23 @@ class AnomalyOperatorBaseModel(ABC):
                 plt.ylabel(col)
                 plt.title(f"`{col}` with reference to anomalies")
                 figure_blocks.append(ax)
-            blocks.append(dp.Group(blocks=figure_blocks, label=target))
-        plots = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+            blocks.append(rc.Group(blocks=figure_blocks, label=target))
+        plots = rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
 
         report_sections = []
-        title_text = dp.Text("# Anomaly Detection Report")
+        title_text = rc.Heading("Anomaly Detection Report", level=1)
 
-        yaml_appendix_title = dp.Text(f"## Reference: YAML File")
-        yaml_appendix = dp.Code(code=self.config.to_yaml(), language="yaml")
-        summary = dp.Blocks(
+        yaml_appendix_title = rc.Heading("Reference: YAML File", level=2)
+        yaml_appendix = rc.Code(code=self.config.to_yaml(), language="yaml")
+        summary = rc.Blocks(
             blocks=[
-                dp.Group(
-                    dp.Text(f"You selected the **`{self.spec.model}`** model."),
-                    dp.Text(
+                rc.Group(
+                    rc.Text(f"You selected the **`{self.spec.model}`** model."),
+                    rc.Text(
                         "Based on your dataset, you could have also selected "
                         f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
                     ),
-                    dp.BigNumber(
+                    rc.BigNumber(
                         heading="Analysis was completed in ",
                         value=human_time_friendly(elapsed_time),
                     ),
@@ -131,19 +131,19 @@ class AnomalyOperatorBaseModel(ABC):
                 )
             ]
         )
-        sec_text = dp.Text(f"## Train Evaluation Metrics")
-        sec = dp.DataTable(self._evaluation_metrics(anomaly_output))
+        sec_text = rc.Heading("Train Evaluation Metrics", level=2)
+        sec = rc.DataTable(self._evaluation_metrics(anomaly_output))
         evaluation_metrics_sec = [sec_text, sec]
 
         test_metrics_sections = []
         if total_metrics is not None and not total_metrics.empty:
-            sec_text = dp.Text(f"## Test Data Evaluation Metrics")
-            sec = dp.DataTable(total_metrics)
+            sec_text = rc.Heading("Test Data Evaluation Metrics", level=2)
+            sec = rc.DataTable(total_metrics)
             test_metrics_sections = test_metrics_sections + [sec_text, sec]
 
         if summary_metrics is not None and not summary_metrics.empty:
-            sec_text = dp.Text(f"## Test Data Summary Metrics")
-            sec = dp.DataTable(summary_metrics)
+            sec_text = rc.Heading("Test Data Summary Metrics", level=2)
+            sec = rc.DataTable(summary_metrics)
             test_metrics_sections = test_metrics_sections + [sec_text, sec]
 
         report_sections = (
@@ -248,7 +248,7 @@ class AnomalyOperatorBaseModel(ABC):
         test_metrics: pd.DataFrame,
     ):
         """Saves resulting reports to the given folder."""
-        import datapane as dp
+        import report_creator as rc
 
         unique_output_dir = find_output_dirname(self.spec.output_directory)
 
@@ -261,7 +261,7 @@ class AnomalyOperatorBaseModel(ABC):
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
             disable_print()
-            dp.save_report(report_sections, report_local_path)
+            rc.save_report(report_sections, report_local_path)
             enable_print()
             with open(report_local_path) as f1:
                 with fsspec.open(
