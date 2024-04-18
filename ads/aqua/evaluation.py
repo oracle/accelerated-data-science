@@ -78,7 +78,7 @@ class EvaluationJobExitCode(Enum):
     SUCCESS = 0
     COMMON_ERROR = 1
 
-    # Configuration-related issues
+    # Configuration-related issues 10-19
     INVALID_EVALUATION_CONFIG = 10
     EVALUATION_CONFIG_NOT_PROVIDED = 11
     INVALID_OUTPUT_DIR = 12
@@ -87,7 +87,7 @@ class EvaluationJobExitCode(Enum):
     INVALID_TARGET_EVALUATION_ID = 15
     INVALID_EVALUATION_CONFIG_VALIDATION = 16
 
-    # Evaluation process issues
+    # Evaluation process issues 20-39
     OUTPUT_DIR_NOT_FOUND = 20
     INVALID_INPUT_DATASET = 21
     INPUT_DATA_NOT_FOUND = 22
@@ -100,6 +100,7 @@ class EvaluationJobExitCode(Enum):
     MODEL_INFERENCE_WRONG_RESPONSE_FORMAT = 29
     UNSUPPORTED_METRICS = 30
     METRIC_CALCULATION_FAILURE = 31
+    EVALUATION_MODEL_CATALOG_RECORD_CREATION_FAILED = 32
 
 
 EVALUATION_JOB_EXIT_CODE_MESSAGE = {
@@ -124,6 +125,11 @@ EVALUATION_JOB_EXIT_CODE_MESSAGE = {
     EvaluationJobExitCode.MODEL_INFERENCE_WRONG_RESPONSE_FORMAT.value: "Evaluation encountered unsupported, or unexpected model output, verify the target evaluation model is compatible and produces the correct format.",
     EvaluationJobExitCode.UNSUPPORTED_METRICS.value: "None of the provided metrics are supported by the framework.",
     EvaluationJobExitCode.METRIC_CALCULATION_FAILURE.value: "All attempted metric calculations were unsuccessful. Please review the metric configurations and input data.",
+    EvaluationJobExitCode.EVALUATION_MODEL_CATALOG_RECORD_CREATION_FAILED.value: (
+        "Failed to create a Model Catalog record for the evaluation. "
+        "This could be due to missing required permissions. "
+        "Please check the log for more information."
+    ),
 }
 
 
@@ -849,13 +855,17 @@ class AquaEvaluationApp(AquaApp):
             loggroup_id = ""
 
         loggroup_url = get_log_links(region=self.region, log_group_id=loggroup_id)
-        log_url = get_log_links(
-            region=self.region,
-            log_group_id=loggroup_id,
-            log_id=log_id,
-            compartment_id=job_run_details.compartment_id,
-            source_id=jobrun_id
-        ) if job_run_details else ""
+        log_url = (
+            get_log_links(
+                region=self.region,
+                log_group_id=loggroup_id,
+                log_id=log_id,
+                compartment_id=job_run_details.compartment_id,
+                source_id=jobrun_id,
+            )
+            if job_run_details
+            else ""
+        )
 
         log_name = None
         loggroup_name = None
@@ -931,7 +941,6 @@ class AquaEvaluationApp(AquaApp):
         evaluations = []
         async_tasks = []
         for model in models:
-
             if model.identifier in self._eval_cache.keys():
                 logger.debug(f"Retrieving evaluation {model.identifier} from cache.")
                 evaluations.append(self._eval_cache.get(model.identifier))
@@ -1049,13 +1058,17 @@ class AquaEvaluationApp(AquaApp):
             loggroup_id = ""
 
         loggroup_url = get_log_links(region=self.region, log_group_id=loggroup_id)
-        log_url = get_log_links(
-            region=self.region,
-            log_group_id=loggroup_id,
-            log_id=log_id,
-            compartment_id=job_run_details.compartment_id,
-            source_id=jobrun_id
-        ) if job_run_details else ""
+        log_url = (
+            get_log_links(
+                region=self.region,
+                log_group_id=loggroup_id,
+                log_id=log_id,
+                compartment_id=job_run_details.compartment_id,
+                source_id=jobrun_id,
+            )
+            if job_run_details
+            else ""
+        )
 
         return dict(
             id=eval_id,
@@ -1097,6 +1110,19 @@ class AquaEvaluationApp(AquaApp):
                     "greater similarity. ROUGE is more suitable for models that don't "
                     "include paraphrasing and do not generate new text units that don't "
                     "appear in the references."
+                ),
+                "args": {},
+            },
+            {
+                "use_case": ["text_generation"],
+                "key": "bleu",
+                "name": "bleu",
+                "description": (
+                    "BLEU (Bilingual Evaluation Understudy) is an algorithm for evaluating the "
+                    "quality of text which has been machine-translated from one natural language to another. "
+                    "Quality is considered to be the correspondence between a machine's output and that of a "
+                    "human: 'the closer a machine translation is to a professional human translation, "
+                    "the better it is'."
                 ),
                 "args": {},
             },
