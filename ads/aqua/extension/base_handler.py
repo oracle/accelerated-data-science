@@ -127,7 +127,7 @@ class AquaAPIhandler(APIHandler):
             operation_name = service_payload["operation_name"]
             if operation_name:
                 if operation_name.startswith("create"):
-                    return messages["create"]
+                    return messages["create"] + f" Operation Name: {operation_name}."
                 elif operation_name.startswith("list") or operation_name.startswith(
                     "get"
                 ):
