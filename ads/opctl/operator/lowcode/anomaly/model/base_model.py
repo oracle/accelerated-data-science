@@ -114,7 +114,7 @@ class AnomalyOperatorBaseModel(ABC):
         title_text = rc.Heading("Anomaly Detection Report", level=1)
 
         yaml_appendix_title = rc.Heading("Reference: YAML File", level=2)
-        yaml_appendix = rc.Code(code=self.config.to_yaml(), language="yaml")
+        yaml_appendix = rc.Yaml(self.config.to_dict())
         summary = rc.Blocks(
             blocks=[
                 rc.Group(

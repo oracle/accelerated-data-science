@@ -423,9 +423,8 @@ class PIIOperatorReport:
 
     def _make_yaml_card(self) -> rc.Group:
         """Shows the full pii config yaml."""
-        yaml_string = self.report_spec.run_summary.config.to_yaml()
         yaml_appendix_title = rc.Heading("Reference: YAML File", level=2)
-        yaml_appendix = rc.Code(code=yaml_string, language="yaml")
+        yaml_appendix = rc.Yaml(self.report_spec.run_summary.config.to_dict())
         return rc.Group(blocks=[yaml_appendix_title, yaml_appendix], label="YAML")
 
     def _make_model_card(self) -> rc.Group:
