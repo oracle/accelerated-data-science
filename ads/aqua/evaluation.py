@@ -1043,7 +1043,6 @@ class AquaEvaluationApp(AquaApp):
                 "Please check if the OCID is correct."
             )
 
-        # TODO: add job_run_id as input param to skip the query below
         model_provenance = self.ds_client.get_model_provenance(eval_id).data
 
         jobrun_id = model_provenance.training_id
@@ -1394,7 +1393,6 @@ class AquaEvaluationApp(AquaApp):
 
     def load_evaluation_config(self, eval_id):
         """Loads evaluation config."""
-        # TODO
         return {
             "model_params": {
                 "max_tokens": 500,
