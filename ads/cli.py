@@ -8,6 +8,7 @@ import traceback
 import sys
 
 import fire
+from dataclasses import is_dataclass
 from ads.common import logger
 
 try:
@@ -70,11 +71,32 @@ def _SeparateFlagArgs(args):
 fire.core.parser.SeparateFlagArgs = _SeparateFlagArgs
 
 
+def serialize(data):
+    """Serialize dataclass objects or lists of dataclass objects.
+    Parameters:
+        data: A dataclass object or a list of dataclass objects.
+    Returns:
+        None
+    Prints:
+        The string representation of each dataclass object, or the string representation of any other type of object.
+    """
+    if isinstance(data, list):
+        [print(str(item) if hasattr(item, "__str__") else repr(item)) for item in data]
+    else:
+        print(
+            str(data)
+            if (is_dataclass(data) and hasattr(data, "__str__"))
+            else repr(data)
+        )
+
+
 def cli():
     if len(sys.argv) > 1 and sys.argv[1] == "aqua":
         from ads.aqua.cli import AquaCommand
 
-        fire.Fire(AquaCommand, command=sys.argv[2:], name="ads aqua")
+        fire.Fire(
+            AquaCommand, command=sys.argv[2:], name="ads aqua", serialize=serialize
+        )
     else:
         click_cli()
 
