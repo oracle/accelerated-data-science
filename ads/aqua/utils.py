@@ -6,9 +6,11 @@
 import asyncio
 import base64
 import json
+import logging
 import os
 import random
 import re
+import sys
 from enum import Enum
 from functools import wraps
 from pathlib import Path
@@ -19,9 +21,8 @@ import fsspec
 import oci
 from oci.data_science.models import JobRun, Model
 
-from ads.aqua import logger
 from ads.aqua.constants import RqsAdditionalDetails
-from ads.aqua.data import AquaResourceIdentifier
+from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -29,6 +30,10 @@ from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link, upload_to_os
 from ads.config import AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, TENANCY_OCID
 from ads.model import DataScienceModel, ModelVersionSet
+
+# TODO: allow the user to setup the logging level?
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+logger = logging.getLogger("ODSC_AQUA")
 
 UNKNOWN = ""
 UNKNOWN_DICT = {}
