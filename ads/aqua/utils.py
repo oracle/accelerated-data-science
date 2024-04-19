@@ -79,6 +79,7 @@ NB_SESSION_IDENTIFIER = "NB_SESSION_OCID"
 LIFECYCLE_DETAILS_MISSING_JOBRUN = "The asscociated JobRun resource has been deleted."
 READY_TO_DEPLOY_STATUS = "ACTIVE"
 READY_TO_FINE_TUNE_STATUS = "TRUE"
+AQUA_GA_LIST = ["id19sfcrra6z"]
 
 
 class LifecycleStatus(Enum):
@@ -733,3 +734,14 @@ def _is_valid_mvs(mvs: ModelVersionSet, target_tag: str) -> bool:
         return False
 
     return target_tag in mvs.freeform_tags
+
+
+def known_realm():
+    """This helper function returns True if the Aqua service is available by default in the given namespace.
+    Returns
+    -------
+    bool:
+        Return True if aqua service is available.
+
+    """
+    return os.environ.get("CONDA_BUCKET_NS") in AQUA_GA_LIST
