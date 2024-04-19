@@ -4,16 +4,16 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from dataclasses import fields
 from typing import Dict, Optional
-from requests import HTTPError
+
+from tornado.web import HTTPError
 
 from ads.aqua.extension.base_handler import Errors
 
 
 def validate_function_parameters(data_class, input_data: Dict):
-    """Validates if the required parameters are provided in input data."""    
+    """Validates if the required parameters are provided in input data."""
     required_parameters = [
-        field.name for field in fields(data_class) 
-        if field.type != Optional[field.type]
+        field.name for field in fields(data_class) if field.type != Optional[field.type]
     ]
 
     for required_parameter in required_parameters:

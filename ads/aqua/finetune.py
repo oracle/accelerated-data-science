@@ -122,6 +122,8 @@ class CreateFineTuningDetails(DataClassSerializable):
         The log group id for fine tuning job infrastructure.
     log_id: (str, optional). Defaults to `None`.
         The log id for fine tuning job infrastructure.
+    force_overwrite: (bool, optional). Defaults to `False`.
+        Whether to force overwrite the existing file in object storage.
     """
 
     ft_source_id: str
@@ -142,6 +144,7 @@ class CreateFineTuningDetails(DataClassSerializable):
     subnet_id: Optional[str] = None
     log_id: Optional[str] = None
     log_group_id: Optional[str] = None
+    force_overwrite: Optional[bool] = False
 
 
 class AquaFineTuningApp(AquaApp):
@@ -273,12 +276,12 @@ class AquaFineTuningApp(AquaApp):
                     src_uri=ft_dataset_path,
                     dst_uri=dst_uri,
                     auth=default_signer(),
-                    force_overwrite=False,
+                    force_overwrite=create_fine_tuning_details.force_overwrite,
                 )
             except FileExistsError:
                 raise AquaFileExistsError(
                     f"Dataset {dataset_file} already exists in {create_fine_tuning_details.report_path}. "
-                    "Please use a new dataset file name or report path."
+                    "Please use a new dataset file name, report path or set `force_overwrite` as True."
                 )
             logger.debug(
                 f"Uploaded local file {ft_dataset_path} to object storage {dst_uri}."

@@ -17,6 +17,7 @@ from oci.exceptions import (
     RequestException,
     ServiceError,
 )
+from tornado.web import HTTPError
 
 from ads.aqua.exception import AquaError
 from ads.aqua.extension.base_handler import AquaAPIhandler
@@ -58,6 +59,7 @@ def handle_exceptions(func):
         except ServiceError as error:
             self.write_error(
                 status_code=error.status or 500,
+                message=error.message,
                 reason=error.message,
                 service_payload=error.args[0] if error.args else None,
                 exc_info=sys.exc_info(),
@@ -89,6 +91,12 @@ def handle_exceptions(func):
                 status_code=error.status,
                 reason=error.reason,
                 service_payload=error.service_payload,
+                exc_info=sys.exc_info(),
+            )
+        except HTTPError as e:
+            self.write_error(
+                status_code=e.status_code,
+                reason=e.log_message,
                 exc_info=sys.exc_info(),
             )
         except Exception as ex:
