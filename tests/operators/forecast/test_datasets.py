@@ -2,8 +2,7 @@
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
-from darts import datasets as d_datasets
+import os
 import yaml
 import tempfile
 import subprocess
@@ -18,32 +17,14 @@ import datetime
 from ads.opctl.operator.cmd import run
 
 
+DATASET_PREFIX = f"{os.path.dirname(os.path.abspath(__file__))}/../data/timeseries/"
+
 DATASETS_LIST = [
-    "AirPassengersDataset",
-    "AusBeerDataset",
-    "AustralianTourismDataset",
-    # # "ETTh1Dataset",
-    # # "ETTh2Dataset",
-    # # "ETTm1Dataset",
-    # # "ETTm2Dataset",
-    # # "ElectricityDataset",
-    # # "EnergyDataset",
-    # # "ExchangeRateDataset",
-    # # "GasRateCO2Dataset",
-    # # "HeartRateDataset",
-    # # "ILINetDataset",
-    # # "IceCreamHeaterDataset",
-    # # "MonthlyMilkDataset",
-    "MonthlyMilkIncompleteDataset",
-    # # "SunspotsDataset",
-    # # "TaylorDataset",
-    # # "TemperatureDataset",
-    # # "TrafficDataset",
-    # # "USGasolineDataset",
-    # "UberTLCDataset",
-    #     "WeatherDataset",
-    #     "WineDataset",
-    "WoolyDataset",
+    "AirPassengers.csv",
+    "AusBeer.csv",
+    "AustralianTourism.csv",
+    "MonthlyMilkIncomplete.csv",
+    "Wooly.csv",
 ]
 
 MODELS = [
@@ -103,12 +84,12 @@ def verify_explanations(global_fn, local_fn, yaml_i, additional_cols):
 
 @pytest.mark.parametrize("model, dataset_name", parameters_short)
 def test_load_datasets(model, dataset_name):
-    if model == "automlx" and dataset_name == "WeatherDataset":
-        return
-    dataset_i = getattr(d_datasets, dataset_name)().load()
-    datetime_col = dataset_i.time_index.name
+    # if model == "automlx" and dataset_name == "WeatherDataset":
+    #     return
+    dataset_i = pd.read_csv(os.path.join(DATASET_PREFIX, dataset_name))
+    datetime_col = dataset_i["Date"]
 
-    columns = dataset_i.components
+    columns = list(set(dataset_i.columns) - {"Date"})
     additional_cols = []
     target = dataset_i[columns[0]][:-PERIODS]
     test = dataset_i[columns[0]][-PERIODS:]
@@ -122,8 +103,8 @@ def test_load_datasets(model, dataset_name):
         yaml_i = deepcopy(TEMPLATE_YAML)
         generate_train_metrics = True  # bool(random.getrandbits(1))
 
-        df_i = target.pd_dataframe().reset_index()
-        if dataset_name == "AustralianTourismDataset":
+        df_i = target
+        if dataset_name == "AustralianTourismDataset.csv":
             df_i[datetime_col] = [
                 pd.to_datetime("1990-01-01", format="%Y-%m-%d")
             ] + df_i[datetime_col].values * datetime.timedelta(days=1)
@@ -131,8 +112,8 @@ def test_load_datasets(model, dataset_name):
         df_i.to_csv(historical_data_path, index=False)
         # .sample(frac=SAMPLE_FRACTION).sort_values(by=datetime_col)
 
-        test_df = test.pd_dataframe().reset_index()
-        if dataset_name == "AustralianTourismDataset":
+        test_df = test
+        if dataset_name == "AustralianTourismDataset.csv":
             test_df[datetime_col] = [
                 pd.to_datetime("1990-01-01", format="%Y-%m-%d")
             ] + test_df[datetime_col].values * datetime.timedelta(days=1)
@@ -142,8 +123,8 @@ def test_load_datasets(model, dataset_name):
         if len(columns) > 1:
             additional_cols = columns[1 : min(len(columns), MAX_ADDITIONAL_COLS)]
             additional_data = dataset_i[list(additional_cols)]
-            df_additional = additional_data.pd_dataframe().reset_index()
-            if dataset_name == "AustralianTourismDataset":
+            df_additional = additional_data
+            if dataset_name == "AustralianTourismDataset.csv":
                 df_additional[datetime_col] = [
                     pd.to_datetime("1990-01-01", format="%Y-%m-%d")
                 ] + df_additional[datetime_col].values * datetime.timedelta(days=1)
