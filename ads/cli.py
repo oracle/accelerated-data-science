@@ -78,16 +78,12 @@ def serialize(data):
     Returns:
         None
     Prints:
-        The string representation of each dataclass object, or the string representation of any other type of object.
+        The string representation of each dataclass object.
     """
     if isinstance(data, list):
-        [print(str(item) if hasattr(item, "__str__") else repr(item)) for item in data]
+        [print(str(item)) for item in data]
     else:
-        print(
-            str(data)
-            if (is_dataclass(data) and hasattr(data, "__str__"))
-            else repr(data)
-        )
+        print(str(data))
 
 
 def cli():
