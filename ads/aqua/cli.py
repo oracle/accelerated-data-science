@@ -27,7 +27,7 @@ class AquaCommand:
 
     def __init__(
         self,
-        log_level: str = os.environ.get(ENV_VAR_LOG_LEVEL, "INFO").upper(),
+        log_level: str = os.environ.get(ENV_VAR_LOG_LEVEL, "ERROR").upper(),
     ):
         """
         Initialize the command line interface settings for the Aqua project.
@@ -37,7 +37,7 @@ class AquaCommand:
         log_level (str):
             Sets the logging level for the application.
             Default is retrieved from environment variable `LOG_LEVEL`,
-            or 'INFO' if not set. Example values include 'DEBUG', 'INFO',
+            or 'ERROR' if not set. Example values include 'DEBUG', 'INFO',
             'WARNING', 'ERROR', and 'CRITICAL'.
         """
         set_log_level(log_level)

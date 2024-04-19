@@ -12,7 +12,7 @@ from ads import set_auth
 from ads.aqua.utils import fetch_service_compartment
 from ads.config import NB_SESSION_OCID, OCI_RESOURCE_PRINCIPAL_VERSION
 
-ENV_VAR_LOG_LEVEL = "LOG_LEVEL"
+ENV_VAR_LOG_LEVEL = "ADS_AQUA_LOG_LEVEL"
 
 
 def get_logger_level():
