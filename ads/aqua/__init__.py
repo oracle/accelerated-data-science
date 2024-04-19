@@ -8,7 +8,7 @@ import logging
 import sys
 import os
 from ads.aqua.utils import fetch_service_compartment
-from ads.config import OCI_RESOURCE_PRINCIPAL_VERSION
+from ads.config import NB_SESSION_OCID, OCI_RESOURCE_PRINCIPAL_VERSION
 from ads import set_auth
 
 logger = logging.getLogger(__name__)
@@ -26,3 +26,8 @@ if not ODSC_MODEL_COMPARTMENT_OCID:
         logger.error(
             f"ODSC_MODEL_COMPARTMENT_OCID environment variable is not set for Aqua, due to {e}."
         )
+        if NB_SESSION_OCID:
+            logger.error(
+                f"Aqua is not available for this notebook session {NB_SESSION_OCID}."
+            )
+        exit()
