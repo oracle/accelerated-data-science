@@ -18,19 +18,12 @@ logger.setLevel(logging.INFO)
 if OCI_RESOURCE_PRINCIPAL_VERSION:
     set_auth("resource_principal")
 
-ODSC_MODEL_COMPARTMENT_OCID = os.environ.get("ODSC_MODEL_COMPARTMENT_OCID")
+ODSC_MODEL_COMPARTMENT_OCID = (
+    os.environ.get("ODSC_MODEL_COMPARTMENT_OCID") or fetch_service_compartment()
+)
 if not ODSC_MODEL_COMPARTMENT_OCID:
-    try:
-        ODSC_MODEL_COMPARTMENT_OCID = fetch_service_compartment()
-    except:
-        pass
-
-if not ODSC_MODEL_COMPARTMENT_OCID:
-    logger.error(
-        f"ODSC_MODEL_COMPARTMENT_OCID environment variable is not set for Aqua."
-    )
     if NB_SESSION_OCID:
         logger.error(
-            f"Aqua is not available for this notebook session {NB_SESSION_OCID}."
+            f"Aqua is not available for the notebook session {NB_SESSION_OCID}."
         )
     exit()

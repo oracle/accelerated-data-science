@@ -39,9 +39,7 @@ class CompatibilityCheckHandler(AquaAPIhandler):
             AquaResourceAccessError: raised when aqua is not accessible in the given session/region.
 
         """
-        if (
-            ODSC_MODEL_COMPARTMENT_OCID or fetch_service_compartment()
-        ):  # TODO replace this with method that does not raise exception
+        if ODSC_MODEL_COMPARTMENT_OCID or fetch_service_compartment():
             return self.finish(dict(status="ok"))
         elif known_realm():
             return self.finish(dict(status="compatible"))
