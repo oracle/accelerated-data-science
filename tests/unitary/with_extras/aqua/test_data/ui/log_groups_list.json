@@ -1,0 +1,24 @@
+[
+  {
+    "compartment_id": "ocid1.compartment.oc1..<OCID>",
+    "defined_tags": {},
+    "description": "Log group 1",
+    "display_name": "log-group-name-1",
+    "freeform_tags": {},
+    "id": "ocid1.loggroup.oc1.iad.<OCID>",
+    "lifecycle_state": "ACTIVE",
+    "time_created": "2023-11-21T00:08:07.399000+00:00",
+    "time_last_modified": "2023-11-21T00:08:07.399000+00:00"
+  },
+  {
+    "compartment_id": "ocid1.compartment.oc1..<OCID>",
+    "defined_tags": {},
+    "description": "Log group 2",
+    "display_name": "log-group-name-2",
+    "freeform_tags": {},
+    "id": "ocid1.loggroup.oc1.iad.<OCID>",
+    "lifecycle_state": "ACTIVE",
+    "time_created": "2023-10-09T23:28:56.170000+00:00",
+    "time_last_modified": "2023-10-09T23:28:56.170000+00:00"
+  }
+]

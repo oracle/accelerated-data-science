@@ -1,0 +1,30 @@
+[
+  {
+    "compartment_id": "ocid1.compartment.oc1..<OCID>",
+    "created_by": "ocid1.user.oc1..<OCID>",
+    "defined_tags": {},
+    "freeform_tags": {
+      "aqua_finetuning": "aqua_finetuning"
+    },
+    "id": "ocid1.datasciencemodelversionset.oc1.iad.<OCID>",
+    "lifecycle_state": "ACTIVE",
+    "name": "fine-tuning-mvs-1",
+    "project_id": "ocid1.datascienceproject.oc1.iad.<OCID>",
+    "time_created": "2024-03-18T22:47:14.080000+00:00",
+    "time_updated": "2024-04-10T16:46:12.740000+00:00"
+  },
+  {
+    "compartment_id": "ocid1.compartment.oc1..<OCID>",
+    "created_by": "ocid1.user.oc1..<OCID>",
+    "defined_tags": {},
+    "freeform_tags": {
+      "aqua_finetuning": "aqua_finetuning"
+    },
+    "id": "ocid1.datasciencemodelversionset.oc1.iad.<OCID>",
+    "lifecycle_state": "ACTIVE",
+    "name": "fine-tuning-mvs-2",
+    "project_id": "ocid1.datascienceproject.oc1.iad.<OCID>",
+    "time_created": "2024-03-18T22:47:14.080000+00:00",
+    "time_updated": "2024-04-10T16:46:12.740000+00:00"
+  }
+]

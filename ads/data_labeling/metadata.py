@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from dataclasses import asdict, dataclass, field
@@ -75,7 +75,7 @@ class Metadata(DataClassSerializable):
     def _repr_html_(self):
         """Shows metadata in dataframe format."""
         return (
-            self.to_dataframe().style.set_properties(**{"margin-left": "0px"}).render()
+            self.to_dataframe().style.set_properties(**{"margin-left": "0px"}).to_html()
         )
 
     @classmethod
