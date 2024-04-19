@@ -10,7 +10,8 @@ from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.decorator import handle_exceptions
 from ads.aqua.exception import AquaResourceAccessError
 from ads.aqua.extension.base_handler import AquaAPIhandler
-from ads.aqua.utils import known_realm
+from ads.aqua.utils import known_realm, fetch_service_compartment
+
 
 class ADSVersionHandler(AquaAPIhandler):
     """The handler to get the current version of the ADS."""
@@ -38,7 +39,9 @@ class CompatibilityCheckHandler(AquaAPIhandler):
             AquaResourceAccessError: raised when aqua is not accessible in the given session/region.
 
         """
-        if ODSC_MODEL_COMPARTMENT_OCID or fetch_service_compartment(): #TODO replace this with method that does not raise exception
+        if (
+            ODSC_MODEL_COMPARTMENT_OCID or fetch_service_compartment()
+        ):  # TODO replace this with method that does not raise exception
             return self.finish(dict(status="ok"))
         elif known_realm():
             return self.finish(dict(status="compatible"))
