@@ -10,7 +10,6 @@ import logging
 import os
 import random
 import re
-import sys
 from enum import Enum
 from functools import wraps
 from pathlib import Path
@@ -137,10 +136,6 @@ LIFECYCLE_DETAILS_MAPPING = {
 }
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "artifact_location"
-
-
-def get_logger():
-    return logger
 
 
 def random_color_generator(word: str):
