@@ -254,7 +254,7 @@ class RowReportFields:
                     index=True,
                 )
             )
-        return rc.Group(blocks=stats, label="STATS")
+        return rc.Group(stats, label="STATS")
 
     def _make_text_card(self):
         annotations = []
@@ -420,13 +420,13 @@ class PIIOperatorReport:
             entites_df = self._build_total_entity_df()
             summary_stats.append(rc.Heading("Resolved Entities", level=3))
             summary_stats.append(rc.DataTable(entites_df, index=True))
-        return rc.Group(blocks=summary_stats, label="STATS")
+        return rc.Group(summary_stats, label="STATS")
 
     def _make_yaml_card(self) -> rc.Group:
         """Shows the full pii config yaml."""
         yaml_appendix_title = rc.Heading("Reference: YAML File", level=2)
         yaml_appendix = rc.Yaml(self.report_spec.run_summary.config.to_dict())
-        return rc.Group(blocks=[yaml_appendix_title, yaml_appendix], label="YAML")
+        return rc.Group(yaml_appendix_title, yaml_appendix, label="YAML")
 
     def _make_model_card(self) -> rc.Group:
         """Generates model card."""
@@ -446,12 +446,12 @@ class PIIOperatorReport:
 
         if len(model_cards) <= 1:
             return rc.Group(
-                blocks=model_cards,
+                model_cards,
                 label="MODEL CARD",
             )
         return rc.Group(
             rc.Select(
-                blocks=model_cards,
+                model_cards,
                 type=rc.SelectType.TABS,
             ),
             label="MODEL CARD",

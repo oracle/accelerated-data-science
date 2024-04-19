@@ -107,7 +107,7 @@ class AnomalyOperatorBaseModel(ABC):
                 plt.ylabel(col)
                 plt.title(f"`{col}` with reference to anomalies")
                 figure_blocks.append(ax)
-            blocks.append(rc.Group(blocks=figure_blocks, label=target))
+            blocks.append(rc.Group(figure_blocks, label=target))
         plots = rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
 
         report_sections = []
