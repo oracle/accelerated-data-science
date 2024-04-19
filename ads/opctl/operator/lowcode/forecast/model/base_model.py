@@ -175,6 +175,7 @@ class ForecastOperatorBaseModel(ABC):
                     rc.DataTable(
                         df.head(5),
                         label=s_id,
+                        index=True,
                     )
                     for s_id, df in self.full_data_dict.items()
                 ]
@@ -183,6 +184,7 @@ class ForecastOperatorBaseModel(ABC):
                     rc.DataTable(
                         df.tail(5),
                         label=s_id,
+                        index=True,
                     )
                     for s_id, df in self.full_data_dict.items()
                 ]
@@ -234,18 +236,18 @@ class ForecastOperatorBaseModel(ABC):
                     and not self.test_eval_metrics.empty
                 ):
                     sec7_text = rc.Heading("Test Data Evaluation Metrics", level=2)
-                    sec7 = rc.DataTable(self.test_eval_metrics)
+                    sec7 = rc.DataTable(self.test_eval_metrics, index=True)
                     test_metrics_sections = test_metrics_sections + [sec7_text, sec7]
 
                 if summary_metrics is not None and not summary_metrics.empty:
                     sec8_text = rc.Heading("Test Data Summary Metrics", level=2)
-                    sec8 = rc.DataTable(summary_metrics)
+                    sec8 = rc.DataTable(summary_metrics, index=True)
                     test_metrics_sections = test_metrics_sections + [sec8_text, sec8]
 
                 train_metrics_sections = []
                 if self.eval_metrics is not None and not self.eval_metrics.empty:
                     sec9_text = rc.Heading("Training Data Metrics", level=2)
-                    sec9 = rc.DataTable(self.eval_metrics)
+                    sec9 = rc.DataTable(self.eval_metrics, index=True)
                     train_metrics_sections = [sec9_text, sec9]
 
                 forecast_plots = []

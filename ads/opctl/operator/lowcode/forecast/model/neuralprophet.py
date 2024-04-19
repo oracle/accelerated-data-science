@@ -367,7 +367,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                     )
                 )
             all_model_states = pd.concat(model_states, axis=1)
-            sec5 = rc.DataTable(all_model_states)
+            sec5 = rc.DataTable(all_model_states, index=True)
 
             all_sections = all_sections + [sec5_text, sec5]
 
@@ -382,13 +382,14 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                     rc.Text(
                         "The following tables provide the feature attribution for the global explainability."
                     ),
-                    rc.DataTable(self.formatted_global_explanation),
+                    rc.DataTable(self.formatted_global_explanation, index=True),
                 )
 
                 blocks = [
                     rc.DataTable(
                         local_ex_df.drop("Series", axis=1),
                         label=s_id,
+                        index=True,
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]

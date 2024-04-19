@@ -251,6 +251,7 @@ class RowReportFields:
                 rc.DataTable(
                     build_entity_df(self.spec.entities, id=self.spec.id),
                     label="Resolved Entities",
+                    index=True,
                 )
             )
         return rc.Group(blocks=stats, label="STATS")
@@ -418,7 +419,7 @@ class PIIOperatorReport:
         if self.report_spec.run_summary.show_sensitive_info:
             entites_df = self._build_total_entity_df()
             summary_stats.append(rc.Heading("Resolved Entities", level=3))
-            summary_stats.append(rc.DataTable(entites_df))
+            summary_stats.append(rc.DataTable(entites_df, index=True))
         return rc.Group(blocks=summary_stats, label="STATS")
 
     def _make_yaml_card(self) -> rc.Group:

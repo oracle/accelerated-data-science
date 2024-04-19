@@ -219,7 +219,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     "The following tables provide information regarding the "
                     "chosen model for each series and the corresponding parameters of the models."
                 ),
-                rc.DataTable(selected_df),
+                rc.DataTable(selected_df, index=True),
             )
 
             other_sections = [selected_models_section]
@@ -248,7 +248,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     rc.Text(
                         "The following tables provide the feature attribution for the global explainability."
                     ),
-                    rc.DataTable(self.formatted_global_explanation),
+                    rc.DataTable(self.formatted_global_explanation, index=True),
                 )
 
                 aggregate_local_explanations = pd.DataFrame()
@@ -264,6 +264,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     rc.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
                         label=s_id,
+                        index=True,
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]

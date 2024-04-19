@@ -186,7 +186,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                     rc.Text(
                         "The following tables provide the feature attribution for the global explainability."
                     ),
-                    rc.DataTable(self.formatted_global_explanation),
+                    rc.DataTable(self.formatted_global_explanation, index=True),
                 )
 
                 aggregate_local_explanations = pd.DataFrame()
@@ -202,6 +202,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                     rc.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
                         label=s_id,
+                        index=True,
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]

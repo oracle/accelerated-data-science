@@ -299,7 +299,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 )
             all_model_states = pd.concat(model_states, axis=1)
             if not all_model_states.empty:
-                sec5 = rc.DataTable(all_model_states)
+                sec5 = rc.DataTable(all_model_states, index=True)
                 all_sections = all_sections + [sec5_text, sec5]
 
         if self.spec.generate_explanations:
@@ -320,7 +320,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                     rc.Text(
                         "The following tables provide the feature attribution for the global explainability."
                     ),
-                    rc.DataTable(self.formatted_global_explanation),
+                    rc.DataTable(self.formatted_global_explanation, index=True),
                 )
 
                 aggregate_local_explanations = pd.DataFrame()
@@ -336,6 +336,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                     rc.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
                         label=s_id,
+                        index=True,
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]

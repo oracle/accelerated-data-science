@@ -79,7 +79,7 @@ class AnomalyOperatorBaseModel(ABC):
                 anomaly_output, test_data, elapsed_time
             )
         table_blocks = [
-            rc.DataTable(df, label=col)
+            rc.DataTable(df, label=col, index=True)
             for col, df in self.datasets.full_data_dict.items()
         ]
         data_table = (
@@ -132,18 +132,18 @@ class AnomalyOperatorBaseModel(ABC):
             ]
         )
         sec_text = rc.Heading("Train Evaluation Metrics", level=2)
-        sec = rc.DataTable(self._evaluation_metrics(anomaly_output))
+        sec = rc.DataTable(self._evaluation_metrics(anomaly_output), index=True)
         evaluation_metrics_sec = [sec_text, sec]
 
         test_metrics_sections = []
         if total_metrics is not None and not total_metrics.empty:
             sec_text = rc.Heading("Test Data Evaluation Metrics", level=2)
-            sec = rc.DataTable(total_metrics)
+            sec = rc.DataTable(total_metrics, index=True)
             test_metrics_sections = test_metrics_sections + [sec_text, sec]
 
         if summary_metrics is not None and not summary_metrics.empty:
             sec_text = rc.Heading("Test Data Summary Metrics", level=2)
-            sec = rc.DataTable(summary_metrics)
+            sec = rc.DataTable(summary_metrics, index=True)
             test_metrics_sections = test_metrics_sections + [sec_text, sec]
 
         report_sections = (
