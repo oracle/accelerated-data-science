@@ -4,9 +4,10 @@ Release Notes
 
 2.11.7
 ------
-Release date: April 8, 2024
+Release date: April 18, 2024
 
-* Fixed bugs and introduced enhancements following our recent release, which included internal adjustments for future features and updates for the Jupyter Lab 3 upgrade.
+* Fixed the bug in ``ADSDataset.show_in_notebook()``.
+* Updated langchain version. 
 
 
 2.11.6

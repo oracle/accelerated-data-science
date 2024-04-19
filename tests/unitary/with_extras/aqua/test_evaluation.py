@@ -569,7 +569,6 @@ class TestAquaEvaluation(unittest.TestCase):
     def test_get_fail(self, mock_query_resource):
         """Tests get evaluation details failed because of invalid eval id."""
         mock_query_resource.return_value = None
-        self.app.ds_client.get_model_provenance = MagicMock()
         with self.assertRaises(AquaRuntimeError) as context:
             self.app.get(TestDataset.INVALID_EVAL_ID)
 
@@ -624,9 +623,10 @@ class TestAquaEvaluation(unittest.TestCase):
         mock_dsc_model_from_id.assert_called_with(TestDataset.EVAL_ID)
         self.print_expected_response(response, "DOWNLOAD REPORT")
         self.assert_payload(response, AquaEvalReport)
-        read_content = base64.b64decode(response.content)
+        read_content = base64.b64decode(response.content).decode()
         assert (
-            read_content == b"This is a sample evaluation report.html.\n"
+            read_content
+            == "This is a sample evaluation report.html.\nStandard deviation (σ)\n"
         ), read_content
         assert self.app._report_cache.currsize == 1
 
@@ -676,10 +676,10 @@ class TestAquaEvaluation(unittest.TestCase):
     @parameterized.expand(
         [
             (None, AquaRuntimeError),
-            # (
-            #     DataScienceModel(),
-            #     AquaMissingKeyError,
-            # ),
+            (
+                DataScienceModel(),
+                AquaMissingKeyError,
+            ),
         ]
     )
     @patch.object(DataScienceModel, "from_id")
@@ -821,7 +821,6 @@ class TestAquaEvaluation(unittest.TestCase):
     def test_get_status_failed(self, mock_query_resource):
         """Tests when no correct evaluation found."""
         mock_query_resource.return_value = None
-        self.app.ds_client.get_model_provenance = MagicMock()
         with self.assertRaises(AquaRuntimeError) as context:
             self.app.get_status(TestDataset.INVALID_EVAL_ID)
 

@@ -15,6 +15,7 @@ from oci.data_science.models import (
     UpdateModelProvenanceDetails,
 )
 
+from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.base import AquaApp
 from ads.aqua.data import AquaResourceIdentifier, Resource, Tags
 from ads.aqua.exception import AquaFileExistsError, AquaValueError
@@ -195,12 +196,11 @@ class AquaFineTuningApp(AquaApp):
                 )
 
         source = self.get_source(create_fine_tuning_details.ft_source_id)
-        # TODO: add the following validation for fine tuning aqua service model. Revisit it when all service models are available
-        # if source.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
-        #     raise AquaValueError(
-        #         f"Fine tuning is only supported for Aqua service models in {ODSC_MODEL_COMPARTMENT_OCID}. "
-        #         "Use a valid Aqua service model id instead."
-        #     )
+        if source.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
+            raise AquaValueError(
+                f"Fine tuning is only supported for Aqua service models in {ODSC_MODEL_COMPARTMENT_OCID}. "
+                "Use a valid Aqua service model id instead."
+            )
 
         target_compartment = (
             create_fine_tuning_details.compartment_id or COMPARTMENT_OCID
