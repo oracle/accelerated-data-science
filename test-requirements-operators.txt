@@ -4,3 +4,4 @@
 darts>=0.28
 plotly
 oracle-automlx[forecasting]>=24.1.0
+pandas>=2.0.0
