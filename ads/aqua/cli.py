@@ -5,7 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
 
-from ads.aqua import set_log_level
+from ads.aqua import ENV_VAR_LOG_LEVEL, set_log_level
 from ads.aqua.deployment import AquaDeploymentApp
 from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.finetune import AquaFineTuningApp
@@ -27,7 +27,7 @@ class AquaCommand:
 
     def __init__(
         self,
-        log_level: str = os.environ.get("LOG_LEVEL", "INFO").upper(),
+        log_level: str = os.environ.get(ENV_VAR_LOG_LEVEL, "INFO").upper(),
     ):
         """
         Initialize the command line interface settings for the Aqua project.

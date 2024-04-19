@@ -12,10 +12,12 @@ from ads import set_auth
 from ads.aqua.utils import fetch_service_compartment
 from ads.config import NB_SESSION_OCID, OCI_RESOURCE_PRINCIPAL_VERSION
 
+ENV_VAR_LOG_LEVEL = "LOG_LEVEL"
+
 
 def get_logger_level():
     """Retrieves logging level from environment variable `LOG_LEVEL`."""
-    level = os.environ.get("LOG_LEVEL", "INFO").upper()
+    level = os.environ.get(ENV_VAR_LOG_LEVEL, "INFO").upper()
     return level
 
 
