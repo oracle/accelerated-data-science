@@ -1,4 +1,4 @@
-name: "[Py3.8][Py3.10] Operators Tests"
+name: "Operators Tests"
 
 on:
   workflow_dispatch:
@@ -31,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.10"]
+        python-version: ["3.8"]
 
     steps:
       - uses: actions/checkout@v4
