@@ -5,10 +5,15 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from dataclasses import asdict
+from importlib import reload
+import os
 from unittest import TestCase
 from unittest.mock import MagicMock, PropertyMock
 
 from mock import patch
+import ads.config
+import ads.aqua
+import ads.aqua.finetune
 from ads.aqua.base import AquaApp
 from ads.aqua.finetune import AquaFineTuningApp, FineTuneCustomMetadata
 from ads.aqua.model import AquaFineTuneModel
@@ -18,8 +23,24 @@ from ads.model.model_metadata import ModelCustomMetadata
 
 class FineTuningTestCase(TestCase):
 
+    SERVICE_COMPARTMENT_ID = "ocid1.compartment.oc1..<OCID>"
+
     def setUp(self):
         self.app = AquaFineTuningApp()
+
+    @classmethod
+    def setUpClass(cls):
+        os.environ["ODSC_MODEL_COMPARTMENT_OCID"] = cls.SERVICE_COMPARTMENT_ID
+        reload(ads.config)
+        reload(ads.aqua)
+        reload(ads.aqua.finetune)
+
+    @classmethod
+    def tearDownClass(cls):
+        os.environ.pop("ODSC_MODEL_COMPARTMENT_OCID", None)
+        reload(ads.config)
+        reload(ads.aqua)
+        reload(ads.aqua.finetune)
 
     @patch.object(Job, "run")
     @patch("ads.jobs.ads_job.Job.name", new_callable=PropertyMock)
@@ -58,6 +79,7 @@ class FineTuningTestCase(TestCase):
 
         ft_source = MagicMock()
         ft_source.id = "test_ft_source_id"
+        ft_source.compartment_id = self.SERVICE_COMPARTMENT_ID
         ft_source.display_name = "test_ft_source_model"
         ft_source.custom_metadata_list = custom_metadata_list
         mock_get_source.return_value = ft_source
