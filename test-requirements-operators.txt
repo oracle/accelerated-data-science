@@ -3,4 +3,4 @@
 -e ".[feature-store-marketplace]"
 darts>=0.28
 plotly
-"oracle_automlx[forecasting]==24.1"
+"oracle-automlx[forecasting]>=24.1"
