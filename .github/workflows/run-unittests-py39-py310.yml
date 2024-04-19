@@ -3,6 +3,12 @@ name: "[Py3.9][Py3.10] - tests/unitary/**"
 on:
   workflow_dispatch:
   pull_request:
+    branches: [ "main" ]
+    paths:
+      - "ads/**"
+      - "!ads/opctl/operator/**"
+      - "!ads/feature_store/**"
+      - "pyproject.toml"
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
