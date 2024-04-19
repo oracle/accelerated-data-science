@@ -466,6 +466,7 @@ class AquaFineTuningApp(AquaApp):
             **telemetry_kwargs,
         )
         # tracks unique fine-tuned models that were created in the user compartment
+        # TODO: retrieve the service model name for FT custom models.
         self.telemetry.record_event_async(
             category="aqua/service/finetune",
             action="create",
