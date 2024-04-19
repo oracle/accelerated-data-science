@@ -24,6 +24,6 @@ ODSC_MODEL_COMPARTMENT_OCID = (
 if not ODSC_MODEL_COMPARTMENT_OCID:
     if NB_SESSION_OCID:
         logger.error(
-            f"Aqua is not available for the notebook session {NB_SESSION_OCID}."
+            f"Aqua is not available for this notebook session {NB_SESSION_OCID}."
         )
     exit()
