@@ -13,12 +13,31 @@ from ads.aqua.model import AquaModelApp
 
 
 class AquaCommand:
-    """Contains the command groups for project Aqua."""
+    """Contains the command groups for project Aqua.
+
+    Acts as an entry point for managing different components of the Aqua
+    project including model management, fine-tuning, deployment, and
+    evaluation.
+    """
 
     model = AquaModelApp
     fine_tuning = AquaFineTuningApp
     deployment = AquaDeploymentApp
     evaluation = AquaEvaluationApp
 
-    def __init__(self, log_level=os.environ.get("LOG_LEVEL", "INFO").upper()):
+    def __init__(
+        self,
+        log_level: str = os.environ.get("LOG_LEVEL", "INFO").upper(),
+    ):
+        """
+        Initialize the command line interface settings for the Aqua project.
+
+        FLAGS
+        -----
+        log_level (str):
+            Sets the logging level for the application.
+            Default is retrieved from environment variable `LOG_LEVEL`,
+            or 'INFO' if not set. Example values include 'DEBUG', 'INFO',
+            'WARNING', 'ERROR', and 'CRITICAL'.
+        """
         set_log_level(log_level)

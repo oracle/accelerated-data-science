@@ -44,7 +44,7 @@ def set_log_level(log_level: str):
     """Global for setting logging level."""
 
     log_level = log_level.upper()
-    logger.setLevel(log_level)
+    logger.setLevel(log_level.upper())
     logger.handlers[0].setLevel(log_level)
 
 
