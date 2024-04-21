@@ -51,7 +51,11 @@ def _inverse_transform_dataframe(le, df):
 def smape(actual, predicted) -> float:
     if not all([isinstance(actual, np.ndarray), isinstance(predicted, np.ndarray)]):
         actual, predicted = (np.array(actual), np.array(predicted))
+    zero_mask = np.logical_and(actual == 0, predicted == 0)
+
     denominator = np.abs(actual) + np.abs(predicted)
+    denominator[zero_mask] = 1
+
     numerator = np.abs(actual - predicted)
     default_output = np.ones_like(numerator) * np.inf
 

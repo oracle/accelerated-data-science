@@ -21,7 +21,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads" # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.11.5"
+version = "2.11.7"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -179,7 +179,7 @@ pii = [
   "spacy-transformers==1.2.5",
   "spacy==3.6.1",
 ]
-llm = ["langchain>=0.1.10", "evaluate>=0.4.0"]
+llm = ["langchain-community<0.0.32", "langchain>=0.1.10,<0.1.14", "evaluate>=0.4.0"]
 aqua = ["jupyter_server"]
 
 # To reduce backtracking (decrese deps install time) during test/dev env setup reducing number of versions pip is

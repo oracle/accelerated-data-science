@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from unittest.mock import patch
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -9,6 +10,7 @@ import subprocess
 import pandas as pd
 import numpy as np
 import pytest
+from darts import datasets as d_datasets
 from time import sleep, time
 from copy import deepcopy
 from pathlib import Path
@@ -25,8 +27,12 @@ from ads.opctl.operator.lowcode.forecast.errors import (
     ForecastSchemaYamlError,
     ForecastInputDataError,
 )
-from ads.opctl.operator.cmd import run
 
+from ads.opctl.operator.lowcode.forecast.utils import smape
+from ads.opctl.operator.cmd import run
+import os
+import json
+import math
 
 NUM_ROWS = 1000
 NUM_SERIES = 10
@@ -168,12 +174,13 @@ def operator_setup():
         yield tmpdirname
 
 
-def run_yaml(tmpdirname, yaml_i, output_data_path):
+def run_yaml(tmpdirname, yaml_i, output_data_path, test_metrics_check=True):
     run(yaml_i, backend="operator.local", debug=True)
     subprocess.run(f"ls -a {output_data_path}", shell=True)
 
-    test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")
-    print(test_metrics)
+    if test_metrics_check:
+        test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")
+        print(test_metrics)
     train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
     print(train_metrics)
 
@@ -185,6 +192,7 @@ def populate_yaml(
     additional_data_path=None,
     test_data_path=None,
     output_data_path=None,
+    preprocessing=None,
 ):
     if historical_data_path is None:
         historical_data_path, additional_data_path, test_data_path = setup_rossman()
@@ -204,7 +212,8 @@ def populate_yaml(
     yaml_i["spec"]["datetime_column"]["name"] = "Date"
     yaml_i["spec"]["target_category_columns"] = ["Store"]
     yaml_i["spec"]["horizon"] = HORIZON
-
+    if preprocessing:
+        yaml_i["spec"]["preprocessing"] = preprocessing
     if generate_train_metrics:
         yaml_i["spec"]["generate_metrics"] = generate_train_metrics
     if model == "autots":
@@ -241,6 +250,21 @@ def setup_rossman():
     additional_data_path = f"{data_folder}/rs_10_add.csv"
     test_data_path = f"{data_folder}/rs_10_test.csv"
     return historical_data_path, additional_data_path, test_data_path
+
+
+def setup_faulty_rossman():
+    curr_dir = pathlib.Path(__file__).parent.resolve()
+    data_folder = f"{curr_dir}/../data/"
+    historical_data_path = f"{data_folder}/rs_2_prim.csv"
+    additional_data_path = f"{data_folder}/rs_2_add_encoded.csv"
+    return historical_data_path, additional_data_path
+
+def setup_small_rossman():
+    curr_dir = pathlib.Path(__file__).parent.resolve()
+    data_folder = f"{curr_dir}/../data/"
+    historical_data_path = f"{data_folder}/rs_1_prim.csv"
+    additional_data_path = f"{data_folder}/rs_1_add.csv"
+    return historical_data_path, additional_data_path
 
 
 def setup_artificial_data(tmpdirname, hist_data=None, add_data=None, test_data=None):
@@ -372,6 +396,7 @@ def test_0_series(operator_setup, model):
         historical_data_path=historical_data_path,
         additional_data_path=additional_data_path,
         test_data_path=test_data_path,
+        preprocessing={"enabled": False}
     )
     with pytest.raises(DataMismatchError):
         run_yaml(
@@ -429,6 +454,49 @@ def test_invalid_dates(operator_setup, model):
         )
 
 
+def test_disabling_outlier_treatment(operator_setup):
+    tmpdirname = operator_setup
+    NUM_ROWS = 100
+    hist_data_0 = pd.concat(
+        [
+            HISTORICAL_DATETIME_COL[: NUM_ROWS - HORIZON],
+            TARGET_COL[: NUM_ROWS - HORIZON],
+        ],
+        axis=1,
+    )
+    outliers = [1000, -800]
+    hist_data_0.at[40, 'Sales'] = outliers[0]
+    hist_data_0.at[75, 'Sales'] = outliers[1]
+    historical_data_path, additional_data_path, test_data_path = setup_artificial_data(
+        tmpdirname, hist_data_0
+    )
+
+    yaml_i, output_data_path = populate_yaml(
+        tmpdirname=tmpdirname,
+        model="arima",
+        historical_data_path=historical_data_path
+    )
+    yaml_i["spec"].pop("target_category_columns")
+    yaml_i["spec"].pop("additional_data")
+
+    # running default pipeline where outlier will be treated
+    run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
+    forecast_without_outlier = pd.read_csv(f"{tmpdirname}/results/forecast.csv")
+    input_vals_without_outlier = set(forecast_without_outlier['input_value'])
+    assert all(
+        item not in input_vals_without_outlier for item in outliers), "forecast file should not contain any outliers"
+
+    # switching off outlier_treatment
+    preprocessing_steps = {"missing_value_imputation": True, "outlier_treatment": False}
+    preprocessing = {"enabled": True, "steps": preprocessing_steps}
+    yaml_i["spec"]["preprocessing"] = preprocessing
+    run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
+    forecast_with_outlier = pd.read_csv(f"{tmpdirname}/results/forecast.csv")
+    input_vals_with_outlier = set(forecast_with_outlier['input_value'])
+    assert all(
+        item in input_vals_with_outlier for item in outliers), "forecast file should contain all the outliers"
+
+
 @pytest.mark.parametrize("model", MODELS)
 def test_2_series(operator_setup, model):
     # Test w and w/o add data
@@ -454,12 +522,14 @@ def test_2_series(operator_setup, model):
     historical_data_path, additional_data_path, test_data_path = setup_artificial_data(
         tmpdirname, hist_data, add_data, test_data
     )
+    preprocessing_steps = {"missing_value_imputation": True, "outlier_treatment": False}
     yaml_i, output_data_path = populate_yaml(
         tmpdirname=tmpdirname,
         model=model,
         historical_data_path=historical_data_path,
         additional_data_path=additional_data_path,
         test_data_path=test_data_path,
+        preprocessing={"enabled": True, "steps": preprocessing_steps}
     )
     with pytest.raises(DataMismatchError):
         # 4 columns in historical data, but only 1 cat col specified
@@ -474,6 +544,149 @@ def test_2_series(operator_setup, model):
         )
     yaml_i["spec"]["target_category_columns"] = ["Store", "Store_test"]
     run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
+
+
+@pytest.mark.parametrize("model", MODELS)
+def test_all_series_failure(model):
+    """
+    Every model is mocked to throw error. This test checks that errors.json has correct error message and that report is
+    generated
+    """
+    tmpdirname = operator_setup
+    historical_data_path, additional_data_path = setup_faulty_rossman()
+    yaml_i, output_data_path = populate_yaml(
+        tmpdirname=tmpdirname,
+        historical_data_path=historical_data_path,
+        additional_data_path=additional_data_path,
+    )
+    preprocessing_steps = {"missing_value_imputation": True, "outlier_treatment": False}
+    yaml_i["spec"]["model"] = model
+    yaml_i['spec']['horizon'] = 10
+    yaml_i['spec']['preprocessing'] = preprocessing_steps
+    if yaml_i["spec"].get("additional_data") is not None and model != "autots":
+        yaml_i["spec"]["generate_explanations"] = True
+    if model == "autots":
+        yaml_i["spec"]["model_kwargs"] = {"model_list": "superfast"}
+    if model == "automlx":
+        yaml_i["spec"]["model_kwargs"] = {"time_budget": 1}
+
+    module_to_patch = {
+        "arima": 'pmdarima.auto_arima',
+        "autots": 'autots.AutoTS',
+        "automlx": 'automlx.Pipeline',
+        "prophet": 'prophet.Prophet',
+        "neuralprophet": 'neuralprophet.NeuralProphet'
+    }
+    with patch(module_to_patch[model], side_effect=Exception("Custom exception message")):
+
+        run(yaml_i, backend="operator.local", debug=False)
+
+        report_path = f"{output_data_path}/report.html"
+        assert os.path.exists(report_path), f"Report file not found at {report_path}"
+
+        error_path = f"{output_data_path}/errors.json"
+        assert os.path.exists(error_path), f"Error file not found at {error_path}"
+
+        # Additionally, you can read the content of the error.json and assert its content
+        with open(error_path, 'r') as error_file:
+            error_content = json.load(error_file)
+            assert "Custom exception message" in error_content["1"]["error"], "Error message mismatch"
+            assert "Custom exception message" in error_content["13"]["error"], "Error message mismatch"
+
+        if yaml_i["spec"]["generate_explanations"]:
+            global_fn = f"{tmpdirname}/results/global_explanation.csv"
+            assert os.path.exists(global_fn), f"Global explanation file not found at {report_path}"
+
+            local_fn = f"{tmpdirname}/results/local_explanation.csv"
+            assert os.path.exists(local_fn), f"Local explanation file not found at {report_path}"
+
+@pytest.mark.parametrize("model", MODELS)
+def test_arima_automlx_errors(operator_setup, model):
+    tmpdirname = operator_setup
+    historical_data_path, additional_data_path = setup_faulty_rossman()
+    yaml_i, output_data_path = populate_yaml(
+        tmpdirname=tmpdirname,
+        historical_data_path=historical_data_path,
+        additional_data_path=additional_data_path,
+    )
+
+    """
+    Arima was failing for constant trend when there are constant columns and when there are boolean columns . 
+    We added label encoding for boolean and are dropping columns with constant value for arima with constant trend. 
+    This test checks that report, metrics, explanations are generated for this case.
+    """
+
+    """
+    series 13 in this data has missing dates and automlx fails for this with DatetimeIndex error. This test checks that 
+    outputs get generated and that error is shown in errors.json
+    """
+
+    """
+    explanations generation is failing when boolean columns are passed. 
+    TypeError: ufunc 'isfinite' not supported for the input types, and the inputs could not be safely coerced 
+     any supported types according to the casting rule ''safe''
+    Added label encoding before passing data to explainer
+    """
+    preprocessing_steps = {"missing_value_imputation": True, "outlier_treatment": False}
+    yaml_i['spec']['horizon'] = 10
+    yaml_i['spec']['preprocessing'] = preprocessing_steps
+    yaml_i['spec']['generate_explanations'] = True
+    yaml_i['spec']['model'] = model
+
+    run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path, test_metrics_check=False)
+
+    report_path = f"{tmpdirname}/results/report.html"
+    assert os.path.exists(report_path), f"Report file not found at {report_path}"
+
+    forecast_path = f"{tmpdirname}/results/forecast.csv"
+    assert os.path.exists(forecast_path), f"Forecast file not found at {report_path}"
+    assert not pd.read_csv(forecast_path).empty
+
+
+    error_path = f"{tmpdirname}/results/errors.json"
+    if model == "arima":
+        assert not os.path.exists(error_path), f"Error file not found at {error_path}"
+    elif model == "automlx":
+        assert os.path.exists(error_path), f"Error file not found at {error_path}"
+        with open(error_path, 'r') as error_file:
+            error_content = json.load(error_file)
+            assert "Input data does not have a consistent (in terms of diff) DatetimeIndex." in error_content["13"][
+                "error"], "Error message mismatch"
+
+    if model != "autots":
+        global_fn = f"{tmpdirname}/results/global_explanation.csv"
+        assert os.path.exists(global_fn), f"Global explanation file not found at {report_path}"
+
+        local_fn = f"{tmpdirname}/results/local_explanation.csv"
+        assert os.path.exists(local_fn), f"Local explanation file not found at {report_path}"
+
+        glb_expl = pd.read_csv(global_fn, index_col=0)
+        loc_expl = pd.read_csv(local_fn)
+        assert not glb_expl.empty
+        assert not loc_expl.empty
+
+
+def test_smape_error():
+    result = smape([0, 0, 0, 0], [0, 0, 0, 0])
+    assert result == 0
+
+
+@pytest.mark.parametrize("model", MODELS)
+def test_date_format(operator_setup, model):
+    tmpdirname = operator_setup
+    historical_data_path, additional_data_path = setup_small_rossman()
+    yaml_i, output_data_path = populate_yaml(
+        tmpdirname=tmpdirname,
+        historical_data_path=historical_data_path,
+        additional_data_path=additional_data_path,
+    )
+    yaml_i['spec']['horizon'] = 10
+    yaml_i["spec"]["model"] = model
+    if model == "autots":
+        yaml_i["spec"]["model_kwargs"] = {"model_list": "superfast"}
+
+    run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path, test_metrics_check=False)
+    assert pd.read_csv(additional_data_path)['Date'].equals(pd.read_csv(f"{tmpdirname}/results/forecast.csv")['Date'])
 
 
 if __name__ == "__main__":
