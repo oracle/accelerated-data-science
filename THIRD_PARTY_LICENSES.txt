@@ -447,6 +447,12 @@ python-fire
 * Source code: https://github.com/google/python-fire
 * Project home: https://github.com/google/python-fire
 
+mlforecast
+* Copyright 2024 Nixtla
+* License: Apache License 2.0
+* Source code: https://github.com/Nixtla/mlforecast
+* Project home: https://github.com/Nixtla/mlforecast
+
 =======
 =============================== Licenses ===============================
 ------------------------------------------------------------------------
