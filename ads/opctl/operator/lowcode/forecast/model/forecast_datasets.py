@@ -5,29 +5,28 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import time
-import pandas as pd
-from pandas.api.types import is_datetime64_any_dtype, is_string_dtype, is_numeric_dtype
+from abc import ABC, abstractmethod
 
-from ..operator_config import ForecastOperatorConfig
-from ads.opctl import logger
-from ..const import ForecastOutputColumns, PROPHET_INTERNAL_DATE_COL
+import pandas as pd
+from pandas.api.types import is_datetime64_any_dtype, is_numeric_dtype, is_string_dtype
+
 from ads.common.object_storage_details import ObjectStorageDetails
+from ads.opctl import logger
+from ads.opctl.operator.lowcode.common.data import AbstractData
+from ads.opctl.operator.lowcode.common.errors import (
+    DataMismatchError,
+    InputDataError,
+    InvalidParameterError,
+    PermissionsError,
+)
 from ads.opctl.operator.lowcode.common.utils import (
     get_frequency_in_seconds,
     get_frequency_of_datetime,
 )
-from ads.opctl.operator.lowcode.common.data import AbstractData
-from ads.opctl.operator.lowcode.forecast.utils import (
-    default_signer,
-)
-from ads.opctl.operator.lowcode.common.errors import (
-    InputDataError,
-    InvalidParameterError,
-    PermissionsError,
-    DataMismatchError,
-)
-from ..const import SupportedModels
-from abc import ABC, abstractmethod
+from ads.opctl.operator.lowcode.forecast.utils import default_signer
+
+from ..const import PROPHET_INTERNAL_DATE_COL, ForecastOutputColumns, SupportedModels
+from ..operator_config import ForecastOperatorConfig
 
 
 class HistoricalData(AbstractData):
@@ -162,12 +161,8 @@ class ForecastDatasets:
             on=[self._datetime_column_name, ForecastOutputColumns.SERIES],
         ).reset_index()
 
-<<<<<<< HEAD
     def get_all_data_long_forecast_horizon(self):
         """Returns all data in long format for the forecast horizon."""
-=======
-    def get_all_data_long_test(self):
->>>>>>> 3c9919d3 (add support for mlforecast in the forecasting operator)
         test_data = pd.merge(
             self.historical_data.data,
             self.additional_data.data,
