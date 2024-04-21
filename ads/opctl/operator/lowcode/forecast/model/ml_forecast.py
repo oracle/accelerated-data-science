@@ -3,6 +3,7 @@ import numpy as np
 
 from ads.opctl import logger
 from ads.common.decorator import runtime_dependency
+from ads.opctl.operator.lowcode.forecast.utils import _select_plot_list
 from .base_model import ForecastOperatorBaseModel
 from .forecast_datasets import ForecastDatasets, ForecastOutput
 from ..operator_config import ForecastOperatorConfig
@@ -105,7 +106,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                     ignore_index=True,
                 ).fillna(0),
             )
-            fitted_values = fcst.forecast_fitted_values()
+            self.fitted_values = fcst.forecast_fitted_values()
             for s_id in self.datasets.list_series_ids():
                 self.forecast_output.init_series_output(
                     series_id=s_id,
@@ -114,8 +115,8 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
 
                 self.forecast_output.populate_series_output(
                     series_id=s_id,
-                    fit_val=fitted_values[
-                        fitted_values[ForecastOutputColumns.SERIES] == s_id
+                    fit_val=self.fitted_values[
+                        self.fitted_values[ForecastOutputColumns.SERIES] == s_id
                     ].forecast.values,
                     forecast_val=self.outputs[
                         self.outputs[ForecastOutputColumns.SERIES] == s_id
@@ -135,7 +136,6 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
 
             logger.debug("===========Done===========")
 
-            return self.forecast_output.get_forecast_long()
         except Exception as e:
             self.errors_dict[self.spec.model] = {
                 "model_name": self.spec.model,
@@ -154,7 +154,51 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
             dt_column=self.spec.datetime_column.name,
         )
         self._train_model(data_train, data_test, model_kwargs)
-        pass
+        return self.forecast_output.get_forecast_long()
 
     def _generate_report(self):
-        pass
+        """
+        Generates the report for the model
+        """
+        import datapane as dp
+        from utilsforecast.plotting import plot_series
+
+        # Section 1: Forecast Overview
+        sec1_text = dp.Text(
+            "## Forecast Overview \n"
+            "These plots show your forecast in the context of historical data."
+        )
+        sec_1 = _select_plot_list(
+            lambda s_id: plot_series(
+                self.datasets.get_all_data_long(include_horizon=False),
+                pd.concat([self.fitted_values,self.outputs], axis=0, ignore_index=True),
+                id_col=ForecastOutputColumns.SERIES,
+                time_col=self.spec.datetime_column.name,
+                target_col=self.original_target_column,
+                seed=42,
+                ids=[s_id],
+            ),
+            self.datasets.list_series_ids(),
+        )
+
+        # Section 2: MlForecast Model Parameters
+        sec2_text = dp.Text(
+            "## MlForecast Model Parameters \n"
+            "These are the parameters used for the MlForecast model."
+        )
+        blocks = [
+            dp.HTML(
+                s_id[1],
+                label=s_id[0],
+            )
+            for _, s_id in enumerate(self.model_parameters.items())
+        ]
+        sec_2 = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+
+        all_sections = [sec1_text, sec_1, sec2_text, sec_2]
+        model_description = dp.Text("mlforecast is a framework to perform time series forecasting using machine learning models"
+                                    "with the option to scale to massive amounts of data using remote clusters."
+                                    "Fastest implementations of feature engineering for time series forecasting in Python."
+                                    "Support for exogenous variables and static covariates.")
+
+        return model_description, all_sections

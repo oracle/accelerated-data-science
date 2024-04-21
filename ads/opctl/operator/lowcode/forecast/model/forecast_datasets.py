@@ -159,7 +159,8 @@ class ForecastDatasets:
             on=[self._datetime_column_name, ForecastOutputColumns.SERIES],
         ).reset_index()
 
-    def get_all_data_long_test(self):
+    def get_all_data_long_forecast_horizon(self):
+        """Returns all data in long format for the forecast horizon."""
         test_data = pd.merge(
             self.historical_data.data,
             self.additional_data.data,
