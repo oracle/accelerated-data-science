@@ -1,16 +1,14 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-from ads.opctl import logger
 from ads.common.decorator import runtime_dependency
-<<<<<<< HEAD
+from ads.opctl import logger
 from ads.opctl.operator.lowcode.forecast.utils import _select_plot_list
-=======
->>>>>>> 3c9919d3 (add support for mlforecast in the forecasting operator)
+
+from ..const import ForecastOutputColumns, SupportedModels
+from ..operator_config import ForecastOperatorConfig
 from .base_model import ForecastOperatorBaseModel
 from .forecast_datasets import ForecastDatasets, ForecastOutput
-from ..operator_config import ForecastOperatorConfig
-from ..const import ForecastOutputColumns, SupportedModels
 
 
 class MLForecastOperatorModel(ForecastOperatorBaseModel):
@@ -76,7 +74,6 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                         alpha=model_kwargs["lower_quantile"],
                     ),
                 },
-<<<<<<< HEAD
                 freq=pd.infer_freq(data_train["Date"].drop_duplicates())
                 or pd.infer_freq(data_train["Date"].drop_duplicates()[-5:]),
                 target_transforms=[Differences([12])],
@@ -96,30 +93,16 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                     if len(self.datasets.get_additional_data_column_names()) > 0
                     else {}
                 ),
-=======
-                freq=pd.infer_freq(data_train.Date.drop_duplicates()),
-                target_transforms=[Differences([12])],
-                lags=model_kwargs.get("lags", [1, 6, 12]),
-                lag_transforms={
-                    1: [ExpandingMean()],
-                    12: [RollingMean(window_size=24)],
-                },
->>>>>>> 3c9919d3 (add support for mlforecast in the forecasting operator)
                 # date_features=[hour_index],
             )
 
             num_models = model_kwargs.get("recursive_models", False)
 
-<<<<<<< HEAD
             self.model_columns = [
                 ForecastOutputColumns.SERIES
             ] + data_train.select_dtypes(exclude=["object"]).columns.to_list()
             fcst.fit(
                 data_train[self.model_columns],
-=======
-            fcst.fit(
-                data_train,
->>>>>>> 3c9919d3 (add support for mlforecast in the forecasting operator)
                 static_features=model_kwargs.get("static_features", []),
                 id_col=ForecastOutputColumns.SERIES,
                 time_col=self.spec.datetime_column.name,
@@ -132,25 +115,16 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                 h=self.spec.horizon,
                 X_df=pd.concat(
                     [
-<<<<<<< HEAD
                         data_test[self.model_columns],
                         fcst.get_missing_future(
                             h=self.spec.horizon, X_df=data_test[self.model_columns]
                         ),
-=======
-                        data_test,
-                        fcst.get_missing_future(h=self.spec.horizon, X_df=data_test),
->>>>>>> 3c9919d3 (add support for mlforecast in the forecasting operator)
                     ],
                     axis=0,
                     ignore_index=True,
                 ).fillna(0),
             )
-<<<<<<< HEAD
             self.fitted_values = fcst.forecast_fitted_values()
-=======
-            fitted_values = fcst.forecast_fitted_values()
->>>>>>> 3c9919d3 (add support for mlforecast in the forecasting operator)
             for s_id in self.datasets.list_series_ids():
                 self.forecast_output.init_series_output(
                     series_id=s_id,
@@ -159,13 +133,8 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
 
                 self.forecast_output.populate_series_output(
                     series_id=s_id,
-<<<<<<< HEAD
                     fit_val=self.fitted_values[
                         self.fitted_values[ForecastOutputColumns.SERIES] == s_id
-=======
-                    fit_val=fitted_values[
-                        fitted_values[ForecastOutputColumns.SERIES] == s_id
->>>>>>> 3c9919d3 (add support for mlforecast in the forecasting operator)
                     ].forecast.values,
                     forecast_val=self.outputs[
                         self.outputs[ForecastOutputColumns.SERIES] == s_id
@@ -185,10 +154,6 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
 
             logger.debug("===========Done===========")
 
-<<<<<<< HEAD
-=======
-            return self.forecast_output.get_forecast_long()
->>>>>>> 3c9919d3 (add support for mlforecast in the forecasting operator)
         except Exception as e:
             self.errors_dict[self.spec.model] = {
                 "model_name": self.spec.model,
@@ -197,11 +162,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
 
     def _build_model(self) -> pd.DataFrame:
         data_train = self.datasets.get_all_data_long(include_horizon=False)
-<<<<<<< HEAD
         data_test = self.datasets.get_all_data_long_forecast_horizon()
-=======
-        data_test = self.datasets.get_all_data_long_test()
->>>>>>> 3c9919d3 (add support for mlforecast in the forecasting operator)
         self.models = dict()
         model_kwargs = self.set_kwargs()
         self.forecast_output = ForecastOutput(
@@ -211,7 +172,6 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
             dt_column=self.spec.datetime_column.name,
         )
         self._train_model(data_train, data_test, model_kwargs)
-<<<<<<< HEAD
         return self.forecast_output.get_forecast_long()
 
     def _generate_report(self):
@@ -267,9 +227,3 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
         )
 
         return model_description, all_sections
-=======
-        pass
-
-    def _generate_report(self):
-        pass
->>>>>>> 3c9919d3 (add support for mlforecast in the forecasting operator)
