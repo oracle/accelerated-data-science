@@ -975,7 +975,7 @@ class AquaEvaluationApp(AquaApp):
                         self._process_evaluation_summary(model=model, jobrun=jobrun)
                     )
                 except Exception as exc:
-                    logger.warning(
+                    logger.debug(
                         f"Processing evaluation: {model.identifier} generated an exception: {exc}"
                     )
                     evaluations.append(
