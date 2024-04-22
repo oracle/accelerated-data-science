@@ -421,10 +421,10 @@ class ForecastOperatorBaseModel(ABC):
         if self.spec.generate_report:
             with tempfile.TemporaryDirectory() as temp_dir:
                 report_local_path = os.path.join(temp_dir, "___report.html")
-                # disable_print()
+                disable_print()
                 with rc.ReportCreator("My Report") as report:
                     report.save(rc.Block(*report_sections), report_local_path)
-                # enable_print()
+                enable_print()
 
                 report_path = os.path.join(unique_output_dir, self.spec.report_filename)
                 with open(report_local_path) as f1:

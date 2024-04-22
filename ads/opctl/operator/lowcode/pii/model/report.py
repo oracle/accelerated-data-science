@@ -238,7 +238,7 @@ class RowReportFields:
     def _make_stats_card(self):
         stats = [
             rc.Heading("Row Summary Statistics", level=2),
-            rc.BigNumber(
+            rc.Metric(
                 heading="Total No. Of Entites Proceed",
                 value=self.spec.total_tokens or 0,
             ),
@@ -297,7 +297,7 @@ class PIIOperatorReport:
         title_text = rc.Heading(
             "Personally Identifiable Information Operator Report", level=1
         )
-        time_proceed = rc.BigNumber(
+        time_proceed = rc.Metric(
             heading="Ran at",
             value=self.report_spec.run_summary.timestamp or "today",
         )
@@ -325,11 +325,10 @@ class PIIOperatorReport:
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
             disable_print()
-            rc.save_report(
-                report_sections or self.report_sections,
-                path=report_local_path,
-                open=False,
-            )
+            with rc.ReportCreator("My Report") as report:
+                report.save(
+                    rc.Block(report_sections or self.report_sections), report_local_path
+                )
             enable_print()
 
             report_uri = report_uri or self.report_uri
@@ -393,19 +392,19 @@ class PIIOperatorReport:
         summary_stats = [
             rc.Heading("Summary Statistics", level=2),
             rc.Group(
-                rc.BigNumber(
+                rc.Metric(
                     heading="Total No. Of Rows",
                     value=self.report_spec.run_summary.total_rows or "unknown",
                 ),
-                rc.BigNumber(
+                rc.Metric(
                     heading="Total No. Of Entites Proceed",
                     value=self.report_spec.run_summary.total_tokens,
                 ),
-                rc.BigNumber(
+                rc.Metric(
                     heading="Rows per second processed",
                     value=process_rate,
                 ),
-                rc.BigNumber(
+                rc.Metric(
                     heading="Total Time Spent",
                     value=human_time_friendly(
                         self.report_spec.run_summary.elapsed_time

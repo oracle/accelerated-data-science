@@ -82,9 +82,7 @@ class AnomalyOperatorBaseModel(ABC):
             rc.DataTable(df, label=col, index=True)
             for col, df in self.datasets.full_data_dict.items()
         ]
-        data_table = (
-            rc.Select(blocks=table_blocks) if len(table_blocks) > 1 else table_blocks[0]
-        )
+        data_table = rc.Select(blocks=table_blocks)
         date_column = self.spec.datetime_column.name
 
         blocks = []
@@ -106,9 +104,9 @@ class AnomalyOperatorBaseModel(ABC):
                 plt.xlabel(date_column)
                 plt.ylabel(col)
                 plt.title(f"`{col}` with reference to anomalies")
-                figure_blocks.append(ax)
-            blocks.append(rc.Group(figure_blocks, label=target))
-        plots = rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+                figure_blocks.append(rc.Widget(ax))
+            blocks.append(rc.Group(*figure_blocks, label=target))
+        plots = rc.Select(blocks)
 
         report_sections = []
         title_text = rc.Heading("Anomaly Detection Report", level=1)
@@ -122,7 +120,7 @@ class AnomalyOperatorBaseModel(ABC):
                     "Based on your dataset, you could have also selected "
                     f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
                 ),
-                rc.BigNumber(
+                rc.Metric(
                     heading="Analysis was completed in ",
                     value=human_time_friendly(elapsed_time),
                 ),
@@ -259,7 +257,8 @@ class AnomalyOperatorBaseModel(ABC):
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
             disable_print()
-            rc.save_report(report_sections, report_local_path)
+            with rc.ReportCreator("My Report") as report:
+                report.save(rc.Block(*report_sections), report_local_path)
             enable_print()
             with open(report_local_path) as f1:
                 with fsspec.open(
