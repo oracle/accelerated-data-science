@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -142,7 +142,6 @@ class ChainSerializationTest(TestCase):
         self.assertEqual(llm_chain.llm.model, "my_model")
         self.assertEqual(llm_chain.input_keys, ["subject"])
 
-
     def test_oci_gen_ai_serialization(self):
         """Tests serialization of OCI Gen AI LLM."""
         try:
@@ -189,7 +188,7 @@ class ChainSerializationTest(TestCase):
 
         element_1 = kwargs.get("first")
         self.assertEqual(element_1.get("_type"), "RunnableParallel")
-        step = element_1.get("kwargs").get("steps").get("text")
+        step = element_1.get("kwargs", dict()).get("steps", dict()).get("text", dict())
         self.assertEqual(step.get("id")[-1], "RunnablePassthrough")
 
         element_2 = kwargs.get("middle")[0]

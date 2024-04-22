@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -151,7 +151,9 @@ class GuardrailSequenceTests(GuardrailTestsBase):
             self.assertIsInstance(output.data, str)
             self.assertEqual(output.data, "Tell me a joke about cats")
             self.assertIsInstance(output.info, list)
-            self.assertEqual(len(output.info), len(chain.steps))
+            self.assertEqual(
+                len(output.info), len(chain.steps) if hasattr(chain, "steps") else 0
+            )
 
         self.assert_before_and_after_serialization(test_fn, chain)
 
@@ -174,7 +176,6 @@ class GuardrailSequenceTests(GuardrailTestsBase):
             self.assertEqual(len(output.info), len(chain.steps))
 
         self.assert_before_and_after_serialization(test_fn, chain)
-
 
     def test_save_to_file(self):
         """Tests saving to file."""
