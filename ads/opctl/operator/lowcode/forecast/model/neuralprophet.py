@@ -377,7 +377,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 self.explain_model()
 
                 # Create a markdown section for the global explainability
-                global_explanation_section = rc.Blocks(
+                global_explanation_section = rc.Block(
                     rc.Heading("Global Explainability", level=2),
                     rc.Text(
                         "The following tables provide the feature attribution for the global explainability."

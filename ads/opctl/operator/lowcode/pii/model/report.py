@@ -303,7 +303,7 @@ class PIIOperatorReport:
         )
         report_description = rc.Text(PII_REPORT_DESCRIPTION)
 
-        structure = rc.Blocks(
+        structure = rc.Block(
             rc.Select(
                 blocks=[
                     rc.Group(
@@ -342,7 +342,7 @@ class PIIOperatorReport:
                     f2.write(f1.read())
 
     def _build_summary_page(self):
-        summary = rc.Blocks(
+        summary = rc.Block(
             rc.Heading("PII Summary", level=1),
             rc.Text(self._get_summary_desc()),
             rc.Select(
@@ -358,7 +358,7 @@ class PIIOperatorReport:
         return summary
 
     def _build_details_page(self):
-        details = rc.Blocks(
+        details = rc.Block(
             rc.Text(DETAILS_REPORT_DESCRIPTION),
             rc.Select(
                 blocks=[

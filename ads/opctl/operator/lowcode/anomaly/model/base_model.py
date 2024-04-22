@@ -115,21 +115,19 @@ class AnomalyOperatorBaseModel(ABC):
 
         yaml_appendix_title = rc.Heading("Reference: YAML File", level=2)
         yaml_appendix = rc.Yaml(self.config.to_dict())
-        summary = rc.Blocks(
-            blocks=[
-                rc.Group(
-                    rc.Text(f"You selected the **`{self.spec.model}`** model."),
-                    rc.Text(
-                        "Based on your dataset, you could have also selected "
-                        f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
-                    ),
-                    rc.BigNumber(
-                        heading="Analysis was completed in ",
-                        value=human_time_friendly(elapsed_time),
-                    ),
-                    label="Summary",
-                )
-            ]
+        summary = rc.Block(
+            rc.Group(
+                rc.Text(f"You selected the **`{self.spec.model}`** model."),
+                rc.Text(
+                    "Based on your dataset, you could have also selected "
+                    f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
+                ),
+                rc.BigNumber(
+                    heading="Analysis was completed in ",
+                    value=human_time_friendly(elapsed_time),
+                ),
+                label="Summary",
+            )
         )
         sec_text = rc.Heading("Train Evaluation Metrics", level=2)
         sec = rc.DataTable(self._evaluation_metrics(anomaly_output), index=True)
