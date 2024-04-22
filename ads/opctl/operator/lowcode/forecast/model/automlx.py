@@ -172,9 +172,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         return self.forecast_output.get_forecast_long()
 
     @runtime_dependency(
-        module="datapane",
+        module="report-creator",
         err_msg=(
-            "Please run `pip3 install datapane` to install the required dependencies for report generation."
+            "Please run `pip3 install report-creator` to install the required dependencies for report generation."
         ),
     )
     def _generate_report(self):
@@ -187,8 +187,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
         Returns
         -------
-            - model_description (datapane.Text): A Text component containing the description of the automlx model.
-            - other_sections (List[Union[datapane.Text, datapane.Blocks]]): A list of Text and Blocks components representing various sections of the report.
+            - model_description (report-creator.Text): A Text component containing the description of the automlx model.
+            - other_sections (List[Union[report-creator.Text, report-creator.Block]]): A list of Text and Blocks components representing various sections of the report.
             - forecast_col_name (str): The name of the forecasted column.
             - train_metrics (bool): A boolean value indicating whether to include train metrics in the report.
             - ds_column_series (pd.Series): The pd.Series object representing the datetime column of the dataset.

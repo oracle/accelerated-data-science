@@ -417,9 +417,8 @@ class ForecastOperatorBaseModel(ABC):
         else:
             storage_options = dict()
 
-        # datapane html report
+        # report-creator html report
         if self.spec.generate_report:
-            # datapane html report
             with tempfile.TemporaryDirectory() as temp_dir:
                 report_local_path = os.path.join(temp_dir, "___report.html")
                 # disable_print()

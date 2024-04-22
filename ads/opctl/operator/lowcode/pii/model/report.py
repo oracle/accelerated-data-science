@@ -42,7 +42,7 @@ try:
     import report_creator as rc
 except ImportError:
     raise ModuleNotFoundError(
-        f"`datapane` module was not found. Please run "
+        f"`report-creator` module was not found. Please run "
         f"`pip install {OptionalDependency.PII}`."
     )
 

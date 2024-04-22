@@ -138,7 +138,6 @@ forecast = [
   "py-cpuinfo",
   "rich",
   "autots[additional]",
-  "datapane",
   "holidays==0.21.13",
   "neuralprophet",
   "numpy",
@@ -162,7 +161,6 @@ anomaly  = [
   "oracle-automlx[forecasting]==23.4.1",
   "oracle-automlx[classic]==23.4.1",
   "oracledb",
-  "datapane",
   "report-creator",
 ]
 feature-store-marketplace = [
@@ -171,7 +169,6 @@ feature-store-marketplace = [
 ]
 pii = [
   "aiohttp",
-  "datapane",
   "gender_guesser",
   "nameparser",
   "oracle_ads[opctl]",
