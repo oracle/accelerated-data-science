@@ -4,13 +4,17 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import os
 import logging
 import subprocess
+import pytest
 from unittest import TestCase
 from unittest.mock import patch
-
+from importlib import reload
 from parameterized import parameterized
 
+import ads.aqua
+import ads.config
 from ads.aqua.cli import AquaCommand
 
 
@@ -24,6 +28,12 @@ class TestAquaCLI(TestCase):
         datefmt="%m/%d/%Y %I:%M:%S %p",
         level=logging.INFO,
     )
+    SERVICE_COMPARTMENT_ID = "ocid1.compartment.oc1..<OCID>"
+
+    def setUp(self):
+        os.environ["ODSC_MODEL_COMPARTMENT_OCID"] = TestAquaCLI.SERVICE_COMPARTMENT_ID
+        reload(ads.aqua)
+        reload(ads.aqua.cli)
 
     def test_entrypoint(self):
         """Tests CLI entrypoint."""
@@ -45,3 +55,10 @@ class TestAquaCLI(TestCase):
         else:
             AquaCommand()
         mock_setting_log.assert_called_with(expected)
+
+    def test_aqua_command_without_compartment_env_var(self):
+        os.environ.pop("ODSC_MODEL_COMPARTMENT_OCID", None)
+        reload(ads.aqua)
+        reload(ads.aqua.cli)
+        with pytest.raises(SystemExit):
+            AquaCommand()
