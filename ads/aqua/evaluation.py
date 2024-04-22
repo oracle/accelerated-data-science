@@ -38,6 +38,7 @@ from ads.aqua.utils import (
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     NB_SESSION_IDENTIFIER,
     UNKNOWN,
+    extract_id_and_name_from_tag,
     fire_and_forget,
     get_container_image,
     is_valid_ocid,
@@ -694,7 +695,7 @@ class AquaEvaluationApp(AquaApp):
         self.telemetry.record_event_async(
             category="aqua/evaluation",
             action="create",
-            detail=evaluation_source.display_name,
+            detail=self._get_service_model_name(evaluation_source),
         )
 
         return AquaEvaluationSummary(
@@ -784,6 +785,34 @@ class AquaEvaluationApp(AquaApp):
         )
 
         return runtime
+    
+    @staticmethod
+    def _get_service_model_name(
+        source: Union[ModelDeployment, DataScienceModel]
+    ) -> str:
+        """Gets the service model name from source. If it's ModelDeployment, needs to check
+        if its model has been fine tuned or not.
+
+        Parameters
+        ----------
+        source: Union[ModelDeployment, DataScienceModel]
+            An instance of either ModelDeployment or DataScienceModel
+
+        Returns
+        -------
+        str:
+            The service model name of source.
+        """
+        if isinstance(source, ModelDeployment):
+            fine_tuned_model_tag = source.freeform_tags.get(
+                Tags.AQUA_FINE_TUNED_MODEL_TAG.value, UNKNOWN
+            )
+            if not fine_tuned_model_tag:
+                return source.freeform_tags.get(Tags.AQUA_MODEL_NAME_TAG.value)
+            else:
+                return extract_id_and_name_from_tag(fine_tuned_model_tag)[1]
+        
+        return source.display_name
 
     @staticmethod
     def _get_evaluation_container(source_id: str) -> str:
@@ -983,7 +1012,7 @@ class AquaEvaluationApp(AquaApp):
                         self._process_evaluation_summary(model=model, jobrun=jobrun)
                     )
                 except Exception as exc:
-                    logger.error(
+                    logger.debug(
                         f"Processing evaluation: {model.identifier} generated an exception: {exc}"
                     )
                     evaluations.append(
@@ -1028,7 +1057,7 @@ class AquaEvaluationApp(AquaApp):
             return True if response.status == 200 else False
         except oci.exceptions.ServiceError as ex:
             if ex.status == 404:
-                logger.info("Evaluation artifact not found.")
+                logger.debug(f"Evaluation artifact not found for {model.identifier}.")
                 return False
 
     @telemetry(entry_point="plugin=evaluation&action=get_status", name="aqua")
@@ -1574,8 +1603,9 @@ class AquaEvaluationApp(AquaApp):
                 ),
             )
         except Exception as e:
-            logger.error(
-                f"Failed to construct AquaResourceIdentifier from given id=`{id}`, and name=`{name}`, {str(e)}"
+            logger.debug(
+                f"Failed to construct AquaResourceIdentifier from given id=`{id}`, and name=`{name}`. "
+                f"DEBUG INFO: {str(e)}"
             )
             return AquaResourceIdentifier()
 
@@ -1621,7 +1651,7 @@ class AquaEvaluationApp(AquaApp):
             )
             if not params.get(EvaluationConfig.PARAMS):
                 raise AquaMissingKeyError(
-                    "model parameters have not been saved in correct format in model taxonomy.",
+                    "model parameters have not been saved in correct format in model taxonomy. ",
                     service_payload={"params": params},
                 )
             # TODO: validate the format of parameters.
@@ -1653,7 +1683,7 @@ class AquaEvaluationApp(AquaApp):
 
         except Exception as e:
             logger.debug(
-                f"Failed to get job details from job_run_details: {job_run_details}"
+                f"Failed to get job details from job_run_details: {job_run_details} "
                 f"DEBUG INFO:{str(e)}"
             )
             return AquaResourceIdentifier()
