@@ -6,7 +6,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from ads.aqua import configure_aqua_logger, get_logger_level, set_log_level
+from ads.aqua import get_logger_level, set_log_level
 
 
 class TestAquaLogging(unittest.TestCase):
@@ -21,18 +21,6 @@ class TestAquaLogging(unittest.TestCase):
     def test_get_logger_level_from_env(self):
         """Test log level is correctly read from environment variable."""
         self.assertEqual(get_logger_level(), "DEBUG")
-
-    @patch("logging.getLogger")
-    @patch("logging.StreamHandler")
-    def test_configure_aqua_logger(self, mock_handler, mock_get_logger):
-        """Test that logger is correctly configured."""
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
-
-        logger = configure_aqua_logger()
-
-        mock_get_logger.assert_called_once_with("ads.aqua")
-        mock_logger.setLevel.assert_called_with(self.DEFAULT_AQUA_LOG_LEVEL)
 
     @patch("ads.aqua.logger", create=True)
     def test_set_log_level(self, mock_logger):
