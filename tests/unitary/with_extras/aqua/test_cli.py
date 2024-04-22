@@ -56,9 +56,10 @@ class TestAquaCLI(TestCase):
             AquaCommand()
         mock_setting_log.assert_called_with(expected)
 
-    def test_aqua_command_without_compartment_env_var(self):
+    @patch("sys.exit")
+    def test_aqua_command_without_compartment_env_var(self, mock_exit):
         os.environ.pop("ODSC_MODEL_COMPARTMENT_OCID", None)
         reload(ads.aqua)
         reload(ads.aqua.cli)
-        with pytest.raises(SystemExit):
-            AquaCommand()
+        AquaCommand()
+        mock_exit.assert_called_with(0)

@@ -4,6 +4,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
+import sys
 
 from ads.aqua import ENV_VAR_LOG_LEVEL, set_log_level, ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.deployment import AquaDeploymentApp
@@ -43,4 +44,4 @@ class AquaCommand:
         set_log_level(log_level)
         # gracefully exit if env var is not set
         if not ODSC_MODEL_COMPARTMENT_OCID:
-            exit()
+            sys.exit(0)
