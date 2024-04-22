@@ -1,61 +1,15 @@
-Developer Guide
-===============
+Creating Ray Workloads
+-----------------------------
 
--  ``OCI`` = `Oracle Cloud
-   Infrastructure <https://docs.oracle.com/en-us/iaas/Content/home.htm>`__
--  ``DT`` = `Distributed Training <../distributed_training/README.md>`__
--  ``ADS`` = `Oracle Accelerated Data Science
-   Library <https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/index.html>`__
--  ``OCIR`` = `Oracle Cloud Infrastructure Container
-   Registry <https://docs.oracle.com/en-us/iaas/Content/Registry/home.htm#top>`__
+.. include:: ../_prerequisite.rst
 
-Steps to run Distributed Ray
-----------------------------
 
-All the docker image related artifacts are located under -
-``oci_dist_training_artifacts/ray/v1/``
+**Write your training code:**
 
-Prerequisite
-~~~~~~~~~~~~
+Here is a sample of Python code (performing Grid Search) leveraging Scikit-Learn
+and Ray to distribute the workload:
 
-You need to install
-`ads <https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/index.html#>`__.
-
-.. code:: bash
-
-   python3 -m pip install oracle-ads[opctl]
-
-This guide uses ``ads opctl`` for creating distributed training jobs.
-Refer `distributed_training_cmd.md <distributed_training_cmd.md>`__ for
-supported commands and options for distributed training.
-
-1. Prepare Docker Image
-~~~~~~~~~~~~~~~~~~~~~~~
-
-The instruction assumes that you are running this within the folder
-where you ran ``ads opctl distributed-training init --framework ray``
-
-All files in the current directory is copied over to ``/code`` folder
-inside docker image.
-
-For example, you can have the following grid search script saved as
-gridsearch.py;
-
-.. raw:: html
-
-   <details>
-
-.. raw:: html
-
-   <summary>
-
-gridsearch.py <== click to open
-
-.. raw:: html
-
-   </summary>
-
-.. code:: python
+.. code-block:: python
 
    import ray
    from sklearn.datasets import make_classification
@@ -103,64 +57,66 @@ gridsearch.py <== click to open
 
    print(best_params)
 
-.. raw:: html
+**Initialize a distributed-training folder:**
 
-   </details>
+At this point you have created a training file (or files) - ``gridsearch.py`` from the above
+example. Now, run the command below.
 
- 
+.. code-block:: bash
 
-**Note**: Whenever you change the code, you have to build, tag and push
-the image to repo. This is automatically done in ``ads opctl run`` cli
-command.
+  ads opctl distributed-training init --framework ray --version v1
 
-The required python dependencies are provided inside
-``oci_dist_training_artifacts/ray/v1/environment.yaml``. If you code
-required additional dependency, update the ``environment.yaml`` file.
 
-While updating ``environment.yaml`` do not remove the existing
-libraries. You can append to the list.
+This will download the ``ray`` framework and place it inside ``'oci_dist_training_artifacts'`` folder.
 
-Set the TAG and the IMAGE_NAME as per your needs. ``IMAGE_NAME`` refers
-to your Oracle Cloud Container Registry you created in the `Getting
-Stared Guide <README.md>`__. ``MOUNT_FOLDER_PATH`` is the root directory
-of your project code, but you can use ``.`` in case you executed all of
-the ``ads opctl run`` commands directly from your root project folder.
+**Note**: Whenever you change the code, you have to build, tag and push the image to repo. This is automatically done in ```ads opctl run``` cli command.
 
-.. code:: bash
+**Containerize your code and build container:**
 
-   export IMAGE_NAME=<region>.ocir.io/<namespace>/<repository-name>
-   export TAG=latest
-   export MOUNT_FOLDER_PATH=.
+The required python dependencies are provided inside the conda environment file `oci_dist_training_artifacts/ray/v1/environments.yaml`.  If your code requires additional dependency, update this file.
 
-**Replace** the ``<region>`` with the name of the region where you
-created your repository and you will run your code, for example ``iad``
-for Ashburn. **Replace** the ``<namespace>`` with the namespace you see
-in your Oracle Cloud Container Registry, when you created your
-repository. **Replace** the ``<repository-name>`` with the name of the
-repository you used to create it.
+Also, while updating `environments.yaml` do not remove the existing libraries. You can append to the list.
+
+Update the TAG and the IMAGE_NAME as per your needs -
+
+.. code-block:: bash
+
+  export IMAGE_NAME=<region.ocir.io/my-tenancy/image-name>
+  export TAG=latest
+  export MOUNT_FOLDER_PATH=.
 
 Build the container image.
 
-.. code:: bash
+.. code-block:: bash
 
-   ads opctl distributed-training build-image \
-     -t $TAG \
-     -reg $IMAGE_NAME \
-     -df oci_dist_training_artifacts/ray/v1/Dockerfile \
-     -s $MOUNT_FOLDER_PATH
+  ads opctl distributed-training build-image \
+      -t $TAG \
+      -reg $IMAGE_NAME \
+      -df oci_dist_training_artifacts/ray/v1/Dockerfile \
 
-If you are behind proxy, ads opctl will automatically use your proxy
-settings( defined via ``no_proxy``, ``http_proxy`` and ``https_proxy``).
+The code is assumed to be in the current working directory. To override the source code directory, use the ``-s`` flag and specify the code dir. This folder should be within the current working directory.
 
-2. Create yaml file to define your cluster
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. code-block:: bash
 
-Cluster is specified using yaml file. Below is an example to bring up 2
-worker nodes and 1 scheduler node. The code to run is ``gridsearch.py``.
-All code is assumed to be present inside ``/code`` directory within the
-container.
+  ads opctl distributed-training build-image \
+      -t $TAG \
+      -reg $IMAGE_NAME \
+      -df oci_dist_training_artifacts/ray/v1/Dockerfile \
+      -s $MOUNT_FOLDER_PATH
 
-.. code:: yaml
+If you are behind proxy, ads opctl will automatically use your proxy settings (defined via ``no_proxy``, ``http_proxy`` and ``https_proxy``).
+
+**Define your workload yaml:**
+
+The ``yaml`` file is a declarative way to express the workload.
+In this example, we bring up 1 worker node and 1 chief-worker node.
+The training code to run is ``train.py``.
+All your training code is assumed to be present inside ``/code`` directory within the container.
+Additionally, you can also put any data files inside the same directory
+(and pass on the location ex ``/code/data/**`` as an argument to your training script using runtime->spec->args).
+This particular configuration will run with 2 nodes. 
+
+.. code-block:: yaml
 
    # Example train.yaml for defining ray cluster
    kind: distributed
@@ -213,225 +169,26 @@ For ``flex shapes`` use following in the ``train.yaml`` file
        ocpus: 2
    shapeName: VM.Standard.E3.Flex
 
-3. Local Testing
-~~~~~~~~~~~~~~~~
 
-Before triggering the job run, you can test the docker image and verify
-the training code, dependencies etc.
+**Use ads opctl to create the cluster infrastructure and run the workload:**
 
-3a. Test locally with stand-alone run (Recommended)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Do a dry run to inspect how the yaml translates to Job and Job Runs
 
-In order to test the training code locally, use the following command.
-With ``-b local`` flag, it uses a local backend. Further when you need
-to run this workload on odsc jobs, simply use ``-b job`` flag instead
-(default).
+.. code-block:: bash
 
-.. code:: bash
+  ads opctl run -f train.yaml --dry-run
 
-   ads opctl run \
-     -f train.yaml \
-     -b local
 
-If your code requires to use any oci services (like object bucket), you
-need to mount oci keys from your local host machine onto the docker
-container. This is already done for you assuming the typical location of
-oci keys ``~/.oci``. You can modify it though, in-case you have keys at
-a different location. You need to do this in the ``config.ini`` file.
+**Use ads opctl to create the cluster infrastructure and run the workload:**
 
-.. code:: init
+.. include:: ../_test_and_submit.rst
 
-   oci_key_mnt = ~/.oci:/home/oci_dist_training/.oci
+**Monitoring the workload logs**
 
-**Note**: The training script location (entrypoint) and associated args
-will be picked up from the runtime ``train.yaml``. **Note**:
+To view the logs from a job run, you could run -
 
-For detailed explanation of local run, Refer this
-`distributed_training_cmd.md <distributed_training_cmd.md>`__
+.. code-block:: bash
 
-You can also test in a clustered manner using docker-compose. Next
-section.
+  ads opctl watch oci.xxxx.<job_run_ocid>
 
-3b. Test locally with ``docker-compose`` based cluster
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Create ``docker-compose.yaml`` file and copy the content from the
-example compose file below.
-
-**Note** For local testing only ``WORKER_COUNT=1`` is supported.
-
-.. raw:: html
-
-   <details>
-
-.. raw:: html
-
-   <summary>
-
-docker-compose.yaml
-
-.. raw:: html
-
-   </summary>
-
-.. code:: yaml
-
-   # docker-compose.yaml for distributed ray testing
-
-   # The cleanup step will delete all the files in the WORK_DIR left over from the previous run
-
-   version: "0.1"
-   services:
-     cleanup:
-         image: $IMAGE_NAME:$TAG
-         network_mode: host
-         entrypoint: /etc/datascience/cleanup.sh
-         volumes:
-             - ~/.oci:/home/datascience/.oci
-         environment:
-             OCI_IAM_TYPE: api_key
-             OCI_CONFIG_PROFILE: DEFAULT
-             OCI__WORK_DIR: $WORK_DIR
-     scheduler:
-         image: $IMAGE_NAME:$TAG
-         network_mode: host
-         depends_on:
-             - cleanup
-         volumes:
-             - ~/.oci:/home/datascience/.oci
-         environment:
-             OCI__MODE: MAIN
-             OCI__START_ARGS: --port 8786
-             OCI__CLUSTER_TYPE: RAY
-             OCI__ENTRY_SCRIPT: gridsearch.py
-             OCI__ENTRY_SCRIPT_KWARGS: "--cv 5"
-             DEFAULT_N_SAMPLES: 100
-             OCI__WORK_DIR: $WORK_DIR
-             OCI_IAM_TYPE: api_key
-             OCI_CONFIG_PROFILE: DEFAULT
-             OCI__EPHEMERAL: 1
-             OCI__WORKER_COUNT: 1
-
-     worker-0:
-         image: $IMAGE_NAME:$TAG
-         network_mode: host
-         depends_on:
-             - cleanup
-         volumes:
-             - ~/.oci:/home/datascience/.oci
-         environment:
-             OCI__MODE: WORKER
-             OCI__CLUSTER_TYPE: RAY
-             OCI__ENTRY_SCRIPT: gridsearch.py
-             OCI__ENTRY_SCRIPT_ARGS: 50
-             NAMED_OCI__ENTRY_SCRIPT_ARGS: "--cv 5"
-             DEFAULT_N_SAMPLES: 100
-             OCI__WORK_DIR: $WORK_DIR
-             OCI__START_ARGS: --worker-port 8700:8800 --nanny-port 3000:3100 --death-timeout 10 --nworkers 1 --nthreads 1 --death-timeout 60
-             OCI_IAM_TYPE: api_key
-             OCI_CONFIG_PROFILE: DEFAULT
-             OCI__EPHEMERAL: 1
-             OCI__WORKER_COUNT: 1
-
-.. raw:: html
-
-   </details>
-
- 
-
-Set your ``WORK_DIR`` and ``IMAGE_NAME`` to be used with the
-docker-compose.yml.
-
-.. code:: bash
-
-   export WORK_DIR=oci://<my-bucket>@<my-tenancy>/prefix
-   export TAG=<TAG>
-   export WORK_DIR=oci://<my-bucket>@<tenancy>/<prefix>
-
-Alternativly you can set those directly into the ``docker-compose.yml``
-file
-
-.. code:: yaml
-
-   image: iad.ocir.io/<tenancy>/<repo-name>:<tag>
-   OCI__WORK_DIR: oci://<my-bucket>@<tenancy>/<prefix>
-
-Once the ``docker-compose.yaml`` is created, you can start the
-containers by running:
-
-.. code:: bash
-
-   docker compose up
-
-You can learn more about docker compose
-`here <https://docs.docker.com/compose/>`__
-
-4. Dry Run to validate the Yaml definition
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code:: bash
-
-   ads opctl run -f train.yaml --dry-run
-
-This will print the Job and Job run configuration without launching the
-actual job.
-
-5. Start Distributed Job
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-This will run the command and also save the output to ``info.yaml``. You
-could use this yaml for checking the runtime details of the cluster -
-scheduler ip.
-
-.. code:: bash
-
-   ads opctl run -f train.yaml | tee info.yaml
-
-6. Tail the logs
-~~~~~~~~~~~~~~~~
-
-This command will stream the log from logging infrastructure that you
-provided while defining the cluster inside ``train.yaml`` in the example
-above.
-
-.. code:: bash
-
-   ads opctl watch <job runid>
-
-7. Check runtime configuration, run -
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code:: bash
-
-   ads opctl distributed-training show-config -f info.yaml
-
-8. Saving Artifacts to Object Storage Buckets
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-In case you want to save the artifacts generated by the training process
-(model checkpoints, TensorBoard logs, etc.) to an object bucket you can
-use the ‘sync’ feature. The environment variable ``OCI__SYNC_DIR``
-exposes the directory location that will be automatically synchronized
-to the configured object storage bucket location. Use this directory in
-your training script to save the artifacts.
-
-To configure the destination object storage bucket location, use the
-following settings in the workload yaml file(train.yaml).
-
-.. code:: yaml
-
-     - name: SYNC_ARTIFACTS
-       value: 1
-     - name: WORKSPACE
-       value: "<bucket_name>"
-     - name: WORKSPACE_PREFIX
-       value: "<bucket_prefix>"
-
-**Note**: Change ``SYNC_ARTIFACTS`` to ``0`` to disable this feature.
-Use ``OCI__SYNC_DIR`` env variable in your code to save the artifacts.
-Example:
-
-.. code:: python
-
-   with open(os.path.join(os.environ.get("OCI__SYNC_DIR"),"results.txt"), "w") as rf:
-       rf.write(f"Best Params are: {grid.best_params_}, Score is {grid.best_score_}")
+You could stream the logs from any of the job run ocid using ``ads opctl watch`` command. You could run this command from multiple terminal to watch all of the job runs. Typically, watching ``mainJobRunId`` should yield most informative log.
