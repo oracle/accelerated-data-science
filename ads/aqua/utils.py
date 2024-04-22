@@ -578,8 +578,10 @@ def get_container_image(
     return container_image
 
 
-def fetch_service_compartment():
-    """Loads the compartment mapping json from service bucket"""
+def fetch_service_compartment() -> Union[str, None]:
+    """Loads the compartment mapping json from service bucket. This json file has a service-model-compartment key which
+    contains a dictionary of namespaces and the compartment OCID of the service models in that namespace.
+    """
     config_file_name = (
         f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
     )
