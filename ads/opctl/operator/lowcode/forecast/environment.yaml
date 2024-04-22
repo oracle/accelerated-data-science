@@ -15,5 +15,5 @@ dependencies:
       - sktime
       - shap
       - autots[additional]
-      - optuna==3.1.0
+      - optuna
       - fire

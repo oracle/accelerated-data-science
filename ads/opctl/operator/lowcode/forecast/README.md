@@ -38,7 +38,7 @@ To run forecasting locally, create and activate a new conda environment (`ads-fo
 - datapane
 - cerberus
 - sktime
-- optuna==3.1.0
+- optuna
 - oracle-ads>=2.9.0
 ```
 
