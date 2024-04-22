@@ -15,6 +15,7 @@ from oci.data_science.models import (
     UpdateModelProvenanceDetails,
 )
 
+from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.base import AquaApp
 from ads.aqua.data import AquaResourceIdentifier, Resource, Tags
 from ads.aqua.exception import AquaFileExistsError, AquaValueError
@@ -122,6 +123,8 @@ class CreateFineTuningDetails(DataClassSerializable):
         The log group id for fine tuning job infrastructure.
     log_id: (str, optional). Defaults to `None`.
         The log id for fine tuning job infrastructure.
+    force_overwrite: (bool, optional). Defaults to `False`.
+        Whether to force overwrite the existing file in object storage.
     """
 
     ft_source_id: str
@@ -142,6 +145,7 @@ class CreateFineTuningDetails(DataClassSerializable):
     subnet_id: Optional[str] = None
     log_id: Optional[str] = None
     log_group_id: Optional[str] = None
+    force_overwrite: Optional[bool] = False
 
 
 class AquaFineTuningApp(AquaApp):
@@ -192,12 +196,11 @@ class AquaFineTuningApp(AquaApp):
                 )
 
         source = self.get_source(create_fine_tuning_details.ft_source_id)
-        # TODO: add the following validation for fine tuning aqua service model. Revisit it when all service models are available
-        # if source.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
-        #     raise AquaValueError(
-        #         f"Fine tuning is only supported for Aqua service models in {ODSC_MODEL_COMPARTMENT_OCID}. "
-        #         "Use a valid Aqua service model id instead."
-        #     )
+        if source.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
+            raise AquaValueError(
+                f"Fine tuning is only supported for Aqua service models in {ODSC_MODEL_COMPARTMENT_OCID}. "
+                "Use a valid Aqua service model id instead."
+            )
 
         target_compartment = (
             create_fine_tuning_details.compartment_id or COMPARTMENT_OCID
@@ -273,12 +276,12 @@ class AquaFineTuningApp(AquaApp):
                     src_uri=ft_dataset_path,
                     dst_uri=dst_uri,
                     auth=default_signer(),
-                    force_overwrite=False,
+                    force_overwrite=create_fine_tuning_details.force_overwrite,
                 )
             except FileExistsError:
                 raise AquaFileExistsError(
                     f"Dataset {dataset_file} already exists in {create_fine_tuning_details.report_path}. "
-                    "Please use a new dataset file name or report path."
+                    "Please use a new dataset file name, report path or set `force_overwrite` as True."
                 )
             logger.debug(
                 f"Uploaded local file {ft_dataset_path} to object storage {dst_uri}."

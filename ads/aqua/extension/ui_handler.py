@@ -34,6 +34,7 @@ class AquaUIHandler(AquaAPIhandler):
     HTTPError: For various failure scenarios such as invalid input format, missing data, etc.
     """
 
+    @handle_exceptions
     def get(self, id=""):
         """Handle GET request."""
         url_parse = urlparse(self.request.path)
@@ -76,7 +77,6 @@ class AquaUIHandler(AquaAPIhandler):
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
-    @handle_exceptions
     def list_log_groups(self, **kwargs):
         """Lists all log groups for the specified compartment or tenancy."""
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
@@ -84,22 +84,18 @@ class AquaUIHandler(AquaAPIhandler):
             AquaUIApp().list_log_groups(compartment_id=compartment_id, **kwargs)
         )
 
-    @handle_exceptions
     def list_logs(self, log_group_id: str, **kwargs):
         """Lists the specified log group's log objects."""
         return self.finish(AquaUIApp().list_logs(log_group_id=log_group_id, **kwargs))
 
-    @handle_exceptions
     def list_compartments(self):
         """Lists the compartments in a compartment specified by ODSC_MODEL_COMPARTMENT_OCID env variable."""
         return self.finish(AquaUIApp().list_compartments())
 
-    @handle_exceptions
     def get_default_compartment(self):
         """Returns user compartment ocid."""
         return self.finish(AquaUIApp().get_default_compartment())
 
-    @handle_exceptions
     def list_model_version_sets(self, **kwargs):
         """Lists all model version sets for the specified compartment or tenancy."""
 
@@ -112,7 +108,6 @@ class AquaUIHandler(AquaAPIhandler):
             )
         )
 
-    @handle_exceptions
     def list_experiments(self, **kwargs):
         """Lists all experiments for the specified compartment or tenancy."""
 
@@ -125,7 +120,6 @@ class AquaUIHandler(AquaAPIhandler):
             )
         )
 
-    @handle_exceptions
     def list_buckets(self, **kwargs):
         """Lists all model version sets for the specified compartment or tenancy."""
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
@@ -138,7 +132,6 @@ class AquaUIHandler(AquaAPIhandler):
             )
         )
 
-    @handle_exceptions
     def list_job_shapes(self, **kwargs):
         """Lists job shapes available in the specified compartment."""
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
@@ -146,7 +139,6 @@ class AquaUIHandler(AquaAPIhandler):
             AquaUIApp().list_job_shapes(compartment_id=compartment_id, **kwargs)
         )
 
-    @handle_exceptions
     def list_vcn(self, **kwargs):
         """Lists the virtual cloud networks (VCNs) in the specified compartment."""
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
@@ -154,7 +146,6 @@ class AquaUIHandler(AquaAPIhandler):
             AquaUIApp().list_vcn(compartment_id=compartment_id, **kwargs)
         )
 
-    @handle_exceptions
     def list_subnets(self, **kwargs):
         """Lists the subnets in the specified VCN and the specified compartment."""
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
@@ -165,7 +156,6 @@ class AquaUIHandler(AquaAPIhandler):
             )
         )
 
-    @handle_exceptions
     def get_shape_availability(self, **kwargs):
         """For a given compartmentId, resource limit name, and scope, returns the number of available resources associated
         with the given limit."""
@@ -178,7 +168,6 @@ class AquaUIHandler(AquaAPIhandler):
             )
         )
 
-    @handle_exceptions
     def is_bucket_versioned(self):
         """For a given compartmentId, resource limit name, and scope, returns the number of available resources associated
         with the given limit."""

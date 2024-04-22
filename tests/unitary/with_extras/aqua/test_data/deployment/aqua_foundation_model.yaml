@@ -1,0 +1,88 @@
+kind: datascienceModel
+spec:
+  artifact: oci://service-managed-models@namespace/service_models/model-name/artifact
+  compartmentId: ocid1.compartment.oc1..<OCID>
+  customMetadataList:
+    data:
+    - category: Other
+      description: artifact location
+      key: artifact_location
+      value: service_models/model-name/artifact
+    - category: Other
+      description: Fine-tuning container mapping for SMC
+      key: finetune-container
+      value: odsc-llm-fine-tuning
+    - category: Other
+      description: Evaluation container mapping for SMC
+      key: evaluation-container
+      value: odsc-llm-evaluate
+    - category: Other
+      description: model by reference flag
+      key: modelDescription
+      value: true
+    - category: Other
+      description: Deployment container mapping for SMC
+      key: deployment-container
+      value: odsc-vllm-serving
+  definedTags: {}
+  description: Mock model description
+  displayName: model-name
+  freeformTags:
+    OCI_AQUA: active
+    license: Apache 2.0
+    organization: Organization
+    ready_to_fine_tune: false
+    task: text_generation
+  id: ocid1.datasciencemodel.oc1.iad.<OCID>
+  lifecycleState: ACTIVE
+  modelDescription:
+    models:
+    - bucketName: service-managed-models
+      namespace: namespace
+      objects:
+      - name: service_models/model-name/artifact/README.md
+        sizeInBytes: 10317
+        version: 450a8124-f5ca-4ee6-b4cf-c1dc05b13d46
+      - name: service_models/model-name/artifact/config.json
+        sizeInBytes: 950
+        version: 3ace781b-4a48-4e89-88b6-61f0db6d51ad
+      - name: service_models/model-name/artifact/configuration_RW.py
+        sizeInBytes: 2607
+        version: ba1df5b6-7546-42e5-964e-63cd013e988c
+      - name: service_models/model-name/artifact/generation_config.json
+        sizeInBytes: 111
+        version: e23a04c8-9725-4f20-8bb1-f455129e2a4e
+      - name: service_models/model-name/artifact/modelling_RW.py
+        sizeInBytes: 47560
+        version: a584c221-afab-441f-901d-fbe8251dccf6
+      - name: service_models/model-name/artifact/pytorch_model-00001-of-00002.bin
+        sizeInBytes: 9951028193
+        version: e919676e-48dd-4bea-af82-14b5f3eb2b9b
+      - name: service_models/model-name/artifact/pytorch_model-00002-of-00002.bin
+        sizeInBytes: 4483421659
+        version: d6255d3e-bd91-4c05-b3ca-fc1be576ee10
+      - name: service_models/model-name/artifact/pytorch_model.bin.index.json
+        sizeInBytes: 16924
+        version: 0419428c-2a7b-45d9-bb78-142fe0630017
+      - name: service_models/model-name/artifact/special_tokens_map.json
+        sizeInBytes: 281
+        version: 5569231a-a526-4881-8945-a94a1bb59b2e
+      - name: service_models/model-name/artifact/tokenizer.json
+        sizeInBytes: 2734130
+        version: d3a8a00a-de79-4d80-aa69-d8f68ee800ec
+      - name: service_models/model-name/artifact/tokenizer_config.json
+        sizeInBytes: 220
+        version: 84eed6ff-c1ed-4641-8c10-e6a49364d7dd
+      prefix: service_models/model-name/artifact
+    type: modelOSSReferenceDescription
+    version: '1.0'
+  projectId: ocid1.datascienceproject.oc1.iad.<OCID>
+  provenanceMetadata:
+    artifact_dir: null
+    git_branch: null
+    git_commit: 123456
+    repository_url: https://model-name-url.com
+    training_id: null
+    training_script_path: null
+  timeCreated: 2024-01-01T00:00:00.000000+00:00
+type: dataScienceModel
