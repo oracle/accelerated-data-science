@@ -380,10 +380,31 @@ class AquaEvaluationApp(AquaApp):
         ----------
         create_aqua_evaluation_details: CreateAquaEvaluationDetails
             The CreateAquaEvaluationDetails data class which contains all
-            required and optional fields to create the aqua evaluation.
+            required and optional fields to create the aqua evaluation, if accessing via jupyter extension.
         kwargs:
-            The kwargs for creating CreateAquaEvaluationDetails instance if
-            no create_aqua_evaluation_details provided.
+            The kwargs for creating CreateAquaEvaluationDetails instance if accessing via CLI.\n
+            --evaluation_source_id [str]: The evaluation source id. Must be model deployment OCID.\n
+            --evaluation_name [str]: The name for evaluation.\n
+            --dataset_path [str]: The dataset path for the evaluation. Must be an object storage path.\n
+            --report_path [str]: The report path for the evaluation. Must be an object storage path.\n
+            --model_parameters [str]: The parameters for the evaluation.\n
+            --shape_name [str]: The shape name for the evaluation job infrastructure.\n
+            --block_storage_size [int]: The storage for the evaluation job infrastructure.\n
+            --metrics [list]: The metrics for the evaluation, currently BERTScore, ROGUE and BLEU are supported.\n
+            --compartment_id [Optional, str]: The compartment OCID where evaluation is to be created. If not provided,
+            then it defaults to user's compartment.\n
+            --project_id [Optional, str]: The project OCID where evaluation is to be created. If not provided, then it
+            defaults to user's project.\n
+            --evaluation_description [Optional, str]: The description of the evaluation. Defaults to None.\n
+            --memory_in_gbs [Optional, float]: The memory in gbs for the flexible shape selected.\n
+            --ocpus [Optional, float]: The ocpu count for the shape selected.\n
+            --experiment_id [Optional, str]: The evaluation model version set id. If provided, evaluation model will be
+            associated with it. Defaults to None.\n
+            --experiment_name [Optional, str]: The evaluation model version set name. If provided, the model version set
+             with the same name will be used if exists, otherwise a new model version set will be created with the name.\n
+            --experiment_description [Optional, str]: The description for the evaluation model version set.\n
+            --log_group_id [Optional, str]: The log group id for the evaluation job infrastructure. Defaults to None.\n
+            --log_id [Optional, str]: The log id for the evaluation job infrastructure. Defaults to None.\n
 
         Returns
         -------

@@ -657,16 +657,17 @@ class AquaModelApp(AquaApp):
     ) -> List["AquaModelSummary"]:
         """Lists all Aqua models within a specified compartment and/or project.
         If `compartment_id` is not specified, the method defaults to returning
-        the service models within the pre-configured default compartment. By default, the list
-        of models in the service compartment are cached. Use clear_model_list_cache() to invalidate
+        the service models within the pre-configured default compartment. If accessing via jupyter extension,
+        the list of models in the service compartment are cached. Use clear_model_list_cache() to invalidate
         the cache.
 
         Parameters
         ----------
         compartment_id: (str, optional). Defaults to `None`.
-            The compartment OCID.
+            The ID of the compartment in which the aqua models are available. If not provided, resources are list
+             from the service compartment identified by the environment variable ODSC_MODEL_COMPARTMENT_OCID.
         project_id: (str, optional). Defaults to `None`.
-            The project OCID.
+            The ID of the project in which the aqua models are available.
         **kwargs:
             Additional keyword arguments that can be used to filter the results.
 

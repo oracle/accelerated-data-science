@@ -176,10 +176,34 @@ class AquaFineTuningApp(AquaApp):
         ----------
         create_fine_tuning_details: CreateFineTuningDetails
             The CreateFineTuningDetails data class which contains all
-            required and optional fields to create the aqua fine tuning.
+            required and optional fields to create the aqua fine-tuned model, if accessing via jupyter extension.
         kwargs:
-            The kwargs for creating CreateFineTuningDetails instance if
-            no create_fine_tuning_details provided.
+            The kwargs for creating CreateFineTuningDetails instance if accessing via CLI.\n
+            --ft_source_id [str]: The fine-tuning source id. Must be foundational model OCID.\n
+            --ft_name [str]: The name for the fine-tuned model.\n
+            --dataset_path [str]: The dataset path for the model fine-tuning. Must be an object storage path.\n
+            --report_path [str]: The report path of the fine-tuned model. Must be an object storage path.\n
+            --ft_parameters [dict]: The parameters for model fine-tuning. Currently, user can configure learning rate
+            and number of epochs.\n
+            --shape_name [str]: The shape name for the model fine-tuning job infrastructure.\n
+            --replica [int]: The replica count for the model fine-tuning job runtime.\n
+            --validation_set_size [float]: The validation set size for fine-tuning job. Must be a float in
+            between [0,1).\n
+            --compartment_id [Optional, str]: The compartment OCID where evaluation is to be created. If not provided,
+            then it defaults to user's compartment.\n
+            --project_id [Optional, str]: The project OCID where evaluation is to be created. If not provided,
+            then it defaults to user's project.\n
+            --ft_description [Optional, str]: The description of the fine-tuned model. Defaults to None.\n
+            --experiment_id [Optional, str]: The fine-tuned model version set id. If provided, evaluation model
+            will be associated with it. Defaults to None.\n
+            --experiment_name [Optional, str]: The fine-tuned model version set name. If provided, the
+            model version set with the same name will be used if exists, otherwise a new model version set will be
+            created with the name.\n
+            --experiment_description [Optional, str]: The description for the fine-tuned model version set.\n
+            --block_storage_size [Optional, int]: The storage for the model fine-tuning job infrastructure.\n
+            --subnet_id [Optional, str]: The custom egress for model fine-tuning job. Defaults to None.\n
+            --log_group_id [Optional, str]: The log group id for the evaluation job infrastructure. Defaults to None.\n
+            --log_id [Optional, str]: The log id for the evaluation job infrastructure. Defaults to None.\n
 
         Returns
         -------
