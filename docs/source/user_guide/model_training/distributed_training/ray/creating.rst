@@ -179,8 +179,6 @@ Do a dry run to inspect how the yaml translates to Job and Job Runs
   ads opctl run -f train.yaml --dry-run
 
 
-**Use ads opctl to create the cluster infrastructure and run the workload:**
-
 .. include:: ../_test_and_submit.rst
 
 **Monitoring the workload logs**
