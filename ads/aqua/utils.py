@@ -10,7 +10,6 @@ import logging
 import os
 import random
 import re
-import sys
 from enum import Enum
 from functools import wraps
 from pathlib import Path
@@ -22,22 +21,16 @@ import oci
 from oci.data_science.models import JobRun, Model
 
 from ads.aqua.constants import RqsAdditionalDetails
-from ads.aqua.data import AquaResourceIdentifier, Tags
+from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link, upload_to_os
-from ads.config import (
-    AQUA_SERVICE_MODELS_BUCKET,
-    CONDA_BUCKET_NS,
-    TENANCY_OCID,
-)
+from ads.config import AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, TENANCY_OCID
 from ads.model import DataScienceModel, ModelVersionSet
 
-# TODO: allow the user to setup the logging level?
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-logger = logging.getLogger("ODSC_AQUA")
+logger = logging.getLogger("ads.aqua")
 
 UNKNOWN = ""
 UNKNOWN_DICT = {}
@@ -145,10 +138,6 @@ SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "artifact_location"
 
 
-def get_logger():
-    return logger
-
-
 def random_color_generator(word: str):
     seed = sum([ord(c) for c in word]) % 13
     random.seed(seed)
@@ -235,7 +224,7 @@ def read_file(file_path: str, **kwargs) -> str:
         with fsspec.open(file_path, "r", **kwargs.get("auth", {})) as f:
             return f.read()
     except Exception as e:
-        logger.error(f"Failed to read file {file_path}. {e}")
+        logger.debug(f"Failed to read file {file_path}. {e}")
         return UNKNOWN
 
 
@@ -485,7 +474,7 @@ def _build_resource_identifier(
             ),
         )
     except Exception as e:
-        logger.error(
+        logger.debug(
             f"Failed to construct AquaResourceIdentifier from given id=`{id}`, and name=`{name}`, {str(e)}"
         )
         return AquaResourceIdentifier()

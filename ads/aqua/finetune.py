@@ -15,7 +15,7 @@ from oci.data_science.models import (
     UpdateModelProvenanceDetails,
 )
 
-from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
+from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.base import AquaApp
 from ads.aqua.data import AquaResourceIdentifier, Resource, Tags
 from ads.aqua.exception import AquaFileExistsError, AquaValueError
@@ -29,7 +29,6 @@ from ads.aqua.utils import (
     UNKNOWN,
     UNKNOWN_DICT,
     get_container_image,
-    logger,
     upload_local_to_os,
 )
 from ads.common.auth import default_signer
