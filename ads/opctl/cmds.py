@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import configparser
@@ -11,12 +11,14 @@ from typing import Dict, List, Union
 import click
 import fsspec
 import yaml
+from ads.opctl.backend.marketplace.local_marketplace import (
+    LocalMarketplaceOperatorBackend,
+)
 
 import ads
 from ads.common.auth import AuthContext, AuthType
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.oci_datascience import DSCNotebookSession
-from ads.opctl import logger
 from ads.opctl.backend.ads_dataflow import DataFlowBackend
 from ads.opctl.backend.ads_ml_job import MLJobBackend, MLJobDistributedBackend
 from ads.opctl.backend.ads_ml_pipeline import PipelineBackend
@@ -25,6 +27,7 @@ from ads.opctl.backend.local import (
     LocalBackend,
     LocalBackendDistributed,
     LocalModelDeploymentBackend,
+    LocalOperatorBackend,
     LocalPipelineBackend,
 )
 from ads.opctl.config.base import ConfigProcessor
@@ -54,6 +57,9 @@ from ads.opctl.distributed.cmds import (
     update_image,
     update_ini,
     verify_and_publish_image,
+)
+from ads.opctl.operator.common.backend_factory import (
+    BackendFactory as OperatorBackendFactory,
 )
 from ads.opctl.utils import get_service_pack_prefix, is_in_notebook_session
 
@@ -98,6 +104,8 @@ class _BackendFactory:
         BACKEND_NAME.DATAFLOW.value: DataFlowBackend,
         BACKEND_NAME.PIPELINE.value: PipelineBackend,
         BACKEND_NAME.MODEL_DEPLOYMENT.value: ModelDeploymentBackend,
+        BACKEND_NAME.OPERATOR_LOCAL.value: LocalOperatorBackend,
+        BACKEND_NAME.MARKETPLACE.value: LocalMarketplaceOperatorBackend,
     }
 
     LOCAL_BACKENDS_MAP = {
@@ -120,7 +128,7 @@ class _BackendFactory:
     @property
     def backend(self):
         if self._backend == BACKEND_NAME.LOCAL.value:
-            kind = self.config.get("kind")
+            kind = self.config.get("kind") or self.config["execution"].get("kind")
             if kind not in self.LOCAL_BACKENDS_MAP:
                 options = [backend for backend in self.LOCAL_BACKENDS_MAP.keys()]
                 # Special case local backend option not supported by this factory.
@@ -171,7 +179,31 @@ def run(config: Dict, **kwargs) -> Dict:
     Dict
         dictionary of job id and run id in case of ML Job run, else empty if running locally
     """
-    p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
+    if config:
+        p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
+        try:
+            return OperatorBackendFactory.backend(
+                config=p,
+                backend=p.config["execution"].get("backend"),
+                **{
+                    key: value
+                    for key, value in kwargs.items()
+                    if key not in ("backend", "config")
+                },
+            ).run(**kwargs)
+        except RuntimeError:
+            pass
+
+        if (
+            p.config["kind"] != BACKEND_NAME.LOCAL.value
+            and p.config["kind"] != "distributed"
+        ):
+            p.config["execution"]["backend"] = p.config["kind"]
+            return _BackendFactory(p.config).backend.apply()
+    else:
+        # If no yaml is provided and config is empty, we assume there's cmdline args to define a job.
+        config = {"kind": "job"}
+        p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
     if config.get("kind") == "distributed":  # TODO: add kind factory
         print(
             "......................... Initializing the process ..................................."
@@ -243,13 +275,6 @@ def run(config: Dict, **kwargs) -> Dict:
                 _save_yaml(yamlContent, **kwargs)
             return cluster_run_info
     else:
-        if (
-            "kind" in p.config
-            and p.config["execution"].get("backend", None) != BACKEND_NAME.LOCAL.value
-        ):
-            p.config["execution"]["backend"] = p.config["kind"]
-            return _BackendFactory(p.config).backend.apply()
-
         if "ocid" in p.config["execution"]:
             resource_to_backend = {
                 DataScienceResource.JOB: BACKEND_NAME.JOB,
@@ -321,31 +346,6 @@ def _update_env_vars(config, env_vars: List):
     return config
 
 
-def init_operator(**kwargs) -> str:
-    """
-    Initialize the resources for an operator
-
-    Parameters
-    ----------
-    kwargs: dict
-        keyword argument, stores command line args
-    Returns
-    -------
-    folder_path: str
-        a path to the folder with all of the resources
-    """
-    # TODO: confirm that operator slug is in the set of valid operator slugs
-    assert kwargs["operator_slug"] == "dask_cluster"
-
-    if kwargs.get("folder_path"):
-        kwargs["operator_folder_path"] = kwargs.pop("folder_path")[0]
-    else:
-        kwargs["operator_folder_path"] = kwargs["operator_slug"]
-    p = ConfigProcessor().step(ConfigMerger, **kwargs)
-    print(f"config check: {p.config}")
-    return _BackendFactory(p.config).backend.init_operator()
-
-
 def delete(**kwargs) -> None:
     """
     Delete a MLJob/DataFlow run.
@@ -374,7 +374,7 @@ def delete(**kwargs) -> None:
     ):
         kwargs["id"] = kwargs.pop("ocid")
     else:
-        raise ValueError(f"{kwargs['ocid']} is valid or supported.")
+        raise ValueError(f"{kwargs['ocid']} is invalid or not supported.")
 
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.delete()
@@ -388,13 +388,22 @@ def cancel(**kwargs) -> None:
     ----------
     kwargs: dict
         keyword argument, stores command line args
+
     Returns
     -------
     None
     """
-    kwargs["run_id"] = kwargs.pop("ocid")
-    if not kwargs.get("backend"):
-        kwargs["backend"] = _get_backend_from_run_id(kwargs["run_id"])
+    kwargs["backend"] = _get_backend_from_ocid(kwargs["ocid"])
+    if (
+        DataScienceResourceRun.JOB_RUN in kwargs["ocid"]
+        or DataScienceResourceRun.DATAFLOW_RUN in kwargs["ocid"]
+        or DataScienceResourceRun.PIPELINE_RUN in kwargs["ocid"]
+    ):
+        kwargs["run_id"] = kwargs.pop("ocid")
+    elif DataScienceResource.JOB in kwargs["ocid"]:
+        kwargs["id"] = kwargs.pop("ocid")
+    else:
+        raise ValueError(f"{kwargs['ocid']} is invalid or not supported.")
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.cancel()
 
@@ -532,6 +541,12 @@ def configure() -> None:
     if "CONDA" not in config_parser:
         config_parser["CONDA"] = {}
 
+    oci_auth = click.prompt(
+        text="Default OCI authentication type:",
+        type=click.Choice(AuthType.values()),
+        default=None,
+    )
+
     oci_config_path = click.prompt(
         "OCI config path:",
         default=config_parser["OCI"].get("oci_config", DEFAULT_OCI_CONFIG_FILE),
@@ -547,6 +562,7 @@ def configure() -> None:
     config_parser["OCI"] = {
         "oci_config": oci_config_path,
         "oci_profile": oci_profile,
+        "auth": oci_auth,
     }
     conda_pack_path = click.prompt(
         "Conda pack install folder:",
@@ -592,6 +608,8 @@ def configure() -> None:
             ("log_id", ""),
             ("docker_registry", ""),
             ("conda_pack_os_prefix", "in the format oci://<bucket>@<namespace>/<path>"),
+            ("memory_in_gbs", ""),
+            ("ocpus", ""),
         ]
         _set_service_configurations(
             ADS_JOBS_CONFIG_FILE_NAME,
@@ -618,6 +636,10 @@ def configure() -> None:
             ("num_executors", ""),
             ("spark_version", ""),
             ("archive_bucket", "in the format oci://<bucket>@<namespace>/<path>"),
+            ("driver_shape_memory_in_gbs", ""),
+            ("driver_shape_ocpus", ""),
+            ("executor_shape_memory_in_gbs", ""),
+            ("executor_shape_ocpus", ""),
         ]
         _set_service_configurations(
             ADS_DATAFLOW_CONFIG_FILE_NAME,
@@ -667,6 +689,8 @@ def configure() -> None:
             ("bandwidth_mbps", ""),
             ("replica", ""),
             ("web_concurrency", ""),
+            ("memory_in_gbs", ""),
+            ("ocpus", ""),
         ]
 
         _set_service_configurations(

@@ -1,0 +1,160 @@
+kind:
+  allowed:
+    - operator
+  required: true
+  type: string
+  default: operator
+  meta:
+    description: "Which service are you trying to use? Common kinds: `operator`, `job`"
+
+version:
+  allowed:
+    - "v1"
+  required: true
+  type: string
+  default: v1
+  meta:
+    description: "Operators may change yaml file schemas from version to version, as well as implementation details. Double check the version to ensure compatibility."
+
+type:
+  required: true
+  type: string
+  default: feature_store_marketplace
+  meta:
+    description: "Type should always be `feature_store_marketplace` when using a feature_store_marketplace operator"
+
+spec:
+  required: true
+  schema:
+    helm:
+      required: true
+      type: dict
+      meta:
+        description: "Helm related details"
+      schema:
+        appName:
+          required: true
+          type: string
+          meta:
+            description: "Helm app name"
+          default: "feature-store-api"
+        values:
+          required: true
+          type: dict
+          meta:
+            description: "Values being provided to helm chart"
+          schema:
+            db:
+              type: dict
+              required: true
+              description: "Feature store metadata database configuration"
+              schema:
+               mysql:
+                  type: dict
+                  required: false
+                  description: "MySQL database configuration"
+                  schema:
+                    authType:
+                      type: string
+                      required: true
+                      default: VAULT
+                      allowed:
+                        - VAULT
+                        - BASIC
+                    jdbcURL:
+                      type: string
+                      required: true
+                      description: "The JDBC connection url to the database"
+                      default: "{Provide JDBC connection URL for MySQL database}"
+                    username:
+                      type: string
+                      required: true
+                      description: "The username to use to login to DB"
+                      default: "admin"
+                    basic:
+                      type: dict
+                      required: false
+                      description: Basic authentication details
+                      schema:
+                        password:
+                          type: string
+                          required: true
+                          description: "Plain-text password to the MySql database"
+                          default: "{Provide plain-text password for MySQL database}"
+                    vault:
+                      type: dict
+                      required: false
+                      description: The details of vault to retrieve mysql secret from
+                      schema:
+                        vaultOcid:
+                          type: string
+                          required: true
+                          description: The OCID of the vault to retrieve the secret from
+                          default: "{Provide ocid of the vault to retrieve the password from}"
+                        secretName:
+                          type: string
+                          required: true
+                          description: The name of the secret inside the vault containing the password
+                          default: "{Provide name of the secret containing password to mysql db}"
+              configuredDB:
+                type: string
+                required: true
+                default: MYSQL
+                allowed:
+                  - MYSQL
+    compartmentId:
+      type: string
+      required: true
+      default: "<Provide compartment ID here>"
+      description: Compartment id to use for marketplace export
+
+    clusterDetails:
+      required: true
+      type: dict
+      schema:
+        namespace:
+          type: string
+          required: true
+          default: "default"
+          description: "Namespace where we want to deploy the cluster to. Eg: 'default'"
+        dockerRegistrySecretName:
+          type: string
+          required: true
+          default: "fs-ocir-secret"
+          description: "The name of the secret in namespace having docker credentials"
+    ocirURL:
+      type: string
+      required: true
+      default: "iad.ocir.io/{tenancy_namespace}/{repository}"
+      description: "URL to the image where feature store images need to be cloned to"
+    version:
+      type: string
+      required: true
+      default: "latest"
+      description: "Version of the listing to deploy"
+    apiGatewayDeploymentDetails:
+      required: true
+      type: dict
+      schema:
+        enabled:
+          type: bool
+          required: true
+          default: false
+          description: "Whether to deploy API gateway or not"
+        rootCompartmentId:
+          type: string
+          required: false
+          description: "Root compartment ID of the tenancy where api gateway needs to be deployed. This is needed to setup certain tenancy wide policies"
+        region:
+          type: string
+          required: false
+          description: "Region to deploy API gateway in"
+        authorizedUserGroups:
+          type: string
+          required: false
+          description: "List of comma separated user groups authorized to access feature store"
+        stackId:
+          type: string
+          required: false
+          description: "Stack id to use for api gateway deployment"
+  type: dict

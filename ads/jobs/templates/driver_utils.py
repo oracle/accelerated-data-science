@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import contextlib
 import importlib
 import json
 import logging
@@ -14,7 +15,9 @@ import subprocess
 import sys
 import time
 import traceback
-from typing import List, Optional, Any
+from io import DEFAULT_BUFFER_SIZE
+from typing import List, Optional
+from urllib import request
 from urllib.parse import urlparse
 
 
@@ -32,6 +35,9 @@ CONST_ENV_OUTPUT_DIR = "OUTPUT_DIR"
 CONST_ENV_OUTPUT_URI = "OUTPUT_URI"
 CONST_ENV_OCI_RP = "OCI_RESOURCE_PRINCIPAL_VERSION"
 CONST_ENV_ADS_IAM = "OCI_IAM_TYPE"
+CONST_ENV_INPUT_MAPPINGS = "OCI__INPUT_MAPPINGS"
+CONST_ENV_PIP_REQ = "OCI__PIP_REQUIREMENTS"
+CONST_ENV_PIP_PKG = "OCI__PIP_PKG"
 CONST_API_KEY = "api_key"
 
 
@@ -233,6 +239,62 @@ class OCIHelper:
             output_dir, namespace, bucket, prefix
         )
 
+    @staticmethod
+    def _download_with_urlopen(src, dest):
+        url_response = request.urlopen(src)
+        with contextlib.closing(url_response) as f:
+            logger.debug("Downloading from %s", src)
+            with open(dest, "wb") as out_file:
+                block_size = DEFAULT_BUFFER_SIZE * 8
+                while True:
+                    block = f.read(block_size)
+                    if not block:
+                        break
+                    out_file.write(block)
+
+    @staticmethod
+    def _download_with_fsspec(src, dest):
+        import fsspec
+
+        scheme = urlparse(src).scheme
+        fs = fsspec.filesystem(scheme)
+        fs.get(
+            src,
+            dest,
+            recursive=True,
+            callback=fsspec.callbacks.TqdmCallback(),
+        )
+
+    @staticmethod
+    def copy_inputs(mappings: dict = None):
+        if not mappings and CONST_ENV_INPUT_MAPPINGS in os.environ:
+            mappings = json.loads(os.environ[CONST_ENV_INPUT_MAPPINGS])
+            logger.debug("Inputs specified from ENV: %s", mappings)
+
+        if not mappings:
+            logger.debug("No inputs specified.")
+            return
+
+        for src, dest in mappings.items():
+            logger.debug("Copying %s to %s", src, os.path.abspath(dest))
+            # Create the dest dir if one does not exist.
+            if str(dest).endswith("/"):
+                dest_dir = dest
+            else:
+                dest_dir = os.path.dirname(dest)
+
+            # Do not make dirs if user is using cwd.
+            if dest_dir:
+                os.makedirs(dest_dir, exist_ok=True)
+
+            # Use native Python to download http/ftp.
+            scheme = urlparse(src).scheme
+            if scheme in ["http", "https", "ftp"]:
+                OCIHelper._download_with_urlopen(src, dest)
+            else:
+                OCIHelper._download_with_fsspec(src, dest)
+        return
+
 
 class ArgumentParser:
     """Contains methods for parsing arguments for entry function."""
@@ -287,10 +349,11 @@ class JobRunner:
         """
         logger.info("Job Run ID is: %s", os.environ.get(CONST_ENV_JOB_RUN_OCID))
         self.code_dir = code_dir
+        self.conda_prefix = sys.executable.split("/bin/python", 1)[0]
 
     @staticmethod
     def run_command(
-        command: str, activate_conda: bool = False, level: Optional[int] = None
+        command: str, conda_prefix: str = None, level: Optional[int] = None, check=False
     ) -> int:
         """Runs a shell command and logs the outputs with specific log level.
 
@@ -298,8 +361,9 @@ class JobRunner:
         ----------
         command : str
             The shell command
-        activate_conda : bool, optional
-            Indicate if conda environment should be activated for running the command, by default False
+        conda_prefix : str, optional
+            Prefix of the conda environment for running the command.
+            Defaults to None.
         level : int, optional
             Logging level for the command outputs, by default None.
             If this is set to a log level from logging, e.g. logging.DEBUG,
@@ -311,11 +375,12 @@ class JobRunner:
         int
             The return code of the command.
         """
-        logger.debug(">>> %s", command)
-        if activate_conda:
+        # Add a small time delay so the existing outputs will not intersect with the command outputs.
+        time.sleep(0.05)
+        logger.info(">>> %s", command)
+        if conda_prefix:
             # Conda activate
             # https://docs.conda.io/projects/conda/en/latest/release-notes.html#id241
-            conda_prefix = sys.executable.split("/bin/python", 1)[0]
             cmd = (
                 "CONDA_BASE=$(conda info --base) && "
                 + "source $CONDA_BASE/etc/profile.d/conda.sh && "
@@ -332,6 +397,7 @@ class JobRunner:
             shell=True,
         )
         # Stream the outputs
+        logger.debug("Streaming command output from subprocess %s", process.pid)
         while True:
             output = process.stdout.readline()
             if process.poll() is not None and output == b"":
@@ -343,16 +409,54 @@ class JobRunner:
                     print(msg, flush=True, end="")
                 else:
                     # logging will flush outputs by default
+                    # logging will add line break
+                    msg = msg.rstrip("\n")
                     logger.log(level=level, msg=msg)
+                if "pdsh@" in msg and "ssh exited with exit code 1" in msg:
+                    print("DeepSpeed Failed.")
+                    sys.exit(1)
             # Add a small delay so that
             # outputs from the subsequent code will have different timestamp for oci logging
-            time.sleep(0.05)
+            time.sleep(0.02)
+        logger.debug(
+            "subprocess %s returned exit code %s", process.pid, process.returncode
+        )
+        if check and process.returncode != 0:
+            # If there is an error, exit the main process with the same return code.
+            sys.exit(process.returncode)
         return process.returncode
 
     def conda_unpack(self):
         if self.run_command("conda-unpack", level=logging.DEBUG):
             logger.info("conda-unpack exits with non-zero return code.")
         return self
+
+    def install_pip_requirements(self, req_path: str = None):
+        if not req_path:
+            req_path = os.environ.get(CONST_ENV_PIP_REQ)
+        if not req_path:
+            return self
+        self.run_command(
+            f"pip install -r {req_path}", conda_prefix=self.conda_prefix, check=True
+        )
+        return self
+
+    def install_pip_packages(self, packages: str = None):
+        if not packages:
+            packages = os.environ.get(CONST_ENV_PIP_PKG)
+        if not packages:
+            return self
+        # The package requirement may contain special character like '>'.
+        # Here we wrap each package requirement with single quote to make sure they can be installed correctly
+        package_list = shlex.split(packages)
+        packages = " ".join([f"'{package}'" for package in package_list])
+        self.run_command(
+            f"pip install {packages}", conda_prefix=self.conda_prefix, check=True
+        )
+        return self
+
+    def install_dependencies(self):
+        return self.install_pip_requirements().install_pip_packages()
 
     def set_working_dir(self, working_dir: str = os.environ.get(CONST_ENV_WORKING_DIR)):
         """Sets the working directory for the job run.
@@ -370,9 +474,11 @@ class JobRunner:
         else:
             working_dir = self.code_dir
         os.chdir(working_dir)
+        logger.debug("Working directory set to %s", working_dir)
         # Add working dir to sys.path
         if working_dir not in sys.path:
             sys.path.append(working_dir)
+            logger.debug("Added %s to sys.path", working_dir)
         return self
 
     def setup_python_path(
@@ -398,6 +504,7 @@ class JobRunner:
             abs_path = os.path.abspath(os.path.expanduser(path))
             if abs_path not in sys.path:
                 sys.path.append(abs_path)
+                logger.debug("Added %s to sys.path", abs_path)
         logger.debug("Python Path: %s", sys.path)
         return self
 
@@ -455,7 +562,7 @@ class JobRunner:
                     logger.debug(traceback.format_exc())
             # Run the entrypoint as shell command with conda activated
             cmd = shlex.join([entrypoint] + sys.argv[1:])
-            return_code = self.run_command(cmd, activate_conda=True)
+            return_code = self.run_command(cmd, conda_prefix=self.conda_prefix)
             # Exit the job run with the same return code if it is non-zero.
             if return_code:
                 logger.error("CMD exited with return code %s.", return_code)
@@ -499,7 +606,9 @@ class JobRunner:
                 tags = json.loads(tags)
                 logger.info("Excluding cells with any of the following tags: %s", tags)
             # Pass in the absolute path to make sure the working dir is notebook directory
-            run_notebook(os.path.abspath(os.path.expanduser(entrypoint)), exclude_tags=tags)
+            run_notebook(
+                os.path.abspath(os.path.expanduser(entrypoint)), exclude_tags=tags
+            )
         else:
             self._run_script(entrypoint_abs_path)
         logger.info("Job run completed.")

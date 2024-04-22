@@ -1,27 +1,52 @@
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
-    hooks:
-    -   id: check-ast
-    -   id: check-docstring-first
-        exclude: ^tests/
-    -   id: check-json
-    -   id: check-merge-conflict
-    -   id: check-yaml
-        args: ['--allow-multiple-documents']
-    -   id: detect-private-key
-    -   id: end-of-file-fixer
-    -   id: pretty-format-json
-        args: ['--autofix']
-    -   id: trailing-whitespace
--   repo: https://github.com/psf/black
-    rev: 22.12.0
-    hooks:
-    -   id: black
--   repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.9.0
-    hooks:
-    -   id: rst-backticks
-    -   id: rst-inline-touching-normal
-
-exclude: ^(docs/)
+    # Standard hooks
+    - repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v4.4.0
+      hooks:
+          - id: check-ast
+            exclude: ^docs/
+          - id: check-docstring-first
+            exclude: ^(docs/|tests/)
+          - id: check-json
+          - id: check-merge-conflict
+          - id: check-yaml
+            exclude: feature_store_*.yaml
+            args: ["--allow-multiple-documents"]
+          - id: detect-private-key
+          - id: end-of-file-fixer
+            exclude: '\.ipynb?$'
+          - id: pretty-format-json
+            args: ["--autofix"]
+          - id: trailing-whitespace
+            args: [--markdown-linebreak-ext=md]
+            exclude: ^docs/
+    # Black, the code formatter, natively supports pre-commit
+    - repo: https://github.com/psf/black
+      rev: 23.3.0
+      hooks:
+          - id: black
+            exclude: ^docs/
+    # Regex based rst files common mistakes detector
+    - repo: https://github.com/pre-commit/pygrep-hooks
+      rev: v1.10.0
+      hooks:
+          - id: rst-backticks
+            files: ^docs/
+          - id: rst-inline-touching-normal
+            files: ^docs/
+    # Hardcoded secrets and ocids detector
+    - repo: https://github.com/gitleaks/gitleaks
+      rev: v8.17.0
+      hooks:
+          - id: gitleaks
+            exclude: .github/workflows/reusable-actions/set-dummy-conf.yml
+    # Oracle copyright checker
+    - repo: https://github.com/oracle-samples/oci-data-science-ai-samples/
+      rev: 1bc5270a443b791c62f634233c0f4966dfcc0dd6
+      hooks:
+          - id: check-copyright
+            name: check-copyright
+            entry: .pre-commit-scripts/check-copyright.py
+            language: script
+            types_or: ["python", "shell", "bash"]
+            exclude: ^docs/

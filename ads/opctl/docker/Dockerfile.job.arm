@@ -1,0 +1,107 @@
+# Copyright (c) 2023 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+# Used OL8 because miniconda required a higher version of glibc that was unavoidable
+FROM ghcr.io/oracle/oraclelinux:8-slim
+
+# Configure environment
+ENV DATASCIENCE_USER datascience
+ENV DATASCIENCE_UID 1000
+ENV HOME /home/$DATASCIENCE_USER
+ENV DATASCIENCE_INSTALL_DIR /etc/datascience
+
+ARG release=19
+ARG update=10
+
+RUN microdnf install yum yum-utils && yum clean all && rm -rf /var/cache/yum
+
+RUN \
+    yum -y -q install \
+    oracle-release-el8 && \
+    yum-config-manager --enable ol8_addons --enable ol8_oracle_instantclient > /dev/null && \
+    yum groupinstall -y -q 'Development Tools' && \
+    yum update -y && \
+    yum install -y --setopt=skip_missing_names_on_install=False \
+    bzip2 \
+    curl \
+    git \
+    gcc-gfortran \
+    libcurl-devel \
+    libxml2-devel \
+    oracle-instantclient${release}.${update}-basic  \
+    oracle-instantclient${release}.${update}-sqlplus \
+    openssl \
+    openssl-devel \
+    patch \
+    sudo \
+    unzip \
+    zip \
+    gcc-c++ \
+    wget \
+    gcc \
+    && yum clean all \
+    && rm -rf /var/cache/yum/*
+
+# setup user
+RUN \
+  mkdir -p /home/$DATASCIENCE_USER && \
+  useradd -m -s /bin/bash -N -u $DATASCIENCE_UID $DATASCIENCE_USER && \
+  chown -R $DATASCIENCE_USER /home/$DATASCIENCE_USER && \
+  chown -R $DATASCIENCE_USER:users /usr/local/ && \
+  touch /etc/sudoers.d/$DATASCIENCE_USER && echo "$DATASCIENCE_USER ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers.d/$DATASCIENCE_USER && \
+  mkdir -p $DATASCIENCE_INSTALL_DIR && chown $DATASCIENCE_USER $DATASCIENCE_INSTALL_DIR
+
+RUN mkdir -p /etc/datascience/build
+RUN mkdir -p $DATASCIENCE_INSTALL_DIR/{pre-build-ds,post-build-ds,pre-run-ds,pre-run-user}
+
+#conda
+# set a default language for localization.  necessary for oci cli
+ARG LANG=en_US.utf8
+ENV LANG=$LANG
+ENV SHELL=/bin/bash
+
+# set /opt folder permissions for $DATASCIENCE_USER. Conda is going to live in this folder.
+RUN chown -R $DATASCIENCE_USER /opt
+
+USER $DATASCIENCE_USER
+WORKDIR /home/datascience
+# Note in order to run sudo commands as a non root user, you must specify --credential yes if using qemu static to build the image
+ARG MINICONDA_VER=23.5.2-0
+RUN wget -nv https://repo.anaconda.com/miniconda/Miniconda3-py38_${MINICONDA_VER}-Linux-aarch64.sh -O /home/datascience/Miniconda3.sh \
+    && /bin/bash /home/datascience/Miniconda3.sh -f -b -p /opt/conda \
+    && rm /home/datascience/Miniconda3.sh \
+    && /opt/conda/bin/conda clean -yaf
+
+WORKDIR /
+USER root
+RUN printf "#!/bin/bash\nsource /opt/conda/bin/activate\n" > /etc/profile.d/enableconda.sh \
+    && chmod +x /etc/profile.d/enableconda.sh
+
+USER $DATASCIENCE_USER
+ENV PATH="/opt/conda/bin:${PATH}"
+WORKDIR /home/datascience
+
+COPY docker/base-env.yaml /opt/base-env.yaml
+RUN conda env update -q -n root -f /opt/base-env.yaml && conda clean -yaf && rm -rf /home/datascience/.cache/pip
+
+USER $DATASCIENCE_USER
+
+####### WRAP UP ###############################
+RUN python -c 'import sys; assert(sys.version_info[:2]) == (3, 8), "Python 3.8 is not detected"'
+WORKDIR /
+
+RUN conda list
+
+############# Setup Conda environment tools ###########################
+USER root
+ARG RAND=1
+
+ARG RUN_WORKING_DIR="/home/datascience"
+WORKDIR $RUN_WORKING_DIR
+
+# clean tmp folder
+RUN rm -rf /tmp/*
+
+RUN mkdir -p /etc/datascience/operators
+
+USER datascience

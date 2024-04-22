@@ -3,7 +3,6 @@ Infrastructure and Runtime
 
 This page describes the configurations of **Infrastructure** and **Runtime** defining a Data Science Job.
 
-.. include:: ../jobs/toc_local.rst
 
 Example
 =======
@@ -99,9 +98,42 @@ a service gateway, both are configured automatically. Custom networking requires
 You can control the network access through the subnet and security lists.
 
 If you specified a subnet ID, your job will be configured to have custom networking.
-Otherwise, default networking will be used. Note that when you are in a Data Science Notebook Session,
+Otherwise, default networking will be used.
+
+Note that when you are in a Data Science Notebook Session,
 the same networking configuration is be used by default.
 You can specify the networking manually by calling :py:meth:`~ads.jobs.DataScienceJob.with_job_infrastructure_type()`.
+For example, if you are using custom networking in the notebook session
+but you would like to use default networking for the job:
+
+.. tabs::
+
+  .. code-tab:: python
+    :caption: Python
+
+    from ads.jobs import DataScienceJob
+
+    infrastructure = (
+        DataScienceJob()
+        .with_log_group_id("<log_group_ocid>")
+        .with_log_id("<log_ocid>")
+        # Use default networking,
+        # regardless of the networking used by the notebook session
+        .with_job_infrastructure_type("ME_STANDALONE")
+        # compartment ID, project ID, compute shape and block storage will be
+        # the same as the ones set in the notebook session
+    )
+
+  .. code-tab:: yaml
+    :caption: YAML
+
+    kind: infrastructure
+    type: dataScienceJob
+    spec:
+      jobInfrastructureType: ME_STANDALONE
+      logGroupId: <log_group_ocid>
+      logId: <log_ocid>
+
 
 Logging
 -------
@@ -119,6 +151,61 @@ a new Log resource is automatically created within the log group to store the lo
 see also `ADS Logging <../logging/logging.html>`_.
 
 With logging configured, you can call :py:meth:`~ads.jobs.DataScienceJobRun.watch` method to stream the logs.
+
+
+Mounting File Systems
+---------------------
+
+Data Science Job supports mounting multiple types of file systems,
+see `Data Science Job Mounting File Systems <https://docs.oracle.com/en-us/iaas/data-science/using/jobs-create.htm>`_. A maximum number of 5 file systems are
+allowed to be mounted for each Data Science Job. You can specify a list of file systems to be mounted
+by calling :py:meth:`~ads.jobs.DataScienceJob.with_storage_mount()`. For each file system to be mounted,
+you need to pass a dictionary with ``src`` and ``dest`` as keys. For example, you can pass
+``<mount_target_ip_address>@<export_path>`` as the value for ``src`` to mount OCI File Storage and you can also
+pass ``oci://<bucket_name>@<namespace>/<prefix>`` to mount OCI Object Storage. The value of
+``dest`` indicates the path and directory to which you want to mount the file system and must be in the
+format as ``<destination_path>/<destination_directory_name>``. The ``<destination_directory_name>`` is required
+while the ``<destination_path>`` is optional. The ``<destination_path>`` must start with character ``/`` if provided.
+If not, the file systems will be mounted to ``/mnt/<destination_directory_name>`` by default.
+
+
+.. tabs::
+
+  .. code-tab:: python
+    :caption: Python
+
+    from ads.jobs import DataScienceJob
+
+    infrastructure = (
+        DataScienceJob()
+        .with_log_group_id("<log_group_ocid>")
+        .with_log_id("<log_ocid>")
+        .with_storage_mount(
+          {
+            "src" : "<mount_target_ip_address>@<export_path>",
+            "dest" : "<destination_path>/<destination_directory_name>"
+          }, # mount oci file storage to path "<destination_path>/<destination_directory_name>"
+          {
+            "src" : "oci://<bucket_name>@<namespace>/<prefix>",
+            "dest" : "<destination_directory_name>"
+          } # mount oci object storage to path "/mnt/<destination_directory_name>"
+        )
+    )
+
+  .. code-tab:: yaml
+    :caption: YAML
+
+    kind: infrastructure
+    type: dataScienceJob
+    spec:
+      logGroupId: <log_group_ocid>
+      logId: <log_ocid>
+      storageMount:
+      - src: <mount_target_ip_address>@<export_path>
+        dest: <destination_path>/<destination_directory_name>
+      - src: oci://<bucket_name>@<namespace>/<prefix>
+        dest: <destination_directory_name>
+
 
 Runtime
 =======
@@ -220,6 +307,9 @@ to your desired order. You can check ``runtime.args`` to see the added arguments
 Here are a few more examples:
 
 .. include:: ../jobs/tabs/runtime_args.rst
+
+
+.. _conda_environment:
 
 Conda Environment
 -----------------

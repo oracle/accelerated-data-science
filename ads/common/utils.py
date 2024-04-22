@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from __future__ import absolute_import, print_function
@@ -33,24 +33,23 @@ import fsspec
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
-from ads.common import logger
-from ads.common.decorator.deprecate import deprecated
-from ads.common.word_lists import adjectives, animals
-from ads.dataset.progress import TqdmProgressBar
 from cycler import cycler
+from oci import object_storage
 from pandas.core.dtypes.common import is_datetime64_dtype, is_numeric_dtype
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
+from ads import config
 from ads.common import logger
 from ads.common.decorator.deprecate import deprecated
 from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
     runtime_dependency,
 )
+from ads.common.object_storage_details import ObjectStorageDetails
+from ads.common.oci_client import OCIClientFactory
 from ads.common.word_lists import adjectives, animals
-from ads import config
-from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
+from ads.dataset.progress import TqdmProgressBar
 
 from . import auth as authutil
 
@@ -68,7 +67,7 @@ MIN_RATIO_FOR_DOWN_SAMPLING = 1 / 20
 MAX_DISPLAY_VALUES = 10
 
 # par link of the index json file.
-PAR_LINK = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/Ri7zFc_h91sxMdgnza9Qnqw3Ina8hf8wzDvEpAnUXMDOnUR1U1fpsaBUjUfgPgIq/n/ociodscdev/b/service-conda-packs/o/service_pack/index.json"
+PAR_LINK = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/WyjtfVIG0uda-P3-2FmAfwaLlXYQZbvPZmfX1qg0-sbkwEQO6jpwabGr2hMDBmBp/n/ociodscdev/b/service-conda-packs/o/service_pack/index.json"
 
 random_state = 42
 test_size = 0.3
@@ -100,8 +99,11 @@ DIMENSION = 2
 
 # declare custom exception class
 
+# The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
+DEFAULT_PARALLEL_PROCESS_COUNT = 9
 
-class FileOverwriteError(Exception):   # pragma: no cover
+
+class FileOverwriteError(Exception):  # pragma: no cover
     pass
 
 
@@ -1282,6 +1284,7 @@ def copy_file(
     auth: Optional[Dict] = None,
     chunk_size: Optional[int] = DEFAULT_BUFFER_SIZE,
     progressbar_description: Optional[str] = "Copying `{uri_src}` to `{uri_dst}`",
+    ignore_if_src_not_exists: Optional[bool] = False,
 ) -> str:
     """
     Copies file from `uri_src` to `uri_dst`.
@@ -1301,8 +1304,10 @@ def copy_file(
         The default authentication is set using `ads.set_auth` API. If you need to override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
         authentication signer and kwargs required to instantiate IdentityClient object.
-    chunk_size: (int, optinal). Defaults to `DEFAULT_BUFFER_SIZE`
+    chunk_size: (int, optional). Defaults to `DEFAULT_BUFFER_SIZE`
         How much data can be copied in one iteration.
+    progressbar_description: (str, optional). Defaults to `"Copying `{uri_src}` to `{uri_dst}`"`.
+        Prefix for the progressbar.
 
     Returns
     -------
@@ -1315,14 +1320,23 @@ def copy_file(
         If a destination file exists and `force_overwrite` set to `False`.
     """
     chunk_size = chunk_size or DEFAULT_BUFFER_SIZE
-    auth = auth or authutil.default_signer()
 
     if not os.path.basename(uri_dst):
         uri_dst = os.path.join(uri_dst, os.path.basename(uri_src))
     src_path_scheme = urlparse(uri_src).scheme or "file"
-    src_file_system = fsspec.filesystem(src_path_scheme, **auth)
-    file_size = src_file_system.info(uri_src)["size"]
 
+    auth = auth or {}
+    if src_path_scheme.lower() == "oci" and not auth:
+        auth = authutil.default_signer()
+
+    src_file_system = fsspec.filesystem(src_path_scheme, **auth)
+
+    if not fsspec.filesystem(src_path_scheme, **auth).exists(uri_src):
+        if ignore_if_src_not_exists:
+            return uri_dst
+        raise FileNotFoundError(f"The `{uri_src}` not exists.")
+
+    file_size = src_file_system.info(uri_src)["size"]
     if not force_overwrite:
         dst_path_scheme = urlparse(uri_dst).scheme or "file"
         if fsspec.filesystem(dst_path_scheme, **auth).exists(uri_dst):
@@ -1593,7 +1607,178 @@ def is_path_exists(uri: str, auth: Optional[Dict] = None) -> bool:
     bool: return True if the path exists.
     """
     path_scheme = urlparse(uri).scheme or "file"
-    storage_options = auth or authutil.default_signer()
+    storage_options = {}
+    if path_scheme != "file":
+        storage_options = auth or authutil.default_signer()
     if fsspec.filesystem(path_scheme, **storage_options).exists(uri):
         return True
     return False
+
+
+def upload_to_os(
+    src_uri: str,
+    dst_uri: str,
+    auth: dict = None,
+    parallel_process_count: int = DEFAULT_PARALLEL_PROCESS_COUNT,
+    progressbar_description: str = "Uploading `{src_uri}` to `{dst_uri}`.",
+    force_overwrite: bool = False,
+):
+    """Utilizes `oci.object_storage.Uploadmanager` to upload file to Object Storage.
+
+    Parameters
+    ----------
+    src_uri: str
+        The path to the file to upload. This should be local path.
+    dst_uri: str
+        Object Storage path, eg. `oci://my-bucket@my-tenancy/prefix``.
+    auth: (Dict, optional) Defaults to None.
+        default_signer()
+    parallel_process_count: (int, optional) Defaults to 3.
+        The number of worker processes to use in parallel for uploading individual
+        parts of a multipart upload.
+    progressbar_description: (str, optional) Defaults to `"Uploading `{src_uri}` to `{dst_uri}`"`.
+        Prefix for the progressbar.
+    force_overwrite: (bool, optional). Defaults to False.
+        Whether to overwrite existing files or not.
+
+    Returns
+    -------
+    Response: oci.response.Response
+        The response from multipart commit operation or the put operation.
+
+    Raise
+    -----
+    ValueError
+        When the given `dst_uri` is not a valid Object Storage path.
+    FileNotFoundError
+        When the given `src_uri` does not exist.
+    RuntimeError
+        When upload operation fails.
+    """
+    if not os.path.exists(src_uri):
+        raise FileNotFoundError(f"The give src_uri: {src_uri} does not exist.")
+
+    if not ObjectStorageDetails.is_oci_path(
+        dst_uri
+    ) or not ObjectStorageDetails.is_valid_uri(dst_uri):
+        raise ValueError(
+            f"The given dst_uri:{dst_uri} is not a valid Object Storage path."
+        )
+
+    auth = auth or authutil.default_signer()
+
+    if not force_overwrite and is_path_exists(dst_uri):
+        raise FileExistsError(
+            f"The `{dst_uri}` exists. Please use a new file name or "
+            "set force_overwrite to True if you wish to overwrite."
+        )
+
+    upload_manager = object_storage.UploadManager(
+        object_storage_client=OCIClientFactory(**auth).object_storage,
+        parallel_process_count=parallel_process_count,
+        allow_multipart_uploads=True,
+        allow_parallel_uploads=True,
+    )
+
+    file_size = os.path.getsize(src_uri)
+    with open(src_uri, "rb") as fs:
+        with tqdm(
+            total=file_size,
+            unit="B",
+            unit_scale=True,
+            unit_divisor=1024,
+            position=0,
+            leave=False,
+            file=sys.stdout,
+            desc=progressbar_description,
+        ) as pbar:
+
+            def progress_callback(progress):
+                pbar.update(progress)
+
+            bucket_details = ObjectStorageDetails.from_path(dst_uri)
+            response = upload_manager.upload_stream(
+                namespace_name=bucket_details.namespace,
+                bucket_name=bucket_details.bucket,
+                object_name=bucket_details.filepath,
+                stream_ref=fs,
+                progress_callback=progress_callback,
+            )
+
+    if response.status == 200:
+        print(f"{src_uri} has been successfully uploaded to {dst_uri}.")
+    else:
+        raise RuntimeError(
+            f"Failed to upload {src_uri}. Response code is {response.status}"
+        )
+
+    return response
+
+
+def get_console_link(
+    resource: str,
+    ocid: str,
+    region: str,
+) -> str:
+    """
+    This method returns the web console link for the given resource.
+    Parameters
+    ----------
+    resource: str
+        identify the type of OCI resource. {model, model-deployments, notebook-sessions, jobs} is supported.
+    ocid: str
+        OCID of the resource
+    region: str
+        The Region Identifier that the client should connect to.
+
+    Returns
+    -------
+    console_link_url: str
+        a valid link to the console for the given resource
+    """
+    console_link_url = (
+        f"https://cloud.oracle.com/data-science/{resource}/{ocid}?region={region}"
+    )
+    return console_link_url
+
+
+def get_log_links(
+    region: str,
+    log_group_id: str,
+    compartment_id: str = None,
+    log_id: str = None,
+    source_id: str = None,
+) -> str:
+    """
+    This method returns the web console link for the given log ids.
+    
+    Parameters
+    ----------
+    log_group_id: str, required
+        OCID of the resource
+    log_id: str, optional
+        OCID of the resource
+    region: str
+        The Region Identifier that the client should connect to.
+    compartment_id: str, optional
+        The compartment OCID of the resource.
+    source_id: str, optional
+        The OCID of the resource.
+
+    Returns
+    -------
+    console_link_url: str
+        a valid link to the console for the given resource.
+    """
+    console_link_url = ""
+    if log_group_id and log_id:
+        # format: https://cloud.oracle.com/logging/search?searchQuery=search "<compartment>/<log_group>/<log>" | source='<source>' | sort by datetime desc&regions=<region>
+        query_range = f'''search "{compartment_id}/{log_group_id}/{log_id}"'''
+        query_source = f"source='{source_id}'"
+        sort_condition = f"sort by datetime desc&regions={region}"
+        search_query = f"search?searchQuery={query_range} | {query_source} | {sort_condition}"
+        console_link_url = f"https://cloud.oracle.com/logging/{search_query}"
+    elif log_group_id:
+        console_link_url = f"https://cloud.oracle.com/logging/log-groups/{log_group_id}?region={region}"
+
+    return console_link_url

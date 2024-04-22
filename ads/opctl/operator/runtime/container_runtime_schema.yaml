@@ -1,0 +1,50 @@
+kind:
+  allowed:
+    - operator.local
+  required: true
+  type: string
+  meta:
+    description: "The operator local runtime. Kind should always be `operator.local` when using an operator with local container runtime."
+version:
+  allowed:
+    - "v1"
+  required: true
+  type: string
+  meta:
+    description: "Operator local runtime may change yaml file schemas from version to version, as well as implementation details. Double check the version to ensure compatibility."
+type:
+  allowed:
+    - container
+  required: true
+  type: string
+  meta:
+    description: "Type should always be `container` when using an operator with local container runtime."
+spec:
+  required: true
+  type: dict
+  schema:
+    image:
+      nullable: true
+      required: false
+      type: string
+      default: image:tag
+      meta:
+        description: "The image to run the operator. By default will be used the operator name with latest tag."
+    env:
+      nullable: true
+      required: false
+      type: list
+      schema:
+        type: dict
+        schema:
+          name:
+            type: string
+          value:
+            type:
+              - number
+              - string
+    volume:
+      required: false
+      type:
+        - string
+        - list

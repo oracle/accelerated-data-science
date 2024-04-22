@@ -5,16 +5,16 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
+import json
 import os
 import shlex
 import shutil
 import tempfile
+import time
 from distutils import dir_util
 from typing import Dict, Tuple, Union
 
-from jinja2 import Environment, PackageLoader
-
-from ads.common.auth import AuthContext, create_signer
+from ads.common.auth import AuthContext, AuthType, create_signer
 from ads.common.oci_client import OCIClientFactory
 from ads.jobs import (
     ContainerRuntime,
@@ -27,15 +27,15 @@ from ads.jobs import (
     ScriptRuntime,
 )
 from ads.opctl import logger
-from ads.opctl.backend.base import (
-    Backend,
-    RuntimeFactory,
-)
+from ads.opctl.backend.base import Backend, RuntimeFactory
 from ads.opctl.config.resolver import ConfigResolver
 from ads.opctl.constants import DEFAULT_IMAGE_SCRIPT_DIR
+from ads.opctl.decorator.common import print_watch_command
 from ads.opctl.distributed.common.cluster_config_helper import (
     ClusterConfigToJobSpecConverter,
 )
+from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
+from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
 
 REQUIRED_FIELDS = [
     "project_id",
@@ -93,22 +93,51 @@ class MLJobBackend(Backend):
             `None` otherwise.
         """
 
+        conda_slug = (
+            kwargs.get(
+                "conda_slug", self.config["execution"].get("conda_slug", "conda_slug")
+            )
+            or ""
+        ).lower()
+
+        # if conda slug contains '/' then the assumption is that it is a custom conda pack
+        # the conda prefix needs to be added
+        if "/" in conda_slug:
+            conda_slug = os.path.join(
+                self.config["execution"].get(
+                    "conda_pack_os_prefix", "oci://bucket@namespace/conda_environments"
+                ),
+                conda_slug,
+            )
+
+        RUNTIME_KWARGS_MAP = {
+            ContainerRuntime().type: {
+                "image": (
+                    f"{self.config['infrastructure'].get('docker_registry','').rstrip('/')}"
+                    f"/{kwargs.get('image_name', self.config['execution'].get('image','image:latest'))}"
+                )
+            },
+            ScriptRuntime().type: {"conda_slug": conda_slug},
+            PythonRuntime().type: {"conda_slug": conda_slug},
+            NotebookRuntime().type: {},
+            GitPythonRuntime().type: {},
+        }
+
+        runtime_type = runtime_type or PythonRuntime().type
         with AuthContext(auth=self.auth_type, profile=self.profile):
             # define a job
             job = (
                 Job()
-                .with_name(
-                    "{Job name. For MLflow, it will be replaced with the Project name}"
-                )
+                .with_name("{Job name. For MLflow and Operator will be auto generated}")
                 .with_infrastructure(
                     DataScienceJob(
                         **(self.config.get("infrastructure", {}) or {})
                     ).init()
                 )
                 .with_runtime(
-                    JobRuntimeFactory.get_runtime(
-                        key=runtime_type or PythonRuntime().type
-                    ).init()
+                    JobRuntimeFactory.get_runtime(key=runtime_type).init(
+                        **{**kwargs, **RUNTIME_KWARGS_MAP[runtime_type]}
+                    )
                 )
             )
 
@@ -126,7 +155,8 @@ class MLJobBackend(Backend):
                 **kwargs,
             )
 
-    def apply(self) -> None:
+    @print_watch_command
+    def apply(self) -> Dict:
         """
         Create Job and Job Run from YAML.
         """
@@ -136,8 +166,10 @@ class MLJobBackend(Backend):
             job_run = job.run()
             print("JOB OCID:", job.id)
             print("JOB RUN OCID:", job_run.id)
+            return {"job_id": job.id, "run_id": job_run.id}
 
-    def run(self) -> None:
+    @print_watch_command
+    def run(self) -> Dict:
         """
         Create Job and Job Run from OCID or cli parameters.
         """
@@ -167,36 +199,6 @@ class MLJobBackend(Backend):
             print("JOB RUN OCID:", run_id)
             return {"job_id": job_id, "run_id": run_id}
 
-    def init_operator(self):
-        # TODO: check if folder is empty, check for force overwrite
-        # TODO: check that command is being run from advanced-ds repo (important until ads released)
-
-        operator_folder = self.config["execution"].get("operator_folder_path")
-        os.makedirs(operator_folder, exist_ok=True)
-
-        operator_folder_name = os.path.basename(os.path.normpath(operator_folder))
-        docker_tag = f"{os.path.join(self.config['infrastructure'].get('docker_registry'), operator_folder_name)}:latest"
-
-        self.config["execution"]["operator_folder_name"] = operator_folder_name
-        self.config["execution"]["docker_tag"] = docker_tag
-
-        operator_slug = self.config["execution"].get("operator_slug")
-        self._jinja_write(operator_slug, operator_folder)
-
-        # DONE
-        print(
-            "\nInitialization Successful.\n"
-            f"All code should be written in main.py located at: {os.path.join(operator_folder, 'main.py')}\n"
-            f"Additional libraries should be added to environment.yaml located at: {os.path.join(operator_folder, 'environment.yaml')}\n"
-            "Any changes to main.py will require re-building the docker image, whereas changes to args in the"
-            " runtime section of the yaml file do not. Write accordingly.\n"
-            "Run this cluster with:\n"
-            f"\tdocker build -t {docker_tag} -f {os.path.join(operator_folder, 'Dockerfile')} .\n"
-            f"\tads opctl publish-image {docker_tag} \n"
-            f"\tads opctl run -f {os.path.join(operator_folder, operator_slug + '.yaml')} \n"
-        )
-        return operator_folder
-
     def delete(self):
         """
         Delete Job or Job Run from OCID.
@@ -216,39 +218,33 @@ class MLJobBackend(Backend):
         """
         Cancel Job Run from OCID.
         """
-        run_id = self.config["execution"]["run_id"]
         with AuthContext(auth=self.auth_type, profile=self.profile):
-            DataScienceJobRun.from_ocid(run_id).cancel()
-            print(f"Job run {run_id} has been cancelled.")
+            wait_for_completion = self.config["execution"].get("wait_for_completion")
+            if self.config["execution"].get("id"):
+                id = self.config["execution"]["id"]
+                Job.from_datascience_job(id).cancel(
+                    wait_for_completion=wait_for_completion
+                )
+                if wait_for_completion:
+                    print(f"All job runs under {id} have been cancelled.")
+            elif self.config["execution"].get("run_id"):
+                run_id = self.config["execution"]["run_id"]
+                DataScienceJobRun.from_ocid(run_id).cancel(
+                    wait_for_completion=wait_for_completion
+                )
+                if wait_for_completion:
+                    print(f"Job run {run_id} has been cancelled.")
 
     def watch(self):
         """
         Watch Job Run from OCID.
         """
         run_id = self.config["execution"]["run_id"]
-
+        interval = self.config["execution"].get("interval")
+        wait = self.config["execution"].get("wait")
         with AuthContext(auth=self.auth_type, profile=self.profile):
             run = DataScienceJobRun.from_ocid(run_id)
-            run.watch()
-
-    def _jinja_write(self, operator_slug, operator_folder):
-        # TODO AH: fill in templates with relevant details
-        env = Environment(
-            loader=PackageLoader("ads", f"opctl/operators/{operator_slug}")
-        )
-
-        for setup_file in [
-            "Dockerfile",
-            "environment.yaml",
-            "main.py",
-            "run.py",
-            "start_scheduler.sh",
-            "start_worker.sh",
-            "dask_cluster.yaml",
-        ]:
-            template = env.get_template(setup_file + ".jinja2")
-            with open(os.path.join(operator_folder, setup_file), "w") as ff:
-                ff.write(template.render(config=self.config))
+            run.watch(interval=interval, wait=wait)
 
     def _create_payload(self, infra=None, name=None) -> Job:
         if not infra:
@@ -543,6 +539,163 @@ class MLJobDistributedBackend(MLJobBackend):
                         worker_jobruns.append(jobrun)
                 self.job = job
                 return job, main_jobrun, worker_jobruns
+
+
+class MLJobOperatorBackend(MLJobBackend):
+    """
+    Backend class to run operator on Data Science Jobs.
+    Currently supported two scenarios:
+        * Running operator within container runtime.
+        * Running operator within python runtime.
+
+    Attributes
+    ----------
+    runtime_config: (Dict)
+        The runtime config for the operator.
+    operator_config: (Dict)
+        The operator specification config.
+    operator_type: str
+        The type of the operator.
+    operator_version: str
+        The version of the operator.
+    operator_info: OperatorInfo
+        The detailed information about the operator.
+    job: Job
+        The Data Science Job.
+    """
+
+    def __init__(self, config: Dict, operator_info: OperatorInfo = None) -> None:
+        """
+        Instantiates the operator backend.
+
+        Parameters
+        ----------
+        config: (Dict)
+            The configuration file containing operator's specification details and execution section.
+        operator_info: (OperatorInfo, optional)
+            The operator's detailed information extracted from the operator.__init__ file.
+            Will be extracted from the operator type in case if not provided.
+        """
+        super().__init__(config=config or {})
+
+        self.job = None
+
+        self.runtime_config = self.config.get("runtime", {})
+        self.operator_config = {
+            **{
+                key: value
+                for key, value in self.config.items()
+                if key not in ("runtime", "infrastructure", "execution")
+            }
+        }
+        self.operator_type = self.operator_config.get("type", "unknown")
+        self.operator_version = self.operator_config.get("version", "unknown")
+
+        # registering supported runtime adjusters
+        self._RUNTIME_MAP = {
+            ContainerRuntime().type: self._adjust_container_runtime,
+            PythonRuntime().type: self._adjust_python_runtime,
+        }
+
+        self.operator_info = operator_info
+
+    def _adjust_common_information(self):
+        """Adjusts common information of the job."""
+
+        if self.job.name.lower().startswith("{job"):
+            self.job.with_name(
+                f"job_{self.operator_info.type.lower()}"
+                f"_{self.operator_version.lower()}"
+            )
+        self.job.runtime.with_maximum_runtime_in_minutes(
+            self.config["execution"].get("max_wait_time", 1200)
+        )
+
+    def _adjust_container_runtime(self):
+        """Adjusts container runtime."""
+        entrypoint = self.job.runtime.entrypoint
+        image = self.job.runtime.image.lower()
+        cmd = " ".join(
+            [
+                "python3",
+                "-m",
+                f"{self.operator_info.type}",
+            ]
+        )
+        self.job.runtime.with_environment_variable(
+            **{
+                "OCI_IAM_TYPE": AuthType.RESOURCE_PRINCIPAL,
+                "OCIFS_IAM_TYPE": AuthType.RESOURCE_PRINCIPAL,
+                ENV_OPERATOR_ARGS: json.dumps(self.operator_config),
+                **(self.job.runtime.envs or {}),
+            }
+        )
+        self.job.runtime.with_image(image=image, entrypoint=entrypoint, cmd=cmd)
+
+    def _adjust_python_runtime(self):
+        """Adjusts python runtime."""
+        temp_dir = tempfile.mkdtemp()
+        logger.debug(f"Copying operator's code to the temporary folder: {temp_dir}")
+
+        # prepare run.sh file to run the operator's code
+        script_file = os.path.join(
+            temp_dir, f"{self.operator_info.type}_{int(time.time())}_run.sh"
+        )
+        with open(script_file, "w") as fp:
+            fp.write(f"python3 -m {self.operator_info.type}")
+
+        # copy the operator's source code to the temporary folder
+        shutil.copytree(
+            self.operator_info.path.rstrip("/"),
+            os.path.join(temp_dir, self.operator_info.type),
+            dirs_exist_ok=True,
+        )
+
+        # prepare jobs runtime
+        self.job.runtime.with_source(
+            temp_dir,
+            entrypoint=os.path.basename(script_file),
+        ).with_working_dir(
+            os.path.basename(temp_dir.rstrip("/"))
+        ).with_environment_variable(
+            **{
+                "OCI_IAM_TYPE": AuthType.RESOURCE_PRINCIPAL,
+                "OCIFS_IAM_TYPE": AuthType.RESOURCE_PRINCIPAL,
+                ENV_OPERATOR_ARGS: json.dumps(self.operator_config),
+                **(self.job.runtime.envs or {}),
+            }
+        )
+
+    @print_watch_command
+    def run(self, **kwargs: Dict) -> Union[Dict, None]:
+        """
+        Runs the operator on the Data Science Jobs.
+        """
+        if not self.operator_info:
+            self.operator_info = OperatorLoader.from_uri(self.operator_type).load()
+
+        self.job = Job.from_dict(self.runtime_config).build()
+
+        # adjust job's common information
+        self._adjust_common_information()
+
+        # adjust runtime information
+        self._RUNTIME_MAP.get(self.job.runtime.type, lambda: None)()
+
+        # run the job if only it is not a dry run mode
+        if not self.config["execution"].get("dry_run"):
+            job = self.job.create()
+            logger.info(f"{'*' * 50}Job{'*' * 50}")
+            logger.info(job)
+
+            job_run = job.run()
+            logger.info(f"{'*' * 50}JobRun{'*' * 50}")
+            logger.info(job_run)
+
+            return {"job_id": job.id, "run_id": job_run.id}
+        else:
+            logger.info(f"{'*' * 50} Job (Dry Run Mode) {'*' * 50}")
+            logger.info(self.job)
 
 
 class JobRuntimeFactory(RuntimeFactory):

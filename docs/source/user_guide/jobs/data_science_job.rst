@@ -8,6 +8,7 @@ Quick Start
 
   See :doc:`policies` and  `About Data Science Policies <https://docs.oracle.com/en-us/iaas/data-science/using/policies.htm>`_.
 
+
 Define a Job
 ============
 
@@ -34,6 +35,7 @@ is available on `Data Science AI Sample GitHub Repository <https://github.com/or
 For more details, see :doc:`infra_and_runtime` configurations.
 You can also :doc:`run_notebook`, :doc:`run_script` and :doc:`run_git`.
 
+.. _yaml:
 
 YAML
 ====
@@ -82,6 +84,10 @@ Once the job is defined or loaded from YAML, you can call the :py:meth:`~ads.job
 to create the job on OCI. To start a job run, you can call the :py:meth:`~ads.jobs.Job.run` method,
 which returns a :py:class:`~ads.jobs.DataScienceJobRun` instance.
 Once the job or job run is created, the job OCID can be accessed through ``job.id`` or ``run.id``.
+
+.. note::
+
+  Once a job is created, if you change the configuration, you will need to re-create a job for the new configuration.
 
 .. code-block:: python
 

@@ -1,20 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from __future__ import annotations
 import re
+import time
+import traceback
+
 from typing import Dict, TypeVar
 from ads.jobs.builders.base import Builder
 from ads.jobs import env_var_parser
 
 
 Self = TypeVar("Self", bound="Runtime")
-"""Special type to represent the current enclosed class.
-
-This type is used by factory class method or when a method returns ``self``.
-"""
 
 
 class Runtime(Builder):
@@ -31,6 +30,7 @@ class Runtime(Builder):
         CONST_FREEFORM_TAGS: "freeform_tags",
         CONST_DEFINED_TAGS: "defined_tags",
         CONST_ENV_VAR: CONST_ENV_VAR,
+        CONST_ARGS: CONST_ARGS,
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -239,7 +239,7 @@ class Runtime(Builder):
         """Maximum runtime in minutes"""
         return self.get_spec(self.CONST_MAXIMUM_RUNTIME_IN_MINUTES)
 
-    def init(self) -> Self:
+    def init(self, **kwargs) -> Self:
         """Initializes a starter specification for the runtime.
 
         Returns
@@ -248,7 +248,78 @@ class Runtime(Builder):
             This method returns self to support chaining methods.
         """
         return (
-            self.with_environment_variable(env_name="env_value")
-            .with_freeform_tag(tag_name="tag_value")
-            .with_argument(key1="val1")
+            self.with_environment_variable(
+                **kwargs.get(self.attribute_map[self.CONST_ENV_VAR], {})
+            )
+            .with_freeform_tag(
+                **kwargs.get(self.attribute_map[self.CONST_FREEFORM_TAGS], {})
+            )
+            .with_argument(**kwargs.get(self.attribute_map[self.CONST_ARGS], {}))
         )
+
+
+class MultiNodeRuntime(Runtime):
+    """Represents runtime supporting multi-node jobs."""
+
+    CONST_REPLICA = "replicas"
+
+    def with_replica(self, count: int):
+        """Specifies the number of nodes (job runs) for the job.
+
+        Parameters
+        ----------
+        count : int
+            Number of nodes (job runs)
+
+        Returns
+        -------
+        self
+            The runtime instance.
+        """
+        return self.set_spec(self.CONST_REPLICA, count)
+
+    @property
+    def replica(self) -> int:
+        """The number of nodes (job runs)."""
+        return self.get_spec(self.CONST_REPLICA)
+
+    def run(self, dsc_job, **kwargs):
+        """Starts the job runs"""
+        replicas = self.replica if self.replica else 1
+        main_run = None
+        job_runs = []
+        try:
+            for i in range(replicas):
+                replica_kwargs = kwargs.copy()
+
+                # Only update display name and env vars if replica is specified (not None).
+                if self.replica is not None:
+                    envs = replica_kwargs.get("environment_variables")
+                    if not envs:
+                        envs = {}
+                    # HuggingFace accelerate requires machine rank
+                    # Here we use NODE_RANK to store the machine rank
+                    envs["NODE_RANK"] = str(i)
+                    envs["NODE_COUNT"] = str(replicas)
+                    if main_run:
+                        envs["MAIN_JOB_RUN_OCID"] = main_run.id
+                    name = replica_kwargs.get("display_name")
+                    if not name:
+                        name = dsc_job.display_name
+
+                    replica_kwargs["display_name"] = f"{name}-{str(i)}"
+                    replica_kwargs["environment_variables"] = envs
+                run = dsc_job.run(**replica_kwargs)
+                job_runs.append(run)
+                if i == 0:
+                    main_run = run
+        except Exception as ex:
+            traceback.print_exc()
+            # Wait a few second to avoid the job run being in a transient state.
+            time.sleep(2)
+            # If there is any error when creating the job runs
+            # cancel all the job runs.
+            for run in job_runs:
+                run.cancel()
+            raise ex
+        return main_run

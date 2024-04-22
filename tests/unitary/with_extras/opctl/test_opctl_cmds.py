@@ -38,6 +38,7 @@ key_file = ~/.oci/oci_api_key.pem
             prompt.side_effect = (
                 [
                     os.path.join(td, "ads_ops"),
+                    "api_key",
                     os.path.join(td, "oci_config"),
                     "DEFAULT",
                     ".",
@@ -45,11 +46,12 @@ key_file = ~/.oci/oci_api_key.pem
                 ]
                 + ["abc"] * 8
                 + ["oci://bucket@namespace/path"]
+                + ["abc"] * 2
                 + ["abc"] * 4
                 + ["oci://bucket@namespace/path"]
-                + ["abc"] * 3
+                + ["abc"] * 7
                 + ["abc"] * 4
-                + ["abc"] * 8
+                + ["abc"] * 10
                 + ["1"]
                 + ["3"]
             )
@@ -108,6 +110,7 @@ key_file = ~/.oci/oci_api_key.pem
                 prompt.side_effect = (
                     [
                         os.path.join(td, "ads_ops"),
+                        "api_key",
                         os.path.join(td, "oci_config"),
                         "DEFAULT",
                         ".",
@@ -115,11 +118,12 @@ key_file = ~/.oci/oci_api_key.pem
                     ]
                     + ["abc"] * 8
                     + ["oci://bucket@namespace/path"]
+                    + ["abc"] * 2
                     + ["abc"] * 4
                     + ["oci://bucket@namespace/path"]
-                    + ["abc"] * 3
+                    + ["abc"] * 7
                     + ["abc"] * 4
-                    + ["abc"] * 8
+                    + ["abc"] * 10
                     + ["1"]
                     + ["3"]
                 )
@@ -179,8 +183,9 @@ key_file = ~/.oci/oci_api_key.pem
         monkeypatch.delenv("NB_SESSION_OCID", raising=False)
         cancel(ocid="...datasciencejobrun...")
         job_cancel_func.assert_called()
-        with pytest.raises(ValueError):
-            cancel(ocid="....datasciencejob....")
+
+        cancel(ocid="....datasciencejob....")
+        job_cancel_func.assert_called()
 
         cancel(ocid="...datasciencepipelinerun...")
         pipeline_cancel_func.assert_called()

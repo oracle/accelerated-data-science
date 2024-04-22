@@ -19,7 +19,7 @@ import requests
 import pandas as pd
 import sklearn.datasets as sk_datasets
 
-from ads.dataset.factory import DatasetFactory
+from ads.dataset import helper
 from ads.common.utils import inject_and_copy_kwargs
 from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
@@ -170,7 +170,7 @@ class GitHubDatasets(DatasetBrowser):
 
         for obj in self._generate_filelist():
             if obj["name"] == name:
-                return DatasetFactory.open(
+                return helper.open(
                     **inject_and_copy_kwargs(
                         kwargs,
                         **{
@@ -202,7 +202,7 @@ class LocalFilesystemDatasets(DatasetBrowser):
 
         for obj in self._generate_filelist():
             if obj["name"] == name:
-                return DatasetFactory.open(
+                return helper.open(
                     **inject_and_copy_kwargs(
                         kwargs,
                         **{
@@ -286,7 +286,7 @@ class WebDatasets(DatasetBrowser):
         #
         for obj in self.listing:
             if obj["name"] == name:
-                return DatasetFactory.open(
+                return helper.open(
                     obj["url"],
                     format=obj["format"],
                     name=obj["name"],
@@ -307,7 +307,7 @@ class SeabornDatasets(DatasetBrowser):
     @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def open(self, name: str, **kwargs):
         if name in self.dataset_names:
-            return DatasetFactory.open(
+            return helper.open(
                 seaborn.load_dataset(name), name=name, description="from seaborn"
             )
         else:
@@ -350,7 +350,7 @@ class SklearnDatasets(DatasetBrowser):
                 df = pd.DataFrame(data.data, columns=data.feature_names)
                 df["target"] = pd.Series(data.target)
 
-            return DatasetFactory.open(
+            return helper.open(
                 df, target="target", name=name, description=description
             )
 

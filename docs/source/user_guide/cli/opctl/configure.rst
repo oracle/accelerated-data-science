@@ -28,6 +28,7 @@ This will prompt you to setup default ADS CLI configurations for each OCI profil
     [OCI]
     oci_config = ~/.oci/config
     oci_profile = ANOTHERPROF
+    auth = api_key # security_token, instance_principal, resource_principal
 
     [CONDA]
     conda_pack_folder = </local/path/for/saving/condapack>
@@ -96,7 +97,6 @@ This will prompt you to setup default ADS CLI configurations for each OCI profil
     project_id = oci.xxxx.<project_ocid>
     bandwidth_mbps = 10
     replica = 1
-    web_concurrency = 10
 
     [ANOTHERPROF]
     compartment_id = ocid1.compartment.oc1..<unique_ID>
@@ -137,7 +137,7 @@ To generate starter specification run -
 
     ads opctl init --help
 
-The resource type is a mandatory attribute that needs to be provided. Currently supported resource types -  `dataflow`, `deployment`, `job` and `pipeline`.
+The resource type is a mandatory attribute that needs to be provided. Currently supported resource types -  ``dataflow``, ``deployment``, ``job`` and ``pipeline``.
 For instance to generate starter specification for the Data Science job, run -
 
 .. code-block::
@@ -149,10 +149,10 @@ The resulting YAML will be printed in the console. By default the ``python`` run
 
 **Supported runtimes**
 
- - For a ``job`` - `container`, `gitPython`, `notebook`, `python` and `script`.
- - For a ``pipeline`` - `container`, `gitPython`, `notebook`, `python` and `script`.
- - For a ``dataflow`` - `dataFlow` and `dataFlowNotebook`.
- - For a ``deployment`` - `conda` and `container`.
+ - For a ``job`` - ``container``, ``gitPython``, ``notebook``, ``python`` and ``script``.
+ - For a ``pipeline`` - ``container``, ``gitPython``, ``notebook``, ``python`` and ``script``.
+ - For a ``dataflow`` - ``dataFlow`` and ``dataFlowNotebook``.
+ - For a ``deployment`` - ``conda`` and ``container``.
 
 
 If you want to specify a particular runtime use -
@@ -166,4 +166,3 @@ Use the ``--output`` attribute to save the result in a YAML file.
 .. code-block::
 
     ads opctl init job --runtime-type container --output job_with_container_runtime.yaml
-

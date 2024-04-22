@@ -6,7 +6,6 @@ You can configure the environment variables, command line arguments, and conda e
 as described in :doc:`infra_and_runtime`. This section shows the additional enhancements provided by
 :py:class:`~ads.jobs.PythonRuntime`.
 
-.. include:: ../jobs/toc_local.rst
 
 Example
 =======
@@ -14,16 +13,6 @@ Example
 Here is an example to define and run a job using :py:class:`~ads.jobs.PythonRuntime`:
 
 .. include:: ../jobs/tabs/python_runtime.rst
-
-.. code-block:: python
-
-  # Create the job on OCI Data Science
-  job.create()
-  # Start a job run
-  run = job.run()
-  # Stream the job run outputs
-  run.watch()
-
 
 The :py:class:`~ads.jobs.PythonRuntime` uses an driver script from ADS for the job run.
 It performs additional operations before and after invoking your code.

@@ -27,13 +27,15 @@ You have various options when installing ADS.
   python3 -m pip install oracle-ads
 ```
 
-### Installing extras libraries
+### Installing OCI AI Operators
 
-The `all-optional` module will install all optional dependencies. Note the single quotes around installation of extra libraries.
+To use the AI Forecast Operator, install the "forecast" dependencies using the following command:
 
 ```bash
-  python3 -m pip install 'oracle-ads[all-optional]'
+  python3 -m pip install 'oracle_ads[forecast]>=2.9.0'
 ```
+
+### Installing extras libraries
 
 To work with gradient boosting models, install the `boosted` module. This module includes XGBoost and LightGBM model classes.
 
@@ -107,6 +109,8 @@ Install the `viz` module to include libraries for visualization tasks. Some of t
   python3 -m pip install 'oracle-ads[viz]'
 ```
 
+See `pyproject.toml` file `[project.optional-dependencies]` section for full list of modules and its list of extra libraries.
+
 **Note**
 
 Multiple extra dependencies can be installed together. For example:
@@ -177,4 +181,4 @@ Consult the security guide [SECURITY.md](https://github.com/oracle/accelerated-d
 
 ## License
 
-Copyright (c) 2020, 2022 Oracle and/or its affiliates. Licensed under the [Universal Permissive License v1.0](https://oss.oracle.com/licenses/upl/)
+Copyright (c) 2020, 2024 Oracle and/or its affiliates. Licensed under the [Universal Permissive License v1.0](https://oss.oracle.com/licenses/upl/)

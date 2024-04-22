@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Contains Mixins for integrating OCI data models
@@ -11,21 +11,21 @@ import json
 import logging
 import os
 import re
-import time
 import traceback
 from datetime import date, datetime
-from typing import Callable, Optional, Union
 from enum import Enum
+from typing import Callable, Optional, Union
 
 import oci
 import yaml
-from ads.common import auth
-from ads.common.decorator.utils import class_or_instance_method
-from ads.common.utils import camel_to_snake, get_progress_bar
-from ads.config import COMPARTMENT_OCID
 from dateutil import tz
 from dateutil.parser import parse
 from oci._vendor import six
+
+from ads.common import auth
+from ads.common.decorator.utils import class_or_instance_method
+from ads.common.utils import camel_to_snake
+from ads.config import COMPARTMENT_OCID
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ LIFECYCLE_STOP_STATE = ("SUCCEEDED", "FAILED", "CANCELED", "DELETED")
 WORK_REQUEST_STOP_STATE = ("SUCCEEDED", "FAILED", "CANCELED")
 DEFAULT_WAIT_TIME = 1200
 DEFAULT_POLL_INTERVAL = 10
-DEFAULT_WORKFLOW_STEPS = 2
+WORK_REQUEST_PERCENTAGE = 100
 
 
 class MergeStrategy(Enum):
@@ -41,7 +41,7 @@ class MergeStrategy(Enum):
     MERGE = "merge"
 
 
-class OCIModelNotExists(Exception):   # pragma: no cover
+class OCIModelNotExists(Exception):  # pragma: no cover
     pass
 
 
@@ -230,7 +230,7 @@ class OCISerializableMixin(OCIClientMixin):
 
         return parsed_kwargs
 
-    @classmethod
+    @class_or_instance_method
     def deserialize(cls, data, to_cls):
         """De-serialize data from dictionary to an OCI model"""
         if cls.type_mappings is None:
@@ -274,7 +274,7 @@ class OCISerializableMixin(OCIClientMixin):
         else:
             return cls.__deserialize_model(data, to_cls)
 
-    @classmethod
+    @class_or_instance_method
     def __deserialize_model(cls, data, to_cls):
         """De-serializes list or dict to model."""
         if isinstance(data, to_cls):
@@ -383,7 +383,7 @@ class OCIModelMixin(OCISerializableMixin):
     """
 
     # Regex pattern matching the module name of an OCI model.
-    OCI_MODEL_PATTERN = r"oci.[^.]+\.models[\..*]?"
+    OCI_MODEL_PATTERN = r"(oci|feature_store_client).[^.]+\.models[\..*]?"
     # Constants
     CONS_COMPARTMENT_ID = "compartment_id"
 
@@ -549,7 +549,7 @@ class OCIModelMixin(OCISerializableMixin):
         """
         return cls.create_instance(**data)
 
-    @classmethod
+    @class_or_instance_method
     def deserialize(cls, data: dict, to_cls: str = None):
         """Deserialize data
 
@@ -798,14 +798,13 @@ class OCIModelMixin(OCISerializableMixin):
                         logger.error(
                             "Failed to synchronize the properties of %s due to service error:\n%s",
                             self.__class__,
-                            str(ex),
+                            traceback.format_exc(),
                         )
-                except Exception as ex:
+                except Exception:
                     logger.error(
-                        "Failed to synchronize the properties of %s: %s\n%s",
+                        "Failed to synchronize the properties of %s.\n%s",
                         self.__class__,
-                        type(ex),
-                        str(ex),
+                        traceback.format_exc(),
                     )
         return super().__getattribute__(name)
 
@@ -935,76 +934,6 @@ class OCIWorkRequestMixin:
                 f"opc-work-request-id not found in response headers: {response.headers}"
             )
         return work_request_response
-
-    def wait_for_progress(
-        self, 
-        work_request_id: str, 
-        num_steps: int = DEFAULT_WORKFLOW_STEPS, 
-        max_wait_time: int = DEFAULT_WAIT_TIME, 
-        poll_interval: int = DEFAULT_POLL_INTERVAL
-    ):
-        """Waits for the work request progress bar to be completed.
-
-        Parameters
-        ----------
-        work_request_id: str
-            Work Request OCID.
-        num_steps: (int, optional). Defaults to 2.
-            Number of steps for the progress indicator.
-        max_wait_time: int
-            Maximum amount of time to wait in seconds (Defaults to 1200).
-            Negative implies infinite wait time.
-        poll_interval: int
-            Poll interval in seconds (Defaults to 10).
-
-        Returns
-        -------
-        None
-        """
-        work_request_logs = []
-
-        i = 0
-        start_time = time.time()
-        with get_progress_bar(num_steps) as progress:
-            seconds_since = time.time() - start_time
-            exceed_max_time = max_wait_time > 0 and seconds_since >= max_wait_time
-            if exceed_max_time:
-                logger.error(
-                    f"Max wait time ({max_wait_time} seconds) exceeded."
-                )
-            while not exceed_max_time and (not work_request_logs or len(work_request_logs) < num_steps):
-                time.sleep(poll_interval)
-                new_work_request_logs = []
-
-                try:
-                    work_request = self.client.get_work_request(work_request_id).data
-                    work_request_logs = self.client.list_work_request_logs(
-                        work_request_id
-                    ).data
-                except Exception as ex:
-                    logger.warn(ex)
-
-                new_work_request_logs = (
-                    work_request_logs[i:] if work_request_logs else []
-                )
-
-                for wr_item in new_work_request_logs:
-                    progress.update(wr_item.message)
-                    i += 1
-
-                if work_request and work_request.status in WORK_REQUEST_STOP_STATE:
-                    if work_request.status != "SUCCEEDED":
-                        if new_work_request_logs:
-                            raise Exception(new_work_request_logs[-1].message)
-                        else:
-                            raise Exception(
-                                "Error occurred in attempt to perform the operation. "
-                                "Check the service logs to get more details. "
-                                f"{work_request}"
-                            )
-                    else:
-                        break
-            progress.update("Done")
 
 
 class OCIModelWithNameMixin:

@@ -1,26 +1,9 @@
-include LICENSE.txt
-include THIRD_PARTY_LICENSES.txt
-include ads/ads_version.json
-include ads/common/*.json
-include ads/feature_engineering/*.json
-include ads/templates/*.jinja2
-include ads/common/function/*.yaml
-include ads/common/artifact/*.*
-include ads/model/runtime/schemas/*.yaml
-include ads/jobs/schema/**
-include ads/opctl/index.yaml
-include ads/opctl/operators/**/*.py
-include ads/opctl/docker/**
-include ads/opctl/conda/manifest_template.yaml
-include ads/opctl/conda/config.yaml
-include ads/opctl/config/diagnostics/**/*.yaml
-include ads/opctl/templates/*.jinja2
-global-exclude tests/**
-global-exclude notebooks/**
-exclude tests/**
-exclude notebooks/**
-exclude build/lib/tests/**
-exclude build/lib/notebooks/**
-exclude benchmark/**
-include ads/ads
-include ads/model/common/*.*
+# Manifest.in file used by setuptools, which we are not using anymore.
+# Do not add anything to this file, unless revert back to setuptools, which is not recommended. See why here:
+# https://blog.ganssle.io/articles/2021/10/setup-py-deprecated.html.
+
+# Instead flit-core used as backend to build ADS - see section [build-system] in pyproject.toml.
+# For flit-core we can specify files and folders, which needs to be included or excluded in build using
+# [tool.flit.sdist] section of pyproject.toml. See: https://flit.pypa.io/en/latest/pyproject_toml.html#sdist-section
+# If build-system library will change, make changed to list of included/excluded to build files accordingly
+# as it will be suggested by new build-system library.

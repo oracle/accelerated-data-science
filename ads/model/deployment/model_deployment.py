@@ -29,12 +29,18 @@ from ads.jobs.builders.infrastructure.utils import get_value
 from ads.model.common.utils import _is_json_serializable
 from ads.model.deployment.common.utils import send_request
 from ads.model.deployment.model_deployment_infrastructure import (
+    DEFAULT_BANDWIDTH_MBPS,
+    DEFAULT_REPLICA,
+    DEFAULT_SHAPE_NAME,
+    DEFAULT_OCPUS,
+    DEFAULT_MEMORY_IN_GBS,
     MODEL_DEPLOYMENT_INFRASTRUCTURE_TYPE,
     ModelDeploymentInfrastructure,
 )
 from ads.model.deployment.model_deployment_runtime import (
     ModelDeploymentCondaRuntime,
     ModelDeploymentContainerRuntime,
+    ModelDeploymentMode,
     ModelDeploymentRuntime,
     ModelDeploymentRuntimeType,
     OCIModelDeploymentRuntimeType,
@@ -44,7 +50,7 @@ from ads.model.service.oci_datascience_model_deployment import (
 )
 from ads.common import utils as ads_utils
 from .common import utils
-from .common.utils import OCIClientManager, State
+from .common.utils import State
 from .model_deployment_properties import ModelDeploymentProperties
 from oci.data_science.models import (
     LogDetails,
@@ -58,17 +64,15 @@ DEFAULT_WORKFLOW_STEPS = 6
 DELETE_WORKFLOW_STEPS = 2
 DEACTIVATE_WORKFLOW_STEPS = 2
 DEFAULT_RETRYING_REQUEST_ATTEMPTS = 3
-TERMINAL_STATES = [State.ACTIVE, State.FAILED, State.DELETED, State.INACTIVE]
 
 MODEL_DEPLOYMENT_KIND = "deployment"
 MODEL_DEPLOYMENT_TYPE = "modelDeployment"
 MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON = "TRITON"
 
-MODEL_DEPLOYMENT_INSTANCE_SHAPE = "VM.Standard.E4.Flex"
-MODEL_DEPLOYMENT_INSTANCE_OCPUS = 1
-MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS = 16
-MODEL_DEPLOYMENT_INSTANCE_COUNT = 1
-MODEL_DEPLOYMENT_BANDWIDTH_MBPS = 10
+MODEL_DEPLOYMENT_RUNTIMES = {
+    ModelDeploymentRuntimeType.CONDA: ModelDeploymentCondaRuntime,
+    ModelDeploymentRuntimeType.CONTAINER: ModelDeploymentContainerRuntime,
+}
 
 
 class ModelDeploymentLogType:
@@ -76,16 +80,11 @@ class ModelDeploymentLogType:
     ACCESS = "access"
 
 
-class ModelDeploymentMode:
-    HTTPS = "HTTPS_ONLY"
-    STREAM = "STREAM_ONLY"
-
-
 class LogNotConfiguredError(Exception):  # pragma: no cover
     pass
 
 
-class ModelDeploymentFailedError(Exception):  # pragma: no cover
+class ModelDeploymentPredictError(Exception):  # pragma: no cover
     pass
 
 
@@ -165,7 +164,7 @@ class ModelDeployment(Builder):
 
     Examples
     --------
-    Build model deployment from builder apis:
+    >>> # Build model deployment from builder apis:
     >>> ds_model_deployment = (ModelDeployment()
     ...    .with_display_name("TestModelDeployment")
     ...    .with_description("Testing the test model deployment")
@@ -200,7 +199,10 @@ class ModelDeployment(Builder):
     ...        .with_health_check_port(<health_check_port>)
     ...        .with_env({"key":"value"})
     ...        .with_deployment_mode("HTTPS_ONLY")
-    ...        .with_model_uri(<model_uri>))
+    ...        .with_model_uri(<model_uri>)
+    ...        .with_bucket_uri(<bucket_uri>)
+    ...        .with_auth(<auth>)
+    ...        .with_timeout(<time_out>))
     ...    )
     ... )
     >>> ds_model_deployment.deploy()
@@ -211,7 +213,7 @@ class ModelDeployment(Builder):
     >>> ds_model_deployment.list(status="ACTIVE")
     >>> ds_model_deployment.delete()
 
-    Build model deployment from yaml
+    >>> # Build model deployment from yaml
     >>> ds_model_deployment = ModelDeployment.from_yaml(uri=<path_to_yaml>)
     """
 
@@ -292,17 +294,20 @@ class ModelDeployment(Builder):
 
         if config:
             warnings.warn(
-                "`config` will be deprecated in 3.0.0 and will be ignored now. Please use `ads.set_auth()` to config the auth information."
+                "Parameter `config` was deprecated in 2.8.2 from ModelDeployment constructor and will be removed in 3.0.0. Please use `ads.set_auth()` to config the auth information. "
+                "Check: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/cli/authentication.html"
             )
 
         if properties:
             warnings.warn(
-                "`properties` will be deprecated in 3.0.0. Please use `spec` or the builder pattern to initialize model deployment instance."
+                "Parameter `properties` was deprecated in 2.8.2 from ModelDeployment constructor and will be removed in 3.0.0. Please use `spec` or the builder pattern to initialize model deployment instance. "
+                "Check: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html"
             )
 
         if model_deployment_url or model_deployment_id:
             warnings.warn(
-                "`model_deployment_url` and `model_deployment_id` will be deprecated in 3.0.0 and will be ignored now. These two fields will be auto-populated from the service side."
+                "Parameter `model_deployment_url` and `model_deployment_id` were deprecated in 2.8.2 from ModelDeployment constructor and will be removed in 3.0.0. These two fields will be auto-populated from the service side. "
+                "Check: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html"
             )
 
         initialize_spec = {}
@@ -601,11 +606,6 @@ class ModelDeployment(Builder):
         -------
         ModelDeployment
            The instance of ModelDeployment.
-
-        Raises
-        ------
-        ModelDeploymentFailedError
-            If model deployment fails to deploy
         """
         create_model_deployment_details = (
             self._build_model_deployment_details()
@@ -619,11 +619,6 @@ class ModelDeployment(Builder):
             max_wait_time=max_wait_time,
             poll_interval=poll_interval,
         )
-
-        if response.lifecycle_state == State.FAILED.name:
-            raise ModelDeploymentFailedError(
-                f"Model deployment {response.id} failed to deploy: {response.lifecycle_details}"
-            )
 
         return self._update_from_oci_model(response)
 
@@ -656,6 +651,7 @@ class ModelDeployment(Builder):
             max_wait_time=max_wait_time,
             poll_interval=poll_interval,
         )
+
         return self._update_from_oci_model(response)
 
     def update(
@@ -694,6 +690,12 @@ class ModelDeployment(Builder):
         ModelDeployment
             The instance of ModelDeployment.
         """
+        if properties:
+            warnings.warn(
+                "Parameter `properties` is deprecated from ModelDeployment `update()` in 2.8.6 and will be removed in 3.0.0. Please use the builder pattern or kwargs to update model deployment instance. "
+                "Check: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html"
+            )
+
         updated_properties = properties
         if not isinstance(properties, ModelDeploymentProperties):
             updated_properties = ModelDeploymentProperties(
@@ -703,7 +705,7 @@ class ModelDeployment(Builder):
         update_model_deployment_details = (
             updated_properties.to_update_deployment()
             if properties or updated_properties.oci_model_deployment or kwargs
-            else self._update_model_deployment_details()
+            else self._update_model_deployment_details(**kwargs)
         )
 
         response = self.dsc_model_deployment.update(
@@ -717,7 +719,7 @@ class ModelDeployment(Builder):
 
     def watch(
         self,
-        log_type: str = ModelDeploymentLogType.ACCESS,
+        log_type: str = None,
         time_start: datetime = None,
         interval: int = LOG_INTERVAL,
         log_filter: str = None,
@@ -728,7 +730,7 @@ class ModelDeployment(Builder):
         ----------
         log_type: str, optional
             The log type. Can be `access`, `predict` or None.
-            Defaults to access.
+            Defaults to None.
         time_start : datetime.datetime, optional
             Starting time for the log query.
             Defaults to None.
@@ -754,7 +756,7 @@ class ModelDeployment(Builder):
             count = self.logs(log_type).stream(
                 source=self.model_deployment_id,
                 interval=interval,
-                stop_condition=self._stop_condition,
+                stop_condition=self._stream_stop_condition,
                 time_start=time_start,
                 log_filter=log_filter,
             )
@@ -770,7 +772,11 @@ class ModelDeployment(Builder):
 
     def _stop_condition(self):
         """Stops the sync once the model deployment is in a terminal state."""
-        return self.state in TERMINAL_STATES
+        return self.state in [State.ACTIVE, State.FAILED, State.DELETED, State.INACTIVE]
+
+    def _stream_stop_condition(self):
+        """Stops the stream sync once the model deployment is in a terminal state."""
+        return self.state in [State.FAILED, State.DELETED, State.INACTIVE]
 
     def _check_and_print_status(self, prev_status) -> str:
         """Check and print the next status.
@@ -878,6 +884,12 @@ class ModelDeployment(Builder):
             Prediction results.
 
         """
+        current_state = self.sync().lifecycle_state
+        if current_state != State.ACTIVE.name:
+            raise ModelDeploymentPredictError(
+                "This model deployment is not in active state, you will not be able to use predict end point. "
+                f"Current model deployment state: {current_state} "
+            )
         endpoint = f"{self.url}/predict"
         signer = authutil.default_signer()["signer"]
         header = {
@@ -895,48 +907,59 @@ class ModelDeployment(Builder):
                 "`data` and `json_input` are both provided. You can only use one of them."
             )
 
-        if auto_serialize_data:
-            data = data or json_input
-            serialized_data = serializer.serialize(data=data)
-            return send_request(
-                data=serialized_data,
+        try:
+            if auto_serialize_data:
+                data = data or json_input
+                serialized_data = serializer.serialize(data=data)
+                return send_request(
+                    data=serialized_data,
+                    endpoint=endpoint,
+                    is_json_payload=_is_json_serializable(serialized_data),
+                    header=header,
+                )
+
+            if json_input is not None:
+                if not _is_json_serializable(json_input):
+                    raise ValueError(
+                        "`json_input` must be json serializable. "
+                        "Set `auto_serialize_data` to True, or serialize the provided input data first,"
+                        "or using `data` to pass binary data."
+                    )
+                utils.get_logger().warning(
+                    "The `json_input` argument of `predict()` will be deprecated soon. "
+                    "Please use `data` argument. "
+                )
+                data = json_input
+
+            is_json_payload = _is_json_serializable(data)
+            if not isinstance(data, bytes) and not is_json_payload:
+                raise TypeError(
+                    "`data` is not bytes or json serializable. Set `auto_serialize_data` to `True` to serialize the input data."
+                )
+            if model_name and model_version:
+                header["model-name"] = model_name
+                header["model-version"] = model_version
+            elif bool(model_version) ^ bool(model_name):
+                raise ValueError(
+                    "`model_name` and `model_version` have to be provided together."
+                )
+            prediction = send_request(
+                data=data,
                 endpoint=endpoint,
-                is_json_payload=_is_json_serializable(serialized_data),
+                is_json_payload=is_json_payload,
                 header=header,
             )
-
-        if json_input is not None:
-            if not _is_json_serializable(json_input):
-                raise ValueError(
-                    "`json_input` must be json serializable. "
-                    "Set `auto_serialize_data` to True, or serialize the provided input data first,"
-                    "or using `data` to pass binary data."
+            return prediction
+        except oci.exceptions.ServiceError as ex:
+            # When bandwidth exceeds the allocated value, TooManyRequests error (429) will be raised by oci backend.
+            if ex.status == 429:
+                bandwidth_mbps = self.infrastructure.bandwidth_mbps or DEFAULT_BANDWIDTH_MBPS
+                utils.get_logger().warning(
+                    f"Load balancer bandwidth exceeds the allocated {bandwidth_mbps} Mbps."
+                    "To estimate the actual bandwidth, use formula: (payload size in KB) * (estimated requests per second) * 8 / 1024."
+                    "To resolve the issue, try sizing down the payload, slowing down the request rate or increasing the allocated bandwidth."
                 )
-            utils.get_logger().warning(
-                "The `json_input` argument of `predict()` will be deprecated soon. "
-                "Please use `data` argument. "
-            )
-            data = json_input
-
-        is_json_payload = _is_json_serializable(data)
-        if not isinstance(data, bytes) and not is_json_payload:
-            raise TypeError(
-                "`data` is not bytes or json serializable. Set `auto_serialize_data` to `True` to serialize the input data."
-            )
-        if model_name and model_version:
-            header["model-name"] = model_name
-            header["model-version"] = model_version
-        elif bool(model_version) ^ bool(model_name):
-            raise ValueError(
-                "`model_name` and `model_version` have to be provided together."
-            )
-        prediction = send_request(
-            data=data,
-            endpoint=endpoint,
-            is_json_payload=is_json_payload,
-            header=header,
-        )
-        return prediction
+            raise
 
     def activate(
         self,
@@ -1288,7 +1311,8 @@ class ModelDeployment(Builder):
         ModelDeployment
             The ModelDeployment instance (self).
         """
-        return cls()._update_from_oci_model(OCIDataScienceModelDeployment.from_id(id))
+        oci_model = OCIDataScienceModelDeployment.from_id(id)
+        return cls(properties=oci_model)._update_from_oci_model(oci_model)
 
     @classmethod
     def from_dict(cls, obj_dict: Dict) -> "ModelDeployment":
@@ -1487,7 +1511,9 @@ class ModelDeployment(Builder):
             **create_model_deployment_details
         ).to_oci_model(CreateModelDeploymentDetails)
 
-    def _update_model_deployment_details(self) -> UpdateModelDeploymentDetails:
+    def _update_model_deployment_details(
+        self, **kwargs
+    ) -> UpdateModelDeploymentDetails:
         """Builds UpdateModelDeploymentDetails from model deployment instance.
 
         Returns
@@ -1499,7 +1525,7 @@ class ModelDeployment(Builder):
             raise ValueError(
                 "Missing parameter runtime or infrastructure. Try reruning it after parameters are fully configured."
             )
-
+        self._update_spec(**kwargs)
         update_model_deployment_details = {
             self.CONST_DISPLAY_NAME: self.display_name,
             self.CONST_DESCRIPTION: self.description,
@@ -1511,6 +1537,67 @@ class ModelDeployment(Builder):
         return OCIDataScienceModelDeployment(
             **update_model_deployment_details
         ).to_oci_model(UpdateModelDeploymentDetails)
+
+    def _update_spec(self, **kwargs) -> "ModelDeployment":
+        """Updates model deployment specs from kwargs.
+
+        Parameters
+        ----------
+        kwargs:
+            display_name: (str)
+                Model deployment display name
+            description: (str)
+                Model deployment description
+            freeform_tags: (dict)
+                Model deployment freeform tags
+            defined_tags: (dict)
+                Model deployment defined tags
+
+            Additional kwargs arguments.
+            Can be any attribute that `ads.model.deployment.ModelDeploymentCondaRuntime`, `ads.model.deployment.ModelDeploymentContainerRuntime`
+            and `ads.model.deployment.ModelDeploymentInfrastructure` accepts.
+
+        Returns
+        -------
+        ModelDeployment
+            The instance of ModelDeployment.
+        """
+        if not kwargs:
+            return self
+
+        converted_specs = ads_utils.batch_convert_case(kwargs, "camel")
+        specs = {
+            "self": self._spec,
+            "runtime": self.runtime._spec,
+            "infrastructure": self.infrastructure._spec,
+        }
+        sub_set = {
+            self.infrastructure.CONST_ACCESS_LOG,
+            self.infrastructure.CONST_PREDICT_LOG,
+            self.infrastructure.CONST_SHAPE_CONFIG_DETAILS,
+        }
+        for spec_value in specs.values():
+            for key in spec_value:
+                if key in converted_specs:
+                    if key in sub_set:
+                        for sub_key in converted_specs[key]:
+                            converted_sub_key = ads_utils.snake_to_camel(sub_key)
+                            spec_value[key][converted_sub_key] = converted_specs[key][
+                                sub_key
+                            ]
+                    else:
+                        spec_value[key] = copy.deepcopy(converted_specs[key])
+        self = (
+            ModelDeployment(spec=specs["self"])
+            .with_runtime(
+                MODEL_DEPLOYMENT_RUNTIMES[self.runtime.type](spec=specs["runtime"])
+            )
+            .with_infrastructure(
+                ModelDeploymentInfrastructure(spec=specs["infrastructure"])
+            )
+        )
+
+        return self
 
     def _build_model_deployment_configuration_details(self) -> Dict:
         """Builds model deployment configuration details from model deployment instance.
@@ -1525,7 +1612,7 @@ class ModelDeployment(Builder):
 
         instance_configuration = {
             infrastructure.CONST_INSTANCE_SHAPE_NAME: infrastructure.shape_name
-            or MODEL_DEPLOYMENT_INSTANCE_SHAPE,
+            or DEFAULT_SHAPE_NAME,
         }
 
         if instance_configuration[infrastructure.CONST_INSTANCE_SHAPE_NAME].endswith(
@@ -1537,23 +1624,23 @@ class ModelDeployment(Builder):
                 infrastructure.CONST_OCPUS: infrastructure.shape_config_details.get(
                     "ocpus", None
                 )
-                or MODEL_DEPLOYMENT_INSTANCE_OCPUS,
+                or DEFAULT_OCPUS,
                 infrastructure.CONST_MEMORY_IN_GBS: infrastructure.shape_config_details.get(
                     "memory_in_gbs", None
                 )
-                or infrastructure.shape_config_details.get(
-                    "memoryInGBs", None
-                )
-                or MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS,
+                or infrastructure.shape_config_details.get("memoryInGBs", None)
+                or DEFAULT_MEMORY_IN_GBS,
             }
 
         if infrastructure.subnet_id:
-            instance_configuration[infrastructure.CONST_SUBNET_ID] = infrastructure.subnet_id
+            instance_configuration[
+                infrastructure.CONST_SUBNET_ID
+            ] = infrastructure.subnet_id
 
         scaling_policy = {
             infrastructure.CONST_POLICY_TYPE: "FIXED_SIZE",
             infrastructure.CONST_INSTANCE_COUNT: infrastructure.replica
-            or MODEL_DEPLOYMENT_INSTANCE_COUNT,
+            or DEFAULT_REPLICA,
         }
 
         if not runtime.model_uri:
@@ -1563,19 +1650,26 @@ class ModelDeployment(Builder):
 
         model_id = runtime.model_uri
         if not model_id.startswith("ocid"):
-            model_id = OCIClientManager().prepare_artifact(
-                model_uri=runtime.model_uri,
-                properties=dict(
-                    display_name=self.display_name,
-                    compartment_id=self.infrastructure.compartment_id
-                    or COMPARTMENT_OCID,
-                    project_id=self.infrastructure.project_id or PROJECT_OCID,
-                ),
+            from ads.model.datascience_model import DataScienceModel
+
+            dsc_model = DataScienceModel(
+                name=self.display_name,
+                compartment_id=self.infrastructure.compartment_id or COMPARTMENT_OCID,
+                project_id=self.infrastructure.project_id or PROJECT_OCID,
+                artifact=runtime.model_uri,
+            ).create(
+                bucket_uri=runtime.bucket_uri,
+                auth=runtime.auth,
+                region=runtime.region,
+                overwrite_existing_artifact=runtime.overwrite_existing_artifact,
+                remove_existing_artifact=runtime.remove_existing_artifact,
+                timeout=runtime.timeout,
             )
+            model_id = dsc_model.id
 
         model_configuration_details = {
             infrastructure.CONST_BANDWIDTH_MBPS: infrastructure.bandwidth_mbps
-            or MODEL_DEPLOYMENT_BANDWIDTH_MBPS,
+            or DEFAULT_BANDWIDTH_MBPS,
             infrastructure.CONST_INSTANCE_CONFIG: instance_configuration,
             runtime.CONST_MODEL_ID: model_id,
             infrastructure.CONST_SCALING_POLICY: scaling_policy,
@@ -1667,7 +1761,11 @@ class ModelDeployment(Builder):
             }
 
         logs = {}
-        if self.infrastructure.access_log:
+        if (
+            self.infrastructure.access_log and 
+            self.infrastructure.access_log.get(self.infrastructure.CONST_LOG_GROUP_ID, None)
+            and self.infrastructure.access_log.get(self.infrastructure.CONST_LOG_ID, None)
+        ):
             logs[self.infrastructure.CONST_ACCESS] = {
                 self.infrastructure.CONST_LOG_GROUP_ID: self.infrastructure.access_log.get(
                     "logGroupId", None
@@ -1676,7 +1774,11 @@ class ModelDeployment(Builder):
                     "logId", None
                 ),
             }
-        if self.infrastructure.predict_log:
+        if (
+            self.infrastructure.predict_log and 
+            self.infrastructure.predict_log.get(self.infrastructure.CONST_LOG_GROUP_ID, None)
+            and self.infrastructure.predict_log.get(self.infrastructure.CONST_LOG_ID, None)
+        ):
             logs[self.infrastructure.CONST_PREDICT] = {
                 self.infrastructure.CONST_LOG_GROUP_ID: self.infrastructure.predict_log.get(
                     "logGroupId", None

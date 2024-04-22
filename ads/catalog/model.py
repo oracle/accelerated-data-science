@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import warnings
@@ -82,11 +82,11 @@ _MAX_ARTIFACT_SIZE_IN_BYTES = 2147483648  # 2GB
 _WORK_REQUEST_INTERVAL_IN_SEC = 3
 
 
-class ModelWithActiveDeploymentError(Exception):   # pragma: no cover
+class ModelWithActiveDeploymentError(Exception):  # pragma: no cover
     pass
 
 
-class ModelArtifactSizeError(Exception):   # pragma: no cover
+class ModelArtifactSizeError(Exception):  # pragma: no cover
     def __init__(self, max_artifact_size: str):
         super().__init__(
             f"The model artifacts size is greater than `{max_artifact_size}`. "
@@ -391,7 +391,6 @@ class Model:
             Nothing.
         """
         if display_format == "dataframe":
-
             from IPython.core.display import display
 
             display(self.to_dataframe())
@@ -405,13 +404,13 @@ class Model:
     def _repr_html_(self):
         """Shows model in dataframe format."""
         return (
-            self.to_dataframe().style.set_properties(**{"margin-left": "0px"}).render()
+            self.to_dataframe().style.set_properties(**{"margin-left": "0px"}).to_html()
         )
 
     def __repr__(self):
         """Shows model in dataframe format."""
         return (
-            self.to_dataframe().style.set_properties(**{"margin-left": "0px"}).render()
+            self.to_dataframe().style.set_properties(**{"margin-left": "0px"}).to_html()
         )
 
     def activate(self) -> None:
@@ -1560,9 +1559,9 @@ class ModelCatalog:
                 if work_request_logs:
                     new_work_request_logs = work_request_logs[i:]
 
-                for wr_item in new_work_request_logs:
-                    progress.update(wr_item.message)
-                    i += 1
+                    for wr_item in new_work_request_logs:
+                        progress.update(wr_item.message)
+                        i += 1
 
                 if work_request.data.status in STOP_STATE:
                     if work_request.data.status != WorkRequest.STATUS_SUCCEEDED:

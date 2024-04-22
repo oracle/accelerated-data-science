@@ -1,0 +1,19 @@
+# This composite action is to avoid duplicating code across test actions.
+# Ref: https://docs.github.com/en/actions/creating-actions/creating-a-composite-action
+
+name: "Test env setup"
+description: "Creates conda test env with optional dependencies to run all unit tests"
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -x # print commands that are executed
+
+        sudo apt update
+        sudo apt-get install libkrb5-dev graphviz
+        $CONDA/bin/conda init
+        source /home/runner/.bashrc
+        conda install python=${{ matrix.python-version }}
+        pip install -r dev-requirements.txt
+        conda list

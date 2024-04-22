@@ -1,0 +1,130 @@
+type:
+  required: false
+  type: string
+  meta:
+    description: "The type of the operator."
+name:
+  required: true
+  type: string
+  meta:
+    description: "The name of the operator."
+version:
+  required: true
+  type: string
+  default: v1
+  meta:
+    description: "The version of the operator."
+description:
+  required: false
+  type: string
+  meta:
+    description: "The short description of the operator."
+gpu:
+  required: false
+  type: string
+  default: no
+  allowed:
+    - yes
+    - no
+  meta:
+    description: "If the operator requires GPU cluster."
+keywords:
+  required: false
+  type: list
+  schema:
+    type: string
+  meta:
+    description: "The operator's keywords."
+backends:
+  required: false
+  type: list
+  schema:
+    type: string
+  meta:
+    description: "The operator's supported backends. Can be [job, dataflow]"
+conda_type:
+  required: false
+  type: string
+  default: custom
+  allowed:
+    - service
+    - published
+  meta:
+    description: "The operator's conda environment type. Can be either service or custom type."
+conda:
+  required: false
+  type: string
+  meta:
+    description: "The operator's conda environment name. Will be auto-generated if not provided."
+jobs_default_params:
+  required: false
+  type: dict
+  meta:
+    description: "The default parameters for the Data Science Job."
+  schema:
+    shape_name:
+      required: false
+      type: string
+      meta:
+        description: "The name of the shape."
+    ocpus:
+      required: false
+      type: integer
+      meta:
+        description: "The OCPUs count."
+    memory_in_gbs:
+      required: false
+      type: integer
+      meta:
+        description: "The size of the memory in GBs."
+    block_storage_size_in_GBs:
+      required: false
+      type: integer
+      meta:
+        description: "Size of the block storage drive."
+dataflow_default_params:
+  required: false
+  type: dict
+  meta:
+    description: "The default params for the DataFlow service."
+  schema:
+    spark_version:
+      required: false
+      type: string
+      meta:
+        description: "The version of the SPARK."
+    driver_shape:
+      required: false
+      type: string
+      meta:
+        description: "The name of the driver shape."
+    driver_shape_ocpus:
+      required: false
+      type: integer
+      meta:
+        description: "The OCPUs count for the driver shape."
+    driver_shape_memory_in_gbs:
+      required: false
+      type: integer
+      meta:
+        description: "The size of the memory in GBs for the driver shape."
+    executor_shape:
+      required: false
+      type: string
+      meta:
+        description: "The name of the executor shape."
+    executor_shape_ocpus:
+      required: false
+      type: integer
+      meta:
+        description: "The OCPUs count for the executor shape."
+    executor_shape_memory_in_gbs:
+      required: false
+      type: integer
+      meta:
+        description: "The size of the memory in GBs for the executor shape."
+    num_executors:
+      required: false
+      type: integer
+      meta:
+        description: "The number of executors."

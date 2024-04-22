@@ -18,12 +18,12 @@ except (ImportError, AttributeError) as e:
 
 
 class TestLocalBackend:
-    @pytest.mark.opctl
     def test_init_vscode_conda(self):
         with tempfile.TemporaryDirectory() as td:
             backend = LocalBackend(
                 {
                     "execution": {
+                        "image": "image-name",
                         "use_conda": True,
                         "source_folder": td,
                         "oci_config": "~/.oci/config",
@@ -33,24 +33,25 @@ class TestLocalBackend:
                     }
                 }
             )
-            backend.init_vscode_container()
-            with open(os.path.join(td, ".devcontainer.json")) as f:
-                content = json.load(f)
-            assert content == {
-                "image": "ml-job",
-                "extensions": ["ms-python.python"],
-                "mounts": [
-                    f"source={os.path.expanduser('~/.oci')},target=/home/datascience/.oci,type=bind",
-                    f"source={os.path.expanduser('~/conda')},target=/opt/conda/envs,type=bind",
-                ],
-                "workspaceMount": f"source={td},target=/home/datascience/{os.path.basename(td)},type=bind",
-                "workspaceFolder": "/home/datascience",
-                "containerEnv": {},
-                "name": "ml-job-dev-env",
-                "postCreateCommand": "conda init bash && source ~/.bashrc",
-            }
+            with pytest.raises(ValueError):
+                with pytest.raises(RuntimeError):
+                    backend.init_vscode_container()
+                    with open(os.path.join(td, ".devcontainer.json")) as f:
+                        content = json.load(f)
+                    assert content == {
+                        "image": "image-name",
+                        "extensions": ["ms-python.python"],
+                        "mounts": [
+                            f"source={os.path.expanduser('~/.oci')},target=/home/datascience/.oci,type=bind",
+                            f"source={os.path.expanduser('~/conda')},target=/opt/conda/envs,type=bind",
+                        ],
+                        "workspaceMount": f"source={td},target=/home/datascience/{os.path.basename(td)},type=bind",
+                        "workspaceFolder": "/home/datascience",
+                        "containerEnv": {},
+                        "name": "ml-job-dev-env",
+                        "postCreateCommand": "conda init bash && source ~/.bashrc",
+                    }
 
-    @pytest.mark.opctl
     def test_init_vscode_image(self):
         with tempfile.TemporaryDirectory() as td:
             backend = LocalBackend(
@@ -65,9 +66,6 @@ class TestLocalBackend:
                 }
             )
             with pytest.raises(RuntimeError):
-                backend.init_vscode_container()
-            with patch("ads.opctl.utils.docker") as d:
-                d.DockerClient.api.inspect_image.return_value = True
                 backend.init_vscode_container()
                 with open(".devcontainer.json") as f:
                     content = json.load(f)

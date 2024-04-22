@@ -19,6 +19,8 @@ TensorBoard provides the visualization and the tooling that is needed to watch a
 
   ads_tuner
   training_with_oci
+  training_llm
+  ../large_language_model/training_llm
   distributed_training/overview
   tensorboard/tensorboard
   model_evaluation/index

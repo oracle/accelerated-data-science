@@ -1,12 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+"""
+This module provides a base class for serializable items, as well as methods for serializing and
+deserializing objects to and from JSON and YAML formats. It also includes methods for reading and
+writing serialized objects to and from files.
+"""
 
 import dataclasses
 import json
 from abc import ABC, abstractmethod
+from datetime import datetime
 from enum import Enum
 from typing import Dict, Optional, Union
 from urllib.parse import urlparse
@@ -15,6 +22,7 @@ import fsspec
 import yaml
 
 from ads.common import logger
+from ads.common.auth import default_signer
 
 try:
     from yaml import CSafeDumper as dumper
@@ -87,6 +95,13 @@ class Serializable(ABC):
         pass
 
     @staticmethod
+    def serialize(obj):
+        """JSON serializer for objects not serializable by default json code."""
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError(f"Type {type(obj)} not serializable.")
+
+    @staticmethod
     def _write_to_file(s: str, uri: str, **kwargs) -> None:
         """Write string s into location specified by uri.
 
@@ -134,11 +149,23 @@ class Serializable(ABC):
         -------
         string: Contents in file specified by URI
         """
+        # Add default signer if the uri is an object storage uri, and
+        # the user does not specify config or signer.
+        if (
+            uri.startswith("oci://")
+            and "config" not in kwargs
+            and "signer" not in kwargs
+        ):
+            kwargs.update(default_signer())
         with fsspec.open(uri, "r", **kwargs) as f:
             return f.read()
 
     def to_json(
-        self, uri: str = None, encoder: callable = json.JSONEncoder, **kwargs
+        self,
+        uri: str = None,
+        encoder: callable = json.JSONEncoder,
+        default: callable = None,
+        **kwargs,
     ) -> str:
         """Returns object serialized as a JSON string
 
@@ -148,6 +175,9 @@ class Serializable(ABC):
             URI location to save the JSON string. Defaults to None.
         encoder: (callable, optional)
             Encoder for custom data structures. Defaults to JSONEncoder.
+        default: (callable, optional)
+            A function that gets called for objects that can't otherwise be serialized.
+            It should return JSON-serializable version of the object or original object.
 
         kwargs
         ------
@@ -164,7 +194,9 @@ class Serializable(ABC):
             Serialized version of object.
             `None` in case when `uri` provided.
         """
-        json_string = json.dumps(self.to_dict(**kwargs), cls=encoder)
+        json_string = json.dumps(
+            self.to_dict(**kwargs), cls=encoder, default=default or self.serialize
+        )
         if uri:
             self._write_to_file(s=json_string, uri=uri, **kwargs)
             return None
@@ -262,11 +294,16 @@ class Serializable(ABC):
 
         Parameters
         ----------
-            yaml_string (string, optional): YAML string. Defaults to None.
-            uri (string, optional): URI location of file containing YAML string. Defaults to None.
-            loader (callable, optional): Custom YAML loader. Defaults to CLoader/SafeLoader.
-            kwargs (dict): keyword arguments to be passed into fsspec.open(). For OCI object storage, this should be config="path/to/.oci/config".
-                           For other storage connections consider e.g. host, port, username, password, etc.
+        yaml_string (string, optional)
+            YAML string. Defaults to None.
+        uri (string, optional)
+            URI location of file containing YAML string. Defaults to None.
+        loader (callable, optional)
+            Custom YAML loader. Defaults to CLoader/SafeLoader.
+        kwargs (dict)
+            keyword arguments to be passed into fsspec.open().
+            For OCI object storage, this should be config="path/to/.oci/config".
+            For other storage connections consider e.g. host, port, username, password, etc.
 
         Raises
         ------
@@ -279,10 +316,10 @@ class Serializable(ABC):
             Returns instance of the class
         """
         if yaml_string:
-            return cls.from_dict(yaml.load(yaml_string, Loader=loader))
+            return cls.from_dict(yaml.load(yaml_string, Loader=loader), **kwargs)
         if uri:
             yaml_dict = yaml.load(cls._read_from_file(uri=uri, **kwargs), Loader=loader)
-            return cls.from_dict(yaml_dict)
+            return cls.from_dict(yaml_dict, **kwargs)
         raise ValueError("Must provide either YAML string or URI location")
 
     @classmethod
@@ -317,12 +354,22 @@ class Serializable(ABC):
     def __repr__(self):
         """Returns printable version of object.
 
-        Parameters
+        Returns
         ----------
         string
             Serialized version of object as a YAML string
         """
         return self.to_yaml()
+
+    def __str__(self):
+        """Returns printable version of object.
+
+        Returns
+        ----------
+        string
+            Serialized version of object as a YAML string
+        """
+        return self.to_json()
 
 
 class DataClassSerializable(Serializable):
@@ -336,8 +383,8 @@ class DataClassSerializable(Serializable):
         Returns an instance of the class instantiated from the dictionary provided.
     """
 
-    @staticmethod
-    def _validate_dict(obj_dict: Dict) -> bool:
+    @classmethod
+    def _validate_dict(cls, obj_dict: Dict) -> bool:
         """validate the dictionary.
 
         Parameters
@@ -370,7 +417,7 @@ class DataClassSerializable(Serializable):
         obj_dict = dataclasses.asdict(self)
         if "side_effect" in kwargs and kwargs["side_effect"]:
             obj_dict = DataClassSerializable._normalize_dict(
-                obj_dict=obj_dict, case=kwargs["side_effect"]
+                obj_dict=obj_dict, case=kwargs["side_effect"], recursively=True
             )
         return obj_dict
 
@@ -379,6 +426,8 @@ class DataClassSerializable(Serializable):
         cls,
         obj_dict: dict,
         side_effect: Optional[SideEffect] = SideEffect.CONVERT_KEYS_TO_LOWER.value,
+        ignore_unknown: Optional[bool] = False,
+        **kwargs,
     ) -> "DataClassSerializable":
         """Returns an instance of the class instantiated by the dictionary provided.
 
@@ -390,6 +439,8 @@ class DataClassSerializable(Serializable):
             side effect to take on the dictionary. The side effect can be either
             convert the dictionary keys to "lower" (SideEffect.CONVERT_KEYS_TO_LOWER.value)
             or "upper"(SideEffect.CONVERT_KEYS_TO_UPPER.value) cases.
+        ignore_unknown: (bool, optional). Defaults to `False`.
+            Whether to ignore unknown fields or not.
 
         Returns
         -------
@@ -406,25 +457,38 @@ class DataClassSerializable(Serializable):
 
         allowed_fields = set([f.name for f in dataclasses.fields(cls)])
         wrong_fields = set(obj_dict.keys()) - allowed_fields
-        if wrong_fields:
+        if wrong_fields and not ignore_unknown:
             logger.warning(
                 f"The class {cls.__name__} doesn't contain attributes: `{list(wrong_fields)}`. "
                 "These fields will be ignored."
             )
 
-        obj = cls(**{key: obj_dict[key] for key in allowed_fields})
+        obj = cls(
+            **{key: obj_dict.get(key) for key in allowed_fields}
+        )
 
         for key, value in obj_dict.items():
-            if isinstance(value, dict) and hasattr(
-                getattr(cls(), key).__class__, "from_dict"
+            if (
+                key in allowed_fields
+                and isinstance(value, dict)
+                and hasattr(getattr(cls(), key).__class__, "from_dict")
             ):
-                attribute = getattr(cls(), key).__class__.from_dict(value)
+                attribute = getattr(cls(), key).__class__.from_dict(
+                    value,
+                    ignore_unknown=ignore_unknown,
+                    side_effect=side_effect,
+                    **kwargs,
+                )
                 setattr(obj, key, attribute)
+
         return obj
 
     @staticmethod
     def _normalize_dict(
-        obj_dict: Dict, case: str = SideEffect.CONVERT_KEYS_TO_LOWER.value
+        obj_dict: Dict,
+        recursively: bool = False,
+        case: str = SideEffect.CONVERT_KEYS_TO_LOWER.value,
+        **kwargs,
     ) -> Dict:
         """lower all the keys.
 
@@ -435,6 +499,8 @@ class DataClassSerializable(Serializable):
         case: (optional, str). Defaults to "lower".
             the case to normalized to. can be either "lower" (SideEffect.CONVERT_KEYS_TO_LOWER.value)
             or "upper"(SideEffect.CONVERT_KEYS_TO_UPPER.value).
+        recursively: (bool, optional). Defaults to `False`.
+            Whether to recursively normalize the dictionary or not.
 
         Returns
         -------
@@ -443,12 +509,16 @@ class DataClassSerializable(Serializable):
         """
         normalized_obj_dict = {}
         for key, value in obj_dict.items():
-            if isinstance(value, dict):
+            if recursively and isinstance(value, dict):
                 value = DataClassSerializable._normalize_dict(
-                    value, case=SideEffect.CONVERT_KEYS_TO_UPPER.value
+                    value, case=case, recursively=recursively, **kwargs
                 )
             normalized_obj_dict = DataClassSerializable._normalize_key(
-                normalized_obj_dict=normalized_obj_dict, key=key, value=value, case=case
+                normalized_obj_dict=normalized_obj_dict,
+                key=key,
+                value=value,
+                case=case,
+                **kwargs,
             )
         return normalized_obj_dict
 
@@ -458,7 +528,7 @@ class DataClassSerializable(Serializable):
     ) -> Dict:
         """helper function to normalize the key in the case specified and add it back to the dictionary.
 
-        Paramaters
+        Parameters
         ----------
         normalized_obj_dict: (Dict)
             the dictionary to append the key and value to.
@@ -467,17 +537,18 @@ class DataClassSerializable(Serializable):
         value: (Union[str, Dict])
             value to be added.
         case: (str)
-            the case to normalized to. can be either "lower" (SideEffect.CONVERT_KEYS_TO_LOWER.value)
+            The case to normalized to. can be either "lower" (SideEffect.CONVERT_KEYS_TO_LOWER.value)
             or "upper"(SideEffect.CONVERT_KEYS_TO_UPPER.value).
 
         Raises
         ------
-        NotImplementedError: if case provided is not either "lower" or "upper".
+        NotImplementedError
+            Raised when `case` is not supported.
 
         Returns
         -------
         Dict
-            normalized dictionary with the key and value added in the case specified.
+            Normalized dictionary with the key and value added in the case specified.
         """
         if case.lower() == SideEffect.CONVERT_KEYS_TO_LOWER.value:
             normalized_obj_dict[key.lower()] = value

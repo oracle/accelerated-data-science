@@ -18,8 +18,8 @@ class TrainingCode(DataClassSerializable):
 
     artifact_directory: str = ""
 
-    @staticmethod
-    def _validate_dict(obj_dict: Dict) -> bool:
+    @classmethod
+    def _validate_dict(cls, obj_dict: Dict) -> bool:
         assert obj_dict and (
             "ARTIFACT_DIRECTORY" in obj_dict
         ), "`training_code` must have `ARTIFACT_DIRECTORY` field."
@@ -40,8 +40,8 @@ class ModelProvenanceDetails(DataClassSerializable):
     user_ocid: str = ""
     vm_image_internal_id: str = ""
 
-    @staticmethod
-    def _validate_dict(obj_dict: Dict) -> bool:
+    @classmethod
+    def _validate_dict(cls, obj_dict: Dict) -> bool:
         """validate the yaml file.
 
         Parameters

@@ -42,6 +42,13 @@ DEFAULT_LANGUAGE = "PYTHON"
 DEFAULT_SPARK_VERSION = "3.2.1"
 DEFAULT_NUM_EXECUTORS = 1
 DEFAULT_SHAPE = "VM.Standard.E3.Flex"
+DATAFLOW_SHAPE_FAMILY = [
+    "Standard.E3",
+    "Standard.E4",
+    "Standard3",
+    "Standard.A1",
+    "Standard2",
+]
 
 
 def conda_pack_name_to_dataflow_config(conda_uri):
@@ -384,6 +391,9 @@ class DataFlow(Infrastructure):
     CONST_OCPUS = "ocpus"
     CONST_ID = "id"
     CONST_PRIVATE_ENDPOINT_ID = "private_endpoint_id"
+    CONST_POOL_ID = "pool_id"
+    CONST_FREEFORM_TAGS = "freeform_tags"
+    CONST_DEFINED_TAGS = "defined_tags"
 
     attribute_map = {
         CONST_COMPARTMENT_ID: "compartmentId",
@@ -402,6 +412,9 @@ class DataFlow(Infrastructure):
         CONST_OCPUS: CONST_OCPUS,
         CONST_ID: CONST_ID,
         CONST_PRIVATE_ENDPOINT_ID: "privateEndpointId",
+        CONST_POOL_ID: "poolId",
+        CONST_FREEFORM_TAGS: "freeformTags",
+        CONST_DEFINED_TAGS: "definedTags",
     }
 
     def __init__(self, spec: dict = None, **kwargs):
@@ -414,7 +427,11 @@ class DataFlow(Infrastructure):
             spec = {
                 k: v
                 for k, v in spec.items()
-                if f"with_{camel_to_snake(k)}" in self.__dir__() and v is not None
+                if (
+                    f"with_{camel_to_snake(k)}" in self.__dir__()
+                    or (k == "defined_tags" or "freeform_tags")
+                )
+                and v is not None
             }
             defaults.update(spec)
             super().__init__(defaults, **kwargs)
@@ -776,8 +793,54 @@ class DataFlow(Infrastructure):
         """
         return self.set_spec(self.CONST_PRIVATE_ENDPOINT_ID, private_endpoint_id)
 
+    def with_freeform_tag(self, **kwargs) -> "DataFlow":
+        """Sets freeform tags
+
+        Returns
+        -------
+        DataFlow
+            The DataFlow instance (self)
+        """
+        return self.set_spec(self.CONST_FREEFORM_TAGS, kwargs)
+
+    def with_defined_tag(self, **kwargs) -> "DataFlow":
+        """Sets defined tags
+
+        Returns
+        -------
+        DataFlow
+            The DataFlow instance (self)
+        """
+        return self.set_spec(self.CONST_DEFINED_TAGS, kwargs)
+
+    def with_pool_id(self, pool_id: str) -> "DataFlow":
+        """
+        Set the Data Flow Pool Id for a Data Flow job.
+
+        Parameters
+        ----------
+        pool_id: str
+            The OCID of a Data Flow Pool.
+
+        Returns
+        -------
+        DataFlow
+            the Data Flow instance itself
+        """
+        if not hasattr(CreateApplicationDetails, "pool_id"):
+            raise EnvironmentError(
+                "Data Flow Pool has not been supported in the current OCI SDK installed."
+            )
+        return self.set_spec(self.CONST_POOL_ID, pool_id)
+
     def __getattr__(self, item):
-        if f"with_{item}" in self.__dir__():
+        if item == self.CONST_DEFINED_TAGS or item == self.CONST_FREEFORM_TAGS:
+            return self.get_spec(item)
+        elif (
+            f"with_{item}" in self.__dir__()
+            and item != "defined_tag"
+            and item != "freeform_tag"
+        ):
             return self.get_spec(item)
         raise AttributeError(f"Attribute {item} not found.")
 
@@ -797,6 +860,11 @@ class DataFlow(Infrastructure):
         DataFlow
             a Data Flow job instance
         """
+        if self.pool_id:
+            if not hasattr(CreateApplicationDetails, "pool_id"):
+                raise EnvironmentError(
+                    "Data Flow Pool has not been supported in the current OCI SDK installed."
+                )
         # Set default display_name if not specified - randomly generated easy to remember name
         if not self.name:
             self.name = utils.get_random_name_for_resource()
@@ -849,7 +917,8 @@ class DataFlow(Infrastructure):
             {
                 "display_name": self.name,
                 "file_uri": runtime.script_uri,
-                "freeform_tags": runtime.freeform_tags,
+                "freeform_tags": runtime.freeform_tags or self.freeform_tags,
+                "defined_tags": runtime.defined_tags or self.defined_tags,
                 "archive_uri": runtime.archive_uri,
                 "configuration": runtime.configuration,
             }
@@ -860,11 +929,38 @@ class DataFlow(Infrastructure):
             raise ValueError(
                 "Compartment id is required. Specify compartment id via 'with_compartment_id()'."
             )
+        self._validate_shapes(payload)
         payload.pop("id", None)
         logger.debug(f"Creating a DataFlow Application with payload {payload}")
         self.df_app = DataFlowApp(**payload).create()
         self.with_id(self.df_app.id)
         return self
+
+    @staticmethod
+    def _validate_shapes(payload: Dict):
+        if "executor_shape" not in payload:
+            payload["executor_shape"] = DEFAULT_SHAPE
+        if "driver_shape" not in payload:
+            payload["driver_shape"] = DEFAULT_SHAPE
+        executor_shape = payload["executor_shape"]
+        executor_shape_config = payload.get("executor_shape_config", {})
+        driver_shape = payload["driver_shape"]
+        driver_shape_config = payload.get("driver_shape_config", {})
+        same_shape_family = False
+        for shape in DATAFLOW_SHAPE_FAMILY:
+            if shape in executor_shape and shape in driver_shape:
+                same_shape_family = True
+                break
+        if not same_shape_family:
+            raise ValueError(
+                "`executor_shape` and `driver_shape` must be from the same shape family."
+            )
+        if (not executor_shape.endswith("Flex") and executor_shape_config) or (
+            not driver_shape.endswith("Flex") and driver_shape_config
+        ):
+            raise ValueError(
+                "Shape config is not required for non flex shape from user end."
+            )
 
     @staticmethod
     def _upload_file(local_path, bucket, overwrite=False):
@@ -915,6 +1011,7 @@ class DataFlow(Infrastructure):
         args: List[str] = None,
         env_vars: Dict[str, str] = None,
         freeform_tags: Dict[str, str] = None,
+        defined_tags: Dict[str, Dict[str, object]] = None,
         wait: bool = False,
         **kwargs,
     ) -> DataFlowRun:
@@ -932,6 +1029,8 @@ class DataFlow(Infrastructure):
             dictionary of environment variables (not used for data flow)
         freeform_tags: Dict[str, str], optional
             freeform tags
+        defined_tags: Dict[str, Dict[str, object]], optional
+            defined tags
         wait: bool, optional
             whether to wait for a run to terminate
         kwargs
@@ -950,7 +1049,8 @@ class DataFlow(Infrastructure):
         # Set default display_name if not specified - randomly generated easy to remember name generated
         payload["display_name"] = name if name else utils.get_random_name_for_resource()
         payload["arguments"] = args if args and len(args) > 0 else None
-        payload["freeform_tags"] = freeform_tags
+        payload["freeform_tags"] = freeform_tags or self.freeform_tags
+        payload["defined_tags"] = defined_tags or self.defined_tags
         payload.pop("spark_version", None)
         logger.debug(f"Creating a DataFlow Run with payload {payload}")
         run = DataFlowRun(**payload).create()
@@ -1133,7 +1233,7 @@ class DataFlow(Infrastructure):
         """
         return yaml.safe_dump(self.to_dict(**kwargs))
 
-    def init(self) -> "DataFlow":
+    def init(self, **kwargs) -> "DataFlow":
         """Initializes a starter specification for the DataFlow.
 
         Returns

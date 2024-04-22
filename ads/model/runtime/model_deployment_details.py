@@ -17,9 +17,9 @@ class ModelDeploymentDetails(DataClassSerializable):
 
     inference_conda_env: InferenceEnvInfo = field(default_factory=InferenceEnvInfo)
 
-    @staticmethod
-    def _validate_dict(obj_dict: Dict) -> bool:
-        """Validate the content in the ditionary format from the yaml file.
+    @classmethod
+    def _validate_dict(cls, obj_dict: Dict) -> bool:
+        """Validate the content in the dictionary format from the yaml file.
 
         Parameters
         ----------

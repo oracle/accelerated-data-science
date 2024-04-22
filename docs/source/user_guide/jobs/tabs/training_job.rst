@@ -84,13 +84,3 @@
           skipMetadataUpdate: true
           url: https://github.com/pytorch/examples.git
           workingDir: word_language_model
-
-
-.. code-block:: python
-
-  # Create the job on OCI Data Science
-  job.create()
-  # Start a job run
-  run = job.run()
-  # Stream the job run outputs
-  run.watch()

@@ -38,6 +38,17 @@ Oracle Accelerated Data Science (ADS)
 .. toctree::
    :hidden:
    :maxdepth: 5
+   :caption: Low-Code AI Operators:
+
+   user_guide/operators/index
+   user_guide/operators/common/index
+   user_guide/operators/forecasting_operator/index
+   user_guide/operators/anomaly_detection_operator/index
+   user_guide/operators/pii_operator/index
+
+.. toctree::
+   :hidden:
+   :maxdepth: 5
    :caption: Tasks:
 
    user_guide/loading_data/connect
@@ -57,7 +68,9 @@ Oracle Accelerated Data Science (ADS)
    user_guide/jobs/index
    user_guide/logs/logs
    user_guide/pipeline/index
+   user_guide/large_language_model/index
    user_guide/secrets/index
+
 
 .. toctree::
    :hidden:
@@ -66,6 +79,13 @@ Oracle Accelerated Data Science (ADS)
 
    modules
 
+.. admonition:: Introducing AI Quick Actions
+   :class: note
+
+   Deploy, Fine Tune and Evaluate Large language models such as `Mistral-7B-Instruct-v0.2 <https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.2>`__, `CodeLlama-13b-Instruct-hf <https://huggingface.co/codellama/CodeLlama-13b-Instruct-hf>`__, etc with just a couple of clicks.
+
+   Visit `AI Quick Actions documentation <https://github.com/oracle-samples/oci-data-science-ai-samples/tree/main/ai-quick-actions>`__ for the latest information
+  
 .. admonition:: Oracle Accelerated Data Science (ADS)
    :class: note
 
@@ -97,6 +117,7 @@ Oracle Accelerated Data Science (ADS)
    `https://github.com/oracle/accelerated-data-science <https://github.com/oracle/accelerated-data-science>`_
 
 .. code-block:: python3
+
    >>> import ads
    >>> ads.hello()
 

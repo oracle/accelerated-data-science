@@ -27,7 +27,7 @@ Within your notebook session, you can choose to use the resource principal to au
 API Keys
 ========
 
-This is the default method of authentication. You can also authenticate as your own personal IAM user by creating or uploading OCI configuration and API key files inside your notebook session environment. The OCI configuration file contains the necessary credentials to authenticate your user against the model catalog and other OCI services like Object Storage. The example notebook, `api_keys.ipynb` demonstrates how to create these files.
+This is the default method of authentication. You can also authenticate as your own personal IAM user by creating or uploading OCI configuration and API key files inside your notebook session environment. The OCI configuration file contains the necessary credentials to authenticate your user against the model catalog and other OCI services like Object Storage. To setup API Key refer to `Required Keys and OCIDs <https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm>`_ and `SDK and CLI Configuration File <https://docs.oracle.com/en-us/iaas/Content/API/Concepts/sdkconfig.htm>`_.
 
 The ``getting-started.ipynb`` notebook in the home directory of the notebook session environment demonstrates all the steps needed to create the configuration file and the keys. Follow the steps in that notebook before importing and using ADS in your notebooks.
 
@@ -79,4 +79,3 @@ In the this example, the default authentication uses API keys specified with the
   os_auth = authutil.resource_principal() # use resource principal to as the preferred way to access object store
 
 ``AuthContext`` context class can also be used to specify the desired type of authentication. It supports API key configuration, resource principal, and instance principal authentication, as well as predefined signers, callable signers, or API keys configurations from specified locations. See `API Documentation <../../ads.common.html#ads.common.auth.AuthContext>`__ for more details.
-

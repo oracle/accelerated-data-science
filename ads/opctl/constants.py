@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ads.common.extended_enum import ExtendedEnum
@@ -12,10 +12,8 @@ DEFAULT_CONDA_PACK_FOLDER = "~/conda"
 DEFAULT_MODEL_FOLDER = "~/.ads_ops/models"
 CONDA_PACK_OS_PREFIX_FORMAT = "oci://<bucket>@<namespace>/<prefix>"
 DEFAULT_ADS_CONFIG_FOLDER = "~/.ads_ops"
-OPS_IMAGE_BASE = "ads-operators-base"
 ML_JOB_IMAGE = "ml-job"
 ML_JOB_GPU_IMAGE = "ml-job-gpu"
-OPS_IMAGE_GPU_BASE = "ads-operators-gpu-base"
 DEFAULT_MANIFEST_VERSION = "1.0"
 ADS_CONFIG_FILE_NAME = "config.ini"
 ADS_JOBS_CONFIG_FILE_NAME = "ml_job_config.ini"
@@ -30,6 +28,11 @@ DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR = "/home/datascience/spark_conf_dir"
 DEFAULT_NOTEBOOK_SESSION_CONDA_DIR = "/home/datascience/conda"
 DEFAULT_SPECIFICATION_FILE_NAME = "oci-datascience-template.yaml"
 DEFAULT_MODEL_DEPLOYMENT_FOLDER = "/opt/ds/model/deployed_model/"
+
+# OPERATOR
+OPERATOR_MODULE_PATH = "ads.opctl.operator.lowcode"
+OPERATOR_IMAGE_WORK_DIR = "/etc/operator"
+OVERRIDE_KWARGS = "override_kwargs"
 
 
 class RUNTIME_TYPE(ExtendedEnum):
@@ -49,6 +52,8 @@ class RESOURCE_TYPE(ExtendedEnum):
     DATAFLOW = "dataflow"
     PIPELINE = "pipeline"
     MODEL_DEPLOYMENT = "deployment"
+    MARKETPLACE = "marketplace"
+    OPERATOR = "operator"
 
 
 class BACKEND_NAME(ExtendedEnum):
@@ -57,3 +62,5 @@ class BACKEND_NAME(ExtendedEnum):
     PIPELINE = "pipeline"
     MODEL_DEPLOYMENT = "deployment"
     LOCAL = "local"
+    OPERATOR_LOCAL = "operator.local"
+    MARKETPLACE = "marketplace"

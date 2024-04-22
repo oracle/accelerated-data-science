@@ -20,6 +20,7 @@ from ads.jobs import (
     ScriptRuntime,
     NotebookRuntime,
 )
+from ads.jobs.builders.infrastructure.dsc_job import DataScienceJobRun
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     CondaRuntimeHandler,
     ScriptRuntimeHandler,
@@ -473,6 +474,26 @@ class DataScienceJobCreationErrorTest(DataScienceJobPayloadTest):
             job.create()
         del os.environ["NB_SESSION_OCID"]
 
+    def test_job_with_non_flex_shape_and_shape_details(self):
+        job = (
+            Job(name="test")
+            .with_infrastructure(
+                infrastructure.DataScienceJob()
+                .with_compartment_id("ocid1.compartment.oc1..<unique_ocid>")
+                .with_project_id("ocid1.datascienceproject.oc1.iad.<unique_ocid>")
+                .with_shape_name("VM.Standard2.1")
+                .with_shape_config_details(memory_in_gbs=16, ocpus=1)
+                .with_block_storage_size(50)
+            )
+            .with_runtime(ScriptRuntime().with_script(self.SCRIPT_URI))
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="Shape config is not required for non flex shape from user end."
+        ):
+            job.create()
+
 
 class ScriptRuntimeArtifactTest(unittest.TestCase):
     DIR_SOURCE_PATH = os.path.join(os.path.dirname(__file__), "test_files/job_archive")
@@ -583,3 +604,25 @@ class TestRunInstance:
         test_run_instance = RunInstance()
         test_result = test_run_instance.run_details_link
         assert test_result == ""
+
+
+class DataScienceJobMethodTest(DataScienceJobPayloadTest):
+
+    @patch("ads.jobs.builders.infrastructure.dsc_job.DataScienceJobRun.cancel")
+    @patch("ads.jobs.ads_job.Job.run_list")
+    def test_job_cancel(self, mock_run_list, mock_cancel):
+        mock_run_list.return_value = [
+            DataScienceJobRun(
+                lifecycle_state="CANCELED"
+            )
+        ] * 3
+
+        job = (
+            Job(name="test")
+            .with_infrastructure(infrastructure.DataScienceJob())
+            .with_runtime(ScriptRuntime().with_script(self.SCRIPT_URI))
+        )
+
+        job.cancel()
+        mock_run_list.assert_called()
+        mock_cancel.assert_called_with(wait_for_completion=False)

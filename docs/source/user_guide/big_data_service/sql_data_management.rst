@@ -13,7 +13,7 @@ Ibis
 Connect
 -------
 
-Obtaining a Kerberos ticket, depending on your system configuration, you may need to define the ``ibis.options.impala.temp_db`` and ``ibis.options.impala.temp_hdfs_path`` options. The ``ibis.impala.connect()`` method makes a connection to the `Impala execution backend <https://ibis-project.org/docs/dev/backends/Impala/>`_. The ``.sql()`` allows you to run SQL commands on the data.
+Obtaining a Kerberos ticket, depending on your system configuration, you may need to define the ``ibis.options.impala.temp_db`` and ``ibis.options.impala.temp_hdfs_path`` options. The ``ibis.impala.connect()`` method makes a connection to the `Impala execution backend <https://ibis-project.org/backends/impala/>`_. The ``.sql()`` allows you to run SQL commands on the data.
 
 .. code-block:: python3
 
@@ -167,5 +167,3 @@ It is important to close sessions when you don't need them anymore. This frees u
 .. code-block:: python3
 
     cursor.close()
-
-

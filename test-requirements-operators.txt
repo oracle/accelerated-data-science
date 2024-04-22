@@ -1,0 +1,5 @@
+-r test-requirements.txt
+-e ".[forecast]"
+-e ".[feature-store-marketplace]"
+darts>=0.28
+plotly

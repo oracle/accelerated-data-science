@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from __future__ import print_function, absolute_import
@@ -57,6 +57,17 @@ from ads.common.decorator.deprecate import deprecated
 default_snapshots_dir = None
 default_storage_options = None
 mindate = datetime.date(datetime.MINYEAR, 1, 1)
+
+
+warnings.warn(
+    (
+        "The `ads.dataset.factory` is deprecated in `oracle-ads 2.8.8` and will be removed in `oracle-ads 3.0`."
+        "Use Pandas to read from local files or object storage directly. "
+        "Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/loading_data/connect.html."
+    ),
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class DatasetFactory:
@@ -356,7 +367,7 @@ class DatasetFactory:
                 HTML(
                     list_df.style.set_table_attributes("class=table")
                     .hide_index()
-                    .render()
+                    .to_html()
                 )
             )
         return list_df
@@ -873,7 +884,6 @@ class CustomFormatReaders:
         import xml.etree.cElementTree as et
 
         def get_children(df, node, parent, i):
-
             for name in node.attrib.keys():
                 df.at[i, parent + name] = node.attrib[name]
             for child in list(node):

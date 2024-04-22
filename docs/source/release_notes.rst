@@ -2,6 +2,171 @@
 Release Notes
 =============
 
+2.11.7
+------
+Release date: April 18, 2024
+
+* Fixed the bug in ``ADSDataset.show_in_notebook()``.
+* Updated langchain version. 
+
+
+2.11.6
+------
+Release date: April 3, 2024
+
+* Fixed bugs and introduced enhancements following our recent release, which included internal adjustments for future features and updates for the Jupyter Lab 3 upgrade.
+
+
+2.11.5
+------
+Release date: March 25, 2024
+
+* Fixed bugs and introduced enhancements following our recent release, which included internal adjustments for future features and updates for the Jupyter Lab 3 upgrade.
+
+2.11.4
+------
+Release date: March 25, 2024
+
+* Fixed bugs and introduced enhancements following our recent release, which included internal adjustments for future features and updates for the Jupyter Lab 3 upgrade.
+
+2.11.3
+------
+Release date: March 22, 2024
+
+* Fixed bugs and introduced enhancements following our recent release, which included internal adjustments for future features and updates for the Jupyter Lab 3 upgrade.
+
+2.11.2
+------
+Release date: March 21, 2024
+
+* Fixed bugs and introduced enhancements following our recent release, which included internal adjustments for future features and updates for the Jupyter Lab 3 upgrade.
+
+2.11.1
+------
+Release date: March 20, 2024
+
+* Internal changes to support upcoming features and changes in Notebook related to Jupyter Lab 3 upgrade.
+
+2.10.1
+------
+Release date: February 7, 2024
+
+* Releasing v1 of the Anomaly Detection Operator! The Anomaly Detection Operator is a no-code Anomaly or Outlier Detection solution through the OCI Data Science Platform. It uses dozens of models from Oracle’s own proprietary research and the best of open source. See the ``Anomaly Detection`` Section of the ``AI Operators`` tab for full details (:doc:`link <./user_guide/operators/anomaly_detection_operator/index>`).
+* Releasing a new version of the Forecast Operator. This release has faster explainability, improved support for reading from databases, upgrades to the automatic reporting, improved parallelization across all models, and an ability to save models for deferred inference. See the ``Forecast`` Section of the ``AI Operators`` tab for full details (:doc:`link <./user_guide/operators/forecasting_operator/index>`).
+* Change to the default signer such that it now defaults to ``resource_prinicpal`` on any OCI Data Science resource (for example, jobs, notebooks, model deployments, dataflow).
+
+2.10.0
+------
+Release date: January 24, 2024
+
+* Improved the progress bar to use the percentage completed of workflow request instead of hardcoded steps.
+* Used the service default for ``WEB_CONCURRENCY`` for model deployment.
+* Fixed the bug with zipping the model artifacts directory when ``TMPRDIR`` is provided.
+* Improved the ``watch()`` method for model deployment to keep streaming logs when the deployment is finished.
+* Changed the default log type of watch to both access logs and predict logs.
+* Changed the target directory to ``artifact_dir`` instead of temp directory when saving the model artifacts.
+* Fixed the mount file system pre-check to check for duplicate ``dest``.
+* Fixed duplicate logs in the model deployment consolidated logs.
+* Added support for the optional downloading of artifacts in ``GenericModel`` using a ``download_artifact()`` method.
+* Set the Data Science service endpoint through the environment variable in ``OCIDataScienceMixin``.
+* Made reloading the model to environment as optional at the time of invoking ``GenericModel.from_id()``.
+* Mandated the Python version in ``GenericModel.prepare()`` when it can't be resolved.
+* Added a print out of the model deployment OCID in the notebook cell when ``deploy()`` is called.
+
+2.9.1
+-----
+Release date: December 6, 2023
+
+* Added support for deploying LangChain application as OCI Model Deployment.
+* Added support for using HuggingFace Evaluation as LLM guardrail.
+* Added deployment support for RetrievalQA when using OpenSearchVectorSearch or FAISS vector DB as retriever.
+* Added reload parameters in ``GenericModel.save()`` to provide option to not reload score.py.
+* Fixed a bug in model deployment progress bar due to fixed number of steps.
+* Fixed a bug in ``ads opctl build-image job-local`` command.
+
+2.9.0
+-----
+Release date: November 16, 2023
+
+* Introducing AI Forecast Operator. Learn more about Operators in the "Operators" section of the :doc:`docs <./user_guide/operators/index>`.
+* Introducing PII Operator which aims to detect and redact Personal Identifiable Information in data.
+* Fixed a bug with the ``opctl conda create`` and ``opctl conda publish`` commands to ensure functionality on M1 and M2 local machines.
+* Fixed a bug with failed model deployment return value.
+* Fixed a bug when sorting logs for jobs and model deployment.
+
+2.8.11
+------
+Release date: October 18, 2023
+
+* Added support to mount file systems in Data Science notebook sessions and jobs.
+* Added support to cancel all job runs in the ADS ``api`` and ``opctl`` commands.
+* Updated ``ads.set_auth()`` to use both ``config`` and ``signer`` when provided.
+* Fixed a bug when initializing distributed training artifacts with "Ray" framework.
+
+2.8.10
+------
+Release date: September 27, 2023
+
+* Improved the ``LargeArtifactUploader`` class to understand OCI paths to upload model artifacts to the model catalog by reference.
+* Removed ``ADSDataset`` runtime dependency on ``geopandas``.
+* Fixed a bug in the progress bar during model registration.
+* Fixed a bug where session variable could be referenced before assignment.
+* Fixed a bug with model artifact save.
+* Fixed a bug with pipelines step.
+
+2.8.9
+-----
+Release date: September 5, 2023
+
+* Upgraded the ``scikit-learn`` dependency to ``>=1.0``.
+* Upgraded the ``pandas`` dependency to ``>1.2.1,<2.1`` to allow you to use ADS with pandas 2.0.
+* Implemented multi-part upload in the ``ArtifactUploader`` to upload model artifacts to the model catalog.
+* Fixed the "Attribute not found" error, when ``deploy()`` called twice in ``GenericModel``.
+* Fixed the fetch of the security token, when the relative path for the ``security_token_file`` is provided (used in session token-bases authentication).
+
+2.8.8
+-----
+Release date: July 27, 2023
+
+* Added ``PyTorchDistributed`` runtime option for Data Science jobs to add support for training large language models with PyTorch.
+* Added options to configure flexible shape in ``opctl``.
+* Refactored ``deploy()`` in ``GenericModel`` to prioritize the parameters.
+* Fixed the ``opctl`` commands delete/cancel/watch/activate/deactivate commands to add missing parameter options.
+* Fixed the ``opctl`` commands to call run to start an ML job when no YAML is specified.
+* Deprecated the ``DatasetFactory`` class, and refactored the code.
+
+2.8.7
+-----
+Release date: June 22, 2023
+
+* Added support for leveraging pools in the Data Flow applications.
+* Added support for token-based authentication.
+* Revised help information for ``opctl`` commands.
+
+2.8.6
+-----
+Release date: June 13, 2023
+
+* Resolved an issue in ``ads opctl build-image job-local`` when the build of ``job-local`` would get stuck. Updated the Python version to 3.8 in the base environment of the ``job-local`` image.
+* Fixed a bug that prevented the support of defined tags for Data Science job runs.
+* Fixed a bug in the ``entryscript.sh`` of ``ads opctl`` that attempted to create a temporary folder in the ``/var/folders`` directory.
+* Added support for defined tags in the Data Flow application and application run.
+* Deprecated the old :py:class:`~ads.model.ModelDeploymentProperties` and  :py:class:`~ads.model.ModelDeployer`  classes, and their corresponding APIs.
+* Enabled the uploading of large size model artifacts for the :py:class:`~ads.model.ModelDeployment` class.
+* Implemented validation for shape name and shape configuration details in Data Science jobs and Data Flow applications.
+* Added the capability to create ``ADSDataset`` using the Pandas accessor.
+* Provided a prebuilt watch command for monitoring Data Science jobs with ``ads opctl``.
+* Eliminated the legacy ``ads.dataflow`` package from ADS.
+
+2.8.5
+-----
+Release date: May 17, 2023
+
+* Added support for ``key_content`` attribute in ``ads.set_auth()`` for the API KEY authentication.
+* Fixed bug in :py:class:`~ads.evaluations.statistical_metrics.ModelEvaluator` when it returned incorrect ROC AUC characteristics.
+* Fixed bug in ``ADSDataset.suggest_recommendations()`` API, when it returned an error if the target wasn't specified.
+* Fixed bug in ``ADSDataset.auto_transform()`` API, when an incorrect sampling was suggested for imbalanced data.
+
 2.8.4
 -----
 Release date: May 5, 2023
@@ -65,7 +230,7 @@ Release date: January 25, 2023
 
 2.7.3
 -----
-Release date: January 18, 2023 
+Release date: January 18, 2023
 
 * Added support for the :doc:`model version set <./user_guide/model_registration/model_version_set>` feature.
 * Added ``--job-info`` option to ``ads opctl run`` CLI to save job run information to a YAML file.
@@ -361,8 +526,8 @@ The following features related to the Data Labeling service were added:
 The following improvements were effected:
 
 * Improve ads import time.
-* Fix the version of the `jsonschema` package.
-* Update `numpy` deps to >= 1.19.2 for compatibility with `TensorFlow 2.6`.
+* Fix the version of the ``jsonschema`` package.
+* Update ``numpy`` deps to >= 1.19.2 for compatibility with ``TensorFlow 2.6``.
 * Added progress bar when creating a Data Flow application.
 * Fixed the file upload path in Data Flow.
 * Added supporting tags when saving model artifacts to the model catalog.
@@ -426,7 +591,7 @@ Release notes: August 3, 2021
 This release of the model catalog includes these enhancements:
 
 * Automatic extraction of model taxonomy metadata that lets data scientists document the use case, framework, and hyperparameters of their models.
-* Improvement to the model provenance metadata, including a reference to the model training resource (notebook sessions) by passing in the `training_id` to the `.save()` method.
+* Improvement to the model provenance metadata, including a reference to the model training resource (notebook sessions) by passing in the ``training_id`` to the ``.save()`` method.
 * Support for custom metadata which lets data scientists document the context around their models, automatic extraction references to the conda environment used to train the model, the training and validation datasets, and so on.
 * Automatcal extraction of the model input feature vector and prediction schemas.
 * Model introspection tests that are run on the model artifact before the model is saved to the model catalog. Model introspection validates the artifact against a series of common issues and errors found with artifacts. These introspection tests are part of the model artifact code template that is included.
@@ -543,10 +708,10 @@ January 13, 2021
 * Corrected the ``up_sample()`` method in ``get_recommendations()`` so that it does not fail when all features are categorical. Up-sampling is possible for datasets containing continuous and categorical features.
 * Resolved issues with serializing ``ndarray`` objects into JSON.
 * A table of all of the ADS notebook examples can be found in our service documentation: `Oracle Cloud Infrastructure Data Science <https://docs.cloud.oracle.com/en-us/iaas/data-science/using/use-notebook-sessions.htm#conda_understand_environments>`__
-* Changed `set_documentation_mode` to false by default.
+* Changed ``set_documentation_mode`` to false by default.
 * Added unit-tests related to the dataset helper.
-* Fixed the `_check_object_exists` to handle situations where the object storage bucket has more than 1000 objects.
-* Added option `overwrite_script` in the `create_app()` method to allow a user to override a pre-existing file.
+* Fixed the ``_check_object_exists`` to handle situations where the object storage bucket has more than 1000 objects.
+* Added option ``overwrite_script`` in the ``create_app()`` method to allow a user to override a pre-existing file.
 * Added support for newer fsspec versions.
 * Added support for the C library Snappy.
 * Fixed issue with uploading model provenance data due to inconsistency with OCI interface.

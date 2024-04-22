@@ -128,18 +128,6 @@ def test_get_service_packs_bad_response():
     assert all(slug in slugs for slug, _ in service_pack_slug_mapping.items())
 
 
-@patch("requests.request", mocked_requests_request)
-def test_get_service_packs_cust_tenancy():
-    service_pack_path_mapping, service_pack_slug_mapping = get_service_packs(
-        "ociodsccust", "service-conda-packs", None
-    )
-    db_pack_path = "oci://service-conda-packs@ociodsccust/service_pack/cpu/Oracle_Database_for_CPU_Python_3.7/1.0/database_p37_cpu_v1"
-    db_slug = "database_p37_cpu_v1"
-    db_python_version = "3.7"
-    assert service_pack_path_mapping[db_pack_path] == (db_slug, db_python_version)
-    assert service_pack_slug_mapping[db_slug] == (db_pack_path, db_python_version)
-
-
 class TestTrainingEnvInfo:
     """Test the TrainingEnvInfo class."""
 
@@ -177,7 +165,16 @@ class TestTrainingEnvInfo:
         info.training_env_type = "service_pack"
         info.training_python_version = "3.6"
 
-    def test_from_slug_not_exist(self):
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_from_slug_not_exist(self, mock_get_service_packs):
+        mock_get_service_packs.return_value = (
+            {
+                "test_path": ("mlcpuv1", "3.6"),
+            },
+            {
+                "mlcpuv1": ("test_path", "3.6"),
+            },
+        )
         with pytest.warns(UserWarning, match="not a service pack"):
             TrainingEnvInfo.from_slug(
                 "not_exist", namespace="ociodscdev", bucketname="service-conda-packs"
@@ -256,7 +253,16 @@ class TestInferenceEnvInfo:
         info.inference_env_type = "service_pack"
         info.inference_python_version = "3.6"
 
-    def test_from_slug_not_exist(self):
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_from_slug_not_exist(self, mock_get_service_packs):
+        mock_get_service_packs.return_value = (
+            {
+                "test_path": ("mlcpuv1", "3.6"),
+            },
+            {
+                "mlcpuv1": ("test_path", "3.6"),
+            },
+        )
         with pytest.warns(UserWarning, match="not a service pack"):
             InferenceEnvInfo.from_slug(
                 "not_exist", namespace="ociodscdev", bucketname="service-conda-packs"

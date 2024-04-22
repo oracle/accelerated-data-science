@@ -121,7 +121,7 @@ class SGDClassifierSearchSpace(ModelSearchSpace):
     def suggest_space(self, **kwargs):
         space = {
             "alpha": LogUniformDistribution(10**-4, 10**-1),
-            "penalty": CategoricalDistribution(["l1", "l2", "none"]),
+            "penalty": CategoricalDistribution(["l1", "l2", None]),
         }
         if self.strategy != "perfunctory":
             space.update(
@@ -144,7 +144,6 @@ class SVCSearchSpace(ModelSearchSpace):
         super(SVCSearchSpace, self).__init__(strategy)
 
     def suggest_space(self, **kwargs):
-
         space = {
             "C": LogUniformDistribution(10**-4, 10**-1),
             "max_iter": CategoricalDistribution([1000]),
@@ -172,7 +171,6 @@ class LinearSVCSearchSpace(ModelSearchSpace):
         super(LinearSVCSearchSpace, self).__init__(strategy)
 
     def suggest_space(self, **kwargs):
-
         space = {
             "C": LogUniformDistribution(10**-4, 10**-1),
             "dual": CategoricalDistribution([False]),
@@ -197,7 +195,6 @@ class LinearSVRSearchSpace(ModelSearchSpace):
         super(LinearSVRSearchSpace, self).__init__(strategy)
 
     def suggest_space(self, **kwargs):
-
         space = {"C": LogUniformDistribution(10**-4, 10**-1)}
 
         if self.strategy != "perfunctory":
@@ -217,7 +214,6 @@ class DecisionTreeClassifierSearchSpace(ModelSearchSpace):
         super(DecisionTreeClassifierSearchSpace, self).__init__(strategy)
 
     def suggest_space(self, **kwargs):
-
         space = {
             "max_depth": IntUniformDistribution(1, 5),
             "min_impurity_decrease": UniformDistribution(0, 0.05),
@@ -241,7 +237,6 @@ class DecisionTreeRegressorSearchSpace(ModelSearchSpace):
         super(DecisionTreeRegressorSearchSpace, self).__init__(strategy)
 
     def suggest_space(self, **kwargs):
-
         space = {
             "max_depth": IntUniformDistribution(1, 5),
             "min_impurity_decrease": UniformDistribution(0, 0.05),
@@ -252,7 +247,11 @@ class DecisionTreeRegressorSearchSpace(ModelSearchSpace):
             space.update(
                 {
                     "criterion": CategoricalDistribution(
-                        ["mse", "friedman_mse", "mae"]
+                        [
+                            "squared_error",
+                            "friedman_mse",
+                            "absolute_error",
+                        ]
                     ),
                     "min_samples_leaf": IntUniformDistribution(2, 500),
                 }
@@ -335,7 +334,6 @@ class ExtraTreesClassifierSearchSpace(ModelSearchSpace):
         super(ExtraTreesClassifierSearchSpace, self).__init__(strategy)
 
     def suggest_space(self, **kwargs):
-
         space = {
             "n_estimators": IntUniformDistribution(50, 250),
             "max_depth": IntUniformDistribution(1, 5),
@@ -374,7 +372,6 @@ class GradientBoostingRegressorSearchSpace(ModelSearchSpace):
         super(GradientBoostingRegressorSearchSpace, self).__init__(strategy)
 
     def suggest_space(self, **kwargs):
-
         space = {
             "max_depth": IntUniformDistribution(1, 5),
             "max_features": CategoricalDistribution(["sqrt", "log2"]),

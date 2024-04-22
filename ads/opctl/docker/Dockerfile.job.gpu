@@ -1,4 +1,4 @@
-# Copyright (c) 2021 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 FROM ghcr.io/oracle/oraclelinux:7-slim
@@ -8,18 +8,21 @@ ENV DATASCIENCE_USER datascience
 ENV DATASCIENCE_UID 1000
 ENV HOME /home/$DATASCIENCE_USER
 ENV DATASCIENCE_INSTALL_DIR /etc/datascience
-ENV LOGS_DIRECTORY /logs
+
+ARG release=19
+ARG update=13
 
 RUN \
-    yum -y -q install oracle-release-el7 deltarpm && \
+    yum -y -q install oracle-release-el7 && \
     yum-config-manager --add-repo http://yum.oracle.com/repo/OracleLinux/OL7/developer_EPEL/x86_64 && \
     yum-config-manager --enable ol7_optional_latest --enable ol7_addons --enable ol7_software_collections --enable ol7_oracle_instantclient > /dev/null && \
-    yum install -y -q \
-    build-essential \
+    yum groupinstall -y -q 'Development Tools' && \
+    yum update -y && \
+    yum install -y --setopt=skip_missing_names_on_install=False \
     bzip2 \
     curl \
     git \
-    gfortran \
+    gcc-gfortran \
     libcurl-devel \
     libxml2-devel \
     oracle-instantclient${release}.${update}-basic \
@@ -30,22 +33,20 @@ RUN \
     sudo \
     unzip \
     zip \
-    g++ \
+    gcc-c++ \
     wget \
     gcc \
-    vim \
-    yum groupinstall -y -q development tools \
     && yum clean all \
     && rm -rf /var/cache/yum/*
 
     ########################### CUDA INSTALLATION ########################################
 
-#Reference: https://gitlab.com/nvidia/container-images/cuda/-/blob/master/dist/centos7/10.1/runtime/cudnn7/Dockerfile
-#Reference: https://gitlab.com/nvidia/container-images/cuda/-/blob/master/dist/centos7/10.1/runtime/Dockerfile
-#Reference: https://gitlab.com/nvidia/container-images/cuda/-/blob/master/dist/centos7/10.1/base/Dockerfile
+#Reference: https://gitlab.com/nvidia/container-images/cuda/-/blob/master/dist/10.1/centos7/runtime/cudnn7/Dockerfile
+#Reference: https://gitlab.com/nvidia/container-images/cuda/-/blob/master/dist/10.1/centos7/runtime/Dockerfile
+#Reference: https://gitlab.com/nvidia/container-images/cuda/-/blob/master/dist/10.1/centos7/base/Dockerfile
 
-RUN NVIDIA_GPGKEY_SUM=d1be581509378368edeec8c1eb2958702feedf3bc3d17011adbf24efacce4ab5 && \
-curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/7fa2af80.pub | sed '/^Version/d' > /etc/pki/rpm-gpg/RPM-GPG-KEY-NVIDIA && \
+RUN NVIDIA_GPGKEY_SUM=d0664fbbdb8c32356d45de36c5984617217b2d0bef41b93ccecd326ba3b80c87 && \
+curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/D42D0685.pub | sed '/^Version/d' > /etc/pki/rpm-gpg/RPM-GPG-KEY-NVIDIA && \
     echo "$NVIDIA_GPGKEY_SUM  /etc/pki/rpm-gpg/RPM-GPG-KEY-NVIDIA" | sha256sum -c --strict -
 
 COPY docker/cuda.repo /etc/yum.repos.d/cuda.repo
@@ -66,7 +67,7 @@ RUN echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf && \
     echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf
 
 ENV PATH /usr/local/nvidia/bin:/usr/local/cuda/bin:${PATH}
-ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+ENV LD_LIBRARY_PATH /lib64:/usr/local/nvidia/lib:/usr/local/nvidia/lib64
 
 # nvidia-container-runtime
 ENV NVIDIA_VISIBLE_DEVICES all
@@ -83,7 +84,6 @@ RUN CUDNN_DOWNLOAD_SUM=7eaec8039a2c30ab0bc758d303588767693def6bf49b22485a2c00bf2
     rm cudnn-10.1-linux-x64-v7.6.5.32.tgz && \
     ldconfig
 
-
 # setup user
 RUN \
   mkdir -p /home/$DATASCIENCE_USER && \
@@ -91,11 +91,7 @@ RUN \
   chown -R $DATASCIENCE_USER /home/$DATASCIENCE_USER && \
   chown -R $DATASCIENCE_USER:users /usr/local/ && \
   touch /etc/sudoers.d/$DATASCIENCE_USER && echo "$DATASCIENCE_USER ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers.d/$DATASCIENCE_USER && \
-  mkdir -p $DATASCIENCE_INSTALL_DIR && chown $DATASCIENCE_USER $DATASCIENCE_INSTALL_DIR && \
-  mkdir -p $LOGS_DIRECTORY && chown -R $DATASCIENCE_USER:users $LOGS_DIRECTORY && \
-  mkdir -p $LOGS_DIRECTORY/harness && chown -R $DATASCIENCE_USER:users $LOGS_DIRECTORY/harness
-#   mkdir -p /home/$DATASCIENCE_USER/condapack
-
+  mkdir -p $DATASCIENCE_INSTALL_DIR && chown $DATASCIENCE_USER $DATASCIENCE_INSTALL_DIR
 
 RUN mkdir -p /etc/datascience/build
 RUN mkdir -p $DATASCIENCE_INSTALL_DIR/{pre-build-ds,post-build-ds,pre-run-ds,pre-run-user}
@@ -107,16 +103,14 @@ ENV LANG=$LANG
 ENV SHELL=/bin/bash
 
 # set /opt folder permissions for $DATASCIENCE_USER. Conda is going to live in this folder.
-ARG MINICONDA_VER=4.8.3
-RUN chown $DATASCIENCE_USER /opt
+RUN chown -R $DATASCIENCE_USER /opt
 
 USER $DATASCIENCE_USER
 WORKDIR /home/datascience
-RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh >> /home/datascience/miniconda.sh \
-    && /bin/bash /home/datascience/miniconda.sh -f -b -p /opt/conda \
-    && rm /home/datascience/miniconda.sh \
-    && ls  /opt/**/* \
-    && /opt/conda/bin/conda install python=3.7 anaconda \
+ARG MINICONDA_VER=23.5.2-0
+RUN wget -nv https://repo.anaconda.com/miniconda/Miniconda3-py38_${MINICONDA_VER}-Linux-x86_64.sh -O /home/datascience/Miniconda3.sh \
+    && /bin/bash /home/datascience/Miniconda3.sh -f -b -p /opt/conda \
+    && rm /home/datascience/Miniconda3.sh \
     && /opt/conda/bin/conda clean -yaf
 
 WORKDIR /
@@ -128,35 +122,54 @@ USER $DATASCIENCE_USER
 ENV PATH="/opt/conda/bin:${PATH}"
 WORKDIR /home/datascience
 
-
-#COPY base-env.yaml /opt/base-env.yaml
-#RUN conda env update -q -n root -f /opt/base-env.yaml && conda clean -yaf && rm -rf /home/datascience/.cache/pip
-
+COPY docker/base-env.yaml /opt/base-env.yaml
+RUN conda env update -q -n root -f /opt/base-env.yaml && conda clean -yaf && rm -rf /home/datascience/.cache/pip
 
 USER $DATASCIENCE_USER
 
 ####### WRAP UP ###############################
-RUN python -c 'import sys; assert(sys.version_info[:2]) == (3, 7), "Python 3.7 is not detected"'
+RUN python -c 'import sys; assert(sys.version_info[:2]) == (3, 8), "Python 3.8 is not detected"'
 WORKDIR /
 
 RUN conda list
 
-USER root
-
 ############# Setup Conda environment tools ###########################
+USER root
 ARG RAND=1
-
-RUN pip install conda_pack oci-cli
 
 ARG RUN_WORKING_DIR="/home/datascience"
 WORKDIR $RUN_WORKING_DIR
 
+# For CUDA - required to support older gpu conda packs
+RUN ln -s /opt/conda/lib/libnvrtc.so.10.0.130 /opt/conda/lib/libnvrtc.so.10 && \
+ln -s /opt/conda/lib/libnvrtc-builtins.so.10.0.130 /opt/conda/lib/libnvrtc-builtins.so.10 && \
+ln -s /opt/conda/lib/libnvgraph.so.10.0.130 /opt/conda/lib/libnvgraph.so.10 && \
+ln -s /opt/conda/lib/libnvblas.so.10.0.130 /opt/conda/lib/libnvblas.so.10 && \
+ln -s /opt/conda/lib/libnpps.so.10.0.130 /opt/conda/lib/libnpps.so.10 && \
+ln -s /opt/conda/lib/libnppitc.so.10.0.130 /opt/conda/lib/libnppitc.so.10 && \
+ln -s /opt/conda/lib/libnppisu.so.10.0.130 /opt/conda/lib/libnppisu.so.10 && \
+ln -s /opt/conda/lib/libnppist.so.10.0.130 /opt/conda/lib/libnppist.so.10 && \
+ln -s /opt/conda/lib/libnppim.so.10.0.130 /opt/conda/lib/libnppim.so.10 && \
+ln -s /opt/conda/lib/libnppig.so.10.0.130 /opt/conda/lib/libnppig.so.10 && \
+ln -s /opt/conda/lib/libnppif.so.10.0.130 /opt/conda/lib/libnppif.so.10 && \
+ln -s /opt/conda/lib/libnppidei.so.10.0.130 /opt/conda/lib/libnppidei.so.10 && \
+ln -s /opt/conda/lib/libnppicom.so.10.0.130 /opt/conda/lib/libnppicom.so.10 && \
+ln -s /opt/conda/lib/libnppicc.so.10.0.130 /opt/conda/lib/libnppicc.so.10 && \
+ln -s /opt/conda/lib/libnppial.so.10.0.130 /opt/conda/lib/libnppial.so.10 && \
+ln -s /opt/conda/lib/libnppc.so.10.0.130 /opt/conda/lib/libnppc.so.10 && \
+ln -s /opt/conda/lib/libcusparse.so.10.0.130 /opt/conda/lib/libcusparse.so.10 && \
+ln -s /opt/conda/lib/libcusolver.so.10.0.130 /opt/conda/lib/libcusolver.so.10 && \
+ln -s /opt/conda/lib/libcurand.so.10.0.130 /opt/conda/lib/libcurand.so.10 && \
+ln -s /opt/conda/lib/libcufftw.so.10.0.145 /opt/conda/lib/libcufftw.so.10 && \
+ln -s /opt/conda/lib/libcufft.so.10.0.145 /opt/conda/lib/libcufft.so.10 && \
+ln -s /opt/conda/lib/libcudart.so.10.0.130 /opt/conda/lib/libcudart.so.10 && \
+ln -s /opt/conda/lib/libcublas.so.10.0.130 /opt/conda/lib/libcublas.so.10
+
+ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/opt/conda/lib
+
 # clean tmp folder
 RUN rm -rf /tmp/*
 
-#COPY harness.py /etc/datascience/harness.py
 RUN mkdir -p /etc/datascience/operators
-# Temporarily removing operators related components
-# COPY operators/run.py /etc/datascience/operators/run.py
 
 USER datascience

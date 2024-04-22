@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from typing import Union
-from ads.jobs.builders.runtimes.base import Runtime
+from ads.jobs.builders.runtimes.base import MultiNodeRuntime
 
 
-class ContainerRuntime(Runtime):
+class ContainerRuntime(MultiNodeRuntime):
     """Represents a container job runtime
 
     To define container runtime:
@@ -23,7 +23,7 @@ class ContainerRuntime(Runtime):
     >>> ContainerRuntime()
     >>> .with_image(
     >>>     "iad.ocir.io/<your_tenancy>/<your_image>",
-    >>>     entrypoint=["/bin/sh", -c],
+    >>>     entrypoint=["/bin/sh", "-c"],
     >>>     cmd="sleep 5 && echo Hello World",
     >>> )
     >>> .with_environment_variable(MY_ENV="MY_VALUE")
@@ -51,7 +51,7 @@ class ContainerRuntime(Runtime):
         CONST_ENTRYPOINT: CONST_ENTRYPOINT,
         CONST_CMD: CONST_CMD,
     }
-    attribute_map.update(Runtime.attribute_map)
+    attribute_map.update(MultiNodeRuntime.attribute_map)
 
     @property
     def image(self) -> str:
@@ -123,7 +123,7 @@ class ContainerRuntime(Runtime):
         self._spec[self.CONST_CMD] = cmd
         return self
 
-    def init(self) -> "ContainerRuntime":
+    def init(self, **kwargs) -> "ContainerRuntime":
         """Initializes a starter specification for the runtime.
 
         Returns
@@ -131,10 +131,10 @@ class ContainerRuntime(Runtime):
         ContainerRuntime
             The runtime instance.
         """
-        super().init()
+        super().init(**kwargs)
 
         return self.with_image(
-            image="iad.ocir.io/namespace/image:tag",
+            image=kwargs.get("image", "iad.ocir.io/namespace/image:tag"),
             entrypoint=["bash", "--login", "-c"],
-            cmd="{Container CMD. For MLFlow, it will be replaced with the Project CMD}",
+            cmd="{Container CMD. For MLflow and Operator will be auto generated}",
         )

@@ -14,13 +14,13 @@ from unittest.mock import MagicMock, patch
 from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.oci_logging import ConsolidatedLog, OCILog
 from ads.common.oci_mixin import OCIModelMixin
-from ads.model.deployment.common.utils import OCIClientManager, State
+from ads.model.deployment.common.utils import State
 from ads.common.oci_datascience import DSCNotebookSession
+from ads.model.datascience_model import DataScienceModel
 
 from ads.model.deployment.model_deployment import (
     ModelDeployment,
     ModelDeploymentLogType,
-    ModelDeploymentFailedError,
 )
 from ads.model.deployment.model_deployment_infrastructure import (
     ModelDeploymentInfrastructure,
@@ -373,7 +373,6 @@ spec:
                 "ocpus": 10.0,
                 "memory_in_gbs": 36.0,
             },
-            ModelDeploymentInfrastructure.CONST_WEB_CONCURRENCY: 10,
             ModelDeploymentInfrastructure.CONST_REPLICA: 1,
         }
 
@@ -534,22 +533,17 @@ spec:
             },
         }
 
-    @patch.object(OCIClientManager, "prepare_artifact")
-    def test_build_model_deployment_configuration_details(self, mock_prepare_artifact):
-        mock_prepare_artifact.return_value = "fakeid.datasciencemodel.oc1.iad.xxx"
+    @patch.object(DataScienceModel, "create")
+    def test_build_model_deployment_configuration_details(self, mock_create):
+        dsc_model = MagicMock()
+        dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
+        mock_create.return_value = dsc_model
         model_deployment = self.initialize_model_deployment()
         model_deployment_configuration_details = (
             model_deployment._build_model_deployment_configuration_details()
         )
 
-        mock_prepare_artifact.assert_called_with(
-            model_uri=model_deployment.runtime.model_uri,
-            properties={
-                "display_name": model_deployment.display_name,
-                "compartment_id": model_deployment.infrastructure.compartment_id,
-                "project_id": model_deployment.infrastructure.project_id,
-            },
-        )
+        mock_create.assert_called()
         assert model_deployment_configuration_details == {
             "deploymentType": "SINGLE_MODEL",
             "modelConfigurationDetails": {
@@ -595,22 +589,17 @@ spec:
             },
         }
 
-    @patch.object(OCIClientManager, "prepare_artifact")
-    def test_build_model_deployment_details(self, mock_prepare_artifact):
-        mock_prepare_artifact.return_value = "fakeid.datasciencemodel.oc1.iad.xxx"
+    @patch.object(DataScienceModel, "create")
+    def test_build_model_deployment_details(self, mock_create):
+        dsc_model = MagicMock()
+        dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
+        mock_create.return_value = dsc_model
         model_deployment = self.initialize_model_deployment()
         create_model_deployment_details = (
             model_deployment._build_model_deployment_details()
         )
 
-        mock_prepare_artifact.assert_called_with(
-            model_uri=model_deployment.runtime.model_uri,
-            properties={
-                "display_name": model_deployment.display_name,
-                "compartment_id": model_deployment.infrastructure.compartment_id,
-                "project_id": model_deployment.infrastructure.project_id,
-            },
-        )
+        mock_create.assert_called()
 
         assert isinstance(
             create_model_deployment_details,
@@ -893,22 +882,17 @@ spec:
 
         assert new_model_deployment.to_dict() == model_deployment.to_dict()
 
-    @patch.object(OCIClientManager, "prepare_artifact")
-    def test_update_model_deployment_details(self, mock_prepare_artifact):
-        mock_prepare_artifact.return_value = "fakeid.datasciencemodel.oc1.iad.xxx"
+    @patch.object(DataScienceModel, "create")
+    def test_update_model_deployment_details(self, mock_create):
+        dsc_model = MagicMock()
+        dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
+        mock_create.return_value = dsc_model        
         model_deployment = self.initialize_model_deployment()
         update_model_deployment_details = (
             model_deployment._update_model_deployment_details()
         )
 
-        mock_prepare_artifact.assert_called_with(
-            model_uri=model_deployment.runtime.model_uri,
-            properties={
-                "display_name": model_deployment.display_name,
-                "compartment_id": model_deployment.infrastructure.compartment_id,
-                "project_id": model_deployment.infrastructure.project_id,
-            },
-        )
+        mock_create.assert_called()
 
         assert isinstance(
             update_model_deployment_details,
@@ -1142,11 +1126,13 @@ spec:
         oci.data_science.DataScienceClient,
         "create_model_deployment",
     )
-    @patch.object(OCIClientManager, "prepare_artifact")
+    @patch.object(DataScienceModel, "create")
     def test_deploy(
-        self, mock_prepare_artifact, mock_create_model_deployment, mock_sync
+        self, mock_create, mock_create_model_deployment, mock_sync
     ):
-        mock_prepare_artifact.return_value = "fakeid.datasciencemodel.oc1.iad.xxx"
+        dsc_model = MagicMock()
+        dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
+        mock_create.return_value = dsc_model
         response = MagicMock()
         response.data = OCI_MODEL_DEPLOYMENT_RESPONSE
         mock_create_model_deployment.return_value = response
@@ -1156,45 +1142,9 @@ spec:
             model_deployment._build_model_deployment_details()
         )
         model_deployment.deploy(wait_for_completion=False)
-        mock_prepare_artifact.assert_called()
+        mock_create.assert_called()
         mock_create_model_deployment.assert_called_with(create_model_deployment_details)
         mock_sync.assert_called()
-
-    @patch.object(OCIDataScienceMixin, "sync")
-    @patch.object(
-        oci.data_science.DataScienceClient,
-        "create_model_deployment",
-    )
-    @patch.object(OCIClientManager, "prepare_artifact")
-    def test_deploy_failed(
-        self, mock_prepare_artifact, mock_create_model_deployment, mock_sync
-    ):
-        mock_prepare_artifact.return_value = "fakeid.datasciencemodel.oc1.iad.xxx"
-        response = oci.response.Response(
-            status=MagicMock(),
-            headers=MagicMock(),
-            request=MagicMock(),
-            data=oci.data_science.models.ModelDeployment(
-                id="test_model_deployment_id",
-                lifecycle_state="FAILED",
-                lifecycle_details="The specified log object is not found or user is not authorized.",
-            ),
-        )
-        mock_sync.return_value = response.data
-        model_deployment = self.initialize_model_deployment()
-        create_model_deployment_details = (
-            model_deployment._build_model_deployment_details()
-        )
-        with pytest.raises(
-            ModelDeploymentFailedError,
-            match=f"Model deployment {response.data.id} failed to deploy: {response.data.lifecycle_details}",
-        ):
-            model_deployment.deploy(wait_for_completion=False)
-            mock_prepare_artifact.assert_called()
-            mock_create_model_deployment.assert_called_with(
-                create_model_deployment_details
-            )
-            mock_sync.assert_called()
 
     @patch.object(
         OCIDataScienceModelDeployment,
@@ -1246,14 +1196,16 @@ spec:
         oci.data_science.DataScienceClientCompositeOperations,
         "update_model_deployment_and_wait_for_state",
     )
-    @patch.object(OCIClientManager, "prepare_artifact")
+    @patch.object(DataScienceModel, "create")
     def test_update(
         self,
-        mock_prepare_artifact,
+        mock_create,
         mock_update_model_deployment_and_wait_for_state,
         mock_sync,
     ):
-        mock_prepare_artifact.return_value = "fakeid.datasciencemodel.oc1.iad.xxx"
+        dsc_model = MagicMock()
+        dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
+        mock_create.return_value = dsc_model
         response = MagicMock()
         response.data = OCI_MODEL_DEPLOYMENT_RESPONSE
         mock_update_model_deployment_and_wait_for_state.return_value = response
@@ -1263,7 +1215,7 @@ spec:
             model_deployment._update_model_deployment_details()
         )
         model_deployment.update(wait_for_completion=True)
-        mock_prepare_artifact.assert_called()
+        mock_create.assert_called()
         mock_update_model_deployment_and_wait_for_state.assert_called_with(
             "test_model_deployment_id",
             update_model_deployment_details,
@@ -1333,7 +1285,7 @@ spec:
         mock_stream.assert_called_with(
             source=model_deployment.model_deployment_id,
             time_start=time_start,
-            stop_condition=model_deployment._stop_condition,
+            stop_condition=model_deployment._stream_stop_condition,
             interval=10,
             log_filter="test_filter",
         )
@@ -1389,3 +1341,102 @@ spec:
 
         model_deployment.infrastructure.with_subnet_id("test_id")
         assert model_deployment.infrastructure.subnet_id == "test_id"
+
+    def test_update_spec(self):
+        model_deployment = self.initialize_model_deployment()
+        model_deployment._update_spec(
+            display_name="test_updated_name",
+            freeform_tags={"test_updated_key":"test_updated_value"},
+            access_log={
+                "log_id": "test_updated_access_log_id"
+            },
+            predict_log={
+                "log_group_id": "test_updated_predict_log_group_id"
+            },
+            shape_config_details={
+                "ocpus": 100,
+                "memoryInGBs": 200
+            },
+            replica=20,
+            image="test_updated_image",
+            env={
+                "test_updated_env_key":"test_updated_env_value"
+            }
+        )
+
+        assert model_deployment.display_name == "test_updated_name"
+        assert model_deployment.freeform_tags == {
+            "test_updated_key":"test_updated_value"
+        }
+        assert model_deployment.infrastructure.access_log == {
+            "logId": "test_updated_access_log_id",
+            "logGroupId": "fakeid.loggroup.oc1.iad.xxx"
+        }
+        assert model_deployment.infrastructure.predict_log == {
+            "logId": "fakeid.log.oc1.iad.xxx",
+            "logGroupId": "test_updated_predict_log_group_id"
+        }
+        assert model_deployment.infrastructure.shape_config_details == {
+            "ocpus": 100,
+            "memoryInGBs": 200
+        }
+        assert model_deployment.infrastructure.replica == 20
+        assert model_deployment.runtime.image == "test_updated_image"
+        assert model_deployment.runtime.env == {
+            "test_updated_env_key":"test_updated_env_value"
+        }
+
+    @patch.object(OCIDataScienceMixin, "sync")
+    @patch.object(
+        oci.data_science.DataScienceClient,
+        "create_model_deployment",
+    )
+    @patch.object(DataScienceModel, "create")
+    def test_model_deployment_with_large_size_artifact(
+        self, 
+        mock_create, 
+        mock_create_model_deployment, 
+        mock_sync
+    ):
+        dsc_model = MagicMock()
+        dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
+        mock_create.return_value = dsc_model
+        model_deployment = self.initialize_model_deployment()
+        (
+            model_deployment.runtime
+            .with_auth({"test_key":"test_value"})
+            .with_region("test_region")
+            .with_overwrite_existing_artifact(True)
+            .with_remove_existing_artifact(True)
+            .with_timeout(100)
+            .with_bucket_uri("test_bucket_uri")
+        )
+
+        runtime_dict = model_deployment.runtime.to_dict()["spec"]
+        assert runtime_dict["auth"] == {"test_key": "test_value"}
+        assert runtime_dict["region"] == "test_region"
+        assert runtime_dict["overwriteExistingArtifact"] == True
+        assert runtime_dict["removeExistingArtifact"] == True
+        assert runtime_dict["timeout"] == 100
+        assert runtime_dict["bucketUri"] == "test_bucket_uri"
+
+        response = MagicMock()
+        response.data = OCI_MODEL_DEPLOYMENT_RESPONSE
+        mock_create_model_deployment.return_value = response
+        model_deployment = self.initialize_model_deployment()
+        model_deployment.set_spec(model_deployment.CONST_ID, "test_model_deployment_id")
+        
+        create_model_deployment_details = (
+            model_deployment._build_model_deployment_details()
+        )
+        model_deployment.deploy(wait_for_completion=False)
+        mock_create.assert_called_with(
+            bucket_uri="test_bucket_uri",
+            auth={"test_key":"test_value"},
+            region="test_region",
+            overwrite_existing_artifact=True,
+            remove_existing_artifact=True,
+            timeout=100
+        )
+        mock_create_model_deployment.assert_called_with(create_model_deployment_details)
+        mock_sync.assert_called()

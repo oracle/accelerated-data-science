@@ -14,6 +14,7 @@ import yaml
 import ads.opctl.conda.cli
 import ads.opctl.distributed.cli
 import ads.opctl.model.cli
+import ads.opctl.operator.cli
 import ads.opctl.spark.cli
 from ads.common import auth as authutil
 from ads.common.auth import AuthType
@@ -23,15 +24,19 @@ from ads.opctl.cmds import configure as configure_cmd
 from ads.opctl.cmds import deactivate as deactivate_cmd
 from ads.opctl.cmds import delete as delete_cmd
 from ads.opctl.cmds import init as init_cmd
-from ads.opctl.cmds import init_operator as init_operator_cmd
 from ads.opctl.cmds import init_vscode as init_vscode_cmd
 from ads.opctl.cmds import predict as predict_cmd
 from ads.opctl.cmds import run as run_cmd
 from ads.opctl.cmds import run_diagnostics as run_diagnostics_cmd
 from ads.opctl.cmds import watch as watch_cmd
 from ads.opctl.config.merger import ConfigMerger
-from ads.opctl.constants import (BACKEND_NAME, DEFAULT_MODEL_FOLDER,
-                                 RESOURCE_TYPE, RUNTIME_TYPE)
+from ads.opctl.constants import (
+    BACKEND_NAME,
+    DEFAULT_MODEL_FOLDER,
+    RESOURCE_TYPE,
+    RUNTIME_TYPE,
+)
+from ads.opctl.decorator.common import with_auth
 from ads.opctl.utils import build_image as build_image_cmd
 from ads.opctl.utils import publish_image as publish_image_cmd
 from ads.opctl.utils import suppress_traceback
@@ -47,11 +52,12 @@ def commands():
 @click.help_option("--help", "-h")
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def configure(debug):
+    """Sets up the initial configurations for the ADS OPCTL."""
     suppress_traceback(debug)(configure_cmd)()
 
 
 @commands.command()
-@click.argument("image-type", type=click.Choice(["job-local", "ads-ops-base"]))
+@click.argument("image-type", type=click.Choice(["job-local"]))
 @click.help_option("--help", "-h")
 @click.option(
     "--gpu",
@@ -61,23 +67,10 @@ def configure(debug):
     default=False,
     required=False,
 )
-@click.option(
-    "--source-folder",
-    "-s",
-    help="when building custom operator image, source folder of the custom operator",
-    default=None,
-    required=False,
-)
-@click.option(
-    "--image",
-    "-i",
-    help="image name, used when building custom image",
-    default=None,
-    required=False,
-)
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
-def build_image(image_type, gpu, source_folder, image, debug):
-    suppress_traceback(debug)(build_image_cmd)(image_type, gpu, source_folder, image)
+def build_image(image_type, gpu, debug):
+    """Builds the local Data Science Jobs image."""
+    suppress_traceback(debug)(build_image_cmd)(image_type, gpu)
 
 
 @commands.command()
@@ -94,6 +87,7 @@ def build_image(image_type, gpu, source_folder, image, debug):
 @click.help_option("--help", "-h")
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def publish_image(**kwargs):
+    """Publishes image to the OCI Container Registry."""
     debug = kwargs.pop("debug")
     if kwargs.get("registry", None):
         registry = kwargs["registry"]
@@ -188,7 +182,7 @@ _options = [
         "--oci-config",
         help="oci config file",
         required=False,
-        default=None,
+        default=authutil.DEFAULT_LOCATION,
     ),
     click.option(
         "--oci-profile", help="oci config profile", required=False, default=None
@@ -226,44 +220,31 @@ _options = [
         "--auth",
         "-a",
         help="authentication method",
-        type=click.Choice(["api_key", "resource_principal"]),
+        type=click.Choice(["api_key", "resource_principal", "security_token"]),
         default=None,
     ),
+]
+
+_model_deployment_options = [
     click.option(
         "--wait-for-completion",
-        help="either to wait for process to complete or not",
+        help="either to wait for process to complete or not for model deployment",
         is_flag=True,
         required=False,
     ),
     click.option(
         "--max-wait-time",
-        help="maximum wait time in seconds for progress to complete",
+        help="maximum wait time in seconds for progress to complete for model deployment",
         type=int,
         required=False,
         default=1200,
     ),
     click.option(
         "--poll-interval",
-        help="poll interval in seconds",
+        help="poll interval in seconds for model deployment",
         type=int,
         required=False,
         default=10,
-    ),
-    click.option(
-        "--log-type", help="the type of logging.", required=False, default=None
-    ),
-    click.option(
-        "--log-filter",
-        help="expression for filtering the logs.",
-        required=False,
-        default=None,
-    ),
-    click.option(
-        "--interval",
-        help="log interval in seconds",
-        type=int,
-        required=False,
-        default=3,
     ),
 ]
 
@@ -391,27 +372,17 @@ def add_options(options):
     required=False,
     default=None,
 )
-def run(file, **kwargs):
+@with_auth
+def run(file, debug, **kwargs):
     """
-    Runs the workload on the targeted backend. When run `distributed` yaml spec, the backend is always OCI Data Science
-    Jobs
+    Runs the operator with the given specification on the targeted backend.
+    For the distributed backend, the operator is always run as a OCI Data Science job.
     """
-    debug = kwargs["debug"]
+    config = {}
     if file:
-        if os.path.exists(file):
-            auth = {}
-            if kwargs["auth"]:
-                auth = authutil.create_signer(kwargs["auth"])
-            else:
-                auth = authutil.default_signer()
+        with fsspec.open(file, "r", **authutil.default_signer()) as f:
+            config = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
-            with fsspec.open(file, "r", **auth) as f:
-                config = suppress_traceback(debug)(yaml.safe_load)(f.read())
-        else:
-            raise FileNotFoundError(f"{file} is not found")
-    else:
-        # If no yaml is provided, we assume there's cmdline args to define a job.
-        config = {"kind": "job"}
     suppress_traceback(debug)(run_cmd)(config, **kwargs)
 
 
@@ -444,40 +415,103 @@ def check(file, **kwargs):
 
 
 @commands.command()
-@click.argument("operator_slug", nargs=1)
+@click.argument("ocid", nargs=1)
 @click.option(
-    "--folder_path",
-    "-fp",
-    help="the name of the folder wherein to put the operator code",
-    multiple=True,
-    required=False,
+    "--auth",
+    "-a",
+    help="authentication method",
+    type=click.Choice(AuthType.values()),
     default=None,
 )
-@add_options(_options)
-def init_operator(**kwargs):
-    suppress_traceback(kwargs["debug"])(init_operator_cmd)(**kwargs)
-
-
-@commands.command()
-@click.argument("ocid", nargs=1)
-@add_options(_options)
+@click.option(
+    "--oci-profile",
+    help="oci profile",
+    default=None,
+)
+@click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def delete(**kwargs):
+    """Deletes a data science service resource."""
     suppress_traceback(kwargs["debug"])(delete_cmd)(**kwargs)
 
 
 @commands.command()
 @click.argument("ocid", nargs=1)
-@add_options(_options)
+@add_options(_model_deployment_options)
+@click.option(
+    "--conda-pack-folder",
+    required=False,
+    default=None,
+    help="folder where conda packs are saved",
+)
+@click.option(
+    "--auth",
+    "-a",
+    help="authentication method",
+    type=click.Choice(AuthType.values()),
+    default=None,
+)
+@click.option(
+    "--oci-profile",
+    help="oci profile",
+    default=None,
+)
+@click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def cancel(**kwargs):
+    """Aborts the execution of the OCI resource run."""
     suppress_traceback(kwargs["debug"])(cancel_cmd)(**kwargs)
 
 
 @commands.command()
 @click.argument("ocid", nargs=1)
-@add_options(_options)
+@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
+@click.option(
+    "--log-type",
+    help="the type of logging. Allowed value: `custom_log` and `service_log` for pipeline, `access` and `predict` for model deployment.",
+    required=False,
+    default=None,
+)
+@click.option(
+    "--log-filter",
+    help="expression for filtering the logs for model deployment.",
+    required=False,
+    default=None,
+)
+@click.option(
+    "--interval",
+    help="log interval in seconds",
+    type=int,
+    required=False,
+    default=3,
+)
+@click.option(
+    "--wait",
+    help="time in seconds to keep updating the logs after the job run finished for job.",
+    type=int,
+    required=False,
+    default=90,
+)
+@click.option(
+    "--conda-pack-folder",
+    required=False,
+    default=None,
+    help="folder where conda packs are saved",
+)
+@click.option(
+    "--auth",
+    "-a",
+    help="authentication method",
+    type=click.Choice(AuthType.values()),
+    default=None,
+)
+@click.option(
+    "--oci-profile",
+    help="oci profile",
+    default=None,
+)
+@click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def watch(**kwargs):
     """
-    ``tail`` logs form a job run, dataflow run or pipeline run.
+    Tails the logs form a job run, data flow run or pipeline run.
     Connects to the logging service that was configured with the JobRun, Application Run or Pipeline Run and streams the logs.
     """
     suppress_traceback(kwargs["debug"])(watch_cmd)(**kwargs)
@@ -485,20 +519,53 @@ def watch(**kwargs):
 
 @commands.command()
 @click.argument("ocid", nargs=1)
-@add_options(_options)
+@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
+@click.option(
+    "--auth",
+    "-a",
+    help="authentication method",
+    type=click.Choice(AuthType.values()),
+    default=None,
+)
+@click.option(
+    "--oci-profile",
+    help="oci profile",
+    default=None,
+)
+@click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def activate(**kwargs):
     """
-    Activates a data science service.
+    Activates a data science service resource.
     """
     suppress_traceback(kwargs["debug"])(activate_cmd)(**kwargs)
 
 
 @commands.command()
 @click.argument("ocid", nargs=1)
-@add_options(_options)
+@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
+@add_options(_model_deployment_options)
+@click.option(
+    "--conda-pack-folder",
+    required=False,
+    default=None,
+    help="folder where conda packs are saved",
+)
+@click.option(
+    "--auth",
+    "-a",
+    help="authentication method",
+    type=click.Choice(AuthType.values()),
+    default=None,
+)
+@click.option(
+    "--oci-profile",
+    help="oci profile",
+    default=None,
+)
+@click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def deactivate(**kwargs):
     """
-    Deactivates a data science service.
+    Deactivates a data science service resource.
     """
     suppress_traceback(kwargs["debug"])(deactivate_cmd)(**kwargs)
 

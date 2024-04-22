@@ -1,18 +1,11 @@
 name: "Publish Docs"
 
+# To run this workflow manually from the Actions tab
 on:
   # Auto-trigger this workflow on tag creation
   push:
     tags:
       - 'v*.*.*'
-  # Auto-trigger this workflow on merge to main changes in docs/** folder
-  pull_request_target:
-    types:
-      - closed
-    branches:
-      - main
-    paths:
-      - 'docs/**'
 
 env:
   RTDS_ADS_PROJECT: https://readthedocs.org/api/v3/projects/accelerated-data-science
@@ -24,17 +17,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: When PR ✅ merged - Trigger Readthedocs build
-        if: github.event_name == 'pull_request_target' && github.event.pull_request.merged == true
-        run: |
-          curl \
-            -X POST \
-            -H "Authorization: Token $RTDS_ADS_TOKEN" $RTDS_ADS_PROJECT/versions/latest/builds/
       - name: When tag 🏷️ pushed - Trigger Readthedocs build
         if: github.event_name == 'push' && startsWith(github.ref_name, 'v')
         run: |
-          # add 10 minutes wait time for readthedocs see freshly created tag
-          sleep 10m
+          # trigger build/publish of latest version
+          curl \
+            -X POST \
+            -H "Authorization: Token $RTDS_ADS_TOKEN" $RTDS_ADS_PROJECT/versions/latest/builds/
+          # add 15 minutes wait time for readthedocs see freshly created tag
+          sleep 15m
+          # trigger build/publish of v*.*.* version
           curl \
             -X POST \
             -H "Authorization: Token $RTDS_ADS_TOKEN" $RTDS_ADS_PROJECT/versions/${{ github.ref_name }}/builds/

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -64,6 +64,12 @@ class OptionalDependency:
     OPTUNA = "oracle-ads[optuna]"
     SPARK = "oracle-ads[spark]"
     HUGGINGFACE = "oracle-ads[huggingface]"
+    FORECAST = "oracle-ads[forecast]"
+    FEATURE_STORE_MARKETPLACE = "oracle-ads[feature-store-marketplace]"
+    PII = "oracle-ads[pii]"
+    FEATURE_STORE = "oracle-ads[feature-store]"
+    GRAPHVIZ = "oracle-ads[graphviz]"
+    MLM_INSIGHTS = "oracle-ads[mlm_insights]"
 
 
 def runtime_dependency(
