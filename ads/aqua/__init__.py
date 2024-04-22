@@ -41,4 +41,3 @@ if not ODSC_MODEL_COMPARTMENT_OCID:
         logger.error(
             f"Aqua is not available for this notebook session {NB_SESSION_OCID}."
         )
-    exit()

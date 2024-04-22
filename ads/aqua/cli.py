@@ -5,7 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
 
-from ads.aqua import ENV_VAR_LOG_LEVEL, set_log_level
+from ads.aqua import ENV_VAR_LOG_LEVEL, set_log_level, ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.deployment import AquaDeploymentApp
 from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.finetune import AquaFineTuningApp
@@ -41,3 +41,6 @@ class AquaCommand:
             'WARNING', 'ERROR', and 'CRITICAL'.
         """
         set_log_level(log_level)
+        # gracefully exit if env var is not set
+        if not ODSC_MODEL_COMPARTMENT_OCID:
+            exit()
