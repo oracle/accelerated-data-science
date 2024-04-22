@@ -567,20 +567,27 @@ def get_container_image(
     return container_image
 
 
-def fetch_service_compartment():
-    """Loads the compartment mapping json from service bucket"""
+def fetch_service_compartment() -> Union[str, None]:
+    """Loads the compartment mapping json from service bucket. This json file has a service-model-compartment key which
+    contains a dictionary of namespaces and the compartment OCID of the service models in that namespace.
+    """
     config_file_name = (
         f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
     )
 
-    config = load_config(
-        file_path=config_file_name,
-        config_file_name=CONTAINER_INDEX,
-    )
+    try:
+        config = load_config(
+            file_path=config_file_name,
+            config_file_name=CONTAINER_INDEX,
+        )
+    except AquaFileNotFoundError:
+        logger.error(
+            f"ODSC_MODEL_COMPARTMENT_OCID environment variable is not set for Aqua."
+        )
+        return
     compartment_mapping = config.get(COMPARTMENT_MAPPING_KEY)
     if compartment_mapping:
         return compartment_mapping.get(CONDA_BUCKET_NS)
-    return None
 
 
 def get_max_version(versions):
