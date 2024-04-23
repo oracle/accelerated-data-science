@@ -48,7 +48,7 @@ DATASETS_LIST = [
 
 MODELS = [
     "arima",
-    "automlx",
+    # "automlx",
     "prophet",
     "neuralprophet",
     "autots",

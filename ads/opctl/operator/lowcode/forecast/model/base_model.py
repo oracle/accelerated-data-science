@@ -282,7 +282,6 @@ class ForecastOperatorBaseModel(ABC):
                     + train_metrics_sections
                     + [yaml_appendix_title, yaml_appendix]
                 )
-                print(f"report_sections: {report_sections}")
 
             # save the report and result CSV
             self._save_report(
