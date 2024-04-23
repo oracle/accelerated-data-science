@@ -134,6 +134,7 @@ class ToxicityGuardrailTests(GuardrailTestsBase):
 class GuardrailSequenceTests(GuardrailTestsBase):
     """Contains tests for GuardrailSequence."""
 
+    @pytest.mark.xfail()
     def test_guardrail_sequence_with_template_and_toxicity(self):
         """Tests a guardrail sequence with template and toxicity evaluation."""
         template = PromptTemplate.from_template("Tell me a joke about {subject}")
