@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 from importlib import reload
 from notebook.base.handlers import IPythonHandler
+import pytest
 
 import ads.config
 import ads.aqua

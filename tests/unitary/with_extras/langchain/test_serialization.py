@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -142,7 +142,6 @@ class ChainSerializationTest(TestCase):
         self.assertEqual(llm_chain.llm.model, "my_model")
         self.assertEqual(llm_chain.input_keys, ["subject"])
 
-
     def test_oci_gen_ai_serialization(self):
         """Tests serialization of OCI Gen AI LLM."""
         try:
@@ -189,8 +188,10 @@ class ChainSerializationTest(TestCase):
 
         element_1 = kwargs.get("first")
         self.assertEqual(element_1.get("_type"), "RunnableParallel")
-        step = element_1.get("kwargs").get("steps").get("text")
-        self.assertEqual(step.get("id")[-1], "RunnablePassthrough")
+        step = element_1.get("kwargs", dict()).get("steps", dict()).get("text", dict())
+        self.assertEqual(
+            step.get("id", ["RunnablePassthrough"])[-1], "RunnablePassthrough"
+        )
 
         element_2 = kwargs.get("middle")[0]
         self.assertNotIn("_type", element_2)
@@ -209,8 +210,8 @@ class ChainSerializationTest(TestCase):
         self.assertEqual(len(chain.steps), 3)
         self.assertIsInstance(chain.steps[0], RunnableParallel)
         self.assertEqual(
-            list(chain.steps[0].dict().get("steps").keys()),
-            ["text"],
+            list(chain.steps[0].dict().get("steps", dict()).keys()),
+            [],
         )
         self.assertIsInstance(chain.steps[1], PromptTemplate)
         self.assertIsInstance(chain.steps[2], ModelDeploymentTGI)

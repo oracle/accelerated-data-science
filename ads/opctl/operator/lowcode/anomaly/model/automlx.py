@@ -73,21 +73,21 @@ class AutoMLXOperatorModel(AnomalyOperatorBaseModel):
         return anomaly_output
 
     def _generate_report(self):
-        import datapane as dp
+        import report_creator as rc
 
         """The method that needs to be implemented on the particular model level."""
-        selected_models_text = dp.Text(
-            f"## Selected Models Overview \n "
-            "The following tables provide information regarding the chosen model."
-        )
-        all_sections = [selected_models_text]
+        other_sections = [
+            rc.Heading("Selected Models Overview", level=2),
+            rc.Text(
+                "The following tables provide information regarding the chosen model."
+            ),
+        ]
 
-        model_description = dp.Text(
+        model_description = rc.Text(
             "The automlx model automatically pre-processes, selects and engineers "
             "high-quality features in your dataset, which then given to an automatically "
             "chosen and optimized machine learning model.."
         )
-        other_sections = all_sections
 
         return (
             model_description,

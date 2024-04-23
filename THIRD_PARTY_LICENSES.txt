@@ -18,6 +18,12 @@ asteval
 * Source code: https://github.com/newville/asteval
 * Project home: https://github.com/newville/asteval
 
+autots
+* Copyright (c) 2024 Colin Catlin
+* License: MIT License
+* Source code: https://github.com/winedarksea/AutoTS
+* Project home: https://winedarksea.github.io/AutoTS/build/html/index.html
+
 bokeh
 * Copyright Copyright (c) 2012 - 2021, Anaconda, Inc., and Bokeh Contributors
 * License: BSD 3-Clause "New" or "Revised" License
@@ -169,6 +175,12 @@ nbformat
 * Source code: https://github.com/jupyter/nbconvert
 * Project home: https://jupyter.org/
 
+neuralprophet
+* Copyright (c) 2020 Oskar Triebe
+* License: MIT License
+* Source Code: https://github.com/ourownstory/neural_prophet
+* Project Home: https://neuralprophet.com
+
 numpy
 * Copyright (c) 2005-2021, NumPy Developers.
 * License: BSD 3-Clause "New" or "Revised" License
@@ -247,6 +259,18 @@ plotly
 * Source code: https://github.com/plotly/plotly.py
 * Project home: https://plotly.com/
 
+pmdarima
+* Copyright (c) 2017 Taylor G Smith
+* License: MIT License
+* Source code: https://github.com/alkaline-ml/pmdarima
+* Project home: https://alkaline-ml.com/pmdarima/
+
+prophet
+* Copyright (c) Facebook, Inc. and its affiliates.
+* License: MIT License
+* Source code: https://github.com/facebook/prophet
+* Project home: https://facebook.github.io/prophet/
+
 protobuf
 * Copyright 2008 Google Inc.  All rights reserved.
 * License: Google Protobuf License
@@ -288,6 +312,12 @@ PyYAML
 * License: MIT license
 * Source code: https://github.com/yaml/pyyaml/
 * Project home: https://pyyaml.org/
+
+report-creator
+* Copyright 2024 Daren Race
+* License: MIT License
+* Source code: https://github.com/darenr/report_creator
+* Project home: https://darenr.github.io/report_creator/
 
 requests
 * Copyright 2023 Kenneth Reitz

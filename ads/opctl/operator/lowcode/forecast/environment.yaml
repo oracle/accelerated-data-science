@@ -10,7 +10,7 @@ dependencies:
       - neuralprophet
       - pmdarima
       - statsmodels
-      - datapane
+      - report-creator
       - cerberus
       - sktime
       - shap

@@ -35,7 +35,7 @@ All generated configurations should be ready to use without the need for any add
 To run anomaly detection locally, create and activate a new conda environment (`ads-anomaly`). Install all the required libraries listed in the `environment.yaml` file.
 
 ```yaml
-- datapane
+- report-creator
 - cerberus
 - "git+https://github.com/oracle/accelerated-data-science.git@feature/anomaly#egg=oracle-ads"
 ```
