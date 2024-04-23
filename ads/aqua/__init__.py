@@ -8,7 +8,7 @@ import os
 
 from ads import logger, set_auth
 from ads.aqua.utils import fetch_service_compartment
-from ads.config import NB_SESSION_OCID, OCI_RESOURCE_PRINCIPAL_VERSION
+from ads.config import OCI_RESOURCE_PRINCIPAL_VERSION
 
 ENV_VAR_LOG_LEVEL = "ADS_AQUA_LOG_LEVEL"
 
@@ -36,8 +36,3 @@ if OCI_RESOURCE_PRINCIPAL_VERSION:
 ODSC_MODEL_COMPARTMENT_OCID = (
     os.environ.get("ODSC_MODEL_COMPARTMENT_OCID") or fetch_service_compartment()
 )
-if not ODSC_MODEL_COMPARTMENT_OCID:
-    if NB_SESSION_OCID:
-        logger.error(
-            f"Aqua is not available for this notebook session {NB_SESSION_OCID}."
-        )

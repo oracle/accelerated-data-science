@@ -582,7 +582,7 @@ def fetch_service_compartment() -> Union[str, None]:
         )
     except AquaFileNotFoundError:
         logger.error(
-            f"ODSC_MODEL_COMPARTMENT_OCID environment variable is not set for Aqua."
+            f"Config file {config_file_name}/{CONTAINER_INDEX} to fetch service compartment OCID could not be found."
         )
         return
     compartment_mapping = config.get(COMPARTMENT_MAPPING_KEY)

@@ -6,11 +6,17 @@
 import os
 import sys
 
-from ads.aqua import ENV_VAR_LOG_LEVEL, set_log_level, ODSC_MODEL_COMPARTMENT_OCID
+from ads.aqua import (
+    ENV_VAR_LOG_LEVEL,
+    set_log_level,
+    ODSC_MODEL_COMPARTMENT_OCID,
+    logger,
+)
 from ads.aqua.deployment import AquaDeploymentApp
 from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.finetune import AquaFineTuningApp
 from ads.aqua.model import AquaModelApp
+from ads.config import NB_SESSION_OCID
 
 
 class AquaCommand:
@@ -44,4 +50,11 @@ class AquaCommand:
         set_log_level(log_level)
         # gracefully exit if env var is not set
         if not ODSC_MODEL_COMPARTMENT_OCID:
-            sys.exit(0)
+            logger.error(
+                "ODSC_MODEL_COMPARTMENT_OCID environment variable is not set for Aqua."
+            )
+            if NB_SESSION_OCID:
+                logger.error(
+                    f"Aqua is not available for the notebook session {NB_SESSION_OCID}."
+                )
+            sys.exit(1)
