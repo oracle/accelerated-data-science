@@ -403,17 +403,12 @@ class AquaDeploymentApp(AquaApp):
             detail=model_name,
             **telemetry_kwargs,
         )
-        # tracks the shape used for deploying the custom or service models
+        # tracks the shape used for deploying the custom or service models by name
         self.telemetry.record_event_async(
             category=f"aqua/{model_type}/deployment/create",
             action="shape",
             detail=instance_shape,
-        )
-        # tracks the shape used for deploying the custom or service models by name
-        self.telemetry.record_event_async(
-            category=f"aqua/{model_type}/{model_name}/deployment/create",
-            action="shape",
-            detail=instance_shape,
+            value=model_name,
         )
 
         return AquaDeployment.from_oci_model_deployment(
