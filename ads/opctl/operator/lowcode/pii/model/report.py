@@ -144,7 +144,7 @@ def make_model_card(model_name="", readme_path=""):
                 )
             ]
         )
-        eval_res_tb = rc.Plot(data=fig, caption="Evaluation Results")
+        eval_res_tb = rc.Widget(data=fig, caption="Evaluation Results")
     except:
         eval_res_tb = rc.Text("-")
         logger.warning(
@@ -172,7 +172,7 @@ def map_label_to_color(labels):
 
 
 @runtime_dependency(module="plotly", install_from=OptionalDependency.PII)
-def plot_pie(count_map) -> rc.Plot:
+def plot_pie(count_map) -> rc.Widget:
     import plotly.express as px
 
     cols = count_map.keys()
@@ -190,7 +190,7 @@ def plot_pie(count_map) -> rc.Plot:
         color_discrete_map=map_label_to_color(cols),
     )
     fig.update_traces(textposition="inside", textinfo="percent+label")
-    return rc.Plot(fig)
+    return rc.Widget(fig)
 
 
 def build_entity_df(entites, id) -> pd.DataFrame:

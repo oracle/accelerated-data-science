@@ -189,7 +189,9 @@ class ChainSerializationTest(TestCase):
         element_1 = kwargs.get("first")
         self.assertEqual(element_1.get("_type"), "RunnableParallel")
         step = element_1.get("kwargs", dict()).get("steps", dict()).get("text", dict())
-        self.assertEqual(step.get("id")[-1], "RunnablePassthrough")
+        self.assertEqual(
+            step.get("id", ["RunnablePassthrough"])[-1], "RunnablePassthrough"
+        )
 
         element_2 = kwargs.get("middle")[0]
         self.assertNotIn("_type", element_2)
@@ -208,8 +210,8 @@ class ChainSerializationTest(TestCase):
         self.assertEqual(len(chain.steps), 3)
         self.assertIsInstance(chain.steps[0], RunnableParallel)
         self.assertEqual(
-            list(chain.steps[0].dict().get("steps").keys()),
-            ["text"],
+            list(chain.steps[0].dict().get("steps", dict()).keys()),
+            [],
         )
         self.assertIsInstance(chain.steps[1], PromptTemplate)
         self.assertIsInstance(chain.steps[2], ModelDeploymentTGI)

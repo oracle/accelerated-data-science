@@ -159,7 +159,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                 )
                 for i, (s_id, m) in enumerate(self.models.items())
             ]
-            sec5 = rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+            sec5 = rc.Select(blocks=blocks)
             all_sections = [sec5_text, sec5]
 
         if self.spec.generate_explanations:
@@ -206,9 +206,9 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]
-                local_explanation_section = (
+                local_explanation_section = rc.Block(
                     rc.Heading("Local Explanation of Models", level=2),
-                    rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0],
+                    rc.Select(blocks=blocks),
                 )
 
                 # Append the global explanation text and section to the "all_sections" list

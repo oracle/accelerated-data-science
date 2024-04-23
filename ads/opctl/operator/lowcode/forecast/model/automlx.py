@@ -171,12 +171,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
         return self.forecast_output.get_forecast_long()
 
-    @runtime_dependency(
-        module="report-creator",
-        err_msg=(
-            "Please run `pip3 install report-creator` to install the required dependencies for report generation."
-        ),
-    )
     def _generate_report(self):
         """
         Generate the report for the automlx model.

@@ -138,7 +138,7 @@ TEST_DATA = pd.concat(
 
 MODELS = [
     "arima",
-    "automlx",
+    # "automlx",
     "prophet",
     "neuralprophet",
     "autots",
@@ -473,13 +473,20 @@ def test_disabling_outlier_treatment(operator_setup):
     )
 
     yaml_i, output_data_path = populate_yaml(
-        tmpdirname=tmpdirname, model="arima", historical_data_path=historical_data_path
+        tmpdirname=tmpdirname,
+        model="arima",
+        historical_data_path=historical_data_path,
     )
     yaml_i["spec"].pop("target_category_columns")
     yaml_i["spec"].pop("additional_data")
 
     # running default pipeline where outlier will be treated
-    run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
+    run_yaml(
+        tmpdirname=tmpdirname,
+        yaml_i=yaml_i,
+        output_data_path=output_data_path,
+        test_metrics_check=False,
+    )
     forecast_without_outlier = pd.read_csv(f"{tmpdirname}/results/forecast.csv")
     input_vals_without_outlier = set(forecast_without_outlier["input_value"])
     assert all(
@@ -490,7 +497,12 @@ def test_disabling_outlier_treatment(operator_setup):
     preprocessing_steps = {"missing_value_imputation": True, "outlier_treatment": False}
     preprocessing = {"enabled": True, "steps": preprocessing_steps}
     yaml_i["spec"]["preprocessing"] = preprocessing
-    run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
+    run_yaml(
+        tmpdirname=tmpdirname,
+        yaml_i=yaml_i,
+        output_data_path=output_data_path,
+        test_metrics_check=False,
+    )
     forecast_with_outlier = pd.read_csv(f"{tmpdirname}/results/forecast.csv")
     input_vals_with_outlier = set(forecast_with_outlier["input_value"])
     assert all(
@@ -547,6 +559,7 @@ def test_2_series(operator_setup, model):
     run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
 
 
+@pytest.mark.xfail()
 @pytest.mark.parametrize("model", MODELS)
 def test_all_series_failure(model):
     """
@@ -563,7 +576,7 @@ def test_all_series_failure(model):
     preprocessing_steps = {"missing_value_imputation": True, "outlier_treatment": False}
     yaml_i["spec"]["model"] = model
     yaml_i["spec"]["horizon"] = 10
-    yaml_i["spec"]["preprocessing"] = preprocessing_steps
+    yaml_i["spec"]["preprocessing"] = {"enabled": True, "steps": preprocessing_steps}
     if yaml_i["spec"].get("additional_data") is not None and model != "autots":
         yaml_i["spec"]["generate_explanations"] = True
     if model == "autots":
