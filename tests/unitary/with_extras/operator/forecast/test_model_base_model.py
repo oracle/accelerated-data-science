@@ -1,7 +1,7 @@
 # #!/usr/bin/env python
 # # -*- coding: utf-8; -*-
 
-# # Copyright (c) 2023 Oracle and/or its affiliates.
+# # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 # import unittest
@@ -26,7 +26,6 @@
 # import unittest
 # from unittest.mock import patch, Mock
 # import pandas as pd
-# import datapane as dp
 # from ads.opctl.operator.common.utils import _build_image, _parse_input_args
 # from ads.opctl.operator.lowcode.forecast.model.prophet import ProphetOperatorModel
 # from ads.opctl.operator.lowcode.forecast.model.automlx import AutoMLXOperatorModel
@@ -394,7 +393,6 @@
 #         self.assertEquals(total_metrics.index.to_list(), self.evaluation_metrics)
 #         self.assertEquals(summary_metrics.columns.to_list(), self.summary_metrics)
 
-#     @patch("datapane.save_report")
 #     @patch("ads.opctl.operator.lowcode.forecast.utils.get_forecast_plots")
 #     @patch("ads.opctl.operator.lowcode.forecast.utils.evaluate_train_metrics")
 #     @patch("ads.opctl.operator.lowcode.forecast.utils._write_data")

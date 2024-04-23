@@ -133,7 +133,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             }
 
     def _build_model(self) -> pd.DataFrame:
-
         full_data_dict = self.datasets.get_data_by_series()
         self.models = dict()
         self.outputs = dict()
@@ -160,6 +159,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
     def run_tuning(self, data_i, model_kwargs_i):
         from prophet import Prophet
         from prophet.diagnostics import cross_validation, performance_metrics
+
         def objective(trial):
             params = {
                 "seasonality_mode": trial.suggest_categorical(
@@ -243,29 +243,34 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         return model_kwargs_i
 
     def _generate_report(self):
-        import datapane as dp
+        import report_creator as rc
         from prophet.plot import add_changepoints_to_plot
+
         series_ids = self.models.keys()
         all_sections = []
         if len(series_ids) > 0:
-            sec1_text = dp.Text(
-                "## Forecast Overview \n"
-                "These plots show your forecast in the context of historical data."
-            )
             sec1 = _select_plot_list(
                 lambda s_id: self.models[s_id].plot(
                     self.outputs[s_id], include_legend=True
                 ),
                 series_ids=series_ids,
             )
+            section_1 = rc.Block(
+                rc.Heading("Forecast Overview", level=2),
+                rc.Text(
+                    "These plots show your forecast in the context of historical data."
+                ),
+                sec1,
+            )
 
-            sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
             sec2 = _select_plot_list(
                 lambda s_id: self.models[s_id].plot_components(self.outputs[s_id]),
                 series_ids=series_ids,
             )
+            section_2 = rc.Block(
+                rc.Heading("Forecast Broken Down by Trend Component", level=2), sec2
+            )
 
-            sec3_text = dp.Text(f"## Forecast Changepoints")
             sec3_figs = {
                 s_id: self.models[s_id].plot(self.outputs[s_id]) for s_id in series_ids
             }
@@ -273,11 +278,14 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 add_changepoints_to_plot(
                     sec3_figs[s_id].gca(), self.models[s_id], self.outputs[s_id]
                 )
-            sec3 = _select_plot_list(lambda s_id: sec3_figs[s_id], series_ids=series_ids)
+            sec3 = _select_plot_list(
+                lambda s_id: sec3_figs[s_id], series_ids=series_ids
+            )
+            section_3 = rc.Block(rc.Heading("Forecast Changepoints", level=2), sec3)
 
-            all_sections = [sec1_text, sec1, sec2_text, sec2, sec3_text, sec3]
+            all_sections = [section_1, section_2, section_3]
 
-            sec5_text = dp.Text(f"## Prophet Model Seasonality Components")
+            sec5_text = rc.Heading("Prophet Model Seasonality Components", level=2)
             model_states = []
             for s_id in series_ids:
                 m = self.models[s_id]
@@ -291,19 +299,13 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 )
             all_model_states = pd.concat(model_states, axis=1)
             if not all_model_states.empty:
-                sec5 = dp.DataTable(all_model_states)
+                sec5 = rc.DataTable(all_model_states, index=True)
                 all_sections = all_sections + [sec5_text, sec5]
 
         if self.spec.generate_explanations:
             try:
                 # If the key is present, call the "explain_model" method
                 self.explain_model()
-
-                # Create a markdown text block for the global explanation section
-                global_explanation_text = dp.Text(
-                    f"## Global Explanation of Models \n "
-                    "The following tables provide the feature attribution for the global explainability."
-                )
 
                 # Convert the global explanation data to a DataFrame
                 global_explanation_df = pd.DataFrame(self.global_explanation)
@@ -313,9 +315,12 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 )
 
                 # Create a markdown section for the global explainability
-                global_explanation_section = dp.Blocks(
-                    "### Global Explainability ",
-                    dp.DataTable(self.formatted_global_explanation),
+                global_explanation_section = rc.Block(
+                    rc.Heading("Global Explanation of Models", level=2),
+                    rc.Text(
+                        "The following tables provide the feature attribution for the global explainability."
+                    ),
+                    rc.DataTable(self.formatted_global_explanation, index=True),
                 )
 
                 aggregate_local_explanations = pd.DataFrame()
@@ -327,21 +332,21 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                     )
                 self.formatted_local_explanation = aggregate_local_explanations
 
-                local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
                 blocks = [
-                    dp.DataTable(
+                    rc.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
                         label=s_id,
+                        index=True,
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]
-                local_explanation_section = (
-                    dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+                local_explanation_section = rc.Block(
+                    rc.Heading("Local Explanation of Models", level=2),
+                    rc.Select(blocks=blocks),
                 )
 
                 # Append the global explanation text and section to the "all_sections" list
                 all_sections = all_sections + [
-                    global_explanation_text,
                     global_explanation_section,
                     local_explanation_text,
                     local_explanation_section,
@@ -351,7 +356,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 logger.warn(f"Failed to generate Explanations with error: {e}.")
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
 
-        model_description = dp.Text(
+        model_description = (
             "Prophet is a procedure for forecasting time series data based on an additive "
             "model where non-linear trends are fit with yearly, weekly, and daily seasonality, "
             "plus holiday effects. It works best with time series that have strong seasonal "
