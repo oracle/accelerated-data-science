@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import pandas as pd
@@ -27,8 +27,13 @@ class AutoMLXOperatorModel(AnomalyOperatorBaseModel):
     def _build_model(self) -> pd.DataFrame:
         from automlx import init
         import logging
+
         try:
-            init(engine="ray", engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}}, loglevel=logging.CRITICAL)
+            init(
+                engine="ray",
+                engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}},
+                loglevel=logging.CRITICAL,
+            )
         except Exception as e:
             logger.info("Ray already initialized")
         date_column = self.spec.datetime_column.name
@@ -68,21 +73,21 @@ class AutoMLXOperatorModel(AnomalyOperatorBaseModel):
         return anomaly_output
 
     def _generate_report(self):
-        import datapane as dp
+        import report_creator as rc
 
         """The method that needs to be implemented on the particular model level."""
-        selected_models_text = dp.Text(
-            f"## Selected Models Overview \n "
-            "The following tables provide information regarding the chosen model."
-        )
-        all_sections = [selected_models_text]
+        other_sections = [
+            rc.Heading("Selected Models Overview", level=2),
+            rc.Text(
+                "The following tables provide information regarding the chosen model."
+            ),
+        ]
 
-        model_description = dp.Text(
+        model_description = rc.Text(
             "The automlx model automatically pre-processes, selects and engineers "
             "high-quality features in your dataset, which then given to an automatically "
             "chosen and optimized machine learning model.."
         )
-        other_sections = all_sections
 
         return (
             model_description,

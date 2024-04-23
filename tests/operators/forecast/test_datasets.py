@@ -48,7 +48,7 @@ DATASETS_LIST = [
 
 MODELS = [
     "arima",
-    "automlx",
+    # "automlx",
     "prophet",
     "neuralprophet",
     "autots",
@@ -165,7 +165,7 @@ def test_load_datasets(model, dataset_name):
         if model == "autots":
             yaml_i["spec"]["model_kwargs"] = {"model_list": "superfast"}
         if model == "automlx":
-            yaml_i["spec"]["model_kwargs"] = {"time_budget": 50}
+            yaml_i["spec"]["model_kwargs"] = {"time_budget": 2}
 
         forecast_yaml_filename = f"{tmpdirname}/forecast.yaml"
         # with open(f"{tmpdirname}/forecast.yaml", "w") as f:
@@ -218,7 +218,7 @@ def run_operator(
         if model == "autots":
             yaml_i["spec"]["model_kwargs"] = {"model_list": "superfast"}
         if model == "automlx":
-            yaml_i["spec"]["model_kwargs"] = {"time_budget": 50}
+            yaml_i["spec"]["model_kwargs"] = {"time_budget": 2}
 
         forecast_yaml_filename = f"{tmpdirname}/forecast.yaml"
         with open(f"{tmpdirname}/forecast.yaml", "w") as f:

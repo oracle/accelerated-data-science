@@ -10,12 +10,12 @@ dependencies:
       - neuralprophet
       - pmdarima
       - statsmodels
-      - datapane
+      - report-creator
       - cerberus
       - sktime
       - shap
       - autots[additional]
-      - optuna==3.1.0
-      - oracle-automlx==23.4.1
-      - oracle-automlx[forecasting]==23.4.1
+      - optuna
+      - oracle-automlx>=23.4.1
+      - oracle-automlx[forecasting]>=23.4.1
       - fire
