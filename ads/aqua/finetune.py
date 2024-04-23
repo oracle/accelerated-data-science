@@ -462,8 +462,9 @@ class AquaFineTuningApp(AquaApp):
         telemetry_kwargs = (
             {"ocid": ft_job.id[-6:]} if ft_job and len(ft_job.id) > 6 else {}
         )
+        # track shapes that were used for fine-tune creation
         self.telemetry.record_event_async(
-            category=f"aqua/service/{source.display_name}/finetune/create/shape/",
+            category=f"aqua/service/finetune/create/shape/",
             action=f"{create_fine_tuning_details.shape_name}x{create_fine_tuning_details.replica}",
             **telemetry_kwargs,
         )
@@ -473,6 +474,14 @@ class AquaFineTuningApp(AquaApp):
             category="aqua/service/finetune",
             action="create",
             detail=source.display_name,
+            **telemetry_kwargs,
+        )
+        # track combination of model and shape used for fine-tune creation
+        self.telemetry.record_event_async(
+            category="aqua/service/finetune/create",
+            action="shape",
+            detail=f"{create_fine_tuning_details.shape_name}x{create_fine_tuning_details.replica}",
+            value=source.display_name,
         )
 
         return AquaFineTuningSummary(
