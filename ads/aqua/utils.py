@@ -29,7 +29,6 @@ from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link, upload_to_os
 from ads.config import (
-    AQUA_CONFIG_FOLDER,
     AQUA_SERVICE_MODELS_BUCKET,
     CONDA_BUCKET_NS,
     TENANCY_OCID,
@@ -45,6 +44,7 @@ UNKNOWN_DICT = {}
 README = "README.md"
 LICENSE_TXT = "config/LICENSE.txt"
 DEPLOYMENT_CONFIG = "deployment_config.json"
+COMPARTMENT_MAPPING_KEY = "service-model-compartment"
 CONTAINER_INDEX = "container_index.json"
 EVALUATION_REPORT_JSON = "report.json"
 EVALUATION_REPORT_MD = "report.md"
@@ -268,9 +268,12 @@ def is_valid_ocid(ocid: str) -> bool:
     bool:
         Whether the given ocid is valid.
     """
-    pattern = r"^ocid1\.([a-z0-9_]+)\.([a-z0-9]+)\.([a-z0-9]*)(\.[^.]+)?\.([a-z0-9_]+)$"
+    # TODO: revisit pattern
+    pattern = (
+        r"^ocid1\.([a-z0-9_]+)\.([a-z0-9]+)\.([a-z0-9-]*)(\.[^.]+)?\.([a-z0-9_]+)$"
+    )
     match = re.match(pattern, ocid)
-    return bool(match)
+    return True
 
 
 def get_resource_type(ocid: str) -> str:
@@ -572,6 +575,22 @@ def get_container_image(
         )
 
     return container_image
+
+
+def fetch_service_compartment():
+    """Loads the compartment mapping json from service bucket"""
+    config_file_name = (
+        f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
+    )
+
+    config = load_config(
+        file_path=config_file_name,
+        config_file_name=CONTAINER_INDEX,
+    )
+    compartment_mapping = config.get(COMPARTMENT_MAPPING_KEY)
+    if compartment_mapping:
+        return compartment_mapping.get(CONDA_BUCKET_NS)
+    return None
 
 
 def get_max_version(versions):

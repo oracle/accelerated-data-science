@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import numpy as np
@@ -41,20 +41,20 @@ from .forecast_datasets import ForecastDatasets, ForecastOutput
 import traceback
 
 
-def _get_np_metrics_dict(selected_metric):
-    metric_translation = {
-        "mape": MeanAbsolutePercentageError,
-        "smape": SymmetricMeanAbsolutePercentageError,
-        "mae": MeanAbsoluteError,
-        "r2": R2Score,
-        "rmse": MeanSquaredError,
-    }
-    if selected_metric not in metric_translation.keys():
-        logger.warn(
-            f"Could not find the metric: {selected_metric} in torchmetrics. Defaulting to MAE and RMSE"
-        )
-        return {"MAE": MeanAbsoluteError(), "RMSE": MeanSquaredError()}
-    return {selected_metric: metric_translation[selected_metric]()}
+# def _get_np_metrics_dict(selected_metric):
+#     metric_translation = {
+#         "mape": MeanAbsolutePercentageError,
+#         "smape": SymmetricMeanAbsolutePercentageError,
+#         "mae": MeanAbsoluteError,
+#         "r2": R2Score,
+#         "rmse": MeanSquaredError,
+#     }
+#     if selected_metric not in metric_translation.keys():
+#         logger.warn(
+#             f"Could not find the metric: {selected_metric} in torchmetrics. Defaulting to MAE and RMSE"
+#         )
+#         return {"MAE": MeanAbsoluteError(), "RMSE": MeanSquaredError()}
+#     return {selected_metric: metric_translation[selected_metric]()}
 
 
 @runtime_dependency(
@@ -70,7 +70,7 @@ def _fit_model(data, params, additional_regressors, select_metric):
         disable_print()
 
     m = NeuralProphet(**params)
-    m.metrics = _get_np_metrics_dict(select_metric)
+    # m.metrics = _get_np_metrics_dict(select_metric)
     for add_reg in additional_regressors:
         m = m.add_future_regressor(name=add_reg)
     m.fit(df=data)
@@ -120,11 +120,11 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             data = self.preprocess(df, s_id)
             data_i = self.drop_horizon(data)
 
-            if self.loaded_models is not None:
+            if self.loaded_models is not None and s_id in self.loaded_models:
                 model = self.loaded_models[s_id]
                 accepted_regressors_config = model.config_regressors or dict()
                 self.accepted_regressors[s_id] = list(accepted_regressors_config.keys())
-                if self.loaded_trainers is not None:
+                if self.loaded_trainers is not None and s_id in self.loaded_trainers:
                     model.trainer = self.loaded_trainers[s_id]
             else:
                 if self.perform_tuning:
@@ -135,7 +135,8 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                     data=data_i,
                     params=model_kwargs,
                     additional_regressors=self.additional_regressors,
-                    select_metric=self.spec.metric,
+                    select_metric=None,
+                    # select_metric=self.spec.metric,
                 )
 
             logger.debug(
@@ -209,6 +210,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             logger.debug("===========Done===========")
         except Exception as e:
             self.errors_dict[s_id] = {"model_name": self.spec.model, "error": str(e)}
+            raise e
 
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.datasets.get_data_by_series()
@@ -309,92 +311,96 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         return selected_params
 
     def _generate_report(self):
-        import datapane as dp
+        import report_creator as rc
 
+        series_ids = self.models.keys()
         all_sections = []
-
-        try:
-            sec1_text = dp.Text(
-                "## Forecast Overview \nThese plots show your "
-                "forecast in the context of historical data."
-            )
-            sec1 = _select_plot_list(
-                lambda s_id: self.models[s_id].plot(self.outputs[s_id]),
-                series_ids=self.datasets.list_series_ids(),
-            )
-            all_sections = all_sections + [sec1_text, sec1]
-        except Exception as e:
-            logger.debug(f"Failed to plot with exception: {e.args}")
-
-        try:
-            sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
-            sec2 = _select_plot_list(
-                lambda s_id: self.models[s_id].plot_components(self.outputs[s_id]),
-                series_ids=self.datasets.list_series_ids(),
-            )
-            all_sections = all_sections + [sec2_text, sec2]
-        except Exception as e:
-            logger.debug(f"Failed to plot with exception: {e.args}")
-
-        try:
-            sec3_text = dp.Text(f"## Forecast Parameter Plots")
-            sec3 = _select_plot_list(
-                lambda s_id: self.models[s_id].plot_parameters(),
-                series_ids=self.datasets.list_series_ids(),
-            )
-            all_sections = all_sections + [sec3_text, sec3]
-        except Exception as e:
-            logger.debug(f"Failed to plot with exception: {e.args}")
-
-        sec5_text = dp.Text(f"## Neural Prophet Model Parameters")
-        model_states = []
-        for i, (s_id, m) in enumerate(self.models.items()):
-            model_states.append(
-                pd.Series(
-                    m.state_dict(),
-                    index=m.state_dict().keys(),
-                    name=s_id,
+        if len(series_ids) > 0:
+            try:
+                sec1 = _select_plot_list(
+                    lambda s_id: self.models[s_id].plot(self.outputs[s_id]),
+                    series_ids=series_ids,
                 )
-            )
-        all_model_states = pd.concat(model_states, axis=1)
-        sec5 = dp.DataTable(all_model_states)
+                section_1 = rc.Block(
+                    rc.Heading("Forecast Overview", level=2),
+                    rc.Text(
+                        "These plots show your forecast in the context of historical data."
+                    ),
+                    sec1,
+                )
+                all_sections = all_sections + [section_1]
+            except Exception as e:
+                logger.debug(f"Failed to plot with exception: {e.args}")
 
-        all_sections = all_sections + [sec5_text, sec5]
+            try:
+                sec2 = _select_plot_list(
+                    lambda s_id: self.models[s_id].plot_components(self.outputs[s_id]),
+                    series_ids=series_ids,
+                )
+                section_2 = rc.Block(
+                    rc.Heading("Forecast Broken Down by Trend Component", level=2), sec2
+                )
+                all_sections = all_sections + [section_2]
+            except Exception as e:
+                logger.debug(f"Failed to plot with exception: {e.args}")
+
+            try:
+                sec3 = _select_plot_list(
+                    lambda s_id: self.models[s_id].plot_parameters(),
+                    series_ids=series_ids,
+                )
+                section_3 = rc.Block(
+                    rc.Heading("Forecast Parameter Plots", level=2), sec3
+                )
+                all_sections = all_sections + [section_3]
+            except Exception as e:
+                logger.debug(f"Failed to plot with exception: {e.args}")
+
+            sec5_text = rc.Heading("Neural Prophet Model Parameters", level=2)
+            model_states = []
+            for i, (s_id, m) in enumerate(self.models.items()):
+                model_states.append(
+                    pd.Series(
+                        m.state_dict(),
+                        index=m.state_dict().keys(),
+                        name=s_id,
+                    )
+                )
+            all_model_states = pd.concat(model_states, axis=1)
+            sec5 = rc.DataTable(all_model_states, index=True)
+
+            all_sections = all_sections + [sec5_text, sec5]
 
         if self.spec.generate_explanations:
             try:
                 # If the key is present, call the "explain_model" method
                 self.explain_model()
 
-                # Create a markdown text block for the global explanation section
-                global_explanation_text = dp.Text(
-                    f"## Global Explanation of Models \n "
-                    "The following tables provide the feature attribution for the global explainability."
-                )
-
                 # Create a markdown section for the global explainability
-                global_explanation_section = dp.Blocks(
-                    "### Global Explainability ",
-                    dp.DataTable(self.formatted_global_explanation),
+                global_explanation_section = rc.Block(
+                    rc.Heading("Global Explainability", level=2),
+                    rc.Text(
+                        "The following tables provide the feature attribution for the global explainability."
+                    ),
+                    rc.DataTable(self.formatted_global_explanation, index=True),
                 )
 
-                local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
                 blocks = [
-                    dp.DataTable(
+                    rc.DataTable(
                         local_ex_df.drop("Series", axis=1),
                         label=s_id,
+                        index=True,
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]
-                local_explanation_section = (
-                    dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+                local_explanation_section = rc.Block(
+                    rc.Heading("Local Explanation of Models", level=2),
+                    rc.Select(blocks=blocks),
                 )
 
                 # Append the global explanation text and section to the "all_sections" list
                 all_sections = all_sections + [
-                    global_explanation_text,
                     global_explanation_section,
-                    local_explanation_text,
                     local_explanation_section,
                 ]
             except Exception as e:
@@ -402,7 +408,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 logger.warn(f"Failed to generate Explanations with error: {e}.")
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
 
-        model_description = dp.Text(
+        model_description = rc.Text(
             "NeuralProphet is an easy to learn framework for interpretable time "
             "series forecasting. NeuralProphet is built on PyTorch and combines "
             "Neural Network and traditional time-series algorithms, inspired by "

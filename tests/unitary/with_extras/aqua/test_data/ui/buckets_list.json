@@ -1,0 +1,12 @@
+[
+  {
+    "compartment_id": "ocid1.compartment.oc1..<OCID>",
+    "created_by": "ocid1.user.oc1..<OCID>",
+    "defined_tags": null,
+    "etag": "c56b6c1b-cb97-408a-b1a6-c41e682ab773",
+    "freeform_tags": null,
+    "name": "bucket-name-1",
+    "namespace": "test-namespace",
+    "time_created": "2021-04-05T21:18:45.194000+00:00"
+  }
+]

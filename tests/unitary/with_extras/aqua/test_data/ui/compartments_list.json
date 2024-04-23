@@ -1,0 +1,30 @@
+[
+  {
+    "compartment_id": "ocid1.tenancy.oc1..<OCID>",
+    "defined_tags": {},
+    "description": "Compartment Description",
+    "freeform_tags": {},
+    "id": "ocid1.compartment.oc1..<OCID>",
+    "inactive_status": null,
+    "is_accessible": null,
+    "lifecycle_state": "ACTIVE",
+    "name": "compartment-name-1",
+    "time_created": "2019-04-01T18:17:16.010000+00:00"
+  },
+  {
+    "compartment_id": "ocid1.tenancy.oc1..<OCID>",
+    "defined_tags": {
+      "OracleInternalReserved": {
+        "ServiceType": "Other"
+      }
+    },
+    "description": "Compartment Description",
+    "freeform_tags": {},
+    "id": "ocid1.compartment.oc1..<OCID>",
+    "inactive_status": null,
+    "is_accessible": null,
+    "lifecycle_state": "ACTIVE",
+    "name": "compartment-name-2",
+    "time_created": "2020-08-19T00:01:54.961000+00:00"
+  }
+]

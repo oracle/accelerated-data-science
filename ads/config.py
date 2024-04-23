@@ -83,17 +83,6 @@ DEBUG_TELEMETRY = os.environ.get("DEBUG_TELEMETRY", None)
 AQUA_SERVICE_NAME = "aqua"
 DATA_SCIENCE_SERVICE_NAME = "data-science"
 
-compartment_mapping = {
-    "idoaxnz5ar4s": "ocid1.compartment.oc1..aaaaaaaabxqyb6w4kj5y4fwwkc47auxdothlqc7jpm3zbah5aamflvp7th3q",
-    "id19sfcrra6z": "ocid1.compartment.oc1..aaaaaaaasdur4tm5apdm6qyapaba7apdiyv22n2mwt6zquyubqevk3uo7nha",
-}
-default_compartment = compartment_mapping.get(CONDA_BUCKET_NS)
-ODSC_MODEL_COMPARTMENT_OCID = (
-    default_compartment
-    if default_compartment
-    else os.environ.get("ODSC_MODEL_COMPARTMENT_OCID")
-)
-
 
 def export(
     uri: Optional[str] = DEFAULT_CONFIG_PATH,
