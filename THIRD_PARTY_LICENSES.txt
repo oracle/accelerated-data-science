@@ -176,7 +176,7 @@ nbformat
 * Project home: https://jupyter.org/
 
 neuralprophet
-* Copyright 2021, Oskar Triebe and Hansika Hewamalage and Polina Pilyugina and Nikolay Laptev and Christoph Bergmeir and Ram Rajagopal
+* Copyright (c) 2020 Oskar Triebe
 * License: MIT License
 * Source Code: https://github.com/ourownstory/neural_prophet
 * Project Home: https://neuralprophet.com
