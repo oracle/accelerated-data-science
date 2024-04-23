@@ -4,13 +4,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-import logging
 import os
-import sys
 
-from ads import set_auth
+from ads import logger, set_auth
 from ads.aqua.utils import fetch_service_compartment
-from ads.config import NB_SESSION_OCID, OCI_RESOURCE_PRINCIPAL_VERSION
+from ads.config import OCI_RESOURCE_PRINCIPAL_VERSION
 
 ENV_VAR_LOG_LEVEL = "ADS_AQUA_LOG_LEVEL"
 
@@ -21,25 +19,7 @@ def get_logger_level():
     return level
 
 
-def configure_aqua_logger():
-    """Configures the AQUA logger."""
-    log_level = get_logger_level()
-    logger = logging.getLogger(__name__)
-    logger.setLevel(log_level)
-
-    handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s.%(module)s - %(levelname)s - %(message)s"
-    )
-    handler.setFormatter(formatter)
-    handler.setLevel(log_level)
-
-    logger.addHandler(handler)
-    logger.propagate = False
-    return logger
-
-
-logger = configure_aqua_logger()
+logger.setLevel(get_logger_level())
 
 
 def set_log_level(log_level: str):
@@ -56,9 +36,3 @@ if OCI_RESOURCE_PRINCIPAL_VERSION:
 ODSC_MODEL_COMPARTMENT_OCID = (
     os.environ.get("ODSC_MODEL_COMPARTMENT_OCID") or fetch_service_compartment()
 )
-if not ODSC_MODEL_COMPARTMENT_OCID:
-    if NB_SESSION_OCID:
-        logger.error(
-            f"Aqua is not available for this notebook session {NB_SESSION_OCID}."
-        )
-    exit()
