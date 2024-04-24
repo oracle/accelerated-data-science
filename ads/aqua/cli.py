@@ -48,7 +48,7 @@ class AquaCommand:
             or 'ERROR' if not set. Example values include 'DEBUG', 'INFO',
             'WARNING', 'ERROR', and 'CRITICAL'.
         """
-        if log_level not in LOG_LEVELS:
+        if log_level.upper() not in LOG_LEVELS:
             logger.error(
                 f"Log level should be one of {LOG_LEVELS}. Setting default to ERROR."
             )
