@@ -19,7 +19,6 @@ from ads.aqua.utils import (
     get_artifact_path,
     is_valid_ocid,
     load_config,
-    logger,
 )
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
@@ -164,7 +163,6 @@ class AquaApp:
         tag = Tags.AQUA_FINE_TUNING.value
 
         if not model_version_set_id:
-            tag = Tags.AQUA_FINE_TUNING.value # TODO: Fix this
             try:
                 model_version_set = ModelVersionSet.from_name(
                     name=model_version_set_name,
