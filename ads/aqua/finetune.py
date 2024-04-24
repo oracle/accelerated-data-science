@@ -69,6 +69,7 @@ class FineTuneCustomMetadata(Enum):
 class AquaFineTuningParams(DataClassSerializable):
     epochs: int = None
     learning_rate: float = None
+    sample_packing: str = "True"
 
 
 @dataclass(repr=False)
@@ -562,7 +563,7 @@ class AquaFineTuningApp(AquaApp):
                         }
                     ),
                     "OCI__LAUNCH_CMD": (
-                        f"--micro_batch_size {batch_size} --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} "
+                        f"--micro_batch_size {batch_size} --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} --sample_packing {parameters.sample_packing} "
                         + (f"{finetuning_params}" if finetuning_params else "")
                     ),
                     "CONDA_BUCKET_NS": CONDA_BUCKET_NS,
