@@ -23,6 +23,8 @@ from ads.aqua.utils import (
     get_resource_name,
     get_model_by_reference_paths,
     get_ocid_substring,
+    AQUA_MODEL_TYPE_SERVICE,
+    AQUA_MODEL_TYPE_CUSTOM,
 )
 from ads.aqua.finetune import FineTuneCustomMetadata
 from ads.aqua.data import AquaResourceIdentifier
@@ -392,7 +394,9 @@ class AquaDeploymentApp(AquaApp):
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
 
-        model_type = "custom" if is_fine_tuned_model else "service"
+        model_type = (
+            AQUA_MODEL_TYPE_CUSTOM if is_fine_tuned_model else AQUA_MODEL_TYPE_SERVICE
+        )
         deployment_id = deployment.dsc_model_deployment.id
         # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
         telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
