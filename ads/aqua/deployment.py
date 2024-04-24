@@ -22,6 +22,9 @@ from ads.aqua.utils import (
     UNKNOWN_DICT,
     get_resource_name,
     get_model_by_reference_paths,
+    get_ocid_substring,
+    AQUA_MODEL_TYPE_SERVICE,
+    AQUA_MODEL_TYPE_CUSTOM,
 )
 from ads.aqua.finetune import FineTuneCustomMetadata
 from ads.aqua.data import AquaResourceIdentifier
@@ -391,11 +394,13 @@ class AquaDeploymentApp(AquaApp):
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
 
-        model_type = "custom" if is_fine_tuned_model else "service"
-        deployment_id = deployment.dsc_model_deployment.id
-        telemetry_kwargs = (
-            {"ocid": deployment_id[-8:]} if len(deployment_id) > 8 else {}
+        model_type = (
+            AQUA_MODEL_TYPE_CUSTOM if is_fine_tuned_model else AQUA_MODEL_TYPE_SERVICE
         )
+        deployment_id = deployment.dsc_model_deployment.id
+        # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
+        telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
+
         # tracks unique deployments that were created in the user compartment
         self.telemetry.record_event_async(
             category=f"aqua/{model_type}/deployment",
@@ -461,10 +466,11 @@ class AquaDeploymentApp(AquaApp):
                 state = model_deployment.lifecycle_state.upper()
                 if state in ["ACTIVE", "FAILED"]:
                     # tracks unique deployments that were listed in the user compartment
+                    # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
                     self.telemetry.record_event_async(
                         category=f"aqua/deployment",
                         action="list",
-                        detail=deployment_id[-8:] if len(deployment_id) > 8 else "",
+                        detail=get_ocid_substring(deployment_id, key_len=8),
                         value=state,
                     )
 

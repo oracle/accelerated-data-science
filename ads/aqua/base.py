@@ -163,7 +163,6 @@ class AquaApp:
         tag = Tags.AQUA_FINE_TUNING.value
 
         if not model_version_set_id:
-            tag = Tags.AQUA_FINE_TUNING.value  # TODO: Fix this
             try:
                 model_version_set = ModelVersionSet.from_name(
                     name=model_version_set_name,

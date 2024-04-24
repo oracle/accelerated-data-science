@@ -14,7 +14,7 @@ ENV_VAR_LOG_LEVEL = "ADS_AQUA_LOG_LEVEL"
 
 
 def get_logger_level():
-    """Retrieves logging level from environment variable `LOG_LEVEL`."""
+    """Retrieves logging level from environment variable `ADS_AQUA_LOG_LEVEL`."""
     level = os.environ.get(ENV_VAR_LOG_LEVEL, "INFO").upper()
     return level
 

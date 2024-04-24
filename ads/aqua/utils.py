@@ -73,6 +73,8 @@ LIFECYCLE_DETAILS_MISSING_JOBRUN = "The asscociated JobRun resource has been del
 READY_TO_DEPLOY_STATUS = "ACTIVE"
 READY_TO_FINE_TUNE_STATUS = "TRUE"
 AQUA_GA_LIST = ["id19sfcrra6z"]
+AQUA_MODEL_TYPE_SERVICE = "service"
+AQUA_MODEL_TYPE_CUSTOM = "custom"
 
 
 class LifecycleStatus(Enum):
@@ -741,3 +743,9 @@ def known_realm():
 
     """
     return os.environ.get("CONDA_BUCKET_NS") in AQUA_GA_LIST
+
+
+def get_ocid_substring(ocid: str, key_len: int) -> str:
+    """This helper function returns the last n characters of the ocid specified by key_len parameter.
+    If ocid is None or length is less than key_len, it returns an empty string."""
+    return ocid[-key_len:] if ocid and len(ocid) > key_len else ""
