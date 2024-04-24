@@ -22,6 +22,7 @@ from ads.aqua.utils import (
     UNKNOWN_DICT,
     get_resource_name,
     get_model_by_reference_paths,
+    get_ocid_substring,
 )
 from ads.aqua.finetune import FineTuneCustomMetadata
 from ads.aqua.data import AquaResourceIdentifier
@@ -393,9 +394,8 @@ class AquaDeploymentApp(AquaApp):
 
         model_type = "custom" if is_fine_tuned_model else "service"
         deployment_id = deployment.dsc_model_deployment.id
-        telemetry_kwargs = (
-            {"ocid": deployment_id[-8:]} if len(deployment_id) > 8 else {}
-        )
+        telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
+
         # tracks unique deployments that were created in the user compartment
         self.telemetry.record_event_async(
             category=f"aqua/{model_type}/deployment",
@@ -464,7 +464,7 @@ class AquaDeploymentApp(AquaApp):
                     self.telemetry.record_event_async(
                         category=f"aqua/deployment",
                         action="list",
-                        detail=deployment_id[-8:] if len(deployment_id) > 8 else "",
+                        detail=get_ocid_substring(deployment_id, key_len=8),
                         value=state,
                     )
 
