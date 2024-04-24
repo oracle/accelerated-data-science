@@ -138,7 +138,6 @@ forecast = [
   "py-cpuinfo",
   "rich",
   "autots[additional]",
-  "holidays==0.21.13",
   "neuralprophet>=0.7.0",
   "numpy",
   "oci-cli",
