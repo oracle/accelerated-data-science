@@ -394,6 +394,7 @@ class AquaDeploymentApp(AquaApp):
 
         model_type = "custom" if is_fine_tuned_model else "service"
         deployment_id = deployment.dsc_model_deployment.id
+        # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
         telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
 
         # tracks unique deployments that were created in the user compartment
@@ -461,6 +462,7 @@ class AquaDeploymentApp(AquaApp):
                 state = model_deployment.lifecycle_state.upper()
                 if state in ["ACTIVE", "FAILED"]:
                     # tracks unique deployments that were listed in the user compartment
+                    # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
                     self.telemetry.record_event_async(
                         category=f"aqua/deployment",
                         action="list",
