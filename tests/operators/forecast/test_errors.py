@@ -137,7 +137,7 @@ TEST_DATA = pd.concat(
 
 MODELS = [
     "arima",
-    # "automlx",
+    "automlx",
     "prophet",
     "neuralprophet",
     "autots",
