@@ -56,11 +56,12 @@ class AquaCommand:
         set_log_level(log_level)
         # gracefully exit if env var is not set
         if not ODSC_MODEL_COMPARTMENT_OCID:
-            logger.error(
+            logger.debug(
                 "ODSC_MODEL_COMPARTMENT_OCID environment variable is not set for Aqua."
             )
             if NB_SESSION_OCID:
                 logger.error(
-                    f"Aqua is not available for the notebook session {NB_SESSION_OCID}."
+                    f"Aqua is not available for the notebook session {NB_SESSION_OCID}. For more information, "
+                    f"please refer to the documentation."
                 )
             sys.exit(1)
