@@ -17,6 +17,7 @@ from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.finetune import AquaFineTuningApp
 from ads.aqua.model import AquaModelApp
 from ads.config import NB_SESSION_OCID
+from ads.common.utils import LOG_LEVELS
 
 
 class AquaCommand:
@@ -47,6 +48,11 @@ class AquaCommand:
             or 'ERROR' if not set. Example values include 'DEBUG', 'INFO',
             'WARNING', 'ERROR', and 'CRITICAL'.
         """
+        if log_level not in LOG_LEVELS:
+            logger.error(
+                f"Log level should be one of {LOG_LEVELS}. Setting default to ERROR."
+            )
+            log_level = "ERROR"
         set_log_level(log_level)
         # gracefully exit if env var is not set
         if not ODSC_MODEL_COMPARTMENT_OCID:
