@@ -139,7 +139,7 @@ forecast = [
   "rich",
   "autots[additional]",
   "holidays==0.21.13",
-  "neuralprophet",
+  "neuralprophet>=0.8.0",
   "numpy",
   "oci-cli",
   "optuna",

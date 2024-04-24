@@ -119,7 +119,11 @@ def test_load_datasets(model, data_details):
         dataset_i[[DATETIME_COL, target]][-PERIODS:].to_csv(test_data_path, index=False)
 
         if len(additional_cols) > 0:
-            additional_data = dataset_i[list(additional_cols) + [DATETIME_COL]]
+            if len(additional_cols) > MAX_ADDITIONAL_COLS:
+                selected_add_cols = [DATETIME_COL] + additional_cols[
+                    :MAX_ADDITIONAL_COLS
+                ]
+            additional_data = dataset_i[selected_add_cols]
             additional_data.to_csv(additional_data_path, index=False)
             yaml_i["spec"]["additional_data"] = {"url": additional_data_path}
 
