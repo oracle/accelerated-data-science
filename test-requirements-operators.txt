@@ -2,5 +2,6 @@
 -e ".[forecast]"
 -e ".[feature-store-marketplace]"
 plotly
+oracle-automlx[classic]>=24.1.0
 oracle-automlx[forecasting]>=24.1.0
 pandas>=2.0.0
