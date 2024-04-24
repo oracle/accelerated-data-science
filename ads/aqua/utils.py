@@ -743,7 +743,7 @@ def known_realm():
     return os.environ.get("CONDA_BUCKET_NS") in AQUA_GA_LIST
 
 
-def get_ocid_substring(ocid: str, key_len: int = 8) -> str:
-    """This helper function returns the last n characters of the ocid specified by key_len parameter, which defaults
-    to 8. If ocid is None or length is less than key_len, it returns an empty string."""
+def get_ocid_substring(ocid: str, key_len: int) -> str:
+    """This helper function returns the last n characters of the ocid specified by key_len parameter.
+    If ocid is None or length is less than key_len, it returns an empty string."""
     return ocid[-key_len:] if ocid and len(ocid) > key_len else ""
