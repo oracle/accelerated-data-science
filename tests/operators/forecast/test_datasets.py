@@ -154,8 +154,8 @@ def test_load_datasets(model, data_details):
         if include_test_data:
             test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")
             print(test_metrics)
-        train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
-        print(train_metrics)
+            train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
+            print(train_metrics)
 
 
 def run_operator(
