@@ -4,7 +4,7 @@ Release Notes
 
 2.11.8
 ------
-Release date: April 18, 2024
+Release date: April 24, 2024
 
 * Fixed bugs, added realm compatibility check, improved logging and error handling, and added additional telemetry for Aqua.
 * Upgraded oci version to 2.125.3
