@@ -77,15 +77,17 @@ class TestAquaCLI(TestCase):
                 reload(ads.aqua.cli)
                 with patch("ads.aqua.cli.set_log_level") as mock_setting_log:
                     with patch("ads.aqua.logger.error") as mock_logger_error:
-                        AquaCommand()
-                        mock_setting_log.assert_called_with(
-                            TestAquaCLI.DEFAULT_AQUA_CLI_LOGGING_LEVEL
-                        )
-                        mock_logger_error.assert_any_call(
-                            "ODSC_MODEL_COMPARTMENT_OCID environment variable is not set for Aqua."
-                        )
-                        if session_ocid:
-                            mock_logger_error.assert_any_call(
-                                f"Aqua is not available for the notebook session {session_ocid}."
+                        with patch("ads.aqua.logger.debug") as mock_logger_debug:
+                            AquaCommand()
+                            mock_setting_log.assert_called_with(
+                                TestAquaCLI.DEFAULT_AQUA_CLI_LOGGING_LEVEL
                             )
-                        mock_exit.assert_called_with(1)
+                            mock_logger_debug.assert_any_call(
+                                "ODSC_MODEL_COMPARTMENT_OCID environment variable is not set for Aqua."
+                            )
+                            if session_ocid:
+                                mock_logger_error.assert_any_call(
+                                    f"Aqua is not available for the notebook session {session_ocid}. For more information, "
+                                    f"please refer to the documentation."
+                                )
+                            mock_exit.assert_called_with(1)
