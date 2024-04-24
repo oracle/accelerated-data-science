@@ -100,10 +100,7 @@ def test_load_datasets(model, data_details):
     include_test_data = data_details.get("include_test_data", True)
 
     dataset_i = pd.read_csv(dataset_name)
-
     additional_cols = list(set(dataset_i.columns) - {DATETIME_COL, target})
-    target_df = dataset_i[target][:-PERIODS]
-    test_df = dataset_i[target][-PERIODS:]
 
     print(dataset_name, len(target))
     with tempfile.TemporaryDirectory() as tmpdirname:

@@ -113,7 +113,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 data_i = self.drop_horizon(data)
                 X_pred = self.get_horizon(data).drop(target, axis=1)
 
-                logger.debug(f"Time Index Monotonic: {data_i.index.is_monotonic}")
+                logger.debug(
+                    f"Time Index Monotonic: {data_i.index.is_monotonic_increasing}"
+                )
 
                 if self.loaded_models is not None and s_id in self.loaded_models:
                     model = self.loaded_models[s_id]
