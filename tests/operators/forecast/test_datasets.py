@@ -20,11 +20,19 @@ from ads.opctl.operator.cmd import run
 DATASET_PREFIX = f"{os.path.dirname(os.path.abspath(__file__))}/../data/timeseries/"
 
 DATASETS_LIST = [
-    "AirPassengers.csv",
-    "AusBeer.csv",
-    "AustralianTourism.csv",
-    "MonthlyMilkIncomplete.csv",
-    "Wooly.csv",
+    {"filename": f"{DATASET_PREFIX}AirPassengers.csv", "target": "#Passengers"},
+    {"filename": f"{DATASET_PREFIX}AusBeer.csv", "target": "Y"},
+    {
+        "filename": f"{DATASET_PREFIX}AustralianTourism.csv",
+        "target": "Total",
+        "format": "%Y-%m-%d",
+    },
+    {
+        "filename": f"{DATASET_PREFIX}MonthlyMilkIncomplete.csv",
+        "target": "Pounds per cow",
+        "include_test_data": False,
+    },
+    {"filename": f"{DATASET_PREFIX}Wooly.csv", "target": "Y"},
 ]
 
 MODELS = [
@@ -63,6 +71,8 @@ PERIODS = 5
 MAX_ADDITIONAL_COLS = 3
 SAMPLE_FRACTION = 1
 
+DATETIME_COL = "Date"
+
 parameters_short = []
 
 for dataset_i in DATASETS_LIST:  #  + [DATASETS_LIST[-2]]
@@ -82,80 +92,55 @@ def verify_explanations(global_fn, local_fn, yaml_i, additional_cols):
     assert "Series 1" in set(glb_expl.columns)
 
 
-@pytest.mark.parametrize("model, dataset_name", parameters_short)
-def test_load_datasets(model, dataset_name):
-    # if model == "automlx" and dataset_name == "WeatherDataset":
-    #     return
-    dataset_i = pd.read_csv(os.path.join(DATASET_PREFIX, dataset_name))
-    datetime_col = dataset_i["Date"]
+@pytest.mark.parametrize("model, data_details", parameters_short)
+def test_load_datasets(model, data_details):
+    dataset_name = data_details["filename"]
+    target = data_details["target"]
+    dt_format = data_details.get("format")
+    include_test_data = data_details.get("include_test_data", True)
 
-    columns = list(set(dataset_i.columns) - {"Date"})
-    additional_cols = []
-    target = dataset_i[columns[0]][:-PERIODS]
-    test = dataset_i[columns[0]][-PERIODS:]
+    dataset_i = pd.read_csv(dataset_name)
 
-    print(dataset_name, len(columns), len(target))
+    additional_cols = list(set(dataset_i.columns) - {DATETIME_COL, target})
+    target_df = dataset_i[target][:-PERIODS]
+    test_df = dataset_i[target][-PERIODS:]
+
+    print(dataset_name, len(target))
     with tempfile.TemporaryDirectory() as tmpdirname:
         historical_data_path = f"{tmpdirname}/primary_data.csv"
         additional_data_path = f"{tmpdirname}/add_data.csv"
         test_data_path = f"{tmpdirname}/test_data.csv"
         output_data_path = f"{tmpdirname}/results"
         yaml_i = deepcopy(TEMPLATE_YAML)
-        generate_train_metrics = True  # bool(random.getrandbits(1))
 
-        df_i = target
-        if dataset_name == "AustralianTourismDataset.csv":
-            df_i[datetime_col] = [
-                pd.to_datetime("1990-01-01", format="%Y-%m-%d")
-            ] + df_i[datetime_col].values * datetime.timedelta(days=1)
+        dataset_i[[DATETIME_COL, target]][:-PERIODS].to_csv(
+            historical_data_path, index=False
+        )
+        dataset_i[[DATETIME_COL, target]][-PERIODS:].to_csv(test_data_path, index=False)
 
-        df_i.to_csv(historical_data_path, index=False)
-        # .sample(frac=SAMPLE_FRACTION).sort_values(by=datetime_col)
-
-        test_df = test
-        if dataset_name == "AustralianTourismDataset.csv":
-            test_df[datetime_col] = [
-                pd.to_datetime("1990-01-01", format="%Y-%m-%d")
-            ] + test_df[datetime_col].values * datetime.timedelta(days=1)
-
-        test_df.to_csv(test_data_path, index=False)
-
-        if len(columns) > 1:
-            additional_cols = columns[1 : min(len(columns), MAX_ADDITIONAL_COLS)]
-            additional_data = dataset_i[list(additional_cols)]
-            df_additional = additional_data
-            if dataset_name == "AustralianTourismDataset.csv":
-                df_additional[datetime_col] = [
-                    pd.to_datetime("1990-01-01", format="%Y-%m-%d")
-                ] + df_additional[datetime_col].values * datetime.timedelta(days=1)
-
-            df_additional.to_csv(additional_data_path, index=False)
+        if len(additional_cols) > 0:
+            additional_data = dataset_i[list(additional_cols) + [DATETIME_COL]]
+            additional_data.to_csv(additional_data_path, index=False)
             yaml_i["spec"]["additional_data"] = {"url": additional_data_path}
 
         yaml_i["spec"]["historical_data"]["url"] = historical_data_path
-        yaml_i["spec"]["test_data"] = {"url": test_data_path}
+        if include_test_data:
+            yaml_i["spec"]["test_data"] = {"url": test_data_path}
         yaml_i["spec"]["output_directory"]["url"] = output_data_path
         yaml_i["spec"]["model"] = model
-        yaml_i["spec"]["target_column"] = columns[0]
-        yaml_i["spec"]["datetime_column"]["name"] = datetime_col
+        yaml_i["spec"]["target_column"] = target
+        yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COL
+        if dt_format:
+            yaml_i["spec"]["datetime_column"]["format"] = dt_format
         yaml_i["spec"]["horizon"] = PERIODS
+        yaml_i["spec"]["generate_metrics"] = True
         if yaml_i["spec"].get("additional_data") is not None and model != "autots":
             yaml_i["spec"]["generate_explanations"] = True
-        if generate_train_metrics:
-            yaml_i["spec"]["generate_metrics"] = generate_train_metrics
         if model == "autots":
             yaml_i["spec"]["model_kwargs"] = {"model_list": "superfast"}
         if model == "automlx":
             yaml_i["spec"]["model_kwargs"] = {"time_budget": 2}
 
-        forecast_yaml_filename = f"{tmpdirname}/forecast.yaml"
-        # with open(f"{tmpdirname}/forecast.yaml", "w") as f:
-        #     f.write(yaml.dump(yaml_i))
-        # sleep(0.5)
-        # subprocess.run(
-        #     f"ads operator run -f {forecast_yaml_filename} --debug", shell=True  #  --debug
-        # )
-        # sleep(0.1)
         run(yaml_i, backend="operator.local", debug=False)
         subprocess.run(f"ls -a {output_data_path}", shell=True)
         if yaml_i["spec"]["generate_explanations"]:
@@ -165,9 +150,9 @@ def test_load_datasets(model, dataset_name):
                 yaml_i=yaml_i,
                 additional_cols=additional_cols,
             )
-
-        test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")
-        print(test_metrics)
+        if include_test_data:
+            test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")
+            print(test_metrics)
         train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
         print(train_metrics)
 
@@ -190,7 +175,7 @@ def run_operator(
         yaml_i["spec"]["output_directory"]["url"] = output_data_path
         yaml_i["spec"]["model"] = model
         yaml_i["spec"]["target_column"] = "Sales"
-        yaml_i["spec"]["datetime_column"]["name"] = "Date"
+        yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COL
         yaml_i["spec"]["target_category_columns"] = ["Store"]
         yaml_i["spec"]["horizon"] = PERIODS
 
