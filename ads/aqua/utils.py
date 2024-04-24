@@ -73,6 +73,8 @@ LIFECYCLE_DETAILS_MISSING_JOBRUN = "The asscociated JobRun resource has been del
 READY_TO_DEPLOY_STATUS = "ACTIVE"
 READY_TO_FINE_TUNE_STATUS = "TRUE"
 AQUA_GA_LIST = ["id19sfcrra6z"]
+AQUA_MODEL_TYPE_SERVICE = "service"
+AQUA_MODEL_TYPE_CUSTOM = "custom"
 
 
 class LifecycleStatus(Enum):
