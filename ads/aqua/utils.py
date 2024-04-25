@@ -582,9 +582,10 @@ def fetch_service_compartment() -> Union[str, None]:
             file_path=config_file_name,
             config_file_name=CONTAINER_INDEX,
         )
-    except Exception:
+    except Exception as e:
         logger.error(
-            f"Config file {config_file_name}/{CONTAINER_INDEX} to fetch service compartment OCID could not be found."
+            f"Config file {config_file_name}/{CONTAINER_INDEX} to fetch service compartment OCID could not be found. "
+            f"\n{str(e)}."
         )
         return
     compartment_mapping = config.get(COMPARTMENT_MAPPING_KEY)
