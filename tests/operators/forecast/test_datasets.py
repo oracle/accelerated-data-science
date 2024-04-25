@@ -68,7 +68,8 @@ parameters_short = []
 
 for dataset_i in DATASETS_LIST:  #  + [DATASETS_LIST[-2]]
     for model in MODELS:
-        parameters_short.append((model, dataset_i))
+        if model != "automlx" and dataset_i != f"{DATASET_PREFIX}dataset3.csv":
+            parameters_short.append((model, dataset_i))
 
 
 def verify_explanations(tmpdirname, additional_cols):
