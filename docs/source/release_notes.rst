@@ -2,6 +2,13 @@
 Release Notes
 =============
 
+2.11.9
+------
+Release date: April 24, 2024
+
+* Fixed bugs and introduced enhancements following our recent release.
+
+
 2.11.8
 ------
 Release date: April 24, 2024
