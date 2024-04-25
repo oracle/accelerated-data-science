@@ -582,7 +582,7 @@ def fetch_service_compartment() -> Union[str, None]:
             file_path=config_file_name,
             config_file_name=CONTAINER_INDEX,
         )
-    except AquaFileNotFoundError:
+    except Exception:
         logger.error(
             f"Config file {config_file_name}/{CONTAINER_INDEX} to fetch service compartment OCID could not be found."
         )
