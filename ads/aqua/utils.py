@@ -10,7 +10,6 @@ import logging
 import os
 import random
 import re
-import sys
 from enum import Enum
 from functools import wraps
 from pathlib import Path
@@ -22,22 +21,16 @@ import oci
 from oci.data_science.models import JobRun, Model
 
 from ads.aqua.constants import RqsAdditionalDetails
-from ads.aqua.data import AquaResourceIdentifier, Tags
+from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link, upload_to_os
-from ads.config import (
-    AQUA_SERVICE_MODELS_BUCKET,
-    CONDA_BUCKET_NS,
-    TENANCY_OCID,
-)
+from ads.config import AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, TENANCY_OCID
 from ads.model import DataScienceModel, ModelVersionSet
 
-# TODO: allow the user to setup the logging level?
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-logger = logging.getLogger("ODSC_AQUA")
+logger = logging.getLogger("ads.aqua")
 
 UNKNOWN = ""
 UNKNOWN_DICT = {}
@@ -79,6 +72,9 @@ NB_SESSION_IDENTIFIER = "NB_SESSION_OCID"
 LIFECYCLE_DETAILS_MISSING_JOBRUN = "The asscociated JobRun resource has been deleted."
 READY_TO_DEPLOY_STATUS = "ACTIVE"
 READY_TO_FINE_TUNE_STATUS = "TRUE"
+AQUA_GA_LIST = ["id19sfcrra6z"]
+AQUA_MODEL_TYPE_SERVICE = "service"
+AQUA_MODEL_TYPE_CUSTOM = "custom"
 
 
 class LifecycleStatus(Enum):
@@ -142,10 +138,6 @@ LIFECYCLE_DETAILS_MAPPING = {
 }
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "artifact_location"
-
-
-def get_logger():
-    return logger
 
 
 def random_color_generator(word: str):
@@ -234,7 +226,7 @@ def read_file(file_path: str, **kwargs) -> str:
         with fsspec.open(file_path, "r", **kwargs.get("auth", {})) as f:
             return f.read()
     except Exception as e:
-        logger.error(f"Failed to read file {file_path}. {e}")
+        logger.debug(f"Failed to read file {file_path}. {e}")
         return UNKNOWN
 
 
@@ -484,7 +476,7 @@ def _build_resource_identifier(
             ),
         )
     except Exception as e:
-        logger.error(
+        logger.debug(
             f"Failed to construct AquaResourceIdentifier from given id=`{id}`, and name=`{name}`, {str(e)}"
         )
         return AquaResourceIdentifier()
@@ -577,20 +569,27 @@ def get_container_image(
     return container_image
 
 
-def fetch_service_compartment():
-    """Loads the compartment mapping json from service bucket"""
+def fetch_service_compartment() -> Union[str, None]:
+    """Loads the compartment mapping json from service bucket. This json file has a service-model-compartment key which
+    contains a dictionary of namespaces and the compartment OCID of the service models in that namespace.
+    """
     config_file_name = (
         f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
     )
 
-    config = load_config(
-        file_path=config_file_name,
-        config_file_name=CONTAINER_INDEX,
-    )
+    try:
+        config = load_config(
+            file_path=config_file_name,
+            config_file_name=CONTAINER_INDEX,
+        )
+    except AquaFileNotFoundError:
+        logger.error(
+            f"Config file {config_file_name}/{CONTAINER_INDEX} to fetch service compartment OCID could not be found."
+        )
+        return
     compartment_mapping = config.get(COMPARTMENT_MAPPING_KEY)
     if compartment_mapping:
         return compartment_mapping.get(CONDA_BUCKET_NS)
-    return None
 
 
 def get_max_version(versions):
@@ -733,3 +732,20 @@ def _is_valid_mvs(mvs: ModelVersionSet, target_tag: str) -> bool:
         return False
 
     return target_tag in mvs.freeform_tags
+
+
+def known_realm():
+    """This helper function returns True if the Aqua service is available by default in the given namespace.
+    Returns
+    -------
+    bool:
+        Return True if aqua service is available.
+
+    """
+    return os.environ.get("CONDA_BUCKET_NS") in AQUA_GA_LIST
+
+
+def get_ocid_substring(ocid: str, key_len: int) -> str:
+    """This helper function returns the last n characters of the ocid specified by key_len parameter.
+    If ocid is None or length is less than key_len, it returns an empty string."""
+    return ocid[-key_len:] if ocid and len(ocid) > key_len else ""

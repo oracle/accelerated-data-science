@@ -54,7 +54,6 @@ class AquaFineTuneHandler(AquaAPIhandler):
 
         self.finish(AquaFineTuningApp().create(CreateFineTuningDetails(**input_data)))
 
-    @handle_exceptions
     def get_finetuning_config(self, model_id):
         """Gets the finetuning config for Aqua model."""
         return self.finish(AquaFineTuningApp().get_finetuning_config(model_id=model_id))

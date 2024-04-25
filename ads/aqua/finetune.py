@@ -15,6 +15,7 @@ from oci.data_science.models import (
     UpdateModelProvenanceDetails,
 )
 
+from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.base import AquaApp
 from ads.aqua.data import AquaResourceIdentifier, Resource, Tags
 from ads.aqua.exception import AquaFileExistsError, AquaValueError
@@ -28,7 +29,6 @@ from ads.aqua.utils import (
     UNKNOWN,
     UNKNOWN_DICT,
     get_container_image,
-    logger,
     upload_local_to_os,
 )
 from ads.common.auth import default_signer
@@ -69,6 +69,7 @@ class FineTuneCustomMetadata(Enum):
 class AquaFineTuningParams(DataClassSerializable):
     epochs: int = None
     learning_rate: float = None
+    sample_packing: str = "True"
 
 
 @dataclass(repr=False)
@@ -122,6 +123,8 @@ class CreateFineTuningDetails(DataClassSerializable):
         The log group id for fine tuning job infrastructure.
     log_id: (str, optional). Defaults to `None`.
         The log id for fine tuning job infrastructure.
+    force_overwrite: (bool, optional). Defaults to `False`.
+        Whether to force overwrite the existing file in object storage.
     """
 
     ft_source_id: str
@@ -142,6 +145,7 @@ class CreateFineTuningDetails(DataClassSerializable):
     subnet_id: Optional[str] = None
     log_id: Optional[str] = None
     log_group_id: Optional[str] = None
+    force_overwrite: Optional[bool] = False
 
 
 class AquaFineTuningApp(AquaApp):
@@ -192,12 +196,11 @@ class AquaFineTuningApp(AquaApp):
                 )
 
         source = self.get_source(create_fine_tuning_details.ft_source_id)
-        # TODO: add the following validation for fine tuning aqua service model. Revisit it when all service models are available
-        # if source.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
-        #     raise AquaValueError(
-        #         f"Fine tuning is only supported for Aqua service models in {ODSC_MODEL_COMPARTMENT_OCID}. "
-        #         "Use a valid Aqua service model id instead."
-        #     )
+        if source.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
+            raise AquaValueError(
+                f"Fine tuning is only supported for Aqua service models in {ODSC_MODEL_COMPARTMENT_OCID}. "
+                "Use a valid Aqua service model id instead."
+            )
 
         target_compartment = (
             create_fine_tuning_details.compartment_id or COMPARTMENT_OCID
@@ -273,12 +276,12 @@ class AquaFineTuningApp(AquaApp):
                     src_uri=ft_dataset_path,
                     dst_uri=dst_uri,
                     auth=default_signer(),
-                    force_overwrite=False,
+                    force_overwrite=create_fine_tuning_details.force_overwrite,
                 )
             except FileExistsError:
                 raise AquaFileExistsError(
                     f"Dataset {dataset_file} already exists in {create_fine_tuning_details.report_path}. "
-                    "Please use a new dataset file name or report path."
+                    "Please use a new dataset file name, report path or set `force_overwrite` as True."
                 )
             logger.debug(
                 f"Uploaded local file {ft_dataset_path} to object storage {dst_uri}."
@@ -460,16 +463,26 @@ class AquaFineTuningApp(AquaApp):
         telemetry_kwargs = (
             {"ocid": ft_job.id[-6:]} if ft_job and len(ft_job.id) > 6 else {}
         )
+        # track shapes that were used for fine-tune creation
         self.telemetry.record_event_async(
-            category=f"aqua/service/{source.display_name}/finetune/create/shape/",
+            category=f"aqua/service/finetune/create/shape/",
             action=f"{create_fine_tuning_details.shape_name}x{create_fine_tuning_details.replica}",
             **telemetry_kwargs,
         )
         # tracks unique fine-tuned models that were created in the user compartment
+        # TODO: retrieve the service model name for FT custom models.
         self.telemetry.record_event_async(
             category="aqua/service/finetune",
             action="create",
             detail=source.display_name,
+            **telemetry_kwargs,
+        )
+        # track combination of model and shape used for fine-tune creation
+        self.telemetry.record_event_async(
+            category="aqua/service/finetune/create",
+            action="shape",
+            detail=f"{create_fine_tuning_details.shape_name}x{create_fine_tuning_details.replica}",
+            value=source.display_name,
         )
 
         return AquaFineTuningSummary(
@@ -550,7 +563,7 @@ class AquaFineTuningApp(AquaApp):
                         }
                     ),
                     "OCI__LAUNCH_CMD": (
-                        f"--micro_batch_size {batch_size} --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} "
+                        f"--micro_batch_size {batch_size} --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} --sample_packing {parameters.sample_packing} "
                         + (f"{finetuning_params}" if finetuning_params else "")
                     ),
                     "CONDA_BUCKET_NS": CONDA_BUCKET_NS,
