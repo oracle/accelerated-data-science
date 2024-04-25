@@ -20,19 +20,19 @@ from ads.opctl.operator.cmd import run
 DATASET_PREFIX = f"{os.path.dirname(os.path.abspath(__file__))}/../data/timeseries/"
 
 DATASETS_LIST = [
-    {"filename": f"{DATASET_PREFIX}AirPassengers.csv", "target": "#Passengers"},
-    {"filename": f"{DATASET_PREFIX}AusBeer.csv", "target": "Y"},
+    {"filename": f"{DATASET_PREFIX}dataset1.csv", "target": "Y"},
+    {"filename": f"{DATASET_PREFIX}dataset2.csv", "target": "Y"},
     {
-        "filename": f"{DATASET_PREFIX}AustralianTourism.csv",
-        "target": "Total",
+        "filename": f"{DATASET_PREFIX}dataset3.csv",
+        "target": "Y",
         "format": "%Y-%m-%d",
     },
     {
-        "filename": f"{DATASET_PREFIX}MonthlyMilkIncomplete.csv",
-        "target": "Pounds per cow",
+        "filename": f"{DATASET_PREFIX}dataset4.csv",
+        "target": "Y",
         "include_test_data": False,
     },
-    {"filename": f"{DATASET_PREFIX}Wooly.csv", "target": "Y"},
+    {"filename": f"{DATASET_PREFIX}dataset5.csv", "target": "Y"},
 ]
 
 MODELS = [
