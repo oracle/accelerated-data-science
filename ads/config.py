@@ -79,6 +79,7 @@ AQUA_TELEMETRY_BUCKET = os.environ.get(
     "AQUA_TELEMETRY_BUCKET", "service-managed-models"
 )
 AQUA_TELEMETRY_BUCKET_NS = os.environ.get("AQUA_TELEMETRY_BUCKET_NS", CONDA_BUCKET_NS)
+
 DEBUG_TELEMETRY = os.environ.get("DEBUG_TELEMETRY", None)
 AQUA_SERVICE_NAME = "aqua"
 DATA_SCIENCE_SERVICE_NAME = "data-science"

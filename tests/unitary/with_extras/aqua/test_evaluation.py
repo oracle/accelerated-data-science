@@ -16,6 +16,7 @@ import oci
 from parameterized import parameterized
 
 from ads.aqua import utils
+from ads.aqua.data import Tags
 from ads.aqua.evaluation import (
     AquaEvalMetrics,
     AquaEvalReport,
@@ -28,9 +29,10 @@ from ads.aqua.exception import (
     AquaRuntimeError,
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
-from ads.aqua.utils import EVALUATION_REPORT_JSON, EVALUATION_REPORT_MD
+from ads.aqua.utils import EVALUATION_REPORT_JSON, EVALUATION_REPORT_MD, UNKNOWN
 from ads.jobs.ads_job import DataScienceJob, DataScienceJobRun, Job
 from ads.model import DataScienceModel
+from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_version_set import ModelVersionSet
 
 null = None
@@ -523,6 +525,41 @@ class TestAquaEvaluation(unittest.TestCase):
             "time_created": f"{oci_dsc_model.time_created}",
         }
 
+    def test_get_service_model_name(self):
+        # get service model name from fine tuned model deployment
+        source = (
+            ModelDeployment()
+            .with_freeform_tags(
+                **{
+                    Tags.AQUA_TAG.value: UNKNOWN,
+                    Tags.AQUA_FINE_TUNED_MODEL_TAG.value: "test_service_model_id#test_service_model_name",
+                    Tags.AQUA_MODEL_NAME_TAG.value: "test_fine_tuned_model_name"
+                }
+            )
+        )
+        service_model_name = self.app._get_service_model_name(source)
+        assert service_model_name == "test_service_model_name"
+
+        # get service model name from model deployment
+        source = (
+            ModelDeployment()
+            .with_freeform_tags(
+                **{
+                    Tags.AQUA_TAG.value: "active",
+                    Tags.AQUA_MODEL_NAME_TAG.value: "test_service_model_name"
+                }
+            )
+        )
+        service_model_name = self.app._get_service_model_name(source)
+        assert service_model_name == "test_service_model_name"
+
+        # get service model name from service model
+        source = DataScienceModel(
+            display_name="test_service_model_name"
+        )
+        service_model_name = self.app._get_service_model_name(source)
+        assert service_model_name == "test_service_model_name"
+
     @parameterized.expand(
         [
             (
@@ -569,7 +606,6 @@ class TestAquaEvaluation(unittest.TestCase):
     def test_get_fail(self, mock_query_resource):
         """Tests get evaluation details failed because of invalid eval id."""
         mock_query_resource.return_value = None
-        self.app.ds_client.get_model_provenance = MagicMock()
         with self.assertRaises(AquaRuntimeError) as context:
             self.app.get(TestDataset.INVALID_EVAL_ID)
 
@@ -624,9 +660,10 @@ class TestAquaEvaluation(unittest.TestCase):
         mock_dsc_model_from_id.assert_called_with(TestDataset.EVAL_ID)
         self.print_expected_response(response, "DOWNLOAD REPORT")
         self.assert_payload(response, AquaEvalReport)
-        read_content = base64.b64decode(response.content)
+        read_content = base64.b64decode(response.content).decode()
         assert (
-            read_content == b"This is a sample evaluation report.html.\n"
+            read_content
+            == "This is a sample evaluation report.html.\nStandard deviation (σ)\n"
         ), read_content
         assert self.app._report_cache.currsize == 1
 
@@ -676,10 +713,10 @@ class TestAquaEvaluation(unittest.TestCase):
     @parameterized.expand(
         [
             (None, AquaRuntimeError),
-            # (
-            #     DataScienceModel(),
-            #     AquaMissingKeyError,
-            # ),
+            (
+                DataScienceModel(),
+                AquaMissingKeyError,
+            ),
         ]
     )
     @patch.object(DataScienceModel, "from_id")
@@ -821,7 +858,6 @@ class TestAquaEvaluation(unittest.TestCase):
     def test_get_status_failed(self, mock_query_resource):
         """Tests when no correct evaluation found."""
         mock_query_resource.return_value = None
-        self.app.ds_client.get_model_provenance = MagicMock()
         with self.assertRaises(AquaRuntimeError) as context:
             self.app.get_status(TestDataset.INVALID_EVAL_ID)
 

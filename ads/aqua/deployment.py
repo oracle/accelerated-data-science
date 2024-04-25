@@ -22,6 +22,9 @@ from ads.aqua.utils import (
     UNKNOWN_DICT,
     get_resource_name,
     get_model_by_reference_paths,
+    get_ocid_substring,
+    AQUA_MODEL_TYPE_SERVICE,
+    AQUA_MODEL_TYPE_CUSTOM,
 )
 from ads.aqua.finetune import FineTuneCustomMetadata
 from ads.aqua.data import AquaResourceIdentifier
@@ -391,40 +394,27 @@ class AquaDeploymentApp(AquaApp):
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
 
-        if is_fine_tuned_model:
-            # tracks unique deployments that were created in the user compartment
-            self.telemetry.record_event_async(
-                category="aqua/custom/deployment", action="create", detail=model_name
-            )
-            # tracks the shape used for deploying the custom models
-            self.telemetry.record_event_async(
-                category="aqua/custom/deployment/create",
-                action="shape",
-                detail=instance_shape,
-            )
-            # tracks the shape used for deploying the custom models by name
-            self.telemetry.record_event_async(
-                category=f"aqua/custom/{model_name}/deployment/create",
-                action="shape",
-                detail=instance_shape,
-            )
-        else:
-            # tracks unique deployments that were created in the user compartment
-            self.telemetry.record_event_async(
-                category="aqua/service/deployment", action="create", detail=model_name
-            )
-            # tracks the shape used for deploying the service models
-            self.telemetry.record_event_async(
-                category="aqua/service/deployment/create",
-                action="shape",
-                detail=instance_shape,
-            )
-            # tracks the shape used for deploying the service models by name
-            self.telemetry.record_event_async(
-                category=f"aqua/service/{model_name}/deployment/create",
-                action="shape",
-                detail=instance_shape,
-            )
+        model_type = (
+            AQUA_MODEL_TYPE_CUSTOM if is_fine_tuned_model else AQUA_MODEL_TYPE_SERVICE
+        )
+        deployment_id = deployment.dsc_model_deployment.id
+        # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
+        telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
+
+        # tracks unique deployments that were created in the user compartment
+        self.telemetry.record_event_async(
+            category=f"aqua/{model_type}/deployment",
+            action="create",
+            detail=model_name,
+            **telemetry_kwargs,
+        )
+        # tracks the shape used for deploying the custom or service models by name
+        self.telemetry.record_event_async(
+            category=f"aqua/{model_type}/deployment/create",
+            action="shape",
+            detail=instance_shape,
+            value=model_name,
+        )
 
         return AquaDeployment.from_oci_model_deployment(
             deployment.dsc_model_deployment, self.region
@@ -470,6 +460,19 @@ class AquaDeploymentApp(AquaApp):
                         model_deployment, self.region
                     )
                 )
+
+                # log telemetry if MD is in active or failed state
+                deployment_id = model_deployment.id
+                state = model_deployment.lifecycle_state.upper()
+                if state in ["ACTIVE", "FAILED"]:
+                    # tracks unique deployments that were listed in the user compartment
+                    # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
+                    self.telemetry.record_event_async(
+                        category=f"aqua/deployment",
+                        action="list",
+                        detail=get_ocid_substring(deployment_id, key_len=8),
+                        value=state,
+                    )
 
         # tracks number of times deployment listing was called
         self.telemetry.record_event_async(category="aqua/deployment", action="list")

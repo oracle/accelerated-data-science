@@ -195,7 +195,10 @@ class Serializable(ABC):
             `None` in case when `uri` provided.
         """
         json_string = json.dumps(
-            self.to_dict(**kwargs), cls=encoder, default=default or self.serialize
+            self.to_dict(**kwargs),
+            cls=encoder,
+            default=default or self.serialize,
+            indent=4,
         )
         if uri:
             self._write_to_file(s=json_string, uri=uri, **kwargs)
@@ -463,9 +466,7 @@ class DataClassSerializable(Serializable):
                 "These fields will be ignored."
             )
 
-        obj = cls(
-            **{key: obj_dict.get(key) for key in allowed_fields}
-        )
+        obj = cls(**{key: obj_dict.get(key) for key in allowed_fields})
 
         for key, value in obj_dict.items():
             if (
