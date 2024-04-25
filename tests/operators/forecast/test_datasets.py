@@ -20,19 +20,10 @@ from ads.opctl.operator.cmd import run
 DATASET_PREFIX = f"{os.path.dirname(os.path.abspath(__file__))}/../data/timeseries/"
 
 DATASETS_LIST = [
-    {"filename": f"{DATASET_PREFIX}dataset1.csv", "target": "Y"},
-    {"filename": f"{DATASET_PREFIX}dataset2.csv", "target": "Y"},
-    {
-        "filename": f"{DATASET_PREFIX}dataset3.csv",
-        "target": "Y",
-        "format": "%Y-%m-%d",
-    },
-    {
-        "filename": f"{DATASET_PREFIX}dataset4.csv",
-        "target": "Y",
-        "include_test_data": False,
-    },
-    {"filename": f"{DATASET_PREFIX}dataset5.csv", "target": "Y"},
+    {"filename": f"{DATASET_PREFIX}dataset1.csv"},
+    {"filename": f"{DATASET_PREFIX}dataset2.csv"},
+    {"filename": f"{DATASET_PREFIX}dataset3.csv"},
+    {"filename": f"{DATASET_PREFIX}dataset4.csv", "include_test_data": False},
 ]
 
 MODELS = [
@@ -95,7 +86,7 @@ def verify_explanations(tmpdirname, additional_cols):
 @pytest.mark.parametrize("model, data_details", parameters_short)
 def test_load_datasets(model, data_details):
     dataset_name = data_details["filename"]
-    target = data_details["target"]
+    target = data_details.get("target", "Y")
     dt_format = data_details.get("format")
     include_test_data = data_details.get("include_test_data", True)
 
