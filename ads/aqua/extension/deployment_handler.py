@@ -7,10 +7,10 @@ from urllib.parse import urlparse
 
 from tornado.web import HTTPError
 
+from ads.aqua.decorator import handle_exceptions
 from ads.aqua.deployment import AquaDeploymentApp, MDInferenceResponse, ModelParams
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.config import COMPARTMENT_OCID, PROJECT_OCID
-from ads.aqua.decorator import handle_exceptions
 
 
 class AquaDeploymentHandler(AquaAPIhandler):
@@ -110,12 +110,10 @@ class AquaDeploymentHandler(AquaAPIhandler):
             )
         )
 
-    @handle_exceptions
     def read(self, id):
         """Read the information of an Aqua model deployment."""
         return self.finish(AquaDeploymentApp().get(model_deployment_id=id))
 
-    @handle_exceptions
     def list(self):
         """List Aqua models."""
         # If default is not specified,
@@ -129,7 +127,6 @@ class AquaDeploymentHandler(AquaAPIhandler):
             )
         )
 
-    @handle_exceptions
     def get_deployment_config(self, model_id):
         """Gets the deployment config for Aqua model."""
         return self.finish(AquaDeploymentApp().get_deployment_config(model_id=model_id))

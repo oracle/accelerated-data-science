@@ -6,7 +6,7 @@ dependencies:
   - pip
   - pip:
       - aiohttp
-      - datapane
+      - report-creator
       - gender_guesser
       - nameparser
       - oracle_ads[opctl]

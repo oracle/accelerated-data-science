@@ -115,6 +115,8 @@ class DataScienceModel(Builder):
         Model version set ID
     version_label: str
         Model version label
+    version_id: str
+        Model version id
     model_file_description: dict
         Contains object path details for models created by reference.
 
@@ -169,6 +171,8 @@ class DataScienceModel(Builder):
         Sets the model version set ID.
     with_version_label(self, version_label: str):
         Sets the model version label.
+    with_version_id(self, version_id: str):
+        Sets the model version id.
     with_model_file_description: dict
         Sets path details for models created by reference. Input can be either a dict, string or json file and
         the schema is dictated by model_file_description_schema.json
@@ -209,6 +213,7 @@ class DataScienceModel(Builder):
     CONST_MODEL_VERSION_SET_ID = "modelVersionSetId"
     CONST_MODEL_VERSION_SET_NAME = "modelVersionSetName"
     CONST_MODEL_VERSION_LABEL = "versionLabel"
+    CONST_MODEL_VERSION_ID = "versionId"
     CONST_TIME_CREATED = "timeCreated"
     CONST_LIFECYCLE_STATE = "lifecycleState"
     CONST_MODEL_FILE_DESCRIPTION = "modelDescription"
@@ -230,6 +235,7 @@ class DataScienceModel(Builder):
         CONST_MODEL_VERSION_SET_ID: "model_version_set_id",
         CONST_MODEL_VERSION_SET_NAME: "model_version_set_name",
         CONST_MODEL_VERSION_LABEL: "version_label",
+        CONST_MODEL_VERSION_ID: "version_id",
         CONST_TIME_CREATED: "time_created",
         CONST_LIFECYCLE_STATE: "lifecycle_state",
         CONST_MODEL_FILE_DESCRIPTION: "model_file_description",
@@ -611,6 +617,20 @@ class DataScienceModel(Builder):
             The model version label.
         """
         return self.set_spec(self.CONST_MODEL_VERSION_LABEL, version_label)
+
+    @property
+    def version_id(self) -> str:
+        return self.get_spec(self.CONST_MODEL_VERSION_ID)
+
+    def with_version_id(self, version_id: str):
+        """Sets the model version id.
+
+        Parameters
+        ----------
+        version_id: str
+            The model version id.
+        """
+        return self.set_spec(self.CONST_MODEL_VERSION_ID, version_id)
 
     @property
     def model_file_description(self) -> dict:

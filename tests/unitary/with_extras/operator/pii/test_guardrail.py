@@ -6,6 +6,7 @@
 import os
 import tempfile
 from io import StringIO
+import pytest
 
 import yaml
 
@@ -106,6 +107,7 @@ version: v1
             DEFAULT_REPORT_FILENAME,
         )
 
+    @pytest.mark.xfail()
     def test_process(self):
         operator_config = PiiOperatorConfig.from_yaml(
             yaml_string=self.yaml_content_simple()

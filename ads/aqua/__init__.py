@@ -4,25 +4,35 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-import logging
-import sys
 import os
+
+from ads import logger, set_auth
 from ads.aqua.utils import fetch_service_compartment
 from ads.config import OCI_RESOURCE_PRINCIPAL_VERSION
-from ads import set_auth
 
-logger = logging.getLogger(__name__)
-handler = logging.StreamHandler(sys.stdout)
-logger.setLevel(logging.INFO)
+ENV_VAR_LOG_LEVEL = "ADS_AQUA_LOG_LEVEL"
+
+
+def get_logger_level():
+    """Retrieves logging level from environment variable `ADS_AQUA_LOG_LEVEL`."""
+    level = os.environ.get(ENV_VAR_LOG_LEVEL, "INFO").upper()
+    return level
+
+
+logger.setLevel(get_logger_level())
+
+
+def set_log_level(log_level: str):
+    """Global for setting logging level."""
+
+    log_level = log_level.upper()
+    logger.setLevel(log_level.upper())
+    logger.handlers[0].setLevel(log_level)
+
 
 if OCI_RESOURCE_PRINCIPAL_VERSION:
     set_auth("resource_principal")
 
-ODSC_MODEL_COMPARTMENT_OCID = os.environ.get("ODSC_MODEL_COMPARTMENT_OCID")
-if not ODSC_MODEL_COMPARTMENT_OCID:
-    try:
-        ODSC_MODEL_COMPARTMENT_OCID = fetch_service_compartment()
-    except Exception as e:
-        logger.error(
-            f"ODSC_MODEL_COMPARTMENT_OCID environment variable is not set for Aqua, due to {e}."
-        )
+ODSC_MODEL_COMPARTMENT_OCID = (
+    os.environ.get("ODSC_MODEL_COMPARTMENT_OCID") or fetch_service_compartment()
+)
