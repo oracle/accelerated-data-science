@@ -141,6 +141,7 @@ MODELS = [
     "prophet",
     "neuralprophet",
     "autots",
+    "mlforecast",
     # "auto",
 ]
 
