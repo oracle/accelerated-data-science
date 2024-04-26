@@ -62,8 +62,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     @runtime_dependency(
         module="automlx",
         err_msg=(
-            "Please run `pip3 install oracle-automlx==23.4.1` and "
-            "`pip3 install oracle-automlx[forecasting]==23.4.1` "
+            "Please run `pip3 install oracle-automlx>=23.4.1` and "
+            "`pip3 install oracle-automlx[forecasting]>=23.4.1` "
             "to install the required dependencies for automlx."
         ),
     )
@@ -113,7 +113,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 data_i = self.drop_horizon(data)
                 X_pred = self.get_horizon(data).drop(target, axis=1)
 
-                logger.debug(f"Time Index Monotonic: {data_i.index.is_monotonic}")
+                logger.debug(
+                    f"Time Index Monotonic: {data_i.index.is_monotonic_increasing}"
+                )
 
                 if self.loaded_models is not None and s_id in self.loaded_models:
                     model = self.loaded_models[s_id]

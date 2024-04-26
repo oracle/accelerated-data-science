@@ -37,8 +37,6 @@ To run anomaly detection locally, create and activate a new conda environment (`
 ```yaml
 - report-creator
 - cerberus
-- oracle-automlx==23.4.1
-- oracle-automlx[classic]==23.4.1
 - "git+https://github.com/oracle/accelerated-data-science.git@feature/anomaly#egg=oracle-ads"
 ```
 
