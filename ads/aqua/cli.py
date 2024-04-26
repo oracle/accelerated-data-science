@@ -8,16 +8,16 @@ import sys
 
 from ads.aqua import (
     ENV_VAR_LOG_LEVEL,
-    set_log_level,
     ODSC_MODEL_COMPARTMENT_OCID,
     logger,
+    set_log_level,
 )
 from ads.aqua.deployment import AquaDeploymentApp
 from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.finetune import AquaFineTuningApp
 from ads.aqua.model import AquaModelApp
-from ads.config import NB_SESSION_OCID
 from ads.common.utils import LOG_LEVELS
+from ads.config import NB_SESSION_OCID
 
 
 class AquaCommand:
@@ -44,7 +44,7 @@ class AquaCommand:
         -----
         log_level (str):
             Sets the logging level for the application.
-            Default is retrieved from environment variable `LOG_LEVEL`,
+            Default is retrieved from environment variable `ADS_AQUA_LOG_LEVEL`,
             or 'ERROR' if not set. Example values include 'DEBUG', 'INFO',
             'WARNING', 'ERROR', and 'CRITICAL'.
         """
