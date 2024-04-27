@@ -93,7 +93,9 @@ class AquaCommand:
                     f"Aqua is not available for the notebook session {NB_SESSION_OCID}. For more information, "
                     f"please refer to the documentation."
                 )
-            sys.exit(1)
+            raise AquaCLIError(
+                "ODSC_MODEL_COMPARTMENT_OCID environment variable is not set for Aqua."
+            )
 
     @staticmethod
     def _validate_value(flag, value):
