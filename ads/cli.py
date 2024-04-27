@@ -4,19 +4,21 @@
 # Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import traceback
 import sys
+import traceback
+from dataclasses import is_dataclass
 
 import fire
-from dataclasses import is_dataclass
+
 from ads.common import logger
 
 try:
     import click
-    import ads.opctl.cli
+
     import ads.jobs.cli
-    import ads.pipeline.cli
+    import ads.opctl.cli
     import ads.opctl.operator.cli
+    import ads.pipeline.cli
 except Exception as ex:
     print(
         "Please run `pip install oracle-ads[opctl]` to install "
@@ -32,6 +34,7 @@ if sys.version_info >= (3, 8):
     from importlib import metadata
 else:
     import importlib_metadata as metadata
+
 
 ADS_VERSION = metadata.version("oracle_ads")
 
@@ -88,11 +91,14 @@ def serialize(data):
 
 def cli():
     if len(sys.argv) > 1 and sys.argv[1] == "aqua":
-        from ads.aqua.cli import AquaCommand
+        from ads.aqua.cli import AquaCLIError, AquaCommand
 
-        fire.Fire(
-            AquaCommand, command=sys.argv[2:], name="ads aqua", serialize=serialize
-        )
+        try:
+            fire.Fire(
+                AquaCommand, command=sys.argv[2:], name="ads aqua", serialize=serialize
+            )
+        except AquaCLIError as e:
+            sys.exit(e.exit_code)
     else:
         click_cli()
 
