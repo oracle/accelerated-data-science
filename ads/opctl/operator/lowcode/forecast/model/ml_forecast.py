@@ -144,7 +144,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
 
     def _build_model(self) -> pd.DataFrame:
         data_train = self.datasets.get_all_data_long(include_horizon=False)
-        data_test = self.datasets.get_all_data_long_test()
+        data_test = self.datasets.get_all_data_long_forecast_horizon()
         self.models = dict()
         model_kwargs = self.set_kwargs()
         self.forecast_output = ForecastOutput(
