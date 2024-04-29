@@ -105,3 +105,6 @@ class AquaCLIError(AquaError):
     """Exception raised when AQUA CLI encounter error."""
 
     exit_code = ExitCode.COMMON_ERROR.value
+
+    def __init__(self, reason, status=None, service_payload=None):
+        super().__init__(reason, status, service_payload)

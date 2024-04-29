@@ -78,7 +78,7 @@ class AquaCommand:
                     f"Log level should be one of {LOG_LEVELS}. Setting default to ERROR."
                 )
                 log_level = "ERROR"
-            aqua_log_level = log_level
+            aqua_log_level = log_level.upper()
 
         set_log_level(aqua_log_level)
 

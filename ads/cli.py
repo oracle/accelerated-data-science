@@ -123,7 +123,7 @@ def exit_program(ex: Exception, logger: "logging.Logger") -> None:
     """
 
     logger.debug(traceback.format_exc())
-    logger.error(ex)
+    logger.error(str(ex))
 
     exit_code = getattr(ex, "exit_code", 1)
     logger.error(f"Exit code: {exit_code}")
