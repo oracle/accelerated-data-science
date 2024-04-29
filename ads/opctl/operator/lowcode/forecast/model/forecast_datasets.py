@@ -86,7 +86,10 @@ class AdditionalData(AbstractData):
             pd.date_range(
                 start=historical_data.get_max_time(),
                 periods=spec.horizon + 1,
-                freq=historical_data.freq,
+                freq=historical_data.freq
+                or pd.infer_freq(
+                    historical_data.data.reset_index()[spec.datetime_column.name][-5:]
+                ),
             ),
             name=spec.datetime_column.name,
         )
