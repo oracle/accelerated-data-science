@@ -73,20 +73,35 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                         alpha=model_kwargs["lower_quantile"],
                     ),
                 },
-                freq=pd.infer_freq(data_train.Date.drop_duplicates()),
+                freq=pd.infer_freq(data_train["Date"].drop_duplicates())
+                or pd.infer_freq(data_train["Date"].drop_duplicates()[-5:]),
                 target_transforms=[Differences([12])],
-                lags=model_kwargs.get("lags", [1, 6, 12]),
-                lag_transforms={
-                    1: [ExpandingMean()],
-                    12: [RollingMean(window_size=24)],
-                },
+                lags=model_kwargs.get(
+                    "lags",
+                    (
+                        [1, 6, 12]
+                        if len(self.datasets.get_additional_data_column_names()) > 0
+                        else []
+                    ),
+                ),
+                lag_transforms=(
+                    {
+                        1: [ExpandingMean()],
+                        12: [RollingMean(window_size=24)],
+                    }
+                    if len(self.datasets.get_additional_data_column_names()) > 0
+                    else {}
+                ),
                 # date_features=[hour_index],
             )
 
             num_models = model_kwargs.get("recursive_models", False)
 
+            self.model_columns = [
+                ForecastOutputColumns.SERIES
+            ] + data_train.select_dtypes(exclude=["object"]).columns.to_list()
             fcst.fit(
-                data_train,
+                data_train[self.model_columns],
                 static_features=model_kwargs.get("static_features", []),
                 id_col=ForecastOutputColumns.SERIES,
                 time_col=self.spec.datetime_column.name,
@@ -99,8 +114,10 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                 h=self.spec.horizon,
                 X_df=pd.concat(
                     [
-                        data_test,
-                        fcst.get_missing_future(h=self.spec.horizon, X_df=data_test),
+                        data_test[self.model_columns],
+                        fcst.get_missing_future(
+                            h=self.spec.horizon, X_df=data_test[self.model_columns]
+                        ),
                     ],
                     axis=0,
                     ignore_index=True,
@@ -166,12 +183,16 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
         # Section 1: Forecast Overview
         sec1_text = rc.Block(
             rc.Heading("Forecast Overview", level=2),
-            rc.Text("These plots show your forecast in the context of historical data.")
+            rc.Text(
+                "These plots show your forecast in the context of historical data."
+            ),
         )
         sec_1 = _select_plot_list(
             lambda s_id: plot_series(
                 self.datasets.get_all_data_long(include_horizon=False),
-                pd.concat([self.fitted_values,self.outputs], axis=0, ignore_index=True),
+                pd.concat(
+                    [self.fitted_values, self.outputs], axis=0, ignore_index=True
+                ),
                 id_col=ForecastOutputColumns.SERIES,
                 time_col=self.spec.datetime_column.name,
                 target_col=self.original_target_column,
@@ -184,7 +205,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
         # Section 2: MlForecast Model Parameters
         sec2_text = rc.Block(
             rc.Heading("MlForecast Model Parameters", level=2),
-            rc.Text("These are the parameters used for the MlForecast model.")
+            rc.Text("These are the parameters used for the MlForecast model."),
         )
 
         blocks = [
@@ -197,9 +218,11 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
         sec_2 = rc.Select(blocks=blocks)
 
         all_sections = [sec1_text, sec_1, sec2_text, sec_2]
-        model_description = rc.Text("mlforecast is a framework to perform time series forecasting using machine learning models"
-                                    "with the option to scale to massive amounts of data using remote clusters."
-                                    "Fastest implementations of feature engineering for time series forecasting in Python."
-                                    "Support for exogenous variables and static covariates.")
+        model_description = rc.Text(
+            "mlforecast is a framework to perform time series forecasting using machine learning models"
+            "with the option to scale to massive amounts of data using remote clusters."
+            "Fastest implementations of feature engineering for time series forecasting in Python."
+            "Support for exogenous variables and static covariates."
+        )
 
         return model_description, all_sections
