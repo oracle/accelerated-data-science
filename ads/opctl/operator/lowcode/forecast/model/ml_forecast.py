@@ -160,13 +160,13 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
         """
         Generates the report for the model
         """
-        import datapane as dp
+        import report_creator as rc
         from utilsforecast.plotting import plot_series
 
         # Section 1: Forecast Overview
-        sec1_text = dp.Text(
-            "## Forecast Overview \n"
-            "These plots show your forecast in the context of historical data."
+        sec1_text = rc.Block(
+            rc.Heading("Forecast Overview", level=2),
+            rc.Text("These plots show your forecast in the context of historical data.")
         )
         sec_1 = _select_plot_list(
             lambda s_id: plot_series(
@@ -182,21 +182,22 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
         )
 
         # Section 2: MlForecast Model Parameters
-        sec2_text = dp.Text(
-            "## MlForecast Model Parameters \n"
-            "These are the parameters used for the MlForecast model."
+        sec2_text = rc.Block(
+            rc.Heading("MlForecast Model Parameters", level=2),
+            rc.Text("These are the parameters used for the MlForecast model.")
         )
+
         blocks = [
-            dp.HTML(
-                s_id[1],
+            rc.Html(
+                str(s_id[1]),
                 label=s_id[0],
             )
             for _, s_id in enumerate(self.model_parameters.items())
         ]
-        sec_2 = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+        sec_2 = rc.Select(blocks=blocks)
 
         all_sections = [sec1_text, sec_1, sec2_text, sec_2]
-        model_description = dp.Text("mlforecast is a framework to perform time series forecasting using machine learning models"
+        model_description = rc.Text("mlforecast is a framework to perform time series forecasting using machine learning models"
                                     "with the option to scale to massive amounts of data using remote clusters."
                                     "Fastest implementations of feature engineering for time series forecasting in Python."
                                     "Support for exogenous variables and static covariates.")
