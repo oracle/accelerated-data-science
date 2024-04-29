@@ -38,6 +38,7 @@ from ads.model.deployment import (
 )
 from ads.common.serializer import DataClassSerializable
 from ads.config import (
+    AQUA_DEPLOYMENT_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
     AQUA_MODEL_DEPLOYMENT_CONFIG,
     COMPARTMENT_OCID,
     AQUA_CONFIG_FOLDER,
@@ -332,6 +333,7 @@ class AquaDeploymentApp(AquaApp):
 
         logging.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
 
+        is_custom_container = False
         try:
             container_type_key = aqua_model.custom_metadata_list.get(
                 AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
@@ -340,10 +342,23 @@ class AquaDeploymentApp(AquaApp):
             raise AquaValueError(
                 f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field for model {aqua_model.id}"
             )
+        try:
+            # Check if the container override flag is set. If set, then the user has chosen custom image
+            if aqua_model.custom_metadata_list.get(
+                AQUA_DEPLOYMENT_CONTAINER_OVERRIDE_FLAG_METADATA_NAME
+            ).value:
+                is_custom_container = True
+        except Exception:
+            pass
 
         # fetch image name from config
-        container_image = get_container_image(
-            container_type=container_type_key,
+        # If the image is of type custom, then `container_type_key` is the inference image
+        container_image = (
+            get_container_image(
+                container_type=container_type_key,
+            )
+            if not is_custom_container
+            else container_type_key
         )
         logging.info(
             f"Aqua Image used for deploying {aqua_model.id} : {container_image}"

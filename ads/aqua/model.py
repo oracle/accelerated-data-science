@@ -7,8 +7,9 @@ import re
 from dataclasses import InitVar, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
+from huggingface_hub import HfApi, snapshot_download
 from threading import Lock
-from typing import List, Union
+from typing import List, Union, Optional
 
 import oci
 from cachetools import TTLCache
@@ -29,6 +30,7 @@ from ads.aqua.exception import AquaRuntimeError
 from ads.aqua.training.exceptions import exit_code_dict
 from ads.aqua.utils import (
     LICENSE_TXT,
+    MODEL_BY_REFERENCE_OSS_PATH_KEY,
     README,
     READY_TO_DEPLOY_STATUS,
     READY_TO_FINE_TUNE_STATUS,
@@ -36,6 +38,7 @@ from ads.aqua.utils import (
     create_word_icon,
     get_artifact_path,
     read_file,
+    upload_folder,
 )
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -43,6 +46,11 @@ from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link, get_log_links
 from ads.config import (
+    AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
+    AQUA_DEPLOYMENT_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
+    AQUA_EVALUATION_CONTAINER_METADATA_NAME,
+    AQUA_FINETUNING_CONTAINER_METADATA_NAME,
+    AQUA_FINETUNING_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
     AQUA_SERVICE_MODELS_BUCKET,
     COMPARTMENT_OCID,
     CONDA_BUCKET_NS,
@@ -57,6 +65,11 @@ from ads.telemetry import telemetry
 class FineTuningMetricCategories(Enum):
     VALIDATION = "validation"
     TRAINING = "training"
+
+
+class MODEL_TYPE(Enum):
+    FT = "FT"  # Fine Tuned Model
+    BASE = "BASE"  # Base model
 
 
 @dataclass(repr=False)
@@ -113,6 +126,14 @@ class AquaModel(AquaModelSummary, DataClassSerializable):
     """Represents an Aqua model."""
 
     model_card: str = None
+
+
+@dataclass(repr=False)
+class HFModelContainerInfo:
+    """Container defauls for model"""
+
+    inference_container: str = None
+    finetuning_container: str = None
 
 
 @dataclass(repr=False)
@@ -305,6 +326,7 @@ class AquaModelApp(AquaApp):
         Lists all Aqua models within a specified compartment and/or project.
     clear_model_list_cache()
         Allows clear list model cache items from the service models compartment.
+    register(model: str, os_path: str, local_dir: str = None)
 
     Note:
         This class is designed to work within the Oracle Cloud Infrastructure
@@ -682,7 +704,8 @@ class AquaModelApp(AquaApp):
             )
 
             logger.info(f"Fetching custom models from compartment_id={compartment_id}.")
-            models = self._rqs(compartment_id)
+            model_type = kwargs.pop("model_type", "FT")
+            models = self._rqs(compartment_id, model_type=model_type)
         else:
             # tracks number of times service model listing was called
             self.telemetry.record_event_async(
@@ -751,6 +774,174 @@ class AquaModelApp(AquaApp):
                 }
         return res
 
+    def _fetch_defaults_for_hf_model(
+        self, model_name: str
+    ) -> "Optional[HFModelContainerInfo]":
+        """Returns the default inference container and fine-tuning container associated with the model
+
+        Args:
+            model_name (str): name of the model in Huggingface space
+        Returns:
+
+        """
+        # TODO implement this method and remove hard-coded logic
+        supported_model = [
+            "meta-llama/Meta-Llama-3-8B"
+        ]  # This information should come from either a file or model list on service tenancy catalog
+        if model_name in supported_model:
+            return HFModelContainerInfo("odsc_vllm_container", "odsc-llm-fine-tuning")
+        return None
+
+    def _create_model_catalog_entry(
+        self,
+        os_path,
+        model_name: str,
+        inference_container,
+        finetuning_contianer,
+        inference_container_type_smc,
+        finetuning_container_type_smc,
+    ) -> str:
+        """Create model by reference from the object storage path
+
+        Args:
+            os_path (str): OCI URI - oci://bucket@namespace/prefix
+            model_name (str): name of the model
+            inference_container (str): selects service defaults
+            inference_container_type_smc (bool): If true, then `inference_contianer` argument should contain service managed container name without tag information
+            finetuning_container (str): selects service defaults
+            finetuning_container_type_smc (bool): If true, then `finetuning_container` argument should contain service managed container name without tag information
+
+        Returns:
+            str: Display name of th model (This should be model ocid)
+        """
+        api = HfApi()
+        model_info = api.model_info(model_name)
+        tags = {"OCI_AQUA": "active", "ready_to_fine_tune": "true"}
+        metadata = ModelCustomMetadata()
+        if not inference_container or not finetuning_contianer:
+            containers = self._fetch_defaults_for_hf_model(model_name=model_name)
+        if not inference_container and not containers.inference_container:
+            raise ValueError(
+                f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container"
+            )
+        if not finetuning_contianer and not containers.finetuning_container:
+            logger.warn(
+                f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container. Proceeding with model registration without the fine-tuning container information. This model will not be available for fine tuning."
+            )
+        metadata.add(
+            key=MODEL_BY_REFERENCE_OSS_PATH_KEY,
+            value=os_path,
+            description="artifact location",
+            category="Other",
+        )
+        metadata.add(
+            key=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
+            value=inference_container or containers.inference_container,
+            description="Inference container mapping for SMC",
+            category="Other",
+        )
+        # If SMC, the container information has to be looked up from container_index.json for the latest version
+        if inference_container and not inference_container_type_smc:
+            metadata.add(
+                key=AQUA_DEPLOYMENT_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
+                value="true",
+                description="Flag for custom deployment container",
+                category="Other",
+            )
+        metadata.add(
+            key=AQUA_EVALUATION_CONTAINER_METADATA_NAME,
+            value="odsc-llm-evaluate",
+            description="Evaluation container mapping for SMC",
+            category="Other",
+        )
+        if finetuning_contianer or containers.finetuning_container:
+            metadata.add(
+                key=AQUA_FINETUNING_CONTAINER_METADATA_NAME,
+                value=finetuning_contianer or containers.finetuning_container,
+                description="Fine-tuning container mapping for SMC",
+                category="Other",
+            )
+        # If SMC, the container information has to be looked up from container_index.json for the latest version
+        if finetuning_contianer and not finetuning_container_type_smc:
+            metadata.add(
+                key=AQUA_FINETUNING_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
+                value="true",
+                description="Flag for custom deployment container",
+                category="Other",
+            )
+
+        tags["task"] = model_info.pipeline_tag or "UNKNOWN"
+        tags["organization"] = (
+            model_info.author if hasattr(model_info, "author") else "UNKNOWN"
+        )
+
+        model = (
+            DataScienceModel()
+            .with_custom_metadata_list(metadata)
+            .with_artifact(os_path)
+            .with_display_name(os.path.basename(model_name))
+            .with_freeform_tags(**tags)
+        ).create(model_by_reference=True)
+        logger.debug(model)
+        return model.display_name
+
+    def register(
+        self,
+        model: str,
+        os_path: str,
+        local_dir: Optional[str] = None,
+        inference_container: Optional[str] = None,
+        inference_container_type_smc: bool = False,
+        finetuning_container: Optional[str] = None,
+        finetuning_container_type_smc: bool = False,
+    ) -> str:
+        """Loads the model from huggingface and registers as Model in Data Science Model catalog
+        Note: For the models that require user token, use `huggingface-cli login` to setup the token
+        The inference container and finetuning container could be of type Service Manged Container(SMC) or custom. If it is custom, full container URI is expected. If it of type SMC, only the container family name is expected.
+
+        Args:
+            model (str): name as provided in the huggingface
+            os_path (str): Object storage destination URI to store the downloaded model. Format: oci://bucket-name@namespace/prefix
+            local_dir (str): Defaults to home directory if not set
+            inference_container (str): selects service defaults
+            inference_container_type_smc (bool): If true, then `inference_contianer` argument should contain service managed container name without tag information
+            finetuning_container (str): selects service defaults
+            finetuning_container_type_smc (bool): If true, then `finetuning_container` argument should contain service managed container name without tag information
+
+        Returns:
+            str: Model ID of the registered model
+        """
+        # Download the model from hub
+        if not local_dir:
+            local_dir = os.path.join(os.path.expanduser("~"), "cached-model")
+        local_dir = os.path.join(local_dir, model)
+        retry = 10
+        i = 0
+        while i < retry:
+            try:
+                snapshot_download(repo_id=model, resume_download=True)
+            except:
+                i += 1
+            else:
+                break
+        os.makedirs(local_dir, exist_ok=True)
+        snapshot_download(
+            repo_id=model, local_dir=local_dir, local_dir_use_symlinks=False
+        )
+        # Upload to object storage
+        model_artifact_path = upload_folder(
+            os_path=os_path, local_dir=local_dir, model_name=model
+        )
+        # Create Model catalog entry with pass by reference
+        return self._create_model_catalog_entry(
+            model_artifact_path,
+            model_name=model,
+            inference_container=inference_container,
+            finetuning_contianer=finetuning_container,
+            inference_container_type_smc=inference_container_type_smc,
+            finetuning_container_type_smc=finetuning_container_type_smc,
+        )
+
     def _if_show(self, model: DataScienceModel) -> bool:
         """Determine if the given model should be return by `list`."""
         if model.freeform_tags is None:
@@ -772,10 +963,15 @@ class AquaModelApp(AquaApp):
             logger.debug(f"Failed to load icon for the model={model_name}: {str(e)}.")
             return None
 
-    def _rqs(self, compartment_id: str, **kwargs):
+    def _rqs(self, compartment_id: str, model_type="FT", **kwargs):
         """Use RQS to fetch models in the user tenancy."""
+        if model_type == MODEL_TYPE.FT.value:
+            filter_tag = Tags.AQUA_FINE_TUNED_MODEL_TAG.value
+        elif model_type == MODEL_TYPE.BASE.value:
+            filter_tag = Tags.BASE_MODEL_CUSTOM.value
+        print(filter_tag)
 
-        condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_TAG.value}' && freeformTags.key = '{Tags.AQUA_FINE_TUNED_MODEL_TAG.value}')"
+        condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_TAG.value}' && freeformTags.key = '{filter_tag}')"
         condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
         query = f"query datasciencemodel resources where (compartmentId = '{compartment_id}' {condition_lifecycle} {condition_tags})"
         logger.info(query)
