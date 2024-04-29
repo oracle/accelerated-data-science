@@ -89,16 +89,58 @@ def serialize(data):
         print(str(data))
 
 
+def exit_program(ex: Exception, logger: "logging.Logger") -> None:
+    """
+    Logs the exception and exits the program with a specific exit code.
+
+    This function logs the full traceback and the exception message, then terminates
+    the program with an exit code. If the exception object has an 'exit_code' attribute,
+    it uses that as the exit code; otherwise, it defaults to 1.
+
+    Parameters
+    ----------
+    ex (Exception):
+        The exception that triggered the program exit. This exception
+        should ideally contain an 'exit_code' attribute, but it is not mandatory.
+    logger (Logger):
+        A logging.Logger instance used to log the traceback and the error message.
+
+    Returns
+    -------
+    None:
+        This function does not return anything because it calls sys.exit,
+        terminating the process.
+
+    Examples
+    --------
+
+    >>> import logging
+    >>> logger = logging.getLogger('ExampleLogger')
+    >>> try:
+    ...     raise ValueError("An error occurred")
+    ... except Exception as e:
+    ...     exit_program(e, logger)
+    """
+
+    logger.debug(traceback.format_exc())
+    logger.error(ex)
+
+    exit_code = getattr(ex, "exit_code", 1)
+    logger.error(f"Exit code: {exit_code}")
+    sys.exit(exit_code)
+
+
 def cli():
     if len(sys.argv) > 1 and sys.argv[1] == "aqua":
-        from ads.aqua.cli import AquaCLIError, AquaCommand
+        from ads.aqua import logger as aqua_logger
+        from ads.aqua.cli import AquaCommand
 
         try:
             fire.Fire(
                 AquaCommand, command=sys.argv[2:], name="ads aqua", serialize=serialize
             )
-        except AquaCLIError as e:
-            sys.exit(e.exit_code)
+        except Exception as err:
+            exit_program(err, aqua_logger)
     else:
         click_cli()
 
