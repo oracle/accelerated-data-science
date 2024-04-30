@@ -797,7 +797,7 @@ class AquaModelApp(AquaApp):
         os_path,
         model_name: str,
         inference_container,
-        finetuning_contianer,
+        finetuning_container,
         inference_container_type_smc,
         finetuning_container_type_smc,
     ) -> str:
@@ -818,13 +818,13 @@ class AquaModelApp(AquaApp):
         model_info = api.model_info(model_name)
         tags = {"OCI_AQUA": "active", "ready_to_fine_tune": "true"}
         metadata = ModelCustomMetadata()
-        if not inference_container or not finetuning_contianer:
+        if not inference_container or not finetuning_container:
             containers = self._fetch_defaults_for_hf_model(model_name=model_name)
         if not inference_container and not containers.inference_container:
             raise ValueError(
                 f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container"
             )
-        if not finetuning_contianer and not containers.finetuning_container:
+        if not finetuning_container and not containers.finetuning_container:
             logger.warn(
                 f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container. Proceeding with model registration without the fine-tuning container information. This model will not be available for fine tuning."
             )
@@ -854,15 +854,15 @@ class AquaModelApp(AquaApp):
             description="Evaluation container mapping for SMC",
             category="Other",
         )
-        if finetuning_contianer or containers.finetuning_container:
+        if finetuning_container or containers.finetuning_container:
             metadata.add(
                 key=AQUA_FINETUNING_CONTAINER_METADATA_NAME,
-                value=finetuning_contianer or containers.finetuning_container,
+                value=finetuning_container or containers.finetuning_container,
                 description="Fine-tuning container mapping for SMC",
                 category="Other",
             )
         # If SMC, the container information has to be looked up from container_index.json for the latest version
-        if finetuning_contianer and not finetuning_container_type_smc:
+        if finetuning_container and not finetuning_container_type_smc:
             metadata.add(
                 key=AQUA_FINETUNING_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
                 value="true",
@@ -919,12 +919,14 @@ class AquaModelApp(AquaApp):
         i = 0
         while i < retry:
             try:
+                # Download to cache folder. The while loop retries when there is a network failure
                 snapshot_download(repo_id=model, resume_download=True)
             except:
                 i += 1
             else:
                 break
         os.makedirs(local_dir, exist_ok=True)
+        # Copy the model from the cache to destination
         snapshot_download(
             repo_id=model, local_dir=local_dir, local_dir_use_symlinks=False
         )
@@ -937,7 +939,7 @@ class AquaModelApp(AquaApp):
             model_artifact_path,
             model_name=model,
             inference_container=inference_container,
-            finetuning_contianer=finetuning_container,
+            finetuning_container=finetuning_container,
             inference_container_type_smc=inference_container_type_smc,
             finetuning_container_type_smc=finetuning_container_type_smc,
         )
