@@ -814,8 +814,12 @@ class AquaModelApp(AquaApp):
         Returns:
             str: Display name of th model (This should be model ocid)
         """
-        api = HfApi()
-        model_info = api.model_info(model_name)
+        model_info = None
+        try:
+            api = HfApi()
+            model_info = api.model_info(model_name)
+        except Exception:
+            logger.exception(f"Could not fetch model information for {model_name}")
         tags = {"OCI_AQUA": "active", "ready_to_fine_tune": "true"}
         metadata = ModelCustomMetadata()
         if not inference_container or not finetuning_container:
@@ -870,9 +874,11 @@ class AquaModelApp(AquaApp):
                 category="Other",
             )
 
-        tags["task"] = model_info.pipeline_tag or "UNKNOWN"
+        tags["task"] = (model_info and model_info.pipeline_tag) or "UNKNOWN"
         tags["organization"] = (
-            model_info.author if hasattr(model_info, "author") else "UNKNOWN"
+            model_info.author
+            if model_info and hasattr(model_info, "author")
+            else "UNKNOWN"
         )
 
         model = (
