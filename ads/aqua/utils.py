@@ -777,5 +777,4 @@ def upload_folder(os_path: str, local_dir: str, model_name: str) -> str:
             f"Error uploading the object. Exit code: {e.returncode} with error {e.stdout}"
         )
 
-    print(os_details)
     return f"oci://{os_details.bucket}@{os_details.namespace}" + "/" + object_path

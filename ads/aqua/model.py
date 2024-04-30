@@ -969,7 +969,6 @@ class AquaModelApp(AquaApp):
             filter_tag = Tags.AQUA_FINE_TUNED_MODEL_TAG.value
         elif model_type == MODEL_TYPE.BASE.value:
             filter_tag = Tags.BASE_MODEL_CUSTOM.value
-        print(filter_tag)
 
         condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_TAG.value}' && freeformTags.key = '{filter_tag}')"
         condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
