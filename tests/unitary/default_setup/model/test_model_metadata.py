@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Unit tests for model metadata module. Includes tests for:
@@ -838,6 +838,20 @@ class TestModelCustomMetadata:
             == "oci://bucket_name@namespace/validation_data_filename"
         )
         assert metadata_custom["ValidationDatasetSize"].value == "(100,100)"
+
+    def test_get(self):
+        """Tests getting the model metadata item by provided key."""
+        metadata_custom = ModelCustomMetadata()
+        metadata_custom._add_many([self.user_defined_item, self.dict_item])
+        assert metadata_custom.get("My Own Meta") == self.user_defined_item
+        assert metadata_custom.get("My Meta With Dictionary") == self.dict_item
+        assert metadata_custom.get("NotExistingKey", None) == None
+        assert (
+            metadata_custom.get("NotExistingKey", "some_default_value")
+            == "some_default_value"
+        )
+        with pytest.raises(ValueError):
+            assert metadata_custom.get("NotExistingKey")
 
 
 class TestModelTaxonomyMetadata:
