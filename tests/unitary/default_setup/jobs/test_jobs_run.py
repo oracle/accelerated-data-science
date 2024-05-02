@@ -45,3 +45,18 @@ class JobRunTestCase(TestCase):
         run.lifecycle_state = run.LIFECYCLE_STATE_FAILED
         run.lifecycle_details = "Job run artifact execution failed with exit code 21."
         self.assertEqual(run.exit_code, 21)
+
+    @mock.patch("ads.jobs.builders.infrastructure.dsc_job.DataScienceJobRun.cancel")
+    @mock.patch("ads.common.oci_datascience.OCIDataScienceMixin.delete")
+    def test_job_run_delete(self, mock_delete, mock_cancel):
+        """Tests deleting job run."""
+        run = DataScienceJobRun()
+        # Cancel will not be called if job run is succeeded.
+        run.lifecycle_state = run.LIFECYCLE_STATE_SUCCEEDED
+        run.delete()
+        mock_delete.assert_called_once()
+        mock_cancel.assert_not_called()
+        # Cancel will be called if job run is in progress and force_delete is set.
+        run.lifecycle_state = run.LIFECYCLE_STATE_IN_PROGRESS
+        run.delete(force_delete=True)
+        mock_cancel.assert_called_once()

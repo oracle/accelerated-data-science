@@ -376,12 +376,13 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
         """
         runs = self.run_list()
         for run in runs:
-            if run.lifecycle_state in [
-                DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
-                DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
-                DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
-            ]:
-                run.cancel(wait_for_completion=True)
+            if force_delete:
+                if run.lifecycle_state in [
+                    DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
+                    DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
+                    DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
+                ]:
+                    run.cancel(wait_for_completion=True)
             run.delete()
         self.client.delete_job(self.id)
         return self
@@ -865,6 +866,12 @@ class DataScienceJobRun(
         """
         self.job.download(to_dir)
         return self
+
+    def delete(self, force_delete: bool = False):
+        if force_delete:
+            self.cancel(wait_for_completion=True)
+        super().delete()
+        return
 
 
 # This is for backward compatibility
