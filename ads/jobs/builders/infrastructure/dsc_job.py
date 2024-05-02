@@ -9,6 +9,7 @@ import datetime
 import inspect
 import logging
 import os
+import re
 import time
 import traceback
 import uuid
@@ -581,6 +582,25 @@ class DataScienceJobRun(
         return OCILog(
             id=self.log_id, log_group_id=self.log_details.log_group_id, **auth
         )
+
+    @property
+    def exit_code(self):
+        """The exit code of the job run from the lifecycle details.
+        Note that,
+        None will be returned if the job run is not finished or failed without exit code.
+        0 will be returned if job run succeeded.
+        """
+        if self.lifecycle_state == self.LIFECYCLE_STATE_SUCCEEDED:
+            return 0
+        if not self.lifecycle_details:
+            return None
+        match = re.search(r"exit code (\d+)", self.lifecycle_details)
+        if not match:
+            return None
+        try:
+            return int(match.group(1))
+        except Exception:
+            return None
 
     @staticmethod
     def _format_log(message: str, date_time: datetime.datetime) -> dict:
