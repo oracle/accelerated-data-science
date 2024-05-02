@@ -655,6 +655,22 @@ class DataScienceJobRun(
             print(f"{timestamp} - {status}")
         return status
 
+    def wait(self, interval: float = SLEEP_INTERVAL):
+        """Waits for the job run until if finishes.
+
+        Parameters
+        ----------
+        interval : float
+            Time interval in seconds between each request to update the logs.
+            Defaults to 3 (seconds).
+
+        """
+        self.sync()
+        while self.status not in self.TERMINAL_STATES:
+            time.sleep(interval)
+            self.sync()
+        return self
+
     def watch(
         self,
         interval: float = SLEEP_INTERVAL,
