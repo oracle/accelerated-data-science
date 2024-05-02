@@ -12,7 +12,6 @@ from .autots import AutoTSOperatorModel
 from .base_model import ForecastOperatorBaseModel
 from .neuralprophet import NeuralProphetOperatorModel
 from .prophet import ProphetOperatorModel
-from ..utils import select_auto_model
 from .forecast_datasets import ForecastDatasets
 
 class UnSupportedModelError(Exception):
@@ -62,7 +61,33 @@ class ForecastOperatorModelFactory:
         """
         model_type = operator_config.spec.model
         if model_type == "auto":
-            model_type = select_auto_model(datasets, operator_config)
+            model_type = cls.auto_select_model(datasets, operator_config)
         if model_type not in cls._MAP:
             raise UnSupportedModelError(model_type)
         return cls._MAP[model_type](config=operator_config, datasets=datasets)
+
+    @classmethod
+    def auto_select_model(
+            cls, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
+    ) -> str:
+        """
+        Selects AutoMLX or Arima model based on column count.
+
+        If the number of columns is less than or equal to the maximum allowed for AutoMLX,
+        returns 'AutoMLX'. Otherwise, returns 'Arima'.
+
+        Parameters
+        ------------
+        datasets:  ForecastDatasets
+                Datasets for predictions
+
+        Returns
+        --------
+        str
+            The type of the model.
+        """
+        from ..model_evaluator import ModelEvaluator
+        all_models = cls._MAP.keys()
+        model_evaluator = ModelEvaluator(all_models)
+        best_model = model_evaluator.find_best_model(datasets, operator_config)
+        return cls._MAP[best_model]

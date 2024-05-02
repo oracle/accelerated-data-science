@@ -413,4 +413,8 @@ spec:
         - RMSE
         - MSE
         - SMAPE
+        - mape
+        - rmse
+        - mse
+        - smape
   type: dict

@@ -97,7 +97,8 @@ class Transformations(ABC):
                 for value in merged_values:
                     self._target_category_columns_map[value] = df[df[DataColumns.Series] == value][self.target_category_columns].drop_duplicates().iloc[0].to_dict()
 
-            df = df.drop(self.target_category_columns, axis=1)
+            if self.target_category_columns != [DataColumns.Series]:
+                df = df.drop(self.target_category_columns, axis=1)
         return df
 
     def _format_datetime_col(self, df):

@@ -19,7 +19,6 @@ from sklearn.metrics import (
     mean_absolute_percentage_error,
     mean_squared_error,
 )
-
 try:
     from scipy.stats import linregress
 except:
@@ -34,7 +33,6 @@ from .errors import ForecastInputDataError, ForecastSchemaYamlError
 from .operator_config import ForecastOperatorSpec, ForecastOperatorConfig
 from ads.opctl.operator.lowcode.common.utils import merge_category_columns
 from ads.opctl.operator.lowcode.forecast.const import ForecastOutputColumns
-
 # from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import TestData, ForecastOutput
 
 
@@ -370,45 +368,6 @@ def get_forecast_plots(
         return fig
 
     return _select_plot_list(plot_forecast_plotly, forecast_output.list_series_ids())
-
-
-def select_auto_model(
-    datasets: "ForecastDatasets", operator_config: ForecastOperatorConfig
-) -> str:
-    """
-    Selects AutoMLX or Arima model based on column count.
-
-    If the number of columns is less than or equal to the maximum allowed for AutoMLX,
-    returns 'AutoMLX'. Otherwise, returns 'Arima'.
-
-    Parameters
-    ------------
-    datasets:  ForecastDatasets
-            Datasets for predictions
-
-    Returns
-    --------
-    str
-        The type of the model.
-    """
-    freq_in_secs = datasets.get_datetime_frequency_in_seconds()
-    num_of_additional_cols = len(datasets.get_additional_data_column_names())
-    row_count = datasets.get_num_rows()
-    number_of_series = len(datasets.list_series_ids())
-    if (
-        num_of_additional_cols < 15
-        and row_count < 10000
-        and number_of_series < 10
-        and freq_in_secs > 3600
-    ):
-        return SupportedModels.AutoMLX
-    elif row_count < 10000 and number_of_series > 10:
-        return SupportedModels.AutoTS
-    elif row_count > 20000:
-        return SupportedModels.NeuralProphet
-    else:
-        return SupportedModels.NeuralProphet
-
 
 def convert_target(target: str, target_col: str):
     """
