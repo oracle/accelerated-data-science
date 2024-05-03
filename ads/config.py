@@ -54,6 +54,9 @@ AQUA_MODEL_DEPLOYMENT_CONFIG = os.environ.get(
 AQUA_MODEL_FINETUNING_CONFIG = os.environ.get(
     "AQUA_MODEL_FINETUNING_CONFIG", "ft_config.json"
 )
+AQUA_MODEL_EVALUATION_CONFIG = os.environ.get(
+    "AQUA_MODEL_EVALUATION_CONFIG", "evaluation_config.json"
+)
 AQUA_CONTAINER_INDEX_CONFIG = os.environ.get(
     "AQUA_CONTAINER_INDEX_CONFIG", "container_index.json"
 )

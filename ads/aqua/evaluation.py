@@ -34,7 +34,12 @@ from ads.aqua.exception import (
     AquaRuntimeError,
     AquaValueError,
 )
+from ads.aqua.ui import AquaUIApp
 from ads.aqua.utils import (
+    DEFAULT_EVALUATION_BLOCK_STORAGE_SIZE,
+    DEFAULT_MEMORY_IN_GBS,
+    DEFAULT_MODEL_PARAMS_CONFIGS,
+    DEFAULT_OCPUS,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     NB_SESSION_IDENTIFIER,
     UNKNOWN,
@@ -50,6 +55,7 @@ from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link, get_files, get_log_links, upload_to_os
 from ads.config import (
     AQUA_JOB_SUBNET_ID,
+    AQUA_MODEL_EVALUATION_CONFIG,
     COMPARTMENT_OCID,
     CONDA_BUCKET_NS,
     PROJECT_OCID,
@@ -59,7 +65,7 @@ from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.model.datascience_model import DataScienceModel
-from ads.model.deployment.model_deployment import ModelDeployment
+from ads.model.deployment.model_deployment import MODEL_DEPLOYMENT_KIND, ModelDeployment
 from ads.model.model_metadata import (
     MetadataTaxonomyKeys,
     ModelCustomMetadata,
@@ -1429,46 +1435,61 @@ class AquaEvaluationApp(AquaApp):
                 f"Exception message: {ex}"
             )
 
-    def load_evaluation_config(self, eval_id):
-        """Loads evaluation config."""
-        return {
-            "model_params": {
-                "max_tokens": 500,
-                "temperature": 0.7,
-                "top_p": 1.0,
-                "top_k": 50,
-                "presence_penalty": 0.0,
-                "frequency_penalty": 0.0,
-                "stop": [],
-            },
-            "shape": {
-                "VM.Standard.E3.Flex": {
-                    "ocpu": 8,
-                    "memory_in_gbs": 128,
-                    "block_storage_size": 200,
-                },
-                "VM.Standard.E4.Flex": {
-                    "ocpu": 8,
-                    "memory_in_gbs": 128,
-                    "block_storage_size": 200,
-                },
-                "VM.Standard3.Flex": {
-                    "ocpu": 8,
-                    "memory_in_gbs": 128,
-                    "block_storage_size": 200,
-                },
-                "VM.Optimized3.Flex": {
-                    "ocpu": 8,
-                    "memory_in_gbs": 128,
-                    "block_storage_size": 200,
-                },
-            },
-            "default": {
-                "ocpu": 8,
-                "memory_in_gbs": 128,
-                "block_storage_size": 200,
-            },
-        }
+    def load_evaluation_config(
+        self,
+        target_evaluation_id: str,
+        compartment_id: str=None,
+        **kwargs
+    ) -> dict:
+        """Loads model evaluation default configs.
+
+        Parameters
+        ----------
+        target_evaluation_id: str
+            The target evaluation source ocid.
+        compartment_id: (str, optional). Defaults to `None`.
+            The compartment ocid.
+        kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        dict
+            A dict of model evaluation default configs.
+        """
+        target_evaluation = self.get_source(target_evaluation_id)
+
+        evaluation_config = {}
+        if target_evaluation.kind == MODEL_DEPLOYMENT_KIND:
+            job_shapes = AquaUIApp().list_job_shapes(
+                compartment_id=compartment_id or COMPARTMENT_OCID,
+                **kwargs
+            )
+            shape = {}
+            for job_shape in job_shapes:
+                shape[job_shape["name"]] = {
+                    "block_storage_size": DEFAULT_EVALUATION_BLOCK_STORAGE_SIZE,
+                    "ocpus": (
+                        job_shape["coreCount"]
+                        if not job_shape["name"].endswith(".Flex")
+                        else DEFAULT_OCPUS
+                    ),
+                    "memory_in_gbs": (
+                        job_shape["memoryInGBs"]
+                        if not job_shape["name"].endswith(".Flex")
+                        else DEFAULT_MEMORY_IN_GBS
+                    )
+                }
+            evaluation_config = {
+                "shape": shape,
+                **DEFAULT_MODEL_PARAMS_CONFIGS
+            }
+        else:
+            evaluation_config = self.get_config(
+                target_evaluation.id, AQUA_MODEL_EVALUATION_CONFIG
+            )
+
+        return evaluation_config
 
     def _get_attribute_from_model_metadata(
         self,

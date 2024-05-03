@@ -29,7 +29,9 @@ from ads.aqua.exception import (
     AquaRuntimeError,
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.aqua.ui import AquaUIApp
 from ads.aqua.utils import EVALUATION_REPORT_JSON, EVALUATION_REPORT_MD, UNKNOWN
+from ads.config import AQUA_MODEL_EVALUATION_CONFIG
 from ads.jobs.ads_job import DataScienceJob, DataScienceJobRun, Job
 from ads.model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
@@ -344,6 +346,92 @@ class TestDataset:
             "time_created": "2024-02-15T20:18:34.225000+00:00",
         }
     ]
+
+    list_job_shapes = [
+        {
+            "name": "VM.Standard2.1",
+            "coreCount": 1,
+            "memoryInGBs": 15,
+            "shapeSeries": "INTEL_SKYLAKE"
+        },
+        {
+            "name": "VM.Standard2.2",
+            "coreCount": 2,
+            "memoryInGBs": 30,
+            "shapeSeries": "INTEL_SKYLAKE"
+        },
+        {
+            "name": "VM.Standard.E3.Flex",
+            "coreCount": 64,
+            "memoryInGBs": 1024,
+            "shapeSeries": "AMD_ROME"
+        },
+        {
+            "name": "VM.Optimized3.Flex",
+            "coreCount": 18,
+            "memoryInGBs": 256,
+            "shapeSeries": "INTEL_SKYLAKE"
+        },
+        {
+            "name": "VM.GPU2.1",
+            "coreCount": 12,
+            "memoryInGBs": 72,
+            "shapeSeries": "NVIDIA_GPU"
+        },
+        {
+            "name": "VM.GPU.A10.1",
+            "coreCount": 15,
+            "memoryInGBs": 240,
+            "shapeSeries": "NVIDIA_GPU"
+        },
+    ]
+
+    evaluation_default_config = {
+        "model_params": {
+            "max_tokens": 500,
+            "temperature": 0.7,
+            "top_p": 1.0,
+            "top_k": 50,
+        },
+        "shape": {
+            "VM.Standard.E3.Flex": {
+                "ocpu": 2,
+                "memory_in_gbs": 64,
+                "block_storage_size": 100,
+            },
+            "VM.Standard.E3.Flex": {
+                "ocpu": 2,
+                "memory_in_gbs": 64,
+                "block_storage_size": 100,
+            },
+            "VM.Standard.E4.Flex": {
+                "ocpu": 2,
+                "memory_in_gbs": 64,
+                "block_storage_size": 100,
+            },
+            "VM.Standard3.Flex": {
+                "ocpu": 2,
+                "memory_in_gbs": 64,
+                "block_storage_size": 100,
+            },
+            "VM.Optimized3.Flex": {
+                "ocpu": 2,
+                "memory_in_gbs": 64,
+                "block_storage_size": 100,
+            },
+            "VM.Standard.A1.Flex": {
+                "ocpu": 2,
+                "memory_in_gbs": 64,
+                "block_storage_size": 100,
+            },
+        },
+        "default": {
+            "ocpu": 2,
+            "memory_in_gbs": 64,
+            "block_storage_size": 100,
+        },
+    }
+
     COMPARTMENT_ID = "ocid1.compartment.oc1..<UNIQUE_OCID>"
     EVAL_ID = "ocid1.datasciencemodel.oc1.iad.<OCID>"
     INVALID_EVAL_ID = "ocid1.datasciencemodel.oc1.phx.<OCID>"
@@ -1031,3 +1119,82 @@ class TestCancelDeleteEvaluation(unittest.IsolatedAsyncioTestCase):
         await self.app._delete_job_and_model(mock_job, self.mock_model)
 
         mock_logger.error.assert_called_once()
+
+    @patch.object(AquaEvaluationApp, "get_config")
+    @patch.object(AquaUIApp, "list_job_shapes")
+    @patch.object(AquaEvaluationApp, "get_source")
+    def test_load_evaluation_config(
+        self,
+        mock_get_source,
+        mock_list_job_shapes,
+        mock_get_config
+    ):
+        mock_get_source.return_value = ModelDeployment()
+        mock_list_job_shapes.return_value = TestDataset.list_job_shapes
+        evaluation_config = self.app.load_evaluation_config(
+            "test_model_deployment_id"
+        )
+
+        mock_get_source.assert_called_with("test_model_deployment_id")
+        mock_list_job_shapes.assert_called()
+
+        assert evaluation_config == {
+            "default": {
+                "block_storage_size": 100,
+                "memory_in_gbs": 32,
+                "ocpus": 2
+            },
+            "model_params": {
+                "max_tokens": 500,
+                "temperature": 0.7,
+                "top_k": 50,
+                "top_p": 1.0
+            },
+            "shape": {
+                "VM.GPU.A10.1": {
+                    "block_storage_size": 100,
+                    "memory_in_gbs": 240,
+                    "ocpus": 15
+                },
+                "VM.GPU2.1": {
+                    "block_storage_size": 100,
+                    "memory_in_gbs": 72,
+                    "ocpus": 12
+                },
+                "VM.Optimized3.Flex": {
+                    "block_storage_size": 100,
+                    "memory_in_gbs": 32,
+                    "ocpus": 2
+                },
+                "VM.Standard.E3.Flex": {
+                    "block_storage_size": 100,
+                    "memory_in_gbs": 32,
+                    "ocpus": 2
+                },
+                "VM.Standard2.1": {
+                    "block_storage_size": 100,
+                    "memory_in_gbs": 15,
+                    "ocpus": 1
+                },
+                "VM.Standard2.2": {
+                    "block_storage_size": 100,
+                    "memory_in_gbs": 30,
+                    "ocpus": 2
+                }
+            },
+        }
+
+        mock_get_source.return_value = DataScienceModel(
+            id="test_model_id"
+        )
+        mock_get_config.return_value = TestDataset.evaluation_default_config
+        evaluation_config = self.app.load_evaluation_config(
+            "test_model_id"
+        )
+
+        mock_get_source.assert_called_with("test_model_id")
+        mock_get_config.assert_called_with(
+            "test_model_id", AQUA_MODEL_EVALUATION_CONFIG
+        )
+
+        assert evaluation_config == TestDataset.evaluation_default_config
