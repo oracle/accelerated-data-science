@@ -10,6 +10,14 @@ aqua.exception
 This module contains the set of Aqua exceptions.
 """
 
+from ads.common.extended_enum import ExtendedEnum
+
+
+class ExitCode(ExtendedEnum):
+    SUCCESS = 0
+    COMMON_ERROR = 1
+    INVALID_CONFIG = 10
+
 
 class AquaError(Exception):
     """AquaError
@@ -17,6 +25,8 @@ class AquaError(Exception):
     The base exception from which all exceptions raised by Aqua
     will inherit.
     """
+
+    exit_code = 1
 
     def __init__(
         self,
@@ -79,4 +89,22 @@ class AquaResourceAccessError(AquaError):
     """Exception raised when file already exists in resource."""
 
     def __init__(self, reason, status=404, service_payload=None):
+        super().__init__(reason, status, service_payload)
+
+
+class AquaConfigError(AquaError):
+    """Exception raised when config for AQUA is invalid."""
+
+    exit_code = ExitCode.INVALID_CONFIG.value
+
+    def __init__(self, reason, status=404, service_payload=None):
+        super().__init__(reason, status, service_payload)
+
+
+class AquaCLIError(AquaError):
+    """Exception raised when AQUA CLI encounter error."""
+
+    exit_code = ExitCode.COMMON_ERROR.value
+
+    def __init__(self, reason, status=None, service_payload=None):
         super().__init__(reason, status, service_payload)
