@@ -6,6 +6,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from oci.resource_search.models.resource_summary import ResourceSummary
 from parameterized import parameterized
 

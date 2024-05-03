@@ -13,7 +13,7 @@ from oci.identity.models import Compartment
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.data import Tags
-from ads.aqua.exception import AquaValueError
+from ads.aqua.exception import AquaValueError, AquaResourceAccessError
 from ads.aqua.utils import load_config, sanitize_response
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
@@ -400,9 +400,16 @@ class AquaUIApp(AquaApp):
             return {}
 
         limit_name = config[instance_shape]
-        res = limits_client.get_resource_availability(
-            DATA_SCIENCE_SERVICE_NAME, limit_name, compartment_id, **kwargs
-        ).data
+        try:
+            res = limits_client.get_resource_availability(
+                DATA_SCIENCE_SERVICE_NAME, limit_name, compartment_id, **kwargs
+            ).data
+        except ServiceError as se:
+            raise AquaResourceAccessError(
+                f"Could not check limits availability for the shape {instance_shape}. Make sure you have the necessary policy to check limits availability.",
+                service_payload=se.args[0] if se.args else None,
+            )
+
         available = res.available
 
         try:

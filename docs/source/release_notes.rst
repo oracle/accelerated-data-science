@@ -2,6 +2,38 @@
 Release Notes
 =============
 
+2.11.0
+------
+Release date: March 19, 2024
+
+* Internal changes to support upcoming features and changes in Notebook related to Jupyter Lab 3 upgrade
+
+2.10.1
+------
+Release date: February 7, 2024
+
+* Releasing v1 of the Anomaly Detection Operator! The Anomaly Detection Operator is a no-code Anomaly or Outlier Detection solution through the OCI Data Science Platform. It uses dozens of models from Oracle’s own proprietary research and the best of open source. See the ``Anomaly Detection`` Section of the ``AI Operators`` tab for full details (:doc:`link <./user_guide/operators/anomaly_detection_operator/index>`).
+* Releasing a new version of the Forecast Operator. This release has faster explainability, improved support for reading from databases, upgrades to the automatic reporting, improved parallelization across all models, and an ability to save models for deferred inference. See the ``Forecast`` Section of the ``AI Operators`` tab for full details (:doc:`link <./user_guide/operators/forecasting_operator/index>`).
+* Change to the default signer such that it now defaults to ``resource_prinicpal`` on any OCI Data Science resource (for example, jobs, notebooks, model deployments, dataflow).
+
+2.10.0
+------
+Release date: January 24, 2024
+
+* Improved the progress bar to use the percentage completed of workflow request instead of hardcoded steps.
+* Used the service default for ``WEB_CONCURRENCY`` for model deployment.
+* Fixed the bug with zipping the model artifacts directory when ``TMPRDIR`` is provided.
+* Improved the ``watch()`` method for model deployment to keep streaming logs when the deployment is finished.
+* Changed the default log type of watch to both access logs and predict logs.
+* Changed the target directory to ``artifact_dir`` instead of temp directory when saving the model artifacts.
+* Fixed the mount file system pre-check to check for duplicate ``dest``.
+* Fixed duplicate logs in the model deployment consolidated logs.
+* Added support for the optional downloading of artifacts in ``GenericModel`` using a ``download_artifact()`` method.
+* Set the Data Science service endpoint through the environment variable in ``OCIDataScienceMixin``.
+* Made reloading the model to environment as optional at the time of invoking ``GenericModel.from_id()``.
+* Mandated the Python version in ``GenericModel.prepare()`` when it can't be resolved.
+* Added a print out of the model deployment OCID in the notebook cell when ``deploy()`` is called.
+
 2.9.1
 -----
 Release date: December 6, 2023

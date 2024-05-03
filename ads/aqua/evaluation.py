@@ -370,7 +370,7 @@ class AquaEvaluationApp(AquaApp):
     @telemetry(entry_point="plugin=evaluation&action=create", name="aqua")
     def create(
         self,
-        create_aqua_evaluation_details: CreateAquaEvaluationDetails,
+        create_aqua_evaluation_details: CreateAquaEvaluationDetails = None,
         **kwargs,
     ) -> "AquaEvaluationSummary":
         """Creates Aqua evaluation for resource.
@@ -381,16 +381,24 @@ class AquaEvaluationApp(AquaApp):
             The CreateAquaEvaluationDetails data class which contains all
             required and optional fields to create the aqua evaluation.
         kwargs:
-            The kwargs for the evaluation.
+            The kwargs for creating CreateAquaEvaluationDetails instance if
+            no create_aqua_evaluation_details provided.
 
         Returns
         -------
         AquaEvaluationSummary:
             The instance of AquaEvaluationSummary.
         """
-        evaluation_source = self.get_source(
-            create_aqua_evaluation_details.evaluation_source_id
-        )
+        if not create_aqua_evaluation_details:
+            try:
+                create_aqua_evaluation_details = CreateAquaEvaluationDetails(**kwargs)
+            except:
+                raise AquaValueError(
+                    "Invalid create evaluation parameters. Allowable parameters are: "
+                    f"{', '.join(list(asdict(CreateAquaEvaluationDetails).keys()))}."
+                )
+
+        evaluation_source = self.get_source(create_aqua_evaluation_details.id)
 
         if not ObjectStorageDetails.is_oci_path(
             create_aqua_evaluation_details.report_path
@@ -1051,7 +1059,7 @@ class AquaEvaluationApp(AquaApp):
             {
                 "use_case": ["text_generation"],
                 "key": "bertscore",
-                "name": "BERT Score",
+                "name": "bertscore",
                 "description": (
                     "BERT Score is a metric for evaluating the quality of text "
                     "generation models, such as machine translation or summarization. "
@@ -1064,7 +1072,7 @@ class AquaEvaluationApp(AquaApp):
             {
                 "use_case": ["text_generation"],
                 "key": "rouge",
-                "name": "ROUGE Score",
+                "name": "rouge",
                 "description": (
                     "ROUGE scores compare a candidate document to a collection of "
                     "reference documents to evaluate the similarity between them. "

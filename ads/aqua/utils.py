@@ -31,8 +31,8 @@ from ads.common.utils import get_console_link, upload_to_os
 from ads.config import (
     AQUA_CONFIG_FOLDER,
     AQUA_SERVICE_MODELS_BUCKET,
-    TENANCY_OCID,
     CONDA_BUCKET_NS,
+    TENANCY_OCID,
 )
 from ads.model import DataScienceModel, ModelVersionSet
 
@@ -67,7 +67,7 @@ CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
     datasciencemodelversionsetdev="model-version-sets",
 )
 FINE_TUNING_RUNTIME_CONTAINER = "iad.ocir.io/ociodscdev/aqua_ft_cuda121:0.3.17.20"
-DEFAULT_FT_BLOCK_STORAGE_SIZE = 256
+DEFAULT_FT_BLOCK_STORAGE_SIZE = 750
 DEFAULT_FT_REPLICA = 1
 DEFAULT_FT_BATCH_SIZE = 1
 DEFAULT_FT_VALIDATION_SET_SIZE = 0.1
@@ -100,6 +100,7 @@ JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING = "ME_STANDALONE"
 NB_SESSION_IDENTIFIER = "NB_SESSION_OCID"
 LIFECYCLE_DETAILS_MISSING_JOBRUN = "The asscociated JobRun resource has been deleted."
 READY_TO_DEPLOY_STATUS = "ACTIVE"
+READY_TO_FINE_TUNE_STATUS = "TRUE"
 
 
 class LifecycleStatus(Enum):
@@ -642,18 +643,18 @@ def fire_and_forget(func):
     return wrapped
 
 
-def get_base_model_from_tags(tags):
-    base_model_ocid = ""
-    base_model_name = ""
-    if Tags.AQUA_FINE_TUNED_MODEL_TAG.value in tags:
-        tag = tags[Tags.AQUA_FINE_TUNED_MODEL_TAG.value]
-        if "#" in tag:
-            base_model_ocid, base_model_name = tag.split("#")
+def extract_id_and_name_from_tag(tag: str):
+    base_model_ocid = UNKNOWN
+    base_model_name = UNKNOWN
+    try:
+        base_model_ocid, base_model_name = tag.split("#")
+    except:
+        pass
 
-        if not (is_valid_ocid(base_model_ocid) and base_model_name):
-            raise AquaValueError(
-                f"{Tags.AQUA_FINE_TUNED_MODEL_TAG.value} tag should have the format `Service Model OCID#Model Name`."
-            )
+    if not (is_valid_ocid(base_model_ocid) and base_model_name):
+        logger.debug(
+            f"Invalid {tag}. Specify tag in the format as <service_model_id>#<service_model_name>."
+        )
 
     return base_model_ocid, base_model_name
 

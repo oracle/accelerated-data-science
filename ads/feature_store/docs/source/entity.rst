@@ -1,13 +1,14 @@
 Entity
 ********
 
-An entity is a group of semantically related features. An entity is an object or concept that is described by its features. The first step when accessing a feature store is typically to list the entities and the entities associated features. Examples of entities are customer, product, transaction, review, image, document, and so on.
+An entity is a group of semantically related features. An entity is an object or concept that is described by its features. The first step when accessing a feature store is typically to list the entities and the entities' associated features. Examples of entities are customer, product, transaction, review, image, aand document.
 
+.. image:: figures/entity.png
 
 Define
 ======
 
-In an ADS feature store module, you can use the Python API or a yaml file to define an entity.
+In an ADS feature store module, you can use the Python API or a .yaml file to define an entity.
 
 
 The following example defines an entity and gives it a name. An ``Entity`` instance is created.
@@ -70,7 +71,7 @@ Use the ``from_id()`` method from the ``Entity`` class to load an existing entit
 Delete
 ======
 
-Use the ``.delete()`` method on the ``Entity`` instance to delete a entity. A entity can only be deleted when its associated entities are all deleted,
+Use the ``.delete()`` method on the ``Entity`` instance to delete a entity. A entity can only be deleted when its associated entities are all deleted.
 
 .. code-block:: python3
 
