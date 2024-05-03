@@ -9,6 +9,7 @@ import datetime
 import inspect
 import logging
 import os
+import re
 import time
 import traceback
 import uuid
@@ -375,12 +376,13 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
         """
         runs = self.run_list()
         for run in runs:
-            if run.lifecycle_state in [
-                DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
-                DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
-                DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
-            ]:
-                run.cancel(wait_for_completion=True)
+            if force_delete:
+                if run.lifecycle_state in [
+                    DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
+                    DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
+                    DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
+                ]:
+                    run.cancel(wait_for_completion=True)
             run.delete()
         self.client.delete_job(self.id)
         return self
@@ -582,6 +584,25 @@ class DataScienceJobRun(
             id=self.log_id, log_group_id=self.log_details.log_group_id, **auth
         )
 
+    @property
+    def exit_code(self):
+        """The exit code of the job run from the lifecycle details.
+        Note that,
+        None will be returned if the job run is not finished or failed without exit code.
+        0 will be returned if job run succeeded.
+        """
+        if self.lifecycle_state == self.LIFECYCLE_STATE_SUCCEEDED:
+            return 0
+        if not self.lifecycle_details:
+            return None
+        match = re.search(r"exit code (\d+)", self.lifecycle_details)
+        if not match:
+            return None
+        try:
+            return int(match.group(1))
+        except Exception:
+            return None
+
     @staticmethod
     def _format_log(message: str, date_time: datetime.datetime) -> dict:
         """Formats a message as log record with datetime.
@@ -654,6 +675,22 @@ class DataScienceJobRun(
                 timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             print(f"{timestamp} - {status}")
         return status
+
+    def wait(self, interval: float = SLEEP_INTERVAL):
+        """Waits for the job run until if finishes.
+
+        Parameters
+        ----------
+        interval : float
+            Time interval in seconds between each request to update the logs.
+            Defaults to 3 (seconds).
+
+        """
+        self.sync()
+        while self.status not in self.TERMINAL_STATES:
+            time.sleep(interval)
+            self.sync()
+        return self
 
     def watch(
         self,
@@ -829,6 +866,12 @@ class DataScienceJobRun(
         """
         self.job.download(to_dir)
         return self
+
+    def delete(self, force_delete: bool = False):
+        if force_delete:
+            self.cancel(wait_for_completion=True)
+        super().delete()
+        return
 
 
 # This is for backward compatibility

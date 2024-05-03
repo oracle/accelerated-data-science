@@ -8,6 +8,7 @@ dependencies:
       - oracle-ads>=2.9.0
       - prophet
       - neuralprophet
+      - mlforecast
       - pmdarima
       - statsmodels
       - report-creator

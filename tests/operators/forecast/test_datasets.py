@@ -32,6 +32,7 @@ MODELS = [
     "prophet",
     "neuralprophet",
     "autots",
+    "mlforecast",
     # "auto",
 ]
 
@@ -136,7 +137,10 @@ def test_load_datasets(model, data_details):
 
         run(yaml_i, backend="operator.local", debug=False)
         subprocess.run(f"ls -a {output_data_path}", shell=True)
-        if yaml_i["spec"]["generate_explanations"] and model != "automlx":
+        if yaml_i["spec"]["generate_explanations"] and model not in [
+            "automlx",
+            "mlforecast",
+        ]:
             verify_explanations(
                 tmpdirname=tmpdirname,
                 additional_cols=additional_cols,
