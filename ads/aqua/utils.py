@@ -522,6 +522,19 @@ def _build_job_identifier(
         return AquaResourceIdentifier()
 
 
+def container_config_path():
+    return f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
+
+
+def get_container_config():
+    config = load_config(
+        file_path=container_config_path(),
+        config_file_name=CONTAINER_INDEX,
+    )
+
+    return config
+
+
 def get_container_image(
     config_file_name: str = None, container_type: str = None
 ) -> str:
@@ -539,14 +552,8 @@ def get_container_image(
         A dict of allowed configs.
     """
 
-    config_file_name = (
-        f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
-    )
-
-    config = load_config(
-        file_path=config_file_name,
-        config_file_name=CONTAINER_INDEX,
-    )
+    config = config_file_name or get_container_config()
+    config_file_name = container_config_path()
 
     if container_type not in config:
         raise AquaValueError(
@@ -771,6 +778,7 @@ def upload_folder(os_path: str, local_dir: str, model_name: str) -> str:
     object_path = os_details.filepath.rstrip("/") + "/" + model_name + "/"
     command = f"oci os object bulk-upload --src-dir {local_dir} --prefix {object_path} -bn {os_details.bucket} -ns {os_details.namespace} --auth {auth_state.oci_iam_type} --profile {auth_state.oci_key_profile}"
     try:
+        logger.info(f"Running: {command}")
         subprocess.check_call(shlex.split(command))
     except subprocess.CalledProcessError as e:
         logger.error(
