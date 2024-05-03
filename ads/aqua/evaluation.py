@@ -1395,6 +1395,11 @@ class AquaEvaluationApp(AquaApp):
             )
 
         try:
+            jobrun_id = model.provenance_metadata.training_id
+        except Exception:
+            raise AquaMissingKeyError(f"Associated Job Run OCID is missing.")
+
+        try:
             job_id = model.custom_metadata_list.get(
                 EvaluationCustomMetadata.EVALUATION_JOB_ID.value
             ).value
@@ -1407,9 +1412,12 @@ class AquaEvaluationApp(AquaApp):
 
         self._delete_job_and_model(job, model)
 
+        self._eval_cache.pop(key=eval_id, default=None)
+        jobrun = utils.query_resource(jobrun_id, return_all=False)
+
         status = dict(
             id=eval_id,
-            lifecycle_state="DELETING",
+            lifecycle_state=jobrun.lifecycle_state if jobrun else "DELETING",
             time_accepted=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f%z"),
         )
         return status
