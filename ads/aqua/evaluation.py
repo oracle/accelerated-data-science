@@ -398,7 +398,9 @@ class AquaEvaluationApp(AquaApp):
                     f"{', '.join(list(asdict(CreateAquaEvaluationDetails).keys()))}."
                 )
 
-        evaluation_source = self.get_source(create_aqua_evaluation_details.id)
+        evaluation_source = self.get_source(
+            create_aqua_evaluation_details.evaluation_source_id
+        )
 
         if not ObjectStorageDetails.is_oci_path(
             create_aqua_evaluation_details.report_path
@@ -1278,15 +1280,6 @@ class AquaEvaluationApp(AquaApp):
                 target_evaluation.id, AQUA_MODEL_EVALUATION_CONFIG
             )
 
-        return evaluation_config
-    
-    def _load_evaluation_config(self, file_path: str) -> dict:
-        evaluation_config = load_default_aqua_config(
-            artifact_path = (
-                f"{file_path.rstrip('/')}/{AQUA_MODEL_EVALUATION_CONFIG}"
-            ),
-            auth=self._auth
-        )
         return evaluation_config
 
     @telemetry(entry_point="plugin=evaluation&action=cancel", name="aqua")
