@@ -4,19 +4,21 @@
 # Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import traceback
 import sys
+import traceback
+from dataclasses import is_dataclass
 
 import fire
-from dataclasses import is_dataclass
+
 from ads.common import logger
 
 try:
     import click
-    import ads.opctl.cli
+
     import ads.jobs.cli
-    import ads.pipeline.cli
+    import ads.opctl.cli
     import ads.opctl.operator.cli
+    import ads.pipeline.cli
 except Exception as ex:
     print(
         "Please run `pip install oracle-ads[opctl]` to install "
@@ -32,6 +34,7 @@ if sys.version_info >= (3, 8):
     from importlib import metadata
 else:
     import importlib_metadata as metadata
+
 
 ADS_VERSION = metadata.version("oracle_ads")
 
@@ -86,13 +89,58 @@ def serialize(data):
         print(str(data))
 
 
+def exit_program(ex: Exception, logger: "logging.Logger") -> None:
+    """
+    Logs the exception and exits the program with a specific exit code.
+
+    This function logs the full traceback and the exception message, then terminates
+    the program with an exit code. If the exception object has an 'exit_code' attribute,
+    it uses that as the exit code; otherwise, it defaults to 1.
+
+    Parameters
+    ----------
+    ex (Exception):
+        The exception that triggered the program exit. This exception
+        should ideally contain an 'exit_code' attribute, but it is not mandatory.
+    logger (Logger):
+        A logging.Logger instance used to log the traceback and the error message.
+
+    Returns
+    -------
+    None:
+        This function does not return anything because it calls sys.exit,
+        terminating the process.
+
+    Examples
+    --------
+
+    >>> import logging
+    >>> logger = logging.getLogger('ExampleLogger')
+    >>> try:
+    ...     raise ValueError("An error occurred")
+    ... except Exception as e:
+    ...     exit_program(e, logger)
+    """
+
+    logger.debug(traceback.format_exc())
+    logger.error(str(ex))
+
+    exit_code = getattr(ex, "exit_code", 1)
+    logger.error(f"Exit code: {exit_code}")
+    sys.exit(exit_code)
+
+
 def cli():
     if len(sys.argv) > 1 and sys.argv[1] == "aqua":
+        from ads.aqua import logger as aqua_logger
         from ads.aqua.cli import AquaCommand
 
-        fire.Fire(
-            AquaCommand, command=sys.argv[2:], name="ads aqua", serialize=serialize
-        )
+        try:
+            fire.Fire(
+                AquaCommand, command=sys.argv[2:], name="ads aqua", serialize=serialize
+            )
+        except Exception as err:
+            exit_program(err, aqua_logger)
     else:
         click_cli()
 
