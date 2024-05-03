@@ -114,6 +114,12 @@ htmllistparse
 * Source code: https://github.com/gumblex/htmllisting-parser
 * Project home: https://github.com/gumblex/htmllisting-parser
 
+huggingface_hub
+* Copyright 2023-present, the HuggingFace Inc. team.
+* License: Apache-2.0 license
+* Source code: https://github.com/huggingface/huggingface_hub
+* Project home: https://github.com/huggingface/huggingface_hub
+
 ibisframework
 
 * Copyright 2015 Cloudera Inc.
