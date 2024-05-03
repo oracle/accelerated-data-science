@@ -466,17 +466,6 @@ def upload_local_to_os(
         force_overwrite=force_overwrite,
     )
 
-def load_default_aqua_config(artifact_path: str, **kwargs) -> dict:
-    config = json.loads(
-        read_file(file_path=artifact_path, **kwargs) or UNKNOWN_JSON_STR
-    )
-    if not config:
-        raise AquaError(
-            f"Config file {artifact_path} is either empty or missing.",
-            500,
-        )
-    return config
-
 def sanitize_response(oci_client, response: list):
     """Builds a JSON POST object for the response from OCI clients.
 

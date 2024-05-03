@@ -45,7 +45,6 @@ from ads.aqua.utils import (
     UNKNOWN,
     fire_and_forget,
     get_container_image,
-    load_default_aqua_config,
     upload_local_to_os,
 )
 from ads.common.auth import default_signer
