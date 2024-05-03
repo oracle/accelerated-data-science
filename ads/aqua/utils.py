@@ -80,6 +80,20 @@ DEFAULT_EVALUATION_BLOCK_STORAGE_SIZE = 100
 DEFAULT_MEMORY_IN_GBS = 32
 DEFAULT_OCPUS = 2
 
+DEFAULT_MODEL_PARAMS_CONFIGS = {
+    "model_params": {
+        "max_tokens": DEFAULT_MAX_TOKEN,
+        "temperature": DEFAULT_TEMPERATURE,
+        "top_p": DEFAULT_TOP_P,
+        "top_k": DEFAULT_TOP_K,
+    },
+    "default": {
+        "ocpus": DEFAULT_OCPUS,
+        "memory_in_gbs": DEFAULT_MEMORY_IN_GBS,
+        "block_storage_size": DEFAULT_EVALUATION_BLOCK_STORAGE_SIZE,
+    },
+}
+
 HF_MODELS = "/home/datascience/conda/pytorch21_p39_gpu_v1/"
 MAXIMUM_ALLOWED_DATASET_IN_BYTE = 52428800  # 1024 x 1024 x 50 = 50MB
 JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING = "ME_STANDALONE"
