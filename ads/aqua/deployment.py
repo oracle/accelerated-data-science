@@ -385,7 +385,6 @@ class AquaDeploymentApp(AquaApp):
         )  # Give precendece to the input parameter
 
         env_var.update({"BASE_MODEL": f"{model_path_prefix}"})
-        env_var.update({"MODEL": f"{model_path_prefix}"})
         if vllm_params:
             params = f"{params} {vllm_params}"
         env_var.update({"PARAMS": params})

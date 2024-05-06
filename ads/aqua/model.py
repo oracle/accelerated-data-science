@@ -39,6 +39,7 @@ from ads.aqua.utils import (
     get_artifact_path,
     read_file,
     upload_folder,
+    is_service_managed_container,
 )
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -802,7 +803,7 @@ class AquaModelApp(AquaApp):
         inference_container_type_smc: bool,
         finetuning_container_type_smc: bool,
         shadow_model: DataScienceModel,
-    ) -> str:
+    ) -> DataScienceModel:
         """Create model by reference from the object storage path
 
         Args:
@@ -815,7 +816,7 @@ class AquaModelApp(AquaApp):
             shadow_model (DataScienceModel): If set, then copies all the tags and custom metadata information from the service shadow model
 
         Returns:
-            str: Display name of th model (This should be model ocid)
+            DataScienceModel: Returns Datascience model
         """
         model_info = None
         model = DataScienceModel()
@@ -843,11 +844,15 @@ class AquaModelApp(AquaApp):
             metadata = ModelCustomMetadata()
             if not inference_container or not finetuning_container:
                 containers = self._fetch_defaults_for_hf_model(model_name=model_name)
-            if not inference_container and not containers.inference_container:
+            if not inference_container and (
+                not containers or not containers.inference_container
+            ):
                 raise ValueError(
                     f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container"
                 )
-            if not finetuning_container and not containers.finetuning_container:
+            if not finetuning_container and (
+                not containers or not containers.finetuning_container
+            ):
                 logger.warn(
                     f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container. Proceeding with model registration without the fine-tuning container information. This model will not be available for fine tuning."
                 )
@@ -856,7 +861,7 @@ class AquaModelApp(AquaApp):
             metadata.add(
                 key=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
                 value=inference_container or containers.inference_container,
-                description="Inference container mapping for SMC",
+                description=f"Inference container mapping for {model_name}",
                 category="Other",
             )
             # If SMC, the container information has to be looked up from container_index.json for the latest version
@@ -877,7 +882,7 @@ class AquaModelApp(AquaApp):
                 metadata.add(
                     key=AQUA_FINETUNING_CONTAINER_METADATA_NAME,
                     value=finetuning_container or containers.finetuning_container,
-                    description="Fine-tuning container mapping for SMC",
+                    description=f"Fine-tuning container mapping for {model_name}",
                     category="Other",
                 )
             # If SMC, the container information has to be looked up from container_index.json for the latest version
@@ -918,7 +923,7 @@ class AquaModelApp(AquaApp):
             .with_freeform_tags(**tags)
         ).create(model_by_reference=True)
         logger.debug(model)
-        return model.display_name
+        return model
 
     def register(
         self,
@@ -1001,8 +1006,12 @@ class AquaModelApp(AquaApp):
             model_name=model_name,
             inference_container=inference_container,
             finetuning_container=finetuning_container,
-            inference_container_type_smc=inference_container_type_smc,
-            finetuning_container_type_smc=finetuning_container_type_smc,
+            inference_container_type_smc=True
+            if is_service_managed_container(inference_container)
+            else inference_container_type_smc,
+            finetuning_container_type_smc=True
+            if is_service_managed_container(inference_container)
+            else finetuning_container_type_smc,
             shadow_model=shadow_model_details,
         )
 

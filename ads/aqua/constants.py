@@ -43,3 +43,5 @@ TRAINING_METRICS_FINAL = "training_metrics_final"
 VALIDATION_METRICS_FINAL = "validation_metrics_final"
 TRINING_METRICS = "training_metrics"
 VALIDATION_METRICS = "validation_metrics"
+
+SERVICE_MANAGED_CONTAINER_URI_SCHEME = "dsmc://"
