@@ -367,6 +367,9 @@ class AquaEvaluationApp(AquaApp):
     _report_cache = TTLCache(maxsize=10, ttl=timedelta(hours=5), timer=datetime.now)
     _metrics_cache = TTLCache(maxsize=10, ttl=timedelta(hours=5), timer=datetime.now)
     _eval_cache = TTLCache(maxsize=200, ttl=timedelta(hours=10), timer=datetime.now)
+    _deletion_cache = TTLCache(
+        maxsize=10, ttl=timedelta(minutes=10), timer=datetime.now
+    )
     _cache_lock = Lock()
 
     @telemetry(entry_point="plugin=evaluation&action=create", name="aqua")
@@ -1371,6 +1374,7 @@ class AquaEvaluationApp(AquaApp):
     @telemetry(entry_point="plugin=evaluation&action=delete", name="aqua")
     def delete(self, eval_id):
         """Deletes the job and the associated model for the given evaluation id.
+
         Parameters
         ----------
         eval_id: str
@@ -1383,9 +1387,9 @@ class AquaEvaluationApp(AquaApp):
         Raises
         ------
         AquaRuntimeError:
-            if a model doesn't exist for the given eval_id
+            if a model doesn't exist for the given eval_id.
         AquaMissingKeyError:
-            if training_id is missing the job run id
+            if job/jobrun id is missing.
         """
 
         model = DataScienceModel.from_id(eval_id)
@@ -1407,9 +1411,21 @@ class AquaEvaluationApp(AquaApp):
 
         self._delete_job_and_model(job, model)
 
+        try:
+            jobrun_id = model.custom_metadata_list.get(
+                EvaluationCustomMetadata.EVALUATION_JOB_RUN_ID.value
+            ).value
+            jobrun = utils.query_resource(jobrun_id, return_all=False)
+        except Exception:
+            logger.debug("Associated Job Run OCID is missing.")
+            jobrun = None
+
+        self._eval_cache.pop(key=eval_id, default=None)
+        self._deletion_cache.__setitem__(key=eval_id, value="")
+
         status = dict(
             id=eval_id,
-            lifecycle_state="DELETING",
+            lifecycle_state=jobrun.lifecycle_state if jobrun else "DELETING",
             time_accepted=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f%z"),
         )
         return status
@@ -1697,30 +1713,33 @@ class AquaEvaluationApp(AquaApp):
         ] = None,
     ) -> dict:
         """Builds evaluation status based on the model status and job run status.
-        When detect `aqua_evaluation_error` in custom metadata, the jobrun is failed.
-        However, if jobrun failed before saving this meta, we need to check the existance
-        of the evaluation artifact.
+        When missing jobrun information, the status will be decided based on:
+
+            * If the evaluation just has been deleted, the jobrun status should be deleted.
+            * When detect `aqua_evaluation_error` in custom metadata, the jobrun is failed.
+            * If jobrun failed before saving this meta, we need to check the existance
+            of the evaluation artifact.
 
         """
-        # TODO: revisit for CANCELED evaluation
-        job_run_status = (
-            JobRun.LIFECYCLE_STATE_FAILED
-            if self._get_attribute_from_model_metadata(
-                model, EvaluationCustomMetadata.EVALUATION_ERROR.value
-            )
-            else None
-        )
-
         model_status = model.lifecycle_state
-        job_run_status = job_run_status or (
-            jobrun.lifecycle_state
-            if jobrun and not jobrun.lifecycle_state == JobRun.LIFECYCLE_STATE_DELETED
-            else (
-                JobRun.LIFECYCLE_STATE_SUCCEEDED
-                if self._if_eval_artifact_exist(model)
-                else JobRun.LIFECYCLE_STATE_FAILED
-            )
-        )
+        job_run_status = None
+
+        if jobrun:
+            job_run_status = jobrun.lifecycle_state
+
+        if jobrun is None:
+            if model.identifier in self._deletion_cache.keys():
+                job_run_status = JobRun.LIFECYCLE_STATE_DELETED
+
+            elif self._get_attribute_from_model_metadata(
+                model, EvaluationCustomMetadata.EVALUATION_ERROR.value
+            ):
+                job_run_status = JobRun.LIFECYCLE_STATE_FAILED
+
+            elif self._if_eval_artifact_exist(model):
+                job_run_status = JobRun.LIFECYCLE_STATE_SUCCEEDED
+            else:
+                job_run_status = JobRun.LIFECYCLE_STATE_FAILED
 
         lifecycle_state = utils.LifecycleStatus.get_status(
             evaluation_status=model_status, job_run_status=job_run_status
