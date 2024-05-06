@@ -365,14 +365,14 @@ spec:
     model:
       type: string
       required: false
-      default: auto
+      default: auto-select
       allowed:
         - prophet
         - arima
         - neuralprophet
         - automlx
         - autots
-        - auto
+        - auto-select
 
     model_kwargs:
       type: dict

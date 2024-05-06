@@ -4,31 +4,19 @@
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import json
-import os
-import tempfile
-import time
-from abc import ABC, abstractmethod
-from typing import Tuple
-import traceback
-
 import fsspec
 import numpy as np
+import os
 import pandas as pd
+import tempfile
+import time
+import traceback
+from abc import ABC, abstractmethod
+from typing import Tuple
 
-from ads.opctl.operator.lowcode.forecast.utils import (
-    default_signer,
-    evaluate_train_metrics,
-    get_forecast_plots,
-    _build_metrics_df,
-    _build_metrics_per_horizon,
-    load_pkl,
-    write_pkl,
-    _label_encode_dataframe,
-)
+from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
-
 from ads.opctl.operator.lowcode.common.utils import (
     human_time_friendly,
     enable_print,
@@ -37,8 +25,20 @@ from ads.opctl.operator.lowcode.common.utils import (
     merged_category_column_name,
     datetime_to_seconds,
     seconds_to_datetime,
-    find_output_dirname,
 )
+from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import TestData
+from ads.opctl.operator.lowcode.forecast.utils import (
+    default_signer,
+    evaluate_train_metrics,
+    get_forecast_plots,
+    get_auto_select_plot,
+    _build_metrics_df,
+    _build_metrics_per_horizon,
+    load_pkl,
+    write_pkl,
+    _label_encode_dataframe,
+)
+from .forecast_datasets import ForecastDatasets
 from ..const import (
     SUMMARY_METRICS_HORIZON_LIMIT,
     SupportedMetrics,
@@ -46,9 +46,6 @@ from ..const import (
     SpeedAccuracyMode,
 )
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
-from ads.common.decorator.runtime_dependency import runtime_dependency
-from .forecast_datasets import ForecastDatasets, ForecastOutput
-from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import TestData
 
 
 class ForecastOperatorBaseModel(ABC):
@@ -250,6 +247,17 @@ class ForecastOperatorBaseModel(ABC):
                     sec9 = rc.DataTable(self.eval_metrics, index=True)
                     train_metrics_sections = [sec9_text, sec9]
 
+                backtest_sections = []
+                if self.spec.model == "auto-select":
+                    output_dir = self.spec.output_directory.url
+                    backtest_report_name = "backtest_stats.csv"
+                    backtest_stats = pd.read_csv(f"{output_dir}/{backtest_report_name}")
+                    backtest_text = rc.Heading("Back Testing Metrics", level=2)
+                    backtest_table = rc.DataTable(backtest_stats, index=True)
+                    liner_plot = get_auto_select_plot(backtest_stats)
+                    backtest_sections = [backtest_text, backtest_table, liner_plot]
+
+
                 forecast_plots = []
                 if len(self.forecast_output.list_series_ids()) > 0:
                     forecast_text = rc.Heading(
@@ -276,6 +284,7 @@ class ForecastOperatorBaseModel(ABC):
                 yaml_appendix = rc.Yaml(self.config.to_dict())
                 report_sections = (
                     [summary]
+                    + backtest_sections
                     + forecast_plots
                     + other_sections
                     + test_metrics_sections
@@ -409,7 +418,7 @@ class ForecastOperatorBaseModel(ABC):
         """Saves resulting reports to the given folder."""
         import report_creator as rc
 
-        unique_output_dir = find_output_dirname(self.spec.output_directory)
+        unique_output_dir = self.spec.output_directory.url
 
         if ObjectStorageDetails.is_oci_path(unique_output_dir):
             storage_options = default_signer()

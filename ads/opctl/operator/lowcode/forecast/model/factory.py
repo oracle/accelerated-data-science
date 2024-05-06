@@ -60,7 +60,7 @@ class ForecastOperatorModelFactory:
             In case of not supported model.
         """
         model_type = operator_config.spec.model
-        if model_type == "auto":
+        if model_type == "auto-select":
             model_type = cls.auto_select_model(datasets, operator_config)
         if model_type not in cls._MAP:
             raise UnSupportedModelError(model_type)
@@ -89,5 +89,4 @@ class ForecastOperatorModelFactory:
         from ..model_evaluator import ModelEvaluator
         all_models = cls._MAP.keys()
         model_evaluator = ModelEvaluator(all_models)
-        best_model = model_evaluator.find_best_model(datasets, operator_config)
-        return cls._MAP[best_model]
+        return model_evaluator.find_best_model(datasets, operator_config)

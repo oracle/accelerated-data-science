@@ -5,15 +5,14 @@
 
 
 import numpy as np
+import pandas as pd
+from pathlib import Path
+
 from ads.opctl import logger
-from ads.opctl.operator.lowcode.common.utils import (
-    find_output_dirname,
-)
 from ads.opctl.operator.lowcode.common.const import DataColumns
 from .model.forecast_datasets import ForecastDatasets
 from .operator_config import ForecastOperatorConfig
-from pathlib import Path
-import pandas as pd
+
 
 class ModelEvaluator:
     def __init__(self, models, k=5, subsample_ratio=0.20):
@@ -31,7 +30,9 @@ class ModelEvaluator:
         cut_offs = sorted_dates[-horizon - 1:-horizon * (self.k + 1):-horizon][:len(valid_train_window_size)]
         return cut_offs
 
-    def generate_k_fold_data(self, datasets: ForecastDatasets, date_col: str, horizon: int):
+    def generate_k_fold_data(self, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig):
+        date_col = operator_config.spec.datetime_column.name
+        horizon = operator_config.spec.horizon
         historical_data = datasets.historical_data.data.reset_index()
         series_col = DataColumns.Series
         group_counts = historical_data[series_col].value_counts()
@@ -51,7 +52,14 @@ class ModelEvaluator:
         for i, current in enumerate(cut_offs[1:]):
             test_datasets.append(sampled_historical_data[(current < sampled_historical_data[date_col]) & (
                     sampled_historical_data[date_col] <= cut_offs[i])])
-        return cut_offs, training_datasets, test_datasets
+        all_additional = datasets.additional_data.data.reset_index()
+        sampled_additional_data = all_additional[all_additional[series_col].isin(sampled_groups.index)]
+        max_historical_date = sampled_historical_data[date_col].max()
+        additional_data = [sampled_additional_data[sampled_additional_data[date_col] <= max_historical_date]]
+        for cut_off in cut_offs[:-1]:
+            trimmed_additional_data = sampled_additional_data[sampled_additional_data[date_col] <= cut_off]
+            additional_data.append(trimmed_additional_data)
+        return cut_offs, training_datasets, additional_data, test_datasets
 
     def remove_none_values(self, obj):
         if isinstance(obj, dict):
@@ -59,22 +67,25 @@ class ModelEvaluator:
         else:
             return obj
 
-    def create_operator_config(self, operator_config, backtest, model, historical_data, test_data):
-        output_dir = find_output_dirname(operator_config.spec.output_directory)
-        output_file_path = f'{output_dir}back_testing/{model}/{backtest}'
+    def create_operator_config(self, operator_config, backtest, model, historical_data, additional_data, test_data):
+        output_dir = operator_config.spec.output_directory.url
+        output_file_path = f'{output_dir}/back_testing/{model}/{backtest}'
         Path(output_file_path).mkdir(parents=True, exist_ok=True)
         historical_data_url = f'{output_file_path}/historical.csv'
+        additional_data_url = f'{output_file_path}/additional.csv'
         test_data_url = f'{output_file_path}/test.csv'
         historical_data.to_csv(historical_data_url, index=False)
+        additional_data.to_csv(additional_data_url, index=False)
         test_data.to_csv(test_data_url, index=False)
         backtest_op_config_draft = operator_config.to_dict()
         backtest_spec = backtest_op_config_draft["spec"]
         backtest_spec["historical_data"]["url"] = historical_data_url
+        backtest_spec["additional_data"]["url"] = additional_data_url
         backtest_spec["test_data"]["url"] = test_data_url
         backtest_spec["model"] = model
-        backtest_spec["output_directory"]["url"] = output_file_path
+        backtest_spec["output_directory"] = {"url": output_file_path}
         backtest_spec["target_category_columns"] = [DataColumns.Series]
-        backtest_spec.pop('additional_data', None)  # todo create additional data
+        backtest_spec['generate_explanations'] = False
         cleaned_config = self.remove_none_values(backtest_op_config_draft)
 
         backtest_op_config = ForecastOperatorConfig.from_dict(
@@ -82,32 +93,39 @@ class ModelEvaluator:
         return backtest_op_config
 
     def run_all_models(self, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig):
-        date_col = operator_config.spec.datetime_column.name
-        horizon = operator_config.spec.horizon
-        cut_offs, train_sets, test_sets = self.generate_k_fold_data(datasets, date_col, horizon)
+        cut_offs, train_sets, additional_data, test_sets = self.generate_k_fold_data(datasets, operator_config)
         metrics = {}
         for model in self.models:
             from .model.factory import ForecastOperatorModelFactory
             metrics[model] = {}
             for i in range(len(cut_offs)):
                 backtest_historical_data = train_sets[i]
+                backtest_additional_data = additional_data[i]
                 backtest_test_data = test_sets[i]
                 backtest_operator_config = self.create_operator_config(operator_config, i, model,
                                                                        backtest_historical_data,
+                                                                       backtest_additional_data,
                                                                        backtest_test_data)
                 datasets = ForecastDatasets(backtest_operator_config)
                 ForecastOperatorModelFactory.get_model(
                     backtest_operator_config, datasets
                 ).generate_report()
-                metrics_df = pd.read_csv(f"{backtest_operator_config.spec.output_directory.url}/metrics.csv")
-                metrics_df["average_accross_series"] = metrics_df.drop('metrics', axis=1).mean(axis=1)
-                metrics_average_dict = dict(zip(metrics_df['metrics'].str.lower(), metrics_df['average_accross_series']))
+                test_metrics_filename = backtest_operator_config.spec.test_metrics_filename
+                metrics_df = pd.read_csv(
+                    f"{backtest_operator_config.spec.output_directory.url}/{test_metrics_filename}")
+                metrics_df["average_across_series"] = metrics_df.drop('metrics', axis=1).mean(axis=1)
+                metrics_average_dict = dict(zip(metrics_df['metrics'].str.lower(), metrics_df['average_across_series']))
                 metrics[model][i] = metrics_average_dict[operator_config.spec.metric]
         return metrics
 
     def find_best_model(self, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig):
         metrics = self.run_all_models(datasets, operator_config)
-        avg_backtests_metrics = {key : sum(value.values()) / len(value.values()) for key, value in metrics.items()}
+        avg_backtests_metrics = {key: sum(value.values()) / len(value.values()) for key, value in metrics.items()}
         best_model = min(avg_backtests_metrics, key=avg_backtests_metrics.get)
         logger.info(f"Among models {self.models}, {best_model} model shows better performance during backtesting.")
+        backtest_stats = pd.DataFrame(metrics).rename_axis('backtest')
+        backtest_stats.reset_index(inplace=True)
+        output_dir = operator_config.spec.output_directory.url
+        backtest_report_name = "backtest_stats.csv"
+        backtest_stats.to_csv(f"{output_dir}/{backtest_report_name}", index=False)
         return best_model

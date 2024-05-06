@@ -215,7 +215,7 @@ def human_time_friendly(seconds):
 
 
 def find_output_dirname(output_dir: OutputDirectory):
-    if output_dir:
+    if output_dir and output_dir.url:
         return output_dir.url
     output_dir = "results"
 

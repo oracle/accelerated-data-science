@@ -265,6 +265,24 @@ def _select_plot_list(fn, series_ids):
 def _add_unit(num, unit):
     return f"{num} {unit}"
 
+def get_auto_select_plot(backtest_results):
+    fig = go.Figure()
+    columns = backtest_results.columns.tolist()
+    back_test_column = "backtest"
+    columns.remove(back_test_column)
+    for i, column in enumerate(columns):
+        color = 0 #int(i * 255 / len(columns))
+        fig.add_trace(
+            go.Scatter(
+            x=backtest_results[back_test_column],
+            y=backtest_results[column],
+            mode="lines",
+            name=column,
+        ))
+
+    import report_creator as rc
+    return rc.Widget(fig)
+
 
 def get_forecast_plots(
     forecast_output,
