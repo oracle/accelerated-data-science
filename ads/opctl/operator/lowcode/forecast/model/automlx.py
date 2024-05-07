@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*--
 import traceback
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import pandas as pd
@@ -52,7 +52,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         ] = self.spec.preprocessing or model_kwargs_cleaned.get("preprocessing", True)
         return model_kwargs_cleaned, time_budget
 
-
     def preprocess(self, data, series_id=None):  # TODO: re-use self.le for explanations
         _, df_encoded = _label_encode_dataframe(
             data,
@@ -63,8 +62,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     @runtime_dependency(
         module="automlx",
         err_msg=(
-            "Please run `pip3 install oracle-automlx==23.4.1` and "
-            "`pip3 install oracle-automlx[forecasting]==23.4.1` "
+            "Please run `pip3 install oracle-automlx>=23.4.1` and "
+            "`pip3 install oracle-automlx[forecasting]>=23.4.1` "
             "to install the required dependencies for automlx."
         ),
     )
@@ -77,8 +76,13 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     def _build_model(self) -> pd.DataFrame:
         from automlx import init
         import logging
+
         try:
-            init(engine="ray", engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}}, loglevel=logging.CRITICAL)
+            init(
+                engine="ray",
+                engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}},
+                loglevel=logging.CRITICAL,
+            )
         except Exception as e:
             logger.info("Ray already initialized")
 
@@ -109,7 +113,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 data_i = self.drop_horizon(data)
                 X_pred = self.get_horizon(data).drop(target, axis=1)
 
-                logger.debug(f"Time Index Monotonic: {data_i.index.is_monotonic}")
+                logger.debug(
+                    f"Time Index Monotonic: {data_i.index.is_monotonic_increasing}"
+                )
 
                 if self.loaded_models is not None and s_id in self.loaded_models:
                     model = self.loaded_models[s_id]
@@ -167,12 +173,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
         return self.forecast_output.get_forecast_long()
 
-    @runtime_dependency(
-        module="datapane",
-        err_msg=(
-            "Please run `pip3 install datapane` to install the required dependencies for report generation."
-        ),
-    )
     def _generate_report(self):
         """
         Generate the report for the automlx model.
@@ -183,25 +183,20 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
         Returns
         -------
-            - model_description (datapane.Text): A Text component containing the description of the automlx model.
-            - other_sections (List[Union[datapane.Text, datapane.Blocks]]): A list of Text and Blocks components representing various sections of the report.
+            - model_description (report-creator.Text): A Text component containing the description of the automlx model.
+            - other_sections (List[Union[report-creator.Text, report-creator.Block]]): A list of Text and Blocks components representing various sections of the report.
             - forecast_col_name (str): The name of the forecasted column.
             - train_metrics (bool): A boolean value indicating whether to include train metrics in the report.
             - ds_column_series (pd.Series): The pd.Series object representing the datetime column of the dataset.
             - ds_forecast_col (pd.Series): The pd.Series object representing the forecasted column.
             - ci_col_names (List[str]): A list of column names for the confidence interval in the report.
         """
-        import datapane as dp
+        import report_creator as rc
 
         """The method that needs to be implemented on the particular model level."""
-        selected_models_text = dp.Text(
-            f"## Selected Models Overview \n "
-            "The following tables provide information regarding the "
-            "chosen model for each series and the corresponding parameters of the models."
-        )
         selected_models = dict()
         models = self.models
-        all_sections = []
+        other_sections = []
 
         if len(self.models) > 0:
             for i, (s_id, m) in enumerate(models.items()):
@@ -214,39 +209,42 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 selected_models.items(), columns=["series_id", "best_selected_model"]
             )
             selected_df = selected_models_df["best_selected_model"].apply(pd.Series)
-            selected_models_section = dp.Blocks(
-                "### Best Selected Model", dp.DataTable(selected_df)
+            selected_models_section = rc.Block(
+                rc.Heading("Selected Models Overview", level=2),
+                rc.Text(
+                    "The following tables provide information regarding the "
+                    "chosen model for each series and the corresponding parameters of the models."
+                ),
+                rc.DataTable(selected_df, index=True),
             )
 
-            all_sections = [selected_models_text, selected_models_section]
+            other_sections = [selected_models_section]
 
         if self.spec.generate_explanations:
             try:
                 # If the key is present, call the "explain_model" method
                 self.explain_model()
 
-                # Create a markdown text block for the global explanation section
-                global_explanation_text = dp.Text(
-                    f"## Global Explanation of Models \n "
-                    "The following tables provide the feature attribution for the global explainability."
-                )
-
                 # Convert the global explanation data to a DataFrame
                 global_explanation_df = pd.DataFrame(self.global_explanation)
 
                 self.formatted_global_explanation = (
-                        global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
                 )
                 self.formatted_global_explanation = (
                     self.formatted_global_explanation.rename(
-                        {self.spec.datetime_column.name: ForecastOutputColumns.DATE}, axis=1
+                        {self.spec.datetime_column.name: ForecastOutputColumns.DATE},
+                        axis=1,
                     )
                 )
 
                 # Create a markdown section for the global explainability
-                global_explanation_section = dp.Blocks(
-                    "### Global Explainability ",
-                    dp.DataTable(self.formatted_global_explanation),
+                global_explanation_section = rc.Block(
+                    rc.Heading("Global Explanation of Models", level=2),
+                    rc.Text(
+                        "The following tables provide the feature attribution for the global explainability."
+                    ),
+                    rc.DataTable(self.formatted_global_explanation, index=True),
                 )
 
                 aggregate_local_explanations = pd.DataFrame()
@@ -258,34 +256,32 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     )
                 self.formatted_local_explanation = aggregate_local_explanations
 
-                local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
                 blocks = [
-                    dp.DataTable(
+                    rc.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
                         label=s_id,
+                        index=True,
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]
-                local_explanation_section = (
-                    dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+                local_explanation_section = rc.Block(
+                    rc.Heading("Local Explanation of Models", level=2),
+                    rc.Select(blocks=blocks),
                 )
 
-                # Append the global explanation text and section to the "all_sections" list
-                all_sections = all_sections + [
-                    global_explanation_text,
+                # Append the global explanation text and section to the "other_sections" list
+                other_sections = other_sections + [
                     global_explanation_section,
-                    local_explanation_text,
                     local_explanation_section,
                 ]
             except Exception as e:
                 logger.warn(f"Failed to generate Explanations with error: {e}.")
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
 
-        model_description = dp.Text(
+        model_description = rc.Text(
             "The AutoMLx model automatically preprocesses, selects and engineers "
             "high-quality features in your dataset, which are then provided for further processing."
         )
-        other_sections = all_sections
 
         return (
             model_description,

@@ -1,5 +1,8 @@
 -r test-requirements.txt
 -e ".[forecast]"
 -e ".[feature-store-marketplace]"
-darts>=0.28
 plotly
+oracle-automlx[classic]>=24.2.0
+oracle-automlx[forecasting]>=24.2.0
+pandas>=2.0.0
+protobuf==3.20.3

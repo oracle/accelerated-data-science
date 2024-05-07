@@ -5,8 +5,6 @@ dependencies:
   - python=3.8
   - pip
   - pip:
-      - datapane
+      - report-creator
       - cerberus
-      - oracle-automlx==23.4.1
-      - oracle-automlx[classic]==23.4.1
       - "oracle-ads[anomaly]"

@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
 import unittest
 from unittest.mock import patch, Mock
 import pandas as pd
-import datapane as dp
 import autots
 from ads.opctl.operator.common.utils import _build_image, _parse_input_args
 from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import ForecastDatasets

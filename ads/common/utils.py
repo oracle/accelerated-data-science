@@ -102,6 +102,8 @@ DIMENSION = 2
 # The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
 DEFAULT_PARALLEL_PROCESS_COUNT = 9
 
+LOG_LEVELS = ["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+
 
 class FileOverwriteError(Exception):  # pragma: no cover
     pass
@@ -1751,7 +1753,7 @@ def get_log_links(
 ) -> str:
     """
     This method returns the web console link for the given log ids.
-    
+
     Parameters
     ----------
     log_group_id: str, required
@@ -1776,7 +1778,9 @@ def get_log_links(
         query_range = f'''search "{compartment_id}/{log_group_id}/{log_id}"'''
         query_source = f"source='{source_id}'"
         sort_condition = f"sort by datetime desc&regions={region}"
-        search_query = f"search?searchQuery={query_range} | {query_source} | {sort_condition}"
+        search_query = (
+            f"search?searchQuery={query_range} | {query_source} | {sort_condition}"
+        )
         console_link_url = f"https://cloud.oracle.com/logging/{search_query}"
     elif log_group_id:
         console_link_url = f"https://cloud.oracle.com/logging/log-groups/{log_group_id}?region={region}"
