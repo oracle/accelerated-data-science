@@ -22,7 +22,10 @@ import fsspec
 import oci
 from oci.data_science.models import JobRun, Model
 
-from ads.aqua.constants import RqsAdditionalDetails
+from ads.aqua.constants import (
+    SERVICE_MANAGED_CONTAINER_URI_SCHEME,
+    RqsAdditionalDetails,
+)
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
 from ads.common.auth import default_signer, AuthState
@@ -786,3 +789,7 @@ def upload_folder(os_path: str, local_dir: str, model_name: str) -> str:
         )
 
     return f"oci://{os_details.bucket}@{os_details.namespace}" + "/" + object_path
+
+
+def is_service_managed_container(container):
+    return container and container.startswith(SERVICE_MANAGED_CONTAINER_URI_SCHEME)
