@@ -371,6 +371,17 @@ class ModelDeployment(Builder):
         return self.get_spec(self.CONST_ID, None)
 
     @property
+    def id(self) -> str:
+        """The model deployment ocid.
+
+        Returns
+        -------
+        str
+            The model deployment ocid.
+        """
+        return self.get_spec(self.CONST_ID, None)
+
+    @property
     def created_by(self) -> str:
         """The user that creates the model deployment.
 
