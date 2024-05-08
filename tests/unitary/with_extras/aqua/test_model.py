@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 import ads.aqua.model
 import ads.config
-from ads.aqua.model import AquaModelApp, AquaModelSummary
+from ads.aqua.model import AquaModelApp, AquaModelSummary, ImportModelDetails
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import (
     ModelCustomMetadata,
@@ -713,6 +713,29 @@ class TestAquaModel:
             for item in expected_metadata:
                 assert model.custom_metadata_list[item["key"]].to_dict() == item
             assert model.version_id is None
+
+    @parameterized.expand(
+        [
+            (
+                {
+                    "os_path": "oci://aqua-bkt@aqua-ns/path",
+                    "model": "oracle/oracle-1it",
+                    "inference_container": "odsc-vllm-serving",
+                },
+                f"ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --inference_container odsc-vllm-serving",
+            ),
+            (
+                {
+                    "os_path": "oci://aqua-bkt@aqua-ns/path",
+                    "model": "ocid1.datasciencemodel.oc1.iad.<OCID>",
+                },
+                f"ads aqua model register --model ocid1.datasciencemodel.oc1.iad.<OCID> --os_path oci://aqua-bkt@aqua-ns/path",
+            ),
+        ]
+    )
+    def test_import_cli(self, data, expected_output):
+        import_details = ImportModelDetails(**data)
+        assert import_details.build_cli() == expected_output
 
     @patch("ads.aqua.model.read_file")
     @patch("ads.aqua.model.get_artifact_path")
