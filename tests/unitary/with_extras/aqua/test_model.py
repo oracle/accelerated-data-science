@@ -209,9 +209,18 @@ class TestAquaModel:
         )
         assert model.provenance_metadata.training_id == "test_training_id"
 
+    @pytest.mark.parametrize(
+        "foundation_model_type",
+        [
+            "service",
+            "shadow",
+        ],
+    )
     @patch("ads.aqua.model.read_file")
     @patch.object(DataScienceModel, "from_id")
-    def test_get_model_not_fine_tuned(self, mock_from_id, mock_read_file):
+    def test_get_foundation_models(
+        self, mock_from_id, mock_read_file, foundation_model_type
+    ):
         ds_model = MagicMock()
         ds_model.id = "test_id"
         ds_model.compartment_id = "test_compartment_id"
@@ -219,11 +228,13 @@ class TestAquaModel:
         ds_model.display_name = "test_display_name"
         ds_model.description = "test_description"
         ds_model.freeform_tags = {
-            "OCI_AQUA": "ACTIVE",
+            "OCI_AQUA": "" if foundation_model_type == "shadow" else "ACTIVE",
             "license": "test_license",
             "organization": "test_organization",
             "task": "test_task",
         }
+        if foundation_model_type == "shadow":
+            ds_model.freeform_tags["ready_to_import"] = "true"
         ds_model.time_created = "2024-01-19T17:57:39.158000+00:00"
         custom_metadata_list = ModelCustomMetadata()
         custom_metadata_list.add(
@@ -234,9 +245,14 @@ class TestAquaModel:
         mock_from_id.return_value = ds_model
         mock_read_file.return_value = "test_model_card"
 
-        aqua_model = self.app.get(model_id="test_model_id")
+        model_id = (
+            "shadow_model_id"
+            if foundation_model_type == "shadow"
+            else "service_model_id"
+        )
+        aqua_model = self.app.get(model_id=model_id)
 
-        mock_from_id.assert_called_with("test_model_id")
+        mock_from_id.assert_called_with(model_id)
         mock_read_file.assert_called_with(
             file_path="oci://bucket@namespace/prefix/README.md",
             auth=self.app._auth,
@@ -255,10 +271,12 @@ class TestAquaModel:
             "name": f"{ds_model.display_name}",
             "organization": f'{ds_model.freeform_tags["organization"]}',
             "project_id": f"{ds_model.project_id}",
-            "ready_to_deploy": True,
+            "ready_to_deploy": False if foundation_model_type == "shadow" else True,
             "ready_to_finetune": False,
-            "ready_to_import": False,
-            "search_text": "ACTIVE,test_license,test_organization,test_task",
+            "ready_to_import": True if foundation_model_type == "shadow" else False,
+            "search_text": ",test_license,test_organization,test_task,true"
+            if foundation_model_type == "shadow"
+            else "ACTIVE,test_license,test_organization,test_task",
             "tags": ds_model.freeform_tags,
             "task": f'{ds_model.freeform_tags["task"]}',
             "time_created": f"{ds_model.time_created}",
