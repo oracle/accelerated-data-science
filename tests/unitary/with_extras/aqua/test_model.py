@@ -56,11 +56,28 @@ class TestDataset:
             "defined_tags": {},
             "display_name": "Model1",
             "freeform_tags": {
-                "OCI_AQUA": "",
+                "OCI_AQUA": "active",
                 "aqua_service_model": "ocid1.datasciencemodel.oc1.iad.<OCID>#Model1",
                 "license": "UPL",
                 "organization": "Oracle AI",
                 "task": "text_generation",
+            },
+            "id": "ocid1.datasciencemodel.oc1.iad.<OCID>",
+            "lifecycle_state": "ACTIVE",
+            "project_id": "ocid1.datascienceproject.oc1.iad.<OCID>",
+            "time_created": "2024-01-19T17:57:39.158000+00:00",
+        },
+        {
+            "compartment_id": "ocid1.compartment.oc1..<OCID>",
+            "created_by": "ocid1.datasciencenotebooksession.oc1.iad.<OCID>",
+            "defined_tags": {},
+            "display_name": "ShadowModel",
+            "freeform_tags": {
+                "OCI_AQUA": "",
+                "license": "UPL",
+                "organization": "Oracle AI",
+                "task": "text_generation",
+                "ready_to_import": "true",
             },
             "id": "ocid1.datasciencemodel.oc1.iad.<OCID>",
             "lifecycle_state": "ACTIVE",
@@ -240,6 +257,7 @@ class TestAquaModel:
             "project_id": f"{ds_model.project_id}",
             "ready_to_deploy": True,
             "ready_to_finetune": False,
+            "ready_to_import": False,
             "search_text": "ACTIVE,test_license,test_organization,test_task",
             "tags": ds_model.freeform_tags,
             "task": f'{ds_model.freeform_tags["task"]}',
@@ -377,6 +395,7 @@ class TestAquaModel:
             "project_id": f"{ds_model.project_id}",
             "ready_to_deploy": True,
             "ready_to_finetune": False,
+            "ready_to_import": False,
             "search_text": "ACTIVE,test_license,test_organization,test_task,test_finetuned_model",
             "shape_info": {
                 "instance_shape": f"{job_infrastructure_configuration_details.shape_name}",
@@ -745,7 +764,7 @@ class TestAquaModel:
         received_args = self.app.list_resource.call_args.kwargs
         assert received_args.get("compartment_id") == TestDataset.SERVICE_COMPARTMENT_ID
 
-        assert len(results) == 1
+        assert len(results) == 2
 
         attributes = AquaModelSummary.__annotations__.keys()
         for r in results:
