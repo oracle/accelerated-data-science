@@ -252,10 +252,16 @@ class ForecastOperatorBaseModel(ABC):
                     output_dir = self.spec.output_directory.url
                     backtest_report_name = "backtest_stats.csv"
                     backtest_stats = pd.read_csv(f"{output_dir}/{backtest_report_name}")
+                    average_dict = backtest_stats.mean().to_dict()
+                    del average_dict['backtest']
+                    best_model = min(average_dict, key=average_dict.get)
                     backtest_text = rc.Heading("Back Testing Metrics", level=2)
+                    summary_text = rc.Text(
+                        f"Overall, the average scores for the models are {average_dict}, with {best_model}"
+                        f" being identified as the top-performing model during backtesting.")
                     backtest_table = rc.DataTable(backtest_stats, index=True)
                     liner_plot = get_auto_select_plot(backtest_stats)
-                    backtest_sections = [backtest_text, backtest_table, liner_plot]
+                    backtest_sections = [backtest_text, backtest_table, summary_text, liner_plot]
 
 
                 forecast_plots = []
