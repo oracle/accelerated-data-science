@@ -12,6 +12,7 @@ from .autots import AutoTSOperatorModel
 from .base_model import ForecastOperatorBaseModel
 from .neuralprophet import NeuralProphetOperatorModel
 from .prophet import ProphetOperatorModel
+from .ml_forecast import MLForecastOperatorModel
 from ..utils import select_auto_model
 from .forecast_datasets import ForecastDatasets
 
@@ -32,6 +33,7 @@ class ForecastOperatorModelFactory:
         SupportedModels.Prophet: ProphetOperatorModel,
         SupportedModels.Arima: ArimaOperatorModel,
         SupportedModels.NeuralProphet: NeuralProphetOperatorModel,
+        SupportedModels.MLForecast: MLForecastOperatorModel,
         SupportedModels.AutoMLX: AutoMLXOperatorModel,
         SupportedModels.AutoTS: AutoTSOperatorModel
     }

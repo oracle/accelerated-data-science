@@ -7,12 +7,12 @@ import re
 from dataclasses import InitVar, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from huggingface_hub import HfApi, snapshot_download
 from threading import Lock
-from typing import List, Union, Optional
+from typing import List, Optional, Union
 
 import oci
 from cachetools import TTLCache
+from huggingface_hub import HfApi, snapshot_download, hf_api
 from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger, utils
@@ -24,6 +24,7 @@ from ads.aqua.constants import (
     VALIDATION_METRICS,
     VALIDATION_METRICS_FINAL,
     FineTuningDefinedMetadata,
+    READY_TO_IMPORT_STATUS,
 )
 from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaRuntimeError
@@ -39,6 +40,7 @@ from ads.aqua.utils import (
     get_artifact_path,
     read_file,
     upload_folder,
+    is_service_managed_container,
 )
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -60,6 +62,12 @@ from ads.config import (
 from ads.model import DataScienceModel
 from ads.model.model_metadata import MetadataTaxonomyKeys, ModelCustomMetadata
 from ads.telemetry import telemetry
+
+from ads.common.extended_enum import ExtendedEnum
+
+
+class ModelTask(ExtendedEnum):
+    TEXT_GENERATION = "text-generation"
 
 
 class FineTuningMetricCategories(Enum):
@@ -119,6 +127,7 @@ class AquaModelSummary(DataClassSerializable):
     search_text: str = None
     ready_to_deploy: bool = True
     ready_to_finetune: bool = False
+    ready_to_import: bool = False
 
 
 @dataclass(repr=False)
@@ -134,6 +143,14 @@ class HFModelContainerInfo:
 
     inference_container: str = None
     finetuning_container: str = None
+
+
+@dataclass(repr=False)
+class HFModelSummary:
+    """Represents a summary of Hugging Face model."""
+
+    model_info: hf_api.ModelInfo = field(default_factory=hf_api.ModelInfo)
+    aqua_model_info: Optional[AquaModel] = field(default_factory=AquaModel)
 
 
 @dataclass(repr=False)
@@ -653,6 +670,10 @@ class AquaModelApp(AquaApp):
             freeform_tags.get(Tags.READY_TO_FINE_TUNE.value, "").upper()
             == READY_TO_FINE_TUNE_STATUS
         )
+        ready_to_import = (
+            freeform_tags.get(Tags.READY_TO_IMPORT.value, "").upper()
+            == READY_TO_IMPORT_STATUS
+        )
 
         return dict(
             compartment_id=model.compartment_id,
@@ -669,6 +690,7 @@ class AquaModelApp(AquaApp):
             search_text=search_text,
             ready_to_deploy=ready_to_deploy,
             ready_to_finetune=ready_to_finetune,
+            ready_to_import=ready_to_import,
         )
 
     @telemetry(entry_point="plugin=model&action=list", name="aqua")
@@ -802,7 +824,7 @@ class AquaModelApp(AquaApp):
         inference_container_type_smc: bool,
         finetuning_container_type_smc: bool,
         shadow_model: DataScienceModel,
-    ) -> str:
+    ) -> DataScienceModel:
         """Create model by reference from the object storage path
 
         Args:
@@ -815,7 +837,7 @@ class AquaModelApp(AquaApp):
             shadow_model (DataScienceModel): If set, then copies all the tags and custom metadata information from the service shadow model
 
         Returns:
-            str: Display name of th model (This should be model ocid)
+            DataScienceModel: Returns Datascience model
         """
         model_info = None
         model = DataScienceModel()
@@ -843,11 +865,15 @@ class AquaModelApp(AquaApp):
             metadata = ModelCustomMetadata()
             if not inference_container or not finetuning_container:
                 containers = self._fetch_defaults_for_hf_model(model_name=model_name)
-            if not inference_container and not containers.inference_container:
+            if not inference_container and (
+                not containers or not containers.inference_container
+            ):
                 raise ValueError(
                     f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container"
                 )
-            if not finetuning_container and not containers.finetuning_container:
+            if not finetuning_container and (
+                not containers or not containers.finetuning_container
+            ):
                 logger.warn(
                     f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container. Proceeding with model registration without the fine-tuning container information. This model will not be available for fine tuning."
                 )
@@ -856,7 +882,7 @@ class AquaModelApp(AquaApp):
             metadata.add(
                 key=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
                 value=inference_container or containers.inference_container,
-                description="Inference container mapping for SMC",
+                description=f"Inference container mapping for {model_name}",
                 category="Other",
             )
             # If SMC, the container information has to be looked up from container_index.json for the latest version
@@ -877,7 +903,7 @@ class AquaModelApp(AquaApp):
                 metadata.add(
                     key=AQUA_FINETUNING_CONTAINER_METADATA_NAME,
                     value=finetuning_container or containers.finetuning_container,
-                    description="Fine-tuning container mapping for SMC",
+                    description=f"Fine-tuning container mapping for {model_name}",
                     category="Other",
                 )
             # If SMC, the container information has to be looked up from container_index.json for the latest version
@@ -900,7 +926,8 @@ class AquaModelApp(AquaApp):
             # If shadow model already has a artifact json, use that.
             metadata.get(MODEL_BY_REFERENCE_OSS_PATH_KEY)
             logger.info(
-                f"Found model articat in the service bucket. Using artifact from service bucket instead of {os_path}"
+                f"Found model artifact in the service bucket. "
+                f"Using artifact from service bucket instead of {os_path}"
             )
         except:
             # Add artifact from user bucket
@@ -913,12 +940,14 @@ class AquaModelApp(AquaApp):
 
         model = (
             model.with_custom_metadata_list(metadata)
+            .with_compartment_id(COMPARTMENT_OCID)
+            .with_project_id(PROJECT_OCID)
             .with_artifact(os_path)
             .with_display_name(os.path.basename(model_name))
             .with_freeform_tags(**tags)
         ).create(model_by_reference=True)
         logger.debug(model)
-        return model.display_name
+        return model
 
     def register(
         self,
@@ -1001,8 +1030,12 @@ class AquaModelApp(AquaApp):
             model_name=model_name,
             inference_container=inference_container,
             finetuning_container=finetuning_container,
-            inference_container_type_smc=inference_container_type_smc,
-            finetuning_container_type_smc=finetuning_container_type_smc,
+            inference_container_type_smc=True
+            if is_service_managed_container(inference_container)
+            else inference_container_type_smc,
+            finetuning_container_type_smc=True
+            if is_service_managed_container(inference_container)
+            else finetuning_container_type_smc,
             shadow_model=shadow_model_details,
         )
 

@@ -238,7 +238,7 @@ class DataScienceModel(Builder):
         CONST_MODEL_VERSION_ID: "version_id",
         CONST_TIME_CREATED: "time_created",
         CONST_LIFECYCLE_STATE: "lifecycle_state",
-        CONST_MODEL_FILE_DESCRIPTION: "model_file_description",
+        CONST_MODEL_FILE_DESCRIPTION: "model_description",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:

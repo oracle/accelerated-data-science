@@ -6,11 +6,13 @@
 
 from importlib import metadata
 
+import requests
+
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.decorator import handle_exceptions
 from ads.aqua.exception import AquaResourceAccessError
 from ads.aqua.extension.base_handler import AquaAPIhandler
-from ads.aqua.utils import known_realm, fetch_service_compartment
+from ads.aqua.utils import fetch_service_compartment, known_realm
 
 
 class ADSVersionHandler(AquaAPIhandler):
@@ -33,9 +35,11 @@ class CompatibilityCheckHandler(AquaAPIhandler):
 
         Returns
         -------
-            status dict:
-                ok or compatible
-        Raises:
+        status dict:
+            ok or compatible
+
+        Raises
+        ------
             AquaResourceAccessError: raised when aqua is not accessible in the given session/region.
 
         """
@@ -49,7 +53,17 @@ class CompatibilityCheckHandler(AquaAPIhandler):
             )
 
 
+class NetworkStatusHandler(AquaAPIhandler):
+    """Handler to check internet connection."""
+
+    @handle_exceptions
+    def get(self):
+        requests.get("https://huggingface.com", timeout=0.5)
+        return self.finish("success")
+
+
 __handlers__ = [
     ("ads_version", ADSVersionHandler),
     ("hello", CompatibilityCheckHandler),
+    ("network_status", NetworkStatusHandler),
 ]
