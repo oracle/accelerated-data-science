@@ -6,6 +6,7 @@
 from enum import Enum
 
 UNKNOWN_VALUE = ""
+READY_TO_IMPORT_STATUS = "TRUE"
 
 
 class RqsAdditionalDetails:

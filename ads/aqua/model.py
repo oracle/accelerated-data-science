@@ -24,6 +24,7 @@ from ads.aqua.constants import (
     VALIDATION_METRICS,
     VALIDATION_METRICS_FINAL,
     FineTuningDefinedMetadata,
+    READY_TO_IMPORT_STATUS,
 )
 from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaRuntimeError
@@ -120,6 +121,7 @@ class AquaModelSummary(DataClassSerializable):
     search_text: str = None
     ready_to_deploy: bool = True
     ready_to_finetune: bool = False
+    ready_to_import: bool = False
 
 
 @dataclass(repr=False)
@@ -654,6 +656,10 @@ class AquaModelApp(AquaApp):
             freeform_tags.get(Tags.READY_TO_FINE_TUNE.value, "").upper()
             == READY_TO_FINE_TUNE_STATUS
         )
+        ready_to_import = (
+            freeform_tags.get(Tags.READY_TO_IMPORT.value, "").upper()
+            == READY_TO_IMPORT_STATUS
+        )
 
         return dict(
             compartment_id=model.compartment_id,
@@ -670,6 +676,7 @@ class AquaModelApp(AquaApp):
             search_text=search_text,
             ready_to_deploy=ready_to_deploy,
             ready_to_finetune=ready_to_finetune,
+            ready_to_import=ready_to_import,
         )
 
     @telemetry(entry_point="plugin=model&action=list", name="aqua")
@@ -918,6 +925,8 @@ class AquaModelApp(AquaApp):
 
         model = (
             model.with_custom_metadata_list(metadata)
+            .with_compartment_id(COMPARTMENT_OCID)
+            .with_project_id(PROJECT_OCID)
             .with_artifact(os_path)
             .with_display_name(os.path.basename(model_name))
             .with_freeform_tags(**tags)
