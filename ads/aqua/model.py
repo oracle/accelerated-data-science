@@ -7,12 +7,12 @@ import re
 from dataclasses import InitVar, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from huggingface_hub import HfApi, snapshot_download
 from threading import Lock
-from typing import List, Union, Optional
+from typing import List, Optional, Union
 
 import oci
 from cachetools import TTLCache
+from huggingface_hub import HfApi, snapshot_download, hf_api
 from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger, utils
@@ -62,6 +62,12 @@ from ads.config import (
 from ads.model import DataScienceModel
 from ads.model.model_metadata import MetadataTaxonomyKeys, ModelCustomMetadata
 from ads.telemetry import telemetry
+
+from ads.common.extended_enum import ExtendedEnum
+
+
+class ModelTask(ExtendedEnum):
+    TEXT_GENERATION = "text-generation"
 
 
 class FineTuningMetricCategories(Enum):
@@ -137,6 +143,14 @@ class HFModelContainerInfo:
 
     inference_container: str = None
     finetuning_container: str = None
+
+
+@dataclass(repr=False)
+class HFModelSummary:
+    """Represents a summary of Hugging Face model."""
+
+    model_info: hf_api.ModelInfo = field(default_factory=hf_api.ModelInfo)
+    aqua_model_info: Optional[AquaModel] = field(default_factory=AquaModel)
 
 
 @dataclass(repr=False)
@@ -912,7 +926,8 @@ class AquaModelApp(AquaApp):
             # If shadow model already has a artifact json, use that.
             metadata.get(MODEL_BY_REFERENCE_OSS_PATH_KEY)
             logger.info(
-                f"Found model articat in the service bucket. Using artifact from service bucket instead of {os_path}"
+                f"Found model artifact in the service bucket. "
+                f"Using artifact from service bucket instead of {os_path}"
             )
         except:
             # Add artifact from user bucket
