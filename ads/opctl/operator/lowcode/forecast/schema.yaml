@@ -370,6 +370,7 @@ spec:
         - prophet
         - arima
         - neuralprophet
+        - mlforecast
         - automlx
         - autots
         - auto-select

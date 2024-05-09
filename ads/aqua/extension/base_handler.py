@@ -8,14 +8,16 @@ import json
 import traceback
 import uuid
 from dataclasses import asdict, is_dataclass
+from http.client import responses
 from typing import Any
 
 from notebook.base.handlers import APIHandler
-from tornado.web import HTTPError, Application
 from tornado import httputil
-from ads.telemetry.client import TelemetryClient
-from ads.config import AQUA_TELEMETRY_BUCKET, AQUA_TELEMETRY_BUCKET_NS
+from tornado.web import Application, HTTPError
+
 from ads.aqua import logger
+from ads.config import AQUA_TELEMETRY_BUCKET, AQUA_TELEMETRY_BUCKET_NS
+from ads.telemetry.client import TelemetryClient
 
 
 class AquaAPIhandler(APIHandler):
@@ -66,12 +68,15 @@ class AquaAPIhandler(APIHandler):
 
     def write_error(self, status_code, **kwargs):
         """AquaAPIhandler errors are JSON, not human pages."""
-
         self.set_header("Content-Type", "application/json")
         reason = kwargs.get("reason")
         self.set_status(status_code, reason=reason)
         service_payload = kwargs.get("service_payload", {})
-        message = self.get_default_error_messages(service_payload, str(status_code))
+        default_msg = responses.get(status_code, "Unknown HTTP Error")
+        message = self.get_default_error_messages(
+            service_payload, str(status_code), kwargs.get("message", default_msg)
+        )
+
         reply = {
             "status": status_code,
             "message": message,
@@ -84,7 +89,7 @@ class AquaAPIhandler(APIHandler):
             e = exc_info[1]
             if isinstance(e, HTTPError):
                 reply["message"] = e.log_message or message
-                reply["reason"] = e.reason
+                reply["reason"] = e.reason if e.reason else reply["reason"]
                 reply["request_id"] = str(uuid.uuid4())
             else:
                 reply["request_id"] = str(uuid.uuid4())
@@ -102,7 +107,11 @@ class AquaAPIhandler(APIHandler):
         self.finish(json.dumps(reply))
 
     @staticmethod
-    def get_default_error_messages(service_payload: dict, status_code: str):
+    def get_default_error_messages(
+        service_payload: dict,
+        status_code: str,
+        default_msg: str = "Unknown HTTP Error.",
+    ):
         """Method that maps the error messages based on the operation performed or the status codes encountered."""
 
         messages = {
@@ -110,7 +119,6 @@ class AquaAPIhandler(APIHandler):
             "403": "We're having trouble processing your request with the information provided.",
             "404": "Authorization Failed: The resource you're looking for isn't accessible.",
             "408": "Server is taking too long to response, please try again.",
-            "500": "An error occurred while creating the resource.",
             "create": "Authorization Failed: Could not create resource.",
             "get": "Authorization Failed: The resource you're looking for isn't accessible.",
         }
@@ -119,7 +127,7 @@ class AquaAPIhandler(APIHandler):
             operation_name = service_payload["operation_name"]
             if operation_name:
                 if operation_name.startswith("create"):
-                    return messages["create"]
+                    return messages["create"] + f" Operation Name: {operation_name}."
                 elif operation_name.startswith("list") or operation_name.startswith(
                     "get"
                 ):
@@ -128,7 +136,7 @@ class AquaAPIhandler(APIHandler):
         if status_code in messages:
             return messages[status_code]
         else:
-            return "Unknown HTTP Error."
+            return default_msg
 
 
 # todo: remove after error handler is implemented

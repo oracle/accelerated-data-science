@@ -1,4 +1,4 @@
-name: "Operators Tests"
+name: "Forecast Operator Tests"
 
 on:
   workflow_dispatch:
@@ -31,6 +31,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
 
       - uses: actions/setup-python@v5
         with:
@@ -44,7 +48,7 @@ jobs:
       - uses: ./.github/workflows/set-dummy-conf
         name: "Test config setup"
 
-      - name: "Run Operators Tests"
+      - name: "Run Forecast Tests"
         timeout-minutes: 180
         shell: bash
         run: |
@@ -52,4 +56,4 @@ jobs:
           $CONDA/bin/conda init
           source /home/runner/.bashrc
           pip install -r test-requirements-operators.txt
-          python -m pytest -v -p no:warnings --durations=5 tests/operators --ignore=tests/operators/forecast
+          python -m pytest -v -p no:warnings --durations=5 tests/operators/forecast

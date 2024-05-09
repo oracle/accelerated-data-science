@@ -10,7 +10,6 @@ import subprocess
 import pandas as pd
 import numpy as np
 import pytest
-from darts import datasets as d_datasets
 from time import sleep, time
 from copy import deepcopy
 from pathlib import Path
@@ -138,10 +137,11 @@ TEST_DATA = pd.concat(
 
 MODELS = [
     "arima",
-    # "automlx",
+    "automlx",
     "prophet",
     "neuralprophet",
     "autots",
+    "mlforecast",
     # "auto",
 ]
 
@@ -687,7 +687,7 @@ def test_arima_automlx_errors(operator_setup, model):
                 in error_content["13"]["error"]
             ), "Error message mismatch"
 
-    if model != "autots":
+    if model not in ["autots", "automlx", "mlforecast"]:
         global_fn = f"{tmpdirname}/results/global_explanation.csv"
         assert os.path.exists(
             global_fn

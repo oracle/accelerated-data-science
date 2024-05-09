@@ -68,9 +68,6 @@ class TestEvaluationHandler(unittest.TestCase):
             (dict(return_value=None), 400, Errors.NO_INPUT_DATA),
         ]
     )
-    @unittest.skip(
-        "Need a fix in `handle_exceptions` decorator before enabling this test."
-    )
     def test_post_fail(
         self, mock_get_json_body_response, expected_status_code, expected_error_msg
     ):
@@ -87,6 +84,7 @@ class TestEvaluationHandler(unittest.TestCase):
             self.test_instance.write_error.call_args[1].get("status_code")
             == expected_status_code
         ), "Raised wrong status code."
+
         assert expected_error_msg in self.test_instance.write_error.call_args[1].get(
             "reason"
         ), "Error message is incorrect."
