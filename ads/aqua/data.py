@@ -40,4 +40,5 @@ class Tags(Enum):
     AQUA_EVALUATION = "aqua_evaluation"
     AQUA_FINE_TUNING = "aqua_finetuning"
     READY_TO_FINE_TUNE = "ready_to_fine_tune"
+    READY_TO_IMPORT = "ready_to_import"
     BASE_MODEL_CUSTOM = "aqua_custom_base_model"

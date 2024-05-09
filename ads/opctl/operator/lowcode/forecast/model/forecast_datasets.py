@@ -86,7 +86,10 @@ class AdditionalData(AbstractData):
             pd.date_range(
                 start=historical_data.get_max_time(),
                 periods=spec.horizon + 1,
-                freq=historical_data.freq,
+                freq=historical_data.freq
+                or pd.infer_freq(
+                    historical_data.data.reset_index()[spec.datetime_column.name][-5:]
+                ),
             ),
             name=spec.datetime_column.name,
         )
@@ -135,6 +138,7 @@ class ForecastDatasets:
 
         self._horizon = config.spec.horizon
         self._datetime_column_name = config.spec.datetime_column.name
+        self._target_col = config.spec.target_column
         self._load_data(config.spec)
 
     def _load_data(self, spec):
@@ -157,6 +161,16 @@ class ForecastDatasets:
             how=how,
             on=[self._datetime_column_name, ForecastOutputColumns.SERIES],
         ).reset_index()
+
+    def get_all_data_long_forecast_horizon(self):
+        """Returns all data in long format for the forecast horizon."""
+        test_data = pd.merge(
+            self.historical_data.data,
+            self.additional_data.data,
+            how="outer",
+            on=[self._datetime_column_name, ForecastOutputColumns.SERIES],
+        ).reset_index()
+        return test_data[test_data[self._target_col].isnull()].reset_index(drop=True)
 
     def get_data_multi_indexed(self):
         return pd.concat(
