@@ -226,7 +226,7 @@ def populate_yaml(
 
 def run_operator(
     tmpdirname=None,
-    model="auto",
+    model="auto-select",
     historical_data_path=None,
     additional_data_path=None,
     test_data_path=None,

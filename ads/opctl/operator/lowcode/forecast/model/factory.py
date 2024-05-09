@@ -13,6 +13,7 @@ from .base_model import ForecastOperatorBaseModel
 from .neuralprophet import NeuralProphetOperatorModel
 from .prophet import ProphetOperatorModel
 from .forecast_datasets import ForecastDatasets
+from .ml_forecast import MLForecastOperatorModel
 
 class UnSupportedModelError(Exception):
     def __init__(self, model_type: str):
