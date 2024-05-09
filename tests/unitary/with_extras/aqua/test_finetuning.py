@@ -15,7 +15,11 @@ import ads.config
 import ads.aqua
 import ads.aqua.finetune
 from ads.aqua.base import AquaApp
-from ads.aqua.finetune import AquaFineTuningApp, FineTuneCustomMetadata
+from ads.aqua.finetune import (
+    AquaFineTuningApp,
+    AquaFineTuningParams,
+    FineTuneCustomMetadata
+)
 from ads.aqua.model import AquaFineTuneModel
 from ads.jobs.ads_job import Job
 from ads.model.datascience_model import DataScienceModel
@@ -145,7 +149,8 @@ class FineTuningTestCase(TestCase):
             "parameters": {
                 "epochs": 1,
                 "learning_rate": 0.02,
-                "sample_packing": "True",
+                "sample_packing": "auto",
+                "batch_size": 1,
             },
             "source": {
                 "id": f"{ft_source.id}",
@@ -193,3 +198,26 @@ class FineTuningTestCase(TestCase):
             message,
             "Job run could not be started due to service issues. Please try again later.",
         )
+
+    def test_build_oci_launch_cmd(self):
+        dataset_path="oci://ds_bucket@namespace/prefix/dataset.jsonl"
+        report_path="oci://report_bucket@namespace/prefix/"
+        val_set_size=0.1
+        parameters=AquaFineTuningParams(
+            batch_size=1,
+            epochs=1,
+            sample_packing="True",
+            learning_rate=0.01,
+            sequence_len=2,
+            lora_target_modules=["q_proj","k_proj"]
+        )
+        finetuning_params="--trust_remote_code True"
+        oci_launch_cmd = self.app._build_oci_launch_cmd(
+            dataset_path=dataset_path,
+            report_path=report_path,
+            val_set_size=val_set_size,
+            parameters=parameters,
+            finetuning_params=finetuning_params
+        )
+
+        assert oci_launch_cmd == f"--training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --sample_packing {parameters.sample_packing} --micro_batch_size {parameters.batch_size} --sequence_len {parameters.sequence_len} --lora_target_modules q_proj,k_proj {finetuning_params}"
