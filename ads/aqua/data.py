@@ -52,3 +52,8 @@ class InferenceContainerType(ExtendedEnum):
 class InferenceContainerTypeKey(ExtendedEnum):
     AQUA_VLLM_CONTAINER_KEY = "odsc-vllm-serving"
     AQUA_TGI_CONTAINER_KEY = "odsc-tgi-serving"
+
+
+class InferenceContainerParamType(ExtendedEnum):
+    PARAM_TYPE_VLLM = "VLLM_PARAMS"
+    PARAM_TYPE_TGI = "TGI_PARAMS"

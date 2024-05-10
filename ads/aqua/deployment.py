@@ -28,7 +28,11 @@ from ads.aqua.utils import (
     AQUA_MODEL_TYPE_SERVICE,
     AQUA_MODEL_TYPE_CUSTOM,
 )
-from ads.aqua.data import InferenceContainerType, InferenceContainerTypeKey
+from ads.aqua.data import (
+    InferenceContainerType,
+    InferenceContainerTypeKey,
+    InferenceContainerParamType,
+)
 from ads.aqua.finetune import FineTuneCustomMetadata
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.utils import get_console_link, get_log_links
@@ -656,12 +660,16 @@ class AquaDeploymentApp(AquaApp):
                         InferenceContainerType.CONTAINER_TYPE_VLLM.value
                         in container_type_key
                     ):
-                        params = config_parameters.get("VLLM_PARAMS", UNKNOWN)
+                        params = config_parameters.get(
+                            InferenceContainerParamType.PARAM_TYPE_VLLM.value, UNKNOWN
+                        )
                     elif (
                         InferenceContainerType.CONTAINER_TYPE_TGI.value
                         in container_type_key
                     ):
-                        params = config_parameters.get("TGI_PARAMS", UNKNOWN)
+                        params = config_parameters.get(
+                            InferenceContainerParamType.PARAM_TYPE_TGI.value, UNKNOWN
+                        )
                     else:
                         params = UNKNOWN
                         logger.debug(
