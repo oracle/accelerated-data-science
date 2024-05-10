@@ -3,6 +3,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from dataclasses import fields
 import os
 from typing import Dict, Union
 
@@ -319,3 +320,19 @@ class AquaApp:
                 bucket=AQUA_TELEMETRY_BUCKET, namespace=AQUA_TELEMETRY_BUCKET_NS
             )
         return self._telemetry
+
+
+class CLIBuilderMixin:
+    """
+    CLI builder from API interface. To be used with the DataClass only.
+    """
+
+    def build_cli(self) -> str:
+        """
+        Method to turn the dataclass attributes to CLI
+        """
+        cmd = f"ads aqua {self._command}"
+        for field in fields(self.__class__):
+            if getattr(self, field.name):
+                cmd = f"{cmd} --{field.name} {getattr(self,field.name)}"
+        return cmd

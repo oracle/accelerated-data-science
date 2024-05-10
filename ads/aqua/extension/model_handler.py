@@ -10,7 +10,7 @@ from tornado.web import HTTPError
 from ads.aqua.decorator import handle_exceptions
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.aqua.extension.utils import validate_function_parameters
-from ads.aqua.model import AquaModelApp, ImportModelDetails
+from ads.aqua.model import AquaModelApp
 
 
 class AquaModelHandler(AquaAPIhandler):
@@ -42,7 +42,10 @@ class AquaModelHandler(AquaAPIhandler):
         compartment_id = self.get_argument("compartment_id", default=None)
         # project_id is no needed.
         project_id = self.get_argument("project_id", default=None)
-        return self.finish(AquaModelApp().list(compartment_id, project_id))
+        model_type = self.get_argument("model_type", default=None)
+        return self.finish(
+            AquaModelApp().list(compartment_id, project_id, model_type=model_type)
+        )
 
 
 class AquaModelLicenseHandler(AquaAPIhandler):
@@ -56,34 +59,7 @@ class AquaModelLicenseHandler(AquaAPIhandler):
         return self.finish(AquaModelApp().load_license(model_id))
 
 
-class AquaModelImportHandler(AquaAPIhandler):
-    """Handler for Aqua model import"""
-
-    @handle_exceptions
-    def post(self, *args, **kwargs):
-        """Handles post request for the fine-tuning API
-
-        Raises
-        ------
-        HTTPError
-            Raises HTTPError if inputs are missing or are invalid.
-        """
-        try:
-            input_data = self.get_json_body()
-        except Exception:
-            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT)
-
-        if not input_data:
-            raise HTTPError(400, Errors.NO_INPUT_DATA)
-
-        validate_function_parameters(
-            data_class=ImportModelDetails, input_data=input_data
-        )
-        self.finish({"import_model": ImportModelDetails(**input_data).build_cli()})
-
-
 __handlers__ = [
     ("model/?([^/]*)", AquaModelHandler),
     ("model/?([^/]*)/license", AquaModelLicenseHandler),
-    ("model/?([^/]*)/import/cli", AquaModelImportHandler),
 ]

@@ -7,6 +7,7 @@ import re
 from dataclasses import InitVar, dataclass, field, fields
 from datetime import datetime, timedelta
 from enum import Enum
+from ads.common.extended_enum import ExtendedEnum
 from huggingface_hub import HfApi, snapshot_download
 from threading import Lock
 from typing import List, Union, Optional
@@ -16,7 +17,7 @@ from cachetools import TTLCache
 from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger, utils
-from ads.aqua.base import AquaApp
+from ads.aqua.base import AquaApp, CLIBuilderMixin
 from ads.aqua.constants import (
     TRAINING_METRICS_FINAL,
     TRINING_METRICS,
@@ -68,7 +69,7 @@ class FineTuningMetricCategories(Enum):
     TRAINING = "training"
 
 
-class ModelType(Enum):
+class ModelType(ExtendedEnum):
     FT = "FT"  # Fine Tuned Model
     BASE = "BASE"  # Base model
 
@@ -297,7 +298,7 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
 
 
 @dataclass
-class ImportModelDetails:
+class ImportModelDetails(CLIBuilderMixin):
     model: str
     os_path: str
     local_dir: Optional[str] = None
@@ -308,15 +309,8 @@ class ImportModelDetails:
     compartment_id: Optional[str] = None
     project_id: Optional[str] = None
 
-    def build_cli(self) -> str:
-        """
-        Method to turn the dataclass attributes to CLI
-        """
-        cmd = f"ads aqua model register"
-        for field in fields(self.__class__):
-            if getattr(self, field.name):
-                cmd = f"{cmd} --{field.name} {getattr(self,field.name)}"
-        return cmd
+    def __post_init__(self):
+        self._command = "model register"
 
 
 # TODO: merge metadata key used in create FT
@@ -728,7 +722,7 @@ class AquaModelApp(AquaApp):
             )
 
             logger.info(f"Fetching custom models from compartment_id={compartment_id}.")
-            model_type = kwargs.pop("model_type", "FT").upper()
+            model_type = kwargs.pop("model_type", ModelType.FT.value).upper()
             models = self._rqs(compartment_id, model_type=model_type)
         else:
             # tracks number of times service model listing was called
@@ -1081,6 +1075,10 @@ class AquaModelApp(AquaApp):
             filter_tag = Tags.AQUA_FINE_TUNED_MODEL_TAG.value
         elif model_type == ModelType.BASE.value:
             filter_tag = Tags.BASE_MODEL_CUSTOM.value
+        else:
+            raise ValueError(
+                f"Model of type {model_type} is unknown. The values should be in {ModelType.values()}"
+            )
 
         condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_TAG.value}' && freeformTags.key = '{filter_tag}')"
         condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
