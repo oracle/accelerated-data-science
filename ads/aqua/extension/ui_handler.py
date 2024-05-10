@@ -3,15 +3,27 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from dataclasses import dataclass
 from urllib.parse import urlparse
 
 from tornado.web import HTTPError
 
 from ads.aqua.data import Tags
 from ads.aqua.decorator import handle_exceptions
-from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
+from ads.aqua.extension.utils import validate_function_parameters
+from ads.aqua.model import ImportModelDetails
 from ads.aqua.ui import AquaUIApp
 from ads.config import COMPARTMENT_OCID
+
+
+@dataclass
+class CLIDetails:
+    """Interface to capture payload and command details for generating ads cli command"""
+
+    command: str
+    subcommand: str
+    payload: dict
 
 
 class AquaUIHandler(AquaAPIhandler):
@@ -181,6 +193,46 @@ class AquaUIHandler(AquaAPIhandler):
         return self.finish(AquaUIApp().is_bucket_versioned(bucket_uri=bucket_uri))
 
 
+class AquaCLIHandler(AquaAPIhandler):
+    """Handler for Aqua model import
+    command_interface_map is a map of command+subcommand to corresponding API dataclas.
+    Eg. In command `ads aqua model register ....`, command is `model` and subcommand is `register`
+    The key in the map will be f"{command}_{sub_command}" and value will be a DataClass
+    """
+
+    command_interface_map = {"model_register": ImportModelDetails}
+
+    @handle_exceptions
+    def post(self, *args, **kwargs):
+        """Handles cli command construction
+
+        Raises
+        ------
+        HTTPError
+            Raises HTTPError if inputs are missing or are invalid.
+        """
+        try:
+            input_data = self.get_json_body()
+        except Exception:
+            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT)
+
+        if not input_data:
+            raise HTTPError(400, Errors.NO_INPUT_DATA)
+
+        validate_function_parameters(data_class=CLIDetails, input_data=input_data)
+        command_details = CLIDetails(**input_data)
+
+        interface = AquaCLIHandler.command_interface_map[
+            f"{command_details.command}_{command_details.subcommand}"
+        ]
+
+        validate_function_parameters(
+            data_class=interface, input_data=command_details.payload
+        )
+        payload = interface(**command_details.payload)
+        self.finish({"command": payload.build_cli()})
+
+
 __handlers__ = [
     ("logging/?([^/]*)", AquaUIHandler),
     ("compartments/?([^/]*)", AquaUIHandler),
@@ -194,4 +246,5 @@ __handlers__ = [
     ("shapes/limit/?([^/]*)", AquaUIHandler),
     ("bucket/versioning/?([^/]*)", AquaUIHandler),
     ("containers/?([^/]*)", AquaUIHandler),
+    ("cli/?([^/]*)", AquaCLIHandler),
 ]

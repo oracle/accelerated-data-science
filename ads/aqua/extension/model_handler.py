@@ -18,7 +18,8 @@ from tornado.web import HTTPError
 
 from ads.aqua.decorator import handle_exceptions
 from ads.aqua.exception import AquaRuntimeError
-from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
+from ads.aqua.extension.base_handler import AquaAPIhandler, Errors, Errors
+from ads.aqua.extension.utils import validate_function_parameters
 from ads.aqua.model import AquaModelApp, AquaModelSummary, HFModelSummary, ModelTask
 
 
@@ -51,7 +52,10 @@ class AquaModelHandler(AquaAPIhandler):
         compartment_id = self.get_argument("compartment_id", default=None)
         # project_id is no needed.
         project_id = self.get_argument("project_id", default=None)
-        return self.finish(AquaModelApp().list(compartment_id, project_id))
+        model_type = self.get_argument("model_type", default=None)
+        return self.finish(
+            AquaModelApp().list(compartment_id, project_id, model_type=model_type)
+        )
 
 
 class AquaModelLicenseHandler(AquaAPIhandler):

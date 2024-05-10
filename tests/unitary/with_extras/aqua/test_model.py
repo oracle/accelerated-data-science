@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 import ads.aqua.model
 import ads.config
-from ads.aqua.model import AquaModelApp, AquaModelSummary
+from ads.aqua.model import AquaModelApp, AquaModelSummary, ImportModelDetails
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import (
     ModelCustomMetadata,
@@ -557,6 +557,64 @@ class TestAquaModel:
 
     @patch("huggingface_hub.snapshot_download")
     @patch("subprocess.check_call")
+    def test_import_model_with_project_compartment_override(
+        self,
+        mock_subprocess,
+        mock_snapshot_download,
+    ):
+        ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
+        ads.common.oci_datascience.OCIDataScienceMixin.init_client = MagicMock()
+        huggingface_hub.HfApi.model_info = MagicMock(return_value={})
+        DataScienceModel.upload_artifact = MagicMock()
+        # oci.data_science.DataScienceClient = MagicMock()
+        DataScienceModel.sync = MagicMock()
+        OCIDataScienceModel.create = MagicMock()
+
+        ds_model = DataScienceModel()
+        os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
+        hf_model = "oracle/aqua-1t-mega-model"
+        compartment_override = "my.blah.compartment"
+        project_override = "my.blah.project"
+        ds_freeform_tags = {
+            "OCI_AQUA": "ACTIVE",
+            "license": "aqua-license",
+            "organization": "oracle",
+            "task": "text-generation",
+        }
+        ds_model = (
+            ds_model.with_compartment_id("test_model_compartment_id")
+            .with_project_id("test_project_id")
+            .with_display_name(hf_model)
+            .with_description("test_description")
+            .with_model_version_set_id("test_model_version_set_id")
+            .with_freeform_tags(**ds_freeform_tags)
+            .with_version_id("ocid1.blah.blah")
+        )
+        custom_metadata_list = ModelCustomMetadata()
+        custom_metadata_list.add(
+            **{"key": "deployment-container", "value": "odsc-tgi-serving"}
+        )
+        custom_metadata_list.add(
+            **{"key": "evaluation-container", "value": "odsc-llm-evaluate"}
+        )
+        ds_model.with_custom_metadata_list(custom_metadata_list)
+        ds_model.set_spec(ds_model.CONST_MODEL_FILE_DESCRIPTION, {})
+        DataScienceModel.from_id = MagicMock(return_value=ds_model)
+        reload(ads.aqua.model)
+        app = AquaModelApp()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            model: DataScienceModel = app.register(
+                compartment_id=compartment_override,
+                project_id=project_override,
+                model="ocid1.datasciencemodel.xxx.xxxx.",
+                os_path=os_path,
+                local_dir=str(tmpdir),
+            )
+            assert model.compartment_id == compartment_override
+            assert model.project_id == project_override
+
+    @patch("huggingface_hub.snapshot_download")
+    @patch("subprocess.check_call")
     def test_import_any_hf_model_custom_container(
         self,
         mock_subprocess,
@@ -750,6 +808,29 @@ class TestAquaModel:
             for item in expected_metadata:
                 assert model.custom_metadata_list[item["key"]].to_dict() == item
             assert model.version_id is None
+
+    @parameterized.expand(
+        [
+            (
+                {
+                    "os_path": "oci://aqua-bkt@aqua-ns/path",
+                    "model": "oracle/oracle-1it",
+                    "inference_container": "odsc-vllm-serving",
+                },
+                f"ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --inference_container odsc-vllm-serving",
+            ),
+            (
+                {
+                    "os_path": "oci://aqua-bkt@aqua-ns/path",
+                    "model": "ocid1.datasciencemodel.oc1.iad.<OCID>",
+                },
+                f"ads aqua model register --model ocid1.datasciencemodel.oc1.iad.<OCID> --os_path oci://aqua-bkt@aqua-ns/path",
+            ),
+        ]
+    )
+    def test_import_cli(self, data, expected_output):
+        import_details = ImportModelDetails(**data)
+        assert import_details.build_cli() == expected_output
 
     @patch("ads.aqua.model.read_file")
     @patch("ads.aqua.model.get_artifact_path")
