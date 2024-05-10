@@ -71,6 +71,13 @@ class TestAquaUIHandler(unittest.TestCase):
         self.ui_handler.get()
         mock_list_compartments.assert_called()
 
+    @patch.object(AquaUIApp, "list_containers")
+    def test_list_containers(self, mock_list_containers):
+        """Test get method to fetch list of containers."""
+        self.ui_handler.request.path = "aqua/containers"
+        self.ui_handler.get()
+        mock_list_containers.assert_called()
+
     @patch.object(AquaUIApp, "get_default_compartment")
     def test_get_default_compartment(self, mock_get_default_compartment):
         """Test get method to fetch default compartment."""

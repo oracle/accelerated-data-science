@@ -4,7 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
 import re
-from dataclasses import InitVar, dataclass, field
+from dataclasses import InitVar, dataclass, field, fields
 from datetime import datetime, timedelta
 from enum import Enum
 from threading import Lock
@@ -16,7 +16,7 @@ from huggingface_hub import HfApi, snapshot_download, hf_api
 from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger, utils
-from ads.aqua.base import AquaApp
+from ads.aqua.base import AquaApp, CLIBuilderMixin
 from ads.aqua.constants import (
     TRAINING_METRICS_FINAL,
     TRINING_METRICS,
@@ -75,7 +75,7 @@ class FineTuningMetricCategories(Enum):
     TRAINING = "training"
 
 
-class ModelType(Enum):
+class ModelType(ExtendedEnum):
     FT = "FT"  # Fine Tuned Model
     BASE = "BASE"  # Base model
 
@@ -150,7 +150,9 @@ class HFModelSummary:
     """Represents a summary of Hugging Face model."""
 
     model_info: hf_api.ModelInfo = field(default_factory=hf_api.ModelInfo)
-    aqua_model_info: Optional[AquaModel] = field(default_factory=AquaModel)
+    aqua_model_info: Optional[AquaModelSummary] = field(
+        default_factory=AquaModelSummary
+    )
 
 
 @dataclass(repr=False)
@@ -310,6 +312,22 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
             pass
 
         return message
+
+
+@dataclass
+class ImportModelDetails(CLIBuilderMixin):
+    model: str
+    os_path: str
+    local_dir: Optional[str] = None
+    inference_container: Optional[str] = None
+    inference_container_type_smc: Optional[bool] = False
+    finetuning_container: Optional[str] = None
+    finetuning_container_type_smc: Optional[bool] = False
+    compartment_id: Optional[str] = None
+    project_id: Optional[str] = None
+
+    def __post_init__(self):
+        self._command = "model register"
 
 
 # TODO: merge metadata key used in create FT
@@ -726,7 +744,7 @@ class AquaModelApp(AquaApp):
             )
 
             logger.info(f"Fetching custom models from compartment_id={compartment_id}.")
-            model_type = kwargs.pop("model_type", "FT").upper()
+            model_type = kwargs.pop("model_type", ModelType.FT.value).upper()
             models = self._rqs(compartment_id, model_type=model_type)
         else:
             # tracks number of times service model listing was called
@@ -824,6 +842,8 @@ class AquaModelApp(AquaApp):
         inference_container_type_smc: bool,
         finetuning_container_type_smc: bool,
         shadow_model: DataScienceModel,
+        compartment_id: Optional[str],
+        project_id: Optional[str],
     ) -> DataScienceModel:
         """Create model by reference from the object storage path
 
@@ -835,6 +855,8 @@ class AquaModelApp(AquaApp):
             finetuning_container (str): selects service defaults
             finetuning_container_type_smc (bool): If true, then `finetuning_container` argument should contain service managed container name without tag
             shadow_model (DataScienceModel): If set, then copies all the tags and custom metadata information from the service shadow model
+            compartment_id (Optional[str]): Compartment Id of the compartment where the model has to be created
+            project_id (Optional[str]): Project id of the project where the model has to be created
 
         Returns:
             DataScienceModel: Returns Datascience model
@@ -940,8 +962,8 @@ class AquaModelApp(AquaApp):
 
         model = (
             model.with_custom_metadata_list(metadata)
-            .with_compartment_id(COMPARTMENT_OCID)
-            .with_project_id(PROJECT_OCID)
+            .with_compartment_id(compartment_id or COMPARTMENT_OCID)
+            .with_project_id(project_id or PROJECT_OCID)
             .with_artifact(os_path)
             .with_display_name(os.path.basename(model_name))
             .with_freeform_tags(**tags)
@@ -950,35 +972,36 @@ class AquaModelApp(AquaApp):
         return model
 
     def register(
-        self,
-        model: str,
-        os_path: str,
-        local_dir: Optional[str] = None,
-        inference_container: Optional[str] = None,
-        inference_container_type_smc: bool = False,
-        finetuning_container: Optional[str] = None,
-        finetuning_container_type_smc: bool = False,
+        self, import_model_details: ImportModelDetails = None, **kwargs
     ) -> str:
         """Loads the model from huggingface and registers as Model in Data Science Model catalog
         Note: For the models that require user token, use `huggingface-cli login` to setup the token
         The inference container and finetuning container could be of type Service Manged Container(SMC) or custom. If it is custom, full container URI is expected. If it of type SMC, only the container family name is expected.
 
         Args:
-            model (str): name as provided in the huggingface or OCID of the service model that has a inference and finetuning information
-            os_path (str): Object storage destination URI to store the downloaded model. Format: oci://bucket-name@namespace/prefix
-            local_dir (str): Defaults to home directory if not set
-            inference_container (str): selects service defaults
-            inference_container_type_smc (bool): If true, then `inference_contianer` argument should contain service managed container name without tag information
-            finetuning_container (str): selects service defaults
-            finetuning_container_type_smc (bool): If true, then `finetuning_container` argument should contain service managed container name without tag information
+            import_model_details (ImportModelDetails): Model details for importing the model.
+            kwargs:
+                model (str): name as provided in the huggingface or OCID of the service model that has a inference and finetuning information
+                os_path (str): Object storage destination URI to store the downloaded model. Format: oci://bucket-name@namespace/prefix
+                local_dir (str): Defaults to home directory if not set
+                inference_container (str): selects service defaults
+                inference_container_type_smc (bool): If true, then `inference_contianer` argument should contain service managed container name without tag information
+                finetuning_container (str): selects service defaults
+                finetuning_container_type_smc (bool): If true, then `finetuning_container` argument should contain service managed container name without tag information
 
         Returns:
             str: Model ID of the registered model
         """
         shadow_model_details: DataScienceModel = None
+
+        if not import_model_details:
+            import_model_details = ImportModelDetails(**kwargs)
         # If OCID of a model is passed, we need to copy the defaults for Tags and metadata from the service model.
-        if model.startswith("ocid") and "datasciencemodel" in model:
-            shadow_model_details = DataScienceModel.from_id(model)
+        if (
+            import_model_details.model.startswith("ocid")
+            and "datasciencemodel" in import_model_details.model
+        ):
+            shadow_model_details = DataScienceModel.from_id(import_model_details.model)
             inference_container = shadow_model_details.custom_metadata_list.get(
                 AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
             ).value
@@ -992,10 +1015,13 @@ class AquaModelApp(AquaApp):
 
         # Copy the model name from the service model if `model` is ocid
         model_name = (
-            shadow_model_details.display_name if shadow_model_details else model
+            shadow_model_details.display_name
+            if shadow_model_details
+            else import_model_details.model
         )
 
         # Download the model from hub
+        local_dir = import_model_details.local_dir
         if not local_dir:
             local_dir = os.path.join(os.path.expanduser("~"), "cached-model")
         local_dir = os.path.join(local_dir, model_name)
@@ -1022,21 +1048,25 @@ class AquaModelApp(AquaApp):
         )
         # Upload to object storage
         model_artifact_path = upload_folder(
-            os_path=os_path, local_dir=local_dir, model_name=model_name
+            os_path=import_model_details.os_path,
+            local_dir=local_dir,
+            model_name=model_name,
         )
         # Create Model catalog entry with pass by reference
         return self._create_model_catalog_entry(
             model_artifact_path,
             model_name=model_name,
-            inference_container=inference_container,
-            finetuning_container=finetuning_container,
+            inference_container=import_model_details.inference_container,
+            finetuning_container=import_model_details.finetuning_container,
             inference_container_type_smc=True
-            if is_service_managed_container(inference_container)
-            else inference_container_type_smc,
+            if is_service_managed_container(import_model_details.inference_container)
+            else import_model_details.inference_container_type_smc,
             finetuning_container_type_smc=True
-            if is_service_managed_container(inference_container)
-            else finetuning_container_type_smc,
+            if is_service_managed_container(import_model_details.finetuning_container)
+            else import_model_details.finetuning_container_type_smc,
             shadow_model=shadow_model_details,
+            compartment_id=import_model_details.compartment_id,
+            project_id=import_model_details.project_id,
         )
 
     def _if_show(self, model: DataScienceModel) -> bool:
@@ -1066,6 +1096,10 @@ class AquaModelApp(AquaApp):
             filter_tag = Tags.AQUA_FINE_TUNED_MODEL_TAG.value
         elif model_type == ModelType.BASE.value:
             filter_tag = Tags.BASE_MODEL_CUSTOM.value
+        else:
+            raise ValueError(
+                f"Model of type {model_type} is unknown. The values should be in {ModelType.values()}"
+            )
 
         condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_TAG.value}' && freeformTags.key = '{filter_tag}')"
         condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
