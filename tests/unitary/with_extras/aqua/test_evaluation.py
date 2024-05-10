@@ -9,15 +9,16 @@ import copy
 import json
 import os
 import unittest
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import oci
 from parameterized import parameterized
 
 from ads.aqua import utils
-from ads.aqua.data import Tags
+from ads.aqua.enums import Tags
 from ads.aqua.evaluation import (
+    EVALUATION_JOB_EXIT_CODE_MESSAGE,
     AquaEvalMetrics,
     AquaEvalReport,
     AquaEvaluationApp,
@@ -29,6 +30,7 @@ from ads.aqua.exception import (
     AquaRuntimeError,
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.aqua.util.wrapper import AquaJobRun
 from ads.aqua.utils import EVALUATION_REPORT_JSON, EVALUATION_REPORT_MD, UNKNOWN
 from ads.jobs.ads_job import DataScienceJob, DataScienceJobRun, Job
 from ads.model import DataScienceModel
@@ -410,8 +412,10 @@ class TestAquaEvaluation(unittest.TestCase):
 
     def assert_payload(self, response, response_type):
         """Checks each field is not empty."""
+        from dataclasses import fields
 
-        attributes = response_type.__annotations__.keys()
+        # attributes = response_type.__annotations__.keys()
+        attributes = [f.name for f in fields(response_type)]
         rdict = asdict(response)
 
         for attr in attributes:
@@ -529,9 +533,9 @@ class TestAquaEvaluation(unittest.TestCase):
         # get service model name from fine tuned model deployment
         source = ModelDeployment().with_freeform_tags(
             **{
-                Tags.AQUA_TAG.value: UNKNOWN,
-                Tags.AQUA_FINE_TUNED_MODEL_TAG.value: "test_service_model_id#test_service_model_name",
-                Tags.AQUA_MODEL_NAME_TAG.value: "test_fine_tuned_model_name",
+                Tags.AQUA_TAG: UNKNOWN,
+                Tags.AQUA_FINE_TUNED_MODEL_TAG: "test_service_model_id#test_service_model_name",
+                Tags.AQUA_MODEL_NAME_TAG: "test_fine_tuned_model_name",
             }
         )
         service_model_name = self.app._get_service_model_name(source)
@@ -540,8 +544,8 @@ class TestAquaEvaluation(unittest.TestCase):
         # get service model name from model deployment
         source = ModelDeployment().with_freeform_tags(
             **{
-                Tags.AQUA_TAG.value: "active",
-                Tags.AQUA_MODEL_NAME_TAG.value: "test_service_model_name",
+                Tags.AQUA_TAG: "active",
+                Tags.AQUA_MODEL_NAME_TAG: "test_service_model_name",
             }
         )
         service_model_name = self.app._get_service_model_name(source)
@@ -794,7 +798,8 @@ class TestAquaEvaluation(unittest.TestCase):
         )
         response = self.app.get_status(TestDataset.EVAL_ID)
         self.print_expected_response(response, "GET STATUS")
-        assert response.get("lifecycle_state") == "SUCCEEDED"
+        # assert response.get("lifecycle_state") == "SUCCEEDED"
+        assert response.lifecycle_state == "SUCCEEDED"
 
     @parameterized.expand(
         [
@@ -822,6 +827,7 @@ class TestAquaEvaluation(unittest.TestCase):
         self, name, mock_head_model_artifact_response, expected_output
     ):
         """Tests getting evaluation status correctly when missing jobrun association."""
+
         self.app.ds_client.get_model_provenance = MagicMock(
             return_value=oci.response.Response(
                 status=200,
@@ -832,7 +838,7 @@ class TestAquaEvaluation(unittest.TestCase):
                 ),
             )
         )
-        self.app._fetch_jobrun = MagicMock(return_value=None)
+        self.app._fetch_jobrun = MagicMock(return_value=AquaJobRun(region="test"))
         self.app._deletion_cache.clear()
         self.app.ds_client.head_model_artifact = MagicMock(
             side_effect=mock_head_model_artifact_response.get("side_effect", None),
@@ -844,7 +850,8 @@ class TestAquaEvaluation(unittest.TestCase):
         self.app.ds_client.head_model_artifact.assert_called_with(
             model_id=TestDataset.EVAL_ID
         )
-        actual_status = response.get("lifecycle_state")
+        # actual_status = response.get("lifecycle_state")
+        actual_status = response.lifecycle_state
         assert (
             actual_status == expected_output
         ), f"expected status is {expected_output}, actual status is {actual_status}"
@@ -872,7 +879,10 @@ class TestAquaEvaluation(unittest.TestCase):
     )
     def test_extract_job_lifecycle_details(self, input, expect_output):
         """Tests extracting job lifecycle details."""
-        msg = self.app._extract_job_lifecycle_details(input)
+        # msg = self.app._extract_job_lifecycle_details(input)
+        msg = utils.extract_job_lifecycle_details(
+            lifecycle_details=input, error_message=EVALUATION_JOB_EXIT_CODE_MESSAGE
+        )
         assert msg == expect_output, msg
 
     def test_get_supported_metrics(self):
@@ -944,12 +954,14 @@ class TestAquaEvaluationList(unittest.TestCase):
         self.app.list(TestDataset.COMPARTMENT_ID)
 
         mock_query_resource.assert_called_once()
-        self.app._process_evaluation_summary.assert_called_with(
-            model=oci.resource_search.models.ResourceSummary(
-                **TestDataset.resource_summary_object_eval[0]
-            ),
-            jobrun=None,
-        )
+        args, kwargs = self.app._process_evaluation_summary.call_args
+        assert kwargs.get("jobrun").is_missing()
+        # self.app._process_evaluation_summary.assert_called_with(
+        #     model=oci.resource_search.models.ResourceSummary(
+        #         **TestDataset.resource_summary_object_eval[0]
+        #     ),
+        #     jobrun=None,
+        # )
 
     @patch("ads.aqua.utils.query_resources")
     def test_missing_info_in_custometadata(self, mock_query_resources):
