@@ -9,7 +9,7 @@ import copy
 import json
 import os
 import unittest
-from dataclasses import asdict, fields
+from dataclasses import asdict
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import oci
@@ -17,11 +17,11 @@ from parameterized import parameterized
 
 from ads.aqua import utils
 from ads.aqua.enums import Tags
-from ads.aqua.evaluation import (
-    EVALUATION_JOB_EXIT_CODE_MESSAGE,
+from ads.aqua.evaluation import AquaEvaluationApp
+from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
+from ads.aqua.evaluation.response_model import (
     AquaEvalMetrics,
     AquaEvalReport,
-    AquaEvaluationApp,
     AquaEvaluationSummary,
 )
 from ads.aqua.exception import (
@@ -427,7 +427,7 @@ class TestAquaEvaluation(unittest.TestCase):
     @patch("ads.jobs.ads_job.Job.name", new_callable=PropertyMock)
     @patch("ads.jobs.ads_job.Job.id", new_callable=PropertyMock)
     @patch.object(Job, "create")
-    @patch("ads.aqua.evaluation.get_container_image")
+    @patch("ads.aqua.evaluation.evaluation.get_container_image")
     @patch.object(DataScienceModel, "create")
     @patch.object(ModelVersionSet, "create")
     @patch.object(DataScienceModel, "from_id")
@@ -992,14 +992,14 @@ class TestCancelDeleteEvaluation(unittest.IsolatedAsyncioTestCase):
         self.mock_model = DataScienceModel(id="model456")
 
     @patch.object(DataScienceJobRun, "cancel")
-    @patch("ads.aqua.evaluation.logger")
+    @patch("ads.aqua.evaluation.evaluation.logger")
     async def test_cancel(self, mock_logger, mock_cancel):
         await self.app._cancel_job_run(DataScienceJobRun(), self.mock_model)
 
         mock_cancel.assert_called_once()
         mock_logger.info.assert_called_once()
 
-    @patch("ads.aqua.evaluation.logger")
+    @patch("ads.aqua.evaluation.evaluation.logger")
     async def test_cancel_exception(self, mock_logger):
         mock_cancel = MagicMock(
             side_effect=oci.exceptions.ServiceError(
@@ -1014,7 +1014,7 @@ class TestCancelDeleteEvaluation(unittest.IsolatedAsyncioTestCase):
         mock_cancel.assert_called_once()
         mock_logger.error.assert_called_once()
 
-    @patch("ads.aqua.evaluation.logger")
+    @patch("ads.aqua.evaluation.evaluation.logger")
     async def test_delete(self, mock_logger):
         mock_job = DataScienceJob()
         mock_job.dsc_job.delete = MagicMock()
@@ -1026,7 +1026,7 @@ class TestCancelDeleteEvaluation(unittest.IsolatedAsyncioTestCase):
         self.mock_model.delete.assert_called_once()
         mock_logger.info.assert_called()
 
-    @patch("ads.aqua.evaluation.logger")
+    @patch("ads.aqua.evaluation.evaluation.logger")
     async def test_delete_exception(self, mock_logger):
         mock_job = DataScienceJob()
         mock_job.dsc_job.delete = MagicMock(

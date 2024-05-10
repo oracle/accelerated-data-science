@@ -9,7 +9,8 @@ from unittest.mock import MagicMock, patch
 from notebook.base.handlers import IPythonHandler
 from parameterized import parameterized
 
-from ads.aqua.evaluation import AquaEvaluationApp, CreateAquaEvaluationDetails
+from ads.aqua.evaluation import AquaEvaluationApp
+from ads.aqua.evaluation.request_params import CreateAquaEvaluationDetails
 from ads.aqua.extension.base_handler import Errors
 from ads.aqua.extension.evaluation_handler import AquaEvaluationHandler
 from tests.unitary.with_extras.aqua.utils import HandlerTestDataset as TestDataset
