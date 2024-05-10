@@ -192,8 +192,30 @@ class AquaDeploymentInferenceHandler(AquaAPIhandler):
         )
 
 
+class AquaDeploymentParamsHandler(AquaAPIhandler):
+    """Handler for Aqua finetuning params REST APIs.
+
+    Methods
+    -------
+    get(self, model_id)
+        Retrieves a list of model deployment parameters.
+    """
+
+    @handle_exceptions
+    def get(self, model_id):
+        """Handle GET request."""
+        model_id = model_id.split("/")[0]
+        instance_shape = self.get_argument("instance_shape")
+        return self.finish(
+            AquaDeploymentApp().get_deployment_default_params(
+                model_id=model_id, instance_shape=instance_shape
+            )
+        )
+
+
 __handlers__ = [
     ("deployments/?([^/]*)", AquaDeploymentHandler),
     ("deployments/config/?([^/]*)", AquaDeploymentHandler),
+    ("deployments/?([^/]*/params)", AquaDeploymentParamsHandler),
     ("inference", AquaDeploymentInferenceHandler),
 ]
