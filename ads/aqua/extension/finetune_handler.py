@@ -59,7 +59,20 @@ class AquaFineTuneHandler(AquaAPIhandler):
         return self.finish(AquaFineTuningApp().get_finetuning_config(model_id=model_id))
 
 
+class AquaFineTuneParamsHandler(AquaAPIhandler):
+    """Handler for Aqua finetuning params REST APIs."""
+
+    @handle_exceptions
+    def get(self, model_id):
+        """Handle GET request."""
+        model_id = model_id.split("/")[0]
+        return self.finish(
+            AquaFineTuningApp().get_finetuning_default_params(model_id=model_id)
+        )
+
+
 __handlers__ = [
     ("finetuning/?([^/]*)", AquaFineTuneHandler),
     ("finetuning/config/?([^/]*)", AquaFineTuneHandler),
+    ("finetuning/?([^/]*/params)", AquaFineTuneParamsHandler),
 ]
