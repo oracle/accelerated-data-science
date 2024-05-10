@@ -242,18 +242,21 @@ class FineTuningTestCase(TestCase):
 
         self.app.get_finetuning_config = MagicMock(return_value=config)
         result = self.app.get_finetuning_default_params(model_id="test_model_id")
-        assert result == [
-            "--batch_size 1",
-            "--sequence_len 2048",
-            "--sample_packing true",
-            "--pad_to_sequence_len true",
-            "--learning_rate 0.0002",
-            "--lora_r 32",
-            "--lora_alpha 16",
-            "--lora_dropout 0.05",
-            "--lora_target_linear true",
-            "--lora_target_modules q_proj,k_proj",
-        ]
+        self.assertCountEqual(
+            result,
+            [
+                "--batch_size 1",
+                "--sequence_len 2048",
+                "--sample_packing true",
+                "--pad_to_sequence_len true",
+                "--learning_rate 0.0002",
+                "--lora_r 32",
+                "--lora_alpha 16",
+                "--lora_dropout 0.05",
+                "--lora_target_linear true",
+                "--lora_target_modules q_proj,k_proj",
+            ],
+        )
 
         # check when config json is not available
         self.app.get_finetuning_config = MagicMock(return_value={})

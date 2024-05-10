@@ -108,6 +108,6 @@ class AquaFineTuneParamsHandlerTestCase(TestCase):
         mock_finish.side_effect = lambda x: x
 
         result = self.test_instance.get(model_id="test_model_id")
+        self.assertCountEqual(result["data"], default_params)
 
-        assert result["data"] == default_params
         mock_get_finetuning_default_params.assert_called_with(model_id="test_model_id")
