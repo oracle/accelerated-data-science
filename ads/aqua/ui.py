@@ -3,8 +3,10 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import concurrent.futures
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from threading import Lock
+from typing import Dict, List
 
 from cachetools import TTLCache
 from oci.exceptions import ServiceError
@@ -13,11 +15,12 @@ from oci.identity.models import Compartment
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.data import Tags
-from ads.aqua.exception import AquaValueError, AquaResourceAccessError
-from ads.aqua.utils import load_config, sanitize_response
+from ads.aqua.exception import AquaResourceAccessError, AquaValueError
+from ads.aqua.utils import get_container_config, load_config, sanitize_response
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
+from ads.common.serializer import DataClassSerializable
 from ads.config import (
     AQUA_CONFIG_FOLDER,
     AQUA_RESOURCE_LIMIT_NAMES_CONFIG,
@@ -26,6 +29,68 @@ from ads.config import (
     TENANCY_OCID,
 )
 from ads.telemetry import telemetry
+
+
+@dataclass(repr=False)
+class AquaContainerConfigItem(DataClassSerializable):
+    """Represents an item of the AQUA container configuration."""
+
+    name: str = None
+    version: str = None
+    display_name: str = None
+
+
+@dataclass(repr=False)
+class AquaContainerConfig(DataClassSerializable):
+    """
+    Represents a configuration with AQUA containers to be returned to the client.
+    """
+
+    inference: List[AquaContainerConfigItem] = field(default_factory=list)
+    finetune: List[AquaContainerConfigItem] = field(default_factory=list)
+    evaluate: List[AquaContainerConfigItem] = field(default_factory=list)
+
+    @classmethod
+    def from_container_index_json(cls, config: Dict) -> "AquaContainerConfig":
+        """
+        Create an AquaContainerConfig instance from a container index JSON.
+
+        Parameters
+        ----------
+        config : Dict
+            The container index JSON.
+
+        Returns
+        -------
+        AquaContainerConfig
+            The container configuration instance.
+        """
+        config = config or {}
+        inference_items = []
+        finetune_items = []
+        evaluate_items = []
+
+        # extract inference containers
+        for container_type, containers in config.items():
+            if isinstance(containers, list):
+                for container in containers:
+                    container_item = AquaContainerConfigItem(
+                        name=container.get("name", ""),
+                        version=container.get("version", ""),
+                        display_name=container.get(
+                            "displayName", container.get("version", "")
+                        ),
+                    )
+                    if container.get("type") == "inference":
+                        inference_items.append(container_item)
+                    elif container_type == "odsc-llm-fine-tuning":
+                        finetune_items.append(container_item)
+                    elif container_type == "odsc-llm-evaluate":
+                        evaluate_items.append(container_item)
+
+        return AquaContainerConfig(
+            inference=inference_items, finetune=finetune_items, evaluate=evaluate_items
+        )
 
 
 class AquaUIApp(AquaApp):
@@ -42,7 +107,8 @@ class AquaUIApp(AquaApp):
         Lists the specified log group's log objects.
     list_compartments(self, **kwargs) -> List[Dict]
         Lists the compartments in a specified compartment.
-
+    list_containers(self, **kwargs) -> AquaContainerConfig
+        Containers config to be returned to the client.
     """
 
     _compartments_cache = TTLCache(
@@ -451,3 +517,17 @@ class AquaUIApp(AquaApp):
             message = f"Model artifact bucket {bucket_uri} is not versioned. Check if the path exists and enable versioning on the bucket to proceed with model creation."
 
         return dict(is_versioned=is_versioned, message=message)
+
+    @telemetry(entry_point="plugin=ui&action=list_containers", name="aqua")
+    def list_containers(self) -> AquaContainerConfig:
+        """
+        Lists the AQUA containers.
+
+        Returns
+        -------
+        AquaContainerConfig
+            The AQUA containers configuration.
+        """
+        return AquaContainerConfig.from_container_index_json(
+            config=get_container_config()
+        )

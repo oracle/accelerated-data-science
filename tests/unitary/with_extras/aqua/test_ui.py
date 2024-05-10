@@ -4,18 +4,20 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import os
+import hashlib
 import json
+import os
 import unittest
 from importlib import reload
 from unittest.mock import MagicMock, patch
+
+import oci
 import pytest
 from parameterized import parameterized
 
-import oci
 import ads.config
-from ads.aqua.ui import AquaUIApp
 from ads.aqua.exception import AquaValueError
+from ads.aqua.ui import AquaUIApp
 from ads.aqua.utils import load_config
 from ads.config import AQUA_CONFIG_FOLDER, AQUA_RESOURCE_LIMIT_NAMES_CONFIG
 
@@ -453,3 +455,52 @@ class TestAquaUI(unittest.TestCase):
         mock_from_path.return_value.is_bucket_versioned.return_value = versioned
         result = self.app.is_bucket_versioned("oci://bucket-name-@namespace/prefix")
         assert result["is_versioned"] == versioned
+
+    @patch("ads.aqua.ui.get_container_config")
+    def test_list_containers(self, mock_get_container_config):
+        """Test to lists AQUA containers."""
+
+        with open(
+            os.path.join(self.curr_dir, "test_data/ui/container_index.json"), "r"
+        ) as _file:
+            container_index_json = json.load(_file)
+
+        mock_get_container_config.return_value = container_index_json
+
+        test_result = self.app.list_containers().to_dict()
+
+        expected_result = {
+            "inference": [
+                {
+                    "name": "dsmc://odsc-tgi-serving",
+                    "version": "1.4.5",
+                    "display_name": "TGI:1.4.5",
+                },
+                {
+                    "name": "dsmc://odsc-tgi-serving",
+                    "version": "2.0.2",
+                    "display_name": "TGI:2.0.2",
+                },
+                {
+                    "name": "dsmc://odsc-vllm-serving",
+                    "version": "0.3.0.7",
+                    "display_name": "VLLM:0.3.0",
+                },
+            ],
+            "finetune": [
+                {
+                    "name": "dsmc://odsc-llm-fine-tuning",
+                    "version": "1.1.33.34",
+                    "display_name": "1.1.33.34",
+                }
+            ],
+            "evaluate": [
+                {
+                    "name": "dsmc://odsc-llm-evaluate",
+                    "version": "0.1.2.0",
+                    "display_name": "0.1.2.0",
+                }
+            ],
+        }
+
+        assert test_result == expected_result
