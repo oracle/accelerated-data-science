@@ -37,6 +37,7 @@ from ads.aqua.finetune import FineTuneCustomMetadata
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.utils import get_console_link, get_log_links
 from ads.common.auth import default_signer
+from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment import (
     ModelDeployment,
     ModelDeploymentContainerRuntime,
@@ -306,7 +307,7 @@ class AquaDeploymentApp(AquaApp):
             deployment_config.get("configuration", UNKNOWN_DICT)
             .get(instance_shape, UNKNOWN_DICT)
             .get("parameters", UNKNOWN_DICT)
-            .get("VLLM_PARAMS", UNKNOWN)
+            .get(InferenceContainerParamType.PARAM_TYPE_VLLM.value, UNKNOWN)
         )
 
         # set up env vars
@@ -645,43 +646,52 @@ class AquaDeploymentApp(AquaApp):
 
         """
         default_params = []
-        oci_model = self.ds_client.get_model(model_id).data
-        for custom_metadata in oci_model.custom_metadata_list:
-            if custom_metadata.key == AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME:
-                container_type_key = custom_metadata.value
-                if container_type_key in InferenceContainerTypeKey.values():
-                    deployment_config = self.get_deployment_config(model_id)
-                    config_parameters = (
-                        deployment_config.get("configuration", UNKNOWN_DICT)
-                        .get(instance_shape, UNKNOWN_DICT)
-                        .get("parameters", UNKNOWN_DICT)
+        model = DataScienceModel.from_id(model_id)
+        try:
+            container_type_key = model.custom_metadata_list.get(
+                AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
+            ).value
+        except ValueError:
+            container_type_key = UNKNOWN
+            logger.debug(
+                f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field for model {model_id}."
+            )
+
+        if container_type_key:
+            container_type_key = container_type_key.lower()
+            if container_type_key in InferenceContainerTypeKey.values():
+                deployment_config = self.get_deployment_config(model_id)
+                config_parameters = (
+                    deployment_config.get("configuration", UNKNOWN_DICT)
+                    .get(instance_shape, UNKNOWN_DICT)
+                    .get("parameters", UNKNOWN_DICT)
+                )
+                if (
+                    InferenceContainerType.CONTAINER_TYPE_VLLM.value
+                    in container_type_key
+                ):
+                    params = config_parameters.get(
+                        InferenceContainerParamType.PARAM_TYPE_VLLM.value, UNKNOWN
                     )
-                    if (
-                        InferenceContainerType.CONTAINER_TYPE_VLLM.value
-                        in container_type_key
-                    ):
-                        params = config_parameters.get(
-                            InferenceContainerParamType.PARAM_TYPE_VLLM.value, UNKNOWN
-                        )
-                    elif (
-                        InferenceContainerType.CONTAINER_TYPE_TGI.value
-                        in container_type_key
-                    ):
-                        params = config_parameters.get(
-                            InferenceContainerParamType.PARAM_TYPE_TGI.value, UNKNOWN
-                        )
-                    else:
-                        params = UNKNOWN
-                        logger.debug(
-                            f"Default inference parameters are not available for the model {model_id} and "
-                            f"instance {instance_shape}."
-                        )
-                    if params:
-                        # account for param that can have --arg but no values, e.g. --trust-remote-code
-                        default_params.extend(
-                            ["--" + param.strip() for param in params.split("--")[1:]]
-                        )
-                break
+                elif (
+                    InferenceContainerType.CONTAINER_TYPE_TGI.value
+                    in container_type_key
+                ):
+                    params = config_parameters.get(
+                        InferenceContainerParamType.PARAM_TYPE_TGI.value, UNKNOWN
+                    )
+                else:
+                    params = UNKNOWN
+                    logger.debug(
+                        f"Default inference parameters are not available for the model {model_id} and "
+                        f"instance {instance_shape}."
+                    )
+                if params:
+                    # account for param that can have --arg but no values, e.g. --trust-remote-code
+                    default_params.extend(
+                        ["--" + param.strip() for param in params.split("--")[1:]]
+                    )
+
         return default_params
 
 

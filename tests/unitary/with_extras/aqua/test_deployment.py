@@ -417,8 +417,9 @@ class TestAquaDeployment(unittest.TestCase):
             ),
         ]
     )
+    @patch.object(DataScienceModel, "from_id")
     def test_get_deployment_default_params(
-        self, container_params_field, container_type_key, params
+        self, container_params_field, container_type_key, params, mock_from_id
     ):
         """Test for fetching config details for a given deployment."""
 
@@ -432,17 +433,15 @@ class TestAquaDeployment(unittest.TestCase):
             container_params_field
         ] = " ".join(params)
 
-        self.app.get_deployment_config = MagicMock(return_value=config)
-
         mock_model = MagicMock()
-        mock_model.data = MagicMock(
-            id=TestDataset.MODEL_ID,
-            custom_metadata_list=[
-                MagicMock(key="deployment-container", value=container_type_key)
-            ],
+        custom_metadata_list = ModelCustomMetadata()
+        custom_metadata_list.add(
+            **{"key": "deployment-container", "value": container_type_key}
         )
-        self.app.ds_client.get_model = MagicMock(return_value=mock_model)
+        mock_model.custom_metadata_list = custom_metadata_list
+        mock_from_id.return_value = mock_model
 
+        self.app.get_deployment_config = MagicMock(return_value=config)
         result = self.app.get_deployment_default_params(
             TestDataset.MODEL_ID, TestDataset.DEPLOYMENT_SHAPE_NAME
         )
