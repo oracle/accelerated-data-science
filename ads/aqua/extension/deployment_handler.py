@@ -46,12 +46,6 @@ class AquaDeploymentHandler(AquaAPIhandler):
                     400, f"The request {self.request.path} requires model id."
                 )
             return self.get_deployment_config(id)
-        elif paths.startswith("aqua/deployments/params"):
-            if not id:
-                raise HTTPError(
-                    400, f"The request {self.request.path} requires model id."
-                )
-            return self.get_deployment_default_params(id)
         elif paths.startswith("aqua/deployments"):
             if not id:
                 return self.list()
@@ -137,15 +131,6 @@ class AquaDeploymentHandler(AquaAPIhandler):
         """Gets the deployment config for Aqua model."""
         return self.finish(AquaDeploymentApp().get_deployment_config(model_id=model_id))
 
-    def get_deployment_default_params(self, model_id):
-        """Gets the default deployment parameters for Aqua model."""
-        instance_shape = self.get_argument("instance_shape")
-        return self.finish(
-            AquaDeploymentApp().get_deployment_default_params(
-                model_id=model_id, instance_shape=instance_shape
-            )
-        )
-
 
 class AquaDeploymentInferenceHandler(AquaAPIhandler):
     @staticmethod
@@ -207,9 +192,30 @@ class AquaDeploymentInferenceHandler(AquaAPIhandler):
         )
 
 
+class AquaDeploymentParamsHandler(AquaAPIhandler):
+    """Handler for Aqua finetuning params REST APIs.
+
+    Methods
+    -------
+    get(self, model_id)
+        Retrieves a list of model deployment parameters.
+    """
+
+    @handle_exceptions
+    def get(self, model_id):
+        """Handle GET request."""
+        model_id = model_id.split("/")[0]
+        instance_shape = self.get_argument("instance_shape")
+        return self.finish(
+            AquaDeploymentApp().get_deployment_default_params(
+                model_id=model_id, instance_shape=instance_shape
+            )
+        )
+
+
 __handlers__ = [
     ("deployments/?([^/]*)", AquaDeploymentHandler),
     ("deployments/config/?([^/]*)", AquaDeploymentHandler),
-    ("deployments/params/?([^/]*)", AquaDeploymentHandler),
+    ("deployments/?([^/]*/params)", AquaDeploymentParamsHandler),
     ("inference", AquaDeploymentInferenceHandler),
 ]
