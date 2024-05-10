@@ -72,16 +72,13 @@ class AquaModelLicenseHandler(AquaAPIhandler):
 class AquaHuggingFaceHandler(AquaAPIhandler):
     """Handler for Aqua Hugging Face REST APIs."""
 
-    def _find_matching_aqua_model(
-        self, model_id: str, author: str
-    ) -> Optional[AquaModelSummary]:
+    def _find_matching_aqua_model(self, model_id: str) -> Optional[AquaModelSummary]:
         """
         Finds a matching model in AQUA based on the model ID from Hugging Face.
 
         Parameters
         ----------
         model_id (str): The Hugging Face model ID to match.
-        author (str): The Hugging Face model author to match.
 
         Returns
         -------
@@ -89,21 +86,13 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
             Returns the matching AquaModelSummary object if found, else None.
         """
         # Convert the Hugging Face model ID to lowercase once
-        model_id_lower = model_id.lower().replace(f"{author}/", "")
-        author_lower = author.lower()
-
-        compartment_id = self.get_argument("compartment_id", default=None)
-        project_id = self.get_argument("project_id", default=None)
+        model_id_lower = model_id.lower()
 
         aqua_model_app = AquaModelApp()
-        aqua_model_list = aqua_model_app.list(compartment_id, project_id)
+        aqua_model_list = aqua_model_app.list()
 
         for aqua_model_summary in aqua_model_list:
-            if (
-                aqua_model_summary.name.lower()
-                == model_id_lower
-                # and aqua_model_summary.organization.lower() == author_lower
-            ):
+            if aqua_model_summary.name.lower() == model_id_lower:
                 return aqua_model_summary
 
         return None
@@ -196,7 +185,7 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
 
         # Check if it is a service/shadow model
         aqua_model_info: AquaModelSummary = self._find_matching_aqua_model(
-            model_id=hf_model_info.id, author=hf_model_info.author
+            model_id=hf_model_info.id
         )
 
         return self.finish(

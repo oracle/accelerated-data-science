@@ -96,11 +96,10 @@ class TestAquaHuggingFaceHandler:
     @pytest.mark.parametrize(
         "test_model_id, test_author, expected_aqua_model_name",
         [
-            ("organization1/name1", "organization1", "name1"),
-            ("organization1/name2", "organization1", "name2"),
-            ("organization2/name3", "organization2", "name3"),
-            ("organization1/name3", "organization1", "name3"),
-            ("name3", "organization2", "name3"),
+            ("organization1/name1", "organization1", "organization1/name1"),
+            ("organization1/name2", "organization1", "organization1/name2"),
+            ("organization2/name3", "organization2", "organization2/name3"),
+            ("non_existing_name", "organization2", None),
             ("organization1/non_existing_name", "organization1", None),
         ],
     )
@@ -109,13 +108,19 @@ class TestAquaHuggingFaceHandler:
     ):
         with patch.object(AquaModelApp, "list") as aqua_model_mock_list:
             aqua_model_mock_list.return_value = [
-                AquaModelSummary(name="name1", organization="organization1"),
-                AquaModelSummary(name="name2", organization="organization1"),
-                AquaModelSummary(name="name3", organization="organization2"),
+                AquaModelSummary(
+                    name="organization1/name1", organization="organization1"
+                ),
+                AquaModelSummary(
+                    name="organization1/name2", organization="organization1"
+                ),
+                AquaModelSummary(
+                    name="organization2/name3", organization="organization2"
+                ),
             ]
 
             test_result = self.mock_handler._find_matching_aqua_model(
-                model_id=test_model_id, author=test_author
+                model_id=test_model_id
             )
 
             aqua_model_mock_list.assert_called_once()
@@ -227,7 +232,7 @@ class TestAquaHuggingFaceHandler:
             self.mock_handler.post()
 
             self.mock_handler._find_matching_aqua_model.assert_called_with(
-                model_id="test_model_id", author="test_author"
+                model_id="test_model_id"
             )
 
             test_model_summary = HFModelSummary(

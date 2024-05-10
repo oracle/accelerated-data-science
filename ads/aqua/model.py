@@ -150,7 +150,9 @@ class HFModelSummary:
     """Represents a summary of Hugging Face model."""
 
     model_info: hf_api.ModelInfo = field(default_factory=hf_api.ModelInfo)
-    aqua_model_info: Optional[AquaModel] = field(default_factory=AquaModel)
+    aqua_model_info: Optional[AquaModelSummary] = field(
+        default_factory=AquaModelSummary
+    )
 
 
 @dataclass(repr=False)

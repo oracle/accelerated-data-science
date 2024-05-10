@@ -75,6 +75,8 @@ class AquaUIHandler(AquaAPIhandler):
             return self.get_shape_availability()
         elif paths.startswith("aqua/bucket/versioning"):
             return self.is_bucket_versioned()
+        elif paths.startswith("aqua/containers"):
+            return self.list_containers()
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
@@ -103,6 +105,10 @@ class AquaUIHandler(AquaAPIhandler):
     def list_compartments(self):
         """Lists the compartments in a compartment specified by ODSC_MODEL_COMPARTMENT_OCID env variable."""
         return self.finish(AquaUIApp().list_compartments())
+
+    def list_containers(self):
+        """Lists the AQUA containers."""
+        return self.finish(AquaUIApp().list_containers())
 
     def get_default_compartment(self):
         """Returns user compartment ocid."""
@@ -239,5 +245,6 @@ __handlers__ = [
     ("subnets/?([^/]*)", AquaUIHandler),
     ("shapes/limit/?([^/]*)", AquaUIHandler),
     ("bucket/versioning/?([^/]*)", AquaUIHandler),
+    ("containers/?([^/]*)", AquaUIHandler),
     ("cli/?([^/]*)", AquaCLIHandler),
 ]
