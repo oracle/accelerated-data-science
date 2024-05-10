@@ -332,7 +332,10 @@ class CLIBuilderMixin:
         Method to turn the dataclass attributes to CLI
         """
         cmd = f"ads aqua {self._command}"
-        for field in fields(self.__class__):
-            if getattr(self, field.name):
-                cmd = f"{cmd} --{field.name} {getattr(self,field.name)}"
+        params = [
+            f"--{field.name} {getattr(self,field.name)}"
+            for field in fields(self.__class__)
+            if getattr(self, field.name)
+        ]
+        cmd = f"{cmd} {' '.join(params)}"
         return cmd

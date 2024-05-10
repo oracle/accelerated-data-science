@@ -861,10 +861,6 @@ class AquaModelApp(AquaApp):
         """
         model_info = None
         model = DataScienceModel()
-        if compartment_id:
-            model.with_compartment_id(compartment_id)
-        if project_id:
-            model.with_project_id(project_id)
         try:
             api = HfApi()
             model_info = api.model_info(model_name)
@@ -964,8 +960,8 @@ class AquaModelApp(AquaApp):
 
         model = (
             model.with_custom_metadata_list(metadata)
-            .with_compartment_id(COMPARTMENT_OCID)
-            .with_project_id(PROJECT_OCID)
+            .with_compartment_id(compartment_id or COMPARTMENT_OCID)
+            .with_project_id(project_id or PROJECT_OCID)
             .with_artifact(os_path)
             .with_display_name(os.path.basename(model_name))
             .with_freeform_tags(**tags)
