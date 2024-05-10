@@ -28,6 +28,7 @@ from ads.aqua.utils import (
     AQUA_MODEL_TYPE_SERVICE,
     AQUA_MODEL_TYPE_CUSTOM,
 )
+from ads.aqua.data import InferenceContainerType, InferenceContainerTypeKey
 from ads.aqua.finetune import FineTuneCustomMetadata
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.utils import get_console_link, get_log_links
@@ -616,6 +617,64 @@ class AquaDeploymentApp(AquaApp):
                 config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS,
             )
         return config
+
+    def get_deployment_default_params(
+        self,
+        model_id: str,
+        instance_shape: str,
+    ) -> List[str]:
+        """Gets the default params set in the deployment configs for the given model and instance shape.
+
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the Aqua model.
+
+        instance_shape: (str).
+            The shape of the instance used for deployment.
+
+        Returns
+        -------
+        List[str]:
+            List of parameters from the loaded from deployment config json file. If not available, then an empty list
+            is returned.
+
+        """
+        default_params = []
+        oci_model = self.ds_client.get_model(model_id).data
+        for custom_metadata in oci_model.custom_metadata_list:
+            if custom_metadata.key == AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME:
+                container_type_key = custom_metadata.value
+                if container_type_key in InferenceContainerTypeKey.values():
+                    deployment_config = self.get_deployment_config(model_id)
+                    config_parameters = (
+                        deployment_config.get("configuration", UNKNOWN_DICT)
+                        .get(instance_shape, UNKNOWN_DICT)
+                        .get("parameters", UNKNOWN_DICT)
+                    )
+                    if (
+                        InferenceContainerType.CONTAINER_TYPE_VLLM.value
+                        in container_type_key
+                    ):
+                        params = config_parameters.get("VLLM_PARAMS", UNKNOWN)
+                    elif (
+                        InferenceContainerType.CONTAINER_TYPE_TGI.value
+                        in container_type_key
+                    ):
+                        params = config_parameters.get("TGI_PARAMS", UNKNOWN)
+                    else:
+                        params = UNKNOWN
+                        logger.debug(
+                            f"Default inference parameters are not available for the model {model_id} and "
+                            f"instance {instance_shape}."
+                        )
+                    if params:
+                        # account for param that can have --arg but no values, e.g. --trust-remote-code
+                        default_params.extend(
+                            ["--" + param.strip() for param in params.split("--")[1:]]
+                        )
+                break
+        return default_params
 
 
 @dataclass
