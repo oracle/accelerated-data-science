@@ -84,11 +84,8 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
         # Convert the Hugging Face model ID to lowercase once
         model_id_lower = model_id.lower()
 
-        compartment_id = self.get_argument("compartment_id", default=None)
-        project_id = self.get_argument("project_id", default=None)
-
         aqua_model_app = AquaModelApp()
-        aqua_model_list = aqua_model_app.list(compartment_id, project_id)
+        aqua_model_list = aqua_model_app.list()
 
         for aqua_model_summary in aqua_model_list:
             if aqua_model_summary.name.lower() == model_id_lower:

@@ -150,7 +150,9 @@ class HFModelSummary:
     """Represents a summary of Hugging Face model."""
 
     model_info: hf_api.ModelInfo = field(default_factory=hf_api.ModelInfo)
-    aqua_model_info: Optional[AquaModel] = field(default_factory=AquaModel)
+    aqua_model_info: Optional[AquaModelSummary] = field(
+        default_factory=AquaModelSummary
+    )
 
 
 @dataclass(repr=False)
@@ -1030,12 +1032,16 @@ class AquaModelApp(AquaApp):
             model_name=model_name,
             inference_container=inference_container,
             finetuning_container=finetuning_container,
-            inference_container_type_smc=True
-            if is_service_managed_container(inference_container)
-            else inference_container_type_smc,
-            finetuning_container_type_smc=True
-            if is_service_managed_container(inference_container)
-            else finetuning_container_type_smc,
+            inference_container_type_smc=(
+                True
+                if is_service_managed_container(inference_container)
+                else inference_container_type_smc
+            ),
+            finetuning_container_type_smc=(
+                True
+                if is_service_managed_container(inference_container)
+                else finetuning_container_type_smc
+            ),
             shadow_model=shadow_model_details,
         )
 

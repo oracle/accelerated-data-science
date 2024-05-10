@@ -475,16 +475,19 @@ class TestAquaUI(unittest.TestCase):
                     "name": "dsmc://odsc-tgi-serving",
                     "version": "1.4.5",
                     "display_name": "TGI:1.4.5",
+                    "family": "odsc-tgi-serving",
                 },
                 {
                     "name": "dsmc://odsc-tgi-serving",
                     "version": "2.0.2",
                     "display_name": "TGI:2.0.2",
+                    "family": "odsc-tgi-serving",
                 },
                 {
                     "name": "dsmc://odsc-vllm-serving",
                     "version": "0.3.0.7",
                     "display_name": "VLLM:0.3.0",
+                    "family": "odsc-vllm-serving",
                 },
             ],
             "finetune": [
@@ -492,6 +495,7 @@ class TestAquaUI(unittest.TestCase):
                     "name": "dsmc://odsc-llm-fine-tuning",
                     "version": "1.1.33.34",
                     "display_name": "1.1.33.34",
+                    "family": "odsc-llm-fine-tuning",
                 }
             ],
             "evaluate": [
@@ -499,6 +503,7 @@ class TestAquaUI(unittest.TestCase):
                     "name": "dsmc://odsc-llm-evaluate",
                     "version": "0.1.2.0",
                     "display_name": "0.1.2.0",
+                    "family": "odsc-llm-evaluate",
                 }
             ],
         }

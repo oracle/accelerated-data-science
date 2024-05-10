@@ -38,6 +38,7 @@ class AquaContainerConfigItem(DataClassSerializable):
     name: str = None
     version: str = None
     display_name: str = None
+    family: str = None
 
 
 @dataclass(repr=False)
@@ -80,6 +81,7 @@ class AquaContainerConfig(DataClassSerializable):
                         display_name=container.get(
                             "displayName", container.get("version", "")
                         ),
+                        family=container_type,
                     )
                     if container.get("type") == "inference":
                         inference_items.append(container_item)
