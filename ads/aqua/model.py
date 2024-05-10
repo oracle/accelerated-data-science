@@ -7,13 +7,12 @@ import re
 from dataclasses import InitVar, dataclass, field, fields
 from datetime import datetime, timedelta
 from enum import Enum
-from ads.common.extended_enum import ExtendedEnum
-from huggingface_hub import HfApi, snapshot_download
 from threading import Lock
-from typing import List, Union, Optional
+from typing import List, Optional, Union
 
 import oci
 from cachetools import TTLCache
+from huggingface_hub import HfApi, snapshot_download, hf_api
 from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger, utils
@@ -25,6 +24,7 @@ from ads.aqua.constants import (
     VALIDATION_METRICS,
     VALIDATION_METRICS_FINAL,
     FineTuningDefinedMetadata,
+    READY_TO_IMPORT_STATUS,
 )
 from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaRuntimeError
@@ -62,6 +62,12 @@ from ads.config import (
 from ads.model import DataScienceModel
 from ads.model.model_metadata import MetadataTaxonomyKeys, ModelCustomMetadata
 from ads.telemetry import telemetry
+
+from ads.common.extended_enum import ExtendedEnum
+
+
+class ModelTask(ExtendedEnum):
+    TEXT_GENERATION = "text-generation"
 
 
 class FineTuningMetricCategories(Enum):
@@ -121,6 +127,7 @@ class AquaModelSummary(DataClassSerializable):
     search_text: str = None
     ready_to_deploy: bool = True
     ready_to_finetune: bool = False
+    ready_to_import: bool = False
 
 
 @dataclass(repr=False)
@@ -136,6 +143,14 @@ class HFModelContainerInfo:
 
     inference_container: str = None
     finetuning_container: str = None
+
+
+@dataclass(repr=False)
+class HFModelSummary:
+    """Represents a summary of Hugging Face model."""
+
+    model_info: hf_api.ModelInfo = field(default_factory=hf_api.ModelInfo)
+    aqua_model_info: Optional[AquaModel] = field(default_factory=AquaModel)
 
 
 @dataclass(repr=False)
@@ -671,6 +686,10 @@ class AquaModelApp(AquaApp):
             freeform_tags.get(Tags.READY_TO_FINE_TUNE.value, "").upper()
             == READY_TO_FINE_TUNE_STATUS
         )
+        ready_to_import = (
+            freeform_tags.get(Tags.READY_TO_IMPORT.value, "").upper()
+            == READY_TO_IMPORT_STATUS
+        )
 
         return dict(
             compartment_id=model.compartment_id,
@@ -687,6 +706,7 @@ class AquaModelApp(AquaApp):
             search_text=search_text,
             ready_to_deploy=ready_to_deploy,
             ready_to_finetune=ready_to_finetune,
+            ready_to_import=ready_to_import,
         )
 
     @telemetry(entry_point="plugin=model&action=list", name="aqua")
@@ -930,7 +950,8 @@ class AquaModelApp(AquaApp):
             # If shadow model already has a artifact json, use that.
             metadata.get(MODEL_BY_REFERENCE_OSS_PATH_KEY)
             logger.info(
-                f"Found model articat in the service bucket. Using artifact from service bucket instead of {os_path}"
+                f"Found model artifact in the service bucket. "
+                f"Using artifact from service bucket instead of {os_path}"
             )
         except:
             # Add artifact from user bucket
@@ -943,6 +964,8 @@ class AquaModelApp(AquaApp):
 
         model = (
             model.with_custom_metadata_list(metadata)
+            .with_compartment_id(COMPARTMENT_OCID)
+            .with_project_id(PROJECT_OCID)
             .with_artifact(os_path)
             .with_display_name(os.path.basename(model_name))
             .with_freeform_tags(**tags)
