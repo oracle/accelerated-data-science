@@ -120,7 +120,11 @@ class FineTuningTestCase(TestCase):
             ft_name="test_ft_name",
             dataset_path="oci://ds_bucket@namespace/prefix/dataset.jsonl",
             report_path="oci://report_bucket@namespace/prefix/",
-            ft_parameters={"epochs": 1, "learning_rate": 0.02},
+            ft_parameters={
+                "epochs": 1,
+                "learning_rate": 0.02,
+                "lora_target_linear": False
+            },
             shape_name="VM.GPU.A10.1",
             replica=1,
             validation_set_size=0.2,
@@ -151,6 +155,7 @@ class FineTuningTestCase(TestCase):
                 "learning_rate": 0.02,
                 "sample_packing": "auto",
                 "batch_size": 1,
+                "lora_target_linear": False
             },
             "source": {
                 "id": f"{ft_source.id}",

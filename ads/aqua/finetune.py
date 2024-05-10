@@ -554,7 +554,7 @@ class AquaFineTuningApp(AquaApp):
                 finetuning_experiment_id=experiment_model_version_set_id,
             ),
             parameters={
-                key: value for key, value in asdict(ft_parameters).items() if value
+                key: value for key, value in asdict(ft_parameters).items() if value is not None
             },
         )
 
@@ -619,7 +619,7 @@ class AquaFineTuningApp(AquaApp):
         """Builds the oci launch cmd for fine tuning container runtime."""
         oci_launch_cmd = f"--training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} "
         for key, value in asdict(parameters).items():
-            if value:
+            if value is not None:
                 if key == "batch_size":
                     oci_launch_cmd += f"--micro_{key} {value} "
                 elif key == "epochs":
