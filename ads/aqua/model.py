@@ -4,7 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
 import re
-from dataclasses import InitVar, dataclass, field, fields
+from dataclasses import InitVar, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from threading import Lock
@@ -12,19 +12,19 @@ from typing import List, Optional, Union
 
 import oci
 from cachetools import TTLCache
-from huggingface_hub import HfApi, snapshot_download, hf_api
+from huggingface_hub import HfApi, hf_api, snapshot_download
 from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger, utils
 from ads.aqua.base import AquaApp, CLIBuilderMixin
 from ads.aqua.constants import (
+    READY_TO_IMPORT_STATUS,
     TRAINING_METRICS_FINAL,
     TRINING_METRICS,
     UNKNOWN_VALUE,
     VALIDATION_METRICS,
     VALIDATION_METRICS_FINAL,
     FineTuningDefinedMetadata,
-    READY_TO_IMPORT_STATUS,
 )
 from ads.aqua.data import AquaResourceIdentifier, Tags
 from ads.aqua.exception import AquaRuntimeError
@@ -38,12 +38,12 @@ from ads.aqua.utils import (
     UNKNOWN,
     create_word_icon,
     get_artifact_path,
+    is_service_managed_container,
     read_file,
     upload_folder,
-    is_service_managed_container,
 )
 from ads.common.auth import default_signer
-from ads.common.object_storage_details import ObjectStorageDetails
+from ads.common.extended_enum import ExtendedEnum
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link, get_log_links
@@ -53,17 +53,24 @@ from ads.config import (
     AQUA_EVALUATION_CONTAINER_METADATA_NAME,
     AQUA_FINETUNING_CONTAINER_METADATA_NAME,
     AQUA_FINETUNING_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
-    AQUA_SERVICE_MODELS_BUCKET,
     COMPARTMENT_OCID,
-    CONDA_BUCKET_NS,
     PROJECT_OCID,
     TENANCY_OCID,
 )
 from ads.model import DataScienceModel
-from ads.model.model_metadata import MetadataTaxonomyKeys, ModelCustomMetadata
+from ads.model.model_metadata import (
+    MetadataTaxonomyKeys,
+    ModelCustomMetadata,
+    ModelCustomMetadataItem,
+)
 from ads.telemetry import telemetry
 
-from ads.common.extended_enum import ExtendedEnum
+
+class ModelCustomMetadataFields(ExtendedEnum):
+    ARTIFACT_LOCATION = "artifact_location"
+    DEPLOYMENT_CONTAINER = "deployment-container"
+    EVALUATION_CONTAINER = "evaluation-container"
+    FINETUNE_CONTAINER = "finetune-container"
 
 
 class ModelTask(ExtendedEnum):
@@ -135,6 +142,9 @@ class AquaModel(AquaModelSummary, DataClassSerializable):
     """Represents an Aqua model."""
 
     model_card: str = None
+    inference_container: str = None
+    finetuning_container: str = None
+    evaluation_container: str = None
 
 
 @dataclass(repr=False)
@@ -150,9 +160,7 @@ class HFModelSummary:
     """Represents a summary of Hugging Face model."""
 
     model_info: hf_api.ModelInfo = field(default_factory=hf_api.ModelInfo)
-    aqua_model_info: Optional[AquaModelSummary] = field(
-        default_factory=AquaModelSummary
-    )
+    aqua_model_info: Optional[AquaModel] = field(default_factory=AquaModel)
 
 
 @dataclass(repr=False)
@@ -439,13 +447,15 @@ class AquaModelApp(AquaApp):
         return custom_model
 
     @telemetry(entry_point="plugin=model&action=get", name="aqua")
-    def get(self, model_id) -> "AquaModel":
+    def get(self, model_id: str, load_model_card: Optional[bool] = True) -> "AquaModel":
         """Gets the information of an Aqua model.
 
         Parameters
         ----------
         model_id: str
             The model OCID.
+        load_model_card: (bool, optional). Defaults to `True`.
+            Whether to load model card from artifacts or not.
 
         Returns
         -------
@@ -469,33 +479,48 @@ class AquaModelApp(AquaApp):
         )
 
         # todo: consolidate this logic in utils for model and deployment use
-        try:
-            artifact_path = ds_model.custom_metadata_list.get(
-                utils.MODEL_BY_REFERENCE_OSS_PATH_KEY
-            ).value.rstrip("/")
-            if not ObjectStorageDetails.is_oci_path(artifact_path):
-                artifact_path = ObjectStorageDetails(
-                    AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, artifact_path
-                ).path
-        except ValueError:
-            artifact_path = utils.UNKNOWN
 
-        if not artifact_path:
-            logger.debug("Failed to get artifact path from custom metadata.")
+        model_card = ""
+        if load_model_card:
+            artifact_path = get_artifact_path(ds_model.custom_metadata_list)
+            if artifact_path != UNKNOWN:
+                model_card = str(
+                    read_file(
+                        file_path=f"{artifact_path}/{README}",
+                        auth=self._auth,
+                    )
+                )
 
-        aqua_model_atttributes = dict(
+        inference_container = ds_model.custom_metadata_list.get(
+            ModelCustomMetadataFields.DEPLOYMENT_CONTAINER.value,
+            ModelCustomMetadataItem(
+                key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER.value
+            ),
+        ).value
+        evaluation_container = ds_model.custom_metadata_list.get(
+            ModelCustomMetadataFields.EVALUATION_CONTAINER.value,
+            ModelCustomMetadataItem(
+                key=ModelCustomMetadataFields.EVALUATION_CONTAINER.value
+            ),
+        ).value
+        finetuning_container: str = ds_model.custom_metadata_list.get(
+            ModelCustomMetadataFields.FINETUNE_CONTAINER.value,
+            ModelCustomMetadataItem(
+                key=ModelCustomMetadataFields.FINETUNE_CONTAINER.value
+            ),
+        ).value
+
+        aqua_model_attributes = dict(
             **self._process_model(ds_model, self.region),
             project_id=ds_model.project_id,
-            model_card=str(
-                read_file(
-                    file_path=f"{artifact_path}/{README}",
-                    auth=self._auth,
-                )
-            ),
+            model_card=model_card,
+            inference_container=inference_container,
+            finetuning_container=finetuning_container,
+            evaluation_container=evaluation_container,
         )
 
         if not is_fine_tuned_model:
-            model_details = AquaModel(**aqua_model_atttributes)
+            model_details = AquaModel(**aqua_model_attributes)
             self._service_model_details_cache.__setitem__(
                 key=model_id, value=model_details
             )
@@ -551,7 +576,7 @@ class AquaModelApp(AquaApp):
             )
 
             model_details = AquaFineTuneModel(
-                **aqua_model_atttributes,
+                **aqua_model_attributes,
                 source=source_identifier,
                 lifecycle_state=(
                     Model.LIFECYCLE_STATE_ACTIVE
@@ -1058,12 +1083,20 @@ class AquaModelApp(AquaApp):
             model_name=model_name,
             inference_container=import_model_details.inference_container,
             finetuning_container=import_model_details.finetuning_container,
-            inference_container_type_smc=True
-            if is_service_managed_container(import_model_details.inference_container)
-            else import_model_details.inference_container_type_smc,
-            finetuning_container_type_smc=True
-            if is_service_managed_container(import_model_details.finetuning_container)
-            else import_model_details.finetuning_container_type_smc,
+            inference_container_type_smc=(
+                True
+                if is_service_managed_container(
+                    import_model_details.inference_container
+                )
+                else import_model_details.inference_container_type_smc
+            ),
+            finetuning_container_type_smc=(
+                True
+                if is_service_managed_container(
+                    import_model_details.finetuning_container
+                )
+                else import_model_details.finetuning_container_type_smc
+            ),
             shadow_model=shadow_model_details,
             compartment_id=import_model_details.compartment_id,
             project_id=import_model_details.project_id,

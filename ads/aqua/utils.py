@@ -213,15 +213,21 @@ def get_artifact_path(custom_metadata_list: List) -> str:
     str:
         The artifact path from model.
     """
-    for custom_metadata in custom_metadata_list:
-        if custom_metadata.key == MODEL_BY_REFERENCE_OSS_PATH_KEY:
-            if ObjectStorageDetails.is_oci_path(custom_metadata.value):
-                artifact_path = custom_metadata.value
-            else:
-                artifact_path = ObjectStorageDetails(
-                    AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, custom_metadata.value
-                ).path
-            return artifact_path
+    try:
+        for custom_metadata in custom_metadata_list:
+            if custom_metadata.key == MODEL_BY_REFERENCE_OSS_PATH_KEY:
+                if ObjectStorageDetails.is_oci_path(custom_metadata.value):
+                    artifact_path = custom_metadata.value
+                else:
+                    artifact_path = ObjectStorageDetails(
+                        AQUA_SERVICE_MODELS_BUCKET,
+                        CONDA_BUCKET_NS,
+                        custom_metadata.value,
+                    ).path
+                return artifact_path
+    except Exception as ex:
+        logger.debug(ex)
+
     logger.debug("Failed to get artifact path from custom metadata.")
     return UNKNOWN
 

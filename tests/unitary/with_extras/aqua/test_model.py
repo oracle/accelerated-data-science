@@ -10,7 +10,7 @@ from dataclasses import asdict
 from importlib import reload
 from unittest.mock import MagicMock, PropertyMock
 
-from mock import patch
+from unittest.mock import patch
 import oci
 import ads.common
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -218,8 +218,15 @@ class TestAquaModel:
     )
     @patch("ads.aqua.model.read_file")
     @patch.object(DataScienceModel, "from_id")
+    @patch(
+        "ads.aqua.model.get_artifact_path", return_value="oci://bucket@namespace/prefix"
+    )
     def test_get_foundation_models(
-        self, mock_from_id, mock_read_file, foundation_model_type
+        self,
+        mock_get_artifact_path,
+        mock_from_id,
+        mock_read_file,
+        foundation_model_type,
     ):
         ds_model = MagicMock()
         ds_model.id = "test_id"
@@ -238,7 +245,28 @@ class TestAquaModel:
         ds_model.time_created = "2024-01-19T17:57:39.158000+00:00"
         custom_metadata_list = ModelCustomMetadata()
         custom_metadata_list.add(
-            **{"key": "artifact_location", "value": "oci://bucket@namespace/prefix/"}
+            **{
+                "key": "artifact_location",
+                "value": "oci://bucket@namespace/prefix/",
+            }
+        )
+        custom_metadata_list.add(
+            **{
+                "key": "deployment-container",
+                "value": "odsc-vllm-serving",
+            }
+        )
+        custom_metadata_list.add(
+            **{
+                "key": "evaluation-container",
+                "value": "odsc-llm-evaluate",
+            }
+        )
+        custom_metadata_list.add(
+            **{
+                "key": "finetune-container",
+                "value": "odsc-llm-fine-tuning",
+            }
         )
         ds_model.custom_metadata_list = custom_metadata_list
 
@@ -274,19 +302,27 @@ class TestAquaModel:
             "ready_to_deploy": False if foundation_model_type == "shadow" else True,
             "ready_to_finetune": False,
             "ready_to_import": True if foundation_model_type == "shadow" else False,
-            "search_text": ",test_license,test_organization,test_task,true"
-            if foundation_model_type == "shadow"
-            else "ACTIVE,test_license,test_organization,test_task",
+            "search_text": (
+                ",test_license,test_organization,test_task,true"
+                if foundation_model_type == "shadow"
+                else "ACTIVE,test_license,test_organization,test_task"
+            ),
             "tags": ds_model.freeform_tags,
             "task": f'{ds_model.freeform_tags["task"]}',
             "time_created": f"{ds_model.time_created}",
+            "inference_container": "odsc-vllm-serving",
+            "finetuning_container": "odsc-llm-fine-tuning",
+            "evaluation_container": "odsc-llm-evaluate",
         }
 
     @patch("ads.aqua.utils.query_resource")
     @patch("ads.aqua.model.read_file")
     @patch.object(DataScienceModel, "from_id")
+    @patch(
+        "ads.aqua.model.get_artifact_path", return_value="oci://bucket@namespace/prefix"
+    )
     def test_get_model_fine_tuned(
-        self, mock_from_id, mock_read_file, mock_query_resource
+        self, mock_get_artifact_path, mock_from_id, mock_read_file, mock_query_resource
     ):
         ds_model = MagicMock()
         ds_model.id = "test_id"
@@ -315,6 +351,24 @@ class TestAquaModel:
         )
         custom_metadata_list.add(
             **{"key": "fine_tune_source_name", "value": "test_fine_tuned_source_name"}
+        )
+        custom_metadata_list.add(
+            **{
+                "key": "deployment-container",
+                "value": "odsc-vllm-serving",
+            }
+        )
+        custom_metadata_list.add(
+            **{
+                "key": "evaluation-container",
+                "value": "odsc-llm-evaluate",
+            }
+        )
+        custom_metadata_list.add(
+            **{
+                "key": "finetune-container",
+                "value": "odsc-llm-fine-tuning",
+            }
         )
         ds_model.custom_metadata_list = custom_metadata_list
         defined_metadata_list = ModelTaxonomyMetadata()
@@ -424,6 +478,9 @@ class TestAquaModel:
             "task": "test_task",
             "time_created": f"{ds_model.time_created}",
             "validation": {"type": "Automatic split", "value": "test_val_set_size"},
+            "inference_container": "odsc-vllm-serving",
+            "finetuning_container": "odsc-llm-fine-tuning",
+            "evaluation_container": "odsc-llm-evaluate",
         }
 
     @patch("huggingface_hub.snapshot_download")
