@@ -10,6 +10,7 @@ import unittest
 from dataclasses import asdict
 from importlib import reload
 from unittest.mock import MagicMock, patch
+from parameterized import parameterized
 import pytest
 import copy
 import yaml
@@ -27,6 +28,7 @@ from ads.aqua.deployment import (
 from ads.aqua.exception import AquaRuntimeError
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
+from ads.model.model_metadata import ModelCustomMetadata
 
 null = None
 
@@ -390,6 +392,63 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
         expected_result["state"] = "CREATING"
         assert actual_attributes == expected_result
+
+    @parameterized.expand(
+        [
+            (
+                "VLLM_PARAMS",
+                "odsc-vllm-serving",
+                ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
+            ),
+            (
+                "VLLM_PARAMS",
+                "odsc-vllm-serving",
+                [],
+            ),
+            (
+                "TGI_PARAMS",
+                "odsc-tgi-serving",
+                ["--sharded true", "--trust-remote-code"],
+            ),
+            (
+                "CUSTOM_PARAMS",
+                "custom-container-key",
+                ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
+            ),
+        ]
+    )
+    @patch.object(DataScienceModel, "from_id")
+    def test_get_deployment_default_params(
+        self, container_params_field, container_type_key, params, mock_from_id
+    ):
+        """Test for fetching config details for a given deployment."""
+
+        config_json = os.path.join(
+            self.curr_dir, "test_data/deployment/deployment_config.json"
+        )
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+        # update config params for testing
+        config["configuration"][TestDataset.DEPLOYMENT_SHAPE_NAME]["parameters"][
+            container_params_field
+        ] = " ".join(params)
+
+        mock_model = MagicMock()
+        custom_metadata_list = ModelCustomMetadata()
+        custom_metadata_list.add(
+            **{"key": "deployment-container", "value": container_type_key}
+        )
+        mock_model.custom_metadata_list = custom_metadata_list
+        mock_from_id.return_value = mock_model
+
+        self.app.get_deployment_config = MagicMock(return_value=config)
+        result = self.app.get_deployment_default_params(
+            TestDataset.MODEL_ID, TestDataset.DEPLOYMENT_SHAPE_NAME
+        )
+        if container_params_field == "CUSTOM_PARAMS":
+            assert result == []
+        else:
+            assert result == params
 
 
 class TestMDInferenceResponse(unittest.TestCase):

@@ -5,9 +5,9 @@
 
 import json
 import os
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from oci.data_science.models import (
     Metadata,
@@ -68,9 +68,17 @@ class FineTuneCustomMetadata(Enum):
 
 @dataclass(repr=False)
 class AquaFineTuningParams(DataClassSerializable):
-    epochs: int = None
-    learning_rate: float = None
-    sample_packing: str = "True"
+    epochs: int
+    learning_rate: Optional[float] = None
+    sample_packing: Optional[bool] = "auto"
+    batch_size: Optional[int] = None # make it batch_size for user, but internally this is micro_batch_size
+    sequence_len: Optional[int] = None
+    pad_to_sequence_len: Optional[bool] = None
+    lora_r: Optional[int] = None
+    lora_alpha: Optional[int] = None
+    lora_dropout: Optional[float] = None
+    lora_target_linear: Optional[bool] = None
+    lora_target_modules: Optional[List] = None
 
 
 @dataclass(repr=False)
@@ -191,9 +199,12 @@ class AquaFineTuningApp(AquaApp):
             try:
                 create_fine_tuning_details = CreateFineTuningDetails(**kwargs)
             except:
+                allowed_create_fine_tuning_details = (
+                    ', '.join(field.name for field in fields(CreateFineTuningDetails)).rstrip()
+                )
                 raise AquaValueError(
                     "Invalid create fine tuning parameters. Allowable parameters are: "
-                    f"{', '.join(list(asdict(CreateFineTuningDetails).keys()))}."
+                    f"{allowed_create_fine_tuning_details}."
                 )
 
         source = self.get_source(create_fine_tuning_details.ft_source_id)
@@ -248,9 +259,12 @@ class AquaFineTuningApp(AquaApp):
                 **create_fine_tuning_details.ft_parameters,
             )
         except:
+            allowed_fine_tuning_parameters = (
+                ', '.join(field.name for field in fields(AquaFineTuningParams)).rstrip()
+            )
             raise AquaValueError(
                 "Invalid fine tuning parameters. Fine tuning parameters should "
-                f"be a dictionary with keys: {', '.join(list(asdict(AquaFineTuningParams).keys()))}."
+                f"be a dictionary with keys: {allowed_fine_tuning_parameters}."
             )
 
         experiment_model_version_set_id = create_fine_tuning_details.experiment_id
@@ -394,7 +408,7 @@ class AquaFineTuningApp(AquaApp):
         except Exception:
             pass
 
-        batch_size = (
+        ft_parameters.batch_size = ft_parameters.batch_size or (
             ft_config.get("shape", UNKNOWN_DICT)
             .get(create_fine_tuning_details.shape_name, UNKNOWN_DICT)
             .get("batch_size", DEFAULT_FT_BATCH_SIZE)
@@ -408,7 +422,6 @@ class AquaFineTuningApp(AquaApp):
                 dataset_path=ft_dataset_path,
                 report_path=create_fine_tuning_details.report_path,
                 replica=create_fine_tuning_details.replica,
-                batch_size=batch_size,
                 finetuning_params=finetuning_params,
                 val_set_size=(
                     create_fine_tuning_details.validation_set_size
@@ -540,7 +553,9 @@ class AquaFineTuningApp(AquaApp):
                 finetuning_source=source.id,
                 finetuning_experiment_id=experiment_model_version_set_id,
             ),
-            parameters=ft_parameters,
+            parameters={
+                key: value for key, value in asdict(ft_parameters).items() if value is not None
+            },
         )
 
     def _build_fine_tuning_runtime(
@@ -550,7 +565,6 @@ class AquaFineTuningApp(AquaApp):
         dataset_path: str,
         report_path: str,
         replica: int,
-        batch_size: int,
         val_set_size: float,
         parameters: AquaFineTuningParams,
         ft_container: str = None,
@@ -578,9 +592,12 @@ class AquaFineTuningApp(AquaApp):
                             },
                         }
                     ),
-                    "OCI__LAUNCH_CMD": (
-                        f"--micro_batch_size {batch_size} --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} --sample_packing {parameters.sample_packing} "
-                        + (f"{finetuning_params}" if finetuning_params else "")
+                    "OCI__LAUNCH_CMD": self._build_oci_launch_cmd(
+                        dataset_path=dataset_path,
+                        report_path=report_path,
+                        val_set_size=val_set_size,
+                        parameters=parameters,
+                        finetuning_params=finetuning_params,
                     ),
                     "CONDA_BUCKET_NS": CONDA_BUCKET_NS,
                 }
@@ -590,6 +607,30 @@ class AquaFineTuningApp(AquaApp):
         )
 
         return runtime
+
+    @staticmethod
+    def _build_oci_launch_cmd(
+        dataset_path: str,
+        report_path: str,
+        val_set_size: float,
+        parameters: AquaFineTuningParams,
+        finetuning_params: str = None,
+    ) -> str:
+        """Builds the oci launch cmd for fine tuning container runtime."""
+        oci_launch_cmd = f"--training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} "
+        for key, value in asdict(parameters).items():
+            if value is not None:
+                if key == "batch_size":
+                    oci_launch_cmd += f"--micro_{key} {value} "
+                elif key == "epochs":
+                    oci_launch_cmd += f"--num_{key} {value} "
+                elif key == "lora_target_modules":
+                    oci_launch_cmd += f"--{key} {','.join(str(k) for k in value)} "
+                else:
+                    oci_launch_cmd += f"--{key} {value} "
+
+        oci_launch_cmd += (f"{finetuning_params}" if finetuning_params else "")
+        return oci_launch_cmd.rstrip()
 
     @telemetry(
         entry_point="plugin=finetuning&action=get_finetuning_config", name="aqua"

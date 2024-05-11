@@ -486,7 +486,9 @@ class AquaModelApp(AquaApp):
             if artifact_path != UNKNOWN:
                 model_card = str(
                     read_file(
-                        file_path=f"{artifact_path}/{README}",
+                        file_path=f"{artifact_path.rstrip('/')}/config/{README}"
+                        if is_shadow_type
+                        else f"{artifact_path.rstrip('/')}/{README}",
                         auth=self._auth,
                     )
                 )
@@ -509,8 +511,13 @@ class AquaModelApp(AquaApp):
                 key=ModelCustomMetadataFields.FINETUNE_CONTAINER.value
             ),
         ).value
+          
+        is_shadow_type = (
+            ds_model.freeform_tags.get(Tags.READY_TO_IMPORT.value, "false").upper()
+            == READY_TO_IMPORT_STATUS
+        )
 
-        aqua_model_attributes = dict(
+        aqua_model_atttributes = dict(
             **self._process_model(ds_model, self.region),
             project_id=ds_model.project_id,
             model_card=model_card,
@@ -898,6 +905,8 @@ class AquaModelApp(AquaApp):
             if shadow_model
             else {Tags.AQUA_TAG.value: "active", Tags.BASE_MODEL_CUSTOM.value: "true"}
         )
+        # Remove `ready_to_import` tag that might get copied from service model.
+        tags.pop(Tags.READY_TO_IMPORT.value, None)
         metadata = None
         if shadow_model:
             # Shadow model is a model in the service catalog that either has no artifacts but contains all the necessary metadata for deploying and fine tuning.

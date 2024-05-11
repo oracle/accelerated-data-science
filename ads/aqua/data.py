@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass
 from enum import Enum
-
+from ads.common.extended_enum import ExtendedEnum
 from ads.common.serializer import DataClassSerializable
 
 
@@ -42,3 +42,18 @@ class Tags(Enum):
     READY_TO_FINE_TUNE = "ready_to_fine_tune"
     READY_TO_IMPORT = "ready_to_import"
     BASE_MODEL_CUSTOM = "aqua_custom_base_model"
+
+
+class InferenceContainerType(ExtendedEnum):
+    CONTAINER_TYPE_VLLM = "vllm"
+    CONTAINER_TYPE_TGI = "tgi"
+
+
+class InferenceContainerTypeKey(ExtendedEnum):
+    AQUA_VLLM_CONTAINER_KEY = "odsc-vllm-serving"
+    AQUA_TGI_CONTAINER_KEY = "odsc-tgi-serving"
+
+
+class InferenceContainerParamType(ExtendedEnum):
+    PARAM_TYPE_VLLM = "VLLM_PARAMS"
+    PARAM_TYPE_TGI = "TGI_PARAMS"

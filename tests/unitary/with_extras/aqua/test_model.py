@@ -281,10 +281,17 @@ class TestAquaModel:
         aqua_model = self.app.get(model_id=model_id)
 
         mock_from_id.assert_called_with(model_id)
-        mock_read_file.assert_called_with(
-            file_path="oci://bucket@namespace/prefix/README.md",
-            auth=self.app._auth,
-        )
+
+        if foundation_model_type == "shadow":
+            mock_read_file.assert_called_with(
+                file_path="oci://bucket@namespace/prefix/config/README.md",
+                auth=self.app._auth,
+            )
+        else:
+            mock_read_file.assert_called_with(
+                file_path="oci://bucket@namespace/prefix/README.md",
+                auth=self.app._auth,
+            )
 
         assert asdict(aqua_model) == {
             "compartment_id": f"{ds_model.compartment_id}",
@@ -506,6 +513,7 @@ class TestAquaModel:
             "license": "aqua-license",
             "organization": "oracle",
             "task": "text-generation",
+            "ready_to_import": "true",
         }
         ds_model = (
             ds_model.with_compartment_id("test_model_compartment_id")
@@ -544,6 +552,9 @@ class TestAquaModel:
                     f"oci os object bulk-upload --src-dir {str(tmpdir)}/{hf_model} --prefix prefix/path/{hf_model}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT"
                 )
             )
+            ds_freeform_tags.pop(
+                "ready_to_import"
+            )  # The imported model should not have this tag
             assert model.freeform_tags == {
                 "aqua_custom_base_model": "true",
                 **ds_freeform_tags,
