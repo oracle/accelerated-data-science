@@ -64,7 +64,7 @@ class ModelHandlerTestCase(TestCase):
         self.model_handler.list()
 
         self.model_handler.finish.assert_called_with(mock_list.return_value)
-        mock_list.assert_called_with(None, None)
+        mock_list.assert_called_with(None, None, model_type=None)
 
 
 class ModelLicenseHandlerTestCase(TestCase):
@@ -94,28 +94,40 @@ class TestAquaHuggingFaceHandler:
             self.mock_handler.set_status = MagicMock()
 
     @pytest.mark.parametrize(
-        "test_model_id, test_author, expected_aqua_model_name",
+        "test_model_id, test_author, expected_aqua_model_name, expected_aqua_model_id",
         [
-            ("organization1/name1", "organization1", "organization1/name1"),
-            ("organization1/name2", "organization1", "organization1/name2"),
-            ("organization2/name3", "organization2", "organization2/name3"),
-            ("non_existing_name", "organization2", None),
-            ("organization1/non_existing_name", "organization1", None),
+            ("organization1/name1", "organization1", "organization1/name1", "test_id1"),
+            ("organization1/name2", "organization1", "organization1/name2", "test_id2"),
+            ("organization2/name3", "organization2", "organization2/name3", "test_id3"),
+            ("non_existing_name", "organization2", None, None),
+            ("organization1/non_existing_name", "organization1", None, None),
         ],
     )
+    @patch.object(AquaModelApp, "get")
     def test_find_matching_aqua_model(
-        self, test_model_id, test_author, expected_aqua_model_name
+        self,
+        mock_get_model,
+        test_model_id,
+        test_author,
+        expected_aqua_model_name,
+        expected_aqua_model_id,
     ):
         with patch.object(AquaModelApp, "list") as aqua_model_mock_list:
             aqua_model_mock_list.return_value = [
                 AquaModelSummary(
-                    name="organization1/name1", organization="organization1"
+                    id="test_id1",
+                    name="organization1/name1",
+                    organization="organization1",
                 ),
                 AquaModelSummary(
-                    name="organization1/name2", organization="organization1"
+                    id="test_id2",
+                    name="organization1/name2",
+                    organization="organization1",
                 ),
                 AquaModelSummary(
-                    name="organization2/name3", organization="organization2"
+                    id="test_id3",
+                    name="organization2/name3",
+                    organization="organization2",
                 ),
             ]
 
@@ -126,7 +138,9 @@ class TestAquaHuggingFaceHandler:
             aqua_model_mock_list.assert_called_once()
 
             if expected_aqua_model_name:
-                assert test_result.name == expected_aqua_model_name
+                mock_get_model.assert_called_with(
+                    expected_aqua_model_id, load_model_card=False
+                )
             else:
                 assert test_result == None
 
