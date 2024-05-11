@@ -206,7 +206,7 @@ def get_artifact_path(custom_metadata_list: List) -> str:
     Parameters
     ----------
     custom_metadata_list: List
-        A list of custom metadata of model.
+        A list of custom metadata of OCI model.
 
     Returns
     -------

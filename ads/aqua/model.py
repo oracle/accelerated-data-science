@@ -482,7 +482,9 @@ class AquaModelApp(AquaApp):
 
         model_card = ""
         if load_model_card:
-            artifact_path = get_artifact_path(ds_model.custom_metadata_list)
+            artifact_path = get_artifact_path(
+                ds_model.custom_metadata_list._to_oci_metadata()
+            )
             if artifact_path != UNKNOWN:
                 model_card = str(
                     read_file(
@@ -511,7 +513,7 @@ class AquaModelApp(AquaApp):
                 key=ModelCustomMetadataFields.FINETUNE_CONTAINER.value
             ),
         ).value
-          
+
         is_shadow_type = (
             ds_model.freeform_tags.get(Tags.READY_TO_IMPORT.value, "false").upper()
             == READY_TO_IMPORT_STATUS
