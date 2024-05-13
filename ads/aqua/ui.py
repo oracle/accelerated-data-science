@@ -14,9 +14,9 @@ from oci.identity.models import Compartment
 
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
+from ads.aqua.common.errors import AquaResourceAccessError, AquaValueError
+from ads.aqua.common.utils import get_container_config, load_config, sanitize_response
 from ads.aqua.data import Tags
-from ads.aqua.exception import AquaResourceAccessError, AquaValueError
-from ads.aqua.utils import get_container_config, load_config, sanitize_response
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails

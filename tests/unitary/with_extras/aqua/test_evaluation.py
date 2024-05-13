@@ -15,21 +15,21 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import oci
 from parameterized import parameterized
 
-from ads.aqua import utils
-from ads.aqua.data import Tags
-from ads.aqua.evaluation import (
-    AquaEvalMetrics,
-    AquaEvalReport,
-    AquaEvaluationApp,
-    AquaEvaluationSummary,
-)
-from ads.aqua.exception import (
+from ads.aqua.common import utils
+from ads.aqua.common.errors import (
     AquaFileNotFoundError,
     AquaMissingKeyError,
     AquaRuntimeError,
 )
+from ads.aqua.common.utils import EVALUATION_REPORT_JSON, EVALUATION_REPORT_MD, UNKNOWN
+from ads.aqua.data import Tags
+from ads.aqua.evaluation import AquaEvaluationApp
+from ads.aqua.evaluation.entities import (
+    AquaEvalMetrics,
+    AquaEvalReport,
+    AquaEvaluationSummary,
+)
 from ads.aqua.extension.base_handler import AquaAPIhandler
-from ads.aqua.utils import EVALUATION_REPORT_JSON, EVALUATION_REPORT_MD, UNKNOWN
 from ads.jobs.ads_job import DataScienceJob, DataScienceJobRun, Job
 from ads.model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
@@ -423,7 +423,7 @@ class TestAquaEvaluation(unittest.TestCase):
     @patch("ads.jobs.ads_job.Job.name", new_callable=PropertyMock)
     @patch("ads.jobs.ads_job.Job.id", new_callable=PropertyMock)
     @patch.object(Job, "create")
-    @patch("ads.aqua.evaluation.get_container_image")
+    @patch("ads.aqua.evaluation.evaluation.get_container_image")
     @patch.object(DataScienceModel, "create")
     @patch.object(ModelVersionSet, "create")
     @patch.object(DataScienceModel, "from_id")
@@ -908,8 +908,8 @@ class TestAquaEvaluationList(unittest.TestCase):
     def tearDown(self) -> None:
         self.app._eval_cache.clear()
 
-    @patch("ads.aqua.utils.query_resource")
-    @patch("ads.aqua.utils.query_resources")
+    @patch("ads.aqua.common.utils.query_resource")
+    @patch("ads.aqua.common.utils.query_resources")
     def test_skipping_fetch_jobrun(self, mock_query_resources, mock_query_resource):
         """Tests listing evalution."""
         mock_query_resources.return_value = [
@@ -931,8 +931,8 @@ class TestAquaEvaluationList(unittest.TestCase):
         mock_query_resources.assert_called_once()
         mock_query_resource.assert_not_called()
 
-    @patch("ads.aqua.utils.query_resource")
-    @patch("ads.aqua.utils.query_resources")
+    @patch("ads.aqua.common.utils.query_resource")
+    @patch("ads.aqua.common.utils.query_resources")
     def test_error_in_fetch_job(self, mock_query_resources, mock_query_resource):
         """Tests when fetching job encounters error."""
         mock_query_resources.return_value = [
@@ -951,7 +951,7 @@ class TestAquaEvaluationList(unittest.TestCase):
             jobrun=None,
         )
 
-    @patch("ads.aqua.utils.query_resources")
+    @patch("ads.aqua.common.utils.query_resources")
     def test_missing_info_in_custometadata(self, mock_query_resources):
         """Tests missing info in evaluation custom metadata."""
         eval_without_meta = copy.deepcopy(TestDataset.resource_summary_object_eval[0])
@@ -980,14 +980,14 @@ class TestCancelDeleteEvaluation(unittest.IsolatedAsyncioTestCase):
         self.mock_model = DataScienceModel(id="model456")
 
     @patch.object(DataScienceJobRun, "cancel")
-    @patch("ads.aqua.evaluation.logger")
+    @patch("ads.aqua.evaluation.evaluation.logger")
     async def test_cancel(self, mock_logger, mock_cancel):
         await self.app._cancel_job_run(DataScienceJobRun(), self.mock_model)
 
         mock_cancel.assert_called_once()
         mock_logger.info.assert_called_once()
 
-    @patch("ads.aqua.evaluation.logger")
+    @patch("ads.aqua.evaluation.evaluation.logger")
     async def test_cancel_exception(self, mock_logger):
         mock_cancel = MagicMock(
             side_effect=oci.exceptions.ServiceError(
@@ -1002,7 +1002,7 @@ class TestCancelDeleteEvaluation(unittest.IsolatedAsyncioTestCase):
         mock_cancel.assert_called_once()
         mock_logger.error.assert_called_once()
 
-    @patch("ads.aqua.evaluation.logger")
+    @patch("ads.aqua.evaluation.evaluation.logger")
     async def test_delete(self, mock_logger):
         mock_job = DataScienceJob()
         mock_job.dsc_job.delete = MagicMock()
@@ -1014,7 +1014,7 @@ class TestCancelDeleteEvaluation(unittest.IsolatedAsyncioTestCase):
         self.mock_model.delete.assert_called_once()
         mock_logger.info.assert_called()
 
-    @patch("ads.aqua.evaluation.logger")
+    @patch("ads.aqua.evaluation.evaluation.logger")
     async def test_delete_exception(self, mock_logger):
         mock_job = DataScienceJob()
         mock_job.dsc_job.delete = MagicMock(

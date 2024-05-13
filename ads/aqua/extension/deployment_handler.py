@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 from tornado.web import HTTPError
 
-from ads.aqua.decorator import handle_exceptions
+from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.deployment import AquaDeploymentApp, MDInferenceResponse, ModelParams
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.config import COMPARTMENT_OCID, PROJECT_OCID

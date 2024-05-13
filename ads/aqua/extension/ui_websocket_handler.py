@@ -2,28 +2,25 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-from asyncio.futures import Future
 import concurrent.futures
+from asyncio.futures import Future
 from concurrent.futures import ThreadPoolExecutor
-from typing import Union, List, Type, Dict
+from typing import Dict, List, Type, Union
 
 import tornado
-from tornado.ioloop import IOLoop
 from tornado import httputil
+from tornado.ioloop import IOLoop
+from tornado.websocket import WebSocketHandler
 
 from ads.aqua import logger
 from ads.aqua.extension.aqua_ws_msg_handler import AquaWSMsgHandler
-from ads.aqua.extension.evaluation_ws_msg_handler import (
-    AquaEvaluationWSMsgHandler,
-)
-from tornado.websocket import WebSocketHandler
-
+from ads.aqua.extension.evaluation_ws_msg_handler import AquaEvaluationWSMsgHandler
 from ads.aqua.extension.models.ws_models import (
-    BaseRequest,
-    RequestResponseType,
     AquaWsError,
-    ErrorResponse,
+    BaseRequest,
     BaseResponse,
+    ErrorResponse,
+    RequestResponseType,
 )
 
 MAX_WORKERS = 20

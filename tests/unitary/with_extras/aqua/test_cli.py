@@ -16,7 +16,7 @@ from parameterized import parameterized
 import ads.aqua
 import ads.config
 from ads.aqua.cli import AquaCommand
-from ads.aqua.exception import AquaCLIError, AquaConfigError
+from ads.aqua.common.errors import AquaCLIError, AquaConfigError
 
 
 class TestAquaCLI(TestCase):

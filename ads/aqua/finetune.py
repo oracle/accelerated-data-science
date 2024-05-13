@@ -17,10 +17,8 @@ from oci.data_science.models import (
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.base import AquaApp
-from ads.aqua.data import AquaResourceIdentifier, Resource, Tags
-from ads.aqua.exception import AquaFileExistsError, AquaValueError
-from ads.aqua.job import AquaJobSummary
-from ads.aqua.utils import (
+from ads.aqua.common.errors import AquaFileExistsError, AquaValueError
+from ads.aqua.common.utils import (
     DEFAULT_FT_BATCH_SIZE,
     DEFAULT_FT_BLOCK_STORAGE_SIZE,
     DEFAULT_FT_REPLICA,
@@ -31,6 +29,8 @@ from ads.aqua.utils import (
     get_container_image,
     upload_local_to_os,
 )
+from ads.aqua.data import AquaResourceIdentifier, Resource, Tags
+from ads.aqua.job import AquaJobSummary
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable

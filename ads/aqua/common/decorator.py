@@ -7,6 +7,7 @@
 
 import sys
 from functools import wraps
+from typing import TYPE_CHECKING, Union
 
 from oci.exceptions import (
     ClientError,
@@ -19,10 +20,8 @@ from oci.exceptions import (
 )
 from tornado.web import HTTPError
 
-from ads.aqua.exception import AquaError
+from ads.aqua.common.errors import AquaError
 from ads.aqua.extension.base_handler import AquaAPIhandler
-from typing import Union
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ads.aqua.extension.aqua_ws_msg_handler import AquaWSMsgHandler

@@ -9,10 +9,10 @@ from importlib import metadata
 import requests
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
-from ads.aqua.decorator import handle_exceptions
-from ads.aqua.exception import AquaResourceAccessError
+from ads.aqua.common.decorator import handle_exceptions
+from ads.aqua.common.errors import AquaResourceAccessError
+from ads.aqua.common.utils import fetch_service_compartment, known_realm
 from ads.aqua.extension.base_handler import AquaAPIhandler
-from ads.aqua.utils import fetch_service_compartment, known_realm
 
 
 class ADSVersionHandler(AquaAPIhandler):

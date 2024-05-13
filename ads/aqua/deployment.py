@@ -3,40 +3,50 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from enum import Enum
 import json
 import logging
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
+from enum import Enum
 from typing import Dict, List, Union
 
 import requests
 from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 
 from ads.aqua.base import AquaApp, logger
-from ads.aqua.exception import AquaRuntimeError, AquaValueError
-from ads.aqua.model import AquaModelApp, Tags
-from ads.aqua.utils import (
-    UNKNOWN,
+from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
+from ads.aqua.common.utils import (
+    AQUA_MODEL_TYPE_CUSTOM,
+    AQUA_MODEL_TYPE_SERVICE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
-    get_container_config,
-    load_config,
-    get_container_image,
+    UNKNOWN,
     UNKNOWN_DICT,
-    get_resource_name,
+    get_container_config,
+    get_container_image,
     get_model_by_reference_paths,
     get_ocid_substring,
-    AQUA_MODEL_TYPE_SERVICE,
-    AQUA_MODEL_TYPE_CUSTOM,
+    get_resource_name,
+    load_config,
 )
 from ads.aqua.data import (
+    AquaResourceIdentifier,
+    InferenceContainerParamType,
     InferenceContainerType,
     InferenceContainerTypeKey,
-    InferenceContainerParamType,
 )
 from ads.aqua.finetune import FineTuneCustomMetadata
-from ads.aqua.data import AquaResourceIdentifier
-from ads.common.utils import get_console_link, get_log_links
+from ads.aqua.model import AquaModelApp, Tags
 from ads.common.auth import default_signer
+from ads.common.object_storage_details import ObjectStorageDetails
+from ads.common.serializer import DataClassSerializable
+from ads.common.utils import get_console_link, get_log_links
+from ads.config import (
+    AQUA_CONFIG_FOLDER,
+    AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
+    AQUA_DEPLOYMENT_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
+    AQUA_MODEL_DEPLOYMENT_CONFIG,
+    AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS,
+    COMPARTMENT_OCID,
+)
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment import (
     ModelDeployment,
@@ -44,16 +54,6 @@ from ads.model.deployment import (
     ModelDeploymentInfrastructure,
     ModelDeploymentMode,
 )
-from ads.common.serializer import DataClassSerializable
-from ads.config import (
-    AQUA_DEPLOYMENT_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
-    AQUA_MODEL_DEPLOYMENT_CONFIG,
-    COMPARTMENT_OCID,
-    AQUA_CONFIG_FOLDER,
-    AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS,
-    AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
-)
-from ads.common.object_storage_details import ObjectStorageDetails
 from ads.telemetry import telemetry
 
 

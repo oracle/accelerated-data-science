@@ -7,7 +7,7 @@
 import os
 
 from ads import logger, set_auth
-from ads.aqua.utils import fetch_service_compartment
+from ads.aqua.common.utils import fetch_service_compartment
 from ads.config import OCI_RESOURCE_PRINCIPAL_VERSION
 
 ENV_VAR_LOG_LEVEL = "ADS_AQUA_LOG_LEVEL"

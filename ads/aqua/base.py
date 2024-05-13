@@ -3,8 +3,8 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from dataclasses import fields
 import os
+from dataclasses import fields
 from typing import Dict, Union
 
 import oci
@@ -12,15 +12,15 @@ from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDet
 
 from ads import set_auth
 from ads.aqua import logger
-from ads.aqua.data import Tags
-from ads.aqua.exception import AquaRuntimeError, AquaValueError
-from ads.aqua.utils import (
+from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
+from ads.aqua.common.utils import (
     UNKNOWN,
     _is_valid_mvs,
     get_artifact_path,
     is_valid_ocid,
     load_config,
 )
+from ads.aqua.data import Tags
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import extract_region

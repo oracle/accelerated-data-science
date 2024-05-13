@@ -1,9 +1,15 @@
-from ads.aqua.evaluation import AquaEvaluationSummary
-from ads.aqua.model import AquaModelSummary
-from typing import Optional, List
+#!/usr/bin/env python
+# -*- coding: utf-8 -*--
+
+# Copyright (c) 2024 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
 from dataclasses import dataclass
 from enum import Enum
+from typing import List, Optional
 
+from ads.aqua.evaluation.entities import AquaEvaluationSummary
+from ads.aqua.model import AquaModelSummary
 from ads.common.serializer import DataClassSerializable
 
 
@@ -28,7 +34,6 @@ class BaseRequest(DataClassSerializable):
 
 @dataclass
 class ListEvaluationsRequest(BaseRequest):
-
     compartment_id: Optional[str] = None
     limit: Optional[int] = None
     project_id: Optional[str] = None
