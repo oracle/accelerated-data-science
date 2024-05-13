@@ -1,14 +1,13 @@
-import numpy as np
 import pandas as pd
+import numpy as np
 
-from ads.common.decorator import runtime_dependency
 from ads.opctl import logger
+from ads.common.decorator import runtime_dependency
 from ads.opctl.operator.lowcode.forecast.utils import _select_plot_list
-
-from ..const import ForecastOutputColumns, SupportedModels
-from ..operator_config import ForecastOperatorConfig
 from .base_model import ForecastOperatorBaseModel
 from .forecast_datasets import ForecastDatasets, ForecastOutput
+from ..operator_config import ForecastOperatorConfig
+from ..const import ForecastOutputColumns, SupportedModels
 
 
 class MLForecastOperatorModel(ForecastOperatorBaseModel):
