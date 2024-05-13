@@ -793,3 +793,72 @@ def upload_folder(os_path: str, local_dir: str, model_name: str) -> str:
 
 def is_service_managed_container(container):
     return container and container.startswith(SERVICE_MANAGED_CONTAINER_URI_SCHEME)
+
+
+def get_params_list(params: str) -> List[str]:
+    """Parses the string parameter and returns a list of params.
+
+    Parameters
+    ----------
+    params
+        string parameters by separated by -- delimiter
+
+    Returns
+    -------
+        list of params
+
+    """
+    if not params:
+        return []
+    return ["--" + param.strip() for param in params.split("--")[1:]]
+
+
+def get_params_dict(params: str) -> dict:
+    """Accepts a string of double-dash parameters and returns a dict with the parameter keys and values.
+
+    Parameters
+    ----------
+    params:
+        Parameter string with values
+
+    Returns
+    -------
+        dict containing parameter keys and values
+
+    """
+    return {
+        split_result[0]: split_result[1] if len(split_result) > 1 else UNKNOWN
+        for split_result in (x.split() for x in get_params_list(params))
+    }
+
+
+def get_combined_params(params1: str = None, params2: str = None) -> str:
+    """
+    Combines string of double-dash parameters, and overrides the values from the second string in the first.
+    Parameters
+    ----------
+    params1:
+        Parameter string with values
+    params2:
+        Parameter string with values that need to be overridden.
+
+    Returns
+    -------
+        A combined list with overridden values from params2.
+    """
+    if not params1:
+        return params2
+    if not params2:
+        return params1
+
+    params1_dict = get_params_dict(params1)
+    params2_dict = get_params_dict(params2)
+
+    for key, items in params2_dict.items():
+        params1_dict[key] = params2_dict[key]
+
+    combined_params = ""
+    for key, value in params1_dict.items():
+        combined_params += f"{key} {value} " if value else key
+
+    return combined_params

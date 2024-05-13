@@ -193,7 +193,7 @@ class AquaDeploymentInferenceHandler(AquaAPIhandler):
 
 
 class AquaDeploymentParamsHandler(AquaAPIhandler):
-    """Handler for Aqua finetuning params REST APIs.
+    """Handler for Aqua deployment params REST APIs.
 
     Methods
     -------
@@ -212,10 +212,36 @@ class AquaDeploymentParamsHandler(AquaAPIhandler):
             )
         )
 
+    @handle_exceptions
+    def post(self):
+        """Handles post request for the deployment param handler API.
+
+        Raises
+        ------
+        HTTPError
+            Raises HTTPError if inputs are missing or are invalid.
+        """
+        try:
+            input_data = self.get_json_body()
+        except Exception:
+            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT)
+
+        if not input_data:
+            raise HTTPError(400, Errors.NO_INPUT_DATA)
+
+        model_id = input_data.get("model_id")
+        params = input_data.get("params", None)
+        return self.finish(
+            AquaDeploymentApp().validate_deployment_params(
+                model_id=model_id,
+                params=params,
+            )
+        )
+
 
 __handlers__ = [
     ("deployments/?([^/]*)", AquaDeploymentHandler),
     ("deployments/config/?([^/]*)", AquaDeploymentHandler),
-    ("deployments/?([^/]*/params)", AquaDeploymentParamsHandler),
+    ("deployments/?([^/]*)/params?([^/]*)", AquaDeploymentParamsHandler),
     ("inference", AquaDeploymentInferenceHandler),
 ]

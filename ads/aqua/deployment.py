@@ -27,11 +27,14 @@ from ads.aqua.utils import (
     get_ocid_substring,
     AQUA_MODEL_TYPE_SERVICE,
     AQUA_MODEL_TYPE_CUSTOM,
+    get_combined_params,
+    get_params_dict,
 )
 from ads.aqua.data import (
     InferenceContainerType,
     InferenceContainerTypeKey,
     InferenceContainerParamType,
+    VLLMInferenceRestrictedParams,
 )
 from ads.aqua.finetune import FineTuneCustomMetadata
 from ads.aqua.data import AquaResourceIdentifier
@@ -219,6 +222,7 @@ class AquaDeploymentApp(AquaApp):
         server_port: int = None,
         health_check_port: int = None,
         env_var: Dict = None,
+        container_image: str = None,
     ) -> "AquaDeployment":
         """
         Creates a new Aqua deployment
@@ -257,6 +261,8 @@ class AquaDeploymentApp(AquaApp):
             The health check port for docker container image.
         env_var : dict, optional
             Environment variable for the deployment, by default None.
+        container_image: str
+            The image of model deployment container runtime.
         Returns
         -------
         AquaDeployment
@@ -302,14 +308,6 @@ class AquaDeploymentApp(AquaApp):
                     f"from custom metadata for the model {config_source_id}"
                 )
 
-        deployment_config = self.get_deployment_config(config_source_id)
-        vllm_params = (
-            deployment_config.get("configuration", UNKNOWN_DICT)
-            .get(instance_shape, UNKNOWN_DICT)
-            .get("parameters", UNKNOWN_DICT)
-            .get(InferenceContainerParamType.PARAM_TYPE_VLLM.value, UNKNOWN)
-        )
-
         # set up env vars
         if not env_var:
             env_var = dict()
@@ -323,10 +321,11 @@ class AquaDeploymentApp(AquaApp):
                 f"{MODEL_BY_REFERENCE_OSS_PATH_KEY} key is not available in the custom metadata field."
             )
 
-        # todo: remove this after absolute path is removed from env var
         if ObjectStorageDetails.is_oci_path(model_path_prefix):
             os_path = ObjectStorageDetails.from_path(model_path_prefix)
             model_path_prefix = os_path.filepath.rstrip("/")
+
+        env_var.update({"BASE_MODEL": f"{model_path_prefix}"})
 
         if is_fine_tuned_model:
             _, fine_tune_output_path = get_model_by_reference_paths(
@@ -342,8 +341,6 @@ class AquaDeploymentApp(AquaApp):
             fine_tune_output_path = os_path.filepath.rstrip("/")
 
             env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
-
-        logging.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
 
         is_custom_container = False
         try:
@@ -365,13 +362,14 @@ class AquaDeploymentApp(AquaApp):
 
         # fetch image name from config
         # If the image is of type custom, then `container_type_key` is the inference image
-        container_image = (
-            get_container_image(
-                container_type=container_type_key,
+        if not container_image:
+            container_image = (
+                get_container_image(
+                    container_type=container_type_key,
+                )
+                if not is_custom_container
+                else container_type_key
             )
-            if not is_custom_container
-            else container_type_key
-        )
         logging.info(
             f"Aqua Image used for deploying {aqua_model.id} : {container_image}"
         )
@@ -382,6 +380,7 @@ class AquaDeploymentApp(AquaApp):
         container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
             container_type_key, {}
         )
+        # these params cannot be overridden for Aqua deployments
         params = container_spec.get(ContainerSpec.CLI_PARM, "")
         server_port = server_port or container_spec.get(
             ContainerSpec.SERVER_PORT
@@ -390,16 +389,41 @@ class AquaDeploymentApp(AquaApp):
             ContainerSpec.HEALTH_CHECK_PORT
         )  # Give precendece to the input parameter
 
-        env_var.update({"BASE_MODEL": f"{model_path_prefix}"})
-        if vllm_params:
-            params = f"{params} {vllm_params}"
+        deployment_config = self.get_deployment_config(config_source_id)
+        vllm_params = (
+            deployment_config.get("configuration", UNKNOWN_DICT)
+            .get(instance_shape, UNKNOWN_DICT)
+            .get("parameters", UNKNOWN_DICT)
+            .get(InferenceContainerParamType.PARAM_TYPE_VLLM.value, UNKNOWN)
+        )
+
+        # todo: add support for tgi once parameters are added to configs. _find_restricted_params can take in
+        #   additional parameter container_type_key and should validate against TGIInferenceRestrictedParams set for
+        #   restricted params.
+        # validate user provided params
+        user_params = env_var.get("PARAMS", UNKNOWN)
+        if user_params:
+            restricted_params = self._find_restricted_params(params, user_params)
+            if restricted_params:
+                raise AquaValueError(
+                    f"Parameters {restricted_params} are set by Aqua "
+                    f"and cannot be overridden."
+                )
+
+        deployment_params = get_combined_params(vllm_params, user_params)
+
+        if deployment_params:
+            params = f"{params} {deployment_params}"
+
         env_var.update({"PARAMS": params})
         for env in container_spec.get(ContainerSpec.ENV_VARS, []):
             if isinstance(env, dict):
                 env_var.update(env)
+
+        logging.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
+
         # Start model deployment
         # configure model deployment infrastructure
-        # todo : any other infrastructure params needed?
         infrastructure = (
             ModelDeploymentInfrastructure()
             .with_project_id(project_id)
@@ -418,7 +442,6 @@ class AquaDeploymentApp(AquaApp):
             )
         )
         # configure model deployment runtime
-        # todo : any other runtime params needed?
         container_runtime = (
             ModelDeploymentContainerRuntime()
             .with_image(container_image)
@@ -432,7 +455,6 @@ class AquaDeploymentApp(AquaApp):
             .with_remove_existing_artifact(True)
         )
         # configure model deployment and deploy model on container runtime
-        # todo : any other deployment params needed?
         deployment = (
             ModelDeployment()
             .with_display_name(display_name)
@@ -693,6 +715,79 @@ class AquaDeploymentApp(AquaApp):
                     )
 
         return default_params
+
+    def validate_deployment_params(
+        self, model_id: str, params: str = None
+    ) -> List[str]:
+        """Validate if the deployment parameters passed by the user can be overridden. Parameter values are not
+        validated, only param keys are validated.
+
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the Aqua model.
+
+        params : List[str], optional
+            Params passed by the user.
+
+        Returns
+        -------
+            Return a list of restricted params.
+
+        """
+        restricted_params = []
+        if not params:
+            return restricted_params
+
+        model = DataScienceModel.from_id(model_id)
+        try:
+            container_type_key = model.custom_metadata_list.get(
+                AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
+            ).value
+        except ValueError:
+            container_type_key = UNKNOWN
+            logger.debug(
+                f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field for model {model_id}."
+            )
+        if container_type_key:
+            container_config = get_container_config()
+            container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
+                container_type_key, {}
+            )
+            cli_params = container_spec.get(ContainerSpec.CLI_PARM, "")
+
+            restricted_params = self._find_restricted_params(cli_params, params)
+
+        return restricted_params
+
+    @staticmethod
+    def _find_restricted_params(default_params: str, user_params: str) -> List[str]:
+        """Returns a list of restricted params that user chooses to override when creating an Aqua deployment.
+        The default parameters coming from the container index json file cannot be overridden. In addition to this,
+        a set of parameters maintained in
+
+        Parameters
+        ----------
+        default_params:
+            Inference container parameter string with default values.
+        user_params:
+            Inference container parameter string with user provided values.
+
+        Returns
+        -------
+            A list with params keys common between params1 and params2.
+
+        """
+        restricted_params = []
+        if default_params and user_params:
+            default_params_dict = get_params_dict(default_params)
+            user_params_dict = get_params_dict(user_params)
+
+            for key, items in user_params_dict.items():
+                if key in default_params_dict or key in VLLMInferenceRestrictedParams:
+                    restricted_params.append(key)
+
+        return restricted_params
 
 
 @dataclass

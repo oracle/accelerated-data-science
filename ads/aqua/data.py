@@ -57,3 +57,6 @@ class InferenceContainerTypeKey(ExtendedEnum):
 class InferenceContainerParamType(ExtendedEnum):
     PARAM_TYPE_VLLM = "VLLM_PARAMS"
     PARAM_TYPE_TGI = "TGI_PARAMS"
+
+
+VLLMInferenceRestrictedParams = {"tensor-parallel-size"}
