@@ -16,7 +16,7 @@ from mock import patch
 import ads.aqua
 import ads.aqua.finetuning.finetuning
 import ads.config
-from ads.aqua.base import AquaApp
+from ads.aqua.app import AquaApp
 from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.finetuning.constants import FineTuneCustomMetadata
 from ads.aqua.finetuning.entities import AquaFineTuningParams

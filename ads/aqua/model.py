@@ -16,7 +16,7 @@ from huggingface_hub import HfApi, hf_api, snapshot_download
 from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
-from ads.aqua.base import AquaApp, CLIBuilderMixin
+from ads.aqua.app import AquaApp, CLIBuilderMixin
 from ads.aqua.common import utils
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import (

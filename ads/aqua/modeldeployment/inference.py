@@ -9,7 +9,7 @@ from dataclasses import asdict, dataclass, field
 
 import requests
 
-from ads.aqua.base import AquaApp, logger
+from ads.aqua.app import AquaApp, logger
 from ads.aqua.modeldeployment.entities import ModelParams
 from ads.common.auth import default_signer
 from ads.telemetry import telemetry
