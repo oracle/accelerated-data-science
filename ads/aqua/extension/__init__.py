@@ -13,6 +13,9 @@ from ads.aqua.extension.deployment_handler import (
 from ads.aqua.extension.evaluation_handler import __handlers__ as __eval_handlers__
 from ads.aqua.extension.finetune_handler import __handlers__ as __finetune_handlers__
 from ads.aqua.extension.model_handler import __handlers__ as __model_handlers__
+from ads.aqua.extension.playground_handler import (
+    __handlers__ as __playground_handlers__,
+)
 from ads.aqua.extension.ui_handler import __handlers__ as __ui_handlers__
 
 __handlers__ = (
@@ -22,6 +25,7 @@ __handlers__ = (
     + __deployment_handlers__
     + __ui_handlers__
     + __eval_handlers__
+    + __playground_handlers__
 )
 
 
