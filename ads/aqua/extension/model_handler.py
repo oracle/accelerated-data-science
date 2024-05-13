@@ -93,7 +93,7 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
 
         for aqua_model_summary in aqua_model_list:
             if aqua_model_summary.name.lower() == model_id_lower:
-                return aqua_model_summary
+                return aqua_model_app.get(aqua_model_summary.id, load_model_card=False)
 
         return None
 
