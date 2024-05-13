@@ -1,0 +1,34 @@
+{
+  "configuration": {
+    "adapter": "lora",
+    "bf16": true,
+    "flash_attention": true,
+    "fp16": false,
+    "gradient_accumulation_steps": 1,
+    "gradient_checkpointing": true,
+    "learning_rate": 0.0002,
+    "logging_steps": 1,
+    "lora_alpha": 16,
+    "lora_dropout": 0.05,
+    "lora_r": 32,
+    "lora_target_linear": true,
+    "lora_target_modules": [
+      "q_proj",
+      "k_proj"
+    ],
+    "lr_scheduler": "cosine",
+    "micro_batch_size": 1,
+    "optimizer": "adamw_torch",
+    "pad_to_sequence_len": true,
+    "sample_packing": true,
+    "sequence_len": 2048,
+    "tf32": false,
+    "val_set_size": 0.1
+  },
+  "shape": {
+    "VM.GPU.A10.2": {
+      "batch_size": 2,
+      "replica": 1
+    }
+  }
+}

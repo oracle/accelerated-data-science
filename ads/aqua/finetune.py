@@ -71,7 +71,9 @@ class AquaFineTuningParams(DataClassSerializable):
     epochs: int
     learning_rate: Optional[float] = None
     sample_packing: Optional[bool] = "auto"
-    batch_size: Optional[int] = None # make it batch_size for user, but internally this is micro_batch_size
+    batch_size: Optional[
+        int
+    ] = None  # make it batch_size for user, but internally this is micro_batch_size
     sequence_len: Optional[int] = None
     pad_to_sequence_len: Optional[bool] = None
     lora_r: Optional[int] = None
@@ -199,9 +201,9 @@ class AquaFineTuningApp(AquaApp):
             try:
                 create_fine_tuning_details = CreateFineTuningDetails(**kwargs)
             except:
-                allowed_create_fine_tuning_details = (
-                    ', '.join(field.name for field in fields(CreateFineTuningDetails)).rstrip()
-                )
+                allowed_create_fine_tuning_details = ", ".join(
+                    field.name for field in fields(CreateFineTuningDetails)
+                ).rstrip()
                 raise AquaValueError(
                     "Invalid create fine tuning parameters. Allowable parameters are: "
                     f"{allowed_create_fine_tuning_details}."
@@ -259,9 +261,9 @@ class AquaFineTuningApp(AquaApp):
                 **create_fine_tuning_details.ft_parameters,
             )
         except:
-            allowed_fine_tuning_parameters = (
-                ', '.join(field.name for field in fields(AquaFineTuningParams)).rstrip()
-            )
+            allowed_fine_tuning_parameters = ", ".join(
+                field.name for field in fields(AquaFineTuningParams)
+            ).rstrip()
             raise AquaValueError(
                 "Invalid fine tuning parameters. Fine tuning parameters should "
                 f"be a dictionary with keys: {allowed_fine_tuning_parameters}."
@@ -554,7 +556,9 @@ class AquaFineTuningApp(AquaApp):
                 finetuning_experiment_id=experiment_model_version_set_id,
             ),
             parameters={
-                key: value for key, value in asdict(ft_parameters).items() if value is not None
+                key: value
+                for key, value in asdict(ft_parameters).items()
+                if value is not None
             },
         )
 
@@ -629,7 +633,7 @@ class AquaFineTuningApp(AquaApp):
                 else:
                     oci_launch_cmd += f"--{key} {value} "
 
-        oci_launch_cmd += (f"{finetuning_params}" if finetuning_params else "")
+        oci_launch_cmd += f"{finetuning_params}" if finetuning_params else ""
         return oci_launch_cmd.rstrip()
 
     @telemetry(
@@ -650,3 +654,36 @@ class AquaFineTuningApp(AquaApp):
         """
 
         return self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG)
+
+    @telemetry(
+        entry_point="plugin=finetuning&action=get_finetuning_default_params",
+        name="aqua",
+    )
+    def get_finetuning_default_params(self, model_id: str) -> List[str]:
+        """Gets the default params set in the finetuning configs for the given model. Only the fields that are
+        available in AquaFineTuningParams will be accessible for user overrides.
+
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the Aqua model.
+
+        Returns
+        -------
+        List[str]:
+            List of parameters from the loaded from finetuning config json file. If config information is available,
+            then an empty list is returned.
+        """
+        default_params = []
+        finetuning_config = self.get_finetuning_config(model_id)
+        config_parameters = finetuning_config.get("configuration", UNKNOWN_DICT)
+        dataclass_fields = {field.name for field in fields(AquaFineTuningParams)}
+        for name, value in config_parameters.items():
+            if name == "micro_batch_size":
+                name = "batch_size"
+            if name == "lora_target_modules":
+                value = ",".join(str(k) for k in value)
+            if name in dataclass_fields:
+                default_params.append(f"--{name} {str(value).lower()}")
+
+        return default_params

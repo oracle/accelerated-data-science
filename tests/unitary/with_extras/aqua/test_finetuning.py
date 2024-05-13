@@ -7,6 +7,7 @@
 from dataclasses import asdict
 from importlib import reload
 import os
+import json
 from unittest import TestCase
 from unittest.mock import MagicMock, PropertyMock
 
@@ -18,7 +19,7 @@ from ads.aqua.base import AquaApp
 from ads.aqua.finetune import (
     AquaFineTuningApp,
     AquaFineTuningParams,
-    FineTuneCustomMetadata
+    FineTuneCustomMetadata,
 )
 from ads.aqua.model import AquaFineTuneModel
 from ads.jobs.ads_job import Job
@@ -34,6 +35,7 @@ class FineTuningTestCase(TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.curr_dir = os.path.dirname(os.path.abspath(__file__))
         os.environ["ODSC_MODEL_COMPARTMENT_OCID"] = cls.SERVICE_COMPARTMENT_ID
         reload(ads.config)
         reload(ads.aqua)
@@ -41,6 +43,7 @@ class FineTuningTestCase(TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        cls.curr_dir = None
         os.environ.pop("ODSC_MODEL_COMPARTMENT_OCID", None)
         reload(ads.config)
         reload(ads.aqua)
@@ -123,7 +126,7 @@ class FineTuningTestCase(TestCase):
             ft_parameters={
                 "epochs": 1,
                 "learning_rate": 0.02,
-                "lora_target_linear": False
+                "lora_target_linear": False,
             },
             shape_name="VM.GPU.A10.1",
             replica=1,
@@ -155,7 +158,7 @@ class FineTuningTestCase(TestCase):
                 "learning_rate": 0.02,
                 "sample_packing": "auto",
                 "batch_size": 1,
-                "lora_target_linear": False
+                "lora_target_linear": False,
             },
             "source": {
                 "id": f"{ft_source.id}",
@@ -205,24 +208,57 @@ class FineTuningTestCase(TestCase):
         )
 
     def test_build_oci_launch_cmd(self):
-        dataset_path="oci://ds_bucket@namespace/prefix/dataset.jsonl"
-        report_path="oci://report_bucket@namespace/prefix/"
-        val_set_size=0.1
-        parameters=AquaFineTuningParams(
+        dataset_path = "oci://ds_bucket@namespace/prefix/dataset.jsonl"
+        report_path = "oci://report_bucket@namespace/prefix/"
+        val_set_size = 0.1
+        parameters = AquaFineTuningParams(
             batch_size=1,
             epochs=1,
             sample_packing="True",
             learning_rate=0.01,
             sequence_len=2,
-            lora_target_modules=["q_proj","k_proj"]
+            lora_target_modules=["q_proj", "k_proj"],
         )
-        finetuning_params="--trust_remote_code True"
+        finetuning_params = "--trust_remote_code True"
         oci_launch_cmd = self.app._build_oci_launch_cmd(
             dataset_path=dataset_path,
             report_path=report_path,
             val_set_size=val_set_size,
             parameters=parameters,
-            finetuning_params=finetuning_params
+            finetuning_params=finetuning_params,
         )
 
-        assert oci_launch_cmd == f"--training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --sample_packing {parameters.sample_packing} --micro_batch_size {parameters.batch_size} --sequence_len {parameters.sequence_len} --lora_target_modules q_proj,k_proj {finetuning_params}"
+        assert (
+            oci_launch_cmd
+            == f"--training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --sample_packing {parameters.sample_packing} --micro_batch_size {parameters.batch_size} --sequence_len {parameters.sequence_len} --lora_target_modules q_proj,k_proj {finetuning_params}"
+        )
+
+    def test_get_finetuning_default_params(self):
+        """Test for fetching finetuning config params for a given model."""
+
+        config_json = os.path.join(self.curr_dir, "test_data/finetuning/ft_config.json")
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        self.app.get_finetuning_config = MagicMock(return_value=config)
+        result = self.app.get_finetuning_default_params(model_id="test_model_id")
+        self.assertCountEqual(
+            result,
+            [
+                "--batch_size 1",
+                "--sequence_len 2048",
+                "--sample_packing true",
+                "--pad_to_sequence_len true",
+                "--learning_rate 0.0002",
+                "--lora_r 32",
+                "--lora_alpha 16",
+                "--lora_dropout 0.05",
+                "--lora_target_linear true",
+                "--lora_target_modules q_proj,k_proj",
+            ],
+        )
+
+        # check when config json is not available
+        self.app.get_finetuning_config = MagicMock(return_value={})
+        result = self.app.get_finetuning_default_params(model_id="test_model_id")
+        assert result == []
