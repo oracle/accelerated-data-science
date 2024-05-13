@@ -8,7 +8,7 @@ from typing import Dict, List
 
 from oci.data_science.models import ModelDeployment
 
-from ads.aqua.base import AquaApp, logger
+from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     AQUA_MODEL_TYPE_CUSTOM,

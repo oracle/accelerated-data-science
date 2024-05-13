@@ -15,7 +15,7 @@ from oci.data_science.models import (
 )
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
-from ads.aqua.base import AquaApp
+from ads.aqua.app import AquaApp
 from ads.aqua.common.errors import AquaFileExistsError, AquaValueError
 from ads.aqua.common.utils import (
     DEFAULT_FT_BATCH_SIZE,
