@@ -18,10 +18,11 @@ import pytest
 from parameterized import parameterized
 
 import ads.aqua.model
+from ads.aqua.model.entities import AquaModelSummary, ImportModelDetails
 import ads.common
 import ads.common.oci_client
 import ads.config
-from ads.aqua.model import AquaModelApp, AquaModelSummary, ImportModelDetails
+from ads.aqua.model import AquaModelApp
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import (
@@ -130,7 +131,7 @@ class TestAquaModel:
         os.environ["ODSC_MODEL_COMPARTMENT_OCID"] = TestDataset.SERVICE_COMPARTMENT_ID
         reload(ads.config)
         reload(ads.aqua)
-        reload(ads.aqua.model)
+        reload(ads.aqua.model.model)
 
     @classmethod
     def teardown_class(cls):
@@ -138,7 +139,7 @@ class TestAquaModel:
         os.environ.pop("ODSC_MODEL_COMPARTMENT_OCID", None)
         reload(ads.config)
         reload(ads.aqua)
-        reload(ads.aqua.model)
+        reload(ads.aqua.model.model)
 
     @patch.object(DataScienceModel, "create")
     @patch("ads.model.datascience_model.validate")
@@ -214,10 +215,10 @@ class TestAquaModel:
             "shadow",
         ],
     )
-    @patch("ads.aqua.model.read_file")
+    @patch("ads.aqua.model.model.read_file")
     @patch.object(DataScienceModel, "from_id")
     @patch(
-        "ads.aqua.model.get_artifact_path", return_value="oci://bucket@namespace/prefix"
+        "ads.aqua.model.model.get_artifact_path", return_value="oci://bucket@namespace/prefix"
     )
     def test_get_foundation_models(
         self,
@@ -321,10 +322,10 @@ class TestAquaModel:
         }
 
     @patch("ads.aqua.common.utils.query_resource")
-    @patch("ads.aqua.model.read_file")
+    @patch("ads.aqua.model.model.read_file")
     @patch.object(DataScienceModel, "from_id")
     @patch(
-        "ads.aqua.model.get_artifact_path", return_value="oci://bucket@namespace/prefix"
+        "ads.aqua.model.model.get_artifact_path", return_value="oci://bucket@namespace/prefix"
     )
     def test_get_model_fine_tuned(
         self, mock_get_artifact_path, mock_from_id, mock_read_file, mock_query_resource
@@ -532,7 +533,7 @@ class TestAquaModel:
         ds_model.with_custom_metadata_list(custom_metadata_list)
         ds_model.set_spec(ds_model.CONST_MODEL_FILE_DESCRIPTION, {})
         DataScienceModel.from_id = MagicMock(return_value=ds_model)
-        reload(ads.aqua.model)
+        reload(ads.aqua.model.model)
         app = AquaModelApp()
         with tempfile.TemporaryDirectory() as tmpdir:
             model: DataScienceModel = app.register(
@@ -611,7 +612,7 @@ class TestAquaModel:
             "task": "text-generation",
         }
 
-        reload(ads.aqua.model)
+        reload(ads.aqua.model.model)
         app = AquaModelApp()
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(ValueError):
@@ -666,7 +667,7 @@ class TestAquaModel:
         ds_model.with_custom_metadata_list(custom_metadata_list)
         ds_model.set_spec(ds_model.CONST_MODEL_FILE_DESCRIPTION, {})
         DataScienceModel.from_id = MagicMock(return_value=ds_model)
-        reload(ads.aqua.model)
+        reload(ads.aqua.model.model)
         app = AquaModelApp()
         with tempfile.TemporaryDirectory() as tmpdir:
             model: DataScienceModel = app.register(
@@ -714,7 +715,7 @@ class TestAquaModel:
             "task": "text-generation",
         }
 
-        reload(ads.aqua.model)
+        reload(ads.aqua.model.model)
         app = AquaModelApp()
         with tempfile.TemporaryDirectory() as tmpdir:
             model: DataScienceModel = app.register(
@@ -812,7 +813,7 @@ class TestAquaModel:
             "task": "text-generation",
         }
 
-        reload(ads.aqua.model)
+        reload(ads.aqua.model.model)
         app = AquaModelApp()
         with tempfile.TemporaryDirectory() as tmpdir:
             model: DataScienceModel = app.register(
@@ -898,8 +899,8 @@ class TestAquaModel:
         import_details = ImportModelDetails(**data)
         assert import_details.build_cli() == expected_output
 
-    @patch("ads.aqua.model.read_file")
-    @patch("ads.aqua.model.get_artifact_path")
+    @patch("ads.aqua.model.model.read_file")
+    @patch("ads.aqua.model.model.get_artifact_path")
     def test_load_license(self, mock_get_artifact_path, mock_read_file):
         self.app.ds_client.get_model = MagicMock()
         mock_get_artifact_path.return_value = (

@@ -12,7 +12,7 @@ from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.data import Tags
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.aqua.extension.utils import validate_function_parameters
-from ads.aqua.model import ImportModelDetails
+from ads.aqua.model.entities import ImportModelDetails
 from ads.aqua.ui import AquaUIApp
 from ads.config import COMPARTMENT_OCID
 

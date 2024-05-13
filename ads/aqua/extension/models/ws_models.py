@@ -9,7 +9,7 @@ from enum import Enum
 from typing import List, Optional
 
 from ads.aqua.evaluation.entities import AquaEvaluationSummary
-from ads.aqua.model import AquaModelSummary
+from ads.aqua.model.entities import AquaModelSummary
 from ads.common.serializer import DataClassSerializable
 
 
