@@ -16,7 +16,7 @@ from typing import List, Optional
 import oci
 
 from ads.aqua import logger
-from ads.aqua.base import CLIBuilderMixin
+from ads.aqua.app import CLIBuilderMixin
 from ads.aqua.common import utils
 from ads.aqua.constants import UNKNOWN_VALUE, FineTuningDefinedMetadata
 from ads.aqua.data import AquaResourceIdentifier
