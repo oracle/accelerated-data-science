@@ -11,7 +11,8 @@ from tornado.web import HTTPError
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.aqua.extension.utils import validate_function_parameters
-from ads.aqua.finetune import AquaFineTuningApp, CreateFineTuningDetails
+from ads.aqua.finetuning import AquaFineTuningApp
+from ads.aqua.finetuning.entities import CreateFineTuningDetails
 
 
 class AquaFineTuneHandler(AquaAPIhandler):
