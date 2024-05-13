@@ -24,7 +24,7 @@ from oci.data_science.models import (
 )
 
 from ads.aqua import logger
-from ads.aqua.base import AquaApp
+from ads.aqua.app import AquaApp
 from ads.aqua.common import utils
 from ads.aqua.common.enums import *
 from ads.aqua.common.errors import (

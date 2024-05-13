@@ -13,7 +13,7 @@ from huggingface_hub import HfApi, snapshot_download
 from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
-from ads.aqua.base import AquaApp
+from ads.aqua.app import AquaApp
 from ads.aqua.common import utils
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import (

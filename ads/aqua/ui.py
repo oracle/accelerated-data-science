@@ -13,7 +13,7 @@ from oci.exceptions import ServiceError
 from oci.identity.models import Compartment
 
 from ads.aqua import logger
-from ads.aqua.base import AquaApp
+from ads.aqua.app import AquaApp
 from ads.aqua.common.errors import AquaResourceAccessError, AquaValueError
 from ads.aqua.common.utils import get_container_config, load_config, sanitize_response
 from ads.aqua.data import Tags

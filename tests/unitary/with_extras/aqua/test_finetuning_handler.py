@@ -14,7 +14,8 @@ from ads.aqua.extension.finetune_handler import (
     AquaFineTuneHandler,
     AquaFineTuneParamsHandler,
 )
-from ads.aqua.finetune import AquaFineTuningApp, CreateFineTuningDetails
+from ads.aqua.finetuning import AquaFineTuningApp
+from ads.aqua.finetuning.entities import CreateFineTuningDetails
 
 
 class TestDataset:
