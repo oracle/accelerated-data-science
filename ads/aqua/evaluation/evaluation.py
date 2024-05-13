@@ -32,6 +32,7 @@ from oci.data_science.models import (
 
 from ads.aqua import logger, utils
 from ads.aqua.base import AquaApp
+from ads.aqua.common.wrapper import AquaJobRun, AquaModelResource
 from ads.aqua.constants import (
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     NB_SESSION_IDENTIFIER,
@@ -40,9 +41,8 @@ from ads.aqua.constants import (
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.enums import DataScienceResource, Resource, Tags
 from ads.aqua.evaluation.const import *
+from ads.aqua.evaluation.entities import *
 from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
-from ads.aqua.evaluation.request_params import *
-from ads.aqua.evaluation.response_model import *
 from ads.aqua.exception import (
     AquaFileExistsError,
     AquaFileNotFoundError,
@@ -50,7 +50,6 @@ from ads.aqua.exception import (
     AquaRuntimeError,
     AquaValueError,
 )
-from ads.aqua.util.wrapper import AquaJobRun, AquaModelResource
 from ads.aqua.utils import (
     extract_id_and_name_from_tag,
     fire_and_forget,

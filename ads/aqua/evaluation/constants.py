@@ -7,7 +7,7 @@
 aqua.evaluation.const
 ~~~~~~~~~~~~~~
 
-This module contains constant used in Aqua Evaluation.
+This module contains constants/enums used in Aqua Evaluation.
 """
 from oci.data_science.models import JobRun
 
