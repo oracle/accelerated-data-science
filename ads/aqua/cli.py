@@ -14,7 +14,7 @@ from ads.aqua import (
 from ads.aqua.common.errors import AquaCLIError, AquaConfigError
 from ads.aqua.deployment import AquaDeploymentApp
 from ads.aqua.evaluation import AquaEvaluationApp
-from ads.aqua.finetune import AquaFineTuningApp
+from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.model import AquaModelApp
 from ads.common.utils import LOG_LEVELS
 from ads.config import NB_SESSION_OCID

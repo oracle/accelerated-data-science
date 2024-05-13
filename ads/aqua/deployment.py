@@ -33,7 +33,7 @@ from ads.aqua.data import (
     InferenceContainerType,
     InferenceContainerTypeKey,
 )
-from ads.aqua.finetune import FineTuneCustomMetadata
+from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
 from ads.aqua.model import AquaModelApp, Tags
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
