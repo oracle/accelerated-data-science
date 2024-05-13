@@ -5,33 +5,31 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
+import shlex
+import tempfile
 import unittest
 from dataclasses import asdict
 from importlib import reload
-from unittest.mock import MagicMock, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
-from unittest.mock import patch
+import huggingface_hub
 import oci
-import ads.common
-from ads.common.object_storage_details import ObjectStorageDetails
-import ads.common.oci_client
-from ads.model.service.oci_datascience_model import OCIDataScienceModel
+import pytest
 from parameterized import parameterized
 
 import ads.aqua.model
+import ads.common
+import ads.common.oci_client
 import ads.config
 from ads.aqua.model import AquaModelApp, AquaModelSummary, ImportModelDetails
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import (
     ModelCustomMetadata,
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
 )
-
-import shlex
-import tempfile
-import huggingface_hub
-import pytest
+from ads.model.service.oci_datascience_model import OCIDataScienceModel
 
 
 @pytest.fixture(autouse=True, scope="class")
@@ -322,7 +320,7 @@ class TestAquaModel:
             "evaluation_container": "odsc-llm-evaluate",
         }
 
-    @patch("ads.aqua.utils.query_resource")
+    @patch("ads.aqua.common.utils.query_resource")
     @patch("ads.aqua.model.read_file")
     @patch.object(DataScienceModel, "from_id")
     @patch(

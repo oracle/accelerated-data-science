@@ -4,17 +4,18 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
+import os
 from dataclasses import asdict
 from importlib import reload
-import os
-import json
 from unittest import TestCase
 from unittest.mock import MagicMock, PropertyMock
 
 from mock import patch
-import ads.config
+
 import ads.aqua
 import ads.aqua.finetune
+import ads.config
 from ads.aqua.base import AquaApp
 from ads.aqua.finetune import (
     AquaFineTuningApp,

@@ -16,9 +16,9 @@ from huggingface_hub.utils import (
 )
 from tornado.web import HTTPError
 
-from ads.aqua.decorator import handle_exceptions
-from ads.aqua.exception import AquaRuntimeError
-from ads.aqua.extension.base_handler import AquaAPIhandler, Errors, Errors
+from ads.aqua.common.decorator import handle_exceptions
+from ads.aqua.common.errors import AquaRuntimeError
+from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.aqua.extension.utils import validate_function_parameters
 from ads.aqua.model import AquaModelApp, AquaModelSummary, HFModelSummary, ModelTask
 

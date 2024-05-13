@@ -6,9 +6,10 @@
 
 from unittest import TestCase
 from unittest.mock import MagicMock
-from mock import patch
 
-from notebook.base.handlers import IPythonHandler, APIHandler
+from mock import patch
+from notebook.base.handlers import APIHandler, IPythonHandler
+
 from ads.aqua.extension.finetune_handler import (
     AquaFineTuneHandler,
     AquaFineTuneParamsHandler,

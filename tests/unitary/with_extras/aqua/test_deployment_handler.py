@@ -6,18 +6,19 @@
 
 import os
 import unittest
-from unittest.mock import MagicMock, patch
 from importlib import reload
-from notebook.base.handlers import IPythonHandler
-import pytest
+from unittest.mock import MagicMock, patch
 
-import ads.config
+import pytest
+from notebook.base.handlers import IPythonHandler
+
 import ads.aqua
+import ads.config
+from ads.aqua.deployment import AquaDeploymentApp, MDInferenceResponse
 from ads.aqua.extension.deployment_handler import (
     AquaDeploymentHandler,
     AquaDeploymentInferenceHandler,
 )
-from ads.aqua.deployment import AquaDeploymentApp, MDInferenceResponse
 
 
 class TestDataset:

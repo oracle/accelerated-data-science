@@ -1,25 +1,31 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*--
+
+# Copyright (c) 2024 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
 import traceback
 from abc import abstractmethod
 from http.client import responses
 from typing import List
 
+from tornado.web import HTTPError
+
 from ads.aqua import logger
-from ads.aqua.decorator import handle_exceptions
+from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.models.ws_models import (
-    RequestResponseType,
     AquaWsError,
     BaseRequest,
-    ErrorResponse,
     BaseResponse,
+    ErrorResponse,
+    RequestResponseType,
 )
 from ads.config import AQUA_TELEMETRY_BUCKET, AQUA_TELEMETRY_BUCKET_NS
 from ads.telemetry.client import TelemetryClient
-from tornado.web import HTTPError
 
 
 class AquaWSMsgHandler:
-
     message: str
 
     def __init__(self, message: str):

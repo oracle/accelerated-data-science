@@ -11,9 +11,9 @@ from ads.aqua import (
     logger,
     set_log_level,
 )
+from ads.aqua.common.errors import AquaCLIError, AquaConfigError
 from ads.aqua.deployment import AquaDeploymentApp
 from ads.aqua.evaluation import AquaEvaluationApp
-from ads.aqua.exception import AquaCLIError, AquaConfigError
 from ads.aqua.finetune import AquaFineTuningApp
 from ads.aqua.model import AquaModelApp
 from ads.common.utils import LOG_LEVELS

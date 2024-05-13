@@ -4,28 +4,29 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import os
+import copy
 import json
+import os
 import unittest
 from dataclasses import asdict
 from importlib import reload
 from unittest.mock import MagicMock, patch
-from parameterized import parameterized
-import pytest
-import copy
-import yaml
 
 import oci
+import pytest
+import yaml
+from parameterized import parameterized
+
 import ads.aqua.deployment
 import ads.config
+from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.deployment import (
     AquaDeployment,
-    AquaDeploymentDetail,
     AquaDeploymentApp,
+    AquaDeploymentDetail,
     MDInferenceResponse,
     ModelParams,
 )
-from ads.aqua.exception import AquaRuntimeError
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import ModelCustomMetadata
@@ -215,8 +216,8 @@ class TestAquaDeployment(unittest.TestCase):
                 data=oci.data_science.models.ModelDeploymentSummary(**model_deployment),
             )
         )
-        mock_get_resource_name.side_effect = (
-            lambda param: "log-group-name"
+        mock_get_resource_name.side_effect = lambda param: (
+            "log-group-name"
             if param.startswith("ocid1.loggroup")
             else "log-name"
             if param.startswith("ocid1.log")
