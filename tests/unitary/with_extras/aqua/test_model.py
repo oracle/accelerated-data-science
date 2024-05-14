@@ -5,47 +5,31 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
+import shlex
+import tempfile
 import unittest
 from dataclasses import asdict
 from importlib import reload
-from unittest.mock import MagicMock, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
-from unittest.mock import patch
+import huggingface_hub
 import oci
-import ads.common
-from ads.common.object_storage_details import ObjectStorageDetails
-import ads.common.oci_client
-from ads.model.service.oci_datascience_model import OCIDataScienceModel
+import pytest
 from parameterized import parameterized
 
 import ads.aqua.model
+import ads.common
+import ads.common.oci_client
 import ads.config
 from ads.aqua.model import AquaModelApp, AquaModelSummary, ImportModelDetails
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import (
     ModelCustomMetadata,
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
 )
-
-import shlex
-import tempfile
-import huggingface_hub
-import pytest
-
-
-@pytest.fixture(autouse=True, scope="class")
-def mock_auth():
-    with patch("ads.common.auth.default_signer") as mock_default_signer:
-        yield mock_default_signer
-
-
-@pytest.fixture(autouse=True, scope="class")
-def mock_init_client():
-    with patch(
-        "ads.common.oci_datascience.OCIDataScienceMixin.init_client"
-    ) as mock_client:
-        yield mock_client
+from ads.model.service.oci_datascience_model import OCIDataScienceModel
 
 
 class TestDataset:
@@ -119,12 +103,43 @@ class TestDataset:
 class TestAquaModel:
     """Contains unittests for AquaModelApp."""
 
+    @pytest.fixture(autouse=True, scope="class")
+    def mock_auth(cls):
+        with patch("ads.common.auth.default_signer") as mock_default_signer:
+            yield mock_default_signer
+
+    @pytest.fixture(autouse=True, scope="class")
+    def mock_init_client(cls):
+        with patch(
+            "ads.common.oci_datascience.OCIDataScienceMixin.init_client"
+        ) as mock_client:
+            yield mock_client
+
     def setup_method(self):
-        ads.common.auth.default_signer = MagicMock()
-        ads.common.auth.APIKey.create_signer = MagicMock()
-        oci.config.validate_config = MagicMock()
-        ads.common.oci_client.OCIClientFactory.create_client = MagicMock()
+        self.default_signer_patch = patch(
+            "ads.common.auth.default_signer", new_callable=MagicMock
+        )
+        self.create_signer_patch = patch(
+            "ads.common.auth.APIKey.create_signer", new_callable=MagicMock
+        )
+        self.validate_config_patch = patch(
+            "oci.config.validate_config", new_callable=MagicMock
+        )
+        self.create_client_patch = patch(
+            "ads.common.oci_client.OCIClientFactory.create_client",
+            new_callable=MagicMock,
+        )
+        self.mock_default_signer = self.default_signer_patch.start()
+        self.mock_create_signer = self.create_signer_patch.start()
+        self.mock_validate_config = self.validate_config_patch.start()
+        self.mock_create_client = self.create_client_patch.start()
         self.app = AquaModelApp()
+
+    def teardown_method(self):
+        self.default_signer_patch.stop()
+        self.create_signer_patch.stop()
+        self.validate_config_patch.stop()
+        self.create_client_patch.stop()
 
     @classmethod
     def setup_class(cls):
