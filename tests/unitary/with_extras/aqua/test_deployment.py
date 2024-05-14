@@ -274,7 +274,7 @@ class TestAquaDeployment(unittest.TestCase):
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
         assert result == config
 
-    @patch("ads.aqua.deployment.get_container_config")
+    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")
     @patch("ads.aqua.modeldeployment.deployment.get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
@@ -339,7 +339,7 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result["state"] = "CREATING"
         assert actual_attributes == expected_result
 
-    @patch("ads.aqua.deployment.get_container_config")
+    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")
     @patch("ads.aqua.modeldeployment.deployment.get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
