@@ -3,7 +3,6 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from enum import Enum
 import json
 import logging
 from dataclasses import dataclass, field, asdict
@@ -29,6 +28,7 @@ from ads.aqua.utils import (
     AQUA_MODEL_TYPE_CUSTOM,
     get_combined_params,
     get_params_dict,
+    get_params_list,
 )
 from ads.aqua.data import (
     InferenceContainerType,
@@ -710,9 +710,7 @@ class AquaDeploymentApp(AquaApp):
                     )
                 if params:
                     # account for param that can have --arg but no values, e.g. --trust-remote-code
-                    default_params.extend(
-                        ["--" + param.strip() for param in params.split("--")[1:]]
-                    )
+                    default_params.extend(get_params_list(params))
 
         return default_params
 
