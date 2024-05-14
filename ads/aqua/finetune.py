@@ -30,6 +30,7 @@ from ads.aqua.utils import (
     UNKNOWN_DICT,
     get_container_image,
     upload_local_to_os,
+    get_params_dict,
 )
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -687,3 +688,29 @@ class AquaFineTuningApp(AquaApp):
                 default_params.append(f"--{name} {str(value).lower()}")
 
         return default_params
+
+    def validate_finetuning_params(self, params: List[str] = None) -> List[str]:
+        """Validate if the fine-tuning parameters passed by the user can be overridden. Parameter values are not
+        validated, only param keys are validated.
+
+        Parameters
+        ----------
+        params : List[str], optional
+            Params passed by the user.
+
+        Returns
+        -------
+            Return a list of restricted params.
+        """
+        restricted_params = []
+        if not params:
+            return restricted_params
+
+        dataclass_fields = {field.name for field in fields(AquaFineTuningParams)}
+        params_dict = get_params_dict(params)
+        for key, items in params_dict.items():
+            key = key.lstrip("--")
+            if key not in dataclass_fields:
+                restricted_params.append(key)
+
+        return restricted_params

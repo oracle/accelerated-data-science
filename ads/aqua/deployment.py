@@ -717,7 +717,7 @@ class AquaDeploymentApp(AquaApp):
         return default_params
 
     def validate_deployment_params(
-        self, model_id: str, params: str = None
+        self, model_id: str, params: List[str] = None
     ) -> List[str]:
         """Validate if the deployment parameters passed by the user can be overridden. Parameter values are not
         validated, only param keys are validated.
@@ -761,7 +761,9 @@ class AquaDeploymentApp(AquaApp):
         return restricted_params
 
     @staticmethod
-    def _find_restricted_params(default_params: str, user_params: str) -> List[str]:
+    def _find_restricted_params(
+        default_params: Union[str, List[str]], user_params: Union[str, List[str]]
+    ) -> List[str]:
         """Returns a list of restricted params that user chooses to override when creating an Aqua deployment.
         The default parameters coming from the container index json file cannot be overridden. In addition to this,
         a set of parameters maintained in
@@ -785,7 +787,7 @@ class AquaDeploymentApp(AquaApp):
 
             for key, items in user_params_dict.items():
                 if key in default_params_dict or key in VLLMInferenceRestrictedParams:
-                    restricted_params.append(key)
+                    restricted_params.append(key.lstrip("--"))
 
         return restricted_params
 

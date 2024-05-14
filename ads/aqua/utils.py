@@ -819,22 +819,23 @@ def get_params_list(params: str) -> List[str]:
     return ["--" + param.strip() for param in params.split("--")[1:]]
 
 
-def get_params_dict(params: str) -> dict:
-    """Accepts a string of double-dash parameters and returns a dict with the parameter keys and values.
+def get_params_dict(params: Union[str, List[str]]) -> dict:
+    """Accepts a string or list of string of double-dash parameters and returns a dict with the parameter keys and values.
 
     Parameters
     ----------
     params:
-        Parameter string with values
+        List of parameters or parameter string separated by space.
 
     Returns
     -------
         dict containing parameter keys and values
 
     """
+    params_list = get_params_list(params) if isinstance(params, str) else params
     return {
         split_result[0]: split_result[1] if len(split_result) > 1 else UNKNOWN
-        for split_result in (x.split() for x in get_params_list(params))
+        for split_result in (x.split() for x in params_list)
     }
 
 
