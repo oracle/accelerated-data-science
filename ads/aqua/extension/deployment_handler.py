@@ -199,12 +199,13 @@ class AquaDeploymentParamsHandler(AquaAPIhandler):
     -------
     get(self, model_id)
         Retrieves a list of model deployment parameters.
+    post(self, *args, **kwargs)
+        Validates parameters for the given model id.
     """
 
     @handle_exceptions
     def get(self, model_id):
         """Handle GET request."""
-        model_id = model_id.split("/")[0]
         instance_shape = self.get_argument("instance_shape")
         return self.finish(
             AquaDeploymentApp().get_deployment_default_params(
@@ -213,7 +214,7 @@ class AquaDeploymentParamsHandler(AquaAPIhandler):
         )
 
     @handle_exceptions
-    def post(self):
+    def post(self, *args, **kwargs):
         """Handles post request for the deployment param handler API.
 
         Raises
@@ -230,7 +231,10 @@ class AquaDeploymentParamsHandler(AquaAPIhandler):
             raise HTTPError(400, Errors.NO_INPUT_DATA)
 
         model_id = input_data.get("model_id")
-        params = input_data.get("params", None)
+        if not model_id:
+            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("model_id"))
+
+        params = input_data.get("params")
         return self.finish(
             AquaDeploymentApp().validate_deployment_params(
                 model_id=model_id,
@@ -240,8 +244,8 @@ class AquaDeploymentParamsHandler(AquaAPIhandler):
 
 
 __handlers__ = [
-    ("deployments/?([^/]*)", AquaDeploymentHandler),
+    ("deployments/?([^/]*)/params", AquaDeploymentParamsHandler),
     ("deployments/config/?([^/]*)", AquaDeploymentHandler),
-    ("deployments/?([^/]*)/params?([^/]*)", AquaDeploymentParamsHandler),
+    ("deployments/?([^/]*)", AquaDeploymentHandler),
     ("inference", AquaDeploymentInferenceHandler),
 ]

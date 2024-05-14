@@ -70,7 +70,7 @@ class AquaFineTuneParamsHandler(AquaAPIhandler):
         )
 
     @handle_exceptions
-    def post(self):
+    def post(self, *args, **kwargs):
         """Handles post request for the finetuning param handler API.
 
         Raises
@@ -95,7 +95,7 @@ class AquaFineTuneParamsHandler(AquaAPIhandler):
 
 
 __handlers__ = [
+    ("finetuning/?([^/]*)/params", AquaFineTuneParamsHandler),
     ("finetuning/?([^/]*)", AquaFineTuneHandler),
     ("finetuning/config/?([^/]*)", AquaFineTuneHandler),
-    ("finetuning/([^/]*)/params", AquaFineTuneParamsHandler),
 ]
