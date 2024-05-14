@@ -716,7 +716,7 @@ class AquaDeploymentApp(AquaApp):
 
     def validate_deployment_params(
         self, model_id: str, params: List[str] = None
-    ) -> List[str]:
+    ) -> Dict:
         """Validate if the deployment parameters passed by the user can be overridden. Parameter values are not
         validated, only param keys are validated.
 
@@ -734,29 +734,32 @@ class AquaDeploymentApp(AquaApp):
 
         """
         restricted_params = []
-        if not params:
-            return restricted_params
+        if params:
+            model = DataScienceModel.from_id(model_id)
+            try:
+                container_type_key = model.custom_metadata_list.get(
+                    AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
+                ).value
+            except ValueError:
+                container_type_key = UNKNOWN
+                logger.debug(
+                    f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field for model {model_id}."
+                )
+            if container_type_key:
+                container_config = get_container_config()
+                container_spec = container_config.get(
+                    ContainerSpec.CONTAINER_SPEC, {}
+                ).get(container_type_key, {})
+                cli_params = container_spec.get(ContainerSpec.CLI_PARM, "")
 
-        model = DataScienceModel.from_id(model_id)
-        try:
-            container_type_key = model.custom_metadata_list.get(
-                AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
-            ).value
-        except ValueError:
-            container_type_key = UNKNOWN
-            logger.debug(
-                f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field for model {model_id}."
+                restricted_params = self._find_restricted_params(cli_params, params)
+
+        if restricted_params:
+            raise AquaValueError(
+                f"Parameters {restricted_params} are set by Aqua "
+                f"and cannot be overridden."
             )
-        if container_type_key:
-            container_config = get_container_config()
-            container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
-                container_type_key, {}
-            )
-            cli_params = container_spec.get(ContainerSpec.CLI_PARM, "")
-
-            restricted_params = self._find_restricted_params(cli_params, params)
-
-        return restricted_params
+        return dict(valid=True)
 
     @staticmethod
     def _find_restricted_params(

@@ -417,7 +417,7 @@ class TestAquaDeployment(unittest.TestCase):
             ),
         ]
     )
-    @patch.object(DataScienceModel, "from_id")
+    @patch("ads.model.datascience_model.DataScienceModel.from_id")
     def test_get_deployment_default_params(
         self, container_params_field, container_type_key, params, mock_from_id
     ):
@@ -449,6 +449,29 @@ class TestAquaDeployment(unittest.TestCase):
             assert result == []
         else:
             assert result == params
+
+    @patch("ads.model.datascience_model.DataScienceModel.from_id")
+    @patch("ads.aqua.deployment.get_container_config")
+    def test_validate_deployment_params(self, mock_get_container_config, mock_from_id):
+        mock_model = MagicMock()
+        custom_metadata_list = ModelCustomMetadata()
+        custom_metadata_list.add(
+            **{"key": "deployment-container", "value": "odsc-vllm-serving"}
+        )
+        mock_model.custom_metadata_list = custom_metadata_list
+        mock_from_id.return_value = mock_model
+
+        container_index_json = os.path.join(
+            self.curr_dir, "test_data/ui/container_index.json"
+        )
+        with open(container_index_json, "r") as _file:
+            container_index_config = json.load(_file)
+        mock_get_container_config.return_value = container_index_config
+
+        result = self.app.validate_deployment_params(
+            model_id="mock-model-id",
+            params=["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
+        )
 
 
 class TestMDInferenceResponse(unittest.TestCase):
