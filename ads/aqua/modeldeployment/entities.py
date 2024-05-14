@@ -10,7 +10,7 @@ from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 
 from ads.aqua.common.utils import UNKNOWN, UNKNOWN_DICT
 from ads.aqua.data import AquaResourceIdentifier
-from ads.aqua.model import Tags
+from ads.aqua.data import Tags
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
 

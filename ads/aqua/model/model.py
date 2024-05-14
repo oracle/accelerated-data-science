@@ -456,7 +456,11 @@ class AquaModelApp(AquaApp):
 
     @telemetry(entry_point="plugin=model&action=list", name="aqua")
     def list(
-        self, compartment_id: str = None, project_id: str = None, **kwargs
+        self,
+        compartment_id: str = None,
+        project_id: str = None,
+        model_type: str = None,
+        **kwargs,
     ) -> List["AquaModelSummary"]:
         """Lists all Aqua models within a specified compartment and/or project.
         If `compartment_id` is not specified, the method defaults to returning
@@ -470,6 +474,8 @@ class AquaModelApp(AquaApp):
             The compartment OCID.
         project_id: (str, optional). Defaults to `None`.
             The project OCID.
+        model_type: (str, optional). Defaults to `None`.
+            Model type represents the type of model in the user compartment, can be either FT or BASE.
         **kwargs:
             Additional keyword arguments that can be used to filter the results.
 
@@ -487,7 +493,7 @@ class AquaModelApp(AquaApp):
             )
 
             logger.info(f"Fetching custom models from compartment_id={compartment_id}.")
-            model_type = kwargs.pop("model_type", ModelType.FT.value).upper()
+            model_type = model_type.upper() if model_type else ModelType.FT.value
             models = self._rqs(compartment_id, model_type=model_type)
         else:
             # tracks number of times service model listing was called

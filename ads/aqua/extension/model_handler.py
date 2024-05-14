@@ -55,7 +55,11 @@ class AquaModelHandler(AquaAPIhandler):
         project_id = self.get_argument("project_id", default=None)
         model_type = self.get_argument("model_type", default=None)
         return self.finish(
-            AquaModelApp().list(compartment_id, project_id, model_type=model_type)
+            AquaModelApp().list(
+                compartment_id=compartment_id,
+                project_id=project_id,
+                model_type=model_type,
+            )
         )
 
 

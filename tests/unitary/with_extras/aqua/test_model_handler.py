@@ -65,7 +65,9 @@ class ModelHandlerTestCase(TestCase):
         self.model_handler.list()
 
         self.model_handler.finish.assert_called_with(mock_list.return_value)
-        mock_list.assert_called_with(None, None, model_type=None)
+        mock_list.assert_called_with(
+            compartment_id=None, project_id=None, model_type=None
+        )
 
 
 class ModelLicenseHandlerTestCase(TestCase):
