@@ -185,12 +185,11 @@ class AquaModelApp(AquaApp):
             else False
         )
 
+        # todo: consolidate this logic in utils for model and deployment use
         is_shadow_type = (
             ds_model.freeform_tags.get(Tags.READY_TO_IMPORT.value, "false").upper()
             == READY_TO_IMPORT_STATUS
         )
-
-        # todo: consolidate this logic in utils for model and deployment use
 
         model_card = ""
         if load_model_card:
