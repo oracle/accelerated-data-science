@@ -689,7 +689,7 @@ class AquaFineTuningApp(AquaApp):
 
         return default_params
 
-    def validate_finetuning_params(self, params: List[str] = None) -> List[str]:
+    def validate_finetuning_params(self, params: List[str] = None) -> Dict:
         """Validate if the fine-tuning parameters passed by the user can be overridden. Parameter values are not
         validated, only param keys are validated.
 
@@ -703,14 +703,17 @@ class AquaFineTuningApp(AquaApp):
             Return a list of restricted params.
         """
         restricted_params = []
-        if not params:
-            return restricted_params
+        if params:
+            dataclass_fields = {field.name for field in fields(AquaFineTuningParams)}
+            params_dict = get_params_dict(params)
+            for key, items in params_dict.items():
+                key = key.lstrip("--")
+                if key not in dataclass_fields:
+                    restricted_params.append(key)
 
-        dataclass_fields = {field.name for field in fields(AquaFineTuningParams)}
-        params_dict = get_params_dict(params)
-        for key, items in params_dict.items():
-            key = key.lstrip("--")
-            if key not in dataclass_fields:
-                restricted_params.append(key)
-
-        return restricted_params
+        if restricted_params:
+            raise AquaValueError(
+                f"Parameters {restricted_params} are set by Aqua "
+                f"and cannot be overridden or are invalid."
+            )
+        return dict(valid=True)

@@ -25,7 +25,7 @@ from ads.aqua.deployment import (
     MDInferenceResponse,
     ModelParams,
 )
-from ads.aqua.exception import AquaRuntimeError
+from ads.aqua.exception import AquaRuntimeError, AquaValueError
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import ModelCustomMetadata
@@ -476,13 +476,36 @@ class TestAquaDeployment(unittest.TestCase):
         else:
             assert result == params
 
+    @parameterized.expand(
+        [
+            (
+                "odsc-vllm-serving",
+                ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
+            ),
+            (
+                "odsc-vllm-serving",
+                [],
+            ),
+            (
+                "odsc-tgi-serving",
+                ["--sharded true", "--trust-remote-code"],
+            ),
+            (
+                "custom-container-key",
+                ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
+            ),
+        ]
+    )
     @patch("ads.model.datascience_model.DataScienceModel.from_id")
     @patch("ads.aqua.deployment.get_container_config")
-    def test_validate_deployment_params(self, mock_get_container_config, mock_from_id):
+    def test_validate_deployment_params(
+        self, container_type_key, params, mock_get_container_config, mock_from_id
+    ):
+        """Test for checking if overridden deployment params are valid."""
         mock_model = MagicMock()
         custom_metadata_list = ModelCustomMetadata()
         custom_metadata_list.add(
-            **{"key": "deployment-container", "value": "odsc-vllm-serving"}
+            **{"key": "deployment-container", "value": container_type_key}
         )
         mock_model.custom_metadata_list = custom_metadata_list
         mock_from_id.return_value = mock_model
@@ -494,10 +517,18 @@ class TestAquaDeployment(unittest.TestCase):
             container_index_config = json.load(_file)
         mock_get_container_config.return_value = container_index_config
 
-        result = self.app.validate_deployment_params(
-            model_id="mock-model-id",
-            params=["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
-        )
+        if container_type_key in {"odsc-vllm-serving", "odsc-tgi-serving"} and params:
+            with pytest.raises(AquaValueError):
+                self.app.validate_deployment_params(
+                    model_id="mock-model-id",
+                    params=params,
+                )
+        else:
+            result = self.app.validate_deployment_params(
+                model_id="mock-model-id",
+                params=params,
+            )
+            assert result["valid"] is True
 
 
 class TestMDInferenceResponse(unittest.TestCase):

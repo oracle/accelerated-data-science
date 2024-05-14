@@ -407,7 +407,7 @@ class AquaDeploymentApp(AquaApp):
             if restricted_params:
                 raise AquaValueError(
                     f"Parameters {restricted_params} are set by Aqua "
-                    f"and cannot be overridden."
+                    f"and cannot be overridden or are invalid."
                 )
 
         deployment_params = get_combined_params(vllm_params, user_params)
@@ -757,7 +757,7 @@ class AquaDeploymentApp(AquaApp):
         if restricted_params:
             raise AquaValueError(
                 f"Parameters {restricted_params} are set by Aqua "
-                f"and cannot be overridden."
+                f"and cannot be overridden or are invalid."
             )
         return dict(valid=True)
 
