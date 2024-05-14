@@ -274,11 +274,16 @@ class TestAquaDeployment(unittest.TestCase):
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
         assert result == config
 
+    @patch("ads.aqua.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")
     @patch("ads.aqua.deployment.get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     def test_create_deployment_for_foundation_model(
-        self, mock_deploy, mock_get_container_image, mock_create
+        self,
+        mock_deploy,
+        mock_get_container_image,
+        mock_create,
+        mock_get_container_config,
     ):
         """Test to create a deployment for foundational model"""
         aqua_model = os.path.join(
@@ -292,6 +297,14 @@ class TestAquaDeployment(unittest.TestCase):
             config = json.load(_file)
 
         self.app.get_deployment_config = MagicMock(return_value=config)
+
+        container_index_json = os.path.join(
+            self.curr_dir, "test_data/ui/container_index.json"
+        )
+        with open(container_index_json, "r") as _file:
+            container_index_config = json.load(_file)
+        mock_get_container_config.return_value = container_index_config
+
         mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
         aqua_deployment = os.path.join(
             self.curr_dir, "test_data/deployment/aqua_create_deployment.yaml"
@@ -326,11 +339,16 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result["state"] = "CREATING"
         assert actual_attributes == expected_result
 
+    @patch("ads.aqua.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")
     @patch("ads.aqua.deployment.get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     def test_create_deployment_for_fine_tuned_model(
-        self, mock_deploy, mock_get_container_image, mock_create
+        self,
+        mock_deploy,
+        mock_get_container_image,
+        mock_create,
+        mock_get_container_config,
     ):
         """Test to create a deployment for fine-tuned model"""
 
@@ -359,6 +377,14 @@ class TestAquaDeployment(unittest.TestCase):
             config = json.load(_file)
 
         self.app.get_deployment_config = MagicMock(return_value=config)
+
+        container_index_json = os.path.join(
+            self.curr_dir, "test_data/ui/container_index.json"
+        )
+        with open(container_index_json, "r") as _file:
+            container_index_config = json.load(_file)
+        mock_get_container_config.return_value = container_index_config
+
         mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
         aqua_deployment = os.path.join(
             self.curr_dir, "test_data/deployment/aqua_create_deployment.yaml"
