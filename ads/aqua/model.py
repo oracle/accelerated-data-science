@@ -479,6 +479,10 @@ class AquaModelApp(AquaApp):
         )
 
         # todo: consolidate this logic in utils for model and deployment use
+        is_shadow_type = (
+            ds_model.freeform_tags.get(Tags.READY_TO_IMPORT.value, "false").upper()
+            == READY_TO_IMPORT_STATUS
+        )
 
         model_card = ""
         if load_model_card:
@@ -514,12 +518,7 @@ class AquaModelApp(AquaApp):
             ),
         ).value
 
-        is_shadow_type = (
-            ds_model.freeform_tags.get(Tags.READY_TO_IMPORT.value, "false").upper()
-            == READY_TO_IMPORT_STATUS
-        )
-
-        aqua_model_atttributes = dict(
+        aqua_model_attributes = dict(
             **self._process_model(ds_model, self.region),
             project_id=ds_model.project_id,
             model_card=model_card,
@@ -747,7 +746,11 @@ class AquaModelApp(AquaApp):
 
     @telemetry(entry_point="plugin=model&action=list", name="aqua")
     def list(
-        self, compartment_id: str = None, project_id: str = None, **kwargs
+        self,
+        compartment_id: str = None,
+        project_id: str = None,
+        model_type: str = None,
+        **kwargs,
     ) -> List["AquaModelSummary"]:
         """Lists all Aqua models within a specified compartment and/or project.
         If `compartment_id` is not specified, the method defaults to returning
@@ -761,6 +764,8 @@ class AquaModelApp(AquaApp):
             The compartment OCID.
         project_id: (str, optional). Defaults to `None`.
             The project OCID.
+        model_type: (str, optional). Defaults to `None`.
+            Model type
         **kwargs:
             Additional keyword arguments that can be used to filter the results.
 
@@ -778,7 +783,7 @@ class AquaModelApp(AquaApp):
             )
 
             logger.info(f"Fetching custom models from compartment_id={compartment_id}.")
-            model_type = kwargs.pop("model_type", ModelType.FT.value).upper()
+            model_type = model_type.upper() if model_type else ModelType.FT.value
             models = self._rqs(compartment_id, model_type=model_type)
         else:
             # tracks number of times service model listing was called
