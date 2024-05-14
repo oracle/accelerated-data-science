@@ -1,18 +1,25 @@
-from typing import Union, List
-from ads.aqua.decorator import handle_exceptions
+#!/usr/bin/env python
+# -*- coding: utf-8 -*--
+
+# Copyright (c) 2024 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+from typing import List, Union
+
+from tornado.web import HTTPError
+
+from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.extension.aqua_ws_msg_handler import AquaWSMsgHandler
 from ads.aqua.extension.models.ws_models import (
-    RequestResponseType,
-    ListEvaluationsResponse,
     ListEvaluationsRequest,
+    ListEvaluationsResponse,
+    RequestResponseType,
 )
 from ads.config import COMPARTMENT_OCID
-from tornado.web import HTTPError
 
 
 class AquaEvaluationWSMsgHandler(AquaWSMsgHandler):
-
     @staticmethod
     def get_message_types() -> List[RequestResponseType]:
         return [RequestResponseType.ListEvaluations]

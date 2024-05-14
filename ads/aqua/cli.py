@@ -11,11 +11,11 @@ from ads.aqua import (
     logger,
     set_log_level,
 )
-from ads.aqua.deployment import AquaDeploymentApp
+from ads.aqua.common.errors import AquaCLIError, AquaConfigError
 from ads.aqua.evaluation import AquaEvaluationApp
-from ads.aqua.exception import AquaCLIError, AquaConfigError
-from ads.aqua.finetune import AquaFineTuningApp
+from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.model import AquaModelApp
+from ads.aqua.modeldeployment import AquaDeploymentApp
 from ads.common.utils import LOG_LEVELS
 from ads.config import NB_SESSION_OCID
 

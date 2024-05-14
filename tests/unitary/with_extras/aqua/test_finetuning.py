@@ -4,23 +4,22 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
+import os
 from dataclasses import asdict
 from importlib import reload
-import os
-import json
 from unittest import TestCase
 from unittest.mock import MagicMock, PropertyMock
 
 from mock import patch
-import ads.config
+
 import ads.aqua
-import ads.aqua.finetune
-from ads.aqua.base import AquaApp
-from ads.aqua.finetune import (
-    AquaFineTuningApp,
-    AquaFineTuningParams,
-    FineTuneCustomMetadata,
-)
+import ads.aqua.finetuning.finetuning
+import ads.config
+from ads.aqua.app import AquaApp
+from ads.aqua.finetuning import AquaFineTuningApp
+from ads.aqua.finetuning.constants import FineTuneCustomMetadata
+from ads.aqua.finetuning.entities import AquaFineTuningParams
 from ads.aqua.model import AquaFineTuneModel
 from ads.jobs.ads_job import Job
 from ads.model.datascience_model import DataScienceModel
@@ -39,7 +38,7 @@ class FineTuningTestCase(TestCase):
         os.environ["ODSC_MODEL_COMPARTMENT_OCID"] = cls.SERVICE_COMPARTMENT_ID
         reload(ads.config)
         reload(ads.aqua)
-        reload(ads.aqua.finetune)
+        reload(ads.aqua.finetuning.finetuning)
 
     @classmethod
     def tearDownClass(cls):
@@ -47,13 +46,13 @@ class FineTuningTestCase(TestCase):
         os.environ.pop("ODSC_MODEL_COMPARTMENT_OCID", None)
         reload(ads.config)
         reload(ads.aqua)
-        reload(ads.aqua.finetune)
+        reload(ads.aqua.finetuning.finetuning)
 
     @patch.object(Job, "run")
     @patch("ads.jobs.ads_job.Job.name", new_callable=PropertyMock)
     @patch("ads.jobs.ads_job.Job.id", new_callable=PropertyMock)
     @patch.object(Job, "create")
-    @patch("ads.aqua.finetune.get_container_image")
+    @patch("ads.aqua.finetuning.finetuning.get_container_image")
     @patch.object(AquaFineTuningApp, "get_finetuning_config")
     @patch.object(AquaApp, "create_model_catalog")
     @patch.object(AquaApp, "create_model_version_set")

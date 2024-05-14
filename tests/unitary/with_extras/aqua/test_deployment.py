@@ -4,28 +4,28 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import os
+import copy
 import json
+import os
 import unittest
 from dataclasses import asdict
 from importlib import reload
 from unittest.mock import MagicMock, patch
-from parameterized import parameterized
-import pytest
-import copy
-import yaml
 
 import oci
-import ads.aqua.deployment
+import pytest
+import yaml
+from parameterized import parameterized
+
+import ads.aqua.modeldeployment.deployment
 import ads.config
-from ads.aqua.deployment import (
+from ads.aqua.common.errors import AquaRuntimeError
+from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
+from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
-    AquaDeploymentApp,
-    MDInferenceResponse,
     ModelParams,
 )
-from ads.aqua.exception import AquaRuntimeError
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import ModelCustomMetadata
@@ -169,7 +169,7 @@ class TestAquaDeployment(unittest.TestCase):
         os.environ["PROJECT_COMPARTMENT_OCID"] = TestDataset.USER_COMPARTMENT_ID
         reload(ads.config)
         reload(ads.aqua)
-        reload(ads.aqua.deployment)
+        reload(ads.aqua.modeldeployment.deployment)
 
     @classmethod
     def tearDownClass(cls):
@@ -179,7 +179,7 @@ class TestAquaDeployment(unittest.TestCase):
         os.environ.pop("PROJECT_COMPARTMENT_OCID", None)
         reload(ads.config)
         reload(ads.aqua)
-        reload(ads.aqua.deployment)
+        reload(ads.aqua.modeldeployment.deployment)
 
     def test_list_deployments(self):
         """Tests the list method in the AquaDeploymentApp class."""
@@ -202,7 +202,7 @@ class TestAquaDeployment(unittest.TestCase):
                 expected_attributes
             ), "Attributes mismatch"
 
-    @patch("ads.aqua.deployment.get_resource_name")
+    @patch("ads.aqua.modeldeployment.deployment.get_resource_name")
     def test_get_deployment(self, mock_get_resource_name):
         """Tests the get method in the AquaDeploymentApp class."""
 
@@ -215,8 +215,8 @@ class TestAquaDeployment(unittest.TestCase):
                 data=oci.data_science.models.ModelDeploymentSummary(**model_deployment),
             )
         )
-        mock_get_resource_name.side_effect = (
-            lambda param: "log-group-name"
+        mock_get_resource_name.side_effect = lambda param: (
+            "log-group-name"
             if param.startswith("ocid1.loggroup")
             else "log-name"
             if param.startswith("ocid1.log")
@@ -255,7 +255,7 @@ class TestAquaDeployment(unittest.TestCase):
 
             self.app.get(model_deployment_id=TestDataset.MODEL_DEPLOYMENT_ID)
 
-    @patch("ads.aqua.deployment.load_config")
+    @patch("ads.aqua.modeldeployment.deployment.load_config")
     def test_get_deployment_config(self, mock_load_config):
         """Test for fetching config details for a given deployment."""
 
@@ -274,9 +274,9 @@ class TestAquaDeployment(unittest.TestCase):
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
         assert result == config
 
-    @patch("ads.aqua.deployment.get_container_config")
+    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")
-    @patch("ads.aqua.deployment.get_container_image")
+    @patch("ads.aqua.modeldeployment.deployment.get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     def test_create_deployment_for_foundation_model(
         self,
@@ -339,9 +339,9 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result["state"] = "CREATING"
         assert actual_attributes == expected_result
 
-    @patch("ads.aqua.deployment.get_container_config")
+    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")
-    @patch("ads.aqua.deployment.get_container_image")
+    @patch("ads.aqua.modeldeployment.deployment.get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     def test_create_deployment_for_fine_tuned_model(
         self,

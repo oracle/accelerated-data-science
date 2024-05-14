@@ -337,7 +337,7 @@ class TestAquaModel:
             "evaluation_container": "odsc-llm-evaluate",
         }
 
-    @patch("ads.aqua.utils.query_resource")
+    @patch("ads.aqua.common.utils.query_resource")
     @patch("ads.aqua.model.read_file")
     @patch.object(DataScienceModel, "from_id")
     @patch(

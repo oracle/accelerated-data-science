@@ -8,12 +8,11 @@ import os
 import re
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict
 from datetime import datetime, timedelta
-from enum import Enum
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Union
 
 import oci
 from cachetools import TTLCache
@@ -24,17 +23,18 @@ from oci.data_science.models import (
     UpdateModelProvenanceDetails,
 )
 
-from ads.aqua import logger, utils
-from ads.aqua.base import AquaApp
-from ads.aqua.data import Tags
-from ads.aqua.exception import (
+from ads.aqua import logger
+from ads.aqua.app import AquaApp
+from ads.aqua.common import utils
+from ads.aqua.common.enums import *
+from ads.aqua.common.errors import (
     AquaFileExistsError,
     AquaFileNotFoundError,
     AquaMissingKeyError,
     AquaRuntimeError,
     AquaValueError,
 )
-from ads.aqua.utils import (
+from ads.aqua.common.utils import (
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     NB_SESSION_IDENTIFIER,
     UNKNOWN,
@@ -44,9 +44,12 @@ from ads.aqua.utils import (
     is_valid_ocid,
     upload_local_to_os,
 )
+from ads.aqua.data import Tags
+from ads.aqua.evaluation.constants import *
+from ads.aqua.evaluation.entities import *
+from ads.aqua.evaluation.errors import *
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link, get_files, get_log_links, upload_to_os
 from ads.config import (
     AQUA_JOB_SUBNET_ID,
@@ -68,279 +71,6 @@ from ads.model.model_metadata import (
 )
 from ads.model.model_version_set import ModelVersionSet
 from ads.telemetry import telemetry
-
-EVAL_TERMINATION_STATE = [
-    JobRun.LIFECYCLE_STATE_SUCCEEDED,
-    JobRun.LIFECYCLE_STATE_FAILED,
-]
-
-
-class EvaluationJobExitCode(Enum):
-    SUCCESS = 0
-    COMMON_ERROR = 1
-
-    # Configuration-related issues 10-19
-    INVALID_EVALUATION_CONFIG = 10
-    EVALUATION_CONFIG_NOT_PROVIDED = 11
-    INVALID_OUTPUT_DIR = 12
-    INVALID_INPUT_DATASET_PATH = 13
-    INVALID_EVALUATION_ID = 14
-    INVALID_TARGET_EVALUATION_ID = 15
-    INVALID_EVALUATION_CONFIG_VALIDATION = 16
-
-    # Evaluation process issues 20-39
-    OUTPUT_DIR_NOT_FOUND = 20
-    INVALID_INPUT_DATASET = 21
-    INPUT_DATA_NOT_FOUND = 22
-    EVALUATION_ID_NOT_FOUND = 23
-    EVALUATION_ALREADY_PERFORMED = 24
-    EVALUATION_TARGET_NOT_FOUND = 25
-    NO_SUCCESS_INFERENCE_RESULT = 26
-    COMPUTE_EVALUATION_ERROR = 27
-    EVALUATION_REPORT_ERROR = 28
-    MODEL_INFERENCE_WRONG_RESPONSE_FORMAT = 29
-    UNSUPPORTED_METRICS = 30
-    METRIC_CALCULATION_FAILURE = 31
-    EVALUATION_MODEL_CATALOG_RECORD_CREATION_FAILED = 32
-
-
-EVALUATION_JOB_EXIT_CODE_MESSAGE = {
-    EvaluationJobExitCode.SUCCESS.value: "Success",
-    EvaluationJobExitCode.COMMON_ERROR.value: "An error occurred during the evaluation, please check the log for more information.",
-    EvaluationJobExitCode.INVALID_EVALUATION_CONFIG.value: "The provided evaluation configuration was not in the correct format, supported formats are YAML or JSON.",
-    EvaluationJobExitCode.EVALUATION_CONFIG_NOT_PROVIDED.value: "The evaluation config was not provided.",
-    EvaluationJobExitCode.INVALID_OUTPUT_DIR.value: "The specified output directory path is invalid.",
-    EvaluationJobExitCode.INVALID_INPUT_DATASET_PATH.value: "Dataset path is invalid.",
-    EvaluationJobExitCode.INVALID_EVALUATION_ID.value: "Evaluation ID was not found in the Model Catalog.",
-    EvaluationJobExitCode.INVALID_TARGET_EVALUATION_ID.value: "Target evaluation ID was not found in the Model Deployment.",
-    EvaluationJobExitCode.INVALID_EVALUATION_CONFIG_VALIDATION.value: "Validation errors in the evaluation config.",
-    EvaluationJobExitCode.OUTPUT_DIR_NOT_FOUND.value: "Destination folder does not exist or cannot be used for writing, verify the folder's existence and permissions.",
-    EvaluationJobExitCode.INVALID_INPUT_DATASET.value: "Input dataset is in an invalid format, ensure the dataset is in jsonl format and that includes the required columns: 'prompt', 'completion' (optional 'category').",
-    EvaluationJobExitCode.INPUT_DATA_NOT_FOUND.value: "Input data file does not exist or cannot be use for reading, verify the file's existence and permissions.",
-    EvaluationJobExitCode.EVALUATION_ID_NOT_FOUND.value: "Evaluation ID does not match any resource in the Model Catalog, or access may be blocked by policies.",
-    EvaluationJobExitCode.EVALUATION_ALREADY_PERFORMED.value: "Evaluation already has an attached artifact, indicating that the evaluation has already been performed.",
-    EvaluationJobExitCode.EVALUATION_TARGET_NOT_FOUND.value: "Target evaluation ID does not match any resources in Model Deployment.",
-    EvaluationJobExitCode.NO_SUCCESS_INFERENCE_RESULT.value: "Inference process completed without producing expected outcome, verify the model parameters and config.",
-    EvaluationJobExitCode.COMPUTE_EVALUATION_ERROR.value: "Evaluation process encountered an issue while calculating metrics.",
-    EvaluationJobExitCode.EVALUATION_REPORT_ERROR.value: "Failed to save the evaluation report due to an error. Ensure the evaluation model is currently active and the specified path for the output report is valid and accessible. Verify these conditions and reinitiate the evaluation process.",
-    EvaluationJobExitCode.MODEL_INFERENCE_WRONG_RESPONSE_FORMAT.value: "Evaluation encountered unsupported, or unexpected model output, verify the target evaluation model is compatible and produces the correct format.",
-    EvaluationJobExitCode.UNSUPPORTED_METRICS.value: "None of the provided metrics are supported by the framework.",
-    EvaluationJobExitCode.METRIC_CALCULATION_FAILURE.value: "All attempted metric calculations were unsuccessful. Please review the metric configurations and input data.",
-    EvaluationJobExitCode.EVALUATION_MODEL_CATALOG_RECORD_CREATION_FAILED.value: (
-        "Failed to create a Model Catalog record for the evaluation. "
-        "This could be due to missing required permissions. "
-        "Please check the log for more information."
-    ),
-}
-
-
-class Resource(Enum):
-    JOB = "jobs"
-    MODEL = "models"
-    MODEL_DEPLOYMENT = "modeldeployments"
-    MODEL_VERSION_SET = "model-version-sets"
-
-
-class DataScienceResource(Enum):
-    MODEL_DEPLOYMENT = "datasciencemodeldeployment"
-    MODEL = "datasciencemodel"
-
-
-class EvaluationCustomMetadata(Enum):
-    EVALUATION_SOURCE = "evaluation_source"
-    EVALUATION_JOB_ID = "evaluation_job_id"
-    EVALUATION_JOB_RUN_ID = "evaluation_job_run_id"
-    EVALUATION_OUTPUT_PATH = "evaluation_output_path"
-    EVALUATION_SOURCE_NAME = "evaluation_source_name"
-    EVALUATION_ERROR = "aqua_evaluate_error"
-
-
-class EvaluationModelTags(Enum):
-    AQUA_EVALUATION = "aqua_evaluation"
-
-
-class EvaluationJobTags(Enum):
-    AQUA_EVALUATION = "aqua_evaluation"
-    EVALUATION_MODEL_ID = "evaluation_model_id"
-
-
-class EvaluationUploadStatus(Enum):
-    IN_PROGRESS = "IN_PROGRESS"
-    COMPLETED = "COMPLETED"
-
-
-@dataclass(repr=False)
-class AquaResourceIdentifier(DataClassSerializable):
-    id: str = ""
-    name: str = ""
-    url: str = ""
-
-
-@dataclass(repr=False)
-class AquaEvalReport(DataClassSerializable):
-    evaluation_id: str = ""
-    content: str = ""
-
-
-@dataclass(repr=False)
-class ModelParams(DataClassSerializable):
-    max_tokens: str = ""
-    top_p: str = ""
-    top_k: str = ""
-    temperature: str = ""
-    presence_penalty: Optional[float] = 0.0
-    frequency_penalty: Optional[float] = 0.0
-    stop: Optional[Union[str, List[str]]] = field(default_factory=list)
-
-
-@dataclass(repr=False)
-class AquaEvalParams(ModelParams, DataClassSerializable):
-    shape: str = ""
-    dataset_path: str = ""
-    report_path: str = ""
-
-
-@dataclass(repr=False)
-class AquaEvalMetric(DataClassSerializable):
-    key: str
-    name: str
-    description: str = ""
-
-
-@dataclass(repr=False)
-class AquaEvalMetricSummary(DataClassSerializable):
-    metric: str = ""
-    score: str = ""
-    grade: str = ""
-
-
-@dataclass(repr=False)
-class AquaEvalMetrics(DataClassSerializable):
-    id: str
-    report: str
-    metric_results: List[AquaEvalMetric] = field(default_factory=list)
-    metric_summary_result: List[AquaEvalMetricSummary] = field(default_factory=list)
-
-
-@dataclass(repr=False)
-class AquaEvaluationCommands(DataClassSerializable):
-    evaluation_id: str
-    evaluation_target_id: str
-    input_data: dict
-    metrics: list
-    output_dir: str
-    params: dict
-
-
-@dataclass(repr=False)
-class AquaEvaluationSummary(DataClassSerializable):
-    """Represents a summary of Aqua evalution."""
-
-    id: str
-    name: str
-    console_url: str
-    lifecycle_state: str
-    lifecycle_details: str
-    time_created: str
-    tags: dict
-    experiment: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-    source: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-    job: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-    parameters: AquaEvalParams = field(default_factory=AquaEvalParams)
-
-
-@dataclass(repr=False)
-class AquaEvaluationDetail(AquaEvaluationSummary, DataClassSerializable):
-    """Represents a details of Aqua evalution."""
-
-    log_group: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-    log: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-    introspection: dict = field(default_factory=dict)
-
-
-class RqsAdditionalDetails:
-    METADATA = "metadata"
-    CREATED_BY = "createdBy"
-    DESCRIPTION = "description"
-    MODEL_VERSION_SET_ID = "modelVersionSetId"
-    MODEL_VERSION_SET_NAME = "modelVersionSetName"
-    PROJECT_ID = "projectId"
-    VERSION_LABEL = "versionLabel"
-
-
-class EvaluationConfig:
-    PARAMS = "model_params"
-
-
-@dataclass(repr=False)
-class CreateAquaEvaluationDetails(DataClassSerializable):
-    """Dataclass to create aqua model evaluation.
-
-    Fields
-    ------
-    evaluation_source_id: str
-        The evaluation source id. Must be either model or model deployment ocid.
-    evaluation_name: str
-        The name for evaluation.
-    dataset_path: str
-        The dataset path for the evaluation. Could be either a local path from notebook session
-        or an object storage path.
-    report_path: str
-        The report path for the evaluation. Must be an object storage path.
-    model_parameters: dict
-        The parameters for the evaluation.
-    shape_name: str
-        The shape name for the evaluation job infrastructure.
-    memory_in_gbs: float
-        The memory in gbs for the shape selected.
-    ocpus: float
-        The ocpu count for the shape selected.
-    block_storage_size: int
-        The storage for the evaluation job infrastructure.
-    compartment_id: (str, optional). Defaults to `None`.
-        The compartment id for the evaluation.
-    project_id: (str, optional). Defaults to `None`.
-        The project id for the evaluation.
-    evaluation_description: (str, optional). Defaults to `None`.
-        The description for evaluation
-    experiment_id: (str, optional). Defaults to `None`.
-        The evaluation model version set id. If provided,
-        evaluation model will be associated with it.
-    experiment_name: (str, optional). Defaults to `None`.
-        The evaluation model version set name. If provided,
-        the model version set with the same name will be used if exists,
-        otherwise a new model version set will be created with the name.
-    experiment_description: (str, optional). Defaults to `None`.
-        The description for the evaluation model version set.
-    log_group_id: (str, optional). Defaults to `None`.
-        The log group id for the evaluation job infrastructure.
-    log_id: (str, optional). Defaults to `None`.
-        The log id for the evaluation job infrastructure.
-    metrics: (list, optional). Defaults to `None`.
-        The metrics for the evaluation.
-    force_overwrite: (bool, optional). Defaults to `False`.
-        Whether to force overwrite the existing file in object storage.
-    """
-
-    evaluation_source_id: str
-    evaluation_name: str
-    dataset_path: str
-    report_path: str
-    model_parameters: dict
-    shape_name: str
-    block_storage_size: int
-    compartment_id: Optional[str] = None
-    project_id: Optional[str] = None
-    evaluation_description: Optional[str] = None
-    experiment_id: Optional[str] = None
-    experiment_name: Optional[str] = None
-    experiment_description: Optional[str] = None
-    memory_in_gbs: Optional[float] = None
-    ocpus: Optional[float] = None
-    log_group_id: Optional[str] = None
-    log_id: Optional[str] = None
-    metrics: Optional[List] = None
-    force_overwrite: Optional[bool] = False
 
 
 class AquaEvaluationApp(AquaApp):
