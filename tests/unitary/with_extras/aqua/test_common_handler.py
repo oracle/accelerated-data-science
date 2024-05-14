@@ -6,13 +6,14 @@
 
 import os
 import unittest
-from unittest.mock import MagicMock, patch
 from importlib import reload
+from unittest.mock import MagicMock, patch
+
 from notebook.base.handlers import IPythonHandler
 
-import ads.config
 import ads.aqua
-from ads.aqua.utils import AQUA_GA_LIST
+import ads.config
+from ads.aqua.common.utils import AQUA_GA_LIST
 from ads.aqua.extension.common_handler import CompatibilityCheckHandler
 
 

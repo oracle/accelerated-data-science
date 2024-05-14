@@ -16,9 +16,9 @@ import pytest
 from parameterized import parameterized
 
 import ads.config
-from ads.aqua.exception import AquaValueError
+from ads.aqua.common.errors import AquaValueError
+from ads.aqua.common.utils import load_config
 from ads.aqua.ui import AquaUIApp
-from ads.aqua.utils import load_config
 from ads.config import AQUA_CONFIG_FOLDER, AQUA_RESOURCE_LIMIT_NAMES_CONFIG
 
 

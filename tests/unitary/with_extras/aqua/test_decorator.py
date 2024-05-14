@@ -22,7 +22,7 @@ from oci.exceptions import (
 from parameterized import parameterized
 from tornado.web import HTTPError
 
-from ads.aqua.exception import AquaError
+from ads.aqua.common.errors import AquaError
 from ads.aqua.extension.base_handler import AquaAPIhandler
 
 
@@ -179,7 +179,7 @@ class TestAquaDecorators(TestCase):
     @patch("uuid.uuid4")
     def test_handle_exceptions(self, name, error, expected_reply, mock_uuid):
         """Tests handling error decorator."""
-        from ads.aqua.decorator import handle_exceptions
+        from ads.aqua.common.decorator import handle_exceptions
 
         mock_uuid.return_value = TestDataset.mock_request_id
         expected_call = json.dumps(expected_reply)

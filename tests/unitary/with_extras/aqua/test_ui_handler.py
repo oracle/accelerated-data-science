@@ -6,15 +6,16 @@
 
 import os
 import unittest
-from unittest.mock import MagicMock, patch
 from importlib import reload
+from unittest.mock import MagicMock, patch
+
+from notebook.base.handlers import IPythonHandler
 from parameterized import parameterized
 
-import ads.config
 import ads.aqua
-from notebook.base.handlers import IPythonHandler
-from ads.aqua.extension.ui_handler import AquaUIHandler
+import ads.config
 from ads.aqua.data import Tags
+from ads.aqua.extension.ui_handler import AquaUIHandler
 
 
 class TestDataset:

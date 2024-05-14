@@ -6,23 +6,24 @@
 
 import os
 import unittest
-from unittest.mock import MagicMock, patch
 from importlib import reload
-from notebook.base.handlers import IPythonHandler
-import pytest
+from unittest.mock import MagicMock, patch
 
-import ads.config
+from notebook.base.handlers import IPythonHandler
+
 import ads.aqua
+import ads.config
 from ads.aqua.extension.deployment_handler import (
     AquaDeploymentHandler,
     AquaDeploymentInferenceHandler,
+    AquaDeploymentParamsHandler,
 )
-from ads.aqua.deployment import AquaDeploymentApp, MDInferenceResponse
 
 
 class TestDataset:
     USER_COMPARTMENT_ID = "ocid1.compartment.oc1..<USER_COMPARTMENT_OCID>"
     USER_PROJECT_ID = "ocid1.datascienceproject.oc1.iad.<USER_PROJECT_OCID>"
+    INSTANCE_SHAPE = "VM.GPU.A10.1"
     deployment_request = {
         "model_id": "ocid1.datasciencemodel.oc1.iad.<OCID>",
         "instance_shape": "VM.GPU.A10.1",
@@ -65,7 +66,7 @@ class TestAquaDeploymentHandler(unittest.TestCase):
         reload(ads.aqua)
         reload(ads.aqua.extension.deployment_handler)
 
-    @patch("ads.aqua.deployment.AquaDeploymentApp.get_deployment_config")
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_deployment_config")
     def test_get_deployment_config(self, mock_get_deployment_config):
         """Test get method to return deployment config"""
         self.deployment_handler.request.path = "aqua/deployments/config"
@@ -83,14 +84,14 @@ class TestAquaDeploymentHandler(unittest.TestCase):
         mock_error.assert_called_once()
         assert result["status"] == 400
 
-    @patch("ads.aqua.deployment.AquaDeploymentApp.get")
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get")
     def test_get_deployment(self, mock_get):
         """Test get method to return deployment information."""
         self.deployment_handler.request.path = "aqua/deployments"
         self.deployment_handler.get(id="mock-model-id")
         mock_get.assert_called()
 
-    @patch("ads.aqua.deployment.AquaDeploymentApp.list")
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.list")
     def test_list_deployment(self, mock_list):
         """Test get method to return a list of model deployments."""
         self.deployment_handler.request.path = "aqua/deployments"
@@ -99,7 +100,7 @@ class TestAquaDeploymentHandler(unittest.TestCase):
             compartment_id=TestDataset.USER_COMPARTMENT_ID, project_id=None
         )
 
-    @patch("ads.aqua.deployment.AquaDeploymentApp.create")
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.create")
     def test_post(self, mock_create):
         """Test post method to create a model deployment."""
         self.deployment_handler.get_json_body = MagicMock(
@@ -122,6 +123,57 @@ class TestAquaDeploymentHandler(unittest.TestCase):
         )
 
 
+class AquaDeploymentParamsHandlerTestCase(unittest.TestCase):
+    default_params = ["--seed 42", "--trust-remote-code"]
+
+    @patch.object(IPythonHandler, "__init__")
+    def setUp(self, ipython_init_mock) -> None:
+        ipython_init_mock.return_value = None
+        self.test_instance = AquaDeploymentParamsHandler(MagicMock(), MagicMock())
+
+    @patch("notebook.base.handlers.APIHandler.finish")
+    @patch(
+        "ads.aqua.modeldeployment.deployment.AquaDeploymentApp.get_deployment_default_params"
+    )
+    def test_get_deployment_default_params(
+        self, mock_get_deployment_default_params, mock_finish
+    ):
+        """Test to check the handler get method to return default params for model deployment."""
+
+        mock_get_deployment_default_params.return_value = self.default_params
+        mock_finish.side_effect = lambda x: x
+
+        args = {"instance_shape": TestDataset.INSTANCE_SHAPE}
+        self.test_instance.get_argument = MagicMock(
+            side_effect=lambda arg, default=None: args.get(arg, default)
+        )
+        result = self.test_instance.get(model_id="test_model_id")
+        self.assertCountEqual(result["data"], self.default_params)
+
+        mock_get_deployment_default_params.assert_called_with(
+            model_id="test_model_id", instance_shape=TestDataset.INSTANCE_SHAPE
+        )
+
+    @patch("notebook.base.handlers.APIHandler.finish")
+    @patch(
+        "ads.aqua.modeldeployment.deployment.AquaDeploymentApp.validate_deployment_params"
+    )
+    def test_validate_deployment_params(
+        self, mock_validate_deployment_params, mock_finish
+    ):
+        mock_validate_deployment_params.return_value = dict(valid=True)
+        mock_finish.side_effect = lambda x: x
+
+        self.test_instance.get_json_body = MagicMock(
+            return_value=dict(model_id="test-model-id", params=self.default_params)
+        )
+        result = self.test_instance.post()
+        assert result["valid"] is True
+        mock_validate_deployment_params.assert_called_with(
+            model_id="test-model-id", params=self.default_params
+        )
+
+
 class TestAquaDeploymentInferenceHandler(unittest.TestCase):
     @patch.object(IPythonHandler, "__init__")
     def setUp(self, ipython_init_mock) -> None:
@@ -132,7 +184,7 @@ class TestAquaDeploymentInferenceHandler(unittest.TestCase):
         self.inference_handler.request = MagicMock()
         self.inference_handler.finish = MagicMock()
 
-    @patch("ads.aqua.deployment.MDInferenceResponse.get_model_deployment_response")
+    @patch("ads.aqua.modeldeployment.MDInferenceResponse.get_model_deployment_response")
     def test_post(self, mock_get_model_deployment_response):
         """Test post method to return model deployment response."""
         self.inference_handler.get_json_body = MagicMock(
