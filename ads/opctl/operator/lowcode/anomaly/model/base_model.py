@@ -320,11 +320,11 @@ class AnomalyOperatorBaseModel(ABC):
         # Iterate over the full_data_dict items
         for target, df in self.datasets.full_data_dict.items():
             est = linear_model.SGDOneClassSVM(random_state=42)
-            est.fit(df[target].values.reshape(-1, 1))
+            est.fit(df[self.spec.target_column].fillna(0).values.reshape(-1, 1))
             y_pred = np.vectorize(self.outlier_map.get)(
-                est.predict(df[target].values.reshape(-1, 1))
+                est.predict(df[self.spec.target_column].fillna(0).values.reshape(-1, 1))
             )
-            scores = est.score_samples(df[target].values.reshape(-1, 1))
+            scores = est.score_samples(df[self.spec.target_column].fillna(0).values.reshape(-1, 1))
 
             anomaly = pd.DataFrame(
                 {date_column: df[date_column], OutputColumns.ANOMALY_COL: y_pred}
