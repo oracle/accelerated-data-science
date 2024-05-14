@@ -116,11 +116,30 @@ class TestAquaModel:
             yield mock_client
 
     def setup_method(self):
-        ads.common.auth.default_signer = MagicMock()
-        ads.common.auth.APIKey.create_signer = MagicMock()
-        oci.config.validate_config = MagicMock()
-        ads.common.oci_client.OCIClientFactory.create_client = MagicMock()
+        self.default_signer_patch = patch(
+            "ads.common.auth.default_signer", new_callable=MagicMock
+        )
+        self.create_signer_patch = patch(
+            "ads.common.auth.APIKey.create_signer", new_callable=MagicMock
+        )
+        self.validate_config_patch = patch(
+            "oci.config.validate_config", new_callable=MagicMock
+        )
+        self.create_client_patch = patch(
+            "ads.common.oci_client.OCIClientFactory.create_client",
+            new_callable=MagicMock,
+        )
+        self.mock_default_signer = self.default_signer_patch.start()
+        self.mock_create_signer = self.create_signer_patch.start()
+        self.mock_validate_config = self.validate_config_patch.start()
+        self.mock_create_client = self.create_client_patch.start()
         self.app = AquaModelApp()
+
+    def teardown_method(self):
+        self.default_signer_patch.stop()
+        self.create_signer_patch.stop()
+        self.validate_config_patch.stop()
+        self.create_client_patch.stop()
 
     @classmethod
     def setup_class(cls):
