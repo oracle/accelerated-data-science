@@ -7,8 +7,9 @@
 
 import logging
 from dataclasses import dataclass, field
-from ads.common.serializer import DataClassSerializable
+
 from ads.aqua.data import AquaResourceIdentifier
+from ads.common.serializer import DataClassSerializable
 
 logger = logging.getLogger(__name__)
 

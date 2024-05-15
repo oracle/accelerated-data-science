@@ -179,7 +179,7 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
             )
 
         # Check pipeline_tag, it should be `text-generation`
-        if hf_model_info.pipeline_tag.lower() != ModelTask.TEXT_GENERATION.value:
+        if hf_model_info.pipeline_tag.lower() != ModelTask.TEXT_GENERATION:
             raise AquaRuntimeError(
                 f"Unsupported pipeline tag for the chosen model: '{hf_model_info.pipeline_tag}'. "
                 f"AQUA currently supports the following tasks only: {', '.join(ModelTask.values())}. "

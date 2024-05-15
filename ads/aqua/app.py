@@ -12,6 +12,7 @@ from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDet
 
 from ads import set_auth
 from ads.aqua import logger
+from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     UNKNOWN,
@@ -20,7 +21,6 @@ from ads.aqua.common.utils import (
     is_valid_ocid,
     load_config,
 )
-from ads.aqua.data import Tags
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import extract_region

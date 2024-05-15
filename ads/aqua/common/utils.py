@@ -21,15 +21,13 @@ import fsspec
 import oci
 from oci.data_science.models import JobRun, Model
 
+from ads.aqua.common.enums import RqsAdditionalDetails
 from ads.aqua.common.errors import (
     AquaFileNotFoundError,
     AquaRuntimeError,
     AquaValueError,
 )
-from ads.aqua.constants import (
-    SERVICE_MANAGED_CONTAINER_URI_SCHEME,
-    RqsAdditionalDetails,
-)
+from ads.aqua.constants import SERVICE_MANAGED_CONTAINER_URI_SCHEME
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.auth import AuthState, default_signer
 from ads.common.extended_enum import ExtendedEnumMeta
