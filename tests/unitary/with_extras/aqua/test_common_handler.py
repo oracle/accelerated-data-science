@@ -13,7 +13,7 @@ from notebook.base.handlers import IPythonHandler
 
 import ads.aqua
 import ads.config
-from ads.aqua.common.utils import AQUA_GA_LIST
+from ads.aqua.constants import AQUA_GA_LIST
 from ads.aqua.extension.common_handler import CompatibilityCheckHandler
 
 

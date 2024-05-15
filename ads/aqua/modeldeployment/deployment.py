@@ -12,17 +12,19 @@ from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
-    AQUA_MODEL_TYPE_CUSTOM,
-    AQUA_MODEL_TYPE_SERVICE,
-    MODEL_BY_REFERENCE_OSS_PATH_KEY,
-    UNKNOWN,
-    UNKNOWN_DICT,
     get_container_config,
     get_container_image,
     get_model_by_reference_paths,
     get_ocid_substring,
     get_resource_name,
     load_config,
+)
+from ads.aqua.constants import (
+    AQUA_MODEL_TYPE_CUSTOM,
+    AQUA_MODEL_TYPE_SERVICE,
+    MODEL_BY_REFERENCE_OSS_PATH_KEY,
+    UNKNOWN,
+    UNKNOWN_DICT,
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
