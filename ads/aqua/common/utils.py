@@ -862,14 +862,13 @@ def get_combined_params(params1: str = None, params2: str = None) -> str:
     if not params2:
         return params1
 
-    params1_dict = get_params_dict(params1)
-    params2_dict = get_params_dict(params2)
-
-    for key, items in params2_dict.items():
-        params1_dict[key] = params2_dict[key]
-
-    combined_params = []
-    for key, value in params1_dict.items():
-        combined_params.append(f"{key} {value}" if value else key)
+    # overwrite values from params2 into params1
+    combined_params = [
+        f"{key} {value}" if value else key
+        for key, value in {
+            **get_params_dict(params1),
+            **get_params_dict(params2),
+        }.items()
+    ]
 
     return " ".join(combined_params)

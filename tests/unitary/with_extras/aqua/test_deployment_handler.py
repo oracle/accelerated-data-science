@@ -124,7 +124,6 @@ class TestAquaDeploymentHandler(unittest.TestCase):
             server_port=None,
             health_check_port=None,
             env_var=None,
-            container_image=None,
         )
 
 

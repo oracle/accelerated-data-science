@@ -98,7 +98,6 @@ class AquaDeploymentHandler(AquaAPIhandler):
         server_port = input_data.get("server_port")
         health_check_port = input_data.get("health_check_port")
         env_var = input_data.get("env_var")
-        container_image = input_data.get("container_image")
 
         self.finish(
             AquaDeploymentApp().create(
@@ -117,7 +116,6 @@ class AquaDeploymentHandler(AquaAPIhandler):
                 server_port=server_port,
                 health_check_port=health_check_port,
                 env_var=env_var,
-                container_image=container_image,
             )
         )
 
