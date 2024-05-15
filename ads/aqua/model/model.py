@@ -15,7 +15,7 @@ from oci.data_science.models import JobRun, Model
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common import utils
-from ads.aqua.common.enums import FineTuningDefinedMetadata, Tags
+from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import (
     LICENSE_TXT,
@@ -40,6 +40,7 @@ from ads.aqua.constants import (
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model.constants import *
 from ads.aqua.model.entities import *
+from ads.aqua.model.enums import FineTuningDefinedMetadata
 from ads.aqua.training.exceptions import exit_code_dict
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource

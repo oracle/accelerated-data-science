@@ -19,9 +19,9 @@ from huggingface_hub import hf_api
 from ads.aqua import logger
 from ads.aqua.app import CLIBuilderMixin
 from ads.aqua.common import utils
-from ads.aqua.common.enums import FineTuningDefinedMetadata
 from ads.aqua.constants import UNKNOWN_VALUE
 from ads.aqua.data import AquaResourceIdentifier
+from ads.aqua.model.enums import FineTuningDefinedMetadata
 from ads.aqua.training.exceptions import exit_code_dict
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_log_links
