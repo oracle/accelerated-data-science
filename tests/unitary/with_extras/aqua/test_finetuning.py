@@ -4,14 +4,15 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import json
 import os
-from dataclasses import asdict
-from importlib import reload
+import json
+import pytest
+from parameterized import parameterized
 from unittest import TestCase
 from unittest.mock import MagicMock, PropertyMock
-
 from mock import patch
+from dataclasses import asdict
+from importlib import reload
 
 import ads.aqua
 import ads.aqua.finetuning.finetuning
@@ -24,6 +25,7 @@ from ads.aqua.finetuning.entities import AquaFineTuningParams
 from ads.jobs.ads_job import Job
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import ModelCustomMetadata
+from ads.aqua.common.errors import AquaValueError
 
 
 class FineTuningTestCase(TestCase):
@@ -261,3 +263,41 @@ class FineTuningTestCase(TestCase):
         self.app.get_finetuning_config = MagicMock(return_value={})
         result = self.app.get_finetuning_default_params(model_id="test_model_id")
         assert result == []
+
+    @parameterized.expand(
+        [
+            (
+                [
+                    "--batch_size 1",
+                    "--sequence_len 2048",
+                    "--sample_packing true",
+                    "--pad_to_sequence_len true",
+                    "--learning_rate 0.0002",
+                    "--lora_r 32",
+                    "--lora_alpha 16",
+                    "--lora_dropout 0.05",
+                    "--lora_target_linear true",
+                    "--lora_target_modules q_proj,k_proj",
+                ],
+                True,
+            ),
+            (
+                [
+                    "--micro_batch_size 1",
+                    "--max_sequence_len 2048",
+                    "--flash_attention true",
+                    "--pad_to_sequence_len true",
+                    "--lr_scheduler cosine",
+                ],
+                False,
+            ),
+        ]
+    )
+    def test_validate_finetuning_params(self, params, is_valid):
+        """Test for checking if overridden fine-tuning params are valid."""
+        if is_valid:
+            result = self.app.validate_finetuning_params(params)
+            assert result["valid"] is True
+        else:
+            with pytest.raises(AquaValueError):
+                self.app.validate_finetuning_params(params)

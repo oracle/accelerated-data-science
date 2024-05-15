@@ -1,5 +1,24 @@
 {
   "containerSpec": {
+    "odsc-tgi-serving": {
+      "cliParam": "--sharded true --trust-remote-code",
+      "envVars": [
+        {
+          "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"
+        },
+        {
+          "MODEL_DEPLOY_ENABLE_STREAMING": "true"
+        },
+        {
+          "PORT": "8080"
+        },
+        {
+          "HEALTH_CHECK_PORT": "8080"
+        }
+      ],
+      "healthCheckPort": "8080",
+      "serverPort": "8080"
+    },
     "odsc-vllm-serving": {
       "cliParam": "--served-model-name $(python -c 'import os; print(os.environ.get(\"ODSC_SERVED_MODEL_NAME\",\"odsc-llm\"))') --seed 42 ",
       "envVars": [

@@ -70,9 +70,33 @@ class AquaFineTuneParamsHandler(AquaAPIhandler):
             AquaFineTuningApp().get_finetuning_default_params(model_id=model_id)
         )
 
+    @handle_exceptions
+    def post(self, *args, **kwargs):
+        """Handles post request for the finetuning param handler API.
+
+        Raises
+        ------
+        HTTPError
+            Raises HTTPError if inputs are missing or are invalid.
+        """
+        try:
+            input_data = self.get_json_body()
+        except Exception:
+            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT)
+
+        if not input_data:
+            raise HTTPError(400, Errors.NO_INPUT_DATA)
+
+        params = input_data.get("params", None)
+        return self.finish(
+            AquaFineTuningApp().validate_finetuning_params(
+                params=params,
+            )
+        )
+
 
 __handlers__ = [
+    ("finetuning/?([^/]*)/params", AquaFineTuneParamsHandler),
     ("finetuning/?([^/]*)", AquaFineTuneHandler),
     ("finetuning/config/?([^/]*)", AquaFineTuneHandler),
-    ("finetuning/([^/]*)/params", AquaFineTuneParamsHandler),
 ]

@@ -83,33 +83,49 @@ class FineTuningHandlerTestCase(TestCase):
 
 
 class AquaFineTuneParamsHandlerTestCase(TestCase):
+    default_params = [
+        "--batch_size 1",
+        "--sequence_len 2048",
+        "--sample_packing true",
+        "--pad_to_sequence_len true",
+        "--learning_rate 0.0002",
+        "--lora_r 32",
+        "--lora_alpha 16",
+        "--lora_dropout 0.05",
+        "--lora_target_linear true",
+        "--lora_target_modules q_proj,k_proj",
+    ]
+
     @patch.object(IPythonHandler, "__init__")
     def setUp(self, ipython_init_mock) -> None:
         ipython_init_mock.return_value = None
         self.test_instance = AquaFineTuneParamsHandler(MagicMock(), MagicMock())
 
-    @patch.object(APIHandler, "finish")
-    @patch.object(AquaFineTuningApp, "get_finetuning_default_params")
+    @patch("notebook.base.handlers.APIHandler.finish")
+    @patch("ads.aqua.finetuning.AquaFineTuningApp.get_finetuning_default_params")
     def test_get_finetuning_default_params(
         self, mock_get_finetuning_default_params, mock_finish
     ):
-        default_params = [
-            "--batch_size 1",
-            "--sequence_len 2048",
-            "--sample_packing true",
-            "--pad_to_sequence_len true",
-            "--learning_rate 0.0002",
-            "--lora_r 32",
-            "--lora_alpha 16",
-            "--lora_dropout 0.05",
-            "--lora_target_linear true",
-            "--lora_target_modules q_proj,k_proj",
-        ]
-
-        mock_get_finetuning_default_params.return_value = default_params
+        """Test to check the handler get method to return default params for fine-tuning job."""
+        mock_get_finetuning_default_params.return_value = self.default_params
         mock_finish.side_effect = lambda x: x
 
         result = self.test_instance.get(model_id="test_model_id")
-        self.assertCountEqual(result["data"], default_params)
+        self.assertCountEqual(result["data"], self.default_params)
 
         mock_get_finetuning_default_params.assert_called_with(model_id="test_model_id")
+
+    @patch("notebook.base.handlers.APIHandler.finish")
+    @patch("ads.aqua.finetuning.AquaFineTuningApp.validate_finetuning_params")
+    def test_validate_finetuning_params(
+        self, mock_validate_finetuning_params, mock_finish
+    ):
+        mock_validate_finetuning_params.return_value = dict(valid=True)
+        mock_finish.side_effect = lambda x: x
+
+        self.test_instance.get_json_body = MagicMock(
+            return_value=dict(params=self.default_params)
+        )
+        result = self.test_instance.post()
+        assert result["valid"] is True
+        mock_validate_finetuning_params.assert_called_with(params=self.default_params)

@@ -755,3 +755,72 @@ def upload_folder(os_path: str, local_dir: str, model_name: str) -> str:
 
 def is_service_managed_container(container):
     return container and container.startswith(SERVICE_MANAGED_CONTAINER_URI_SCHEME)
+
+
+def get_params_list(params: str) -> List[str]:
+    """Parses the string parameter and returns a list of params.
+
+    Parameters
+    ----------
+    params
+        string parameters by separated by -- delimiter
+
+    Returns
+    -------
+        list of params
+
+    """
+    if not params:
+        return []
+    return ["--" + param.strip() for param in params.split("--")[1:]]
+
+
+def get_params_dict(params: Union[str, List[str]]) -> dict:
+    """Accepts a string or list of string of double-dash parameters and returns a dict with the parameter keys and values.
+
+    Parameters
+    ----------
+    params:
+        List of parameters or parameter string separated by space.
+
+    Returns
+    -------
+        dict containing parameter keys and values
+
+    """
+    params_list = get_params_list(params) if isinstance(params, str) else params
+    return {
+        split_result[0]: split_result[1] if len(split_result) > 1 else UNKNOWN
+        for split_result in (x.split() for x in params_list)
+    }
+
+
+def get_combined_params(params1: str = None, params2: str = None) -> str:
+    """
+    Combines string of double-dash parameters, and overrides the values from the second string in the first.
+    Parameters
+    ----------
+    params1:
+        Parameter string with values
+    params2:
+        Parameter string with values that need to be overridden.
+
+    Returns
+    -------
+        A combined list with overridden values from params2.
+    """
+    if not params1:
+        return params2
+    if not params2:
+        return params1
+
+    # overwrite values from params2 into params1
+    combined_params = [
+        f"{key} {value}" if value else key
+        for key, value in {
+            **get_params_dict(params1),
+            **get_params_dict(params2),
+        }.items()
+    ]
+
+    return " ".join(combined_params)

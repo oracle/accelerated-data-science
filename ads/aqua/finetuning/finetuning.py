@@ -18,7 +18,11 @@ from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import Resource, Tags
 from ads.aqua.common.errors import AquaFileExistsError, AquaValueError
-from ads.aqua.common.utils import get_container_image, upload_local_to_os
+from ads.aqua.common.utils import (
+    get_container_image,
+    upload_local_to_os,
+    get_params_dict,
+)
 from ads.aqua.constants import (
     DEFAULT_FT_BATCH_SIZE,
     DEFAULT_FT_BLOCK_STORAGE_SIZE,
@@ -583,3 +587,32 @@ class AquaFineTuningApp(AquaApp):
                 default_params.append(f"--{name} {str(value).lower()}")
 
         return default_params
+
+    def validate_finetuning_params(self, params: List[str] = None) -> Dict:
+        """Validate if the fine-tuning parameters passed by the user can be overridden. Parameter values are not
+        validated, only param keys are validated.
+
+        Parameters
+        ----------
+        params : List[str], optional
+            Params passed by the user.
+
+        Returns
+        -------
+            Return a list of restricted params.
+        """
+        restricted_params = []
+        if params:
+            dataclass_fields = {field.name for field in fields(AquaFineTuningParams)}
+            params_dict = get_params_dict(params)
+            for key, items in params_dict.items():
+                key = key.lstrip("--")
+                if key not in dataclass_fields:
+                    restricted_params.append(key)
+
+        if restricted_params:
+            raise AquaValueError(
+                f"Parameters {restricted_params} are set by Aqua "
+                f"and cannot be overridden or are invalid."
+            )
+        return dict(valid=True)
