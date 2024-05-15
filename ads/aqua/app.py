@@ -15,12 +15,12 @@ from ads.aqua import logger
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
-    UNKNOWN,
     _is_valid_mvs,
     get_artifact_path,
     is_valid_ocid,
     load_config,
 )
+from ads.aqua.constants import UNKNOWN
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import extract_region

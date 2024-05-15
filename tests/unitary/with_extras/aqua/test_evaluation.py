@@ -22,7 +22,7 @@ from ads.aqua.common.errors import (
     AquaMissingKeyError,
     AquaRuntimeError,
 )
-from ads.aqua.common.utils import EVALUATION_REPORT_JSON, EVALUATION_REPORT_MD, UNKNOWN
+from ads.aqua.constants import EVALUATION_REPORT_JSON, EVALUATION_REPORT_MD, UNKNOWN
 from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.evaluation.entities import (
     AquaEvalMetrics,

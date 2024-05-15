@@ -39,3 +39,5 @@ TRINING_METRICS = "training_metrics"
 VALIDATION_METRICS = "validation_metrics"
 
 SERVICE_MANAGED_CONTAINER_URI_SCHEME = "dsmc://"
+SUPPORTED_FILE_FORMATS = ["jsonl"]
+MODEL_BY_REFERENCE_OSS_PATH_KEY = "artifact_location"
