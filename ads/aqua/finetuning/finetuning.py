@@ -16,6 +16,7 @@ from oci.data_science.models import (
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
+from ads.aqua.common.enums import Resource, Tags
 from ads.aqua.common.errors import AquaFileExistsError, AquaValueError
 from ads.aqua.common.utils import (
     DEFAULT_FT_BATCH_SIZE,
@@ -29,7 +30,7 @@ from ads.aqua.common.utils import (
     upload_local_to_os,
     get_params_dict,
 )
-from ads.aqua.data import AquaResourceIdentifier, Resource, Tags
+from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.constants import *
 from ads.aqua.finetuning.entities import *
 from ads.common.auth import default_signer

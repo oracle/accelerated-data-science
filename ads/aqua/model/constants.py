@@ -9,33 +9,32 @@ aqua.model.constants
 
 This module contains constants/enums used in Aqua Model.
 """
-from enum import Enum
-from ads.common.extended_enum import ExtendedEnum
+from ads.common.extended_enum import ExtendedEnumMeta
 
 
-class ModelCustomMetadataFields(ExtendedEnum):
+class ModelCustomMetadataFields(str, metaclass=ExtendedEnumMeta):
     ARTIFACT_LOCATION = "artifact_location"
     DEPLOYMENT_CONTAINER = "deployment-container"
     EVALUATION_CONTAINER = "evaluation-container"
     FINETUNE_CONTAINER = "finetune-container"
 
 
-class ModelTask(ExtendedEnum):
+class ModelTask(str, metaclass=ExtendedEnumMeta):
     TEXT_GENERATION = "text-generation"
 
 
-class FineTuningMetricCategories(Enum):
+class FineTuningMetricCategories(str, metaclass=ExtendedEnumMeta):
     VALIDATION = "validation"
     TRAINING = "training"
 
 
-class ModelType(ExtendedEnum):
+class ModelType(str, metaclass=ExtendedEnumMeta):
     FT = "FT"  # Fine Tuned Model
     BASE = "BASE"  # Base model
 
 
 # TODO: merge metadata key used in create FT
-class FineTuningCustomMetadata(Enum):
+class FineTuningCustomMetadata(str, metaclass=ExtendedEnumMeta):
     FT_SOURCE = "fine_tune_source"
     FT_SOURCE_NAME = "fine_tune_source_name"
     FT_OUTPUT_PATH = "fine_tune_output_path"

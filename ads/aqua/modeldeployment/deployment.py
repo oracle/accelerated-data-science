@@ -10,6 +10,7 @@ from typing import Dict, List, Union
 from oci.data_science.models import ModelDeployment
 
 from ads.aqua.app import AquaApp, logger
+from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
@@ -27,20 +28,19 @@ from ads.aqua.common.utils import (
     get_resource_name,
     load_config,
 )
-from ads.aqua.data import (
-    AquaResourceIdentifier,
-    InferenceContainerType,
-    InferenceContainerTypeKey,
-    InferenceContainerParamType,
-    VLLMInferenceRestrictedParams,
-    Tags,
-)
+from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
 from ads.aqua.model import AquaModelApp
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
     ContainerSpec,
+)
+from ads.aqua.modeldeployment.constants import VLLMInferenceRestrictedParams
+from ads.aqua.modeldeployment.enums import (
+    InferenceContainerParamType,
+    InferenceContainerType,
+    InferenceContainerTypeKey,
 )
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links

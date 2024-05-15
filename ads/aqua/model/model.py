@@ -15,6 +15,7 @@ from oci.data_science.models import JobRun, Model
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common import utils
+from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import (
     LICENSE_TXT,
@@ -36,9 +37,11 @@ from ads.aqua.constants import (
     VALIDATION_METRICS,
     VALIDATION_METRICS_FINAL,
 )
-from ads.aqua.data import Tags
+from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model.constants import *
 from ads.aqua.model.entities import *
+from ads.aqua.model.enums import FineTuningDefinedMetadata
+from ads.aqua.training.exceptions import exit_code_dict
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link
@@ -53,10 +56,7 @@ from ads.config import (
     TENANCY_OCID,
 )
 from ads.model import DataScienceModel
-from ads.model.model_metadata import (
-    ModelCustomMetadata,
-    ModelCustomMetadataItem,
-)
+from ads.model.model_metadata import ModelCustomMetadata, ModelCustomMetadataItem
 from ads.telemetry import telemetry
 
 
@@ -209,22 +209,16 @@ class AquaModelApp(AquaApp):
                 )
 
         inference_container = ds_model.custom_metadata_list.get(
-            ModelCustomMetadataFields.DEPLOYMENT_CONTAINER.value,
-            ModelCustomMetadataItem(
-                key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER.value
-            ),
+            ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
+            ModelCustomMetadataItem(key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER),
         ).value
         evaluation_container = ds_model.custom_metadata_list.get(
-            ModelCustomMetadataFields.EVALUATION_CONTAINER.value,
-            ModelCustomMetadataItem(
-                key=ModelCustomMetadataFields.EVALUATION_CONTAINER.value
-            ),
+            ModelCustomMetadataFields.EVALUATION_CONTAINER,
+            ModelCustomMetadataItem(key=ModelCustomMetadataFields.EVALUATION_CONTAINER),
         ).value
         finetuning_container: str = ds_model.custom_metadata_list.get(
-            ModelCustomMetadataFields.FINETUNE_CONTAINER.value,
-            ModelCustomMetadataItem(
-                key=ModelCustomMetadataFields.FINETUNE_CONTAINER.value
-            ),
+            ModelCustomMetadataFields.FINETUNE_CONTAINER,
+            ModelCustomMetadataItem(key=ModelCustomMetadataFields.FINETUNE_CONTAINER),
         ).value
 
         aqua_model_attributes = dict(
@@ -254,7 +248,7 @@ class AquaModelApp(AquaApp):
 
             try:
                 source_id = ds_model.custom_metadata_list.get(
-                    FineTuningCustomMetadata.FT_SOURCE.value
+                    FineTuningCustomMetadata.FT_SOURCE
                 ).value
             except ValueError as e:
                 logger.debug(str(e))
@@ -262,7 +256,7 @@ class AquaModelApp(AquaApp):
 
             try:
                 source_name = ds_model.custom_metadata_list.get(
-                    FineTuningCustomMetadata.FT_SOURCE_NAME.value
+                    FineTuningCustomMetadata.FT_SOURCE_NAME
                 ).value
             except ValueError as e:
                 logger.debug(str(e))
@@ -340,29 +334,29 @@ class AquaModelApp(AquaApp):
 
         validation_metrics = self._fetch_metric_from_metadata(
             custom_metadata_list=custom_metadata_list,
-            target=FineTuningCustomMetadata.VALIDATION_METRICS_EPOCH.value,
-            category=FineTuningMetricCategories.VALIDATION.value,
+            target=FineTuningCustomMetadata.VALIDATION_METRICS_EPOCH,
+            category=FineTuningMetricCategories.VALIDATION,
             metric_name=VALIDATION_METRICS,
         )
 
         training_metrics = self._fetch_metric_from_metadata(
             custom_metadata_list=custom_metadata_list,
-            target=FineTuningCustomMetadata.TRAINING_METRICS_EPOCH.value,
-            category=FineTuningMetricCategories.TRAINING.value,
+            target=FineTuningCustomMetadata.TRAINING_METRICS_EPOCH,
+            category=FineTuningMetricCategories.TRAINING,
             metric_name=TRINING_METRICS,
         )
 
         validation_final = self._fetch_metric_from_metadata(
             custom_metadata_list=custom_metadata_list,
-            target=FineTuningCustomMetadata.VALIDATION_METRICS_FINAL.value,
-            category=FineTuningMetricCategories.VALIDATION.value,
+            target=FineTuningCustomMetadata.VALIDATION_METRICS_FINAL,
+            category=FineTuningMetricCategories.VALIDATION,
             metric_name=VALIDATION_METRICS_FINAL,
         )
 
         training_final = self._fetch_metric_from_metadata(
             custom_metadata_list=custom_metadata_list,
-            target=FineTuningCustomMetadata.TRAINING_METRICS_FINAL.value,
-            category=FineTuningMetricCategories.TRAINING.value,
+            target=FineTuningCustomMetadata.TRAINING_METRICS_FINAL,
+            category=FineTuningMetricCategories.TRAINING,
             metric_name=TRAINING_METRICS_FINAL,
         )
 
@@ -492,7 +486,7 @@ class AquaModelApp(AquaApp):
             )
 
             logger.info(f"Fetching custom models from compartment_id={compartment_id}.")
-            model_type = model_type.upper() if model_type else ModelType.FT.value
+            model_type = model_type.upper() if model_type else ModelType.FT
             models = self._rqs(compartment_id, model_type=model_type)
         else:
             # tracks number of times service model listing was called
@@ -834,9 +828,9 @@ class AquaModelApp(AquaApp):
 
     def _rqs(self, compartment_id: str, model_type="FT", **kwargs):
         """Use RQS to fetch models in the user tenancy."""
-        if model_type == ModelType.FT.value:
+        if model_type == ModelType.FT:
             filter_tag = Tags.AQUA_FINE_TUNED_MODEL_TAG
-        elif model_type == ModelType.BASE.value:
+        elif model_type == ModelType.BASE:
             filter_tag = Tags.BASE_MODEL_CUSTOM
         else:
             raise ValueError(
