@@ -16,6 +16,7 @@ from ads.opctl.operator.common.operator_config import (
     InputData,
 )
 from .const import SupportedModels
+from ads.opctl.operator.lowcode.common.utils import find_output_dirname
 
 
 @dataclass(repr=True)
@@ -79,6 +80,7 @@ class AnomalyOperatorSpec(DataClassSerializable):
 
     def __post_init__(self):
         """Adjusts the specification details."""
+        self.output_directory = self.output_directory or OutputDirectory(url=find_output_dirname(self.output_directory))
         self.report_file_name = self.report_file_name or "report.html"
         self.report_theme = self.report_theme or "light"
         self.inliers_filename = self.inliers_filename or "inliers.csv"

@@ -33,7 +33,7 @@ from .errors import ForecastInputDataError, ForecastSchemaYamlError
 from .operator_config import ForecastOperatorSpec, ForecastOperatorConfig
 from ads.opctl.operator.lowcode.common.utils import merge_category_columns
 from ads.opctl.operator.lowcode.forecast.const import ForecastOutputColumns
-# from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import TestData, ForecastOutput
+import report_creator as rc
 
 
 def _label_encode_dataframe(df, no_encode=set()):
@@ -256,8 +256,6 @@ def evaluate_train_metrics(output, metrics_col_name=None):
 
 
 def _select_plot_list(fn, series_ids):
-    import report_creator as rc
-
     blocks = [rc.Widget(fn(s_id=s_id), label=s_id) for s_id in series_ids]
     return rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
 
@@ -280,7 +278,6 @@ def get_auto_select_plot(backtest_results):
             name=column,
         ))
 
-    import report_creator as rc
     return rc.Widget(fig)
 
 

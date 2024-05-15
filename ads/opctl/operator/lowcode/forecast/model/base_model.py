@@ -44,6 +44,7 @@ from ..const import (
     SupportedMetrics,
     SupportedModels,
     SpeedAccuracyMode,
+    AUTO_SELECT
 )
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 
@@ -248,7 +249,7 @@ class ForecastOperatorBaseModel(ABC):
                     train_metrics_sections = [sec9_text, sec9]
 
                 backtest_sections = []
-                if self.spec.model == "auto-select":
+                if self.spec.model == AUTO_SELECT:
                     output_dir = self.spec.output_directory.url
                     backtest_report_name = "backtest_stats.csv"
                     backtest_stats = pd.read_csv(f"{output_dir}/{backtest_report_name}")

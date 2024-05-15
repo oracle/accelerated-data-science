@@ -4,7 +4,7 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from ..const import SupportedModels
+from ..const import SupportedModels, AUTO_SELECT
 from ..operator_config import ForecastOperatorConfig
 from .arima import ArimaOperatorModel
 from .automlx import AutoMLXOperatorModel
@@ -14,6 +14,7 @@ from .neuralprophet import NeuralProphetOperatorModel
 from .prophet import ProphetOperatorModel
 from .forecast_datasets import ForecastDatasets
 from .ml_forecast import MLForecastOperatorModel
+from ..model_evaluator import ModelEvaluator
 
 class UnSupportedModelError(Exception):
     def __init__(self, model_type: str):
@@ -62,8 +63,9 @@ class ForecastOperatorModelFactory:
             In case of not supported model.
         """
         model_type = operator_config.spec.model
-        if model_type == "auto-select":
+        if model_type == AUTO_SELECT:
             model_type = cls.auto_select_model(datasets, operator_config)
+            operator_config.spec.model_kwargs = dict()
         if model_type not in cls._MAP:
             raise UnSupportedModelError(model_type)
         return cls._MAP[model_type](config=operator_config, datasets=datasets)
@@ -88,7 +90,8 @@ class ForecastOperatorModelFactory:
         str
             The type of the model.
         """
-        from ..model_evaluator import ModelEvaluator
-        all_models = cls._MAP.keys()
-        model_evaluator = ModelEvaluator(all_models)
+        all_models = operator_config.spec.model_kwargs.get("model_list", cls._MAP.keys())
+        num_backtests = operator_config.spec.model_kwargs.get("num_backtests", 5)
+        sample_ratio = operator_config.spec.model_kwargs.get("sample_ratio", 0.20)
+        model_evaluator = ModelEvaluator(all_models, num_backtests, sample_ratio)
         return model_evaluator.find_best_model(datasets, operator_config)

@@ -15,7 +15,22 @@ from .operator_config import ForecastOperatorConfig
 
 
 class ModelEvaluator:
+    """
+    A class used to evaluate and determine the best model or framework from a given set of candidates.
+
+    This class is responsible for comparing different models or frameworks based on specified evaluation
+    metrics and returning the best-performing option.
+    """
     def __init__(self, models, k=5, subsample_ratio=0.20):
+        """
+        Initializes the ModelEvaluator with a list of models, number of backtests and subsample ratio.
+
+        Properties:
+        ----------
+        models (list): The list of model to be evaluated.
+        k (int): The number of times each model is backtested to verify its performance.
+        subsample_ratio (float): The proportion of the data used in the evaluation process.
+        """
         self.models = models
         self.k = k
         self.subsample_ratio = subsample_ratio
@@ -83,6 +98,7 @@ class ModelEvaluator:
         backtest_spec["additional_data"]["url"] = additional_data_url
         backtest_spec["test_data"]["url"] = test_data_url
         backtest_spec["model"] = model
+        backtest_spec['model_kwargs'] = None
         backtest_spec["output_directory"] = {"url": output_file_path}
         backtest_spec["target_category_columns"] = [DataColumns.Series]
         backtest_spec['generate_explanations'] = False
