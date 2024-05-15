@@ -11,7 +11,7 @@ This module contains constants/enums used in Aqua Evaluation.
 """
 from oci.data_science.models import JobRun
 
-from ads.common.extended_enum import Enum
+from ads.common.extended_enum import ExtendedEnumMeta
 
 EVAL_TERMINATION_STATE = [
     JobRun.LIFECYCLE_STATE_SUCCEEDED,
@@ -19,7 +19,7 @@ EVAL_TERMINATION_STATE = [
 ]
 
 
-class EvaluationCustomMetadata(Enum):
+class EvaluationCustomMetadata(str, metaclass=ExtendedEnumMeta):
     EVALUATION_SOURCE = "evaluation_source"
     EVALUATION_JOB_ID = "evaluation_job_id"
     EVALUATION_JOB_RUN_ID = "evaluation_job_run_id"
@@ -28,21 +28,21 @@ class EvaluationCustomMetadata(Enum):
     EVALUATION_ERROR = "aqua_evaluate_error"
 
 
-class EvaluationModelTags(Enum):
+class EvaluationModelTags(str, metaclass=ExtendedEnumMeta):
     AQUA_EVALUATION = "aqua_evaluation"
 
 
-class EvaluationJobTags(Enum):
+class EvaluationJobTags(str, metaclass=ExtendedEnumMeta):
     AQUA_EVALUATION = "aqua_evaluation"
     EVALUATION_MODEL_ID = "evaluation_model_id"
 
 
-class EvaluationUploadStatus(Enum):
+class EvaluationUploadStatus(str, metaclass=ExtendedEnumMeta):
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"
 
 
-class RqsAdditionalDetails:
+class RqsAdditionalDetails(str, metaclass=ExtendedEnumMeta):
     METADATA = "metadata"
     CREATED_BY = "createdBy"
     DESCRIPTION = "description"
@@ -52,5 +52,5 @@ class RqsAdditionalDetails:
     VERSION_LABEL = "versionLabel"
 
 
-class EvaluationConfig:
+class EvaluationConfig(str, metaclass=ExtendedEnumMeta):
     PARAMS = "model_params"

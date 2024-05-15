@@ -150,34 +150,32 @@ class AquaDeploymentApp(AquaApp):
 
         tags = {}
         for tag in [
-            Tags.AQUA_SERVICE_MODEL_TAG.value,
-            Tags.AQUA_FINE_TUNED_MODEL_TAG.value,
-            Tags.AQUA_TAG.value,
+            Tags.AQUA_SERVICE_MODEL_TAG,
+            Tags.AQUA_FINE_TUNED_MODEL_TAG,
+            Tags.AQUA_TAG,
         ]:
             if tag in aqua_model.freeform_tags:
                 tags[tag] = aqua_model.freeform_tags[tag]
 
-        tags.update({Tags.AQUA_MODEL_NAME_TAG.value: aqua_model.display_name})
+        tags.update({Tags.AQUA_MODEL_NAME_TAG: aqua_model.display_name})
 
         # Set up info to get deployment config
         config_source_id = model_id
         model_name = aqua_model.display_name
 
-        is_fine_tuned_model = (
-            Tags.AQUA_FINE_TUNED_MODEL_TAG.value in aqua_model.freeform_tags
-        )
+        is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG in aqua_model.freeform_tags
 
         if is_fine_tuned_model:
             try:
                 config_source_id = aqua_model.custom_metadata_list.get(
-                    FineTuneCustomMetadata.FINE_TUNE_SOURCE.value
+                    FineTuneCustomMetadata.FINE_TUNE_SOURCE
                 ).value
                 model_name = aqua_model.custom_metadata_list.get(
-                    FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME.value
+                    FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME
                 ).value
             except:
                 raise AquaValueError(
-                    f"Either {FineTuneCustomMetadata.FINE_TUNE_SOURCE.value} or {FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME.value} is missing "
+                    f"Either {FineTuneCustomMetadata.FINE_TUNE_SOURCE} or {FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME} is missing "
                     f"from custom metadata for the model {config_source_id}"
                 )
 
@@ -186,7 +184,7 @@ class AquaDeploymentApp(AquaApp):
             deployment_config.get("configuration", UNKNOWN_DICT)
             .get(instance_shape, UNKNOWN_DICT)
             .get("parameters", UNKNOWN_DICT)
-            .get(InferenceContainerParamType.PARAM_TYPE_VLLM.value, UNKNOWN)
+            .get(InferenceContainerParamType.PARAM_TYPE_VLLM, UNKNOWN)
         )
 
         # set up env vars
@@ -374,8 +372,8 @@ class AquaDeploymentApp(AquaApp):
         for model_deployment in model_deployments:
             oci_aqua = (
                 (
-                    Tags.AQUA_TAG.value in model_deployment.freeform_tags
-                    or Tags.AQUA_TAG.value.lower() in model_deployment.freeform_tags
+                    Tags.AQUA_TAG in model_deployment.freeform_tags
+                    or Tags.AQUA_TAG.lower() in model_deployment.freeform_tags
                 )
                 if model_deployment.freeform_tags
                 else False
@@ -429,8 +427,8 @@ class AquaDeploymentApp(AquaApp):
 
         oci_aqua = (
             (
-                Tags.AQUA_TAG.value in model_deployment.freeform_tags
-                or Tags.AQUA_TAG.value.lower() in model_deployment.freeform_tags
+                Tags.AQUA_TAG in model_deployment.freeform_tags
+                or Tags.AQUA_TAG.lower() in model_deployment.freeform_tags
             )
             if model_deployment.freeform_tags
             else False
@@ -545,19 +543,13 @@ class AquaDeploymentApp(AquaApp):
                     .get(instance_shape, UNKNOWN_DICT)
                     .get("parameters", UNKNOWN_DICT)
                 )
-                if (
-                    InferenceContainerType.CONTAINER_TYPE_VLLM.value
-                    in container_type_key
-                ):
+                if InferenceContainerType.CONTAINER_TYPE_VLLM in container_type_key:
                     params = config_parameters.get(
-                        InferenceContainerParamType.PARAM_TYPE_VLLM.value, UNKNOWN
+                        InferenceContainerParamType.PARAM_TYPE_VLLM, UNKNOWN
                     )
-                elif (
-                    InferenceContainerType.CONTAINER_TYPE_TGI.value
-                    in container_type_key
-                ):
+                elif InferenceContainerType.CONTAINER_TYPE_TGI in container_type_key:
                     params = config_parameters.get(
-                        InferenceContainerParamType.PARAM_TYPE_TGI.value, UNKNOWN
+                        InferenceContainerParamType.PARAM_TYPE_TGI, UNKNOWN
                     )
                 else:
                     params = UNKNOWN

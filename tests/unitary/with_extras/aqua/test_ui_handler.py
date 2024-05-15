@@ -92,7 +92,7 @@ class TestAquaUIHandler(unittest.TestCase):
         self.ui_handler.get()
         mock_list_experiments.assert_called_with(
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
-            target_tag=Tags.AQUA_EVALUATION.value,
+            target_tag=Tags.AQUA_EVALUATION,
         )
 
     @patch("ads.aqua.ui.AquaUIApp.list_model_version_sets")
@@ -102,7 +102,7 @@ class TestAquaUIHandler(unittest.TestCase):
         self.ui_handler.get()
         mock_list_model_version_sets.assert_called_with(
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
-            target_tag=Tags.AQUA_FINE_TUNING.value,
+            target_tag=Tags.AQUA_FINE_TUNING,
         )
 
     @parameterized.expand(["true", ""])

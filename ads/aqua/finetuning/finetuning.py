@@ -219,19 +219,20 @@ class AquaFineTuningApp(AquaApp):
 
         ft_model_custom_metadata = ModelCustomMetadata()
         ft_model_custom_metadata.add(
-            key=FineTuneCustomMetadata.FINE_TUNE_SOURCE.value,
+            key=FineTuneCustomMetadata.FINE_TUNE_SOURCE,
             value=create_fine_tuning_details.ft_source_id,
         )
         ft_model_custom_metadata.add(
-            key=FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME.value,
+            key=FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME,
             value=source.display_name,
         )
         service_model_artifact_location = source.custom_metadata_list.get(
-            FineTuneCustomMetadata.SERVICE_MODEL_ARTIFACT_LOCATION.value
+            FineTuneCustomMetadata.SERVICE_MODEL_ARTIFACT_LOCATION
         )
         service_model_deployment_container = source.custom_metadata_list.get(
-            FineTuneCustomMetadata.SERVICE_MODEL_DEPLOYMENT_CONTAINER.value
+            FineTuneCustomMetadata.SERVICE_MODEL_DEPLOYMENT_CONTAINER
         )
+
         ft_model_custom_metadata.add(
             key=service_model_artifact_location.key,
             value=service_model_artifact_location.value,
@@ -262,8 +263,8 @@ class AquaFineTuningApp(AquaApp):
         )
 
         ft_job_freeform_tags = {
-            Tags.AQUA_TAG.value: UNKNOWN,
-            Tags.AQUA_FINE_TUNED_MODEL_TAG.value: f"{source.id}#{source.display_name}",
+            Tags.AQUA_TAG: UNKNOWN,
+            Tags.AQUA_FINE_TUNED_MODEL_TAG: f"{source.id}#{source.display_name}",
         }
 
         ft_job = Job(name=ft_model.display_name).with_infrastructure(
@@ -293,7 +294,7 @@ class AquaFineTuningApp(AquaApp):
         ft_config = self.get_finetuning_config(source.id)
 
         ft_container = source.custom_metadata_list.get(
-            FineTuneCustomMetadata.SERVICE_MODEL_FINE_TUNE_CONTAINER.value
+            FineTuneCustomMetadata.SERVICE_MODEL_FINE_TUNE_CONTAINER
         ).value
         is_custom_container = False
         try:
@@ -343,11 +344,11 @@ class AquaFineTuningApp(AquaApp):
         )
 
         ft_model_custom_metadata.add(
-            key=FineTuneCustomMetadata.FINE_TUNE_JOB_ID.value,
+            key=FineTuneCustomMetadata.FINE_TUNE_JOB_ID,
             value=ft_job.id,
         )
         ft_model_custom_metadata.add(
-            key=FineTuneCustomMetadata.FINE_TUNE_JOB_RUN_ID.value,
+            key=FineTuneCustomMetadata.FINE_TUNE_JOB_RUN_ID,
             value=ft_job_run.id,
         )
         updated_custom_metadata_list = [
@@ -356,16 +357,16 @@ class AquaFineTuningApp(AquaApp):
         ]
 
         source_freeform_tags = source.freeform_tags or {}
-        source_freeform_tags.pop(Tags.LICENSE.value, None)
-        source_freeform_tags.update({Tags.READY_TO_FINE_TUNE.value: "false"})
-        source_freeform_tags.update({Tags.AQUA_TAG.value: UNKNOWN})
+        source_freeform_tags.pop(Tags.LICENSE, None)
+        source_freeform_tags.update({Tags.READY_TO_FINE_TUNE: "false"})
+        source_freeform_tags.update({Tags.AQUA_TAG: UNKNOWN})
 
         self.update_model(
             model_id=ft_model.id,
             update_model_details=UpdateModelDetails(
                 custom_metadata_list=updated_custom_metadata_list,
                 freeform_tags={
-                    Tags.AQUA_FINE_TUNED_MODEL_TAG.value: (
+                    Tags.AQUA_FINE_TUNED_MODEL_TAG: (
                         f"{source.id}#{source.display_name}"
                     ),
                     **source_freeform_tags,
@@ -410,7 +411,7 @@ class AquaFineTuningApp(AquaApp):
             id=ft_model.id,
             name=ft_model.display_name,
             console_url=get_console_link(
-                resource=Resource.MODEL.value,
+                resource=Resource.MODEL,
                 ocid=ft_model.id,
                 region=self.region,
             ),
@@ -421,7 +422,7 @@ class AquaFineTuningApp(AquaApp):
                 id=experiment_model_version_set_id,
                 name=experiment_model_version_set_name,
                 url=get_console_link(
-                    resource=Resource.MODEL_VERSION_SET.value,
+                    resource=Resource.MODEL_VERSION_SET,
                     ocid=experiment_model_version_set_id,
                     region=self.region,
                 ),
@@ -430,7 +431,7 @@ class AquaFineTuningApp(AquaApp):
                 id=source.id,
                 name=source.display_name,
                 url=get_console_link(
-                    resource=Resource.MODEL.value,
+                    resource=Resource.MODEL,
                     ocid=source.id,
                     region=self.region,
                 ),
@@ -439,13 +440,13 @@ class AquaFineTuningApp(AquaApp):
                 id=ft_job.id,
                 name=ft_job.name,
                 url=get_console_link(
-                    resource=Resource.JOB.value,
+                    resource=Resource.JOB,
                     ocid=ft_job.id,
                     region=self.region,
                 ),
             ),
             tags=dict(
-                aqua_finetuning=Tags.AQUA_FINE_TUNING.value,
+                aqua_finetuning=Tags.AQUA_FINE_TUNING,
                 finetuning_job_id=ft_job.id,
                 finetuning_source=source.id,
                 finetuning_experiment_id=experiment_model_version_set_id,
