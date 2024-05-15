@@ -16,13 +16,13 @@ import oci
 from parameterized import parameterized
 
 from ads.aqua.common import utils
+from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import (
     AquaFileNotFoundError,
     AquaMissingKeyError,
     AquaRuntimeError,
 )
 from ads.aqua.common.utils import EVALUATION_REPORT_JSON, EVALUATION_REPORT_MD, UNKNOWN
-from ads.aqua.data import Tags
 from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.evaluation.entities import (
     AquaEvalMetrics,

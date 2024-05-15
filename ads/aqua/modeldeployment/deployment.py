@@ -9,6 +9,11 @@ from typing import Dict, List
 from oci.data_science.models import ModelDeployment
 
 from ads.aqua.app import AquaApp, logger
+from ads.aqua.common.enums import (
+    InferenceContainerParamType,
+    InferenceContainerType,
+    InferenceContainerTypeKey,
+)
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     AQUA_MODEL_TYPE_CUSTOM,
@@ -23,12 +28,7 @@ from ads.aqua.common.utils import (
     get_resource_name,
     load_config,
 )
-from ads.aqua.data import (
-    AquaResourceIdentifier,
-    InferenceContainerParamType,
-    InferenceContainerType,
-    InferenceContainerTypeKey,
-)
+from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
 from ads.aqua.model import AquaModelApp, Tags
 from ads.aqua.modeldeployment.entities import (

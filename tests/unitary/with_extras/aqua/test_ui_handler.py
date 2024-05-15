@@ -14,7 +14,7 @@ from parameterized import parameterized
 
 import ads.aqua
 import ads.config
-from ads.aqua.data import Tags
+from ads.aqua.common.enums import Tags
 from ads.aqua.extension.ui_handler import AquaUIHandler
 
 
