@@ -15,12 +15,12 @@ from mock import patch
 
 import ads.aqua
 import ads.aqua.finetuning.finetuning
+from ads.aqua.model.entities import AquaFineTuneModel
 import ads.config
 from ads.aqua.app import AquaApp
 from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.finetuning.constants import FineTuneCustomMetadata
 from ads.aqua.finetuning.entities import AquaFineTuningParams
-from ads.aqua.model import AquaFineTuneModel
 from ads.jobs.ads_job import Job
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import ModelCustomMetadata

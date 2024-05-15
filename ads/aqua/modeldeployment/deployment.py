@@ -13,6 +13,7 @@ from ads.aqua.common.enums import (
     InferenceContainerParamType,
     InferenceContainerType,
     InferenceContainerTypeKey,
+    Tags,
 )
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
@@ -30,7 +31,7 @@ from ads.aqua.common.utils import (
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
-from ads.aqua.model import AquaModelApp, Tags
+from ads.aqua.model import AquaModelApp
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,

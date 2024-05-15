@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from ads.aqua.evaluation.entities import AquaEvaluationSummary
-from ads.aqua.model import AquaModelSummary
+from ads.aqua.model.entities import AquaModelSummary
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.serializer import DataClassSerializable
 
