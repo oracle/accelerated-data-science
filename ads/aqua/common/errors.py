@@ -10,10 +10,10 @@ aqua.exception
 This module contains the set of Aqua exceptions.
 """
 
-from ads.common.extended_enum import ExtendedEnum
+from ads.common.extended_enum import ExtendedEnumMeta
 
 
-class ExitCode(ExtendedEnum):
+class ExitCode(str, metaclass=ExtendedEnumMeta):
     SUCCESS = 0
     COMMON_ERROR = 1
     INVALID_CONFIG = 10
