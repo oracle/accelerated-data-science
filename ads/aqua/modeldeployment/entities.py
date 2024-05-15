@@ -9,7 +9,7 @@ from typing import Union
 from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 
 from ads.aqua.common.enums import Tags
-from ads.aqua.common.utils import UNKNOWN, UNKNOWN_DICT
+from ads.aqua.constants import UNKNOWN, UNKNOWN_DICT
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link

@@ -18,12 +18,6 @@ from ads.aqua.common import utils
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import (
-    LICENSE_TXT,
-    MODEL_BY_REFERENCE_OSS_PATH_KEY,
-    README,
-    READY_TO_DEPLOY_STATUS,
-    READY_TO_FINE_TUNE_STATUS,
-    UNKNOWN,
     create_word_icon,
     get_artifact_path,
     is_service_managed_container,
@@ -31,9 +25,15 @@ from ads.aqua.common.utils import (
     upload_folder,
 )
 from ads.aqua.constants import (
+    LICENSE_TXT,
+    MODEL_BY_REFERENCE_OSS_PATH_KEY,
+    README,
+    READY_TO_DEPLOY_STATUS,
+    READY_TO_FINE_TUNE_STATUS,
     READY_TO_IMPORT_STATUS,
     TRAINING_METRICS_FINAL,
     TRINING_METRICS,
+    UNKNOWN,
     VALIDATION_METRICS,
     VALIDATION_METRICS_FINAL,
 )

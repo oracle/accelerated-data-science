@@ -18,7 +18,8 @@ from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import Resource, Tags
 from ads.aqua.common.errors import AquaFileExistsError, AquaValueError
-from ads.aqua.common.utils import (
+from ads.aqua.common.utils import get_container_image, upload_local_to_os
+from ads.aqua.constants import (
     DEFAULT_FT_BATCH_SIZE,
     DEFAULT_FT_BLOCK_STORAGE_SIZE,
     DEFAULT_FT_REPLICA,
@@ -26,8 +27,6 @@ from ads.aqua.common.utils import (
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     UNKNOWN,
     UNKNOWN_DICT,
-    get_container_image,
-    upload_local_to_os,
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.constants import *

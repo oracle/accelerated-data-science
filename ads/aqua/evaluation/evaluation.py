@@ -40,14 +40,16 @@ from ads.aqua.common.errors import (
     AquaValueError,
 )
 from ads.aqua.common.utils import (
-    JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
-    NB_SESSION_IDENTIFIER,
-    UNKNOWN,
     extract_id_and_name_from_tag,
     fire_and_forget,
     get_container_image,
     is_valid_ocid,
     upload_local_to_os,
+)
+from ads.aqua.constants import (
+    JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
+    NB_SESSION_IDENTIFIER,
+    UNKNOWN,
 )
 from ads.aqua.evaluation.constants import *
 from ads.aqua.evaluation.entities import *
