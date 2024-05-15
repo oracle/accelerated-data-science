@@ -28,9 +28,10 @@ from ads.aqua.data import (
     InferenceContainerParamType,
     InferenceContainerType,
     InferenceContainerTypeKey,
+    Tags,
 )
 from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
-from ads.aqua.model import AquaModelApp, Tags
+from ads.aqua.model import AquaModelApp
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,

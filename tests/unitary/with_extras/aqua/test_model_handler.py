@@ -18,7 +18,8 @@ from ads.aqua.extension.model_handler import (
     AquaModelHandler,
     AquaModelLicenseHandler,
 )
-from ads.aqua.model import AquaModelApp, AquaModelSummary, HFModelSummary
+from ads.aqua.model import AquaModelApp
+from ads.aqua.model.entities import AquaModelSummary, HFModelSummary
 
 
 class ModelHandlerTestCase(TestCase):
