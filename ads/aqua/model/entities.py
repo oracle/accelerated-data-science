@@ -9,24 +9,24 @@ aqua.model.entities
 
 This module contains dataclasses for Aqua Model.
 """
-from dataclasses import InitVar, dataclass, field
 import re
+from dataclasses import InitVar, dataclass, field
 from typing import List, Optional
 
 import oci
+from huggingface_hub import hf_api
 
 from ads.aqua import logger
 from ads.aqua.app import CLIBuilderMixin
 from ads.aqua.common import utils
-from ads.aqua.constants import UNKNOWN_VALUE, FineTuningDefinedMetadata
+from ads.aqua.common.enums import FineTuningDefinedMetadata
+from ads.aqua.constants import UNKNOWN_VALUE
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.training.exceptions import exit_code_dict
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_log_links
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import MetadataTaxonomyKeys
-
-from huggingface_hub import hf_api
 
 
 @dataclass(repr=False)
@@ -221,21 +221,19 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
             model_hyperparameters = {}
 
         self.dataset = model_hyperparameters.get(
-            FineTuningDefinedMetadata.TRAINING_DATA.value
+            FineTuningDefinedMetadata.TRAINING_DATA
         )
         if not self.dataset:
             logger.debug(
-                f"Key={FineTuningDefinedMetadata.TRAINING_DATA.value} not found in model hyperparameters."
+                f"Key={FineTuningDefinedMetadata.TRAINING_DATA} not found in model hyperparameters."
             )
 
         self.validation = AquaFineTuneValidation(
-            value=model_hyperparameters.get(
-                FineTuningDefinedMetadata.VAL_SET_SIZE.value
-            )
+            value=model_hyperparameters.get(FineTuningDefinedMetadata.VAL_SET_SIZE)
         )
         if not self.validation:
             logger.debug(
-                f"Key={FineTuningDefinedMetadata.VAL_SET_SIZE.value} not found in model hyperparameters."
+                f"Key={FineTuningDefinedMetadata.VAL_SET_SIZE} not found in model hyperparameters."
             )
 
         if self.lifecycle_details:
