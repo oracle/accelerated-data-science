@@ -95,7 +95,7 @@ class AquaResourceAccessError(AquaError):
 class AquaConfigError(AquaError):
     """Exception raised when config for AQUA is invalid."""
 
-    exit_code = ExitCode.INVALID_CONFIG.value
+    exit_code = ExitCode.INVALID_CONFIG
 
     def __init__(self, reason, status=404, service_payload=None):
         super().__init__(reason, status, service_payload)
@@ -104,7 +104,7 @@ class AquaConfigError(AquaError):
 class AquaCLIError(AquaError):
     """Exception raised when AQUA CLI encounter error."""
 
-    exit_code = ExitCode.COMMON_ERROR.value
+    exit_code = ExitCode.COMMON_ERROR
 
     def __init__(self, reason, status=None, service_payload=None):
         super().__init__(reason, status, service_payload)

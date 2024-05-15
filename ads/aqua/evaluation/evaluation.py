@@ -141,14 +141,14 @@ class AquaEvaluationApp(AquaApp):
 
         evaluation_source = None
         if (
-            DataScienceResource.MODEL_DEPLOYMENT.value
+            DataScienceResource.MODEL_DEPLOYMENT
             in create_aqua_evaluation_details.evaluation_source_id
         ):
             evaluation_source = ModelDeployment.from_id(
                 create_aqua_evaluation_details.evaluation_source_id
             )
         elif (
-            DataScienceResource.MODEL.value
+            DataScienceResource.MODEL
             in create_aqua_evaluation_details.evaluation_source_id
         ):
             evaluation_source = DataScienceModel.from_id(
@@ -233,11 +233,9 @@ class AquaEvaluationApp(AquaApp):
                     name=experiment_model_version_set_name,
                     compartment_id=target_compartment,
                 )
-                if not utils._is_valid_mvs(
-                    model_version_set, Tags.AQUA_EVALUATION.value
-                ):
+                if not utils._is_valid_mvs(model_version_set, Tags.AQUA_EVALUATION):
                     raise AquaValueError(
-                        f"Invalid experiment name. Please provide an experiment with `{Tags.AQUA_EVALUATION.value}` in tags."
+                        f"Invalid experiment name. Please provide an experiment with `{Tags.AQUA_EVALUATION}` in tags."
                     )
             except:
                 logger.debug(
@@ -246,7 +244,7 @@ class AquaEvaluationApp(AquaApp):
                 )
 
                 evaluation_mvs_freeform_tags = {
-                    Tags.AQUA_EVALUATION.value: Tags.AQUA_EVALUATION.value,
+                    Tags.AQUA_EVALUATION: Tags.AQUA_EVALUATION,
                 }
 
                 model_version_set = (
@@ -267,23 +265,23 @@ class AquaEvaluationApp(AquaApp):
             experiment_model_version_set_id = model_version_set.id
         else:
             model_version_set = ModelVersionSet.from_id(experiment_model_version_set_id)
-            if not utils._is_valid_mvs(model_version_set, Tags.AQUA_EVALUATION.value):
+            if not utils._is_valid_mvs(model_version_set, Tags.AQUA_EVALUATION):
                 raise AquaValueError(
-                    f"Invalid experiment id. Please provide an experiment with `{Tags.AQUA_EVALUATION.value}` in tags."
+                    f"Invalid experiment id. Please provide an experiment with `{Tags.AQUA_EVALUATION}` in tags."
                 )
             experiment_model_version_set_name = model_version_set.name
 
         evaluation_model_custom_metadata = ModelCustomMetadata()
         evaluation_model_custom_metadata.add(
-            key=EvaluationCustomMetadata.EVALUATION_SOURCE.value,
+            key=EvaluationCustomMetadata.EVALUATION_SOURCE,
             value=create_aqua_evaluation_details.evaluation_source_id,
         )
         evaluation_model_custom_metadata.add(
-            key=EvaluationCustomMetadata.EVALUATION_OUTPUT_PATH.value,
+            key=EvaluationCustomMetadata.EVALUATION_OUTPUT_PATH,
             value=create_aqua_evaluation_details.report_path,
         )
         evaluation_model_custom_metadata.add(
-            key=EvaluationCustomMetadata.EVALUATION_SOURCE_NAME.value,
+            key=EvaluationCustomMetadata.EVALUATION_SOURCE_NAME,
             value=evaluation_source.display_name,
         )
 
@@ -321,8 +319,8 @@ class AquaEvaluationApp(AquaApp):
         # TODO: validate metrics if it's provided
 
         evaluation_job_freeform_tags = {
-            EvaluationJobTags.AQUA_EVALUATION.value: EvaluationJobTags.AQUA_EVALUATION.value,
-            EvaluationJobTags.EVALUATION_MODEL_ID.value: evaluation_model.id,
+            EvaluationJobTags.AQUA_EVALUATION: EvaluationJobTags.AQUA_EVALUATION,
+            EvaluationJobTags.EVALUATION_MODEL_ID: evaluation_model.id,
         }
 
         evaluation_job = Job(name=evaluation_model.display_name).with_infrastructure(
@@ -387,11 +385,11 @@ class AquaEvaluationApp(AquaApp):
         )
 
         evaluation_model_custom_metadata.add(
-            key=EvaluationCustomMetadata.EVALUATION_JOB_ID.value,
+            key=EvaluationCustomMetadata.EVALUATION_JOB_ID,
             value=evaluation_job.id,
         )
         evaluation_model_custom_metadata.add(
-            key=EvaluationCustomMetadata.EVALUATION_JOB_RUN_ID.value,
+            key=EvaluationCustomMetadata.EVALUATION_JOB_RUN_ID,
             value=evaluation_job_run.id,
         )
         updated_custom_metadata_list = [
@@ -404,7 +402,7 @@ class AquaEvaluationApp(AquaApp):
             update_model_details=UpdateModelDetails(
                 custom_metadata_list=updated_custom_metadata_list,
                 freeform_tags={
-                    EvaluationModelTags.AQUA_EVALUATION.value: EvaluationModelTags.AQUA_EVALUATION.value,
+                    EvaluationModelTags.AQUA_EVALUATION: EvaluationModelTags.AQUA_EVALUATION,
                 },
             ),
         )
@@ -435,7 +433,7 @@ class AquaEvaluationApp(AquaApp):
             id=evaluation_model.id,
             name=evaluation_model.display_name,
             console_url=get_console_link(
-                resource=Resource.MODEL.value,
+                resource=Resource.MODEL,
                 ocid=evaluation_model.id,
                 region=self.region,
             ),
@@ -446,7 +444,7 @@ class AquaEvaluationApp(AquaApp):
                 id=experiment_model_version_set_id,
                 name=experiment_model_version_set_name,
                 url=get_console_link(
-                    resource=Resource.MODEL_VERSION_SET.value,
+                    resource=Resource.MODEL_VERSION_SET,
                     ocid=experiment_model_version_set_id,
                     region=self.region,
                 ),
@@ -456,10 +454,10 @@ class AquaEvaluationApp(AquaApp):
                 name=evaluation_source.display_name,
                 url=get_console_link(
                     resource=(
-                        Resource.MODEL_DEPLOYMENT.value
-                        if DataScienceResource.MODEL_DEPLOYMENT.value
+                        Resource.MODEL_DEPLOYMENT
+                        if DataScienceResource.MODEL_DEPLOYMENT
                         in create_aqua_evaluation_details.evaluation_source_id
-                        else Resource.MODEL.value
+                        else Resource.MODEL
                     ),
                     ocid=create_aqua_evaluation_details.evaluation_source_id,
                     region=self.region,
@@ -469,13 +467,13 @@ class AquaEvaluationApp(AquaApp):
                 id=evaluation_job.id,
                 name=evaluation_job.name,
                 url=get_console_link(
-                    resource=Resource.JOB.value,
+                    resource=Resource.JOB,
                     ocid=evaluation_job.id,
                     region=self.region,
                 ),
             ),
             tags=dict(
-                aqua_evaluation=EvaluationModelTags.AQUA_EVALUATION.value,
+                aqua_evaluation=EvaluationModelTags.AQUA_EVALUATION,
                 evaluation_job_id=evaluation_job.id,
                 evaluation_source=create_aqua_evaluation_details.evaluation_source_id,
                 evaluation_experiment_id=experiment_model_version_set_id,
@@ -538,10 +536,10 @@ class AquaEvaluationApp(AquaApp):
         """
         if isinstance(source, ModelDeployment):
             fine_tuned_model_tag = source.freeform_tags.get(
-                Tags.AQUA_FINE_TUNED_MODEL_TAG.value, UNKNOWN
+                Tags.AQUA_FINE_TUNED_MODEL_TAG, UNKNOWN
             )
             if not fine_tuned_model_tag:
-                return source.freeform_tags.get(Tags.AQUA_MODEL_NAME_TAG.value)
+                return source.freeform_tags.get(Tags.AQUA_MODEL_NAME_TAG)
             else:
                 return extract_id_and_name_from_tag(fine_tuned_model_tag)[1]
 
@@ -704,7 +702,7 @@ class AquaEvaluationApp(AquaApp):
         models = utils.query_resources(
             compartment_id=compartment_id,
             resource_type="datasciencemodel",
-            tag_list=[EvaluationModelTags.AQUA_EVALUATION.value],
+            tag_list=[EvaluationModelTags.AQUA_EVALUATION],
         )
         logger.info(f"Fetched {len(models)} evaluations.")
 
@@ -721,7 +719,7 @@ class AquaEvaluationApp(AquaApp):
 
             else:
                 jobrun_id = self._get_attribute_from_model_metadata(
-                    model, EvaluationCustomMetadata.EVALUATION_JOB_RUN_ID.value
+                    model, EvaluationCustomMetadata.EVALUATION_JOB_RUN_ID
                 )
                 job_run = mapping.get(jobrun_id)
 
@@ -1130,11 +1128,11 @@ class AquaEvaluationApp(AquaApp):
 
         try:
             job_id = model.custom_metadata_list.get(
-                EvaluationCustomMetadata.EVALUATION_JOB_ID.value
+                EvaluationCustomMetadata.EVALUATION_JOB_ID
             ).value
         except Exception:
             raise AquaMissingKeyError(
-                f"Custom metadata is missing {EvaluationCustomMetadata.EVALUATION_JOB_ID.value} key"
+                f"Custom metadata is missing {EvaluationCustomMetadata.EVALUATION_JOB_ID} key"
             )
 
         job = DataScienceJob.from_id(job_id)
@@ -1143,7 +1141,7 @@ class AquaEvaluationApp(AquaApp):
 
         try:
             jobrun_id = model.custom_metadata_list.get(
-                EvaluationCustomMetadata.EVALUATION_JOB_RUN_ID.value
+                EvaluationCustomMetadata.EVALUATION_JOB_RUN_ID
             ).value
             jobrun = utils.query_resource(jobrun_id, return_all=False)
         except Exception:
@@ -1249,7 +1247,7 @@ class AquaEvaluationApp(AquaApp):
         """Returns ocid and name of the model has been evaluated."""
         source_id = self._get_attribute_from_model_metadata(
             evaluation,
-            EvaluationCustomMetadata.EVALUATION_SOURCE.value,
+            EvaluationCustomMetadata.EVALUATION_SOURCE,
         )
 
         try:
@@ -1258,7 +1256,7 @@ class AquaEvaluationApp(AquaApp):
                 source.display_name
                 if source
                 else self._get_attribute_from_model_metadata(
-                    evaluation, EvaluationCustomMetadata.EVALUATION_SOURCE_NAME.value
+                    evaluation, EvaluationCustomMetadata.EVALUATION_SOURCE_NAME
                 )
             )
 
@@ -1366,7 +1364,7 @@ class AquaEvaluationApp(AquaApp):
         """Extracts job run id from metadata, and gets related job run information."""
 
         jobrun_id = jobrun_id or self._get_attribute_from_model_metadata(
-            resource, EvaluationCustomMetadata.EVALUATION_JOB_RUN_ID.value
+            resource, EvaluationCustomMetadata.EVALUATION_JOB_RUN_ID
         )
 
         logger.info(f"Fetching associated job run: {jobrun_id}")
@@ -1462,7 +1460,7 @@ class AquaEvaluationApp(AquaApp):
                 job_run_status = JobRun.LIFECYCLE_STATE_DELETED
 
             elif self._get_attribute_from_model_metadata(
-                model, EvaluationCustomMetadata.EVALUATION_ERROR.value
+                model, EvaluationCustomMetadata.EVALUATION_ERROR
             ):
                 job_run_status = JobRun.LIFECYCLE_STATE_FAILED
 
@@ -1487,9 +1485,7 @@ class AquaEvaluationApp(AquaApp):
 
         return dict(
             lifecycle_state=(
-                lifecycle_state
-                if isinstance(lifecycle_state, str)
-                else lifecycle_state.value
+                lifecycle_state if isinstance(lifecycle_state, str) else lifecycle_state
             ),
             lifecycle_details=lifecycle_details,
         )
@@ -1501,7 +1497,7 @@ class AquaEvaluationApp(AquaApp):
         resources = utils.query_resources(
             compartment_id=compartment_id,
             resource_type="all",
-            tag_list=[EvaluationModelTags.AQUA_EVALUATION.value, "OCI_AQUA"],
+            tag_list=[EvaluationModelTags.AQUA_EVALUATION, "OCI_AQUA"],
             connect_by_ampersands=False,
             return_all=False,
         )

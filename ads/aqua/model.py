@@ -280,21 +280,19 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
             model_hyperparameters = {}
 
         self.dataset = model_hyperparameters.get(
-            FineTuningDefinedMetadata.TRAINING_DATA.value
+            FineTuningDefinedMetadata.TRAINING_DATA
         )
         if not self.dataset:
             logger.debug(
-                f"Key={FineTuningDefinedMetadata.TRAINING_DATA.value} not found in model hyperparameters."
+                f"Key={FineTuningDefinedMetadata.TRAINING_DATA} not found in model hyperparameters."
             )
 
         self.validation = AquaFineTuneValidation(
-            value=model_hyperparameters.get(
-                FineTuningDefinedMetadata.VAL_SET_SIZE.value
-            )
+            value=model_hyperparameters.get(FineTuningDefinedMetadata.VAL_SET_SIZE)
         )
         if not self.validation:
             logger.debug(
-                f"Key={FineTuningDefinedMetadata.VAL_SET_SIZE.value} not found in model hyperparameters."
+                f"Key={FineTuningDefinedMetadata.VAL_SET_SIZE} not found in model hyperparameters."
             )
 
         if self.lifecycle_details:
@@ -475,13 +473,13 @@ class AquaModelApp(AquaApp):
         is_fine_tuned_model = (
             True
             if ds_model.freeform_tags
-            and ds_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
+            and ds_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG)
             else False
         )
 
         # todo: consolidate this logic in utils for model and deployment use
         is_shadow_type = (
-            ds_model.freeform_tags.get(Tags.READY_TO_IMPORT.value, "false").upper()
+            ds_model.freeform_tags.get(Tags.READY_TO_IMPORT, "false").upper()
             == READY_TO_IMPORT_STATUS
         )
 
@@ -716,16 +714,16 @@ class AquaModelApp(AquaApp):
         )
 
         freeform_tags = model.freeform_tags or {}
-        is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG.value in freeform_tags
+        is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG in freeform_tags
         ready_to_deploy = (
-            freeform_tags.get(Tags.AQUA_TAG.value, "").upper() == READY_TO_DEPLOY_STATUS
+            freeform_tags.get(Tags.AQUA_TAG, "").upper() == READY_TO_DEPLOY_STATUS
         )
         ready_to_finetune = (
-            freeform_tags.get(Tags.READY_TO_FINE_TUNE.value, "").upper()
+            freeform_tags.get(Tags.READY_TO_FINE_TUNE, "").upper()
             == READY_TO_FINE_TUNE_STATUS
         )
         ready_to_import = (
-            freeform_tags.get(Tags.READY_TO_IMPORT.value, "").upper()
+            freeform_tags.get(Tags.READY_TO_IMPORT, "").upper()
             == READY_TO_IMPORT_STATUS
         )
 
@@ -733,10 +731,10 @@ class AquaModelApp(AquaApp):
             compartment_id=model.compartment_id,
             icon=icon or UNKNOWN,
             id=model_id,
-            license=freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
+            license=freeform_tags.get(Tags.LICENSE, UNKNOWN),
             name=model.display_name,
-            organization=freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
-            task=freeform_tags.get(Tags.TASK.value, UNKNOWN),
+            organization=freeform_tags.get(Tags.ORGANIZATION, UNKNOWN),
+            task=freeform_tags.get(Tags.TASK, UNKNOWN),
             time_created=model.time_created,
             is_fine_tuned_model=is_fine_tuned_model,
             tags=tags,
@@ -892,12 +890,12 @@ class AquaModelApp(AquaApp):
         except Exception:
             logger.exception(f"Could not fetch model information for {model_name}")
         tags = (
-            {**shadow_model.freeform_tags, Tags.BASE_MODEL_CUSTOM.value: "true"}
+            {**shadow_model.freeform_tags, Tags.BASE_MODEL_CUSTOM: "true"}
             if shadow_model
-            else {Tags.AQUA_TAG.value: "active", Tags.BASE_MODEL_CUSTOM.value: "true"}
+            else {Tags.AQUA_TAG: "active", Tags.BASE_MODEL_CUSTOM: "true"}
         )
         # Remove `ready_to_import` tag that might get copied from service model.
-        tags.pop(Tags.READY_TO_IMPORT.value, None)
+        tags.pop(Tags.READY_TO_IMPORT, None)
         metadata = None
         if shadow_model:
             # Shadow model is a model in the service catalog that either has no artifacts but contains all the necessary metadata for deploying and fine tuning.
@@ -915,7 +913,7 @@ class AquaModelApp(AquaApp):
                     f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container"
                 )
             if finetuning_container:
-                tags[Tags.AQUA_FINE_TUNING.value] = "true"
+                tags[Tags.AQUA_FINE_TUNING] = "true"
                 metadata.add(
                     key=AQUA_FINETUNING_CONTAINER_METADATA_NAME,
                     value=finetuning_container,
@@ -1114,10 +1112,7 @@ class AquaModelApp(AquaApp):
             return False
 
         TARGET_TAGS = model.freeform_tags.keys()
-        return (
-            Tags.AQUA_TAG.value in TARGET_TAGS
-            or Tags.AQUA_TAG.value.lower() in TARGET_TAGS
-        )
+        return Tags.AQUA_TAG in TARGET_TAGS or Tags.AQUA_TAG.lower() in TARGET_TAGS
 
     def _load_icon(self, model_name: str) -> str:
         """Loads icon."""
@@ -1132,15 +1127,15 @@ class AquaModelApp(AquaApp):
     def _rqs(self, compartment_id: str, model_type="FT", **kwargs):
         """Use RQS to fetch models in the user tenancy."""
         if model_type == ModelType.FT.value:
-            filter_tag = Tags.AQUA_FINE_TUNED_MODEL_TAG.value
+            filter_tag = Tags.AQUA_FINE_TUNED_MODEL_TAG
         elif model_type == ModelType.BASE.value:
-            filter_tag = Tags.BASE_MODEL_CUSTOM.value
+            filter_tag = Tags.BASE_MODEL_CUSTOM
         else:
             raise ValueError(
                 f"Model of type {model_type} is unknown. The values should be in {ModelType.values()}"
             )
 
-        condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_TAG.value}' && freeformTags.key = '{filter_tag}')"
+        condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_TAG}' && freeformTags.key = '{filter_tag}')"
         condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
         query = f"query datasciencemodel resources where (compartmentId = '{compartment_id}' {condition_lifecycle} {condition_tags})"
         logger.info(query)

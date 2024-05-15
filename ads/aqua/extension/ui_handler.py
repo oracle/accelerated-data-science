@@ -121,7 +121,7 @@ class AquaUIHandler(AquaAPIhandler):
         return self.finish(
             AquaUIApp().list_model_version_sets(
                 compartment_id=compartment_id,
-                target_tag=Tags.AQUA_FINE_TUNING.value,
+                target_tag=Tags.AQUA_FINE_TUNING,
                 **kwargs,
             )
         )
@@ -133,7 +133,7 @@ class AquaUIHandler(AquaAPIhandler):
         return self.finish(
             AquaUIApp().list_model_version_sets(
                 compartment_id=compartment_id,
-                target_tag=Tags.AQUA_EVALUATION.value,
+                target_tag=Tags.AQUA_EVALUATION,
                 **kwargs,
             )
         )

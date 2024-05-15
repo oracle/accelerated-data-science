@@ -529,9 +529,9 @@ class TestAquaEvaluation(unittest.TestCase):
         # get service model name from fine tuned model deployment
         source = ModelDeployment().with_freeform_tags(
             **{
-                Tags.AQUA_TAG.value: UNKNOWN,
-                Tags.AQUA_FINE_TUNED_MODEL_TAG.value: "test_service_model_id#test_service_model_name",
-                Tags.AQUA_MODEL_NAME_TAG.value: "test_fine_tuned_model_name",
+                Tags.AQUA_TAG: UNKNOWN,
+                Tags.AQUA_FINE_TUNED_MODEL_TAG: "test_service_model_id#test_service_model_name",
+                Tags.AQUA_MODEL_NAME_TAG: "test_fine_tuned_model_name",
             }
         )
         service_model_name = self.app._get_service_model_name(source)
@@ -540,8 +540,8 @@ class TestAquaEvaluation(unittest.TestCase):
         # get service model name from model deployment
         source = ModelDeployment().with_freeform_tags(
             **{
-                Tags.AQUA_TAG.value: "active",
-                Tags.AQUA_MODEL_NAME_TAG.value: "test_service_model_name",
+                Tags.AQUA_TAG: "active",
+                Tags.AQUA_MODEL_NAME_TAG: "test_service_model_name",
             }
         )
         service_model_name = self.app._get_service_model_name(source)
