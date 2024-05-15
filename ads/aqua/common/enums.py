@@ -8,16 +8,16 @@ aqua.common.enums
 ~~~~~~~~~~~~~~
 This module contains the set of enums used in AQUA.
 """
-from ads.common.extended_enum import Enum
+from ads.common.extended_enum import ExtendedEnumMeta
 
 
-class Resource(Enum):
+class Resource(str, metaclass=ExtendedEnumMeta):
     JOB = "jobs"
     MODEL = "models"
     MODEL_DEPLOYMENT = "modeldeployments"
     MODEL_VERSION_SET = "model-version-sets"
 
 
-class DataScienceResource(Enum):
+class DataScienceResource(str, metaclass=ExtendedEnumMeta):
     MODEL_DEPLOYMENT = "datasciencemodeldeployment"
     MODEL = "datasciencemodel"

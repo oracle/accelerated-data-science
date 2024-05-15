@@ -3,7 +3,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """This module defines constants used in ads.aqua module."""
-from enum import Enum
+from ads.common.extended_enum import ExtendedEnumMeta
 
 UNKNOWN = ""
 UNKNOWN_VALUE = ""
@@ -42,7 +42,7 @@ VALIDATION_METRICS = "validation_metrics"
 SERVICE_MANAGED_CONTAINER_URI_SCHEME = "dsmc://"
 
 
-class RqsAdditionalDetails:
+class RqsAdditionalDetails(str, metaclass=ExtendedEnumMeta):
     METADATA = "metadata"
     CREATED_BY = "createdBy"
     DESCRIPTION = "description"
@@ -52,14 +52,14 @@ class RqsAdditionalDetails:
     VERSION_LABEL = "versionLabel"
 
 
-class FineTuningDefinedMetadata(Enum):
+class FineTuningDefinedMetadata(str, metaclass=ExtendedEnumMeta):
     """Represents the defined metadata keys used in Fine Tuning."""
 
     VAL_SET_SIZE = "val_set_size"
     TRAINING_DATA = "training_data"
 
 
-class FineTuningCustomMetadata(Enum):
+class FineTuningCustomMetadata(str, metaclass=ExtendedEnumMeta):
     """Represents the custom metadata keys used in Fine Tuning."""
 
     FT_SOURCE = "fine_tune_source"

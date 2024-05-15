@@ -5,15 +5,15 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import List, Optional
 
 from ads.aqua.evaluation.entities import AquaEvaluationSummary
 from ads.aqua.model.entities import AquaModelSummary
+from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.serializer import DataClassSerializable
 
 
-class RequestResponseType(str, Enum):
+class RequestResponseType(str, metaclass=ExtendedEnumMeta):
     ListEvaluations = "ListEvaluations"
     ListModels = "ListModels"
     Error = "Error"

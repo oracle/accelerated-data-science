@@ -71,15 +71,15 @@ class FineTuningTestCase(TestCase):
     ):
         custom_metadata_list = ModelCustomMetadata()
         custom_metadata_list.add(
-            key=FineTuneCustomMetadata.SERVICE_MODEL_ARTIFACT_LOCATION.value,
+            key=FineTuneCustomMetadata.SERVICE_MODEL_ARTIFACT_LOCATION,
             value="test_service_model_artifact_location",
         )
         custom_metadata_list.add(
-            key=FineTuneCustomMetadata.SERVICE_MODEL_DEPLOYMENT_CONTAINER.value,
+            key=FineTuneCustomMetadata.SERVICE_MODEL_DEPLOYMENT_CONTAINER,
             value="test_service_model_deployment_container",
         )
         custom_metadata_list.add(
-            key=FineTuneCustomMetadata.SERVICE_MODEL_FINE_TUNE_CONTAINER.value,
+            key=FineTuneCustomMetadata.SERVICE_MODEL_FINE_TUNE_CONTAINER,
             value="test_service_model_fine_tune_container",
         )
 
