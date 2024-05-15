@@ -58,7 +58,7 @@ class NetworkStatusHandler(AquaAPIhandler):
 
     @handle_exceptions
     def get(self):
-        requests.get("https://huggingface.com", timeout=0.5)
+        requests.get("https://huggingface.com", timeout=2)
         return self.finish("success")
 
 

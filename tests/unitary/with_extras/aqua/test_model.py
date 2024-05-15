@@ -647,11 +647,19 @@ class TestAquaModel:
         app = AquaModelApp()
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(ValueError):
-                model: DataScienceModel = app.register(
-                    model=hf_model,
-                    os_path=os_path,
-                    local_dir=str(tmpdir),
-                )
+                with patch.object(AquaModelApp, "list") as aqua_model_mock_list:
+                    aqua_model_mock_list.return_value = [
+                        AquaModelSummary(
+                            id="test_id1",
+                            name="organization1/name1",
+                            organization="organization1",
+                        ),
+                    ]
+                    model: DataScienceModel = app.register(
+                        model=hf_model,
+                        os_path=os_path,
+                        local_dir=str(tmpdir),
+                    )
 
     @patch("huggingface_hub.snapshot_download")
     @patch("subprocess.check_call")
@@ -749,65 +757,73 @@ class TestAquaModel:
         reload(ads.aqua.model.model)
         app = AquaModelApp()
         with tempfile.TemporaryDirectory() as tmpdir:
-            model: DataScienceModel = app.register(
-                model=hf_model,
-                os_path=os_path,
-                local_dir=str(tmpdir),
-                inference_container="iad.ocir.io/my/own/md-container",
-                inference_container_type_smc=False,
-                finetuning_container="iad.ocir.io/my/own/ft-container",
-                finetuning_container_type_smc=False,
-            )
-            mock_snapshot_download.assert_called_with(
-                repo_id=hf_model,
-                local_dir=f"{str(tmpdir)}/{hf_model}",
-                local_dir_use_symlinks=False,
-            )
-            mock_subprocess.assert_called_with(
-                shlex.split(
-                    f"oci os object bulk-upload --src-dir {str(tmpdir)}/{hf_model} --prefix prefix/path/{hf_model}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT"
+            with patch.object(AquaModelApp, "list") as aqua_model_mock_list:
+                aqua_model_mock_list.return_value = [
+                    AquaModelSummary(
+                        id="test_id1",
+                        name="organization1/name1",
+                        organization="organization1",
+                    ),
+                ]
+                model: DataScienceModel = app.register(
+                    model=hf_model,
+                    os_path=os_path,
+                    local_dir=str(tmpdir),
+                    inference_container="iad.ocir.io/my/own/md-container",
+                    inference_container_type_smc=False,
+                    finetuning_container="iad.ocir.io/my/own/ft-container",
+                    finetuning_container_type_smc=False,
                 )
-            )
-            assert model.freeform_tags == {
-                "aqua_custom_base_model": "true",
-                "aqua_finetuning": "true",
-                **ds_freeform_tags,
-            }
-            expected_metadata = [
-                {
-                    "key": "evaluation-container",
-                    "value": "odsc-llm-evaluate",
-                    "description": "Evaluation container mapping for SMC",
-                    "category": "Other",
-                },
-                {
-                    "key": "deployment-container",
-                    "value": "iad.ocir.io/my/own/md-container",
-                    "description": f"Inference container mapping for {hf_model}",
-                    "category": "Other",
-                },
-                {
-                    "key": "finetune-container",
-                    "value": "iad.ocir.io/my/own/ft-container",
-                    "description": f"Fine-tuning container mapping for {hf_model}",
-                    "category": "Other",
-                },
-                {
-                    "key": "modelDescription",
-                    "value": "true",
-                    "description": "model by reference flag",
-                    "category": "Other",
-                },
-                {
-                    "key": "artifact_location",
-                    "value": f"{os_path}/{hf_model}/",
-                    "description": "artifact location",
-                    "category": "Other",
-                },
-            ]
-            for item in expected_metadata:
-                assert model.custom_metadata_list[item["key"]].to_dict() == item
-            assert model.version_id is None
+                mock_snapshot_download.assert_called_with(
+                    repo_id=hf_model,
+                    local_dir=f"{str(tmpdir)}/{hf_model}",
+                    local_dir_use_symlinks=False,
+                )
+                mock_subprocess.assert_called_with(
+                    shlex.split(
+                        f"oci os object bulk-upload --src-dir {str(tmpdir)}/{hf_model} --prefix prefix/path/{hf_model}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT"
+                    )
+                )
+                assert model.freeform_tags == {
+                    "aqua_custom_base_model": "true",
+                    "aqua_finetuning": "true",
+                    **ds_freeform_tags,
+                }
+                expected_metadata = [
+                    {
+                        "key": "evaluation-container",
+                        "value": "odsc-llm-evaluate",
+                        "description": "Evaluation container mapping for SMC",
+                        "category": "Other",
+                    },
+                    {
+                        "key": "deployment-container",
+                        "value": "iad.ocir.io/my/own/md-container",
+                        "description": f"Inference container mapping for {hf_model}",
+                        "category": "Other",
+                    },
+                    {
+                        "key": "finetune-container",
+                        "value": "iad.ocir.io/my/own/ft-container",
+                        "description": f"Fine-tuning container mapping for {hf_model}",
+                        "category": "Other",
+                    },
+                    {
+                        "key": "modelDescription",
+                        "value": "true",
+                        "description": "model by reference flag",
+                        "category": "Other",
+                    },
+                    {
+                        "key": "artifact_location",
+                        "value": f"{os_path}/{hf_model}/",
+                        "description": "artifact location",
+                        "category": "Other",
+                    },
+                ]
+                for item in expected_metadata:
+                    assert model.custom_metadata_list[item["key"]].to_dict() == item
+                assert model.version_id is None
 
     @patch("huggingface_hub.snapshot_download")
     @patch("subprocess.check_call")
@@ -847,65 +863,83 @@ class TestAquaModel:
         reload(ads.aqua.model.model)
         app = AquaModelApp()
         with tempfile.TemporaryDirectory() as tmpdir:
-            model: DataScienceModel = app.register(
-                model=hf_model,
-                os_path=os_path,
-                local_dir=str(tmpdir),
-                inference_container="dsmc://md-container",
-                inference_container_type_smc=False,
-                finetuning_container="dsmc://ft-container",
-                finetuning_container_type_smc=False,
-            )
-            mock_snapshot_download.assert_called_with(
-                repo_id=hf_model,
-                local_dir=f"{str(tmpdir)}/{hf_model}",
-                local_dir_use_symlinks=False,
-            )
-            mock_subprocess.assert_called_with(
-                shlex.split(
-                    f"oci os object bulk-upload --src-dir {str(tmpdir)}/{hf_model} --prefix prefix/path/{hf_model}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT"
+            with patch.object(AquaModelApp, "list") as aqua_model_mock_list:
+                aqua_model_mock_list.return_value = [
+                    AquaModelSummary(
+                        id="test_id1",
+                        name="organization1/name1",
+                        organization="organization1",
+                    ),
+                    AquaModelSummary(
+                        id="test_id2",
+                        name="organization1/name2",
+                        organization="organization1",
+                    ),
+                    AquaModelSummary(
+                        id="test_id3",
+                        name="organization2/name3",
+                        organization="organization2",
+                    ),
+                ]
+                model: DataScienceModel = app.register(
+                    model=hf_model,
+                    os_path=os_path,
+                    local_dir=str(tmpdir),
+                    inference_container="dsmc://md-container",
+                    inference_container_type_smc=False,
+                    finetuning_container="dsmc://ft-container",
+                    finetuning_container_type_smc=False,
                 )
-            )
-            assert model.freeform_tags == {
-                "aqua_custom_base_model": "true",
-                "aqua_finetuning": "true",
-                **ds_freeform_tags,
-            }
-            expected_metadata = [
-                {
-                    "key": "evaluation-container",
-                    "value": "odsc-llm-evaluate",
-                    "description": "Evaluation container mapping for SMC",
-                    "category": "Other",
-                },
-                {
-                    "key": "deployment-container",
-                    "value": "dsmc://md-container",
-                    "description": f"Inference container mapping for {hf_model}",
-                    "category": "Other",
-                },
-                {
-                    "key": "finetune-container",
-                    "value": "dsmc://ft-container",
-                    "description": f"Fine-tuning container mapping for {hf_model}",
-                    "category": "Other",
-                },
-                {
-                    "key": "modelDescription",
-                    "value": "true",
-                    "description": "model by reference flag",
-                    "category": "Other",
-                },
-                {
-                    "key": "artifact_location",
-                    "value": f"{os_path}/{hf_model}/",
-                    "description": "artifact location",
-                    "category": "Other",
-                },
-            ]
-            for item in expected_metadata:
-                assert model.custom_metadata_list[item["key"]].to_dict() == item
-            assert model.version_id is None
+                mock_snapshot_download.assert_called_with(
+                    repo_id=hf_model,
+                    local_dir=f"{str(tmpdir)}/{hf_model}",
+                    local_dir_use_symlinks=False,
+                )
+                mock_subprocess.assert_called_with(
+                    shlex.split(
+                        f"oci os object bulk-upload --src-dir {str(tmpdir)}/{hf_model} --prefix prefix/path/{hf_model}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT"
+                    )
+                )
+                assert model.freeform_tags == {
+                    "aqua_custom_base_model": "true",
+                    "aqua_finetuning": "true",
+                    **ds_freeform_tags,
+                }
+                expected_metadata = [
+                    {
+                        "key": "evaluation-container",
+                        "value": "odsc-llm-evaluate",
+                        "description": "Evaluation container mapping for SMC",
+                        "category": "Other",
+                    },
+                    {
+                        "key": "deployment-container",
+                        "value": "dsmc://md-container",
+                        "description": f"Inference container mapping for {hf_model}",
+                        "category": "Other",
+                    },
+                    {
+                        "key": "finetune-container",
+                        "value": "dsmc://ft-container",
+                        "description": f"Fine-tuning container mapping for {hf_model}",
+                        "category": "Other",
+                    },
+                    {
+                        "key": "modelDescription",
+                        "value": "true",
+                        "description": "model by reference flag",
+                        "category": "Other",
+                    },
+                    {
+                        "key": "artifact_location",
+                        "value": f"{os_path}/{hf_model}/",
+                        "description": "artifact location",
+                        "category": "Other",
+                    },
+                ]
+                for item in expected_metadata:
+                    assert model.custom_metadata_list[item["key"]].to_dict() == item
+                assert model.version_id is None
 
     @parameterized.expand(
         [

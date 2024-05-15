@@ -562,25 +562,6 @@ class AquaModelApp(AquaApp):
                 }
         return res
 
-    def _fetch_defaults_for_hf_model(
-        self, model_name: str
-    ) -> "Optional[HFModelContainerInfo]":
-        """Returns the default inference container and fine-tuning container associated with the model
-
-        Args:
-            model_name (str): name of the model in Huggingface space
-        Returns:
-
-        """
-        # TODO implement this method and remove hard-coded logic.
-        # TODO Maybe this is not required as all the defaults can be sourced from the shadow model.
-        supported_model = [
-            "meta-llama/Meta-Llama-3-8B"
-        ]  # This information should come from either a file or model list on service tenancy catalog
-        if model_name in supported_model:
-            return HFModelContainerInfo("odsc_vllm_container", "odsc-llm-fine-tuning")
-        return None
-
     def _create_model_catalog_entry(
         self,
         os_path: str,
@@ -635,25 +616,25 @@ class AquaModelApp(AquaApp):
 
         else:
             metadata = ModelCustomMetadata()
-            if not inference_container or not finetuning_container:
-                containers = self._fetch_defaults_for_hf_model(model_name=model_name)
-            if not inference_container and (
-                not containers or not containers.inference_container
-            ):
+            if not inference_container:
                 raise ValueError(
                     f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container"
                 )
-            if not finetuning_container and (
-                not containers or not containers.finetuning_container
-            ):
+            if finetuning_container:
+                tags[Tags.AQUA_FINE_TUNING.value] = "true"
+                metadata.add(
+                    key=AQUA_FINETUNING_CONTAINER_METADATA_NAME,
+                    value=finetuning_container,
+                    description=f"Fine-tuning container mapping for {model_name}",
+                    category="Other",
+                )
+            else:
                 logger.warn(
                     f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container. Proceeding with model registration without the fine-tuning container information. This model will not be available for fine tuning."
                 )
-            else:
-                tags[Tags.AQUA_FINE_TUNING.value] = "true"
             metadata.add(
                 key=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
-                value=inference_container or containers.inference_container,
+                value=inference_container,
                 description=f"Inference container mapping for {model_name}",
                 category="Other",
             )
@@ -671,13 +652,6 @@ class AquaModelApp(AquaApp):
                 description="Evaluation container mapping for SMC",
                 category="Other",
             )
-            if finetuning_container or containers.finetuning_container:
-                metadata.add(
-                    key=AQUA_FINETUNING_CONTAINER_METADATA_NAME,
-                    value=finetuning_container or containers.finetuning_container,
-                    description=f"Fine-tuning container mapping for {model_name}",
-                    category="Other",
-                )
             # If SMC, the container information has to be looked up from container_index.json for the latest version
             if finetuning_container and not finetuning_container_type_smc:
                 metadata.add(
@@ -746,12 +720,25 @@ class AquaModelApp(AquaApp):
 
         if not import_model_details:
             import_model_details = ImportModelDetails(**kwargs)
+
+        model_service_id = None
+
         # If OCID of a model is passed, we need to copy the defaults for Tags and metadata from the service model.
         if (
             import_model_details.model.startswith("ocid")
             and "datasciencemodel" in import_model_details.model
         ):
-            shadow_model_details = DataScienceModel.from_id(import_model_details.model)
+            model_service_id = import_model_details.model
+        else:
+            # If users passes huggingface model name, check if there is model with the same name in the service model catalog. If it is there use that model
+            model_service_id = self._find_matching_aqua_model(
+                import_model_details.model
+            )
+            logger.info(
+                f"Found service model for {import_model_details.model}: {model_service_id}"
+            )
+        if model_service_id:
+            shadow_model_details = DataScienceModel.from_id(model_service_id)
             inference_container = shadow_model_details.custom_metadata_list.get(
                 AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
             ).value
@@ -781,7 +768,7 @@ class AquaModelApp(AquaApp):
         while i < retry:
             try:
                 # Download to cache folder. The while loop retries when there is a network failure
-                snapshot_download(repo_id=model_name, resume_download=True)
+                snapshot_download(repo_id=model_name)
             except Exception as e:
                 huggingface_download_err_message = str(e)
                 i += 1
@@ -904,3 +891,27 @@ class AquaModelApp(AquaApp):
         )
 
         return AquaModelLicense(id=model_id, license=content)
+
+    def _find_matching_aqua_model(self, model_id: str) -> Optional[str]:
+        """
+        Finds a matching model in AQUA based on the model ID from Hugging Face.
+
+        Parameters
+        ----------
+        model_id (str): The Hugging Face model ID to match.
+
+        Returns
+        -------
+        Optional[str]
+            Returns model ocid that matches the model in the service catalog else returns None.
+        """
+        # Convert the Hugging Face model ID to lowercase once
+        model_id_lower = model_id.lower()
+
+        aqua_model_list = self.list()
+
+        for aqua_model_summary in aqua_model_list:
+            if aqua_model_summary.name.lower() == model_id_lower:
+                return aqua_model_summary.id
+
+        return None
