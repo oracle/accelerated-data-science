@@ -120,6 +120,11 @@ class TestAquaDeploymentHandler(unittest.TestCase):
             access_log_id=None,
             predict_log_id=None,
             bandwidth_mbps=None,
+            web_concurrency=None,
+            server_port=None,
+            health_check_port=None,
+            env_var=None,
+            container_image=None,
         )
 
 

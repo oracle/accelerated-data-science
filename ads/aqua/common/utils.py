@@ -868,8 +868,8 @@ def get_combined_params(params1: str = None, params2: str = None) -> str:
     for key, items in params2_dict.items():
         params1_dict[key] = params2_dict[key]
 
-    combined_params = ""
+    combined_params = []
     for key, value in params1_dict.items():
-        combined_params += f"{key} {value} " if value else key
+        combined_params.append(f"{key} {value}" if value else key)
 
-    return combined_params
+    return " ".join(combined_params)

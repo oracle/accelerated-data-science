@@ -94,6 +94,11 @@ class AquaDeploymentHandler(AquaAPIhandler):
         description = input_data.get("description")
         instance_count = input_data.get("instance_count")
         bandwidth_mbps = input_data.get("bandwidth_mbps")
+        web_concurrency = input_data.get("web_concurrency")
+        server_port = input_data.get("server_port")
+        health_check_port = input_data.get("health_check_port")
+        env_var = input_data.get("env_var")
+        container_image = input_data.get("container_image")
 
         self.finish(
             AquaDeploymentApp().create(
@@ -108,6 +113,11 @@ class AquaDeploymentHandler(AquaAPIhandler):
                 access_log_id=access_log_id,
                 predict_log_id=predict_log_id,
                 bandwidth_mbps=bandwidth_mbps,
+                web_concurrency=web_concurrency,
+                server_port=server_port,
+                health_check_port=health_check_port,
+                env_var=env_var,
+                container_image=container_image,
             )
         )
 
