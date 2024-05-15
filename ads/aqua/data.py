@@ -4,8 +4,8 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from dataclasses import dataclass
-from enum import Enum
-from ads.common.extended_enum import ExtendedEnum
+
+from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.serializer import DataClassSerializable
 
 
@@ -16,7 +16,7 @@ class AquaResourceIdentifier(DataClassSerializable):
     url: str = ""
 
 
-class Resource(Enum):
+class Resource(str, metaclass=ExtendedEnumMeta):
     JOB = "jobs"
     JOBRUN = "jobruns"
     MODEL = "models"
@@ -24,12 +24,12 @@ class Resource(Enum):
     MODEL_VERSION_SET = "model-version-sets"
 
 
-class DataScienceResource(Enum):
+class DataScienceResource(str, metaclass=ExtendedEnumMeta):
     MODEL_DEPLOYMENT = "datasciencemodeldeployment"
     MODEL = "datasciencemodel"
 
 
-class Tags(Enum):
+class Tags(str, metaclass=ExtendedEnumMeta):
     TASK = "task"
     LICENSE = "license"
     ORGANIZATION = "organization"
@@ -44,17 +44,17 @@ class Tags(Enum):
     BASE_MODEL_CUSTOM = "aqua_custom_base_model"
 
 
-class InferenceContainerType(ExtendedEnum):
+class InferenceContainerType(str, metaclass=ExtendedEnumMeta):
     CONTAINER_TYPE_VLLM = "vllm"
     CONTAINER_TYPE_TGI = "tgi"
 
 
-class InferenceContainerTypeKey(ExtendedEnum):
+class InferenceContainerTypeKey(str, metaclass=ExtendedEnumMeta):
     AQUA_VLLM_CONTAINER_KEY = "odsc-vllm-serving"
     AQUA_TGI_CONTAINER_KEY = "odsc-tgi-serving"
 
 
-class InferenceContainerParamType(ExtendedEnum):
+class InferenceContainerParamType(str, metaclass=ExtendedEnumMeta):
     PARAM_TYPE_VLLM = "VLLM_PARAMS"
     PARAM_TYPE_TGI = "TGI_PARAMS"
 

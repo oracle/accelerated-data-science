@@ -3,20 +3,17 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
-import re
-from dataclasses import InitVar, dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
 from threading import Lock
 from typing import List, Optional, Union
 
 import oci
 from cachetools import TTLCache
-from huggingface_hub import HfApi, hf_api, snapshot_download
+from huggingface_hub import HfApi, snapshot_download
 from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
-from ads.aqua.app import AquaApp, CLIBuilderMixin
+from ads.aqua.app import AquaApp
 from ads.aqua.common import utils
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import (
@@ -36,18 +33,15 @@ from ads.aqua.constants import (
     READY_TO_IMPORT_STATUS,
     TRAINING_METRICS_FINAL,
     TRINING_METRICS,
-    UNKNOWN_VALUE,
     VALIDATION_METRICS,
     VALIDATION_METRICS_FINAL,
-    FineTuningDefinedMetadata,
 )
-from ads.aqua.data import AquaResourceIdentifier, Tags
-from ads.aqua.training.exceptions import exit_code_dict
+from ads.aqua.data import Tags
+from ads.aqua.model.constants import *
+from ads.aqua.model.entities import *
 from ads.common.auth import default_signer
-from ads.common.extended_enum import ExtendedEnum
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.serializer import DataClassSerializable
-from ads.common.utils import get_console_link, get_log_links
+from ads.common.utils import get_console_link
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
@@ -60,298 +54,10 @@ from ads.config import (
 )
 from ads.model import DataScienceModel
 from ads.model.model_metadata import (
-    MetadataTaxonomyKeys,
     ModelCustomMetadata,
     ModelCustomMetadataItem,
 )
 from ads.telemetry import telemetry
-
-
-class ModelCustomMetadataFields(ExtendedEnum):
-    ARTIFACT_LOCATION = "artifact_location"
-    DEPLOYMENT_CONTAINER = "deployment-container"
-    EVALUATION_CONTAINER = "evaluation-container"
-    FINETUNE_CONTAINER = "finetune-container"
-
-
-class ModelTask(ExtendedEnum):
-    TEXT_GENERATION = "text-generation"
-
-
-class FineTuningMetricCategories(Enum):
-    VALIDATION = "validation"
-    TRAINING = "training"
-
-
-class ModelType(ExtendedEnum):
-    FT = "FT"  # Fine Tuned Model
-    BASE = "BASE"  # Base model
-
-
-@dataclass(repr=False)
-class FineTuningShapeInfo(DataClassSerializable):
-    instance_shape: str = field(default_factory=str)
-    replica: int = field(default_factory=int)
-
-
-# TODO: give a better name
-@dataclass(repr=False)
-class AquaFineTuneValidation(DataClassSerializable):
-    type: str = "Automatic split"
-    value: str = ""
-
-
-@dataclass(repr=False)
-class AquaFineTuningMetric(DataClassSerializable):
-    name: str = field(default_factory=str)
-    category: str = field(default_factory=str)
-    scores: list = field(default_factory=list)
-
-
-@dataclass(repr=False)
-class AquaModelLicense(DataClassSerializable):
-    """Represents the response of Get Model License."""
-
-    id: str = field(default_factory=str)
-    license: str = field(default_factory=str)
-
-
-@dataclass(repr=False)
-class AquaModelSummary(DataClassSerializable):
-    """Represents a summary of Aqua model."""
-
-    compartment_id: str = None
-    icon: str = None
-    id: str = None
-    is_fine_tuned_model: bool = None
-    license: str = None
-    name: str = None
-    organization: str = None
-    project_id: str = None
-    tags: dict = None
-    task: str = None
-    time_created: str = None
-    console_link: str = None
-    search_text: str = None
-    ready_to_deploy: bool = True
-    ready_to_finetune: bool = False
-    ready_to_import: bool = False
-
-
-@dataclass(repr=False)
-class AquaModel(AquaModelSummary, DataClassSerializable):
-    """Represents an Aqua model."""
-
-    model_card: str = None
-    inference_container: str = None
-    finetuning_container: str = None
-    evaluation_container: str = None
-
-
-@dataclass(repr=False)
-class HFModelContainerInfo:
-    """Container defauls for model"""
-
-    inference_container: str = None
-    finetuning_container: str = None
-
-
-@dataclass(repr=False)
-class HFModelSummary:
-    """Represents a summary of Hugging Face model."""
-
-    model_info: hf_api.ModelInfo = field(default_factory=hf_api.ModelInfo)
-    aqua_model_info: Optional[AquaModel] = field(default_factory=AquaModel)
-
-
-@dataclass(repr=False)
-class AquaEvalFTCommon(DataClassSerializable):
-    """Represents common fields for evaluation and fine-tuning."""
-
-    lifecycle_state: str = None
-    lifecycle_details: str = None
-    job: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-    source: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-    experiment: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-    log_group: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-    log: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-
-    model: InitVar = None
-    region: InitVar = None
-    jobrun: InitVar = None
-
-    def __post_init__(
-        self, model, region: str, jobrun: oci.data_science.models.JobRun = None
-    ):
-        try:
-            log_id = jobrun.log_details.log_id
-        except Exception as e:
-            logger.debug(f"No associated log found. {str(e)}")
-            log_id = ""
-
-        try:
-            loggroup_id = jobrun.log_details.log_group_id
-        except Exception as e:
-            logger.debug(f"No associated loggroup found. {str(e)}")
-            loggroup_id = ""
-
-        loggroup_url = get_log_links(region=region, log_group_id=loggroup_id)
-        log_url = (
-            get_log_links(
-                region=region,
-                log_group_id=loggroup_id,
-                log_id=log_id,
-                compartment_id=jobrun.compartment_id,
-                source_id=jobrun.id,
-            )
-            if jobrun
-            else ""
-        )
-
-        log_name = None
-        loggroup_name = None
-
-        if log_id:
-            try:
-                log = utils.query_resource(log_id, return_all=False)
-                log_name = log.display_name if log else ""
-            except:
-                pass
-
-        if loggroup_id:
-            try:
-                loggroup = utils.query_resource(loggroup_id, return_all=False)
-                loggroup_name = loggroup.display_name if loggroup else ""
-            except:
-                pass
-
-        experiment_id, experiment_name = utils._get_experiment_info(model)
-
-        self.log_group = AquaResourceIdentifier(
-            loggroup_id, loggroup_name, loggroup_url
-        )
-        self.log = AquaResourceIdentifier(log_id, log_name, log_url)
-        self.experiment = utils._build_resource_identifier(
-            id=experiment_id, name=experiment_name, region=region
-        )
-        self.job = utils._build_job_identifier(job_run_details=jobrun, region=region)
-        self.lifecycle_details = (
-            utils.LIFECYCLE_DETAILS_MISSING_JOBRUN
-            if not jobrun
-            else jobrun.lifecycle_details
-        )
-
-
-@dataclass(repr=False)
-class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
-    """Represents an Aqua Fine Tuned Model."""
-
-    dataset: str = field(default_factory=str)
-    validation: AquaFineTuneValidation = field(default_factory=AquaFineTuneValidation)
-    shape_info: FineTuningShapeInfo = field(default_factory=FineTuningShapeInfo)
-    metrics: List[AquaFineTuningMetric] = field(default_factory=list)
-
-    def __post_init__(
-        self,
-        model: DataScienceModel,
-        region: str,
-        jobrun: oci.data_science.models.JobRun = None,
-    ):
-        super().__post_init__(model=model, region=region, jobrun=jobrun)
-
-        if jobrun is not None:
-            jobrun_env_vars = (
-                jobrun.job_configuration_override_details.environment_variables or {}
-            )
-            self.shape_info = FineTuningShapeInfo(
-                instance_shape=jobrun.job_infrastructure_configuration_details.shape_name,
-                # TODO: use variable for `NODE_COUNT` in ads/jobs/builders/runtimes/base.py
-                replica=jobrun_env_vars.get("NODE_COUNT", UNKNOWN_VALUE),
-            )
-
-        try:
-            model_hyperparameters = model.defined_metadata_list.get(
-                MetadataTaxonomyKeys.HYPERPARAMETERS
-            ).value
-        except Exception as e:
-            logger.debug(
-                f"Failed to extract model hyperparameters from {model.id}: " f"{str(e)}"
-            )
-            model_hyperparameters = {}
-
-        self.dataset = model_hyperparameters.get(
-            FineTuningDefinedMetadata.TRAINING_DATA.value
-        )
-        if not self.dataset:
-            logger.debug(
-                f"Key={FineTuningDefinedMetadata.TRAINING_DATA.value} not found in model hyperparameters."
-            )
-
-        self.validation = AquaFineTuneValidation(
-            value=model_hyperparameters.get(
-                FineTuningDefinedMetadata.VAL_SET_SIZE.value
-            )
-        )
-        if not self.validation:
-            logger.debug(
-                f"Key={FineTuningDefinedMetadata.VAL_SET_SIZE.value} not found in model hyperparameters."
-            )
-
-        if self.lifecycle_details:
-            self.lifecycle_details = self._extract_job_lifecycle_details(
-                self.lifecycle_details
-            )
-
-    def _extract_job_lifecycle_details(self, lifecycle_details):
-        message = lifecycle_details
-        try:
-            # Extract exit code
-            match = re.search(r"exit code (\d+)", lifecycle_details)
-            if match:
-                exit_code = int(match.group(1))
-                if exit_code == 1:
-                    return message
-                # Match exit code to message
-                exception = exit_code_dict().get(
-                    exit_code,
-                    lifecycle_details,
-                )
-                message = f"{exception.reason} (exit code {exit_code})"
-        except:
-            pass
-
-        return message
-
-
-@dataclass
-class ImportModelDetails(CLIBuilderMixin):
-    model: str
-    os_path: str
-    local_dir: Optional[str] = None
-    inference_container: Optional[str] = None
-    inference_container_type_smc: Optional[bool] = False
-    finetuning_container: Optional[str] = None
-    finetuning_container_type_smc: Optional[bool] = False
-    compartment_id: Optional[str] = None
-    project_id: Optional[str] = None
-
-    def __post_init__(self):
-        self._command = "model register"
-
-
-# TODO: merge metadata key used in create FT
-
-
-class FineTuningCustomMetadata(Enum):
-    FT_SOURCE = "fine_tune_source"
-    FT_SOURCE_NAME = "fine_tune_source_name"
-    FT_OUTPUT_PATH = "fine_tune_output_path"
-    FT_JOB_ID = "fine_tune_job_id"
-    FT_JOB_RUN_ID = "fine_tune_jobrun_id"
-    TRAINING_METRICS_FINAL = "train_metrics_final"
-    VALIDATION_METRICS_FINAL = "val_metrics_final"
-    TRAINING_METRICS_EPOCH = "train_metrics_epoch"
-    VALIDATION_METRICS_EPOCH = "val_metrics_epoch"
 
 
 class AquaModelApp(AquaApp):
@@ -475,13 +181,13 @@ class AquaModelApp(AquaApp):
         is_fine_tuned_model = (
             True
             if ds_model.freeform_tags
-            and ds_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
+            and ds_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG)
             else False
         )
 
         # todo: consolidate this logic in utils for model and deployment use
         is_shadow_type = (
-            ds_model.freeform_tags.get(Tags.READY_TO_IMPORT.value, "false").upper()
+            ds_model.freeform_tags.get(Tags.READY_TO_IMPORT, "false").upper()
             == READY_TO_IMPORT_STATUS
         )
 
@@ -716,16 +422,16 @@ class AquaModelApp(AquaApp):
         )
 
         freeform_tags = model.freeform_tags or {}
-        is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG.value in freeform_tags
+        is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG in freeform_tags
         ready_to_deploy = (
-            freeform_tags.get(Tags.AQUA_TAG.value, "").upper() == READY_TO_DEPLOY_STATUS
+            freeform_tags.get(Tags.AQUA_TAG, "").upper() == READY_TO_DEPLOY_STATUS
         )
         ready_to_finetune = (
-            freeform_tags.get(Tags.READY_TO_FINE_TUNE.value, "").upper()
+            freeform_tags.get(Tags.READY_TO_FINE_TUNE, "").upper()
             == READY_TO_FINE_TUNE_STATUS
         )
         ready_to_import = (
-            freeform_tags.get(Tags.READY_TO_IMPORT.value, "").upper()
+            freeform_tags.get(Tags.READY_TO_IMPORT, "").upper()
             == READY_TO_IMPORT_STATUS
         )
 
@@ -733,10 +439,10 @@ class AquaModelApp(AquaApp):
             compartment_id=model.compartment_id,
             icon=icon or UNKNOWN,
             id=model_id,
-            license=freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
+            license=freeform_tags.get(Tags.LICENSE, UNKNOWN),
             name=model.display_name,
-            organization=freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
-            task=freeform_tags.get(Tags.TASK.value, UNKNOWN),
+            organization=freeform_tags.get(Tags.ORGANIZATION, UNKNOWN),
+            task=freeform_tags.get(Tags.TASK, UNKNOWN),
             time_created=model.time_created,
             is_fine_tuned_model=is_fine_tuned_model,
             tags=tags,
@@ -768,7 +474,7 @@ class AquaModelApp(AquaApp):
         project_id: (str, optional). Defaults to `None`.
             The project OCID.
         model_type: (str, optional). Defaults to `None`.
-            Model type
+            Model type represents the type of model in the user compartment, can be either FT or BASE.
         **kwargs:
             Additional keyword arguments that can be used to filter the results.
 
@@ -892,12 +598,12 @@ class AquaModelApp(AquaApp):
         except Exception:
             logger.exception(f"Could not fetch model information for {model_name}")
         tags = (
-            {**shadow_model.freeform_tags, Tags.BASE_MODEL_CUSTOM.value: "true"}
+            {**shadow_model.freeform_tags, Tags.BASE_MODEL_CUSTOM: "true"}
             if shadow_model
-            else {Tags.AQUA_TAG.value: "active", Tags.BASE_MODEL_CUSTOM.value: "true"}
+            else {Tags.AQUA_TAG: "active", Tags.BASE_MODEL_CUSTOM: "true"}
         )
         # Remove `ready_to_import` tag that might get copied from service model.
-        tags.pop(Tags.READY_TO_IMPORT.value, None)
+        tags.pop(Tags.READY_TO_IMPORT, None)
         metadata = None
         if shadow_model:
             # Shadow model is a model in the service catalog that either has no artifacts but contains all the necessary metadata for deploying and fine tuning.
@@ -915,7 +621,7 @@ class AquaModelApp(AquaApp):
                     f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container"
                 )
             if finetuning_container:
-                tags[Tags.AQUA_FINE_TUNING.value] = "true"
+                tags[Tags.AQUA_FINE_TUNING] = "true"
                 metadata.add(
                     key=AQUA_FINETUNING_CONTAINER_METADATA_NAME,
                     value=finetuning_container,
@@ -1114,10 +820,7 @@ class AquaModelApp(AquaApp):
             return False
 
         TARGET_TAGS = model.freeform_tags.keys()
-        return (
-            Tags.AQUA_TAG.value in TARGET_TAGS
-            or Tags.AQUA_TAG.value.lower() in TARGET_TAGS
-        )
+        return Tags.AQUA_TAG in TARGET_TAGS or Tags.AQUA_TAG.lower() in TARGET_TAGS
 
     def _load_icon(self, model_name: str) -> str:
         """Loads icon."""
@@ -1132,15 +835,15 @@ class AquaModelApp(AquaApp):
     def _rqs(self, compartment_id: str, model_type="FT", **kwargs):
         """Use RQS to fetch models in the user tenancy."""
         if model_type == ModelType.FT.value:
-            filter_tag = Tags.AQUA_FINE_TUNED_MODEL_TAG.value
+            filter_tag = Tags.AQUA_FINE_TUNED_MODEL_TAG
         elif model_type == ModelType.BASE.value:
-            filter_tag = Tags.BASE_MODEL_CUSTOM.value
+            filter_tag = Tags.BASE_MODEL_CUSTOM
         else:
             raise ValueError(
                 f"Model of type {model_type} is unknown. The values should be in {ModelType.values()}"
             )
 
-        condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_TAG.value}' && freeformTags.key = '{filter_tag}')"
+        condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_TAG}' && freeformTags.key = '{filter_tag}')"
         condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
         query = f"query datasciencemodel resources where (compartmentId = '{compartment_id}' {condition_lifecycle} {condition_tags})"
         logger.info(query)

@@ -10,7 +10,7 @@ from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 
 from ads.aqua.common.utils import UNKNOWN, UNKNOWN_DICT
 from ads.aqua.data import AquaResourceIdentifier
-from ads.aqua.model import Tags
+from ads.aqua.data import Tags
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
 
@@ -108,10 +108,8 @@ class AquaDeployment(DataClassSerializable):
         )
 
         freeform_tags = oci_model_deployment.freeform_tags or UNKNOWN_DICT
-        aqua_service_model_tag = freeform_tags.get(
-            Tags.AQUA_SERVICE_MODEL_TAG.value, None
-        )
-        aqua_model_name = freeform_tags.get(Tags.AQUA_MODEL_NAME_TAG.value, UNKNOWN)
+        aqua_service_model_tag = freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, None)
+        aqua_model_name = freeform_tags.get(Tags.AQUA_MODEL_NAME_TAG, UNKNOWN)
 
         return AquaDeployment(
             id=oci_model_deployment.id,

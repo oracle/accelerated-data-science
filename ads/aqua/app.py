@@ -161,7 +161,7 @@ class AquaApp:
         """
         # TODO: tag should be selected based on which operation (eval/FT) invoke this method
         #   currently only used by fine-tuning flow.
-        tag = Tags.AQUA_FINE_TUNING.value
+        tag = Tags.AQUA_FINE_TUNING
 
         if not model_version_set_id:
             try:
@@ -278,8 +278,8 @@ class AquaApp:
         oci_model = self.ds_client.get_model(model_id).data
         oci_aqua = (
             (
-                Tags.AQUA_TAG.value in oci_model.freeform_tags
-                or Tags.AQUA_TAG.value.lower() in oci_model.freeform_tags
+                Tags.AQUA_TAG in oci_model.freeform_tags
+                or Tags.AQUA_TAG.lower() in oci_model.freeform_tags
             )
             if oci_model.freeform_tags
             else False

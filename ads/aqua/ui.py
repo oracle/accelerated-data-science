@@ -287,9 +287,7 @@ class AquaUIApp(AquaApp):
         """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         target_resource = (
-            "experiments"
-            if target_tag == Tags.AQUA_EVALUATION.value
-            else "modelversionsets"
+            "experiments" if target_tag == Tags.AQUA_EVALUATION else "modelversionsets"
         )
         logger.info(f"Loading {target_resource} from compartment: {compartment_id}")
 

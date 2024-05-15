@@ -16,12 +16,12 @@ from importlib import reload
 
 import ads.aqua
 import ads.aqua.finetuning.finetuning
+from ads.aqua.model.entities import AquaFineTuneModel
 import ads.config
 from ads.aqua.app import AquaApp
 from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.finetuning.constants import FineTuneCustomMetadata
 from ads.aqua.finetuning.entities import AquaFineTuningParams
-from ads.aqua.model import AquaFineTuneModel
 from ads.jobs.ads_job import Job
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import ModelCustomMetadata
@@ -73,15 +73,15 @@ class FineTuningTestCase(TestCase):
     ):
         custom_metadata_list = ModelCustomMetadata()
         custom_metadata_list.add(
-            key=FineTuneCustomMetadata.SERVICE_MODEL_ARTIFACT_LOCATION.value,
+            key=FineTuneCustomMetadata.SERVICE_MODEL_ARTIFACT_LOCATION,
             value="test_service_model_artifact_location",
         )
         custom_metadata_list.add(
-            key=FineTuneCustomMetadata.SERVICE_MODEL_DEPLOYMENT_CONTAINER.value,
+            key=FineTuneCustomMetadata.SERVICE_MODEL_DEPLOYMENT_CONTAINER,
             value="test_service_model_deployment_container",
         )
         custom_metadata_list.add(
-            key=FineTuneCustomMetadata.SERVICE_MODEL_FINE_TUNE_CONTAINER.value,
+            key=FineTuneCustomMetadata.SERVICE_MODEL_FINE_TUNE_CONTAINER,
             value="test_service_model_fine_tune_container",
         )
 

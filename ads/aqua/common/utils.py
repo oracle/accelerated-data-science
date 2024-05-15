@@ -12,7 +12,6 @@ import random
 import re
 import shlex
 import subprocess
-from enum import Enum
 from functools import wraps
 from pathlib import Path
 from string import Template
@@ -33,6 +32,7 @@ from ads.aqua.constants import (
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.auth import AuthState, default_signer
+from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link, upload_to_os
@@ -86,7 +86,7 @@ AQUA_MODEL_TYPE_SERVICE = "service"
 AQUA_MODEL_TYPE_CUSTOM = "custom"
 
 
-class LifecycleStatus(Enum):
+class LifecycleStatus(str, metaclass=ExtendedEnumMeta):
     UNKNOWN = ""
 
     @property
