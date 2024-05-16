@@ -249,7 +249,8 @@ class TestAquaModel:
     @patch("ads.aqua.model.model.read_file")
     @patch.object(DataScienceModel, "from_id")
     @patch(
-        "ads.aqua.model.model.get_artifact_path", return_value="oci://bucket@namespace/prefix"
+        "ads.aqua.model.model.get_artifact_path",
+        return_value="oci://bucket@namespace/prefix",
     )
     def test_get_foundation_models(
         self,
@@ -356,7 +357,8 @@ class TestAquaModel:
     @patch("ads.aqua.model.model.read_file")
     @patch.object(DataScienceModel, "from_id")
     @patch(
-        "ads.aqua.model.model.get_artifact_path", return_value="oci://bucket@namespace/prefix"
+        "ads.aqua.model.model.get_artifact_path",
+        return_value="oci://bucket@namespace/prefix",
     )
     def test_get_model_fine_tuned(
         self, mock_get_artifact_path, mock_from_id, mock_read_file, mock_query_resource
@@ -563,6 +565,7 @@ class TestAquaModel:
         )
         ds_model.with_custom_metadata_list(custom_metadata_list)
         ds_model.set_spec(ds_model.CONST_MODEL_FILE_DESCRIPTION, {})
+        ds_model.dsc_model = MagicMock(id="test_model_id")
         DataScienceModel.from_id = MagicMock(return_value=ds_model)
         reload(ads.aqua.model.model)
         app = AquaModelApp()
@@ -587,6 +590,7 @@ class TestAquaModel:
             )  # The imported model should not have this tag
             assert model.freeform_tags == {
                 "aqua_custom_base_model": "true",
+                "aqua_service_model": "test_model_id",
                 **ds_freeform_tags,
             }
             expected_metadata = [

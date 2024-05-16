@@ -592,10 +592,12 @@ class AquaModelApp(AquaApp):
         except Exception:
             logger.exception(f"Could not fetch model information for {model_name}")
         tags = (
-            {**shadow_model.freeform_tags, Tags.BASE_MODEL_CUSTOM: "true"}
+            {**shadow_model.freeform_tags, Tags.AQUA_SERVICE_MODEL_TAG: shadow_model.id}
             if shadow_model
             else {Tags.AQUA_TAG: "active", Tags.BASE_MODEL_CUSTOM: "true"}
         )
+        tags.update({Tags.BASE_MODEL_CUSTOM: "true"})
+
         # Remove `ready_to_import` tag that might get copied from service model.
         tags.pop(Tags.READY_TO_IMPORT, None)
         metadata = None
@@ -691,7 +693,7 @@ class AquaModelApp(AquaApp):
 
     def register(
         self, import_model_details: ImportModelDetails = None, **kwargs
-    ) -> str:
+    ) -> DataScienceModel:
         """Loads the model from huggingface and registers as Model in Data Science Model catalog
         Note: For the models that require user token, use `huggingface-cli login` to setup the token
         The inference container and finetuning container could be of type Service Manged Container(SMC) or custom. If it is custom, full container URI is expected. If it of type SMC, only the container family name is expected.
