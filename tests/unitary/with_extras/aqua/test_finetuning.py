@@ -262,7 +262,7 @@ class FineTuningTestCase(TestCase):
         # check when config json is not available
         self.app.get_finetuning_config = MagicMock(return_value={})
         result = self.app.get_finetuning_default_params(model_id="test_model_id")
-        assert result == {}
+        assert result == {"params": {}}
 
     @parameterized.expand(
         [

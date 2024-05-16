@@ -6,8 +6,7 @@
 import json
 import os
 from dataclasses import asdict, fields
-from typing import Dict, List
-from collections import defaultdict
+from typing import Dict
 
 from oci.data_science.models import (
     Metadata,
@@ -575,7 +574,7 @@ class AquaFineTuningApp(AquaApp):
             Dict of parameters from the loaded from finetuning config json file. If config information is not available,
             then an empty dict is returned.
         """
-        default_params = defaultdict(dict)
+        default_params = {"params": {}}
         finetuning_config = self.get_finetuning_config(model_id)
         config_parameters = finetuning_config.get("configuration", UNKNOWN_DICT)
         dataclass_fields = {field.name for field in fields(AquaFineTuningParams)}
