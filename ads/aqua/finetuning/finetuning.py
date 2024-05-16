@@ -571,9 +571,9 @@ class AquaFineTuningApp(AquaApp):
 
         Returns
         -------
-        List[str]:
-            List of parameters from the loaded from finetuning config json file. If config information is available,
-            then an empty list is returned.
+        Dict:
+            Dict of parameters from the loaded from finetuning config json file. If config information is not available,
+            then an empty dict is returned.
         """
         default_params = defaultdict(dict)
         finetuning_config = self.get_finetuning_config(model_id)
