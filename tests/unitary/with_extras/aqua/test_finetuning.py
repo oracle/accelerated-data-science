@@ -237,32 +237,32 @@ class FineTuningTestCase(TestCase):
     def test_get_finetuning_default_params(self):
         """Test for fetching finetuning config params for a given model."""
 
+        params_dict = {
+            "params": {
+                "batch_size": 1,
+                "sequence_len": 2048,
+                "sample_packing": True,
+                "pad_to_sequence_len": True,
+                "learning_rate": 0.0002,
+                "lora_r": 32,
+                "lora_alpha": 16,
+                "lora_dropout": 0.05,
+                "lora_target_linear": True,
+                "lora_target_modules": ["q_proj", "k_proj"],
+            }
+        }
         config_json = os.path.join(self.curr_dir, "test_data/finetuning/ft_config.json")
         with open(config_json, "r") as _file:
             config = json.load(_file)
 
         self.app.get_finetuning_config = MagicMock(return_value=config)
         result = self.app.get_finetuning_default_params(model_id="test_model_id")
-        self.assertCountEqual(
-            result,
-            [
-                "--batch_size 1",
-                "--sequence_len 2048",
-                "--sample_packing true",
-                "--pad_to_sequence_len true",
-                "--learning_rate 0.0002",
-                "--lora_r 32",
-                "--lora_alpha 16",
-                "--lora_dropout 0.05",
-                "--lora_target_linear true",
-                "--lora_target_modules q_proj,k_proj",
-            ],
-        )
+        assert result == params_dict
 
         # check when config json is not available
         self.app.get_finetuning_config = MagicMock(return_value={})
         result = self.app.get_finetuning_default_params(model_id="test_model_id")
-        assert result == []
+        assert result == {}
 
     @parameterized.expand(
         [

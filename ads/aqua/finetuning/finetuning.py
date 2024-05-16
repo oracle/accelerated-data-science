@@ -7,6 +7,7 @@ import json
 import os
 from dataclasses import asdict, fields
 from typing import Dict, List
+from collections import defaultdict
 
 from oci.data_science.models import (
     Metadata,
@@ -559,7 +560,7 @@ class AquaFineTuningApp(AquaApp):
         entry_point="plugin=finetuning&action=get_finetuning_default_params",
         name="aqua",
     )
-    def get_finetuning_default_params(self, model_id: str) -> List[str]:
+    def get_finetuning_default_params(self, model_id: str) -> Dict:
         """Gets the default params set in the finetuning configs for the given model. Only the fields that are
         available in AquaFineTuningParams will be accessible for user overrides.
 
@@ -574,17 +575,15 @@ class AquaFineTuningApp(AquaApp):
             List of parameters from the loaded from finetuning config json file. If config information is available,
             then an empty list is returned.
         """
-        default_params = []
+        default_params = defaultdict(dict)
         finetuning_config = self.get_finetuning_config(model_id)
         config_parameters = finetuning_config.get("configuration", UNKNOWN_DICT)
         dataclass_fields = {field.name for field in fields(AquaFineTuningParams)}
         for name, value in config_parameters.items():
             if name == "micro_batch_size":
                 name = "batch_size"
-            if name == "lora_target_modules":
-                value = ",".join(str(k) for k in value)
             if name in dataclass_fields:
-                default_params.append(f"--{name} {str(value).lower()}")
+                default_params["params"][name] = value
 
         return default_params
 
