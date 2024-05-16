@@ -423,25 +423,21 @@ class TestAquaDeployment(unittest.TestCase):
         [
             (
                 "VLLM_PARAMS",
-                "vllm",
                 "odsc-vllm-serving",
                 ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
             ),
             (
                 "VLLM_PARAMS",
-                "vllm",
                 "odsc-vllm-serving",
                 [],
             ),
             (
                 "TGI_PARAMS",
-                "tgi",
                 "odsc-tgi-serving",
                 ["--sharded true", "--trust-remote-code"],
             ),
             (
                 "CUSTOM_PARAMS",
-                "",
                 "custom-container-key",
                 ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
             ),
@@ -449,12 +445,7 @@ class TestAquaDeployment(unittest.TestCase):
     )
     @patch("ads.model.datascience_model.DataScienceModel.from_id")
     def test_get_deployment_default_params(
-        self,
-        container_params_field,
-        container_type,
-        container_type_key,
-        params,
-        mock_from_id,
+        self, container_params_field, container_type_key, params, mock_from_id
     ):
         """Test for fetching config details for a given deployment."""
 
@@ -480,12 +471,10 @@ class TestAquaDeployment(unittest.TestCase):
         result = self.app.get_deployment_default_params(
             TestDataset.MODEL_ID, TestDataset.DEPLOYMENT_SHAPE_NAME
         )
-
-        assert result["container_type"] == container_type
         if container_params_field == "CUSTOM_PARAMS":
-            assert result["params"] == []
+            assert result == []
         else:
-            assert result["params"] == params
+            assert result == params
 
     @parameterized.expand(
         [

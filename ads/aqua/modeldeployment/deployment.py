@@ -527,7 +527,7 @@ class AquaDeploymentApp(AquaApp):
         self,
         model_id: str,
         instance_shape: str,
-    ) -> Dict:
+    ) -> List[str]:
         """Gets the default params set in the deployment configs for the given model and instance shape.
 
         Parameters
@@ -546,8 +546,6 @@ class AquaDeploymentApp(AquaApp):
 
         """
         default_params = []
-        container_type = UNKNOWN
-
         model = DataScienceModel.from_id(model_id)
         try:
             container_type_key = model.custom_metadata_list.get(
@@ -572,12 +570,10 @@ class AquaDeploymentApp(AquaApp):
                     params = config_parameters.get(
                         InferenceContainerParamType.PARAM_TYPE_VLLM, UNKNOWN
                     )
-                    container_type = InferenceContainerType.CONTAINER_TYPE_VLLM
                 elif InferenceContainerType.CONTAINER_TYPE_TGI in container_type_key:
                     params = config_parameters.get(
                         InferenceContainerParamType.PARAM_TYPE_TGI, UNKNOWN
                     )
-                    container_type = InferenceContainerType.CONTAINER_TYPE_TGI
                 else:
                     params = UNKNOWN
                     logger.debug(
@@ -588,10 +584,7 @@ class AquaDeploymentApp(AquaApp):
                     # account for param that can have --arg but no values, e.g. --trust-remote-code
                     default_params.extend(get_params_list(params))
 
-        return dict(
-            container_type=container_type,
-            params=default_params,
-        )
+        return default_params
 
     def validate_deployment_params(
         self, model_id: str, params: List[str] = None
