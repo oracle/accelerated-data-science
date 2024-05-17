@@ -37,21 +37,6 @@ class EvaluationJobTags(str, metaclass=ExtendedEnumMeta):
     EVALUATION_MODEL_ID = "evaluation_model_id"
 
 
-class EvaluationUploadStatus(str, metaclass=ExtendedEnumMeta):
-    IN_PROGRESS = "IN_PROGRESS"
-    COMPLETED = "COMPLETED"
-
-
-class RqsAdditionalDetails(str, metaclass=ExtendedEnumMeta):
-    METADATA = "metadata"
-    CREATED_BY = "createdBy"
-    DESCRIPTION = "description"
-    MODEL_VERSION_SET_ID = "modelVersionSetId"
-    MODEL_VERSION_SET_NAME = "modelVersionSetName"
-    PROJECT_ID = "projectId"
-    VERSION_LABEL = "versionLabel"
-
-
 class EvaluationConfig(str, metaclass=ExtendedEnumMeta):
     PARAMS = "model_params"
 
