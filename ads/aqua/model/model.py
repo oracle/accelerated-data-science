@@ -7,14 +7,12 @@ from datetime import datetime, timedelta
 from threading import Lock
 from typing import List, Optional, Union
 
-import oci
 from cachetools import TTLCache
 from huggingface_hub import HfApi, snapshot_download
 from oci.data_science.models import JobRun, Model
 
-from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
+from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.app import AquaApp
-from ads.aqua.common import utils
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import (
@@ -37,11 +35,8 @@ from ads.aqua.constants import (
     VALIDATION_METRICS,
     VALIDATION_METRICS_FINAL,
 )
-from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model.constants import *
 from ads.aqua.model.entities import *
-from ads.aqua.model.enums import FineTuningDefinedMetadata
-from ads.aqua.training.exceptions import exit_code_dict
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link
@@ -186,7 +181,7 @@ class AquaModelApp(AquaApp):
         )
 
         # todo: consolidate this logic in utils for model and deployment use
-        is_shadow_type = (
+        is_verified_type = (
             ds_model.freeform_tags.get(Tags.READY_TO_IMPORT, "false").upper()
             == READY_TO_IMPORT_STATUS
         )
@@ -201,7 +196,7 @@ class AquaModelApp(AquaApp):
                     read_file(
                         file_path=(
                             f"{artifact_path.rstrip('/')}/config/{README}"
-                            if is_shadow_type
+                            if is_verified_type
                             else f"{artifact_path.rstrip('/')}/{README}"
                         ),
                         auth=self._auth,
@@ -564,7 +559,7 @@ class AquaModelApp(AquaApp):
         finetuning_container: str,
         inference_container_type_smc: bool,
         finetuning_container_type_smc: bool,
-        shadow_model: DataScienceModel,
+        verified_model: DataScienceModel,
         compartment_id: Optional[str],
         project_id: Optional[str],
     ) -> DataScienceModel:
@@ -577,7 +572,7 @@ class AquaModelApp(AquaApp):
             inference_container_type_smc (bool): If true, then `inference_contianer` argument should contain service managed container name without tag information
             finetuning_container (str): selects service defaults
             finetuning_container_type_smc (bool): If true, then `finetuning_container` argument should contain service managed container name without tag
-            shadow_model (DataScienceModel): If set, then copies all the tags and custom metadata information from the service shadow model
+            verified_model (DataScienceModel): If set, then copies all the tags and custom metadata information from the service verified model
             compartment_id (Optional[str]): Compartment Id of the compartment where the model has to be created
             project_id (Optional[str]): Project id of the project where the model has to be created
 
@@ -592,8 +587,11 @@ class AquaModelApp(AquaApp):
         except Exception:
             logger.exception(f"Could not fetch model information for {model_name}")
         tags = (
-            {**shadow_model.freeform_tags, Tags.AQUA_SERVICE_MODEL_TAG: shadow_model.id}
-            if shadow_model
+            {
+                **verified_model.freeform_tags,
+                Tags.AQUA_SERVICE_MODEL_TAG: verified_model.id,
+            }
+            if verified_model
             else {Tags.AQUA_TAG: "active", Tags.BASE_MODEL_CUSTOM: "true"}
         )
         tags.update({Tags.BASE_MODEL_CUSTOM: "true"})
@@ -601,21 +599,17 @@ class AquaModelApp(AquaApp):
         # Remove `ready_to_import` tag that might get copied from service model.
         tags.pop(Tags.READY_TO_IMPORT, None)
         metadata = None
-        if shadow_model:
-            # Shadow model is a model in the service catalog that either has no artifacts but contains all the necessary metadata for deploying and fine tuning.
+        if verified_model:
+            # Verified model is a model in the service catalog that either has no artifacts but contains all the necessary metadata for deploying and fine tuning.
             # If set, then we copy all the model metadata.
-            metadata = shadow_model.custom_metadata_list
-            if shadow_model.model_file_description:
+            metadata = verified_model.custom_metadata_list
+            if verified_model.model_file_description:
                 model = model.with_model_file_description(
-                    json_dict=shadow_model.model_file_description
+                    json_dict=verified_model.model_file_description
                 )
 
         else:
             metadata = ModelCustomMetadata()
-            if not inference_container:
-                raise ValueError(
-                    f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container"
-                )
             if finetuning_container:
                 tags[Tags.AQUA_FINE_TUNING] = "true"
                 metadata.add(
@@ -665,7 +659,7 @@ class AquaModelApp(AquaApp):
             )
 
         try:
-            # If shadow model already has a artifact json, use that.
+            # If verified model already has a artifact json, use that.
             metadata.get(MODEL_BY_REFERENCE_OSS_PATH_KEY)
             logger.info(
                 f"Found model artifact in the service bucket. "
@@ -685,7 +679,7 @@ class AquaModelApp(AquaApp):
             .with_compartment_id(compartment_id or COMPARTMENT_OCID)
             .with_project_id(project_id or PROJECT_OCID)
             .with_artifact(os_path)
-            .with_display_name(os.path.basename(model_name))
+            .with_display_name(model_name)
             .with_freeform_tags(**tags)
         ).create(model_by_reference=True)
         logger.debug(model)
@@ -712,7 +706,7 @@ class AquaModelApp(AquaApp):
         Returns:
             str: Model ID of the registered model
         """
-        shadow_model_details: DataScienceModel = None
+        verified_model_details: DataScienceModel = None
 
         if not import_model_details:
             import_model_details = ImportModelDetails(**kwargs)
@@ -734,13 +728,13 @@ class AquaModelApp(AquaApp):
                 f"Found service model for {import_model_details.model}: {model_service_id}"
             )
         if model_service_id:
-            shadow_model_details = DataScienceModel.from_id(model_service_id)
-            inference_container = shadow_model_details.custom_metadata_list.get(
+            verified_model_details = DataScienceModel.from_id(model_service_id)
+            inference_container = verified_model_details.custom_metadata_list.get(
                 AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
             ).value
             try:
                 # No Default finetuning container
-                finetuning_container = shadow_model_details.custom_metadata_list.get(
+                finetuning_container = verified_model_details.custom_metadata_list.get(
                     AQUA_FINETUNING_CONTAINER_METADATA_NAME
                 ).value
             except:
@@ -748,8 +742,8 @@ class AquaModelApp(AquaApp):
 
         # Copy the model name from the service model if `model` is ocid
         model_name = (
-            shadow_model_details.display_name
-            if shadow_model_details
+            verified_model_details.display_name
+            if verified_model_details
             else import_model_details.model
         )
 
@@ -777,7 +771,8 @@ class AquaModelApp(AquaApp):
         os.makedirs(local_dir, exist_ok=True)
         # Copy the model from the cache to destination
         snapshot_download(
-            repo_id=model_name, local_dir=local_dir, local_dir_use_symlinks=False
+            repo_id=model_name,
+            local_dir=local_dir,
         )
         # Upload to object storage
         model_artifact_path = upload_folder(
@@ -805,7 +800,7 @@ class AquaModelApp(AquaApp):
                 )
                 else import_model_details.finetuning_container_type_smc
             ),
-            shadow_model=shadow_model_details,
+            verified_model=verified_model_details,
             compartment_id=import_model_details.compartment_id,
             project_id=import_model_details.project_id,
         )
