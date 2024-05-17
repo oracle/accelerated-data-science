@@ -54,3 +54,24 @@ class RqsAdditionalDetails(str, metaclass=ExtendedEnumMeta):
 
 class EvaluationConfig(str, metaclass=ExtendedEnumMeta):
     PARAMS = "model_params"
+
+
+class EvaluationReportJson(str, metaclass=ExtendedEnumMeta):
+    """Contains evaluation report.json fields name."""
+
+    METRIC_SUMMARY_RESULT = "metric_summary_result"
+    METRIC_RESULT = "metric_results"
+    MODEL_PARAMS = "model_params"
+    MODEL_DETAILS = "model_details"
+    DATA = "data"
+    DATASET = "dataset"
+
+
+class EvaluationMetricResult(str, metaclass=ExtendedEnumMeta):
+    """Contains metric result's fields name in report.json."""
+
+    SHORT_NAME = "key"
+    NAME = "name"
+    DESCRIPTION = "description"
+    SUMMARY_DATA = "summary_data"
+    DATA = "data"
