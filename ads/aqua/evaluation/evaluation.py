@@ -1252,19 +1252,23 @@ class AquaEvaluationApp(AquaApp):
 
     def _get_source(
         self,
-        evaluation: AquaModelResource,
+        evaluation: oci.resource_search.models.ResourceSummary,
         resources_mapping: dict = {},
     ) -> tuple:
         """Returns ocid and name of the model has been evaluated."""
-        # source_id = evaluation.get_from_meta(EvaluationCustomMetadata.EVALUATION_SOURCE.value)
-        source_id = evaluation.get(EvaluationCustomMetadata.EVALUATION_SOURCE)
+        source_id = self._get_attribute_from_model_metadata(
+            evaluation,
+            EvaluationCustomMetadata.EVALUATION_SOURCE,
+        )
 
         try:
             source = resources_mapping.get(source_id)
             source_name = (
                 source.display_name
                 if source
-                else evaluation.get(EvaluationCustomMetadata.EVALUATION_SOURCE_NAME)
+                else self._get_attribute_from_model_metadata(
+                    evaluation, EvaluationCustomMetadata.EVALUATION_SOURCE_NAME
+                )
             )
 
             # try to resolve source_name from source id
@@ -1281,10 +1285,9 @@ class AquaEvaluationApp(AquaApp):
                     raise AquaRuntimeError(
                         f"Not supported source type: {resource_type}"
                     )
-        except Exception as ex:
+        except Exception as e:
             logger.debug(
-                f"Failed to retrieve source information for evaluation {evaluation.id}."
-                f"DEBUG INFO: {str(ex)}"
+                f"Failed to retrieve source information for evaluation {evaluation.identifier}."
             )
             source_name = ""
 
