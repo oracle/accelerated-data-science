@@ -577,6 +577,7 @@ class TestAquaModel:
             mock_snapshot_download.assert_called_with(
                 repo_id=hf_model,
                 local_dir=f"{str(tmpdir)}/{hf_model}",
+                local_dir_use_symlinks=False,
             )
             mock_subprocess.assert_called_with(
                 shlex.split(
@@ -779,6 +780,7 @@ class TestAquaModel:
                 mock_snapshot_download.assert_called_with(
                     repo_id=hf_model,
                     local_dir=f"{str(tmpdir)}/{hf_model}",
+                    local_dir_use_symlinks=False,
                 )
                 mock_subprocess.assert_called_with(
                     shlex.split(
@@ -894,6 +896,7 @@ class TestAquaModel:
                 mock_snapshot_download.assert_called_with(
                     repo_id=hf_model,
                     local_dir=f"{str(tmpdir)}/{hf_model}",
+                    local_dir_use_symlinks=False,
                 )
                 mock_subprocess.assert_called_with(
                     shlex.split(

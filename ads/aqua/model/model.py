@@ -771,8 +771,7 @@ class AquaModelApp(AquaApp):
         os.makedirs(local_dir, exist_ok=True)
         # Copy the model from the cache to destination
         snapshot_download(
-            repo_id=model_name,
-            local_dir=local_dir,
+            repo_id=model_name, local_dir=local_dir, local_dir_use_symlinks=False
         )
         # Upload to object storage
         model_artifact_path = upload_folder(
