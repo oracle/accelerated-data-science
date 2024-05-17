@@ -7,10 +7,9 @@
 import os
 import shlex
 import tempfile
-import unittest
 from dataclasses import asdict
 from importlib import reload
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import huggingface_hub
 import oci
@@ -70,7 +69,7 @@ class TestDataset:
             "compartment_id": "ocid1.compartment.oc1..<OCID>",
             "created_by": "ocid1.datasciencenotebooksession.oc1.iad.<OCID>",
             "defined_tags": {},
-            "display_name": "ShadowModel",
+            "display_name": "VerifiedModel",
             "freeform_tags": {
                 "OCI_AQUA": "",
                 "license": "UPL",
@@ -243,7 +242,7 @@ class TestAquaModel:
         "foundation_model_type",
         [
             "service",
-            "shadow",
+            "verified",
         ],
     )
     @patch("ads.aqua.model.model.read_file")
@@ -266,12 +265,12 @@ class TestAquaModel:
         ds_model.display_name = "test_display_name"
         ds_model.description = "test_description"
         ds_model.freeform_tags = {
-            "OCI_AQUA": "" if foundation_model_type == "shadow" else "ACTIVE",
+            "OCI_AQUA": "" if foundation_model_type == "verified" else "ACTIVE",
             "license": "test_license",
             "organization": "test_organization",
             "task": "test_task",
         }
-        if foundation_model_type == "shadow":
+        if foundation_model_type == "verified":
             ds_model.freeform_tags["ready_to_import"] = "true"
         ds_model.time_created = "2024-01-19T17:57:39.158000+00:00"
         custom_metadata_list = ModelCustomMetadata()
@@ -305,15 +304,15 @@ class TestAquaModel:
         mock_read_file.return_value = "test_model_card"
 
         model_id = (
-            "shadow_model_id"
-            if foundation_model_type == "shadow"
+            "verified_model_id"
+            if foundation_model_type == "verified"
             else "service_model_id"
         )
         aqua_model = self.app.get(model_id=model_id)
 
         mock_from_id.assert_called_with(model_id)
 
-        if foundation_model_type == "shadow":
+        if foundation_model_type == "verified":
             mock_read_file.assert_called_with(
                 file_path="oci://bucket@namespace/prefix/config/README.md",
                 auth=self.app._auth,
@@ -337,12 +336,12 @@ class TestAquaModel:
             "name": f"{ds_model.display_name}",
             "organization": f'{ds_model.freeform_tags["organization"]}',
             "project_id": f"{ds_model.project_id}",
-            "ready_to_deploy": False if foundation_model_type == "shadow" else True,
+            "ready_to_deploy": False if foundation_model_type == "verified" else True,
             "ready_to_finetune": False,
-            "ready_to_import": True if foundation_model_type == "shadow" else False,
+            "ready_to_import": True if foundation_model_type == "verified" else False,
             "search_text": (
                 ",test_license,test_organization,test_task,true"
-                if foundation_model_type == "shadow"
+                if foundation_model_type == "verified"
                 else "ACTIVE,test_license,test_organization,test_task"
             ),
             "tags": ds_model.freeform_tags,
@@ -524,7 +523,7 @@ class TestAquaModel:
 
     @patch("huggingface_hub.snapshot_download")
     @patch("subprocess.check_call")
-    def test_import_shadow_model(
+    def test_import_verified_model(
         self,
         mock_subprocess,
         mock_snapshot_download,
@@ -578,7 +577,6 @@ class TestAquaModel:
             mock_snapshot_download.assert_called_with(
                 repo_id=hf_model,
                 local_dir=f"{str(tmpdir)}/{hf_model}",
-                local_dir_use_symlinks=False,
             )
             mock_subprocess.assert_called_with(
                 shlex.split(
@@ -781,7 +779,6 @@ class TestAquaModel:
                 mock_snapshot_download.assert_called_with(
                     repo_id=hf_model,
                     local_dir=f"{str(tmpdir)}/{hf_model}",
-                    local_dir_use_symlinks=False,
                 )
                 mock_subprocess.assert_called_with(
                     shlex.split(
@@ -897,7 +894,6 @@ class TestAquaModel:
                 mock_snapshot_download.assert_called_with(
                     repo_id=hf_model,
                     local_dir=f"{str(tmpdir)}/{hf_model}",
-                    local_dir_use_symlinks=False,
                 )
                 mock_subprocess.assert_called_with(
                     shlex.split(

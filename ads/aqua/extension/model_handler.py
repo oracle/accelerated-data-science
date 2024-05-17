@@ -189,7 +189,7 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
                 "Please select a model with a compatible pipeline tag."
             )
 
-        # Check if it is a service/shadow model
+        # Check if it is a service/verified model
         aqua_model_info: AquaModelSummary = self._find_matching_aqua_model(
             model_id=hf_model_info.id
         )
