@@ -5,7 +5,7 @@
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from ads.aqua.job import AquaJobSummary
+from ads.aqua.data import AquaJobSummary
 from ads.common.serializer import DataClassSerializable
 
 

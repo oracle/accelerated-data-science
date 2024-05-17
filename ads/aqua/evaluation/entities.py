@@ -89,13 +89,6 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
 
 
 @dataclass(repr=False)
-class AquaResourceIdentifier(DataClassSerializable):
-    id: str = ""
-    name: str = ""
-    url: str = ""
-
-
-@dataclass(repr=False)
 class AquaEvalReport(DataClassSerializable):
     evaluation_id: str = ""
     content: str = ""
