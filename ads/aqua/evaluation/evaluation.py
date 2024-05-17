@@ -325,8 +325,8 @@ class AquaEvaluationApp(AquaApp):
         # TODO: validate metrics if it's provided
 
         evaluation_job_freeform_tags = {
-            EvaluationJobTags.AQUA_EVALUATION: EvaluationJobTags.AQUA_EVALUATION,
-            EvaluationJobTags.EVALUATION_MODEL_ID: evaluation_model.id,
+            Tags.AQUA_EVALUATION: Tags.AQUA_EVALUATION,
+            Tags.AQUA_EVALUATION_MODEL_ID: evaluation_model.id,
         }
 
         evaluation_job = Job(name=evaluation_model.display_name).with_infrastructure(
@@ -408,7 +408,7 @@ class AquaEvaluationApp(AquaApp):
             update_model_details=UpdateModelDetails(
                 custom_metadata_list=updated_custom_metadata_list,
                 freeform_tags={
-                    EvaluationModelTags.AQUA_EVALUATION: EvaluationModelTags.AQUA_EVALUATION,
+                    Tags.AQUA_EVALUATION: Tags.AQUA_EVALUATION,
                 },
             ),
         )
@@ -479,7 +479,7 @@ class AquaEvaluationApp(AquaApp):
                 ),
             ),
             tags=dict(
-                aqua_evaluation=EvaluationModelTags.AQUA_EVALUATION,
+                aqua_evaluation=Tags.AQUA_EVALUATION,
                 evaluation_job_id=evaluation_job.id,
                 evaluation_source=create_aqua_evaluation_details.evaluation_source_id,
                 evaluation_experiment_id=experiment_model_version_set_id,
@@ -708,7 +708,7 @@ class AquaEvaluationApp(AquaApp):
         models = utils.query_resources(
             compartment_id=compartment_id,
             resource_type="datasciencemodel",
-            tag_list=[EvaluationModelTags.AQUA_EVALUATION],
+            tag_list=[Tags.AQUA_EVALUATION],
         )
         logger.info(f"Fetched {len(models)} evaluations.")
 
@@ -1503,7 +1503,7 @@ class AquaEvaluationApp(AquaApp):
         resources = utils.query_resources(
             compartment_id=compartment_id,
             resource_type="all",
-            tag_list=[EvaluationModelTags.AQUA_EVALUATION, "OCI_AQUA"],
+            tag_list=[Tags.AQUA_EVALUATION, "OCI_AQUA"],
             connect_by_ampersands=False,
             return_all=False,
         )

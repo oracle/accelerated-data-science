@@ -28,15 +28,6 @@ class EvaluationCustomMetadata(str, metaclass=ExtendedEnumMeta):
     EVALUATION_ERROR = "aqua_evaluate_error"
 
 
-class EvaluationModelTags(str, metaclass=ExtendedEnumMeta):
-    AQUA_EVALUATION = "aqua_evaluation"
-
-
-class EvaluationJobTags(str, metaclass=ExtendedEnumMeta):
-    AQUA_EVALUATION = "aqua_evaluation"
-    EVALUATION_MODEL_ID = "evaluation_model_id"
-
-
 class EvaluationConfig(str, metaclass=ExtendedEnumMeta):
     PARAMS = "model_params"
 
