@@ -325,8 +325,8 @@ class AquaEvaluationApp(AquaApp):
         # TODO: validate metrics if it's provided
 
         evaluation_job_freeform_tags = {
-            EvaluationJobTags.AQUA_EVALUATION: EvaluationJobTags.AQUA_EVALUATION,
-            EvaluationJobTags.EVALUATION_MODEL_ID: evaluation_model.id,
+            Tags.AQUA_EVALUATION: Tags.AQUA_EVALUATION,
+            Tags.AQUA_EVALUATION_MODEL_ID: evaluation_model.id,
         }
 
         evaluation_job = Job(name=evaluation_model.display_name).with_infrastructure(
@@ -408,7 +408,7 @@ class AquaEvaluationApp(AquaApp):
             update_model_details=UpdateModelDetails(
                 custom_metadata_list=updated_custom_metadata_list,
                 freeform_tags={
-                    EvaluationModelTags.AQUA_EVALUATION: EvaluationModelTags.AQUA_EVALUATION,
+                    Tags.AQUA_EVALUATION: Tags.AQUA_EVALUATION,
                 },
             ),
         )
@@ -479,7 +479,7 @@ class AquaEvaluationApp(AquaApp):
                 ),
             ),
             tags=dict(
-                aqua_evaluation=EvaluationModelTags.AQUA_EVALUATION,
+                aqua_evaluation=Tags.AQUA_EVALUATION,
                 evaluation_job_id=evaluation_job.id,
                 evaluation_source=create_aqua_evaluation_details.evaluation_source_id,
                 evaluation_experiment_id=experiment_model_version_set_id,
@@ -708,11 +708,9 @@ class AquaEvaluationApp(AquaApp):
         models = utils.query_resources(
             compartment_id=compartment_id,
             resource_type="datasciencemodel",
-            tag_list=[EvaluationModelTags.AQUA_EVALUATION],
+            tag_list=[Tags.AQUA_EVALUATION],
         )
         logger.info(f"Fetched {len(models)} evaluations.")
-
-        # TODO: add filter based on project_id if needed.
 
         mapping = self._prefetch_resources(compartment_id)
 
@@ -934,11 +932,13 @@ class AquaEvaluationApp(AquaApp):
             )
 
             files_in_artifact = get_files(temp_dir)
-            report_content = self._read_from_artifact(
+            md_report_content = self._read_from_artifact(
                 temp_dir, files_in_artifact, utils.EVALUATION_REPORT_MD
             )
+
+            # json report not availiable for failed evaluation
             try:
-                report = json.loads(
+                json_report = json.loads(
                     self._read_from_artifact(
                         temp_dir, files_in_artifact, utils.EVALUATION_REPORT_JSON
                     )
@@ -947,27 +947,32 @@ class AquaEvaluationApp(AquaApp):
                 logger.debug(
                     "Failed to load `report.json` from evaluation artifact" f"{str(e)}"
                 )
-                report = {}
+                json_report = {}
 
-        # TODO: after finalizing the format of report.json, move the constant to class
         eval_metrics = AquaEvalMetrics(
             id=eval_id,
-            report=base64.b64encode(report_content).decode(),
+            report=base64.b64encode(md_report_content).decode(),
             metric_results=[
                 AquaEvalMetric(
-                    key=metric_key,
-                    name=metadata.get("name", utils.UNKNOWN),
-                    description=metadata.get("description", utils.UNKNOWN),
+                    key=metadata.get(EvaluationMetricResult.SHORT_NAME, utils.UNKNOWN),
+                    name=metadata.get(EvaluationMetricResult.NAME, utils.UNKNOWN),
+                    description=metadata.get(
+                        EvaluationMetricResult.DESCRIPTION, utils.UNKNOWN
+                    ),
                 )
-                for metric_key, metadata in report.get("metric_results", {}).items()
+                for _, metadata in json_report.get(
+                    EvaluationReportJson.METRIC_RESULT, {}
+                ).items()
             ],
             metric_summary_result=[
                 AquaEvalMetricSummary(**m)
-                for m in report.get("metric_summary_result", [{}])
+                for m in json_report.get(
+                    EvaluationReportJson.METRIC_SUMMARY_RESULT, [{}]
+                )
             ],
         )
 
-        if report_content:
+        if md_report_content:
             self._metrics_cache.__setitem__(key=eval_id, value=eval_metrics)
 
         return eval_metrics
@@ -1266,16 +1271,16 @@ class AquaEvaluationApp(AquaApp):
                 )
             )
 
-            if not source_name:
+            # try to resolve source_name from source id
+            if source_id and not source_name:
                 resource_type = utils.get_resource_type(source_id)
 
-                # TODO: adjust resource principal mapping
-                if resource_type == "datasciencemodel":
-                    source_name = self.ds_client.get_model(source_id).data.display_name
-                elif resource_type == "datasciencemodeldeployment":
+                if resource_type.startswith("datasciencemodeldeployment"):
                     source_name = self.ds_client.get_model_deployment(
                         source_id
                     ).data.display_name
+                elif resource_type.startswith("datasciencemodel"):
+                    source_name = self.ds_client.get_model(source_id).data.display_name
                 else:
                     raise AquaRuntimeError(
                         f"Not supported source type: {resource_type}"
@@ -1404,8 +1409,6 @@ class AquaEvaluationApp(AquaApp):
                     "model parameters have not been saved in correct format in model taxonomy. ",
                     service_payload={"params": params},
                 )
-            # TODO: validate the format of parameters.
-            # self._validate_params(params)
 
             return AquaEvalParams(**params[EvaluationConfig.PARAMS])
         except Exception as e:
@@ -1438,7 +1441,6 @@ class AquaEvaluationApp(AquaApp):
             )
             return AquaResourceIdentifier()
 
-    # TODO: fix the logic for determine termination state
     def _get_status(
         self,
         model: oci.resource_search.models.ResourceSummary,
@@ -1498,12 +1500,10 @@ class AquaEvaluationApp(AquaApp):
 
     def _prefetch_resources(self, compartment_id) -> dict:
         """Fetches all AQUA resources."""
-        # TODO: handle cross compartment/tenency resources
-        # TODO: add cache
         resources = utils.query_resources(
             compartment_id=compartment_id,
             resource_type="all",
-            tag_list=[EvaluationModelTags.AQUA_EVALUATION, "OCI_AQUA"],
+            tag_list=[Tags.AQUA_EVALUATION, "OCI_AQUA"],
             connect_by_ampersands=False,
             return_all=False,
         )

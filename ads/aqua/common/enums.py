@@ -42,6 +42,7 @@ class Tags(str, metaclass=ExtendedEnumMeta):
     READY_TO_FINE_TUNE = "ready_to_fine_tune"
     READY_TO_IMPORT = "ready_to_import"
     BASE_MODEL_CUSTOM = "aqua_custom_base_model"
+    AQUA_EVALUATION_MODEL_ID = "evaluation_model_id"
 
 
 class RqsAdditionalDetails(str, metaclass=ExtendedEnumMeta):

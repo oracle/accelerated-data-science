@@ -28,29 +28,26 @@ class EvaluationCustomMetadata(str, metaclass=ExtendedEnumMeta):
     EVALUATION_ERROR = "aqua_evaluate_error"
 
 
-class EvaluationModelTags(str, metaclass=ExtendedEnumMeta):
-    AQUA_EVALUATION = "aqua_evaluation"
-
-
-class EvaluationJobTags(str, metaclass=ExtendedEnumMeta):
-    AQUA_EVALUATION = "aqua_evaluation"
-    EVALUATION_MODEL_ID = "evaluation_model_id"
-
-
-class EvaluationUploadStatus(str, metaclass=ExtendedEnumMeta):
-    IN_PROGRESS = "IN_PROGRESS"
-    COMPLETED = "COMPLETED"
-
-
-class RqsAdditionalDetails(str, metaclass=ExtendedEnumMeta):
-    METADATA = "metadata"
-    CREATED_BY = "createdBy"
-    DESCRIPTION = "description"
-    MODEL_VERSION_SET_ID = "modelVersionSetId"
-    MODEL_VERSION_SET_NAME = "modelVersionSetName"
-    PROJECT_ID = "projectId"
-    VERSION_LABEL = "versionLabel"
-
-
 class EvaluationConfig(str, metaclass=ExtendedEnumMeta):
     PARAMS = "model_params"
+
+
+class EvaluationReportJson(str, metaclass=ExtendedEnumMeta):
+    """Contains evaluation report.json fields name."""
+
+    METRIC_SUMMARY_RESULT = "metric_summary_result"
+    METRIC_RESULT = "metric_results"
+    MODEL_PARAMS = "model_params"
+    MODEL_DETAILS = "model_details"
+    DATA = "data"
+    DATASET = "dataset"
+
+
+class EvaluationMetricResult(str, metaclass=ExtendedEnumMeta):
+    """Contains metric result's fields name in report.json."""
+
+    SHORT_NAME = "key"
+    NAME = "name"
+    DESCRIPTION = "description"
+    SUMMARY_DATA = "summary_data"
+    DATA = "data"
