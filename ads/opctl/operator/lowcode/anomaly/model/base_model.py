@@ -4,33 +4,29 @@
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import fsspec
+import numpy as np
 import os
+import pandas as pd
 import tempfile
 import time
 from abc import ABC, abstractmethod
+from sklearn import linear_model
 from typing import Tuple
 
-import fsspec
-import pandas as pd
-import numpy as np
-from sklearn import linear_model
-
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
-
-from ..operator_config import AnomalyOperatorConfig, AnomalyOperatorSpec
-from .anomaly_dataset import AnomalyDatasets, AnomalyOutput, TestData
 from ads.opctl.operator.lowcode.anomaly.const import OutputColumns, SupportedMetrics
-from ..const import SupportedModels
+from ads.opctl.operator.lowcode.anomaly.utils import _build_metrics_df, default_signer
 from ads.opctl.operator.lowcode.common.utils import (
     human_time_friendly,
     enable_print,
     disable_print,
     write_data,
-    merge_category_columns,
-    find_output_dirname,
 )
-from ads.opctl.operator.lowcode.anomaly.utils import _build_metrics_df, default_signer
-from ads.common.object_storage_details import ObjectStorageDetails
+from .anomaly_dataset import AnomalyDatasets, AnomalyOutput, TestData
+from ..const import SupportedModels
+from ..operator_config import AnomalyOperatorConfig, AnomalyOperatorSpec
 
 
 class AnomalyOperatorBaseModel(ABC):
@@ -246,7 +242,7 @@ class AnomalyOperatorBaseModel(ABC):
         """Saves resulting reports to the given folder."""
         import report_creator as rc
 
-        unique_output_dir = find_output_dirname(self.spec.output_directory)
+        unique_output_dir = self.spec.output_directory.url
 
         if ObjectStorageDetails.is_oci_path(unique_output_dir):
             storage_options = default_signer()
