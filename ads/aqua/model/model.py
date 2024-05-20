@@ -21,6 +21,7 @@ from ads.aqua.common.utils import (
     is_service_managed_container,
     read_file,
     upload_folder,
+    copy_model_config,
 )
 from ads.aqua.constants import (
     LICENSE_TXT,
@@ -660,11 +661,17 @@ class AquaModelApp(AquaApp):
 
         try:
             # If verified model already has a artifact json, use that.
-            metadata.get(MODEL_BY_REFERENCE_OSS_PATH_KEY)
+            artifact_path = metadata.get(MODEL_BY_REFERENCE_OSS_PATH_KEY).value
             logger.info(
                 f"Found model artifact in the service bucket. "
                 f"Using artifact from service bucket instead of {os_path}"
             )
+
+            # copy model config from artifact path to user bucket
+            copy_model_config(
+                artifact_path=artifact_path, os_path=os_path, auth=self._auth
+            )
+
         except:
             # Add artifact from user bucket
             metadata.add(

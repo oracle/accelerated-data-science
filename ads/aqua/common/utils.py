@@ -33,7 +33,7 @@ from ads.common.auth import AuthState, default_signer
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import get_console_link, upload_to_os
+from ads.common.utils import get_console_link, upload_to_os, copy_file
 from ads.config import AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, TENANCY_OCID
 from ads.model import DataScienceModel, ModelVersionSet
 
@@ -99,6 +99,23 @@ LIFECYCLE_DETAILS_MAPPING = {
     JobRun.LIFECYCLE_STATE_FAILED: "The evaluation failed.",
     JobRun.LIFECYCLE_STATE_NEEDS_ATTENTION: "Missing jobrun information.",
 }
+
+CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
+    datasciencemodel="models",
+    datasciencemodeldeployment="model-deployments",
+    datasciencemodeldeploymentdev="model-deployments",
+    datasciencemodeldeploymentint="model-deployments",
+    datasciencemodeldeploymentpre="model-deployments",
+    datasciencejob="jobs",
+    datasciencejobrun="job-runs",
+    datasciencejobrundev="job-runs",
+    datasciencejobrunint="job-runs",
+    datasciencejobrunpre="job-runs",
+    datasciencemodelversionset="model-version-sets",
+    datasciencemodelversionsetpre="model-version-sets",
+    datasciencemodelversionsetint="model-version-sets",
+    datasciencemodelversionsetdev="model-version-sets",
+)
 
 
 def random_color_generator(word: str):
@@ -227,12 +244,10 @@ def is_valid_ocid(ocid: str) -> bool:
     bool:
         Whether the given ocid is valid.
     """
-    # TODO: revisit pattern
-    pattern = (
-        r"^ocid1\.([a-z0-9_]+)\.([a-z0-9]+)\.([a-z0-9-]*)(\.[^.]+)?\.([a-z0-9_]+)$"
-    )
-    match = re.match(pattern, ocid)
-    return True
+
+    if not ocid:
+        return False
+    return ocid.lower().startswith("ocid")
 
 
 def get_resource_type(ocid: str) -> str:
@@ -557,7 +572,7 @@ def fetch_service_compartment() -> Union[str, None]:
             config_file_name=CONTAINER_INDEX,
         )
     except Exception as e:
-        logger.error(
+        logger.debug(
             f"Config file {config_file_name}/{CONTAINER_INDEX} to fetch service compartment OCID could not be found. "
             f"\n{str(e)}."
         )
@@ -824,3 +839,51 @@ def get_combined_params(params1: str = None, params2: str = None) -> str:
     ]
 
     return " ".join(combined_params)
+
+
+def copy_model_config(artifact_path: str, os_path: str, auth: dict = None):
+    """Copies the aqua model config folder from the artifact path to the user provided object storage path.
+    The config folder is overwritten if the files already exist at the destination path.
+
+    Parameters
+    ----------
+    artifact_path:
+        Path of the aqua model where config folder is available.
+    os_path:
+        User provided path where config folder will be copied.
+    auth: (Dict, optional). Defaults to None.
+        The default authentication is set using `ads.set_auth` API. If you need to override the
+        default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+        authentication signer and kwargs required to instantiate IdentityClient object.
+
+    Returns
+    -------
+    None
+        Nothing.
+    """
+
+    try:
+        source_dir = ObjectStorageDetails(
+            AQUA_SERVICE_MODELS_BUCKET,
+            CONDA_BUCKET_NS,
+            f"{os.path.dirname(artifact_path).rstrip('/')}/config",
+        ).path
+        dest_dir = f"{os_path.rstrip('/')}/config"
+
+        oss_details = ObjectStorageDetails.from_path(source_dir)
+        objects = oss_details.list_objects(fields="name").objects
+
+        for obj in objects:
+            source_path = ObjectStorageDetails(
+                AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, obj.name
+            ).path
+            destination_path = os.path.join(dest_dir, os.path.basename(obj.name))
+            copy_file(
+                uri_src=source_path,
+                uri_dst=destination_path,
+                force_overwrite=True,
+                auth=auth,
+            )
+    except Exception as ex:
+        logger.debug(ex)
+        logger.debug(f"Failed to copy config folder from {artifact_path} to {os_path}.")

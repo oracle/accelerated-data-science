@@ -521,12 +521,24 @@ class TestAquaModel:
             "evaluation_container": "odsc-llm-evaluate",
         }
 
+    @pytest.mark.parametrize(
+        "artifact_location_set",
+        [
+            True,
+            False,
+        ],
+    )
+    @patch("ads.aqua.common.utils.copy_file")
+    @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
     @patch("huggingface_hub.snapshot_download")
     @patch("subprocess.check_call")
     def test_import_verified_model(
         self,
         mock_subprocess,
         mock_snapshot_download,
+        mock_list_objects,
+        mock_copy_file,
+        artifact_location_set,
     ):
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
         ads.common.oci_datascience.OCIDataScienceMixin.init_client = MagicMock()
@@ -535,6 +547,16 @@ class TestAquaModel:
         # oci.data_science.DataScienceClient = MagicMock()
         DataScienceModel.sync = MagicMock()
         OCIDataScienceModel.create = MagicMock()
+
+        # The name attribute cannot be mocked during creation of the mock object,
+        # hence attach it separately to the mocked objects.
+        artifact_path = "service_models/model-name/commit-id/artifact"
+        obj1 = MagicMock(etag="12345-1234-1234-1234-123456789", size=150)
+        obj1.name = f"{artifact_path}/config/deployment_config.json"
+        obj2 = MagicMock(etag="12345-1234-1234-1234-123456789", size=150)
+        obj2.name = f"{artifact_path}/config/ft_config.json"
+        objects = [obj1, obj2]
+        mock_list_objects.return_value = MagicMock(objects=objects)
 
         ds_model = DataScienceModel()
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
@@ -562,6 +584,14 @@ class TestAquaModel:
         custom_metadata_list.add(
             **{"key": "evaluation-container", "value": "odsc-llm-evaluate"}
         )
+        if not artifact_location_set:
+            custom_metadata_list.add(
+                **{
+                    "key": "artifact_location",
+                    "value": artifact_path,
+                    "description": "artifact location",
+                }
+            )
         ds_model.with_custom_metadata_list(custom_metadata_list)
         ds_model.set_spec(ds_model.CONST_MODEL_FILE_DESCRIPTION, {})
         ds_model.dsc_model = MagicMock(id="test_model_id")
@@ -579,6 +609,8 @@ class TestAquaModel:
                 local_dir=f"{str(tmpdir)}/{hf_model}",
                 local_dir_use_symlinks=False,
             )
+            if not artifact_location_set:
+                mock_copy_file.assert_called()
             mock_subprocess.assert_called_with(
                 shlex.split(
                     f"oci os object bulk-upload --src-dir {str(tmpdir)}/{hf_model} --prefix prefix/path/{hf_model}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT"
@@ -613,7 +645,9 @@ class TestAquaModel:
                 },
                 {
                     "key": "artifact_location",
-                    "value": f"{os_path}/{hf_model}/",
+                    "value": f"{os_path}/{hf_model}/"
+                    if artifact_location_set
+                    else artifact_path,
                     "description": "artifact location",
                     "category": "Other",
                 },
