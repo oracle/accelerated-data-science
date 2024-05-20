@@ -24,11 +24,6 @@ class Resource(str, metaclass=ExtendedEnumMeta):
     MODEL_VERSION_SET = "model-version-sets"
 
 
-class DataScienceResource(str, metaclass=ExtendedEnumMeta):
-    MODEL_DEPLOYMENT = "datasciencemodeldeployment"
-    MODEL = "datasciencemodel"
-
-
 class Tags(str, metaclass=ExtendedEnumMeta):
     TASK = "task"
     LICENSE = "license"

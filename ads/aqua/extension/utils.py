@@ -7,7 +7,7 @@ from typing import Dict, Optional
 
 from tornado.web import HTTPError
 
-from ads.aqua.extension.base_handler import Errors
+from ads.aqua.extension.errors import Errors
 
 
 def validate_function_parameters(data_class, input_data: Dict):

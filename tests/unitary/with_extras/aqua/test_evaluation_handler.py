@@ -11,7 +11,7 @@ from parameterized import parameterized
 
 from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.evaluation.entities import CreateAquaEvaluationDetails
-from ads.aqua.extension.base_handler import Errors
+from ads.aqua.extension.errors import Errors
 from ads.aqua.extension.evaluation_handler import AquaEvaluationHandler
 from tests.unitary.with_extras.aqua.utils import HandlerTestDataset as TestDataset
 
