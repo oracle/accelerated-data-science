@@ -136,9 +136,7 @@ class AquaDeploymentParamsHandlerTestCase(unittest.TestCase):
         self.test_instance = AquaDeploymentParamsHandler(MagicMock(), MagicMock())
 
     @patch("notebook.base.handlers.APIHandler.finish")
-    @patch(
-        "ads.aqua.modeldeployment.deployment.AquaDeploymentApp.get_deployment_default_params"
-    )
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_deployment_default_params")
     def test_get_deployment_default_params(
         self, mock_get_deployment_default_params, mock_finish
     ):
@@ -159,9 +157,7 @@ class AquaDeploymentParamsHandlerTestCase(unittest.TestCase):
         )
 
     @patch("notebook.base.handlers.APIHandler.finish")
-    @patch(
-        "ads.aqua.modeldeployment.deployment.AquaDeploymentApp.validate_deployment_params"
-    )
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.validate_deployment_params")
     def test_validate_deployment_params(
         self, mock_validate_deployment_params, mock_finish
     ):
