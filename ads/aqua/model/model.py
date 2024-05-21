@@ -667,6 +667,7 @@ class AquaModelApp(AquaApp):
                 f"Using artifact from service bucket instead of {os_path}"
             )
 
+            # todo: implement generic copy_folder method
             # copy model config from artifact path to user bucket
             copy_model_config(
                 artifact_path=artifact_path, os_path=os_path, auth=self._auth

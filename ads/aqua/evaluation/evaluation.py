@@ -50,6 +50,7 @@ from ads.aqua.constants import (
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     NB_SESSION_IDENTIFIER,
     UNKNOWN,
+    CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
 )
 from ads.aqua.evaluation.constants import *
 from ads.aqua.evaluation.entities import *
@@ -1344,7 +1345,7 @@ class AquaEvaluationApp(AquaApp):
     ) -> AquaResourceIdentifier:
         """Constructs AquaResourceIdentifier based on the given ocid and display name."""
         try:
-            resource_type = utils.CONSOLE_LINK_RESOURCE_TYPE_MAPPING.get(
+            resource_type = CONSOLE_LINK_RESOURCE_TYPE_MAPPING.get(
                 utils.get_resource_type(id)
             )
 
