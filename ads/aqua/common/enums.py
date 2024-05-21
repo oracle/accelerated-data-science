@@ -40,6 +40,10 @@ class Tags(str, metaclass=ExtendedEnumMeta):
     AQUA_EVALUATION_MODEL_ID = "evaluation_model_id"
 
 
+class HuggingFaceTags(str, metaclass=ExtendedEnumMeta):
+    TEXT_GENERATION_INFERENCE = "text-generation-inference"
+
+
 class RqsAdditionalDetails(str, metaclass=ExtendedEnumMeta):
     METADATA = "metadata"
     CREATED_BY = "createdBy"
