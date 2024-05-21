@@ -13,7 +13,7 @@ from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.app import AquaApp
-from ads.aqua.common.enums import Tags
+from ads.aqua.common.enums import Tags, HuggingFaceTags
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import (
     create_word_icon,
@@ -627,7 +627,13 @@ class AquaModelApp(AquaApp):
                 )
 
             if not inference_container:
-                inference_container = InferenceContainerTypeKey.AQUA_TGI_CONTAINER_KEY
+                inference_container = (
+                    InferenceContainerTypeKey.AQUA_TGI_CONTAINER_KEY
+                    if model_info
+                    and model_info.tags
+                    and HuggingFaceTags.TEXT_GENERATION_INFERENCE in model_info.tags
+                    else InferenceContainerTypeKey.AQUA_VLLM_CONTAINER_KEY
+                )
                 logger.info(
                     f"Model: {model_name} does not have associated inference container defaults. "
                     f"{inference_container} will be used instead."
