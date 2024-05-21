@@ -13,7 +13,7 @@ from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.app import AquaApp
-from ads.aqua.common.enums import Tags, HuggingFaceTags
+from ads.aqua.common.enums import Tags, HuggingFaceTags, InferenceContainerTypeFamily
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import (
     create_word_icon,
@@ -38,7 +38,6 @@ from ads.aqua.constants import (
 )
 from ads.aqua.model.constants import *
 from ads.aqua.model.entities import *
-from ads.aqua.modeldeployment.enums import InferenceContainerTypeKey
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link
@@ -628,11 +627,11 @@ class AquaModelApp(AquaApp):
 
             if not inference_container:
                 inference_container = (
-                    InferenceContainerTypeKey.AQUA_TGI_CONTAINER_KEY
+                    InferenceContainerTypeFamily.AQUA_TGI_CONTAINER_FAMILY
                     if model_info
                     and model_info.tags
                     and HuggingFaceTags.TEXT_GENERATION_INFERENCE in model_info.tags
-                    else InferenceContainerTypeKey.AQUA_VLLM_CONTAINER_KEY
+                    else InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY
                 )
                 logger.info(
                     f"Model: {model_name} does not have associated inference container defaults. "

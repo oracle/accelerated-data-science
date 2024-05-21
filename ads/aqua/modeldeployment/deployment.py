@@ -10,7 +10,12 @@ from typing import Dict, List, Union
 from oci.data_science.models import ModelDeployment
 
 from ads.aqua.app import AquaApp, logger
-from ads.aqua.common.enums import Tags
+from ads.aqua.common.enums import (
+    Tags,
+    InferenceContainerParamType,
+    InferenceContainerType,
+    InferenceContainerTypeFamily,
+)
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     get_container_config,
@@ -41,11 +46,6 @@ from ads.aqua.modeldeployment.entities import (
 from ads.aqua.modeldeployment.constants import (
     VLLMInferenceRestrictedParams,
     TGIInferenceRestrictedParams,
-)
-from ads.aqua.modeldeployment.enums import (
-    InferenceContainerParamType,
-    InferenceContainerType,
-    InferenceContainerTypeKey,
 )
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
@@ -241,7 +241,7 @@ class AquaDeploymentApp(AquaApp):
             if not container_family:
                 raise AquaValueError(
                     f"{message}. For unverified Aqua models, container_family parameter should be "
-                    f"set and value can be one of {', '.join(InferenceContainerTypeKey.values())}."
+                    f"set and value can be one of {', '.join(InferenceContainerTypeFamily.values())}."
                 )
             container_type_key = container_family
         try:
@@ -572,7 +572,7 @@ class AquaDeploymentApp(AquaApp):
 
         if container_type_key:
             container_type_key = container_type_key.lower()
-            if container_type_key in InferenceContainerTypeKey.values():
+            if container_type_key in InferenceContainerTypeFamily.values():
                 deployment_config = self.get_deployment_config(model_id)
                 config_parameters = (
                     deployment_config.get("configuration", UNKNOWN_DICT)
@@ -639,7 +639,7 @@ class AquaDeploymentApp(AquaApp):
                 if not container_family:
                     raise AquaValueError(
                         f"{message}. For unverified Aqua models, container_family parameter should be "
-                        f"set and value can be one of {', '.join(InferenceContainerTypeKey.values())}."
+                        f"set and value can be one of {', '.join(InferenceContainerTypeFamily.values())}."
                     )
                 container_type_key = container_family
 
