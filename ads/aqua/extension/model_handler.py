@@ -18,7 +18,8 @@ from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.errors import AquaRuntimeError
-from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
+from ads.aqua.extension.errors import Errors
+from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.constants import ModelTask
 from ads.aqua.model.entities import AquaModelSummary, HFModelSummary

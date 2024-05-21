@@ -10,7 +10,8 @@ from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.enums import Tags
-from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
+from ads.aqua.extension.errors import Errors
+from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.utils import validate_function_parameters
 from ads.aqua.model.entities import ImportModelDetails
 from ads.aqua.ui import AquaUIApp

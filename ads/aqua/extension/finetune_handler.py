@@ -9,7 +9,8 @@ from urllib.parse import urlparse
 from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
-from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
+from ads.aqua.extension.errors import Errors
+from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.utils import validate_function_parameters
 from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.finetuning.entities import CreateFineTuningDetails
