@@ -99,6 +99,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
         server_port = input_data.get("server_port")
         health_check_port = input_data.get("health_check_port")
         env_var = input_data.get("env_var")
+        container_family = input_data.get("container_family")
 
         self.finish(
             AquaDeploymentApp().create(
@@ -117,6 +118,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
                 server_port=server_port,
                 health_check_port=health_check_port,
                 env_var=env_var,
+                container_family=container_family,
             )
         )
 
@@ -245,10 +247,12 @@ class AquaDeploymentParamsHandler(AquaAPIhandler):
             raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("model_id"))
 
         params = input_data.get("params")
+        container_family = input_data.get("container_family")
         return self.finish(
             AquaDeploymentApp().validate_deployment_params(
                 model_id=model_id,
                 params=params,
+                container_family=container_family,
             )
         )
 

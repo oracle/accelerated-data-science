@@ -8,6 +8,7 @@ import os
 import unittest
 from importlib import reload
 from unittest.mock import MagicMock, patch
+from parameterized import parameterized
 
 from notebook.base.handlers import IPythonHandler
 
@@ -124,6 +125,7 @@ class TestAquaDeploymentHandler(unittest.TestCase):
             server_port=None,
             health_check_port=None,
             env_var=None,
+            container_family=None,
         )
 
 
@@ -156,21 +158,33 @@ class AquaDeploymentParamsHandlerTestCase(unittest.TestCase):
             model_id="test_model_id", instance_shape=TestDataset.INSTANCE_SHAPE
         )
 
+    @parameterized.expand(
+        [
+            None,
+            "container-family-name",
+        ]
+    )
     @patch("notebook.base.handlers.APIHandler.finish")
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.validate_deployment_params")
     def test_validate_deployment_params(
-        self, mock_validate_deployment_params, mock_finish
+        self, container_family_value, mock_validate_deployment_params, mock_finish
     ):
         mock_validate_deployment_params.return_value = dict(valid=True)
         mock_finish.side_effect = lambda x: x
 
         self.test_instance.get_json_body = MagicMock(
-            return_value=dict(model_id="test-model-id", params=self.default_params)
+            return_value=dict(
+                model_id="test-model-id",
+                params=self.default_params,
+                container_family=container_family_value,
+            )
         )
         result = self.test_instance.post()
         assert result["valid"] is True
         mock_validate_deployment_params.assert_called_with(
-            model_id="test-model-id", params=self.default_params
+            model_id="test-model-id",
+            params=self.default_params,
+            container_family=container_family_value,
         )
 
 

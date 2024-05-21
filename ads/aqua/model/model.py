@@ -38,6 +38,7 @@ from ads.aqua.constants import (
 )
 from ads.aqua.model.constants import *
 from ads.aqua.model.entities import *
+from ads.aqua.modeldeployment.enums import InferenceContainerTypeKey
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link
@@ -621,7 +622,15 @@ class AquaModelApp(AquaApp):
                 )
             else:
                 logger.warn(
-                    f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container. Proceeding with model registration without the fine-tuning container information. This model will not be available for fine tuning."
+                    f"Proceeding with model registration without the fine-tuning container information. "
+                    f"This model will not be available for fine tuning."
+                )
+
+            if not inference_container:
+                inference_container = InferenceContainerTypeKey.AQUA_TGI_CONTAINER_KEY
+                logger.info(
+                    f"Model: {model_name} does not have associated inference container defaults. "
+                    f"{inference_container} will be used instead."
                 )
             metadata.add(
                 key=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
