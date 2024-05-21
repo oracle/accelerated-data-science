@@ -613,7 +613,7 @@ class TestAquaModel:
                 mock_copy_file.assert_called()
             mock_subprocess.assert_called_with(
                 shlex.split(
-                    f"oci os object bulk-upload --src-dir {str(tmpdir)}/{hf_model} --prefix prefix/path/{hf_model}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT"
+                    f"oci os object bulk-upload --src-dir {str(tmpdir)}/{hf_model} --prefix prefix/path/{hf_model}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT --no-overwrite"
                 )
             )
             ds_freeform_tags.pop(
@@ -818,7 +818,7 @@ class TestAquaModel:
                 )
                 mock_subprocess.assert_called_with(
                     shlex.split(
-                        f"oci os object bulk-upload --src-dir {str(tmpdir)}/{hf_model} --prefix prefix/path/{hf_model}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT"
+                        f"oci os object bulk-upload --src-dir {str(tmpdir)}/{hf_model} --prefix prefix/path/{hf_model}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT --no-overwrite"
                     )
                 )
                 assert model.freeform_tags == {
@@ -934,7 +934,7 @@ class TestAquaModel:
                 )
                 mock_subprocess.assert_called_with(
                     shlex.split(
-                        f"oci os object bulk-upload --src-dir {str(tmpdir)}/{hf_model} --prefix prefix/path/{hf_model}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT"
+                        f"oci os object bulk-upload --src-dir {str(tmpdir)}/{hf_model} --prefix prefix/path/{hf_model}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT --no-overwrite"
                     )
                 )
                 assert model.freeform_tags == {
