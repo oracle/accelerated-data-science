@@ -739,7 +739,7 @@ def upload_folder(os_path: str, local_dir: str, model_name: str) -> str:
         raise ValueError(f"Version is not enabled at object storage location {os_path}")
     auth_state = AuthState()
     object_path = os_details.filepath.rstrip("/") + "/" + model_name + "/"
-    command = f"oci os object bulk-upload --src-dir {local_dir} --prefix {object_path} -bn {os_details.bucket} -ns {os_details.namespace} --auth {auth_state.oci_iam_type} --profile {auth_state.oci_key_profile}"
+    command = f"oci os object bulk-upload --src-dir {local_dir} --prefix {object_path} -bn {os_details.bucket} -ns {os_details.namespace} --auth {auth_state.oci_iam_type} --profile {auth_state.oci_key_profile} --no-overwrite"
     try:
         logger.info(f"Running: {command}")
         subprocess.check_call(shlex.split(command))
