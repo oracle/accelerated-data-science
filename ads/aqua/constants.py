@@ -41,3 +41,20 @@ VALIDATION_METRICS = "validation_metrics"
 SERVICE_MANAGED_CONTAINER_URI_SCHEME = "dsmc://"
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "artifact_location"
+
+CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
+    datasciencemodel="models",
+    datasciencemodeldeployment="model-deployments",
+    datasciencemodeldeploymentdev="model-deployments",
+    datasciencemodeldeploymentint="model-deployments",
+    datasciencemodeldeploymentpre="model-deployments",
+    datasciencejob="jobs",
+    datasciencejobrun="job-runs",
+    datasciencejobrundev="job-runs",
+    datasciencejobrunint="job-runs",
+    datasciencejobrunpre="job-runs",
+    datasciencemodelversionset="model-version-sets",
+    datasciencemodelversionsetpre="model-version-sets",
+    datasciencemodelversionsetint="model-version-sets",
+    datasciencemodelversionsetdev="model-version-sets",
+)
