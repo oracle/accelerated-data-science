@@ -788,7 +788,7 @@ class AquaModelApp(AquaApp):
                 break
         if i == retry:
             raise Exception(
-                "Could not download the model {model_name} from https://huggingface.co with message {huggingface_download}"
+                f"Could not download the model {model_name} from https://huggingface.co with message {huggingface_download_err_message}"
             )
         os.makedirs(local_dir, exist_ok=True)
         # Copy the model from the cache to destination
