@@ -200,7 +200,7 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
             self.telemetry.record_event_async(
                 category="aqua/hf",
                 action="search",
-                detail={model_id},
+                detail=model_id,
             )
 
         return self.finish(
