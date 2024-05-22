@@ -4,7 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import re
-from typing import Optional, Tuple
+from typing import Optional
 from urllib.parse import urlparse
 
 from huggingface_hub import HfApi
@@ -168,13 +168,14 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
             raise HTTPError(400, Errors.NO_INPUT_DATA)
 
         model_id = input_data.get("model_id")
+        token = input_data.get("token")
 
         if not model_id:
             raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("model_id"))
 
         # Get model info from the HF
         try:
-            hf_model_info = HfApi().model_info(model_id)
+            hf_model_info = HfApi(token=token).model_info(model_id)
         except HfHubHTTPError as err:
             raise self._format_custom_error_message(err)
 
