@@ -267,28 +267,28 @@ class FineTuningTestCase(TestCase):
     @parameterized.expand(
         [
             (
-                [
-                    "--batch_size 1",
-                    "--sequence_len 2048",
-                    "--sample_packing true",
-                    "--pad_to_sequence_len true",
-                    "--learning_rate 0.0002",
-                    "--lora_r 32",
-                    "--lora_alpha 16",
-                    "--lora_dropout 0.05",
-                    "--lora_target_linear true",
-                    "--lora_target_modules q_proj,k_proj",
-                ],
+                {
+                    "epochs": 1,
+                    "learning_rate": 0.0002,
+                    "batch_size": 1,
+                    "sequence_len": 2048,
+                    "sample_packing": True,
+                    "pad_to_sequence_len": True,
+                    "lora_alpha": 16,
+                    "lora_dropout": 0.05,
+                    "lora_target_linear": True,
+                    "lora_target_modules": ["q_proj", " k_proj"],
+                },
                 True,
             ),
             (
-                [
-                    "--micro_batch_size 1",
-                    "--max_sequence_len 2048",
-                    "--flash_attention true",
-                    "--pad_to_sequence_len true",
-                    "--lr_scheduler cosine",
-                ],
+                {
+                    "micro_batch_size": 1,
+                    "max_sequence_len": 2048,
+                    "flash_attention": True,
+                    "pad_to_sequence_len": True,
+                    "lr_scheduler": "cosine",
+                },
                 False,
             ),
         ]

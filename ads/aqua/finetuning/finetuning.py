@@ -5,7 +5,7 @@
 
 import json
 import os
-from dataclasses import asdict, fields
+from dataclasses import asdict, fields, MISSING
 from typing import Dict
 
 from oci.data_science.models import (
@@ -586,31 +586,32 @@ class AquaFineTuningApp(AquaApp):
 
         return default_params
 
-    def validate_finetuning_params(self, params: List[str] = None) -> Dict:
+    def validate_finetuning_params(self, params: Dict = None) -> Dict:
         """Validate if the fine-tuning parameters passed by the user can be overridden. Parameter values are not
         validated, only param keys are validated.
 
         Parameters
         ----------
-        params : List[str], optional
+        params :Dict, optional
             Params passed by the user.
 
         Returns
         -------
             Return a list of restricted params.
         """
-        restricted_params = []
-        if params:
-            dataclass_fields = {field.name for field in fields(AquaFineTuningParams)}
-            params_dict = get_params_dict(params)
-            for key, items in params_dict.items():
-                key = key.lstrip("--")
-                if key not in dataclass_fields:
-                    restricted_params.append(key)
-
-        if restricted_params:
-            raise AquaValueError(
-                f"Parameters {restricted_params} are set by Aqua "
-                f"and cannot be overridden or are invalid."
+        try:
+            AquaFineTuningParams(
+                **params,
             )
+        except Exception as e:
+            logger.debug(str(e))
+            allowed_fine_tuning_parameters = ", ".join(
+                f"{field.name} (required)" if field.default is MISSING else field.name
+                for field in fields(AquaFineTuningParams)
+            ).rstrip()
+            raise AquaValueError(
+                f"Invalid fine tuning parameters. Allowable parameters are: "
+                f"{allowed_fine_tuning_parameters}."
+            )
+
         return dict(valid=True)
