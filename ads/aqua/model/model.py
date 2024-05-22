@@ -476,14 +476,14 @@ class AquaModelApp(AquaApp):
 
         models = []
         if compartment_id:
-            # tracks number of times custom model listing was called
-            self.telemetry.record_event_async(
-                category="aqua/custom/model", action="list"
-            )
-
             logger.info(f"Fetching custom models from compartment_id={compartment_id}.")
             model_type = model_type.upper() if model_type else ModelType.FT
             models = self._rqs(compartment_id, model_type=model_type)
+
+            # tracks number of times custom model listing was called
+            self.telemetry.record_event_async(
+                category="aqua/custom/model", action="list", value=model_type
+            )
         else:
             # tracks number of times service model listing was called
             self.telemetry.record_event_async(
@@ -691,6 +691,14 @@ class AquaModelApp(AquaApp):
             .with_freeform_tags(**tags)
         ).create(model_by_reference=True)
         logger.debug(model)
+
+        # tracks the model name that was registered by the user
+        self.telemetry.record_event_async(
+            category="aqua/model",
+            action="register",
+            detail=model_name,
+        )
+
         return model
 
     def register(
@@ -773,9 +781,15 @@ class AquaModelApp(AquaApp):
             else:
                 break
         if i == retry:
-            raise Exception(
-                "Could not download the model {model_name} from https://huggingface.co with message {huggingface_download}"
+            message = f"Could not download the model {model_name} from https://huggingface.co with message {huggingface_download_err_message}."
+            # todo: errors are only captured by base_handler currently, move error telemetry within cli.py
+            #  to catch all CLI errors in aqua.
+            self.telemetry.record_event_async(
+                category="aqua/error",
+                action="400",
+                value=message,
             )
+            raise AquaRuntimeError(message)
         os.makedirs(local_dir, exist_ok=True)
         # Copy the model from the cache to destination
         snapshot_download(

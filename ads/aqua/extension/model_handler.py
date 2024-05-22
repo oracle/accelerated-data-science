@@ -195,6 +195,14 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
             model_id=hf_model_info.id
         )
 
+        # logs telemetry event for successful search from HF
+        if hasattr(self, "telemetry"):
+            self.telemetry.record_event_async(
+                category="aqua/hf",
+                action="search",
+                detail={model_id},
+            )
+
         return self.finish(
             HFModelSummary(model_info=hf_model_info, aqua_model_info=aqua_model_info)
         )
