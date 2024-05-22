@@ -494,6 +494,14 @@ class TestAquaDeployment(unittest.TestCase):
                 "custom-container-key",
                 ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
             ),
+            (
+                "odsc-vllm-serving",
+                ["--tensor-parallel-size 2"],
+            ),
+            (
+                "odsc-tgi-serving",
+                ["--port 8080"],
+            ),
         ]
     )
     @patch("ads.model.datascience_model.DataScienceModel.from_id")
@@ -529,6 +537,55 @@ class TestAquaDeployment(unittest.TestCase):
                 params=params,
             )
             assert result["valid"] is True
+
+    @parameterized.expand(
+        [
+            (
+                "odsc-vllm-serving",
+                ["--max-model-len 4096"],
+            ),
+            (
+                "odsc-tgi-serving",
+                ["--max_stop_sequences 5"],
+            ),
+            (
+                "",
+                ["--some_random_key some_random_value"],
+            ),
+        ]
+    )
+    @patch("ads.model.datascience_model.DataScienceModel.from_id")
+    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
+    def test_validate_deployment_params_for_unverified_models(
+        self, container_type_key, params, mock_get_container_config, mock_from_id
+    ):
+        """Test to check if container family is used when metadata does not have image information
+        for unverified models."""
+        mock_model = MagicMock()
+        mock_model.custom_metadata_list = ModelCustomMetadata()
+        mock_from_id.return_value = mock_model
+
+        container_index_json = os.path.join(
+            self.curr_dir, "test_data/ui/container_index.json"
+        )
+        with open(container_index_json, "r") as _file:
+            container_index_config = json.load(_file)
+        mock_get_container_config.return_value = container_index_config
+
+        if container_type_key in {"odsc-vllm-serving", "odsc-tgi-serving"} and params:
+            result = self.app.validate_deployment_params(
+                model_id="mock-model-id",
+                params=params,
+                container_family=container_type_key,
+            )
+            assert result["valid"] is True
+        else:
+            with pytest.raises(AquaValueError):
+                self.app.validate_deployment_params(
+                    model_id="mock-model-id",
+                    params=params,
+                    container_family=container_type_key,
+                )
 
 
 class TestMDInferenceResponse(unittest.TestCase):

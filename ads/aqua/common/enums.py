@@ -40,6 +40,25 @@ class Tags(str, metaclass=ExtendedEnumMeta):
     AQUA_EVALUATION_MODEL_ID = "evaluation_model_id"
 
 
+class InferenceContainerType(str, metaclass=ExtendedEnumMeta):
+    CONTAINER_TYPE_VLLM = "vllm"
+    CONTAINER_TYPE_TGI = "tgi"
+
+
+class InferenceContainerTypeFamily(str, metaclass=ExtendedEnumMeta):
+    AQUA_VLLM_CONTAINER_FAMILY = "odsc-vllm-serving"
+    AQUA_TGI_CONTAINER_FAMILY = "odsc-tgi-serving"
+
+
+class InferenceContainerParamType(str, metaclass=ExtendedEnumMeta):
+    PARAM_TYPE_VLLM = "VLLM_PARAMS"
+    PARAM_TYPE_TGI = "TGI_PARAMS"
+
+
+class HuggingFaceTags(str, metaclass=ExtendedEnumMeta):
+    TEXT_GENERATION_INFERENCE = "text-generation-inference"
+
+
 class RqsAdditionalDetails(str, metaclass=ExtendedEnumMeta):
     METADATA = "metadata"
     CREATED_BY = "createdBy"
