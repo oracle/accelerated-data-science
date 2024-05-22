@@ -6,13 +6,16 @@
 
 from importlib import metadata
 
+import huggingface_hub
 import requests
+from tornado.web import HTTPError
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.errors import AquaResourceAccessError
 from ads.aqua.common.utils import fetch_service_compartment, known_realm
 from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.aqua.extension.errors import Errors
 
 
 class ADSVersionHandler(AquaAPIhandler):
@@ -62,8 +65,40 @@ class NetworkStatusHandler(AquaAPIhandler):
         return self.finish("success")
 
 
+class HFLoginHandler(AquaAPIhandler):
+    """Handler to login to HF."""
+
+    @handle_exceptions
+    def post(self, *args, **kwargs):
+        """Handles post request for the HF login.
+
+        Raises
+        ------
+        HTTPError
+            Raises HTTPError if inputs are missing or are invalid.
+        """
+        try:
+            input_data = self.get_json_body()
+        except Exception:
+            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT)
+
+        if not input_data:
+            raise HTTPError(400, Errors.NO_INPUT_DATA)
+
+        token = input_data.get("token")
+
+        if not token:
+            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("token"))
+
+        # Login to HF
+        huggingface_hub.login(token=token, new_session=False)
+
+        return self.finish("success")
+
+
 __handlers__ = [
     ("ads_version", ADSVersionHandler),
     ("hello", CompatibilityCheckHandler),
     ("network_status", NetworkStatusHandler),
+    ("hf_login", HFLoginHandler),
 ]
