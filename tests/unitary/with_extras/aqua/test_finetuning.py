@@ -26,6 +26,7 @@ from ads.jobs.ads_job import Job
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import ModelCustomMetadata
 from ads.aqua.common.errors import AquaValueError
+from ads.aqua.config.config import get_finetuning_config_defaults
 
 
 class FineTuningTestCase(TestCase):
@@ -233,6 +234,21 @@ class FineTuningTestCase(TestCase):
             oci_launch_cmd
             == f"--training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} --num_epochs {parameters.epochs} --learning_rate {parameters.learning_rate} --sample_packing {parameters.sample_packing} --micro_batch_size {parameters.batch_size} --sequence_len {parameters.sequence_len} --lora_target_modules q_proj,k_proj {finetuning_params}"
         )
+
+    def test_get_finetuning_config(self):
+        """Test for fetching config details for a given model to be finetuned."""
+
+        config_json = os.path.join(self.curr_dir, "test_data/finetuning/ft_config.json")
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        self.app.get_config = MagicMock(return_value=config)
+        result = self.app.get_finetuning_config(model_id="test-model-id")
+        assert result == config
+
+        self.app.get_config = MagicMock(return_value=None)
+        result = self.app.get_finetuning_config(model_id="test-model-id")
+        assert result == get_finetuning_config_defaults()
 
     def test_get_finetuning_default_params(self):
         """Test for fetching finetuning config params for a given model."""

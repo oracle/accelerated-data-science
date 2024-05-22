@@ -21,7 +21,6 @@ from ads.aqua.common.errors import AquaFileExistsError, AquaValueError
 from ads.aqua.common.utils import (
     get_container_image,
     upload_local_to_os,
-    get_params_dict,
 )
 from ads.aqua.constants import (
     DEFAULT_FT_BATCH_SIZE,
@@ -32,6 +31,7 @@ from ads.aqua.constants import (
     UNKNOWN,
     UNKNOWN_DICT,
 )
+from ads.aqua.config.config import get_finetuning_config_defaults
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.constants import *
 from ads.aqua.finetuning.entities import *
@@ -553,7 +553,11 @@ class AquaFineTuningApp(AquaApp):
             A dict of allowed finetuning configs.
         """
 
-        return self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG)
+        config = self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG)
+        if not config:
+            logger.info(f"Fetching default fine-tuning config for model: {model_id}")
+            config = get_finetuning_config_defaults()
+        return config
 
     @telemetry(
         entry_point="plugin=finetuning&action=get_finetuning_default_params",
