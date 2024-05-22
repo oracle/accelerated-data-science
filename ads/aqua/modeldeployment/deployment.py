@@ -10,7 +10,12 @@ from typing import Dict, List, Union
 from oci.data_science.models import ModelDeployment
 
 from ads.aqua.app import AquaApp, logger
-from ads.aqua.common.enums import Tags
+from ads.aqua.common.enums import (
+    Tags,
+    InferenceContainerParamType,
+    InferenceContainerType,
+    InferenceContainerTypeFamily,
+)
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     get_container_config,
@@ -38,11 +43,9 @@ from ads.aqua.modeldeployment.entities import (
     AquaDeploymentDetail,
     ContainerSpec,
 )
-from ads.aqua.modeldeployment.constants import VLLMInferenceRestrictedParams
-from ads.aqua.modeldeployment.enums import (
-    InferenceContainerParamType,
-    InferenceContainerType,
-    InferenceContainerTypeKey,
+from ads.aqua.modeldeployment.constants import (
+    VLLMInferenceRestrictedParams,
+    TGIInferenceRestrictedParams,
 )
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
@@ -106,6 +109,7 @@ class AquaDeploymentApp(AquaApp):
         server_port: int = None,
         health_check_port: int = None,
         env_var: Dict = None,
+        container_family: str = None,
     ) -> "AquaDeployment":
         """
         Creates a new Aqua deployment
@@ -144,6 +148,8 @@ class AquaDeploymentApp(AquaApp):
             The health check port for docker container image.
         env_var : dict, optional
             Environment variable for the deployment, by default None.
+        container_family: str
+            The image family of model deployment container runtime. Required for unverified Aqua models.
         Returns
         -------
         AquaDeployment
@@ -227,9 +233,17 @@ class AquaDeploymentApp(AquaApp):
                 AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
             ).value
         except ValueError:
-            raise AquaValueError(
-                f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field for model {aqua_model.id}"
+            message = (
+                f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field "
+                f"for model {aqua_model.id}."
             )
+            logger.debug(message)
+            if not container_family:
+                raise AquaValueError(
+                    f"{message}. For unverified Aqua models, container_family parameter should be "
+                    f"set and value can be one of {', '.join(InferenceContainerTypeFamily.values())}."
+                )
+            container_type_key = container_family
         try:
             # Check if the container override flag is set. If set, then the user has chosen custom image
             if aqua_model.custom_metadata_list.get(
@@ -275,13 +289,12 @@ class AquaDeploymentApp(AquaApp):
             .get(InferenceContainerParamType.PARAM_TYPE_VLLM, UNKNOWN)
         )
 
-        # todo: add support for tgi once parameters are added to configs. _find_restricted_params can take in
-        #   additional parameter container_type_key and should validate against TGIInferenceRestrictedParams set for
-        #   restricted params.
         # validate user provided params
         user_params = env_var.get("PARAMS", UNKNOWN)
         if user_params:
-            restricted_params = self._find_restricted_params(params, user_params)
+            restricted_params = self._find_restricted_params(
+                params, user_params, container_type_key
+            )
             if restricted_params:
                 raise AquaValueError(
                     f"Parameters {restricted_params} are set by Aqua "
@@ -559,7 +572,7 @@ class AquaDeploymentApp(AquaApp):
 
         if container_type_key:
             container_type_key = container_type_key.lower()
-            if container_type_key in InferenceContainerTypeKey.values():
+            if container_type_key in InferenceContainerTypeFamily.values():
                 deployment_config = self.get_deployment_config(model_id)
                 config_parameters = (
                     deployment_config.get("configuration", UNKNOWN_DICT)
@@ -587,7 +600,10 @@ class AquaDeploymentApp(AquaApp):
         return default_params
 
     def validate_deployment_params(
-        self, model_id: str, params: List[str] = None
+        self,
+        model_id: str,
+        params: List[str] = None,
+        container_family: str = None,
     ) -> Dict:
         """Validate if the deployment parameters passed by the user can be overridden. Parameter values are not
         validated, only param keys are validated.
@@ -596,9 +612,10 @@ class AquaDeploymentApp(AquaApp):
         ----------
         model_id: str
             The OCID of the Aqua model.
-
         params : List[str], optional
             Params passed by the user.
+        container_family: str
+            The image family of model deployment container runtime. Required for unverified Aqua models.
 
         Returns
         -------
@@ -613,18 +630,28 @@ class AquaDeploymentApp(AquaApp):
                     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
                 ).value
             except ValueError:
-                container_type_key = UNKNOWN
-                logger.debug(
-                    f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field for model {model_id}."
+                message = (
+                    f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field "
+                    f"for model {model_id}."
                 )
-            if container_type_key:
-                container_config = get_container_config()
-                container_spec = container_config.get(
-                    ContainerSpec.CONTAINER_SPEC, {}
-                ).get(container_type_key, {})
-                cli_params = container_spec.get(ContainerSpec.CLI_PARM, "")
+                logger.debug(message)
 
-                restricted_params = self._find_restricted_params(cli_params, params)
+                if not container_family:
+                    raise AquaValueError(
+                        f"{message}. For unverified Aqua models, container_family parameter should be "
+                        f"set and value can be one of {', '.join(InferenceContainerTypeFamily.values())}."
+                    )
+                container_type_key = container_family
+
+            container_config = get_container_config()
+            container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
+                container_type_key, {}
+            )
+            cli_params = container_spec.get(ContainerSpec.CLI_PARM, "")
+
+            restricted_params = self._find_restricted_params(
+                cli_params, params, container_type_key
+            )
 
         if restricted_params:
             raise AquaValueError(
@@ -635,7 +662,9 @@ class AquaDeploymentApp(AquaApp):
 
     @staticmethod
     def _find_restricted_params(
-        default_params: Union[str, List[str]], user_params: Union[str, List[str]]
+        default_params: Union[str, List[str]],
+        user_params: Union[str, List[str]],
+        container_family: str,
     ) -> List[str]:
         """Returns a list of restricted params that user chooses to override when creating an Aqua deployment.
         The default parameters coming from the container index json file cannot be overridden. In addition to this,
@@ -647,6 +676,8 @@ class AquaDeploymentApp(AquaApp):
             Inference container parameter string with default values.
         user_params:
             Inference container parameter string with user provided values.
+        container_family: str
+            The image family of model deployment container runtime.
 
         Returns
         -------
@@ -659,7 +690,17 @@ class AquaDeploymentApp(AquaApp):
             user_params_dict = get_params_dict(user_params)
 
             for key, items in user_params_dict.items():
-                if key in default_params_dict or key in VLLMInferenceRestrictedParams:
+                if (
+                    key in default_params_dict
+                    or (
+                        InferenceContainerType.CONTAINER_TYPE_VLLM in container_family
+                        and key in VLLMInferenceRestrictedParams
+                    )
+                    or (
+                        InferenceContainerType.CONTAINER_TYPE_TGI in container_family
+                        and key in TGIInferenceRestrictedParams
+                    )
+                ):
                     restricted_params.append(key.lstrip("--"))
 
         return restricted_params
