@@ -4,7 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import re
-from typing import Optional
+from typing import Optional, Tuple
 from urllib.parse import urlparse
 
 from huggingface_hub import HfApi
@@ -101,7 +101,7 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
 
         return None
 
-    def _format_custom_error_message(self, error: HfHubHTTPError):
+    def _format_custom_error_message(self, error: HfHubHTTPError) -> AquaRuntimeError:
         """
         Formats a custom error message based on the Hugging Face error response.
 
@@ -109,39 +109,46 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
         ----------
         error (HfHubHTTPError): The caught exception.
 
-        Returns
-        -------
-        str: A user-friendly error message.
+        Raises
+        ------
+        AquaRuntimeError: A user-friendly error message.
         """
         # Extract the repository URL from the error message if present
         match = re.search(r"(https://huggingface.co/[^\s]+)", str(error))
         url = match.group(1) if match else "the requested Hugging Face URL."
 
         if isinstance(error, RepositoryNotFoundError):
-            return (
-                f"Failed to access {url} "
-                "If the repo is private, make sure you are authenticated."
+            raise AquaRuntimeError(
+                reason=f"Failed to access `{url}`. Please check if the provided repository name is correct. "
+                "If the repo is private, make sure you are authenticated and have a valid HF token registered. "
+                "To register your token, run this command in your terminal: `huggingface-cli login`",
+                service_payload={"error": "RepositoryNotFoundError"},
             )
-        elif isinstance(error, GatedRepoError):
-            return (
-                f"Access denied to {url} "
+
+        if isinstance(error, GatedRepoError):
+            raise AquaRuntimeError(
+                reason=f"Access denied to `{url}` "
                 "This repository is gated. Access is restricted to authorized users. "
                 "Please request access or check with the repository administrator. "
                 "If you are trying to access a gated repository, ensure you have a valid HF token registered. "
-                "To register your token, run this command in your terminal: `huggingface-cli login`"
+                "To register your token, run this command in your terminal: `huggingface-cli login`",
+                service_payload={"error": "GatedRepoError"},
             )
-        elif isinstance(error, RevisionNotFoundError):
-            return (
-                f"The specified revision could not be found at {url} "
-                "Please check the revision identifier and try again."
+
+        if isinstance(error, RevisionNotFoundError):
+            raise AquaRuntimeError(
+                reason=f"The specified revision could not be found at `{url}` "
+                "Please check the revision identifier and try again.",
+                service_payload={"error": "RevisionNotFoundError"},
             )
-        else:
-            return (
-                f"An error occurred while accessing {url} "
-                "Please check your network connection and try again. "
-                "If you are trying to access a gated repository, ensure you have a valid HF token registered. "
-                "To register your token, run this command in your terminal: `huggingface-cli login`"
-            )
+
+        raise AquaRuntimeError(
+            reason=f"An error occurred while accessing `{url}` "
+            "Please check your network connection and try again. "
+            "If you are trying to access a gated repository, ensure you have a valid HF token registered. "
+            "To register your token, run this command in your terminal: `huggingface-cli login`",
+            service_payload={"error": "Error"},
+        )
 
     @handle_exceptions
     def post(self, *args, **kwargs):
@@ -166,11 +173,10 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
             raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("model_id"))
 
         # Get model info from the HF
-
         try:
             hf_model_info = HfApi().model_info(model_id)
         except HfHubHTTPError as err:
-            raise AquaRuntimeError(self._format_custom_error_message(err))
+            raise self._format_custom_error_message(err)
 
         # Check if model is not disabled
         if hf_model_info.disabled:

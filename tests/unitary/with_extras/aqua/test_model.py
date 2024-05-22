@@ -129,6 +129,13 @@ class TestAquaModel:
         ) as mock_client:
             yield mock_client
 
+    @pytest.fixture(autouse=True, scope="class")
+    def mock_record_event_async(cls):
+        with patch(
+            "ads.telemetry.client.TelemetryClient.record_event_async"
+        ) as mock_client:
+            yield mock_client
+
     def setup_method(self):
         self.default_signer_patch = patch(
             "ads.common.auth.default_signer", new_callable=MagicMock
@@ -656,16 +663,34 @@ class TestAquaModel:
                 assert model.custom_metadata_list[item["key"]].to_dict() == item
             assert model.version_id != ds_model.version_id
 
+    @pytest.mark.parametrize(
+        "model_info_tags",
+        [
+            ("text-generation-inference", "odsc-tgi-serving"),
+            ("random-tag", "odsc-vllm-serving"),
+        ],
+    )
     @patch("huggingface_hub.snapshot_download")
     @patch("subprocess.check_call")
     def test_import_any_hf_model_no_containers_specified(
-        self,
-        mock_subprocess,
-        mock_snapshot_download,
+        self, mock_subprocess, mock_snapshot_download, model_info_tags
     ):
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
         ads.common.oci_datascience.OCIDataScienceMixin.init_client = MagicMock()
-        huggingface_hub.HfApi.model_info = MagicMock(return_value={})
+        huggingface_hub.HfApi.model_info = huggingface_hub.HfApi.model_info = MagicMock(
+            return_value=huggingface_hub.hf_api.ModelInfo(
+                **{
+                    "id": "hf_model_id",
+                    "license": "aqua-license",
+                    "author": "oracle",
+                    "pipeline_tag": "text-generation",
+                    "private": False,
+                    "downloads": 100,
+                    "likes": 10,
+                    "tags": [model_info_tags[0]],
+                }
+            )
+        )
         DataScienceModel.upload_artifact = MagicMock()
         DataScienceModel.sync = MagicMock()
         OCIDataScienceModel.create = MagicMock()
@@ -683,20 +708,23 @@ class TestAquaModel:
         reload(ads.aqua.model.model)
         app = AquaModelApp()
         with tempfile.TemporaryDirectory() as tmpdir:
-            with pytest.raises(ValueError):
-                with patch.object(AquaModelApp, "list") as aqua_model_mock_list:
-                    aqua_model_mock_list.return_value = [
-                        AquaModelSummary(
-                            id="test_id1",
-                            name="organization1/name1",
-                            organization="organization1",
-                        ),
-                    ]
-                    model: DataScienceModel = app.register(
-                        model=hf_model,
-                        os_path=os_path,
-                        local_dir=str(tmpdir),
-                    )
+            with patch.object(AquaModelApp, "list") as aqua_model_mock_list:
+                aqua_model_mock_list.return_value = [
+                    AquaModelSummary(
+                        id="test_id1",
+                        name="organization1/name1",
+                        organization="organization1",
+                    ),
+                ]
+                model: DataScienceModel = app.register(
+                    model=hf_model,
+                    os_path=os_path,
+                    local_dir=str(tmpdir),
+                )
+                container_family = model.custom_metadata_list.get(
+                    "deployment-container"
+                ).value
+                assert container_family == model_info_tags[1]
 
     @patch("huggingface_hub.snapshot_download")
     @patch("subprocess.check_call")

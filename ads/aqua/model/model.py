@@ -13,7 +13,7 @@ from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.app import AquaApp
-from ads.aqua.common.enums import Tags
+from ads.aqua.common.enums import Tags, HuggingFaceTags, InferenceContainerTypeFamily
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import (
     create_word_icon,
@@ -621,7 +621,22 @@ class AquaModelApp(AquaApp):
                 )
             else:
                 logger.warn(
-                    f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container. Proceeding with model registration without the fine-tuning container information. This model will not be available for fine tuning."
+                    f"Proceeding with model registration without the fine-tuning container information. "
+                    f"This model will not be available for fine tuning."
+                )
+
+            if not inference_container:
+                inference_container = (
+                    InferenceContainerTypeFamily.AQUA_TGI_CONTAINER_FAMILY
+                    if model_info
+                    and model_info.tags
+                    and HuggingFaceTags.TEXT_GENERATION_INFERENCE in model_info.tags
+                    else InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY
+                )
+                inference_container_type_smc = True
+                logger.info(
+                    f"Model: {model_name} does not have associated inference container defaults. "
+                    f"{inference_container} will be used instead."
                 )
             metadata.add(
                 key=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,

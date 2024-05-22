@@ -13,6 +13,7 @@ from huggingface_hub.utils import GatedRepoError
 from notebook.base.handlers import IPythonHandler
 from tornado.web import HTTPError
 
+from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.extension.model_handler import (
     AquaHuggingFaceHandler,
     AquaModelHandler,
@@ -179,7 +180,7 @@ class TestAquaHuggingFaceHandler:
             return_value={"model_id": "test_model_id"}
         )
         self.mock_handler._format_custom_error_message = MagicMock(
-            return_value="test error message"
+            side_effect=AquaRuntimeError("test error message")
         )
         with patch.object(HfApi, "model_info") as mock_model_info:
             mock_model_info.side_effect = GatedRepoError(message="test message")

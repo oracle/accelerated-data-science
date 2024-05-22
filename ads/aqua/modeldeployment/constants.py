@@ -10,4 +10,5 @@ aqua.modeldeployment.constants
 This module contains constants used in Aqua Model Deployment.
 """
 
-VLLMInferenceRestrictedParams = {"tensor-parallel-size"}
+VLLMInferenceRestrictedParams = {"--tensor-parallel-size"}
+TGIInferenceRestrictedParams = {"--port"}
