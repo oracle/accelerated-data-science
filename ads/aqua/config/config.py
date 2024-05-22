@@ -4,6 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
+# TODO: move this to global config.json in object storage
 def get_finetuning_config_defaults():
     """Generate and return the fine-tuning default configuration dictionary."""
     return {
