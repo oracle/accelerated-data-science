@@ -8,11 +8,13 @@ from importlib import metadata
 
 import huggingface_hub
 import requests
+from huggingface_hub import HfApi
+from huggingface_hub.utils import LocalTokenNotFoundError
 from tornado.web import HTTPError
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.common.decorator import handle_exceptions
-from ads.aqua.common.errors import AquaResourceAccessError
+from ads.aqua.common.errors import AquaResourceAccessError, AquaRuntimeError
 from ads.aqua.common.utils import fetch_service_compartment, known_realm
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
@@ -96,9 +98,26 @@ class HFLoginHandler(AquaAPIhandler):
         return self.finish("success")
 
 
+class HFUserStatusHandler(AquaAPIhandler):
+    """Handler to check if user logged in to the HF."""
+
+    @handle_exceptions
+    def get(self):
+        try:
+            HfApi().whoami()
+        except LocalTokenNotFoundError:
+            raise AquaRuntimeError(
+                "You are not logged in. Please log in to Hugging Face using the `huggingface-cli login` command."
+                "See https://huggingface.co/settings/tokens.",
+            )
+
+        return self.finish("success")
+
+
 __handlers__ = [
     ("ads_version", ADSVersionHandler),
     ("hello", CompatibilityCheckHandler),
     ("network_status", NetworkStatusHandler),
     ("hf_login", HFLoginHandler),
+    ("hf_logged_in", HFUserStatusHandler),
 ]
