@@ -74,7 +74,9 @@ def _fit_model(data, params, additional_regressors, select_metric):
     for add_reg in additional_regressors:
         m = m.add_future_regressor(name=add_reg)
     m.fit(df=data)
-    accepted_regressors_config = m.config_regressors.regressors or dict()
+    accepted_regressors_config = m.config_regressors or dict()
+    if hasattr(accepted_regressors_config, "regressors"):
+        accepted_regressors_config = accepted_regressors_config.regressors or dict()
 
     enable_print()
     return m, list(accepted_regressors_config.keys())
@@ -125,6 +127,10 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 accepted_regressors_config = (
                     model.config_regressors.regressors or dict()
                 )
+                if hasattr(accepted_regressors_config, "regressors"):
+                    accepted_regressors_config = (
+                        accepted_regressors_config.regressors or dict()
+                    )
                 self.accepted_regressors[s_id] = list(accepted_regressors_config.keys())
                 if self.loaded_trainers is not None and s_id in self.loaded_trainers:
                     model.trainer = self.loaded_trainers[s_id]
