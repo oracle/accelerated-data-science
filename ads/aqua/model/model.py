@@ -35,6 +35,7 @@ from ads.aqua.constants import (
 )
 from ads.aqua.model.constants import *
 from ads.aqua.model.entities import *
+from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link, is_path_exists
 from ads.config import (
@@ -679,8 +680,8 @@ class AquaModelApp(AquaApp):
                 finetuning_container (str): selects service defaults
 
         Returns:
-            DataScienceModel:
-                The registered model as a DataScienceModel object.
+            AquaModel:
+                The registered model as a AquaModel object.
         """
         verified_model_details: DataScienceModel = None
 
@@ -838,7 +839,7 @@ class AquaModelApp(AquaApp):
         content = str(
             read_file(
                 file_path=f"{os.path.dirname(artifact_path)}/{LICENSE_TXT}",
-                auth=self._auth,
+                auth=default_signer(),
             )
         )
 
