@@ -75,7 +75,7 @@ class ModelHandlerTestCase(TestCase):
             )
 
     @patch("notebook.base.handlers.APIHandler.finish")
-    @patch("ads.aqua.model.model.AquaModelApp.register")
+    @patch("ads.aqua.model.AquaModelApp.register")
     def test_register(self, mock_register, mock_finish):
         mock_register.return_value = AquaModel(
             id="test_id",
