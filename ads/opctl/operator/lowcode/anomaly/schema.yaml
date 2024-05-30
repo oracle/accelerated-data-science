@@ -349,9 +349,8 @@ spec:
     model:
       type: string
       required: false
-      default: automlx
+      default: autots
       allowed:
-        - automlx
         - autots
         - auto
       meta:
