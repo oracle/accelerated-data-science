@@ -6,10 +6,7 @@
 
 from importlib import metadata
 
-import huggingface_hub
 import requests
-from huggingface_hub import HfApi
-from huggingface_hub.utils import LocalTokenNotFoundError
 from tornado.web import HTTPError
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
@@ -58,66 +55,7 @@ class CompatibilityCheckHandler(AquaAPIhandler):
             )
 
 
-class NetworkStatusHandler(AquaAPIhandler):
-    """Handler to check internet connection."""
-
-    @handle_exceptions
-    def get(self):
-        requests.get("https://huggingface.com", timeout=2)
-        return self.finish("success")
-
-
-class HFLoginHandler(AquaAPIhandler):
-    """Handler to login to HF."""
-
-    @handle_exceptions
-    def post(self, *args, **kwargs):
-        """Handles post request for the HF login.
-
-        Raises
-        ------
-        HTTPError
-            Raises HTTPError if inputs are missing or are invalid.
-        """
-        try:
-            input_data = self.get_json_body()
-        except Exception:
-            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT)
-
-        if not input_data:
-            raise HTTPError(400, Errors.NO_INPUT_DATA)
-
-        token = input_data.get("token")
-
-        if not token:
-            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("token"))
-
-        # Login to HF
-        huggingface_hub.login(token=token, new_session=False)
-
-        return self.finish("success")
-
-
-class HFUserStatusHandler(AquaAPIhandler):
-    """Handler to check if user logged in to the HF."""
-
-    @handle_exceptions
-    def get(self):
-        try:
-            HfApi().whoami()
-        except LocalTokenNotFoundError:
-            raise AquaRuntimeError(
-                "You are not logged in. Please log in to Hugging Face using the `huggingface-cli login` command."
-                "See https://huggingface.co/settings/tokens.",
-            )
-
-        return self.finish("success")
-
-
 __handlers__ = [
     ("ads_version", ADSVersionHandler),
     ("hello", CompatibilityCheckHandler),
-    ("network_status", NetworkStatusHandler),
-    ("hf_login", HFLoginHandler),
-    ("hf_logged_in", HFUserStatusHandler),
 ]

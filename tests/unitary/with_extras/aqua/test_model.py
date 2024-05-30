@@ -5,19 +5,16 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
-import shlex
-import tempfile
 from dataclasses import asdict
 from importlib import reload
 from unittest.mock import MagicMock, patch
 
-import huggingface_hub
 import oci
 import pytest
 from parameterized import parameterized
 
 import ads.aqua.model
-from ads.aqua.model.entities import AquaModelSummary, ImportModelDetails
+from ads.aqua.model.entities import AquaModelSummary, ImportModelDetails, AquaModel
 import ads.common
 import ads.common.oci_client
 import ads.config
@@ -29,6 +26,7 @@ from ads.model.model_metadata import (
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
 )
+from ads.aqua.common.errors import AquaRuntimeError
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
 
 
@@ -257,6 +255,7 @@ class TestAquaModel:
         mock_from_id,
         mock_read_file,
         foundation_model_type,
+        mock_auth,
     ):
         ds_model = MagicMock()
         ds_model.id = "test_id"
@@ -315,12 +314,12 @@ class TestAquaModel:
         if foundation_model_type == "verified":
             mock_read_file.assert_called_with(
                 file_path="oci://bucket@namespace/prefix/config/README.md",
-                auth=self.app._auth,
+                auth=mock_auth(),
             )
         else:
             mock_read_file.assert_called_with(
                 file_path="oci://bucket@namespace/prefix/README.md",
-                auth=self.app._auth,
+                auth=mock_auth(),
             )
 
         assert asdict(aqua_model) == {
@@ -360,7 +359,12 @@ class TestAquaModel:
         return_value="oci://bucket@namespace/prefix",
     )
     def test_get_model_fine_tuned(
-        self, mock_get_artifact_path, mock_from_id, mock_read_file, mock_query_resource
+        self,
+        mock_get_artifact_path,
+        mock_from_id,
+        mock_read_file,
+        mock_query_resource,
+        mock_auth,
     ):
         ds_model = MagicMock()
         ds_model.id = "test_id"
@@ -455,7 +459,7 @@ class TestAquaModel:
         mock_from_id.assert_called_with("test_model_id")
         mock_read_file.assert_called_with(
             file_path="oci://bucket@namespace/prefix/README.md",
-            auth=self.app._auth,
+            auth=mock_auth(),
         )
         mock_query_resource.assert_called()
 
@@ -530,21 +534,17 @@ class TestAquaModel:
     )
     @patch("ads.aqua.common.utils.copy_file")
     @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
-    @patch("huggingface_hub.snapshot_download")
-    @patch("subprocess.check_call")
+    @patch("ads.common.utils.is_path_exists", return_value=True)
     def test_import_verified_model(
         self,
-        mock_subprocess,
-        mock_snapshot_download,
+        mock_is_path_exists,
         mock_list_objects,
         mock_copy_file,
         artifact_location_set,
     ):
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
         ads.common.oci_datascience.OCIDataScienceMixin.init_client = MagicMock()
-        huggingface_hub.HfApi.model_info = MagicMock(return_value={})
         DataScienceModel.upload_artifact = MagicMock()
-        # oci.data_science.DataScienceClient = MagicMock()
         DataScienceModel.sync = MagicMock()
         OCIDataScienceModel.create = MagicMock()
 
@@ -560,7 +560,7 @@ class TestAquaModel:
 
         ds_model = DataScienceModel()
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
-        hf_model = "oracle/aqua-1t-mega-model"
+        model_name = "oracle/aqua-1t-mega-model"
         ds_freeform_tags = {
             "OCI_AQUA": "ACTIVE",
             "license": "aqua-license",
@@ -571,7 +571,7 @@ class TestAquaModel:
         ds_model = (
             ds_model.with_compartment_id("test_model_compartment_id")
             .with_project_id("test_project_id")
-            .with_display_name(hf_model)
+            .with_display_name(model_name)
             .with_description("test_description")
             .with_model_version_set_id("test_model_version_set_id")
             .with_freeform_tags(**ds_freeform_tags)
@@ -598,81 +598,40 @@ class TestAquaModel:
         DataScienceModel.from_id = MagicMock(return_value=ds_model)
         reload(ads.aqua.model.model)
         app = AquaModelApp()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            model: DataScienceModel = app.register(
-                model="ocid1.datasciencemodel.xxx.xxxx.",
-                os_path=os_path,
-                local_dir=str(tmpdir),
-            )
-            mock_snapshot_download.assert_called_with(
-                repo_id=hf_model,
-                local_dir=f"{str(tmpdir)}/{hf_model}",
-                local_dir_use_symlinks=False,
-            )
-            if not artifact_location_set:
-                mock_copy_file.assert_called()
-            mock_subprocess.assert_called_with(
-                shlex.split(
-                    f"oci os object bulk-upload --src-dir {str(tmpdir)}/{hf_model} --prefix prefix/path/{hf_model}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT --no-overwrite"
-                )
-            )
-            ds_freeform_tags.pop(
-                "ready_to_import"
-            )  # The imported model should not have this tag
-            assert model.freeform_tags == {
-                "aqua_custom_base_model": "true",
-                "aqua_service_model": "test_model_id",
-                **ds_freeform_tags,
-            }
-            expected_metadata = [
-                {
-                    "key": "evaluation-container",
-                    "value": "odsc-llm-evaluate",
-                    "description": "",
-                    "category": "Other",
-                },
-                {
-                    "key": "deployment-container",
-                    "value": "odsc-tgi-serving",
-                    "description": "",
-                    "category": "Other",
-                },
-                {
-                    "key": "modelDescription",
-                    "value": "true",
-                    "description": "model by reference flag",
-                    "category": "Other",
-                },
-                {
-                    "key": "artifact_location",
-                    "value": f"{os_path}/{hf_model}/"
-                    if artifact_location_set
-                    else artifact_path,
-                    "description": "artifact location",
-                    "category": "Other",
-                },
-            ]
-            for item in expected_metadata:
-                assert model.custom_metadata_list[item["key"]].to_dict() == item
-            assert model.version_id != ds_model.version_id
+        model: AquaModel = app.register(
+            model="ocid1.datasciencemodel.xxx.xxxx.",
+            os_path=os_path,
+        )
+        if not artifact_location_set:
+            mock_copy_file.assert_called()
+        ds_freeform_tags.pop(
+            "ready_to_import"
+        )  # The imported model should not have this tag
+        assert model.tags == {
+            "aqua_custom_base_model": "true",
+            "aqua_service_model": "test_model_id",
+            **ds_freeform_tags,
+        }
+        mock_is_path_exists.assert_called()
 
-    @patch("huggingface_hub.snapshot_download")
-    @patch("subprocess.check_call")
-    def test_import_any_hf_model_no_containers_specified(
-        self,
-        mock_subprocess,
-        mock_snapshot_download,
-    ):
+        assert model.inference_container == "odsc-tgi-serving"
+        assert model.finetuning_container is None
+        assert model.evaluation_container == "odsc-llm-evaluate"
+        assert model.ready_to_import is False
+        assert model.ready_to_deploy is True
+        assert model.ready_to_finetune is False
+
+    @patch("ads.common.utils.is_path_exists", return_value=True)
+    def test_import_any_model_no_containers_specified(self, mock_is_path_exists):
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
         ads.common.oci_datascience.OCIDataScienceMixin.init_client = MagicMock()
-        huggingface_hub.HfApi.model_info = MagicMock(return_value={})
         DataScienceModel.upload_artifact = MagicMock()
         DataScienceModel.sync = MagicMock()
         OCIDataScienceModel.create = MagicMock()
 
         ds_model = DataScienceModel()
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
-        hf_model = "oracle/aqua-1t-mega-model"
+        model_name = "oracle/aqua-1t-mega-model"
         ds_freeform_tags = {
             "OCI_AQUA": "ACTIVE",
             "license": "aqua-license",
@@ -682,40 +641,31 @@ class TestAquaModel:
 
         reload(ads.aqua.model.model)
         app = AquaModelApp()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with pytest.raises(ValueError):
-                with patch.object(AquaModelApp, "list") as aqua_model_mock_list:
-                    aqua_model_mock_list.return_value = [
-                        AquaModelSummary(
-                            id="test_id1",
-                            name="organization1/name1",
-                            organization="organization1",
-                        ),
-                    ]
-                    model: DataScienceModel = app.register(
-                        model=hf_model,
-                        os_path=os_path,
-                        local_dir=str(tmpdir),
-                    )
+        with pytest.raises(AquaRuntimeError):
+            with patch.object(AquaModelApp, "list") as aqua_model_mock_list:
+                aqua_model_mock_list.return_value = [
+                    AquaModelSummary(
+                        id="test_id1",
+                        name="organization1/name1",
+                        organization="organization1",
+                    ),
+                ]
+                model: DataScienceModel = app.register(
+                    model=model_name,
+                    os_path=os_path,
+                )
 
-    @patch("huggingface_hub.snapshot_download")
-    @patch("subprocess.check_call")
-    def test_import_model_with_project_compartment_override(
-        self,
-        mock_subprocess,
-        mock_snapshot_download,
-    ):
+    @patch("ads.common.utils.is_path_exists", return_value=True)
+    def test_import_model_with_project_compartment_override(self, mock_is_path_exists):
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
         ads.common.oci_datascience.OCIDataScienceMixin.init_client = MagicMock()
-        huggingface_hub.HfApi.model_info = MagicMock(return_value={})
         DataScienceModel.upload_artifact = MagicMock()
-        # oci.data_science.DataScienceClient = MagicMock()
         DataScienceModel.sync = MagicMock()
         OCIDataScienceModel.create = MagicMock()
 
         ds_model = DataScienceModel()
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
-        hf_model = "oracle/aqua-1t-mega-model"
+        model_name = "oracle/aqua-1t-mega-model"
         compartment_override = "my.blah.compartment"
         project_override = "my.blah.project"
         ds_freeform_tags = {
@@ -727,7 +677,7 @@ class TestAquaModel:
         ds_model = (
             ds_model.with_compartment_id("test_model_compartment_id")
             .with_project_id("test_project_id")
-            .with_display_name(hf_model)
+            .with_display_name(model_name)
             .with_description("test_description")
             .with_model_version_set_id("test_model_version_set_id")
             .with_freeform_tags(**ds_freeform_tags)
@@ -745,41 +695,36 @@ class TestAquaModel:
         DataScienceModel.from_id = MagicMock(return_value=ds_model)
         reload(ads.aqua.model.model)
         app = AquaModelApp()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            model: DataScienceModel = app.register(
-                compartment_id=compartment_override,
-                project_id=project_override,
-                model="ocid1.datasciencemodel.xxx.xxxx.",
+        model: AquaModel = app.register(
+            compartment_id=compartment_override,
+            project_id=project_override,
+            model="ocid1.datasciencemodel.xxx.xxxx.",
+            os_path=os_path,
+        )
+        assert model.compartment_id == compartment_override
+        assert model.project_id == project_override
+
+    @patch("ads.common.utils.is_path_exists", return_value=False)
+    def test_import_model_with_missing_artifact(self, mock_is_path_exists):
+        """Test for validating if error is returned when model artifacts are incomplete or not available."""
+        os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
+        model_name = "oracle/aqua-1t-mega-model"
+        reload(ads.aqua.model.model)
+        app = AquaModelApp()
+        with pytest.raises(AquaRuntimeError):
+            model: AquaModel = app.register(
+                model=model_name,
                 os_path=os_path,
-                local_dir=str(tmpdir),
             )
-            assert model.compartment_id == compartment_override
-            assert model.project_id == project_override
 
-    @patch("huggingface_hub.snapshot_download")
-    @patch("subprocess.check_call")
-    def test_import_any_hf_model_custom_container(
+    @patch("ads.common.utils.is_path_exists", return_value=True)
+    def test_import_any_model_smc_container(
         self,
-        mock_subprocess,
-        mock_snapshot_download,
+        mock_is_path_exists,
     ):
-        hf_model = "oracle/aqua-1t-mega-model"
+        my_model = "oracle/aqua-1t-mega-model"
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
         ads.common.oci_datascience.OCIDataScienceMixin.init_client = MagicMock()
-        huggingface_hub.HfApi.model_info = MagicMock(
-            return_value=huggingface_hub.hf_api.ModelInfo(
-                **{
-                    "id": hf_model,
-                    "license": "aqua-license",
-                    "author": "oracle",
-                    "pipeline_tag": "text-generation",
-                    "private": False,
-                    "downloads": 100,
-                    "likes": 10,
-                    "tags": ["text-generation"],
-                }
-            )
-        )
         DataScienceModel.upload_artifact = MagicMock()
         DataScienceModel.sync = MagicMock()
         OCIDataScienceModel.create = MagicMock()
@@ -787,196 +732,45 @@ class TestAquaModel:
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
         ds_freeform_tags = {
             "OCI_AQUA": "active",
-            "organization": "oracle",
-            "task": "text-generation",
         }
 
         reload(ads.aqua.model.model)
         app = AquaModelApp()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch.object(AquaModelApp, "list") as aqua_model_mock_list:
-                aqua_model_mock_list.return_value = [
-                    AquaModelSummary(
-                        id="test_id1",
-                        name="organization1/name1",
-                        organization="organization1",
-                    ),
-                ]
-                model: DataScienceModel = app.register(
-                    model=hf_model,
-                    os_path=os_path,
-                    local_dir=str(tmpdir),
-                    inference_container="iad.ocir.io/my/own/md-container",
-                    inference_container_type_smc=False,
-                    finetuning_container="iad.ocir.io/my/own/ft-container",
-                    finetuning_container_type_smc=False,
-                )
-                mock_snapshot_download.assert_called_with(
-                    repo_id=hf_model,
-                    local_dir=f"{str(tmpdir)}/{hf_model}",
-                    local_dir_use_symlinks=False,
-                )
-                mock_subprocess.assert_called_with(
-                    shlex.split(
-                        f"oci os object bulk-upload --src-dir {str(tmpdir)}/{hf_model} --prefix prefix/path/{hf_model}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT --no-overwrite"
-                    )
-                )
-                assert model.freeform_tags == {
-                    "aqua_custom_base_model": "true",
-                    "aqua_finetuning": "true",
-                    **ds_freeform_tags,
-                }
-                expected_metadata = [
-                    {
-                        "key": "evaluation-container",
-                        "value": "odsc-llm-evaluate",
-                        "description": "Evaluation container mapping for SMC",
-                        "category": "Other",
-                    },
-                    {
-                        "key": "deployment-container",
-                        "value": "iad.ocir.io/my/own/md-container",
-                        "description": f"Inference container mapping for {hf_model}",
-                        "category": "Other",
-                    },
-                    {
-                        "key": "finetune-container",
-                        "value": "iad.ocir.io/my/own/ft-container",
-                        "description": f"Fine-tuning container mapping for {hf_model}",
-                        "category": "Other",
-                    },
-                    {
-                        "key": "modelDescription",
-                        "value": "true",
-                        "description": "model by reference flag",
-                        "category": "Other",
-                    },
-                    {
-                        "key": "artifact_location",
-                        "value": f"{os_path}/{hf_model}/",
-                        "description": "artifact location",
-                        "category": "Other",
-                    },
-                ]
-                for item in expected_metadata:
-                    assert model.custom_metadata_list[item["key"]].to_dict() == item
-                assert model.version_id is None
-
-    @patch("huggingface_hub.snapshot_download")
-    @patch("subprocess.check_call")
-    def test_import_any_hf_model_smc_container(
-        self,
-        mock_subprocess,
-        mock_snapshot_download,
-    ):
-        hf_model = "oracle/aqua-1t-mega-model"
-        ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
-        ads.common.oci_datascience.OCIDataScienceMixin.init_client = MagicMock()
-        huggingface_hub.HfApi.model_info = MagicMock(
-            return_value=huggingface_hub.hf_api.ModelInfo(
-                **{
-                    "id": hf_model,
-                    "license": "aqua-license",
-                    "author": "oracle",
-                    "pipeline_tag": "text-generation",
-                    "private": False,
-                    "downloads": 100,
-                    "likes": 10,
-                    "tags": ["text-generation"],
-                }
+        with patch.object(AquaModelApp, "list") as aqua_model_mock_list:
+            aqua_model_mock_list.return_value = [
+                AquaModelSummary(
+                    id="test_id1",
+                    name="organization1/name1",
+                    organization="organization1",
+                ),
+                AquaModelSummary(
+                    id="test_id2",
+                    name="organization1/name2",
+                    organization="organization1",
+                ),
+                AquaModelSummary(
+                    id="test_id3",
+                    name="organization2/name3",
+                    organization="organization2",
+                ),
+            ]
+            model: AquaModel = app.register(
+                model=my_model,
+                os_path=os_path,
+                inference_container="odsc-vllm-or-tgi-container",
+                finetuning_container="odsc-llm-fine-tuning",
             )
-        )
-        DataScienceModel.upload_artifact = MagicMock()
-        DataScienceModel.sync = MagicMock()
-        OCIDataScienceModel.create = MagicMock()
-
-        os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
-        ds_freeform_tags = {
-            "OCI_AQUA": "active",
-            "organization": "oracle",
-            "task": "text-generation",
-        }
-
-        reload(ads.aqua.model.model)
-        app = AquaModelApp()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch.object(AquaModelApp, "list") as aqua_model_mock_list:
-                aqua_model_mock_list.return_value = [
-                    AquaModelSummary(
-                        id="test_id1",
-                        name="organization1/name1",
-                        organization="organization1",
-                    ),
-                    AquaModelSummary(
-                        id="test_id2",
-                        name="organization1/name2",
-                        organization="organization1",
-                    ),
-                    AquaModelSummary(
-                        id="test_id3",
-                        name="organization2/name3",
-                        organization="organization2",
-                    ),
-                ]
-                model: DataScienceModel = app.register(
-                    model=hf_model,
-                    os_path=os_path,
-                    local_dir=str(tmpdir),
-                    inference_container="dsmc://md-container",
-                    inference_container_type_smc=False,
-                    finetuning_container="dsmc://ft-container",
-                    finetuning_container_type_smc=False,
-                )
-                mock_snapshot_download.assert_called_with(
-                    repo_id=hf_model,
-                    local_dir=f"{str(tmpdir)}/{hf_model}",
-                    local_dir_use_symlinks=False,
-                )
-                mock_subprocess.assert_called_with(
-                    shlex.split(
-                        f"oci os object bulk-upload --src-dir {str(tmpdir)}/{hf_model} --prefix prefix/path/{hf_model}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT --no-overwrite"
-                    )
-                )
-                assert model.freeform_tags == {
-                    "aqua_custom_base_model": "true",
-                    "aqua_finetuning": "true",
-                    **ds_freeform_tags,
-                }
-                expected_metadata = [
-                    {
-                        "key": "evaluation-container",
-                        "value": "odsc-llm-evaluate",
-                        "description": "Evaluation container mapping for SMC",
-                        "category": "Other",
-                    },
-                    {
-                        "key": "deployment-container",
-                        "value": "dsmc://md-container",
-                        "description": f"Inference container mapping for {hf_model}",
-                        "category": "Other",
-                    },
-                    {
-                        "key": "finetune-container",
-                        "value": "dsmc://ft-container",
-                        "description": f"Fine-tuning container mapping for {hf_model}",
-                        "category": "Other",
-                    },
-                    {
-                        "key": "modelDescription",
-                        "value": "true",
-                        "description": "model by reference flag",
-                        "category": "Other",
-                    },
-                    {
-                        "key": "artifact_location",
-                        "value": f"{os_path}/{hf_model}/",
-                        "description": "artifact location",
-                        "category": "Other",
-                    },
-                ]
-                for item in expected_metadata:
-                    assert model.custom_metadata_list[item["key"]].to_dict() == item
-                assert model.version_id is None
+            assert model.tags == {
+                "aqua_custom_base_model": "true",
+                "ready_to_fine_tune": "true",
+                **ds_freeform_tags,
+            }
+            assert model.inference_container == "odsc-vllm-or-tgi-container"
+            assert model.finetuning_container == "odsc-llm-fine-tuning"
+            assert model.evaluation_container == "odsc-llm-evaluate"
+            assert model.ready_to_import is False
+            assert model.ready_to_deploy is True
+            assert model.ready_to_finetune is True
 
     @parameterized.expand(
         [

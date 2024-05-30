@@ -8,19 +8,16 @@ from threading import Lock
 from typing import List, Optional, Union
 
 from cachetools import TTLCache
-from huggingface_hub import HfApi, snapshot_download
 from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.app import AquaApp
-from ads.aqua.common.enums import Tags, HuggingFaceTags, InferenceContainerTypeFamily
+from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import (
     create_word_icon,
     get_artifact_path,
-    is_service_managed_container,
     read_file,
-    upload_folder,
     copy_model_config,
 )
 from ads.aqua.constants import (
@@ -40,13 +37,11 @@ from ads.aqua.model.constants import *
 from ads.aqua.model.entities import *
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import get_console_link
+from ads.common.utils import get_console_link, is_path_exists
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
-    AQUA_DEPLOYMENT_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
     AQUA_EVALUATION_CONTAINER_METADATA_NAME,
     AQUA_FINETUNING_CONTAINER_METADATA_NAME,
-    AQUA_FINETUNING_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
     COMPARTMENT_OCID,
     PROJECT_OCID,
     TENANCY_OCID,
@@ -200,7 +195,7 @@ class AquaModelApp(AquaApp):
                             if is_verified_type
                             else f"{artifact_path.rstrip('/')}/{README}"
                         ),
-                        auth=self._auth,
+                        auth=default_signer(),
                     )
                 )
 
@@ -558,8 +553,6 @@ class AquaModelApp(AquaApp):
         model_name: str,
         inference_container: str,
         finetuning_container: str,
-        inference_container_type_smc: bool,
-        finetuning_container_type_smc: bool,
         verified_model: DataScienceModel,
         compartment_id: Optional[str],
         project_id: Optional[str],
@@ -570,23 +563,15 @@ class AquaModelApp(AquaApp):
             os_path (str): OCI  where the model is uploaded - oci://bucket@namespace/prefix
             model_name (str): name of the model
             inference_container (str): selects service defaults
-            inference_container_type_smc (bool): If true, then `inference_contianer` argument should contain service managed container name without tag information
             finetuning_container (str): selects service defaults
-            finetuning_container_type_smc (bool): If true, then `finetuning_container` argument should contain service managed container name without tag
             verified_model (DataScienceModel): If set, then copies all the tags and custom metadata information from the service verified model
             compartment_id (Optional[str]): Compartment Id of the compartment where the model has to be created
             project_id (Optional[str]): Project id of the project where the model has to be created
 
         Returns:
-            DataScienceModel: Returns Datascience model
+            DataScienceModel: Returns Datascience model instance.
         """
-        model_info = None
         model = DataScienceModel()
-        try:
-            api = HfApi()
-            model_info = api.model_info(model_name)
-        except Exception:
-            logger.exception(f"Could not fetch model information for {model_name}")
         tags = (
             {
                 **verified_model.freeform_tags,
@@ -611,8 +596,12 @@ class AquaModelApp(AquaApp):
 
         else:
             metadata = ModelCustomMetadata()
+            if not inference_container:
+                raise AquaRuntimeError(
+                    f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container."
+                )
             if finetuning_container:
-                tags[Tags.AQUA_FINE_TUNING] = "true"
+                tags[Tags.READY_TO_FINE_TUNE] = "true"
                 metadata.add(
                     key=AQUA_FINETUNING_CONTAINER_METADATA_NAME,
                     value=finetuning_container,
@@ -625,53 +614,21 @@ class AquaModelApp(AquaApp):
                     f"This model will not be available for fine tuning."
                 )
 
-            if not inference_container:
-                inference_container = (
-                    InferenceContainerTypeFamily.AQUA_TGI_CONTAINER_FAMILY
-                    if model_info
-                    and model_info.tags
-                    and HuggingFaceTags.TEXT_GENERATION_INFERENCE in model_info.tags
-                    else InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY
-                )
-                logger.info(
-                    f"Model: {model_name} does not have associated inference container defaults. "
-                    f"{inference_container} will be used instead."
-                )
             metadata.add(
                 key=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
                 value=inference_container,
                 description=f"Inference container mapping for {model_name}",
                 category="Other",
             )
-            # If SMC, the container information has to be looked up from container_index.json for the latest version
-            if inference_container and not inference_container_type_smc:
-                metadata.add(
-                    key=AQUA_DEPLOYMENT_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
-                    value="true",
-                    description="Flag for custom deployment container",
-                    category="Other",
-                )
             metadata.add(
                 key=AQUA_EVALUATION_CONTAINER_METADATA_NAME,
                 value="odsc-llm-evaluate",
                 description="Evaluation container mapping for SMC",
                 category="Other",
             )
-            # If SMC, the container information has to be looked up from container_index.json for the latest version
-            if finetuning_container and not finetuning_container_type_smc:
-                metadata.add(
-                    key=AQUA_FINETUNING_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
-                    value="true",
-                    description="Flag for custom deployment container",
-                    category="Other",
-                )
-
-            tags["task"] = (model_info and model_info.pipeline_tag) or "UNKNOWN"
-            tags["organization"] = (
-                model_info.author
-                if model_info and hasattr(model_info, "author")
-                else "UNKNOWN"
-            )
+            # TODO: either get task and organization from user or a config file
+            # tags["task"] = "UNKNOWN"
+            # tags["organization"] = "UNKNOWN"
 
         try:
             # If verified model already has a artifact json, use that.
@@ -684,7 +641,7 @@ class AquaModelApp(AquaApp):
             # todo: implement generic copy_folder method
             # copy model config from artifact path to user bucket
             copy_model_config(
-                artifact_path=artifact_path, os_path=os_path, auth=self._auth
+                artifact_path=artifact_path, os_path=os_path, auth=default_signer()
             )
 
         except:
@@ -709,32 +666,37 @@ class AquaModelApp(AquaApp):
 
     def register(
         self, import_model_details: ImportModelDetails = None, **kwargs
-    ) -> DataScienceModel:
-        """Loads the model from huggingface and registers as Model in Data Science Model catalog
-        Note: For the models that require user token, use `huggingface-cli login` to setup the token
-        The inference container and finetuning container could be of type Service Manged Container(SMC) or custom. If it is custom, full container URI is expected. If it of type SMC, only the container family name is expected.
+    ) -> AquaModel:
+        """Loads the model from object storage and registers as Model in Data Science Model catalog
+        The inference container and finetuning container could be of type Service Manged Container(SMC) or custom.
+        If it is custom, full container URI is expected. If it of type SMC, only the container family name is expected.
 
         Args:
             import_model_details (ImportModelDetails): Model details for importing the model.
             kwargs:
-                model (str): name as provided in the huggingface or OCID of the service model that has a inference and finetuning information
+                model (str): name of the model or OCID of the service model that has inference and finetuning information
                 os_path (str): Object storage destination URI to store the downloaded model. Format: oci://bucket-name@namespace/prefix
-                local_dir (str): Defaults to home directory if not set
                 inference_container (str): selects service defaults
-                inference_container_type_smc (bool): If true, then `inference_contianer` argument should contain service managed container name without tag information
                 finetuning_container (str): selects service defaults
-                finetuning_container_type_smc (bool): If true, then `finetuning_container` argument should contain service managed container name without tag information
 
         Returns:
-            str: Model ID of the registered model
+            AquaModel:
+                The registered model as a AquaModel object.
         """
         verified_model_details: DataScienceModel = None
 
         if not import_model_details:
             import_model_details = ImportModelDetails(**kwargs)
 
-        model_service_id = None
+        if not is_path_exists(
+            f"{import_model_details.os_path.rstrip('/')}/config.json"
+        ):
+            raise AquaRuntimeError(
+                f"The model path {import_model_details.os_path} does not contain the file config.json. "
+                f"Please check if the path is correct or the model artifacts are available at this location."
+            )
 
+        model_service_id = None
         # If OCID of a model is passed, we need to copy the defaults for Tags and metadata from the service model.
         if (
             import_model_details.model.startswith("ocid")
@@ -742,7 +704,7 @@ class AquaModelApp(AquaApp):
         ):
             model_service_id = import_model_details.model
         else:
-            # If users passes huggingface model name, check if there is model with the same name in the service model catalog. If it is there use that model
+            # If users passes model name, check if there is model with the same name in the service model catalog. If it is there, then use that model
             model_service_id = self._find_matching_aqua_model(
                 import_model_details.model
             )
@@ -751,16 +713,6 @@ class AquaModelApp(AquaApp):
             )
         if model_service_id:
             verified_model_details = DataScienceModel.from_id(model_service_id)
-            inference_container = verified_model_details.custom_metadata_list.get(
-                AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
-            ).value
-            try:
-                # No Default finetuning container
-                finetuning_container = verified_model_details.custom_metadata_list.get(
-                    AQUA_FINETUNING_CONTAINER_METADATA_NAME
-                ).value
-            except:
-                pass
 
         # Copy the model name from the service model if `model` is ocid
         model_name = (
@@ -769,62 +721,54 @@ class AquaModelApp(AquaApp):
             else import_model_details.model
         )
 
-        # Download the model from hub
-        local_dir = import_model_details.local_dir
-        if not local_dir:
-            local_dir = os.path.join(os.path.expanduser("~"), "cached-model")
-        local_dir = os.path.join(local_dir, model_name)
-        retry = 10
-        i = 0
-        huggingface_download_err_message = None
-        while i < retry:
-            try:
-                # Download to cache folder. The while loop retries when there is a network failure
-                snapshot_download(repo_id=model_name)
-            except Exception as e:
-                huggingface_download_err_message = str(e)
-                i += 1
-            else:
-                break
-        if i == retry:
-            raise Exception(
-                f"Could not download the model {model_name} from https://huggingface.co with message {huggingface_download_err_message}"
-            )
-        os.makedirs(local_dir, exist_ok=True)
-        # Copy the model from the cache to destination
-        snapshot_download(
-            repo_id=model_name, local_dir=local_dir, local_dir_use_symlinks=False
-        )
-        # Upload to object storage
-        model_artifact_path = upload_folder(
-            os_path=import_model_details.os_path,
-            local_dir=local_dir,
-            model_name=model_name,
-        )
         # Create Model catalog entry with pass by reference
-        return self._create_model_catalog_entry(
-            model_artifact_path,
+        ds_model = self._create_model_catalog_entry(
+            os_path=import_model_details.os_path,
             model_name=model_name,
             inference_container=import_model_details.inference_container,
             finetuning_container=import_model_details.finetuning_container,
-            inference_container_type_smc=(
-                True
-                if is_service_managed_container(
-                    import_model_details.inference_container
-                )
-                else import_model_details.inference_container_type_smc
-            ),
-            finetuning_container_type_smc=(
-                True
-                if is_service_managed_container(
-                    import_model_details.finetuning_container
-                )
-                else import_model_details.finetuning_container_type_smc
-            ),
             verified_model=verified_model_details,
             compartment_id=import_model_details.compartment_id,
             project_id=import_model_details.project_id,
         )
+        # registered model will always have inference and evaluation container, but
+        # fine-tuning container may be not set
+        inference_container = ds_model.custom_metadata_list.get(
+            ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
+            ModelCustomMetadataItem(key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER),
+        ).value
+        evaluation_container = ds_model.custom_metadata_list.get(
+            ModelCustomMetadataFields.EVALUATION_CONTAINER,
+            ModelCustomMetadataItem(key=ModelCustomMetadataFields.EVALUATION_CONTAINER),
+        ).value
+        try:
+            finetuning_container = ds_model.custom_metadata_list.get(
+                ModelCustomMetadataFields.FINETUNE_CONTAINER,
+                ModelCustomMetadataItem(
+                    key=ModelCustomMetadataFields.FINETUNE_CONTAINER
+                ),
+            ).value
+        except:
+            finetuning_container = None
+
+        aqua_model_attributes = dict(
+            **self._process_model(ds_model, self.region),
+            project_id=ds_model.project_id,
+            model_card=str(
+                read_file(
+                    file_path=(
+                        f"{import_model_details.os_path.rstrip('/')}/config/{README}"
+                        if verified_model_details
+                        else f"{import_model_details.os_path.rstrip('/')}/{README}"
+                    ),
+                    auth=default_signer(),
+                )
+            ),
+            inference_container=inference_container,
+            finetuning_container=finetuning_container,
+            evaluation_container=evaluation_container,
+        )
+        return AquaModel(**aqua_model_attributes)
 
     def _if_show(self, model: DataScienceModel) -> bool:
         """Determine if the given model should be return by `list`."""
@@ -903,18 +847,18 @@ class AquaModelApp(AquaApp):
 
     def _find_matching_aqua_model(self, model_id: str) -> Optional[str]:
         """
-        Finds a matching model in AQUA based on the model ID from Hugging Face.
+        Finds a matching model in AQUA based on the model ID from list of verified models.
 
         Parameters
         ----------
-        model_id (str): The Hugging Face model ID to match.
+        model_id (str): Verified model ID to match.
 
         Returns
         -------
         Optional[str]
             Returns model ocid that matches the model in the service catalog else returns None.
         """
-        # Convert the Hugging Face model ID to lowercase once
+        # Convert the model ID to lowercase once
         model_id_lower = model_id.lower()
 
         aqua_model_list = self.list()
