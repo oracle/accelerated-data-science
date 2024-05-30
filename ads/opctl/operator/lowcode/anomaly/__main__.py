@@ -40,11 +40,11 @@ def operate(operator_config: AnomalyOperatorConfig) -> None:
                 AnomalyOperatorModelFactory.get_model(
                     operator_config, datasets
                 ).generate_report()
-            except Exception as e2:
+            except Exception as ee:
                 logger.debug(
-                    f"Failed to backup forecast with error {e2.args}. Raising original error."
+                    f"Failed to backup forecast with error {ee.args}. Raising original error."
                 )
-            raise e
+            raise ee
         else:
             raise e
 

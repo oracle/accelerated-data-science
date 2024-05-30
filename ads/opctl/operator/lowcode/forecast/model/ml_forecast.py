@@ -1,3 +1,8 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*--
+
+# Copyright (c) 2024 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import pandas as pd
 import numpy as np
 
@@ -47,7 +52,6 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
     )
     def _train_model(self, data_train, data_test, model_kwargs):
         try:
-
             import lightgbm as lgb
             from mlforecast import MLForecast
             from mlforecast.lag_transforms import ExpandingMean, RollingMean
@@ -159,6 +163,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                 "model_name": self.spec.model,
                 "error": str(e),
             }
+            logger.debug(f"Encountered Error: {e}. Skipping.")
 
     def _build_model(self) -> pd.DataFrame:
         data_train = self.datasets.get_all_data_long(include_horizon=False)
