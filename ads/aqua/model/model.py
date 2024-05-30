@@ -195,7 +195,7 @@ class AquaModelApp(AquaApp):
                             if is_verified_type
                             else f"{artifact_path.rstrip('/')}/{README}"
                         ),
-                        auth=self._auth,
+                        auth=default_signer(),
                     )
                 )
 
@@ -641,7 +641,7 @@ class AquaModelApp(AquaApp):
             # todo: implement generic copy_folder method
             # copy model config from artifact path to user bucket
             copy_model_config(
-                artifact_path=artifact_path, os_path=os_path, auth=self._auth
+                artifact_path=artifact_path, os_path=os_path, auth=default_signer()
             )
 
         except:
@@ -761,7 +761,7 @@ class AquaModelApp(AquaApp):
                         if verified_model_details
                         else f"{import_model_details.os_path.rstrip('/')}/{README}"
                     ),
-                    auth=self._auth,
+                    auth=default_signer(),
                 )
             ),
             inference_container=inference_container,

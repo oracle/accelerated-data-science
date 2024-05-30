@@ -255,6 +255,7 @@ class TestAquaModel:
         mock_from_id,
         mock_read_file,
         foundation_model_type,
+        mock_auth,
     ):
         ds_model = MagicMock()
         ds_model.id = "test_id"
@@ -313,12 +314,12 @@ class TestAquaModel:
         if foundation_model_type == "verified":
             mock_read_file.assert_called_with(
                 file_path="oci://bucket@namespace/prefix/config/README.md",
-                auth=self.app._auth,
+                auth=mock_auth(),
             )
         else:
             mock_read_file.assert_called_with(
                 file_path="oci://bucket@namespace/prefix/README.md",
-                auth=self.app._auth,
+                auth=mock_auth(),
             )
 
         assert asdict(aqua_model) == {
@@ -358,7 +359,12 @@ class TestAquaModel:
         return_value="oci://bucket@namespace/prefix",
     )
     def test_get_model_fine_tuned(
-        self, mock_get_artifact_path, mock_from_id, mock_read_file, mock_query_resource
+        self,
+        mock_get_artifact_path,
+        mock_from_id,
+        mock_read_file,
+        mock_query_resource,
+        mock_auth,
     ):
         ds_model = MagicMock()
         ds_model.id = "test_id"
@@ -453,7 +459,7 @@ class TestAquaModel:
         mock_from_id.assert_called_with("test_model_id")
         mock_read_file.assert_called_with(
             file_path="oci://bucket@namespace/prefix/README.md",
-            auth=self.app._auth,
+            auth=mock_auth(),
         )
         mock_query_resource.assert_called()
 
