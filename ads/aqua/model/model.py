@@ -19,6 +19,7 @@ from ads.aqua.common.utils import (
     get_artifact_path,
     read_file,
     copy_model_config,
+    load_config,
 )
 from ads.aqua.constants import (
     LICENSE_TXT,
@@ -32,12 +33,16 @@ from ads.aqua.constants import (
     UNKNOWN,
     VALIDATION_METRICS,
     VALIDATION_METRICS_FINAL,
+    AQUA_MODEL_ARTIFACT_CONFIG,
+    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME,
+    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE,
+    AQUA_MODEL_TYPE_CUSTOM,
 )
 from ads.aqua.model.constants import *
 from ads.aqua.model.entities import *
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import get_console_link, is_path_exists
+from ads.common.utils import get_console_link
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_EVALUATION_CONTAINER_METADATA_NAME,
@@ -688,9 +693,16 @@ class AquaModelApp(AquaApp):
         if not import_model_details:
             import_model_details = ImportModelDetails(**kwargs)
 
-        if not is_path_exists(
-            f"{import_model_details.os_path.rstrip('/')}/config.json"
-        ):
+        try:
+            model_config = load_config(
+                file_path=import_model_details.os_path,
+                config_file_name=AQUA_MODEL_ARTIFACT_CONFIG,
+            )
+        except Exception as ex:
+            logger.error(
+                f"Exception occurred while loading config file from {import_model_details.os_path}"
+                f"Exception message: {ex}"
+            )
             raise AquaRuntimeError(
                 f"The model path {import_model_details.os_path} does not contain the file config.json. "
                 f"Please check if the path is correct or the model artifacts are available at this location."
@@ -713,6 +725,30 @@ class AquaModelApp(AquaApp):
             )
         if model_service_id:
             verified_model_details = DataScienceModel.from_id(model_service_id)
+            try:
+                metadata_model_type = verified_model_details.custom_metadata_list.get(
+                    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE
+                ).value
+                if metadata_model_type:
+                    if AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE in model_config:
+                        if (
+                            model_config[AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE]
+                            != metadata_model_type
+                        ):
+                            raise AquaRuntimeError(
+                                f"The {AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE} attribute in {AQUA_MODEL_ARTIFACT_CONFIG}"
+                                f" at {import_model_details.os_path} is invalid, expected {metadata_model_type} for "
+                                f"the model {import_model_details.model}. Please check if the path is correct or "
+                                f"the correct model artifacts are available at this location."
+                                f""
+                            )
+                    else:
+                        logger.debug(
+                            f"Could not find {AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE} attribute in "
+                            f"{AQUA_MODEL_ARTIFACT_CONFIG}. Proceeding with model registration."
+                        )
+            except:
+                pass
 
         # Copy the model name from the service model if `model` is ocid
         model_name = (
@@ -734,19 +770,14 @@ class AquaModelApp(AquaApp):
         # registered model will always have inference and evaluation container, but
         # fine-tuning container may be not set
         inference_container = ds_model.custom_metadata_list.get(
-            ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
-            ModelCustomMetadataItem(key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER),
+            ModelCustomMetadataFields.DEPLOYMENT_CONTAINER
         ).value
         evaluation_container = ds_model.custom_metadata_list.get(
             ModelCustomMetadataFields.EVALUATION_CONTAINER,
-            ModelCustomMetadataItem(key=ModelCustomMetadataFields.EVALUATION_CONTAINER),
         ).value
         try:
             finetuning_container = ds_model.custom_metadata_list.get(
                 ModelCustomMetadataFields.FINETUNE_CONTAINER,
-                ModelCustomMetadataItem(
-                    key=ModelCustomMetadataFields.FINETUNE_CONTAINER
-                ),
             ).value
         except:
             finetuning_container = None
@@ -756,11 +787,7 @@ class AquaModelApp(AquaApp):
             project_id=ds_model.project_id,
             model_card=str(
                 read_file(
-                    file_path=(
-                        f"{import_model_details.os_path.rstrip('/')}/config/{README}"
-                        if verified_model_details
-                        else f"{import_model_details.os_path.rstrip('/')}/{README}"
-                    ),
+                    file_path=f"{import_model_details.os_path.rstrip('/')}/{README}",
                     auth=default_signer(),
                 )
             ),
@@ -768,6 +795,23 @@ class AquaModelApp(AquaApp):
             finetuning_container=finetuning_container,
             evaluation_container=evaluation_container,
         )
+
+        if verified_model_details:
+            telemetry_model_name = model_name
+        else:
+            if AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME in model_config:
+                telemetry_model_name = f"{AQUA_MODEL_TYPE_CUSTOM}_{model_config[AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME]}"
+            elif AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE in model_config:
+                telemetry_model_name = f"{AQUA_MODEL_TYPE_CUSTOM}_{model_config[AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE]}"
+            else:
+                telemetry_model_name = AQUA_MODEL_TYPE_CUSTOM
+
+        self.telemetry.record_event_async(
+            category="aqua/model",
+            action="register",
+            detail=telemetry_model_name,
+        )
+
         return AquaModel(**aqua_model_attributes)
 
     def _if_show(self, model: DataScienceModel) -> bool:

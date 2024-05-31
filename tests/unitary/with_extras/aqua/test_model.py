@@ -26,7 +26,7 @@ from ads.model.model_metadata import (
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
 )
-from ads.aqua.common.errors import AquaRuntimeError
+from ads.aqua.common.errors import AquaRuntimeError, AquaFileNotFoundError
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
 
 
@@ -534,10 +534,10 @@ class TestAquaModel:
     )
     @patch("ads.aqua.common.utils.copy_file")
     @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
-    @patch("ads.common.utils.is_path_exists", return_value=True)
+    @patch("ads.aqua.common.utils.load_config", return_value={})
     def test_import_verified_model(
         self,
-        mock_is_path_exists,
+        mock_load_config,
         mock_list_objects,
         mock_copy_file,
         artifact_location_set,
@@ -612,7 +612,7 @@ class TestAquaModel:
             "aqua_service_model": "test_model_id",
             **ds_freeform_tags,
         }
-        mock_is_path_exists.assert_called()
+        mock_load_config.assert_called()
 
         assert model.inference_container == "odsc-tgi-serving"
         assert model.finetuning_container is None
@@ -621,8 +621,8 @@ class TestAquaModel:
         assert model.ready_to_deploy is True
         assert model.ready_to_finetune is False
 
-    @patch("ads.common.utils.is_path_exists", return_value=True)
-    def test_import_any_model_no_containers_specified(self, mock_is_path_exists):
+    @patch("ads.aqua.common.utils.load_config", return_value={})
+    def test_import_any_model_no_containers_specified(self, mock_load_config):
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
         ads.common.oci_datascience.OCIDataScienceMixin.init_client = MagicMock()
         DataScienceModel.upload_artifact = MagicMock()
@@ -655,8 +655,8 @@ class TestAquaModel:
                     os_path=os_path,
                 )
 
-    @patch("ads.common.utils.is_path_exists", return_value=True)
-    def test_import_model_with_project_compartment_override(self, mock_is_path_exists):
+    @patch("ads.aqua.common.utils.load_config", return_value={})
+    def test_import_model_with_project_compartment_override(self, mock_load_config):
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
         ads.common.oci_datascience.OCIDataScienceMixin.init_client = MagicMock()
         DataScienceModel.upload_artifact = MagicMock()
@@ -704,8 +704,8 @@ class TestAquaModel:
         assert model.compartment_id == compartment_override
         assert model.project_id == project_override
 
-    @patch("ads.common.utils.is_path_exists", return_value=False)
-    def test_import_model_with_missing_artifact(self, mock_is_path_exists):
+    @patch("ads.aqua.common.utils.load_config", side_effect=AquaFileNotFoundError)
+    def test_import_model_with_missing_config(self, mock_load_config):
         """Test for validating if error is returned when model artifacts are incomplete or not available."""
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
         model_name = "oracle/aqua-1t-mega-model"
@@ -717,10 +717,10 @@ class TestAquaModel:
                 os_path=os_path,
             )
 
-    @patch("ads.common.utils.is_path_exists", return_value=True)
+    @patch("ads.aqua.common.utils.load_config", return_value={})
     def test_import_any_model_smc_container(
         self,
-        mock_is_path_exists,
+        mock_load_config,
     ):
         my_model = "oracle/aqua-1t-mega-model"
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
