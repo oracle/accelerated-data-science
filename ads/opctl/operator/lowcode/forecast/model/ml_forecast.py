@@ -1,3 +1,8 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*--
+
+# Copyright (c) 2024 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import pandas as pd
 import numpy as np
 
@@ -19,6 +24,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
         self.local_explanation = {}
         self.formatted_global_explanation = None
         self.formatted_local_explanation = None
+        self.date_col = config.spec.datetime_column.name
 
     def set_kwargs(self):
         """
@@ -46,7 +52,6 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
     )
     def _train_model(self, data_train, data_test, model_kwargs):
         try:
-
             import lightgbm as lgb
             from mlforecast import MLForecast
             from mlforecast.lag_transforms import ExpandingMean, RollingMean
@@ -73,8 +78,8 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                         alpha=model_kwargs["lower_quantile"],
                     ),
                 },
-                freq=pd.infer_freq(data_train["Date"].drop_duplicates())
-                or pd.infer_freq(data_train["Date"].drop_duplicates()[-5:]),
+                freq=pd.infer_freq(data_train[self.date_col].drop_duplicates())
+                or pd.infer_freq(data_train[self.date_col].drop_duplicates()[-5:]),
                 target_transforms=[Differences([12])],
                 lags=model_kwargs.get(
                     "lags",
@@ -104,7 +109,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                 data_train[self.model_columns],
                 static_features=model_kwargs.get("static_features", []),
                 id_col=ForecastOutputColumns.SERIES,
-                time_col=self.spec.datetime_column.name,
+                time_col=self.date_col,
                 target_col=self.spec.target_column,
                 fitted=True,
                 max_horizon=None if num_models is False else self.spec.horizon,
@@ -158,6 +163,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                 "model_name": self.spec.model,
                 "error": str(e),
             }
+            logger.debug(f"Encountered Error: {e}. Skipping.")
 
     def _build_model(self) -> pd.DataFrame:
         data_train = self.datasets.get_all_data_long(include_horizon=False)
@@ -168,7 +174,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
             confidence_interval_width=self.spec.confidence_interval_width,
             horizon=self.spec.horizon,
             target_column=self.original_target_column,
-            dt_column=self.spec.datetime_column.name,
+            dt_column=self.date_col,
         )
         self._train_model(data_train, data_test, model_kwargs)
         return self.forecast_output.get_forecast_long()

@@ -209,6 +209,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                     "model_name": self.spec.model,
                     "error": str(e),
                 }
+            logger.debug(f"Encountered Error: {e}. Skipping.")
 
         logger.debug("===========Done===========")
 
