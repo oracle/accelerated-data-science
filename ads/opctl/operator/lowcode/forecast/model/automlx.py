@@ -84,7 +84,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 loglevel=logging.CRITICAL,
             )
         except Exception as e:
-            logger.info("Ray already initialized")
+            logger.info(f"Error. Has Ray already been initialized? Skipping. {e}")
 
         full_data_dict = self.datasets.get_data_by_series()
 
@@ -168,6 +168,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     "model_name": self.spec.model,
                     "error": str(e),
                 }
+                logger.debug(f"Encountered Error: {e}. Skipping.")
 
         logger.debug("===========Forecast Generated===========")
 

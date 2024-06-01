@@ -131,6 +131,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 "model_name": self.spec.model,
                 "error": str(e),
             }
+            logger.debug(f"Encountered Error: {e}. Skipping.")
 
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.datasets.get_data_by_series()
