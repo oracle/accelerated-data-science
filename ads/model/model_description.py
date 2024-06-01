@@ -6,10 +6,9 @@ import datetime
 import os
 from oci.data_science.models import Metadata
 import ads
+from ads.common import logger
 
 class ModelDescription:
-
-    region = ''
 
     empty_json = {
         "version": "1.0",
@@ -29,6 +28,7 @@ class ModelDescription:
     
     def __init__(self, model_ocid=None):
 
+        self.region = ''
         self.auth()
 
         if model_ocid == None: 
@@ -36,24 +36,19 @@ class ModelDescription:
             self.modelDescriptionJson = self.empty_json
         else:
             # if model given then get that as the starting reference point
-            print("Getting model details from backend")
-            destination_file_path = "downloaded_artifact.json"
-            get_model_artifact_content_response = self.data_science_client.get_model_artifact_content(
-                model_id=model_ocid,
-            )
+            logger.info("Getting model details from backend")
             try:
-                with open(destination_file_path, "wb") as f:
-                    f.write(get_model_artifact_content_response.data.content)
-                with open(destination_file_path, 'r') as f:
-                    self.modelDescriptionJson = json.load(f)
-            except FileNotFoundError:
-                print(f"File '{destination_file_path}' not found.")
-            except IOError as e:
-                print(f"Error reading or writing to file: {e}")
+                get_model_artifact_content_response = self.data_science_client.get_model_artifact_content(
+                    model_id=model_ocid,
+                )
+                content = get_model_artifact_content_response.data.content
+                self.modelDescriptionJson = json.loads(content)
             except json.JSONDecodeError as e:
-                print(f"Error decoding JSON: {e}")
+                logger.error(f"Error decoding JSON: {e}")
+                raise e
             except Exception as e:
-                print(f"An unexpected error occurred: {e}")
+                logger.error(f"An unexpected error occurred: {e}")
+                raise e
 
     def add(self, namespace, bucket, prefix=None, files=None):
         # Remove if the model already exists
@@ -67,9 +62,9 @@ class ModelDescription:
                     isExists = True
             except Exception as e:
                 if hasattr(e, 'status') and e.status == 404:
-                    print(f"File not found in bucket: {fileName}")
+                    logger.error(f"File not found in bucket: {fileName}")
                 else:
-                    print(f"An error occured: {e}")
+                    logger.error(f"An error occured: {e}")
             return isExists
         
         # Function to un-paginate the api call with while loop
@@ -110,8 +105,12 @@ class ModelDescription:
             } for obj in objectStorageList if obj.size > 0]
         
         if len(objects) == 0:
-            print("No files to add in the bucket: ", bucket, " with namespace: ", namespace, " and prefix: ", prefix, " file names: ", files)
-            return
+            error_message = (
+                f"No files to add in the bucket: {bucket} with namespace: {namespace} "
+                f"and prefix: {prefix}. File names: {files}"
+            )
+            logger.error(error_message)
+            raise ValueError(error_message)
         
         self.modelDescriptionJson['models'].append({
             "namespace": namespace,
@@ -135,19 +134,19 @@ class ModelDescription:
             self.modelDescriptionJson['models'].pop(modelSearchIdx)
 
     def show(self):
-        print(json.dumps(self.modelDescriptionJson, indent=4))
+        logger.info(json.dumps(self.modelDescriptionJson, indent=4))
 
     def build(self):
-        print("Building...")
+        logger.info("Building...")
         file_path = "resultModelDescription.json"
         try:
             with open(file_path, "w") as json_file:
                 json.dump(self.modelDescriptionJson, json_file, indent=2)
         except IOError as e:
-            print(f"Error writing to file '{file_path}': {e}")  # Handle the exception accordingly, e.g., log the error, retry writing, etc.
+            logger.error(f"Error writing to file '{file_path}': {e}")  # Handle the exception accordingly, e.g., log the error, retry writing, etc.
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")  # Handle other unexpected exceptions
-        print("Model Artifact stored at location: 'resultModelDescription.json'")
+            logger.error(f"An unexpected error occurred: {e}")  # Handle other unexpected exceptions
+        logger.info("Model Artifact stored at location: 'resultModelDescription.json'")
         return os.path.abspath(file_path)
     
     def save(self, project_ocid, compartment_ocid, display_name=None):
@@ -161,13 +160,13 @@ class ModelDescription:
             display_name = display_name,
             custom_metadata_list = customMetadataList
         )
-        print("Created model details")
+        logger.info("Created model details")
         model = self.data_science_client.create_model(model_details)
-        print("Created model")
+        logger.info("Created model")
         self.data_science_client.create_model_artifact(
             model.data.id,
             json.dumps(self.modelDescriptionJson),
             content_disposition='attachment; filename="modelDescription.json"'
         )
-        print('Successfully created model with OCID: ', model.data.id)
+        logger.info('Successfully created model with OCID: ', model.data.id)
         return model.data.id
