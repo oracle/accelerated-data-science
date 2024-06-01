@@ -6,7 +6,11 @@ import datetime
 import os
 from oci.data_science.models import Metadata
 import ads
-from ads.common import logger
+# from ads.common import logger
+import logging
+
+logger = logging.getLogger("ads.model_description")
+logger.setLevel(logging.INFO)
 
 
 class ModelDescription:
