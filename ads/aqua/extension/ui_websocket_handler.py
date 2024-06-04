@@ -112,6 +112,7 @@ class AquaUIWebSocketHandler(WebSocketHandler):
             )
             raise e
         finally:
+            self.future_message_map.pop(future)
             # Send the response back to the client on the event thread
             IOLoop.current().run_sync(lambda: self.write_message(response.to_json()))
 
