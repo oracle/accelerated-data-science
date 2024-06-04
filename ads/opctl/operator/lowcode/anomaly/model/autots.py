@@ -91,7 +91,7 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
             ),
         ]
         model_description = rc.Text(
-            "The automlx model automatically pre-processes, selects and engineers "
+            "The autots model automatically pre-processes, selects and engineers "
             "high-quality features in your dataset, which then given to an automatically "
             "chosen and optimized machine learning model.."
         )
