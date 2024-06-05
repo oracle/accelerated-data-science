@@ -187,7 +187,7 @@ def run_yaml(tmpdirname, yaml_i, output_data_path, test_metrics_check=True):
 
 def populate_yaml(
     tmpdirname=None,
-    model="auto",
+    model="auto-select",
     historical_data_path=None,
     additional_data_path=None,
     test_data_path=None,
@@ -226,7 +226,7 @@ def populate_yaml(
 
 def run_operator(
     tmpdirname=None,
-    model="auto",
+    model="auto-select",
     historical_data_path=None,
     additional_data_path=None,
     test_data_path=None,

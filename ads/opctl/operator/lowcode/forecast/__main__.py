@@ -24,24 +24,9 @@ def operate(operator_config: ForecastOperatorConfig) -> None:
     from .model.factory import ForecastOperatorModelFactory
 
     datasets = ForecastDatasets(operator_config)
-    try:
-        ForecastOperatorModelFactory.get_model(
-            operator_config, datasets
-        ).generate_report()
-    except Exception as e:
-        if operator_config.spec.model == "auto":
-            logger.debug(
-                f"Failed to forecast with error {e.args}. Trying again with model `prophet`."
-            )
-            operator_config.spec.model = "prophet"
-            operator_config.spec.model_kwargs = dict()
-            datasets = ForecastDatasets(operator_config)
-            ForecastOperatorModelFactory.get_model(
-                operator_config, datasets
-            ).generate_report()
-        else:
-            raise
-
+    ForecastOperatorModelFactory.get_model(
+        operator_config, datasets
+    ).generate_report()
 
 def verify(spec: Dict, **kwargs: Dict) -> bool:
     """Verifies the forecasting operator config."""

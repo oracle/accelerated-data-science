@@ -365,7 +365,7 @@ spec:
     model:
       type: string
       required: false
-      default: auto
+      default: auto-select
       allowed:
         - prophet
         - arima
@@ -373,7 +373,7 @@ spec:
         - mlforecast
         - automlx
         - autots
-        - auto
+        - auto-select
 
     model_kwargs:
       type: dict
@@ -414,4 +414,8 @@ spec:
         - RMSE
         - MSE
         - SMAPE
+        - mape
+        - rmse
+        - mse
+        - smape
   type: dict
