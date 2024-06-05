@@ -270,7 +270,7 @@ class DataScienceModelCollection(DataScienceModel):
         logger.info("Model Artifact stored successfully.")
         return os.path.abspath(file_path)
 
-    def show(self):
+    def show(self) -> str:
         """
         Displays the current model description JSON in a human-readable format.
 
