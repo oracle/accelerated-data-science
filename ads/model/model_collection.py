@@ -12,7 +12,7 @@ logger.setLevel(logging.INFO)
 
 
 class DataScienceModelCollection(DataScienceModel):
-    
+
     def _auth(self):
         """
         Internal method that authenticates the model description instance by initializing OCI clients.
@@ -42,7 +42,7 @@ class DataScienceModelCollection(DataScienceModel):
 
     def __init__(self, spec: ads.Dict = None, **kwargs) -> None:
         super().__init__(spec, **kwargs)
-     
+
         self.empty_json = {
             "version": "1.0",
             "type": "modelOSSReferenceDescription",
@@ -72,8 +72,14 @@ class DataScienceModelCollection(DataScienceModel):
             logger.error(f"An unexpected error occurred: {e}")
             raise e
         return self
-    
-    def add(self, namespace: str, bucket: str, prefix: Optional[str] =None, files: Optional[List[str]] =None):
+
+    def add(
+        self,
+        namespace: str,
+        bucket: str,
+        prefix: Optional[str] = None,
+        files: Optional[List[str]] = None,
+    ):
         """
         Adds information about objects in a specified bucket to the model description JSON.
 
@@ -162,15 +168,17 @@ class DataScienceModelCollection(DataScienceModel):
             raise ValueError(error_message)
 
         tmp_model_file_description = self.model_file_description
-        tmp_model_file_description['models'].append({
+        tmp_model_file_description["models"].append(
+            {
                 "namespace": namespace,
                 "bucketName": bucket,
                 "prefix": prefix,
                 "objects": objects,
-            })
+            }
+        )
         self.set_spec(self.CONST_MODEL_FILE_DESCRIPTION, tmp_model_file_description)
-    
-    def remove(self, namespace: str, bucket: str, prefix: Optional[str]=None):
+
+    def remove(self, namespace: str, bucket: str, prefix: Optional[str] = None):
         """
         Removes information about objects in a specified bucket from the model description JSON.
 
