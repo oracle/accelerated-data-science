@@ -4,29 +4,31 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import os
+import copy
 import json
+import os
 import unittest
 from dataclasses import asdict
 from importlib import reload
 from unittest.mock import MagicMock, patch
-import pytest
-import copy
-import yaml
 
 import oci
-import ads.aqua.deployment
+import pytest
+import yaml
+from parameterized import parameterized
+
+import ads.aqua.modeldeployment.deployment
 import ads.config
-from ads.aqua.deployment import (
+from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
+from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
-    AquaDeploymentApp,
-    MDInferenceResponse,
     ModelParams,
 )
-from ads.aqua.exception import AquaRuntimeError
+from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
+from ads.model.model_metadata import ModelCustomMetadata
 
 null = None
 
@@ -167,7 +169,7 @@ class TestAquaDeployment(unittest.TestCase):
         os.environ["PROJECT_COMPARTMENT_OCID"] = TestDataset.USER_COMPARTMENT_ID
         reload(ads.config)
         reload(ads.aqua)
-        reload(ads.aqua.deployment)
+        reload(ads.aqua.modeldeployment.deployment)
 
     @classmethod
     def tearDownClass(cls):
@@ -177,7 +179,7 @@ class TestAquaDeployment(unittest.TestCase):
         os.environ.pop("PROJECT_COMPARTMENT_OCID", None)
         reload(ads.config)
         reload(ads.aqua)
-        reload(ads.aqua.deployment)
+        reload(ads.aqua.modeldeployment.deployment)
 
     def test_list_deployments(self):
         """Tests the list method in the AquaDeploymentApp class."""
@@ -200,7 +202,7 @@ class TestAquaDeployment(unittest.TestCase):
                 expected_attributes
             ), "Attributes mismatch"
 
-    @patch("ads.aqua.deployment.get_resource_name")
+    @patch("ads.aqua.modeldeployment.deployment.get_resource_name")
     def test_get_deployment(self, mock_get_resource_name):
         """Tests the get method in the AquaDeploymentApp class."""
 
@@ -213,8 +215,8 @@ class TestAquaDeployment(unittest.TestCase):
                 data=oci.data_science.models.ModelDeploymentSummary(**model_deployment),
             )
         )
-        mock_get_resource_name.side_effect = (
-            lambda param: "log-group-name"
+        mock_get_resource_name.side_effect = lambda param: (
+            "log-group-name"
             if param.startswith("ocid1.loggroup")
             else "log-name"
             if param.startswith("ocid1.log")
@@ -253,7 +255,7 @@ class TestAquaDeployment(unittest.TestCase):
 
             self.app.get(model_deployment_id=TestDataset.MODEL_DEPLOYMENT_ID)
 
-    @patch("ads.aqua.deployment.load_config")
+    @patch("ads.aqua.modeldeployment.deployment.load_config")
     def test_get_deployment_config(self, mock_load_config):
         """Test for fetching config details for a given deployment."""
 
@@ -272,11 +274,16 @@ class TestAquaDeployment(unittest.TestCase):
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
         assert result == config
 
+    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")
-    @patch("ads.aqua.deployment.get_container_image")
+    @patch("ads.aqua.modeldeployment.deployment.get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     def test_create_deployment_for_foundation_model(
-        self, mock_deploy, mock_get_container_image, mock_create
+        self,
+        mock_deploy,
+        mock_get_container_image,
+        mock_create,
+        mock_get_container_config,
     ):
         """Test to create a deployment for foundational model"""
         aqua_model = os.path.join(
@@ -290,6 +297,14 @@ class TestAquaDeployment(unittest.TestCase):
             config = json.load(_file)
 
         self.app.get_deployment_config = MagicMock(return_value=config)
+
+        container_index_json = os.path.join(
+            self.curr_dir, "test_data/ui/container_index.json"
+        )
+        with open(container_index_json, "r") as _file:
+            container_index_config = json.load(_file)
+        mock_get_container_config.return_value = container_index_config
+
         mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
         aqua_deployment = os.path.join(
             self.curr_dir, "test_data/deployment/aqua_create_deployment.yaml"
@@ -324,11 +339,16 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result["state"] = "CREATING"
         assert actual_attributes == expected_result
 
+    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")
-    @patch("ads.aqua.deployment.get_container_image")
+    @patch("ads.aqua.modeldeployment.deployment.get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     def test_create_deployment_for_fine_tuned_model(
-        self, mock_deploy, mock_get_container_image, mock_create
+        self,
+        mock_deploy,
+        mock_get_container_image,
+        mock_create,
+        mock_get_container_config,
     ):
         """Test to create a deployment for fine-tuned model"""
 
@@ -357,6 +377,14 @@ class TestAquaDeployment(unittest.TestCase):
             config = json.load(_file)
 
         self.app.get_deployment_config = MagicMock(return_value=config)
+
+        container_index_json = os.path.join(
+            self.curr_dir, "test_data/ui/container_index.json"
+        )
+        with open(container_index_json, "r") as _file:
+            container_index_config = json.load(_file)
+        mock_get_container_config.return_value = container_index_config
+
         mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
         aqua_deployment = os.path.join(
             self.curr_dir, "test_data/deployment/aqua_create_deployment.yaml"
@@ -390,6 +418,174 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
         expected_result["state"] = "CREATING"
         assert actual_attributes == expected_result
+
+    @parameterized.expand(
+        [
+            (
+                "VLLM_PARAMS",
+                "odsc-vllm-serving",
+                ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
+            ),
+            (
+                "VLLM_PARAMS",
+                "odsc-vllm-serving",
+                [],
+            ),
+            (
+                "TGI_PARAMS",
+                "odsc-tgi-serving",
+                ["--sharded true", "--trust-remote-code"],
+            ),
+            (
+                "CUSTOM_PARAMS",
+                "custom-container-key",
+                ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
+            ),
+        ]
+    )
+    @patch("ads.model.datascience_model.DataScienceModel.from_id")
+    def test_get_deployment_default_params(
+        self, container_params_field, container_type_key, params, mock_from_id
+    ):
+        """Test for fetching config details for a given deployment."""
+
+        config_json = os.path.join(
+            self.curr_dir, "test_data/deployment/deployment_config.json"
+        )
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+        # update config params for testing
+        config["configuration"][TestDataset.DEPLOYMENT_SHAPE_NAME]["parameters"][
+            container_params_field
+        ] = " ".join(params)
+
+        mock_model = MagicMock()
+        custom_metadata_list = ModelCustomMetadata()
+        custom_metadata_list.add(
+            **{"key": "deployment-container", "value": container_type_key}
+        )
+        mock_model.custom_metadata_list = custom_metadata_list
+        mock_from_id.return_value = mock_model
+
+        self.app.get_deployment_config = MagicMock(return_value=config)
+        result = self.app.get_deployment_default_params(
+            TestDataset.MODEL_ID, TestDataset.DEPLOYMENT_SHAPE_NAME
+        )
+        if container_params_field == "CUSTOM_PARAMS":
+            assert result == []
+        else:
+            assert result == params
+
+    @parameterized.expand(
+        [
+            (
+                "odsc-vllm-serving",
+                ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
+            ),
+            (
+                "odsc-vllm-serving",
+                [],
+            ),
+            (
+                "odsc-tgi-serving",
+                ["--sharded true", "--trust-remote-code"],
+            ),
+            (
+                "custom-container-key",
+                ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
+            ),
+            (
+                "odsc-vllm-serving",
+                ["--tensor-parallel-size 2"],
+            ),
+            (
+                "odsc-tgi-serving",
+                ["--port 8080"],
+            ),
+        ]
+    )
+    @patch("ads.model.datascience_model.DataScienceModel.from_id")
+    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
+    def test_validate_deployment_params(
+        self, container_type_key, params, mock_get_container_config, mock_from_id
+    ):
+        """Test for checking if overridden deployment params are valid."""
+        mock_model = MagicMock()
+        custom_metadata_list = ModelCustomMetadata()
+        custom_metadata_list.add(
+            **{"key": "deployment-container", "value": container_type_key}
+        )
+        mock_model.custom_metadata_list = custom_metadata_list
+        mock_from_id.return_value = mock_model
+
+        container_index_json = os.path.join(
+            self.curr_dir, "test_data/ui/container_index.json"
+        )
+        with open(container_index_json, "r") as _file:
+            container_index_config = json.load(_file)
+        mock_get_container_config.return_value = container_index_config
+
+        if container_type_key in {"odsc-vllm-serving", "odsc-tgi-serving"} and params:
+            with pytest.raises(AquaValueError):
+                self.app.validate_deployment_params(
+                    model_id="mock-model-id",
+                    params=params,
+                )
+        else:
+            result = self.app.validate_deployment_params(
+                model_id="mock-model-id",
+                params=params,
+            )
+            assert result["valid"] is True
+
+    @parameterized.expand(
+        [
+            (
+                "odsc-vllm-serving",
+                ["--max-model-len 4096"],
+            ),
+            (
+                "odsc-tgi-serving",
+                ["--max_stop_sequences 5"],
+            ),
+            (
+                "",
+                ["--some_random_key some_random_value"],
+            ),
+        ]
+    )
+    @patch("ads.model.datascience_model.DataScienceModel.from_id")
+    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
+    def test_validate_deployment_params_for_unverified_models(
+        self, container_type_key, params, mock_get_container_config, mock_from_id
+    ):
+        """Test to check if container family is used when metadata does not have image information
+        for unverified models."""
+        mock_model = MagicMock()
+        mock_model.custom_metadata_list = ModelCustomMetadata()
+        mock_from_id.return_value = mock_model
+
+        container_index_json = os.path.join(
+            self.curr_dir, "test_data/ui/container_index.json"
+        )
+        with open(container_index_json, "r") as _file:
+            container_index_config = json.load(_file)
+        mock_get_container_config.return_value = container_index_config
+
+        if container_type_key in {"odsc-vllm-serving", "odsc-tgi-serving"} and params:
+            result = self.app.validate_deployment_params(
+                model_id="mock-model-id",
+                params=params,
+                container_family=container_type_key,
+            )
+            assert result["valid"] is True
+        else:
+            with pytest.raises(AquaValueError):
+                self.app.validate_deployment_params(
+                    model_id="mock-model-id",
+                    params=params,
+                    container_family=container_type_key,
+                )
 
 
 class TestMDInferenceResponse(unittest.TestCase):

@@ -79,7 +79,7 @@ jobs:
         run: |
           pip install -e ".[feature-store-marketplace]"
       - name: "Run unitary tests folder with maximum ADS dependencies"
-        timeout-minutes: 40
+        timeout-minutes: 60
         shell: bash
         env:
           CONDA_PREFIX: /usr/share/miniconda

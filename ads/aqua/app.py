@@ -4,6 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
+from dataclasses import fields
 from typing import Dict, Union
 
 import oci
@@ -11,15 +12,15 @@ from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDet
 
 from ads import set_auth
 from ads.aqua import logger
-from ads.aqua.data import Tags
-from ads.aqua.exception import AquaRuntimeError, AquaValueError
-from ads.aqua.utils import (
-    UNKNOWN,
+from ads.aqua.common.enums import Tags
+from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
+from ads.aqua.common.utils import (
     _is_valid_mvs,
     get_artifact_path,
     is_valid_ocid,
     load_config,
 )
+from ads.aqua.constants import UNKNOWN
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import extract_region
@@ -160,7 +161,7 @@ class AquaApp:
         """
         # TODO: tag should be selected based on which operation (eval/FT) invoke this method
         #   currently only used by fine-tuning flow.
-        tag = Tags.AQUA_FINE_TUNING.value
+        tag = Tags.AQUA_FINE_TUNING
 
         if not model_version_set_id:
             try:
@@ -277,8 +278,8 @@ class AquaApp:
         oci_model = self.ds_client.get_model(model_id).data
         oci_aqua = (
             (
-                Tags.AQUA_TAG.value in oci_model.freeform_tags
-                or Tags.AQUA_TAG.value.lower() in oci_model.freeform_tags
+                Tags.AQUA_TAG in oci_model.freeform_tags
+                or Tags.AQUA_TAG.lower() in oci_model.freeform_tags
             )
             if oci_model.freeform_tags
             else False
@@ -319,3 +320,22 @@ class AquaApp:
                 bucket=AQUA_TELEMETRY_BUCKET, namespace=AQUA_TELEMETRY_BUCKET_NS
             )
         return self._telemetry
+
+
+class CLIBuilderMixin:
+    """
+    CLI builder from API interface. To be used with the DataClass only.
+    """
+
+    def build_cli(self) -> str:
+        """
+        Method to turn the dataclass attributes to CLI
+        """
+        cmd = f"ads aqua {self._command}"
+        params = [
+            f"--{field.name} {getattr(self,field.name)}"
+            for field in fields(self.__class__)
+            if getattr(self, field.name)
+        ]
+        cmd = f"{cmd} {' '.join(params)}"
+        return cmd
