@@ -3,16 +3,14 @@
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import logging
 from typing import Any, Dict, List, Optional
 
 from langchain.llms.base import LLM
 from langchain.pydantic_v1 import BaseModel, Field, root_validator
 
+from ads import logger
 from ads.common.auth import default_signer
 from ads.config import COMPARTMENT_OCID
-
-logger = logging.getLogger(__name__)
 
 
 class BaseLLM(LLM):
