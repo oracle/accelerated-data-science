@@ -3,6 +3,7 @@
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import logging
 from typing import Any, Dict, List, Optional
 
 from langchain.llms.base import LLM
@@ -10,6 +11,8 @@ from langchain.pydantic_v1 import BaseModel, Field, root_validator
 
 from ads.common.auth import default_signer
 from ads.config import COMPARTMENT_OCID
+
+logger = logging.getLogger(__name__)
 
 
 class BaseLLM(LLM):
@@ -95,6 +98,11 @@ class GenerativeAiClientModel(BaseModel):
         """Validate that python package exists in environment."""
         # Initialize client only if user does not pass in client.
         # Users may choose to initialize the OCI client by themselves and pass it into this model.
+        logger.warning(
+            f"The ads langchain plugin {cls.__name__} will be deprecated soon. "
+            "Please refer to https://python.langchain.com/v0.2/docs/integrations/providers/oci/ "
+            "for the latest support."
+        )
         if not values.get("client"):
             auth = values.get("auth", {})
             client_kwargs = auth.get("client_kwargs") or {}
