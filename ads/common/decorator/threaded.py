@@ -46,7 +46,7 @@ class TimeoutError(Exception):
         )
 
 
-def threaded(timeout=None):
+def threaded(timeout: Optional[int] = THREADED_DEFAULT_TIMEOUT):
     """
     Decorator to run a function in a separate thread using a global thread pool.
 
@@ -83,7 +83,7 @@ def threaded(timeout=None):
             """
             future = thread_pool.submit(func, *args, **kwargs)
             try:
-                return future.result(timeout=timeout or THREADED_DEFAULT_TIMEOUT)
+                return future.result(timeout=timeout)
             except concurrent.futures.TimeoutError as ex:
                 logger.debug(
                     f"The function '{func.__name__}' "
