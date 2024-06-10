@@ -12,6 +12,8 @@ from typing import Optional
 
 from git import Optional
 
+from ads.config import THREADED_DEFAULT_TIMEOUT
+
 logger = logging.getLogger(__name__)
 
 # Create a global thread pool with a maximum of 10 threads
@@ -81,7 +83,7 @@ def threaded(timeout=None):
             """
             future = thread_pool.submit(func, *args, **kwargs)
             try:
-                return future.result(timeout=timeout)
+                return future.result(timeout=timeout or THREADED_DEFAULT_TIMEOUT)
             except concurrent.futures.TimeoutError as ex:
                 logger.debug(
                     f"The function '{func.__name__}' "

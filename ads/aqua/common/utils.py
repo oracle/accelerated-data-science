@@ -33,7 +33,12 @@ from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import copy_file, get_console_link, upload_to_os
-from ads.config import AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, TENANCY_OCID
+from ads.config import (
+    AQUA_SERVICE_MODELS_BUCKET,
+    CONDA_BUCKET_NS,
+    TENANCY_OCID,
+    THREADED_DEFAULT_TIMEOUT,
+)
 from ads.model import DataScienceModel, ModelVersionSet
 
 logger = logging.getLogger("ads.aqua")
@@ -196,7 +201,7 @@ def read_file(file_path: str, **kwargs) -> str:
         return UNKNOWN
 
 
-@threaded(timeout=5)
+@threaded(timeout=THREADED_DEFAULT_TIMEOUT)
 def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
     artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
     if artifact_path.startswith("oci://"):

@@ -8,6 +8,7 @@ import contextlib
 import inspect
 import os
 from typing import Dict, Optional
+
 from ads.common.config import DEFAULT_CONFIG_PATH, DEFAULT_CONFIG_PROFILE, Config, Mode
 
 OCI_ODSC_SERVICE_ENDPOINT = os.environ.get("OCI_ODSC_SERVICE_ENDPOINT")
@@ -84,6 +85,8 @@ AQUA_TELEMETRY_BUCKET_NS = os.environ.get("AQUA_TELEMETRY_BUCKET_NS", CONDA_BUCK
 DEBUG_TELEMETRY = os.environ.get("DEBUG_TELEMETRY", None)
 AQUA_SERVICE_NAME = "aqua"
 DATA_SCIENCE_SERVICE_NAME = "data-science"
+
+THREADED_DEFAULT_TIMEOUT = os.environ.get("THREADED_DEFAULT_TIMEOUT", 5)
 
 
 def export(
