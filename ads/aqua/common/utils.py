@@ -669,7 +669,7 @@ def get_model_by_reference_paths(model_file_description: dict):
     models = model_file_description["models"]
 
     if models:
-        if len(models) == 1:
+        if len(models) > 0:
             base_model_artifact = models[0]
             base_model_path = f"oci://{base_model_artifact['bucketName']}@{base_model_artifact['namespace']}/{base_model_artifact['prefix']}".rstrip(
                 "/"
