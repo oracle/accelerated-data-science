@@ -668,23 +668,18 @@ def get_model_by_reference_paths(model_file_description: dict):
     fine_tune_output_path = UNKNOWN
     models = model_file_description["models"]
 
-    for model in models:
-        namespace, bucket_name, prefix = (
-            model["namespace"],
-            model["bucketName"],
-            model["prefix"],
-        )
-        bucket_uri = f"oci://{bucket_name}@{namespace}/{prefix}".rstrip("/")
-        if bucket_name == AQUA_SERVICE_MODELS_BUCKET:
-            base_model_path = bucket_uri
-        else:
-            fine_tune_output_path = bucket_uri
+    if models:
+        if len(models) == 1:
+            base_model_artifact = models[0]
+            base_model_path = f"oci://{base_model_artifact['bucketName']}@{base_model_artifact['namespace']}/{base_model_artifact['prefix']}".rstrip(
+                "/"
+            )
+        if len(models) == 2:
+            ft_model_artifact = models[1]
+            fine_tune_output_path = f"oci://{ft_model_artifact['bucketName']}@{ft_model_artifact['namespace']}/{ft_model_artifact['prefix']}".rstrip(
+                "/"
+            )
 
-    if not base_model_path:
-        raise AquaValueError(
-            f"Base Model should come from the bucket {AQUA_SERVICE_MODELS_BUCKET}. "
-            f"Other paths are not supported by Aqua."
-        )
     return base_model_path, fine_tune_output_path
 
 
