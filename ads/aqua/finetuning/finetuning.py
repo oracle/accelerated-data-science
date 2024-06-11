@@ -366,6 +366,7 @@ class AquaFineTuningApp(AquaApp):
         source_freeform_tags.pop(Tags.LICENSE, None)
         source_freeform_tags.update({Tags.READY_TO_FINE_TUNE: "false"})
         source_freeform_tags.update({Tags.AQUA_TAG: UNKNOWN})
+        source_freeform_tags.pop(Tags.BASE_MODEL_CUSTOM, None)
 
         self.update_model(
             model_id=ft_model.id,
