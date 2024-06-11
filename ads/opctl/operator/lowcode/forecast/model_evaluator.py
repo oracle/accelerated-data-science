@@ -39,7 +39,7 @@ class ModelEvaluator:
     def generate_cutoffs(self, unique_dates, horizon):
         sorted_dates = np.sort(unique_dates)
         train_window_size = [len(sorted_dates) - (i + 1) * horizon for i in range(self.k)]
-        valid_train_window_size = [ws for ws in train_window_size if ws >= horizon * 3]
+        valid_train_window_size = [ws for ws in train_window_size if ws >= horizon * 2]
         if len(valid_train_window_size) < self.k:
             logger.warn(f"Only {valid_train_window_size} backtests can be created")
         cut_offs = sorted_dates[-horizon - 1:-horizon * (self.k + 1):-horizon][:len(valid_train_window_size)]
@@ -97,8 +97,8 @@ class ModelEvaluator:
         backtest_spec["historical_data"]["url"] = historical_data_url
         if backtest_spec["additional_data"]:
             backtest_spec["additional_data"]["url"] = additional_data_url
-        if backtest_spec["test_data"]:
-            backtest_spec["test_data"]["url"] = test_data_url
+        backtest_spec["test_data"] = {}
+        backtest_spec["test_data"]["url"] = test_data_url
         backtest_spec["model"] = model
         backtest_spec['model_kwargs'] = None
         backtest_spec["output_directory"] = {"url": output_file_path}
