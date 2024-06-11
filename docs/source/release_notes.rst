@@ -4,9 +4,10 @@ Release Notes
 
 2.11.11
 ------
-Release date: June 5, 2024
+Release date: June 11, 2024
 
 * Fixed the bug that led to timeout when loading config files during jupyterlab load.
+* Fixed bugs and introduced enhancements following our recent release.
 
 
 2.11.10
