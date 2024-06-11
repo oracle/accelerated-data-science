@@ -33,7 +33,7 @@ MODELS = [
     "neuralprophet",
     "autots",
     "mlforecast",
-    # "auto",
+    "auto-select",
 ]
 
 TEMPLATE_YAML = {
