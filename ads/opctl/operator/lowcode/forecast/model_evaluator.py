@@ -95,8 +95,10 @@ class ModelEvaluator:
         backtest_op_config_draft = operator_config.to_dict()
         backtest_spec = backtest_op_config_draft["spec"]
         backtest_spec["historical_data"]["url"] = historical_data_url
-        backtest_spec["additional_data"]["url"] = additional_data_url
-        backtest_spec["test_data"]["url"] = test_data_url
+        if backtest_spec["additional_data"]:
+            backtest_spec["additional_data"]["url"] = additional_data_url
+        if backtest_spec["test_data"]:
+            backtest_spec["test_data"]["url"] = test_data_url
         backtest_spec["model"] = model
         backtest_spec['model_kwargs'] = None
         backtest_spec["output_directory"] = {"url": output_file_path}
