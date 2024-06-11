@@ -134,6 +134,8 @@ def test_load_datasets(model, data_details):
             yaml_i["spec"]["model_kwargs"] = {"model_list": "superfast"}
         if model == "automlx":
             yaml_i["spec"]["model_kwargs"] = {"time_budget": 2}
+        if model == "auto-select":
+            yaml_i["spec"]["model_kwargs"] = {"model_list": ['arima', 'mlforecast']}
 
         run(yaml_i, backend="operator.local", debug=False)
         subprocess.run(f"ls -a {output_data_path}", shell=True)
