@@ -109,11 +109,13 @@ class AquaFineTuningApp(AquaApp):
                 )
 
         source = self.get_source(create_fine_tuning_details.ft_source_id)
-        if source.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
-            raise AquaValueError(
-                f"Fine tuning is only supported for Aqua service models in {ODSC_MODEL_COMPARTMENT_OCID}. "
-                "Use a valid Aqua service model id instead."
-            )
+
+        # todo: revisit validation for fine tuned models
+        # if source.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
+        #     raise AquaValueError(
+        #         f"Fine tuning is only supported for Aqua service models in {ODSC_MODEL_COMPARTMENT_OCID}. "
+        #         "Use a valid Aqua service model id instead."
+        #     )
 
         target_compartment = (
             create_fine_tuning_details.compartment_id or COMPARTMENT_OCID
