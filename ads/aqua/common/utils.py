@@ -668,17 +668,25 @@ def get_model_by_reference_paths(model_file_description: dict):
     fine_tune_output_path = UNKNOWN
     models = model_file_description["models"]
 
-    if models:
-        if len(models) > 0:
-            base_model_artifact = models[0]
-            base_model_path = f"oci://{base_model_artifact['bucketName']}@{base_model_artifact['namespace']}/{base_model_artifact['prefix']}".rstrip(
-                "/"
-            )
-        if len(models) == 2:
-            ft_model_artifact = models[1]
-            fine_tune_output_path = f"oci://{ft_model_artifact['bucketName']}@{ft_model_artifact['namespace']}/{ft_model_artifact['prefix']}".rstrip(
-                "/"
-            )
+    if not models:
+        raise AquaValueError(
+            f"Model path is not available in the model json artifact. "
+            f"Please check if the model created by reference has the correct artifact."
+        )
+
+    if len(models) > 0:
+        # since the model_file_description json does not have a flag to identify the base model, we consider
+        # the first instance to be the base model.
+        base_model_artifact = models[0]
+        base_model_path = f"oci://{base_model_artifact['bucketName']}@{base_model_artifact['namespace']}/{base_model_artifact['prefix']}".rstrip(
+            "/"
+        )
+    if len(models) > 1:
+        # second model is considered as fine-tuned model
+        ft_model_artifact = models[1]
+        fine_tune_output_path = f"oci://{ft_model_artifact['bucketName']}@{ft_model_artifact['namespace']}/{ft_model_artifact['prefix']}".rstrip(
+            "/"
+        )
 
     return base_model_path, fine_tune_output_path
 
