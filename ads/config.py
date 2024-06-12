@@ -86,7 +86,14 @@ DEBUG_TELEMETRY = os.environ.get("DEBUG_TELEMETRY", None)
 AQUA_SERVICE_NAME = "aqua"
 DATA_SCIENCE_SERVICE_NAME = "data-science"
 
-THREADED_DEFAULT_TIMEOUT = os.environ.get("THREADED_DEFAULT_TIMEOUT", 5)
+
+THREADED_DEFAULT_TIMEOUT = 5
+try:
+    THREADED_DEFAULT_TIMEOUT = int(
+        os.environ.get("THREADED_DEFAULT_TIMEOUT", THREADED_DEFAULT_TIMEOUT)
+    )
+except ValueError:
+    pass
 
 
 def export(
