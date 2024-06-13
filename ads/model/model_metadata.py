@@ -8,10 +8,10 @@ import json
 import logging
 import os
 import sys
-from abc import ABC, abstractclassmethod, abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union, Optional, Any
 
 import ads.dataset.factory as factory
 import fsspec
@@ -40,6 +40,8 @@ METADATA_VALUE_LENGTH_LIMIT = 255
 METADATA_DESCRIPTION_LENGTH_LIMIT = 255
 _METADATA_EMPTY_VALUE = "NA"
 CURRENT_WORKING_DIR = "."
+
+_sentinel = object()
 
 
 class MetadataSizeTooLarge(ValueError):
@@ -727,13 +729,18 @@ class ModelMetadata(ABC):
         """Initializes Model Metadata."""
         self._items = set()
 
-    def get(self, key: str) -> ModelMetadataItem:
+    def get(
+        self, key: str, value: Optional[Any] = _sentinel
+    ) -> Union[ModelMetadataItem, Any]:
         """Returns the model metadata item by provided key.
 
         Parameters
         ----------
         key: str
             The key of model metadata item.
+        value: (str, optional)
+            A value to return if the specified key does not exist. Defaults to `object()`.
+            If default value not specified, the ValueError will be returned.
 
         Returns
         -------
@@ -750,7 +757,11 @@ class ModelMetadata(ABC):
         for item in self._items:
             if item.key.lower() == key.lower():
                 return item
-        raise ValueError(f"The metadata with {key} not found.")
+
+        if value is _sentinel:
+            raise ValueError(f"The metadata with {key} not found.")
+
+        return value
 
     def reset(self) -> None:
         """Resets all model metadata items to empty values.
@@ -952,7 +963,7 @@ class ModelMetadata(ABC):
     def __len__(self):
         return len(self._items)
 
-    @abstractclassmethod
+    @abstractmethod
     def _from_oci_metadata(cls, metadata_list):
         pass
 
@@ -967,7 +978,7 @@ class ModelMetadata(ABC):
         """
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def from_dict(cls, data: Dict) -> "ModelMetadata":
         """Constructs an instance of `ModelMetadata` from a dictionary.
 

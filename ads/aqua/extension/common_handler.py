@@ -6,11 +6,15 @@
 
 from importlib import metadata
 
+import requests
+from tornado.web import HTTPError
+
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
-from ads.aqua.decorator import handle_exceptions
-from ads.aqua.exception import AquaResourceAccessError
+from ads.aqua.common.decorator import handle_exceptions
+from ads.aqua.common.errors import AquaResourceAccessError, AquaRuntimeError
+from ads.aqua.common.utils import fetch_service_compartment, known_realm
 from ads.aqua.extension.base_handler import AquaAPIhandler
-from ads.aqua.utils import known_realm, fetch_service_compartment
+from ads.aqua.extension.errors import Errors
 
 
 class ADSVersionHandler(AquaAPIhandler):
@@ -33,9 +37,11 @@ class CompatibilityCheckHandler(AquaAPIhandler):
 
         Returns
         -------
-            status dict:
-                ok or compatible
-        Raises:
+        status dict:
+            ok or compatible
+
+        Raises
+        ------
             AquaResourceAccessError: raised when aqua is not accessible in the given session/region.
 
         """
