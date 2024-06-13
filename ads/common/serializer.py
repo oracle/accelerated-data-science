@@ -79,7 +79,7 @@ class Serializable(ABC):
 
     @classmethod
     @abstractmethod
-    def from_dict(cls, obj_dict: dict) -> "Serializable":
+    def from_dict(cls, obj_dict: dict, **kwargs) -> "Serializable":
         """Returns an instance of the class instantiated by the dictionary provided.
 
         Parameters
@@ -239,7 +239,7 @@ class Serializable(ABC):
             Returns instance of the class
         """
         if json_string:
-            return cls.from_dict(json.loads(json_string, cls=decoder))
+            return cls.from_dict(json.loads(json_string, cls=decoder), **kwargs)
         if uri:
             json_dict = json.loads(cls._read_from_file(uri, **kwargs), cls=decoder)
             return cls.from_dict(json_dict)

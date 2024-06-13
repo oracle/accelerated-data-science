@@ -3,8 +3,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from dataclasses import dataclass
-from enum import Enum
+from dataclasses import dataclass, field
 
 from ads.common.serializer import DataClassSerializable
 
@@ -16,27 +15,17 @@ class AquaResourceIdentifier(DataClassSerializable):
     url: str = ""
 
 
-class Resource(Enum):
-    JOB = "jobs"
-    JOBRUN = "jobruns"
-    MODEL = "models"
-    MODEL_DEPLOYMENT = "modeldeployments"
-    MODEL_VERSION_SET = "model-version-sets"
+@dataclass(repr=False)
+class AquaJobSummary(DataClassSerializable):
+    """Represents an Aqua job summary."""
 
-
-class DataScienceResource(Enum):
-    MODEL_DEPLOYMENT = "datasciencemodeldeployment"
-    MODEL = "datasciencemodel"
-
-
-class Tags(Enum):
-    TASK = "task"
-    LICENSE = "license"
-    ORGANIZATION = "organization"
-    AQUA_TAG = "OCI_AQUA"
-    AQUA_SERVICE_MODEL_TAG = "aqua_service_model"
-    AQUA_FINE_TUNED_MODEL_TAG = "aqua_fine_tuned_model"
-    AQUA_MODEL_NAME_TAG = "aqua_model_name"
-    AQUA_EVALUATION = "aqua_evaluation"
-    AQUA_FINE_TUNING = "aqua_finetuning"
-    READY_TO_FINE_TUNE = "ready_to_fine_tune"
+    id: str
+    name: str
+    console_url: str
+    lifecycle_state: str
+    lifecycle_details: str
+    time_created: str
+    tags: dict
+    experiment: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    source: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+    job: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
