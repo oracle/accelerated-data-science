@@ -1508,8 +1508,7 @@ class DataScienceModel(Builder):
             self.set_spec(self.CONST_MODEL_FILE_DESCRIPTION, self.empty_json)
         
         # Get object storage client
-        authData = default_signer()
-        self.object_storage_client = oc.OCIClientFactory(**authData).object_storage
+        self.object_storage_client = oc.OCIClientFactory(**(self.dsc_model.auth)).object_storage
 
         # Remove if the model already exists
         self.remove_artifact(uri=uri)
@@ -1631,7 +1630,7 @@ class DataScienceModel(Builder):
     
     def _extract_oci_uri_components(self, uri: str):
         # Define the regular expression pattern to match the URI format
-        pattern = r"oci://(?P<bucket_name>[^@]+)@(?P<namespace>[^/]+)(?:/(?P<prefix>.*))?"
+        pattern = r"oci://(?P<bucket_name>[^@]+)@(?P<namespace>[^/]+)(?:/(?P<prefix>.*))?" # todo: remove regex
         
         # Use re.match to apply the pattern to the URI
         match = re.match(pattern, uri)

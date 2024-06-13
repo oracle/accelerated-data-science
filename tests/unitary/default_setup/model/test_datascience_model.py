@@ -40,8 +40,8 @@ from ads.model.service.oci_datascience_model import (
     OCIDataScienceModel,
 )
 from oci.data_science.models import ModelProvenance
+from oci.object_storage.models.object_version_summary import ObjectVersionSummary
 from ads.config import AQUA_SERVICE_MODELS_BUCKET as SERVICE_MODELS_BUCKET
-
 
 MODEL_OCID = "ocid1.datasciencemodel.oc1.iad.<unique_ocid>"
 
@@ -163,6 +163,66 @@ ARTIFACT_HEADER_INFO = {
     "Content-Length": _MAX_ARTIFACT_SIZE_IN_BYTES + 100,
 }
 
+MODEL_BY_REF_JSON = {
+  "version": "1.0",
+  "type": "modelOSSReferenceDescription",
+  "models": [
+    {
+      "namespace": "ociodscdev",
+      "bucketName": "unzip-multi-model",
+      "prefix": "model-linear-1",
+      "objects": [
+        {
+          "name": "model-linear-1/linear-1.pkl",
+          "version": "ee260f4a-920a-4b4e-974a-c13a1032558e",
+          "sizeInBytes": 565
+        }
+      ]
+    },
+    {
+      "namespace": "ociodscdev",
+      "bucketName": "unzip-multi-model",
+      "prefix": "model-linear-2",
+      "objects": [
+        {
+          "name": "model-linear-2/linear-2.pkl",
+          "version": "dc26a7d2-8041-4b37-8ed0-9e8c10869340",
+          "sizeInBytes": 565
+        }
+      ]
+    },
+    {
+      "namespace": "ociodscdev",
+      "bucketName": "unzip-multi-model",
+      "prefix": "model-linear-3",
+      "objects": [
+        {
+          "name": "model-linear-3/linear-3.pkl",
+          "version": "a22c1211-f7d4-4fd4-96d8-4e3a048c5cf7",
+          "sizeInBytes": 565
+        }
+      ]
+    },
+    {
+      "namespace": "ociodscdev",
+      "bucketName": "unzip-multi-model",
+      "prefix": "",
+      "objects": [
+        {
+          "name": "runtime.yaml",
+          "version": "30afb1a6-ab1f-42a3-95e3-09f61a0046fd",
+          "sizeInBytes": 334
+        },
+        {
+          "name": "score.py",
+          "version": "c4ccaf96-05be-4174-ac3b-15dce2f558fe",
+          "sizeInBytes": 772
+        }
+      ]
+    }
+  ]
+}
+CONST_MODEL_FILE_DESCRIPTION = "modelDescription"
 
 class TestDataScienceModel:
     DEFAULT_PROPERTIES_PAYLOAD = {
@@ -1070,3 +1130,70 @@ class TestDataScienceModel:
         )
 
         mock_large_download.assert_called()
+
+    
+
+    @patch("ads.common.oci_client.OCIClientFactory")
+    def test_add_artifact(self, mock_oci_client_factory):
+        r = ObjectVersionSummary()
+        r.name = "model-linear-2/linear-2.pkl"
+        r.size = 566
+        r.time_modified = "2024-04-22T12:34:26.670000+00:00"
+        r.version_id = "dc26a7d2-8041-4b37-8ed0-9e8c10869340"
+        resp = [r]
+
+        # Mock response object
+        mock_response = MagicMock()
+        mock_response.data.items = resp
+        mock_response.has_next_page = False
+        mock_response.next_page = None
+
+        # Mock object storage client
+        mock_object_storage_client = MagicMock()
+        mock_object_storage_client.list_object_versions.return_value = mock_response
+        
+        mock_oci_client_factory.return_value.object_storage = mock_object_storage_client
+
+        # self.mock_dsc_model
+        self.mock_dsc_model.add_artifact(uri="oci://bucket@namespace/prefix")
+        expected_out = {
+            'version': '1.0', 
+            'type': 'modelOSSReferenceDescription', 
+            'models': [
+                {
+                    'namespace': 'namespace', 
+                    'bucketName': 'bucket', 
+                    'prefix': 'prefix', 
+                    'objects': [
+                        {
+                            'name': 'model-linear-2/linear-2.pkl', 
+                            'version': 'dc26a7d2-8041-4b37-8ed0-9e8c10869340', 
+                            'sizeInBytes': 566
+                        }
+                    ]
+                }
+            ]
+        }
+        assert self.mock_dsc_model.model_file_description == expected_out
+        self.mock_dsc_model.remove_artifact(uri="oci://bucket@namespace/prefix")
+        assert self.mock_dsc_model.model_file_description != expected_out
+        expected_out = {
+            'version': '1.0', 
+            'type': 'modelOSSReferenceDescription', 
+            'models': []
+        }
+        assert self.mock_dsc_model.model_file_description == expected_out
+
+    def test_remove_artifact(self):
+        self.mock_dsc_model.remove_artifact(uri="oci://unzip-multi-model@ociodscdev/model-linear-1")
+        assert self.mock_dsc_model.model_file_description == None
+        
+        self.mock_dsc_model.set_spec(CONST_MODEL_FILE_DESCRIPTION, deepcopy(MODEL_BY_REF_JSON))
+        assert self.mock_dsc_model.model_file_description == MODEL_BY_REF_JSON
+        
+        self.mock_dsc_model.remove_artifact(uri="oci://unzip-multi-model@ociodscdev/model-linear-1")
+        assert self.mock_dsc_model.model_file_description != MODEL_BY_REF_JSON
+        
+        exptected_json = deepcopy(MODEL_BY_REF_JSON)
+        exptected_json["models"] = exptected_json["models"][1:]
+        assert self.mock_dsc_model.model_file_description == exptected_json
