@@ -1478,22 +1478,24 @@ class DataScienceModel(Builder):
         """
         Adds information about objects in a specified bucket to the model description JSON.
 
-        Parameters:
-        - namespace (str): The namespace of the object storage.
-        - bucket (str): The name of the bucket containing the objects.
-        - prefix (str, optional): The prefix used to filter objects within the bucket. Defaults to None.
-        - files (list of str, optional): A list of file names to include in the model description.
-        If provided, only objects with matching file names will be included. Defaults to None.
+        Parameters
+        ----------
+        uri (str): The URI representing the location of the artifact in OCI object storage.
+        files (list of str, optional): A list of file names to include in the model description.
+            If provided, only objects with matching file names will be included. Defaults to None.
 
-        Returns:
-        - None
+        Returns
+        -------
+        None
 
-        Raises:
-        - ValueError: If no files are found to add to the model description.
+        Raises
+        ------
+        ValueError: If no files are found to add to the model description.
 
-        Note:
+        Note
+        ----
         - If `files` is not provided, it retrieves information about all objects in the bucket.
-        If `files` is provided, it only retrieves information about objects with matching file names.
+          If `files` is provided, it only retrieves information about objects with matching file names.
         - If no objects are found to add to the model description, a ValueError is raised.
         """
         
@@ -1590,20 +1592,17 @@ class DataScienceModel(Builder):
         """
         Removes information about objects in a specified bucket from the model description JSON.
 
-        Parameters:
-        - namespace (str): The namespace of the object storage.
-        - bucket (str): The name of the bucket containing the objects.
-        - prefix (str, optional): The prefix used to filter objects within the bucket. Defaults to None.
+        Parameters
+        ----------
+        uri (str): The URI representing the location of the artifact in OCI object storage.
 
-        Returns:
-        - None
+        Returns
+        -------
+        None
 
-        Note:
-        - This method removes information about objects in the specified bucket from the
-        instance of the ModelDescription.
-        - If a matching model (with the specified namespace, bucket name, and prefix) is found
-        in the model description JSON, it is removed.
-        - If no matching model is found, the method returns without making any changes.
+        Raises
+        ------
+        ValueError: If the model description JSON is None.
         """
 
         bucket, namespace, prefix = self._extract_oci_uri_components(uri)
