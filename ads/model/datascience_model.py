@@ -42,7 +42,6 @@ from ads.model.service.oci_datascience_model import (
     OCIDataScienceModel,
 )
 from ads.common import oci_client as oc
-from ads.common.auth import default_signer
 
 logger = logging.getLogger(__name__)
 
