@@ -5,7 +5,6 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import cgi
-import re
 import json
 import logging
 import os
@@ -1628,22 +1627,24 @@ class DataScienceModel(Builder):
             self.model_file_description["models"].pop(modelSearchIdx)
     
     def _extract_oci_uri_components(self, uri: str):
-        # Define the regular expression pattern to match the URI format
-        pattern = r"oci://(?P<bucket_name>[^@]+)@(?P<namespace>[^/]+)(?:/(?P<prefix>.*))?" # todo: remove regex
-        
-        # Use re.match to apply the pattern to the URI
-        match = re.match(pattern, uri)
-        
-        if match:
-            # Extract named groups using the groupdict() method
-            components = match.groupdict()
-            prefix = components.get('prefix', '')
-            # Treat a single trailing slash as no prefix
-            if prefix == "":
-                return components['bucket_name'], components['namespace'], ''
-            elif prefix == "/":
-                return components['bucket_name'], components['namespace'], ''
-            else:
-                return components['bucket_name'], components['namespace'], prefix
+        if not uri.startswith("oci://"):
+            raise ValueError("Invalid URI format")
+
+        # Remove the "oci://" prefix
+        uri = uri[len("oci://"):]
+
+        # Split by "@" to get bucket_name and the rest
+        bucket_and_rest = uri.split("@", 1)
+        if len(bucket_and_rest) != 2:
+            raise ValueError("Invalid URI format")
+
+        bucket_name = bucket_and_rest[0]
+
+        # Split the rest by "/" to get namespace and prefix
+        namespace_and_prefix = bucket_and_rest[1].split("/", 1)
+        if len(namespace_and_prefix) == 1:
+            namespace, prefix = namespace_and_prefix[0], ""
         else:
-            raise ValueError("The URI format is incorrect")
+            namespace, prefix = namespace_and_prefix
+
+        return bucket_name, namespace, None if prefix == '' else prefix
