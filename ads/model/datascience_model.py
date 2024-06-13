@@ -5,6 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import cgi
+import re
 import json
 import logging
 import os
@@ -1471,9 +1472,7 @@ class DataScienceModel(Builder):
     
     def add_artifact(
         self,
-        namespace: str,
-        bucket: str,
-        prefix: Optional[str] = None,
+        uri: str,
         files: Optional[List[str]] = None,
     ):
         """
@@ -1497,6 +1496,9 @@ class DataScienceModel(Builder):
         If `files` is provided, it only retrieves information about objects with matching file names.
         - If no objects are found to add to the model description, a ValueError is raised.
         """
+        
+        bucket, namespace, prefix = self._extract_oci_uri_components(uri)
+
         if self.model_file_description == None:
             self.empty_json = {
                 "version": "1.0",
@@ -1510,7 +1512,7 @@ class DataScienceModel(Builder):
         self.object_storage_client = oc.OCIClientFactory(**authData).object_storage
 
         # Remove if the model already exists
-        self.remove_artifact(namespace, bucket, prefix)
+        self.remove_artifact(uri=uri)
 
         def check_if_file_exists(fileName):
             isExists = False
@@ -1585,7 +1587,7 @@ class DataScienceModel(Builder):
         )
         self.set_spec(self.CONST_MODEL_FILE_DESCRIPTION, tmp_model_file_description)
     
-    def remove_artifact(self, namespace: str, bucket: str, prefix: Optional[str] = None):
+    def remove_artifact(self, uri: str):
         """
         Removes information about objects in a specified bucket from the model description JSON.
 
@@ -1605,6 +1607,8 @@ class DataScienceModel(Builder):
         - If no matching model is found, the method returns without making any changes.
         """
 
+        bucket, namespace, prefix = self._extract_oci_uri_components(uri)
+        
         def findModelIdx():
             for idx, model in enumerate(self.model_file_description["models"]):
                 if (
@@ -1624,3 +1628,24 @@ class DataScienceModel(Builder):
         else:
             # model found case
             self.model_file_description["models"].pop(modelSearchIdx)
+    
+    def _extract_oci_uri_components(self, uri: str):
+        # Define the regular expression pattern to match the URI format
+        pattern = r"oci://(?P<bucket_name>[^@]+)@(?P<namespace>[^/]+)(?:/(?P<prefix>.*))?"
+        
+        # Use re.match to apply the pattern to the URI
+        match = re.match(pattern, uri)
+        
+        if match:
+            # Extract named groups using the groupdict() method
+            components = match.groupdict()
+            prefix = components.get('prefix', '')
+            # Treat a single trailing slash as no prefix
+            if prefix == "":
+                return components['bucket_name'], components['namespace'], ''
+            elif prefix == "/":
+                return components['bucket_name'], components['namespace'], ''
+            else:
+                return components['bucket_name'], components['namespace'], prefix
+        else:
+            raise ValueError("The URI format is incorrect")
