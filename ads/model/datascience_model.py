@@ -1496,8 +1496,10 @@ class DataScienceModel(Builder):
           If `files` is provided, it only retrieves information about objects with matching file names.
         - If no objects are found to add to the model description, a ValueError is raised.
         """
-        
-        bucket, namespace, prefix = self._extract_oci_uri_components(uri)
+        object_storage_details = ObjectStorageDetails.from_path(uri)
+        bucket = object_storage_details.bucket
+        namespace = object_storage_details.namespace
+        prefix = None if object_storage_details.filepath == "" else object_storage_details.filepath
 
         if self.model_file_description == None:
             self.empty_json = {
@@ -1602,8 +1604,10 @@ class DataScienceModel(Builder):
         ------
         ValueError: If the model description JSON is None.
         """
-
-        bucket, namespace, prefix = self._extract_oci_uri_components(uri)
+        object_storage_details = ObjectStorageDetails.from_path(uri)
+        bucket = object_storage_details.bucket
+        namespace = object_storage_details.namespace
+        prefix = None if object_storage_details.filepath == "" else object_storage_details.filepath
         
         def findModelIdx():
             for idx, model in enumerate(self.model_file_description["models"]):
@@ -1624,26 +1628,3 @@ class DataScienceModel(Builder):
         else:
             # model found case
             self.model_file_description["models"].pop(modelSearchIdx)
-    
-    def _extract_oci_uri_components(self, uri: str):
-        if not uri.startswith("oci://"):
-            raise ValueError("Invalid URI format")
-
-        # Remove the "oci://" prefix
-        uri = uri[len("oci://"):]
-
-        # Split by "@" to get bucket_name and the rest
-        bucket_and_rest = uri.split("@", 1)
-        if len(bucket_and_rest) != 2:
-            raise ValueError("Invalid URI format")
-
-        bucket_name = bucket_and_rest[0]
-
-        # Split the rest by "/" to get namespace and prefix
-        namespace_and_prefix = bucket_and_rest[1].split("/", 1)
-        if len(namespace_and_prefix) == 1:
-            namespace, prefix = namespace_and_prefix[0], ""
-        else:
-            namespace, prefix = namespace_and_prefix
-
-        return bucket_name, namespace, None if prefix == '' else prefix
