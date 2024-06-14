@@ -1470,7 +1470,9 @@ class DataScienceModel(Builder):
     
     def add_artifact(
         self,
-        uri: str,
+        namespace: str,
+        bucket: str,
+        prefix: Optional[str] = None,
         files: Optional[List[str]] = None,
     ):
         """
@@ -1496,11 +1498,11 @@ class DataScienceModel(Builder):
           If `files` is provided, it only retrieves information about objects with matching file names.
         - If no objects are found to add to the model description, a ValueError is raised.
         """
-        object_storage_details = ObjectStorageDetails.from_path(uri)
-        bucket = object_storage_details.bucket
-        namespace = object_storage_details.namespace
-        prefix = None if object_storage_details.filepath == "" else object_storage_details.filepath
 
+        # Check if both prefix and files are provided
+        if prefix is not None and files is not None:
+            raise ValueError("Both 'prefix' and 'files' cannot be provided. Please provide only one.")
+        
         if self.model_file_description == None:
             self.empty_json = {
                 "version": "1.0",
@@ -1513,7 +1515,7 @@ class DataScienceModel(Builder):
         self.object_storage_client = oc.OCIClientFactory(**(self.dsc_model.auth)).object_storage
 
         # Remove if the model already exists
-        self.remove_artifact(uri=uri)
+        self.remove_artifact(namespace=namespace, bucket=bucket, prefix=prefix)
 
         def check_if_file_exists(fileName):
             isExists = False
@@ -1588,7 +1590,7 @@ class DataScienceModel(Builder):
         )
         self.set_spec(self.CONST_MODEL_FILE_DESCRIPTION, tmp_model_file_description)
     
-    def remove_artifact(self, uri: str):
+    def remove_artifact(self, namespace: str, bucket: str, prefix: Optional[str] = None):
         """
         Removes information about objects in a specified bucket from the model description JSON.
 
@@ -1604,10 +1606,6 @@ class DataScienceModel(Builder):
         ------
         ValueError: If the model description JSON is None.
         """
-        object_storage_details = ObjectStorageDetails.from_path(uri)
-        bucket = object_storage_details.bucket
-        namespace = object_storage_details.namespace
-        prefix = None if object_storage_details.filepath == "" else object_storage_details.filepath
         
         def findModelIdx():
             for idx, model in enumerate(self.model_file_description["models"]):

@@ -1155,7 +1155,8 @@ class TestDataScienceModel:
         mock_oci_client_factory.return_value.object_storage = mock_object_storage_client
 
         # self.mock_dsc_model
-        self.mock_dsc_model.add_artifact(uri="oci://bucket@namespace/prefix")
+        # self.mock_dsc_model.add_artifact(uri="oci://bucket@namespace/prefix")
+        self.mock_dsc_model.add_artifact(namespace="namespace", bucket="bucket", prefix="prefix")
         expected_out = {
             'version': '1.0', 
             'type': 'modelOSSReferenceDescription', 
@@ -1175,7 +1176,8 @@ class TestDataScienceModel:
             ]
         }
         assert self.mock_dsc_model.model_file_description == expected_out
-        self.mock_dsc_model.remove_artifact(uri="oci://bucket@namespace/prefix")
+        # self.mock_dsc_model.remove_artifact(uri="oci://bucket@namespace/prefix")
+        self.mock_dsc_model.remove_artifact(namespace="namespace", bucket="bucket", prefix="prefix")
         assert self.mock_dsc_model.model_file_description != expected_out
         expected_out = {
             'version': '1.0', 
@@ -1185,13 +1187,16 @@ class TestDataScienceModel:
         assert self.mock_dsc_model.model_file_description == expected_out
 
     def test_remove_artifact(self):
-        self.mock_dsc_model.remove_artifact(uri="oci://unzip-multi-model@ociodscdev/model-linear-1")
+        # self.mock_dsc_model.remove_artifact(uri="oci://unzip-multi-model@ociodscdev/model-linear-1")
+        self.mock_dsc_model.remove_artifact(namespace="ociodscdev", bucket="unzip-multi-model", prefix="model-linear-1")
+
         assert self.mock_dsc_model.model_file_description == None
         
         self.mock_dsc_model.set_spec(CONST_MODEL_FILE_DESCRIPTION, deepcopy(MODEL_BY_REF_JSON))
         assert self.mock_dsc_model.model_file_description == MODEL_BY_REF_JSON
         
-        self.mock_dsc_model.remove_artifact(uri="oci://unzip-multi-model@ociodscdev/model-linear-1")
+        # self.mock_dsc_model.remove_artifact(uri="oci://unzip-multi-model@ociodscdev/model-linear-1")
+        self.mock_dsc_model.remove_artifact(namespace="ociodscdev", bucket="unzip-multi-model", prefix="model-linear-1")
         assert self.mock_dsc_model.model_file_description != MODEL_BY_REF_JSON
         
         exptected_json = deepcopy(MODEL_BY_REF_JSON)
