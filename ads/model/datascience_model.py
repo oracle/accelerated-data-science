@@ -1467,7 +1467,7 @@ class DataScienceModel(Builder):
             bucket_uri.append(uri)
 
         return bucket_uri[0] if len(bucket_uri) == 1 else bucket_uri, artifact_size
-    
+
     def add_artifact(
         self,
         uri: Optional[str] = None,
@@ -1512,19 +1512,27 @@ class DataScienceModel(Builder):
         """
 
         if uri and (namespace or bucket):
-            raise ValueError("Either 'uri' must be provided or both 'namespace' and 'bucket' must be provided.")
+            raise ValueError(
+                "Either 'uri' must be provided or both 'namespace' and 'bucket' must be provided."
+            )
         if uri:
             object_storage_details = ObjectStorageDetails.from_path(uri)
             bucket = object_storage_details.bucket
             namespace = object_storage_details.namespace
-            prefix = None if object_storage_details.filepath == "" else object_storage_details.filepath
-        if ((not namespace) or (not bucket)):
+            prefix = (
+                None
+                if object_storage_details.filepath == ""
+                else object_storage_details.filepath
+            )
+        if (not namespace) or (not bucket):
             raise ValueError("Both 'namespace' and 'bucket' must be provided.")
 
         # Check if both prefix and files are provided
         if prefix is not None and files is not None:
-            raise ValueError("Both 'prefix' and 'files' cannot be provided. Please provide only one.")
-        
+            raise ValueError(
+                "Both 'prefix' and 'files' cannot be provided. Please provide only one."
+            )
+
         if self.model_file_description == None:
             self.empty_json = {
                 "version": "1.0",
@@ -1532,9 +1540,11 @@ class DataScienceModel(Builder):
                 "models": [],
             }
             self.set_spec(self.CONST_MODEL_FILE_DESCRIPTION, self.empty_json)
-        
+
         # Get object storage client
-        self.object_storage_client = oc.OCIClientFactory(**(self.dsc_model.auth)).object_storage
+        self.object_storage_client = oc.OCIClientFactory(
+            **(self.dsc_model.auth)
+        ).object_storage
 
         # Remove if the model already exists
         self.remove_artifact(namespace=namespace, bucket=bucket, prefix=prefix)
@@ -1611,14 +1621,14 @@ class DataScienceModel(Builder):
             }
         )
         self.set_spec(self.CONST_MODEL_FILE_DESCRIPTION, tmp_model_file_description)
-    
+
     def remove_artifact(
-            self, 
-            uri: Optional[str] = None, 
-            namespace: Optional[str] = None, 
-            bucket: Optional[str] = None, 
-            prefix: Optional[str] = None
-        ):
+        self,
+        uri: Optional[str] = None,
+        namespace: Optional[str] = None,
+        bucket: Optional[str] = None,
+        prefix: Optional[str] = None,
+    ):
         """
         Removes information about objects in a specified bucket or using a specified URI from the model description JSON.
 
@@ -1644,15 +1654,21 @@ class DataScienceModel(Builder):
             - If neither 'uri' nor both 'namespace' and 'bucket' are provided.
             - If the model description JSON is None.
         """
-        
+
         if uri and (namespace or bucket):
-            raise ValueError("Either 'uri' must be provided or both 'namespace' and 'bucket' must be provided.")
+            raise ValueError(
+                "Either 'uri' must be provided or both 'namespace' and 'bucket' must be provided."
+            )
         if uri:
             object_storage_details = ObjectStorageDetails.from_path(uri)
             bucket = object_storage_details.bucket
             namespace = object_storage_details.namespace
-            prefix = None if object_storage_details.filepath == "" else object_storage_details.filepath
-        if ((not namespace) or (not bucket)):
+            prefix = (
+                None
+                if object_storage_details.filepath == ""
+                else object_storage_details.filepath
+            )
+        if (not namespace) or (not bucket):
             raise ValueError("Both 'namespace' and 'bucket' must be provided.")
 
         def findModelIdx():
@@ -1667,7 +1683,7 @@ class DataScienceModel(Builder):
 
         if self.model_file_description == None:
             return
-        
+
         modelSearchIdx = findModelIdx()
         if modelSearchIdx == -1:
             return
