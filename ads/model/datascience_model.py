@@ -1481,9 +1481,16 @@ class DataScienceModel(Builder):
 
         Parameters
         ----------
-        uri (str): The URI representing the location of the artifact in OCI object storage.
-        files (list of str, optional): A list of file names to include in the model description.
-            If provided, only objects with matching file names will be included. Defaults to None.
+        uri : str, optional
+            The URI representing the location of the artifact in OCI object storage.
+        namespace : str, optional
+            The namespace of the bucket containing the objects. Required if `uri` is not provided.
+        bucket : str, optional
+            The name of the bucket containing the objects. Required if `uri` is not provided.
+        prefix : str, optional
+            The prefix of the objects to add. Defaults to None. Cannot be provided if `files` is provided.
+        files : list of str, optional
+            A list of file names to include in the model description. If provided, only objects with matching file names will be included. Cannot be provided if `prefix` is provided.
 
         Returns
         -------
@@ -1491,12 +1498,16 @@ class DataScienceModel(Builder):
 
         Raises
         ------
-        ValueError: If no files are found to add to the model description.
+        ValueError
+            - If both `uri` and (`namespace` and `bucket`) are provided.
+            - If neither `uri` nor both `namespace` and `bucket` are provided.
+            - If both `prefix` and `files` are provided.
+            - If no files are found to add to the model description.
 
         Note
         ----
         - If `files` is not provided, it retrieves information about all objects in the bucket.
-          If `files` is provided, it only retrieves information about objects with matching file names.
+        - If `files` is provided, it only retrieves information about objects with matching file names.
         - If no objects are found to add to the model description, a ValueError is raised.
         """
 
@@ -1609,11 +1620,18 @@ class DataScienceModel(Builder):
             prefix: Optional[str] = None
         ):
         """
-        Removes information about objects in a specified bucket from the model description JSON.
+        Removes information about objects in a specified bucket or using a specified URI from the model description JSON.
 
         Parameters
         ----------
-        uri (str): The URI representing the location of the artifact in OCI object storage.
+        uri : str, optional
+            The URI representing the location of the artifact in OCI object storage.
+        namespace : str, optional
+            The namespace of the bucket containing the objects. Required if `uri` is not provided.
+        bucket : str, optional
+            The name of the bucket containing the objects. Required if `uri` is not provided.
+        prefix : str, optional
+            The prefix of the objects to remove. Defaults to None.
 
         Returns
         -------
@@ -1621,7 +1639,10 @@ class DataScienceModel(Builder):
 
         Raises
         ------
-        ValueError: If the model description JSON is None.
+        ValueError
+            - If both 'uri' and ('namespace' and 'bucket') are provided.
+            - If neither 'uri' nor both 'namespace' and 'bucket' are provided.
+            - If the model description JSON is None.
         """
         
         if uri and (namespace or bucket):
