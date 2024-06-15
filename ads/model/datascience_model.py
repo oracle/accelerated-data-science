@@ -1470,8 +1470,9 @@ class DataScienceModel(Builder):
     
     def add_artifact(
         self,
-        namespace: str,
-        bucket: str,
+        uri: Optional[str] = None,
+        namespace: Optional[str] = None,
+        bucket: Optional[str] = None,
         prefix: Optional[str] = None,
         files: Optional[List[str]] = None,
     ):
@@ -1498,6 +1499,16 @@ class DataScienceModel(Builder):
           If `files` is provided, it only retrieves information about objects with matching file names.
         - If no objects are found to add to the model description, a ValueError is raised.
         """
+
+        if uri and (namespace or bucket):
+            raise ValueError("Either 'uri' must be provided or both 'namespace' and 'bucket' must be provided.")
+        if uri:
+            object_storage_details = ObjectStorageDetails.from_path(uri)
+            bucket = object_storage_details.bucket
+            namespace = object_storage_details.namespace
+            prefix = None if object_storage_details.filepath == "" else object_storage_details.filepath
+        if ((not namespace) or (not bucket)):
+            raise ValueError("Both 'namespace' and 'bucket' must be provided.")
 
         # Check if both prefix and files are provided
         if prefix is not None and files is not None:
@@ -1590,7 +1601,13 @@ class DataScienceModel(Builder):
         )
         self.set_spec(self.CONST_MODEL_FILE_DESCRIPTION, tmp_model_file_description)
     
-    def remove_artifact(self, namespace: str, bucket: str, prefix: Optional[str] = None):
+    def remove_artifact(
+            self, 
+            uri: Optional[str] = None, 
+            namespace: Optional[str] = None, 
+            bucket: Optional[str] = None, 
+            prefix: Optional[str] = None
+        ):
         """
         Removes information about objects in a specified bucket from the model description JSON.
 
@@ -1607,6 +1624,16 @@ class DataScienceModel(Builder):
         ValueError: If the model description JSON is None.
         """
         
+        if uri and (namespace or bucket):
+            raise ValueError("Either 'uri' must be provided or both 'namespace' and 'bucket' must be provided.")
+        if uri:
+            object_storage_details = ObjectStorageDetails.from_path(uri)
+            bucket = object_storage_details.bucket
+            namespace = object_storage_details.namespace
+            prefix = None if object_storage_details.filepath == "" else object_storage_details.filepath
+        if ((not namespace) or (not bucket)):
+            raise ValueError("Both 'namespace' and 'bucket' must be provided.")
+
         def findModelIdx():
             for idx, model in enumerate(self.model_file_description["models"]):
                 if (
