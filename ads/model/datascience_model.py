@@ -1616,7 +1616,7 @@ class DataScienceModel(Builder):
             {
                 "namespace": namespace,
                 "bucketName": bucket,
-                "prefix": prefix,
+                "prefix": "" if not prefix else prefix,
                 "objects": objects,
             }
         )
@@ -1677,7 +1677,7 @@ class DataScienceModel(Builder):
                     model["namespace"],
                     model["bucketName"],
                     (model["prefix"] if ("prefix" in model) else None),
-                ) == (namespace, bucket, prefix):
+                ) == (namespace, bucket, "" if not prefix else prefix):
                     return idx
             return -1
 
