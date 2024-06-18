@@ -110,6 +110,7 @@ class AquaDeploymentApp(AquaApp):
         health_check_port: int = None,
         env_var: Dict = None,
         container_family: str = None,
+        wait_for_completion: bool = False,
     ) -> "AquaDeployment":
         """
         Creates a new Aqua deployment
@@ -353,7 +354,10 @@ class AquaDeploymentApp(AquaApp):
             .with_freeform_tags(**tags)
             .with_infrastructure(infrastructure)
             .with_runtime(container_runtime)
-        ).deploy(wait_for_completion=False)
+        ).deploy(
+            wait_for_completion=wait_for_completion,
+            max_wait_time=7200,
+        )
 
         model_type = (
             AQUA_MODEL_TYPE_CUSTOM if is_fine_tuned_model else AQUA_MODEL_TYPE_SERVICE

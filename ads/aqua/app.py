@@ -217,6 +217,7 @@ class AquaApp:
         model_taxonomy_metadata: Union[ModelTaxonomyMetadata, Dict],
         compartment_id: str,
         project_id: str,
+        freeform_tags: dict,
         **kwargs,
     ) -> DataScienceModel:
         model = (
@@ -229,6 +230,7 @@ class AquaApp:
             .with_custom_metadata_list(model_custom_metadata)
             .with_defined_metadata_list(model_taxonomy_metadata)
             .with_provenance_metadata(ModelProvenanceMetadata(training_id=UNKNOWN))
+            .with_freeform_tags(**freeform_tags)
             # TODO: decide what parameters will be needed
             .create(
                 **kwargs,

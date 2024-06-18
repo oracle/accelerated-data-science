@@ -109,11 +109,11 @@ class AquaFineTuningApp(AquaApp):
                 )
 
         source = self.get_source(create_fine_tuning_details.ft_source_id)
-        if source.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
-            raise AquaValueError(
-                f"Fine tuning is only supported for Aqua service models in {ODSC_MODEL_COMPARTMENT_OCID}. "
-                "Use a valid Aqua service model id instead."
-            )
+        # if source.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
+        #     raise AquaValueError(
+        #         f"Fine tuning is only supported for Aqua service models in {ODSC_MODEL_COMPARTMENT_OCID}. "
+        #         "Use a valid Aqua service model id instead."
+        #     )
 
         target_compartment = (
             create_fine_tuning_details.compartment_id or COMPARTMENT_OCID
@@ -263,6 +263,7 @@ class AquaFineTuningApp(AquaApp):
             model_taxonomy_metadata=ft_model_taxonomy_metadata,
             compartment_id=target_compartment,
             project_id=target_project,
+            freeform_tags={"OCI_AQUA":""},
             model_by_reference=True,
         )
 
@@ -341,7 +342,7 @@ class AquaFineTuningApp(AquaApp):
         ft_job_run = ft_job.run(
             name=ft_model.display_name,
             freeform_tags=ft_job_freeform_tags,
-            wait=False,
+            wait=True,
         )
         logger.debug(
             f"Successfully created fine tuning job run {ft_job_run.id} for {create_fine_tuning_details.ft_source_id}."

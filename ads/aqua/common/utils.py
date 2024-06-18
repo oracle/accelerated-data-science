@@ -676,11 +676,11 @@ def get_model_by_reference_paths(model_file_description: dict):
         else:
             fine_tune_output_path = bucket_uri
 
-    if not base_model_path:
-        raise AquaValueError(
-            f"Base Model should come from the bucket {AQUA_SERVICE_MODELS_BUCKET}. "
-            f"Other paths are not supported by Aqua."
-        )
+    # if not base_model_path:
+    #     raise AquaValueError(
+    #         f"Base Model should come from the bucket {AQUA_SERVICE_MODELS_BUCKET}. "
+    #         f"Other paths are not supported by Aqua."
+    #     )
     return base_model_path, fine_tune_output_path
 
 
