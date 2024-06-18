@@ -48,6 +48,7 @@ classifiers = [
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
 ]
 
 # PEP 508 – Dependency specification for Python Software Packages - https://peps.python.org/pep-0508/
@@ -79,7 +80,7 @@ dependencies = [
 # Copied from extras_require list in setup.py, setup.py got removed in favor of this config file
 bds = ["hdfs[kerberos]", "ibis-framework[impala]", "sqlalchemy"]
 boosted = [
-  "lightgbm<4.0.0", # relax when the official releases of skl2onnx (v1.16.0) and onnxmltools (1.11.3), https://github.com/sdpython/mlprodict/issues/488
+  "lightgbm",
   "xgboost",
 ]
 data = [
@@ -95,12 +96,12 @@ geo = ["geopandas", "oracle_ads[viz]"]
 huggingface = ["transformers"]
 notebook = ["ipython>=7.23.1, <8.0", "ipywidgets~=7.6.3"]
 onnx = [
-  "lightgbm<4.0.0",            # relax when the official releases of skl2onnx (v1.16.0) and onnxmltools (1.11.3), https://github.com/sdpython/mlprodict/issues/488
+  "lightgbm",
   "onnx>=1.12.0",
   "onnxmltools>=1.10.0",
-  "onnxruntime>=1.10.0,<1.16", # v1.16 introduced issues https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
+  "onnxruntime>=1.10.0,!=1.16.0", # avoid v1.16 https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
   "oracle_ads[viz]",
-  "protobuf<=3.20",
+  "protobuf",
   "skl2onnx>=1.10.4",
   "tf2onnx",
   "xgboost<=1.7",
@@ -120,7 +121,10 @@ opctl = [
 optuna = ["optuna==2.9.0", "oracle_ads[viz]"]
 spark = ["pyspark>=3.0.0"]
 tensorflow = ["oracle_ads[viz]", "tensorflow"]
-text = ["spacy", "wordcloud>=1.8.1"]
+text = [
+  "spacy>=3.4.2",   # the first version of spacy that supports python 3.11 is spacy v3.4.2
+  "wordcloud>=1.8.1"
+]
 torch = ["oracle_ads[viz]", "torch", "torchvision"]
 viz = [
   "bokeh>=3.0.0, <3.2.0",  # starting 3.2.0 bokeh not supporting python3.8; relax after ADS will drop py3.8 support
@@ -182,16 +186,13 @@ aqua = ["jupyter_server"]
 # trying to use. Ref - https://pip.pypa.io/en/stable/topics/dependency-resolution/#possible-ways-to-reduce-backtracking.
 # Revisit this section continuously and update to recent version of libraries. focus on pyt3.9/3.10 versions.
 testsuite = [
-  "dask==2023.5.0; python_version=='3.8'",
-  "dask==2023.10.1; python_version>='3.9'", # oci-cli depends on click==8.0.4, dask>2023.10.1 depends on "click>=8.1"
   "arff",
   "category_encoders==2.6.3",  # set version to avoid backtracking
   "cohere==4.53",  # set version to avoid backtracking
-  "dask==2023.10.1; python_version>='3.9'", # oci-cli depends on click==8.0.4, dask>2023.10.1 depends on "click>=8.1"
-  "dask==2023.5.0; python_version=='3.8'",
   "faiss-cpu",
   "fastparquet==2024.2.0",  # set version to avoid backtracking
   "imbalanced-learn",
+  "kubernetes",
   "lxml",
   "mysql-connector-python",
   "nltk",
@@ -199,10 +200,10 @@ testsuite = [
   "opensearch-py",
   "pdfplumber",
   "py4j",
-  "pyarrow",
+  "pyarrow>=15.0.0",
   "statsmodels; python_version=='3.8'",
   "statsmodels>=0.14.1; python_version>='3.9'",  # cython3.0 compatibility added in v0.14.1
-  "tables",
+  "tables>3.9.0",
   "xlrd>=1.2.0",
 ]
 

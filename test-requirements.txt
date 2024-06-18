@@ -1,3 +1,5 @@
+# Include here only libraries required to run test methods, like mock, pytest, coverage etc.
+# Add dependencies for ADS to pyproject.toml [project.optional-dependencies] 'testsuite' section.
 -e .
 click
 coverage
@@ -8,4 +10,3 @@ pip
 pytest
 pytest-cov
 pytest-xdist
-kubernetes
