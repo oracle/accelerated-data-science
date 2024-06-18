@@ -96,7 +96,7 @@ def load_data(data_spec, storage_options=None, **kwargs):
                             connect_args['service_name'] = adwsecret['service_name']
 
                 except Exception as e:
-                    logger.debug(f"Could not retrieve database credentials from vault : {e}")
+                    raise Exception(f"Could not retrieve database credentials from vault {vault_secret_id}: {e}")
 
             con = oracledb.connect(**connect_args)
             if table_name is not None:
