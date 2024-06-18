@@ -41,6 +41,7 @@ from ads.model.service.oci_datascience_model import (
     ModelProvenanceNotFoundError,
     OCIDataScienceModel,
 )
+from ads.common import oci_client as oc
 
 logger = logging.getLogger(__name__)
 
@@ -1466,3 +1467,226 @@ class DataScienceModel(Builder):
             bucket_uri.append(uri)
 
         return bucket_uri[0] if len(bucket_uri) == 1 else bucket_uri, artifact_size
+
+    def add_artifact(
+        self,
+        uri: Optional[str] = None,
+        namespace: Optional[str] = None,
+        bucket: Optional[str] = None,
+        prefix: Optional[str] = None,
+        files: Optional[List[str]] = None,
+    ):
+        """
+        Adds information about objects in a specified bucket to the model description JSON.
+
+        Parameters
+        ----------
+        uri : str, optional
+            The URI representing the location of the artifact in OCI object storage.
+        namespace : str, optional
+            The namespace of the bucket containing the objects. Required if `uri` is not provided.
+        bucket : str, optional
+            The name of the bucket containing the objects. Required if `uri` is not provided.
+        prefix : str, optional
+            The prefix of the objects to add. Defaults to None. Cannot be provided if `files` is provided.
+        files : list of str, optional
+            A list of file names to include in the model description. If provided, only objects with matching file names will be included. Cannot be provided if `prefix` is provided.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            - If both `uri` and (`namespace` and `bucket`) are provided.
+            - If neither `uri` nor both `namespace` and `bucket` are provided.
+            - If both `prefix` and `files` are provided.
+            - If no files are found to add to the model description.
+
+        Note
+        ----
+        - If `files` is not provided, it retrieves information about all objects in the bucket.
+        - If `files` is provided, it only retrieves information about objects with matching file names.
+        - If no objects are found to add to the model description, a ValueError is raised.
+        """
+
+        if uri and (namespace or bucket):
+            raise ValueError(
+                "Either 'uri' must be provided or both 'namespace' and 'bucket' must be provided."
+            )
+        if uri:
+            object_storage_details = ObjectStorageDetails.from_path(uri)
+            bucket = object_storage_details.bucket
+            namespace = object_storage_details.namespace
+            prefix = (
+                None
+                if object_storage_details.filepath == ""
+                else object_storage_details.filepath
+            )
+        if (not namespace) or (not bucket):
+            raise ValueError("Both 'namespace' and 'bucket' must be provided.")
+
+        # Check if both prefix and files are provided
+        if prefix is not None and files is not None:
+            raise ValueError(
+                "Both 'prefix' and 'files' cannot be provided. Please provide only one."
+            )
+
+        if self.model_file_description == None:
+            self.empty_json = {
+                "version": "1.0",
+                "type": "modelOSSReferenceDescription",
+                "models": [],
+            }
+            self.set_spec(self.CONST_MODEL_FILE_DESCRIPTION, self.empty_json)
+
+        # Get object storage client
+        self.object_storage_client = oc.OCIClientFactory(
+            **(self.dsc_model.auth)
+        ).object_storage
+
+        # Remove if the model already exists
+        self.remove_artifact(namespace=namespace, bucket=bucket, prefix=prefix)
+
+        def check_if_file_exists(fileName):
+            isExists = False
+            try:
+                headResponse = self.object_storage_client.head_object(
+                    namespace, bucket, object_name=fileName
+                )
+                if headResponse.status == 200:
+                    isExists = True
+            except Exception as e:
+                if hasattr(e, "status") and e.status == 404:
+                    logger.error(f"File not found in bucket: {fileName}")
+                else:
+                    logger.error(f"An error occured: {e}")
+            return isExists
+
+        # Function to un-paginate the api call with while loop
+        def list_obj_versions_unpaginated():
+            objectStorageList = []
+            has_next_page, opc_next_page = True, None
+            while has_next_page:
+                response = self.object_storage_client.list_object_versions(
+                    namespace_name=namespace,
+                    bucket_name=bucket,
+                    prefix=prefix,
+                    fields="name,size",
+                    page=opc_next_page,
+                )
+                objectStorageList.extend(response.data.items)
+                has_next_page = response.has_next_page
+                opc_next_page = response.next_page
+            return objectStorageList
+
+        # Fetch object details and put it into the objects variable
+        objectStorageList = []
+        if files == None:
+            objectStorageList = list_obj_versions_unpaginated()
+        else:
+            for fileName in files:
+                if check_if_file_exists(fileName=fileName):
+                    objectStorageList.append(
+                        self.object_storage_client.list_object_versions(
+                            namespace_name=namespace,
+                            bucket_name=bucket,
+                            prefix=fileName,
+                            fields="name,size",
+                        ).data.items[0]
+                    )
+
+        objects = [
+            {"name": obj.name, "version": obj.version_id, "sizeInBytes": obj.size}
+            for obj in objectStorageList
+            if obj.size > 0
+        ]
+
+        if len(objects) == 0:
+            error_message = (
+                f"No files to add in the bucket: {bucket} with namespace: {namespace} "
+                f"and prefix: {prefix}. File names: {files}"
+            )
+            logger.error(error_message)
+            raise ValueError(error_message)
+
+        tmp_model_file_description = self.model_file_description
+        tmp_model_file_description["models"].append(
+            {
+                "namespace": namespace,
+                "bucketName": bucket,
+                "prefix": "" if not prefix else prefix,
+                "objects": objects,
+            }
+        )
+        self.set_spec(self.CONST_MODEL_FILE_DESCRIPTION, tmp_model_file_description)
+
+    def remove_artifact(
+        self,
+        uri: Optional[str] = None,
+        namespace: Optional[str] = None,
+        bucket: Optional[str] = None,
+        prefix: Optional[str] = None,
+    ):
+        """
+        Removes information about objects in a specified bucket or using a specified URI from the model description JSON.
+
+        Parameters
+        ----------
+        uri : str, optional
+            The URI representing the location of the artifact in OCI object storage.
+        namespace : str, optional
+            The namespace of the bucket containing the objects. Required if `uri` is not provided.
+        bucket : str, optional
+            The name of the bucket containing the objects. Required if `uri` is not provided.
+        prefix : str, optional
+            The prefix of the objects to remove. Defaults to None.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            - If both 'uri' and ('namespace' and 'bucket') are provided.
+            - If neither 'uri' nor both 'namespace' and 'bucket' are provided.
+            - If the model description JSON is None.
+        """
+
+        if uri and (namespace or bucket):
+            raise ValueError(
+                "Either 'uri' must be provided or both 'namespace' and 'bucket' must be provided."
+            )
+        if uri:
+            object_storage_details = ObjectStorageDetails.from_path(uri)
+            bucket = object_storage_details.bucket
+            namespace = object_storage_details.namespace
+            prefix = (
+                None
+                if object_storage_details.filepath == ""
+                else object_storage_details.filepath
+            )
+        if (not namespace) or (not bucket):
+            raise ValueError("Both 'namespace' and 'bucket' must be provided.")
+
+        def findModelIdx():
+            for idx, model in enumerate(self.model_file_description["models"]):
+                if (
+                    model["namespace"],
+                    model["bucketName"],
+                    (model["prefix"] if ("prefix" in model) else None),
+                ) == (namespace, bucket, "" if not prefix else prefix):
+                    return idx
+            return -1
+
+        if self.model_file_description == None:
+            return
+
+        modelSearchIdx = findModelIdx()
+        if modelSearchIdx == -1:
+            return
+        else:
+            # model found case
+            self.model_file_description["models"].pop(modelSearchIdx)
