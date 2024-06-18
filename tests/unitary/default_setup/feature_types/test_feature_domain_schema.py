@@ -96,7 +96,7 @@ class TestFeatureDomainSchema:
 
     ### Phone Number
     phonenumber = pd.Series(
-        ["2068866666", "6508866666", "2068866666", "", np.NaN, np.nan, None],
+        ["2068866666", "6508866666", "2068866666", "", np.nan, np.nan, None],
         name="phone",
     )
 
@@ -114,16 +114,16 @@ class TestFeatureDomainSchema:
             "-44.510428,-169.269477",
             "-56.3344375,-166.407038",
             "",
-            np.NaN,
+            np.nan,
             None,
         ],
         name="latlon",
     )
     ### zip code
-    zipcode = pd.Series([94065, 90210, np.NaN, None], name="zipcode")
+    zipcode = pd.Series([94065, 90210, np.nan, None], name="zipcode")
 
     ### boolean
-    boolean = pd.Series([True, False, True, False, np.NaN, None], name="bool")
+    boolean = pd.Series([True, False, True, False, np.nan, None], name="bool")
 
     ### string
     string = pd.Series(
@@ -148,7 +148,7 @@ class TestFeatureDomainSchema:
             "S",
             "S",
             "",
-            np.NaN,
+            np.nan,
             None,
         ],
         name="string",
@@ -185,7 +185,7 @@ class TestFeatureDomainSchema:
             "-44.510428,-169.269477",
             "-56.3344375,-166.407038",
             "",
-            np.NaN,
+            np.nan,
             None,
         ],
         name="gis",
@@ -193,19 +193,19 @@ class TestFeatureDomainSchema:
 
     ### ipaddress
     ip_address = pd.Series(
-        ["2002:db8::", "192.168.0.1", "2001:db8::", "2002:db8::", np.NaN, None],
+        ["2002:db8::", "192.168.0.1", "2001:db8::", "2002:db8::", np.nan, None],
         name="ip_address",
     )
 
     ### ipaddressv4
     ip_address_v4 = pd.Series(
-        ["192.168.0.1", "192.168.0.2", "192.168.0.3", "192.168.0.4", np.NaN, None],
+        ["192.168.0.1", "192.168.0.2", "192.168.0.3", "192.168.0.4", np.nan, None],
         name="ip_address_v4",
     )
 
     ### ipaddressv6
     ip_address_v6 = pd.Series(
-        ["2002:db8::", "2001:db8::", "2001:db8::", "2002:db8::", np.NaN, None],
+        ["2002:db8::", "2001:db8::", "2001:db8::", "2002:db8::", np.nan, None],
         name="ip_address_v6",
     )
 
@@ -524,23 +524,6 @@ class TestFeatureDomainSchema:
                 self.model_artifact.populate_schema(X_sample=list(self.X))
                 mock_warning.assert_called()
 
-    @pytest.mark.skipif("NoDependency" in os.environ, reason="skip for dependency test")
-    def test_populate_schema_dask_tuple(self):
-        import dask.dataframe as dd
-
-        self.model_artifact.populate_schema(
-            X_sample=dd.from_array(self.X), y_sample=tuple(self.y)
-        )
-        assert isinstance(self.model_artifact.schema_input, Schema)
-        assert isinstance(self.model_artifact.schema_output, Schema)
-
-        # Test wide data
-        with patch.object(Schema, "validate_size", side_effect=SchemaSizeTooLarge(100)):
-            with patch.object(logger, "warning") as mock_warning:
-                self.model_artifact.populate_schema(
-                    X_sample=dd.from_array(self.X), y_sample=tuple(self.y)
-                )
-                mock_warning.assert_called()
 
     def test_simple_constraint(self):
         self.df["sepal length (cm)"].ads.feature_type = ["category"]

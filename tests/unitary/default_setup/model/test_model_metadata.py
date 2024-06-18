@@ -396,7 +396,7 @@ class TestModelCustomMetadataItem:
             ({"key": "test_key"}, json.dumps({"key": "test_key"})),
             (None, _METADATA_EMPTY_VALUE),
             ("", _METADATA_EMPTY_VALUE),
-            ({"key": np.NaN}, json.dumps({"key": np.NaN}).replace("NaN", "null")),
+            ({"key": np.nan}, json.dumps({"key": np.nan}).replace("nan", "null")),
         ],
     )
     def test__to_oci_metadata(self, test_value, expected_value):

@@ -66,7 +66,7 @@ class TestFeatureStat:
 
     ### Phone Number
     phonenumber = pd.Series(
-        ["2068866666", "6508866666", "2068866666", "", np.NaN, np.nan, None],
+        ["2068866666", "6508866666", "2068866666", "", np.nan, np.nan, None],
         name="phone",
     )
 
@@ -84,16 +84,16 @@ class TestFeatureStat:
             "-44.510428,-169.269477",
             "-56.3344375,-166.407038",
             "",
-            np.NaN,
+            np.nan,
             None,
         ],
         name="latlon",
     )
     ### zip code
-    zipcode = pd.Series([94065, 90210, np.NaN, None], name="zipcode")
+    zipcode = pd.Series([94065, 90210, np.nan, None], name="zipcode")
 
     ### boolean
-    boolean = pd.Series([True, False, True, False, np.NaN, None], name="bool")
+    boolean = pd.Series([True, False, True, False, np.nan, None], name="bool")
 
     ### string
     string = pd.Series(
@@ -118,7 +118,7 @@ class TestFeatureStat:
             "S",
             "S",
             "",
-            np.NaN,
+            np.nan,
             None,
         ],
         name="string",
@@ -155,7 +155,7 @@ class TestFeatureStat:
             "-44.510428,-169.269477",
             "-56.3344375,-166.407038",
             "",
-            np.NaN,
+            np.nan,
             None,
         ],
         name="gis",
@@ -163,19 +163,19 @@ class TestFeatureStat:
 
     ### ipaddress
     ip_address = pd.Series(
-        ["2002:db8::", "192.168.0.1", "2001:db8::", "2002:db8::", np.NaN, None],
+        ["2002:db8::", "192.168.0.1", "2001:db8::", "2002:db8::", np.nan, None],
         name="ip_address",
     )
 
     ### ipaddressv4
     ip_address_v4 = pd.Series(
-        ["192.168.0.1", "192.168.0.2", "192.168.0.3", "192.168.0.4", np.NaN, None],
+        ["192.168.0.1", "192.168.0.2", "192.168.0.3", "192.168.0.4", np.nan, None],
         name="ip_address_v4",
     )
 
     ### ipaddressv6
     ip_address_v6 = pd.Series(
-        ["2002:db8::", "2001:db8::", "2001:db8::", "2002:db8::", np.NaN, None],
+        ["2002:db8::", "2001:db8::", "2001:db8::", "2002:db8::", np.nan, None],
         name="ip_address_v6",
     )
 
