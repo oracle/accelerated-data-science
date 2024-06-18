@@ -791,7 +791,8 @@ class XgboostOnnxModelSerializer(OnnxModelSerializer):
                         initial_types=auto_generated_initial_types,
                         **kwargs,
                     )
-                except:
+                except Exception as e:
+                    logger.exception(f"Exception details: {e}")
                     raise ValueError(
                         "`initial_types` can not be autodetected. Please directly pass `initial_types`."
                     )
