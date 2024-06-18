@@ -337,7 +337,7 @@ class AquaFineTuningApp(AquaApp):
         ft_job_run = ft_job.run(
             name=ft_model.display_name,
             freeform_tags=ft_job_freeform_tags,
-            wait=True,
+            wait=create_fine_tuning_details.wait_for_completion,
         )
         logger.debug(
             f"Successfully created fine tuning job run {ft_job_run.id} for {create_fine_tuning_details.ft_source_id}."

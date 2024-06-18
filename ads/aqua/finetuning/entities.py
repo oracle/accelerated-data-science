@@ -79,6 +79,8 @@ class CreateFineTuningDetails(DataClassSerializable):
         The log id for fine tuning job infrastructure.
     force_overwrite: (bool, optional). Defaults to `False`.
         Whether to force overwrite the existing file in object storage.
+    wait_for_completion: (bool, optional). Defaults to `False`.
+        Whether to wait for the fine tuning to be completed.
     """
 
     ft_source_id: str
@@ -100,3 +102,4 @@ class CreateFineTuningDetails(DataClassSerializable):
     log_id: Optional[str] = None
     log_group_id: Optional[str] = None
     force_overwrite: Optional[bool] = False
+    wait_for_completion: Optional[bool] = False
