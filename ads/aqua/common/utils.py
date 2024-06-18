@@ -28,10 +28,11 @@ from ads.aqua.common.errors import (
 from ads.aqua.constants import *
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.auth import default_signer
+from ads.common.decorator.threaded import threaded
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import get_console_link, upload_to_os, copy_file
+from ads.common.utils import copy_file, get_console_link, upload_to_os
 from ads.config import AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, TENANCY_OCID
 from ads.model import DataScienceModel, ModelVersionSet
 
@@ -195,6 +196,7 @@ def read_file(file_path: str, **kwargs) -> str:
         return UNKNOWN
 
 
+@threaded()
 def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
     artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
     if artifact_path.startswith("oci://"):
@@ -540,8 +542,10 @@ def get_container_image(
 
 
 def fetch_service_compartment() -> Union[str, None]:
-    """Loads the compartment mapping json from service bucket. This json file has a service-model-compartment key which
-    contains a dictionary of namespaces and the compartment OCID of the service models in that namespace.
+    """
+    Loads the compartment mapping json from service bucket.
+    This json file has a service-model-compartment key which contains a dictionary of namespaces
+    and the compartment OCID of the service models in that namespace.
     """
     config_file_name = (
         f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
@@ -554,8 +558,8 @@ def fetch_service_compartment() -> Union[str, None]:
         )
     except Exception as e:
         logger.debug(
-            f"Config file {config_file_name}/{CONTAINER_INDEX} to fetch service compartment OCID could not be found. "
-            f"\n{str(e)}."
+            f"Config file {config_file_name}/{CONTAINER_INDEX} to fetch service compartment OCID "
+            f"could not be found. \n{str(e)}."
         )
         return
     compartment_mapping = config.get(COMPARTMENT_MAPPING_KEY)
@@ -664,23 +668,26 @@ def get_model_by_reference_paths(model_file_description: dict):
     fine_tune_output_path = UNKNOWN
     models = model_file_description["models"]
 
-    for model in models:
-        namespace, bucket_name, prefix = (
-            model["namespace"],
-            model["bucketName"],
-            model["prefix"],
+    if not models:
+        raise AquaValueError(
+            f"Model path is not available in the model json artifact. "
+            f"Please check if the model created by reference has the correct artifact."
         )
-        bucket_uri = f"oci://{bucket_name}@{namespace}/{prefix}".rstrip("/")
-        if bucket_name == AQUA_SERVICE_MODELS_BUCKET:
-            base_model_path = bucket_uri
-        else:
-            fine_tune_output_path = bucket_uri
 
-    # if not base_model_path:
-    #     raise AquaValueError(
-    #         f"Base Model should come from the bucket {AQUA_SERVICE_MODELS_BUCKET}. "
-    #         f"Other paths are not supported by Aqua."
-    #     )
+    if len(models) > 0:
+        # since the model_file_description json does not have a flag to identify the base model, we consider
+        # the first instance to be the base model.
+        base_model_artifact = models[0]
+        base_model_path = f"oci://{base_model_artifact['bucketName']}@{base_model_artifact['namespace']}/{base_model_artifact['prefix']}".rstrip(
+            "/"
+        )
+    if len(models) > 1:
+        # second model is considered as fine-tuned model
+        ft_model_artifact = models[1]
+        fine_tune_output_path = f"oci://{ft_model_artifact['bucketName']}@{ft_model_artifact['namespace']}/{ft_model_artifact['prefix']}".rstrip(
+            "/"
+        )
+
     return base_model_path, fine_tune_output_path
 
 

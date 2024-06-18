@@ -305,7 +305,15 @@ class AquaApp:
                 config_file_name=config_file_name,
             )
         except:
-            pass
+            # todo: temp fix for issue related to config load for byom models, update logic to choose the right path
+            try:
+                config_path = f"{artifact_path.rstrip('/')}/config/"
+                config = load_config(
+                    config_path,
+                    config_file_name=config_file_name,
+                )
+            except:
+                pass
 
         if not config:
             logger.error(

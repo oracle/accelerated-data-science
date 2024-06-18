@@ -109,11 +109,6 @@ class AquaFineTuningApp(AquaApp):
                 )
 
         source = self.get_source(create_fine_tuning_details.ft_source_id)
-        # if source.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
-        #     raise AquaValueError(
-        #         f"Fine tuning is only supported for Aqua service models in {ODSC_MODEL_COMPARTMENT_OCID}. "
-        #         "Use a valid Aqua service model id instead."
-        #     )
 
         target_compartment = (
             create_fine_tuning_details.compartment_id or COMPARTMENT_OCID
@@ -365,6 +360,7 @@ class AquaFineTuningApp(AquaApp):
         source_freeform_tags.pop(Tags.LICENSE, None)
         source_freeform_tags.update({Tags.READY_TO_FINE_TUNE: "false"})
         source_freeform_tags.update({Tags.AQUA_TAG: UNKNOWN})
+        source_freeform_tags.pop(Tags.BASE_MODEL_CUSTOM, None)
 
         self.update_model(
             model_id=ft_model.id,

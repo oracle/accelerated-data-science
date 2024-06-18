@@ -648,15 +648,19 @@ class AquaModelApp(AquaApp):
             copy_model_config(
                 artifact_path=artifact_path, os_path=os_path, auth=default_signer()
             )
-
         except:
-            # Add artifact from user bucket
-            metadata.add(
-                key=MODEL_BY_REFERENCE_OSS_PATH_KEY,
-                value=os_path,
-                description="artifact location",
-                category="Other",
+            logger.debug(
+                f"Proceeding with model registration without copying model config files at {os_path}. "
+                f"Default configuration will be used for deployment and fine-tuning."
             )
+        # Set artifact location to user bucket, and replace existing key if present.
+        metadata.add(
+            key=MODEL_BY_REFERENCE_OSS_PATH_KEY,
+            value=os_path,
+            description="artifact location",
+            category="Other",
+            replace=True,
+        )
 
         model = (
             model.with_custom_metadata_list(metadata)
