@@ -221,3 +221,30 @@ name = "ads" # name for local build and import, see https://flit.pypa.io/en/late
 # By default `ads` folder and `LICENSE.txt` file included in sdist. Folders `docs` and `tests` are excluded, as weel as other project files
 # Use this section to include/exclude files and folders. See doc: https://flit.pypa.io/en/latest/pyproject_toml.html#sdist-section
 include = ["THIRD_PARTY_LICENSES.txt"]
+
+# Configuring Ruff (https://docs.astral.sh/ruff/configuration/)
+[tool.ruff]
+fix = true
+
+[tool.ruff.lint]
+exclude = ["*.yaml", "*jinja2"]
+# rules - https://docs.astral.sh/ruff/rules/
+select = [
+  # pyflakes
+  "F",
+  # subset of the pycodestyle
+  "E4", "E7", "E9",
+  # warnings
+  "W",
+  # isort
+  "I"
+  ]
+ignore = [
+  # module level import not at top of file
+  "E402",
+  # line-length violations
+  "E501",
+  ]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
