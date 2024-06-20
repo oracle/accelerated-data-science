@@ -4,10 +4,12 @@ repos:
       rev: v0.4.9
       hooks:
           - id: ruff
+            types_or: [ python, pyi, jupyter ]
             args: [ --fix ]
             files: ^ads
             exclude: ^docs/
           - id: ruff-format
+            types_or: [ python, pyi, jupyter ]
             exclude: ^docs/
     # Standard hooks
     - repo: https://github.com/pre-commit/pre-commit-hooks

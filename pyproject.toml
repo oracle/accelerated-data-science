@@ -229,22 +229,37 @@ fix = true
 [tool.ruff.lint]
 exclude = ["*.yaml", "*jinja2"]
 # rules - https://docs.astral.sh/ruff/rules/
-select = [
-  # pyflakes
-  "F",
-  # subset of the pycodestyle
-  "E4", "E7", "E9",
-  # warnings
-  "W",
-  # isort
-  "I"
-  ]
+extend-ignore = ["E402", "N806", "N803"]
 ignore = [
-  # module level import not at top of file
-  "E402",
-  # line-length violations
-  "E501",
-  ]
+  "S101",    # use of assert
+  "B008",    # function call in argument defaults
+  "B017",    # pytest.raises considered evil
+  "B023",    # function definition in loop (TODO: un-ignore this)
+  "B028",    # explicit stacklevel for warnings
+  "C901",    # function is too complex (TODO: un-ignore this)
+  "E501",    # from scripts/lint_backend.sh
+  "PLR091",  # complexity rules
+  "PLR2004", # magic numbers
+  "PLW2901", # `for` loop variable overwritten by assignment target
+  "SIM105",  # contextlib.suppress (has a performance cost)
+  "SIM117",  # multiple nested with blocks (doesn't look good with gr.Row etc)
+  "UP006",   # use `list` instead of `List` for type annotations (fails for 3.8)
+  "UP007",   # use X | Y for type annotations (TODO: can be enabled once Pydantic plays nice with them)
+]
+extend-select = [
+  "ARG",
+  "B",
+  "C",
+  "E",
+  "F",
+  "I",
+  "N",
+  "PL",
+  "S101",
+  "SIM",
+  "UP",
+  "W",
+]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
