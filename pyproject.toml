@@ -21,7 +21,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads" # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.11.12"
+version = "2.11.13"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -62,7 +62,7 @@ dependencies = [
   "gitpython>=3.1.2",
   "jinja2>=2.11.2",
   "matplotlib>=3.1.3, <=3.8.4",
-  "numpy>=1.19.2",
+  "numpy>=1.19.2, <2.0.0",
   "oci>=2.125.3",
   "ocifs>=1.1.3",
   "pandas>1.2.1; python_version<'3.9'", # starting pandas v2.1.0 requires-python = '>=3.9'
@@ -140,7 +140,7 @@ forecast = [
   "autots[additional]",
   "mlforecast",
   "neuralprophet>=0.7.0",
-  "numpy",
+  "numpy<2.0.0",
   "oci-cli",
   "optuna",
   "oracle-ads",
@@ -175,7 +175,7 @@ pii = [
   "spacy==3.6.1",
   "report-creator==1.0.9",
 ]
-llm = ["langchain-community<0.0.32", "langchain>=0.1.10,<0.1.14", "evaluate>=0.4.0", "langchain-core<0.1.51"]
+llm = ["langchain-community<0.0.32", "langchain>=0.1.10,<0.1.14", "evaluate>=0.4.0"]
 aqua = ["jupyter_server"]
 
 # To reduce backtracking (decrese deps install time) during test/dev env setup reducing number of versions pip is
