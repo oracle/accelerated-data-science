@@ -102,7 +102,7 @@ onnx = [
   "lightgbm",
   "onnx>=1.12.0",
   "onnxmltools>=1.10.0",
-  "onnxruntime~=1.15,!=1.16.0",  # v1.15.1 used in Oracle Database https://docs.oracle.com/en/database/oracle/machine-learning/oml4sql/23/mlsql/onnx.html); avoid v1.16 https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
+  "onnxruntime~=1.15.1,!=1.16.0",  # v1.15.1 used in Oracle Database https://docs.oracle.com/en/database/oracle/machine-learning/oml4sql/23/mlsql/onnx.html); avoid v1.16 https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
   "oracle_ads[viz]",
   "protobuf",
   "skl2onnx>=1.10.4",
