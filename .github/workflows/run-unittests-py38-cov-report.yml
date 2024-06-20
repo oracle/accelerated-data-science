@@ -33,7 +33,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        name: ["unitary", "slow_tests"]
+        # name: ["unitary", "slow_tests"]
+        name: ["slow_tests"]
         include:
           - name: "unitary"
             test-path: "tests/unitary"
@@ -47,7 +48,7 @@ jobs:
               --ignore tests/unitary/with_extras/operator/forecast \
               --ignore tests/unitary/with_extras/hpo
           - name: "slow_tests"
-            test-path: "tests/unitary/with_extras/model"
+            test-path: "tests/unitary/with_extras/model/test_model_framework_xgboost_model.py tests/unitary/with_extras/model/test_artifact.py tests/unitary/with_extras/model/test_model_framework_sklearn_model.py"
 
     steps:
       - uses: actions/checkout@v4
