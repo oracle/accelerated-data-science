@@ -34,16 +34,16 @@ class TestFeaturePlot:
     )
 
     address_invalid = pd.Series(
-        ["1 Miller Drive, New York, NY 0987", "", None, np.nan], name="address"
+        ["1 Miller Drive, New York, NY 0987", "", None, np.NaN], name="address"
     )
 
     ### boolean
-    boolean = pd.Series([True, False, True, False, np.nan, None], name="bool")
-    boolean_invalid = pd.Series([np.nan, None], name="bool")
+    boolean = pd.Series([True, False, True, False, np.NaN, None], name="bool")
+    boolean_invalid = pd.Series([np.NaN, None], name="bool")
 
     ### constant
     constant = pd.Series([1, 1, 1, 1, 1], name="constant")
-    constant_invalid = pd.Series([np.nan, None], name="constant")
+    constant_invalid = pd.Series([np.NaN, None], name="constant")
 
     ### continuous
     cts = pd.Series([123.32, 23.243, 324.342, np.nan], name="cts")
@@ -72,7 +72,7 @@ class TestFeaturePlot:
             "S",
             "S",
             "",
-            np.nan,
+            np.NaN,
             None,
         ],
         name="category",
@@ -150,14 +150,14 @@ class TestFeaturePlot:
             "-44.510428,-169.269477",
             "-56,-166",
             "",
-            np.nan,
+            np.NaN,
             None,
         ],
         name="latlon",
     )
 
     latlong_invalid = pd.Series(
-        ["[-56.3344375,-166.407038]", "", np.nan, None], name="latlon"
+        ["[-56.3344375,-166.407038]", "", np.NaN, None], name="latlon"
     )
 
     ### string
@@ -183,12 +183,12 @@ class TestFeaturePlot:
             "S",
             "S",
             "",
-            np.nan,
+            np.NaN,
             None,
         ],
         name="string",
     )
-    string_invalid = pd.Series([123, "", np.nan, None], name="string")
+    string_invalid = pd.Series([123, "", np.NaN, None], name="string")
 
     ### text
     text = pd.Series(
@@ -214,16 +214,16 @@ class TestFeaturePlot:
             "S",
             123,
             1.5,
-            np.nan,
+            np.NaN,
             None,
         ],
         name="text",
     )
-    text_invalid = pd.Series(["", np.nan, None], name="text")
+    text_invalid = pd.Series(["", np.NaN, None], name="text")
 
     ### zip code
-    zipcode = pd.Series(["94065", "90210", np.nan, None], name="zipcode")
-    zipcode_invalid = pd.Series([94065, "cat", np.nan, None], name="zipcode")
+    zipcode = pd.Series(["94065", "90210", np.NaN, None], name="zipcode")
+    zipcode_invalid = pd.Series([94065, "cat", np.NaN, None], name="zipcode")
     zipcode_coord = _zip_code()
 
     def test_feature_plot_return_type(self):

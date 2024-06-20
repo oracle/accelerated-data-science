@@ -97,7 +97,7 @@ class TestFeatureTypes:
                 "S",
                 "S",
                 "",
-                np.nan,
+                np.NaN,
                 None,
             ],
             name="string",
@@ -128,7 +128,7 @@ class TestFeatureTypes:
 
     def test_ip_address_v4_type(self):
         ip_address = pd.Series(
-            ["192.168.0.1", "2001:db8::", "", np.nan, None], name="ip_address"
+            ["192.168.0.1", "2001:db8::", "", np.NaN, None], name="ip_address"
         )
         ip_address.ads.feature_type = ["ip_address_v4"]
         assert (
@@ -138,7 +138,7 @@ class TestFeatureTypes:
 
     def test_ip_address_v6_type(self):
         ip_address = pd.Series(
-            ["192.168.0.1", "2001:db8::", "", np.nan, None], name="ip_address"
+            ["192.168.0.1", "2001:db8::", "", np.NaN, None], name="ip_address"
         )
         ip_address.ads.feature_type = ["ip_address_v6"]
         assert (
@@ -148,7 +148,7 @@ class TestFeatureTypes:
 
     def test_ip_address_type(self):
         ip_address = pd.Series(
-            ["192.168.0.1", "2001:db8::", "", np.nan, None], name="ip_address"
+            ["192.168.0.1", "2001:db8::", "", np.NaN, None], name="ip_address"
         )
         ip_address.ads.feature_type = ["ip_address"]
         assert (
@@ -235,7 +235,7 @@ class TestFeatureTypes:
 
     def test_zip_code_type(self):
         assert ZipCode.name == "zip_code"
-        zipcode = pd.Series(["94065", 90210, np.nan, None], name="zipcode")
+        zipcode = pd.Series(["94065", 90210, np.NaN, None], name="zipcode")
         zipcode.ads.feature_type = ["zip_code"]
 
         assert (
