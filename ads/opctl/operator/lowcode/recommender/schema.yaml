@@ -246,17 +246,17 @@ spec:
       meta:
         description: "Placed into output_directory location. Defaults to report.html"
 
-    user_column_name:
+    user_column:
       type: string
       required: true
       default: "user_id"
 
-    item_column_name:
+    item_column:
       type: string
       required: true
       default: "item_id"
 
-    rating_column_name:
+    interaction_column:
       type: string
       required: true
       default: "rating"

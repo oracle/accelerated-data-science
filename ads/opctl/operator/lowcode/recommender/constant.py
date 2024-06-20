@@ -18,6 +18,7 @@ class OutputColumns(str, metaclass=ExtendedEnumMeta):
 class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
     """Supported forecast metrics."""
     RMSE = "RMSE"
+    MAE = "MAE"
 
 class SupportedModels(str, metaclass=ExtendedEnumMeta):
     """Supported recommender models."""
