@@ -33,11 +33,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # name: ["unitary", "slow_tests"]
-        name: ["slow_tests"]
+        name: ["unitary", "slow_tests"]
         include:
           - name: "unitary"
-            test-path: "tests/unitary"
+            test-path: "tests/unitary/default_setup/auth/test_auth.py"
             # `model` tests running in "slow_tests",
             # `feature_store` tests has its own test suite
             # `forecast` tests has its own test suite

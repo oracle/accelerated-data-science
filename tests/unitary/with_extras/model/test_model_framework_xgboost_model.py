@@ -201,7 +201,7 @@ class TestXGBoostModel:
             )
 
         self.sklearn.model_file_name = "test.json"
-        self.sklearn.serialize_model(as_onnx=False)
+        self.sklearn.serialize_model(as_onnx=False, target_opset={'ai.onnx.ml': 3})
         assert os.path.exists(os.path.join(tmp_model_dir, "test.json"))
 
     def test_serialize_without_model_file_name(self):
