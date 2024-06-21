@@ -36,7 +36,7 @@ jobs:
         name: ["unitary", "slow_tests"]
         include:
           - name: "unitary"
-            test-path: "tests/unitary/default_setup/auth/test_auth.py"
+            test-path: "tests/unitary"
             # `model` tests running in "slow_tests",
             # `feature_store` tests has its own test suite
             # `forecast` tests has its own test suite
@@ -47,7 +47,7 @@ jobs:
               --ignore tests/unitary/with_extras/operator/forecast \
               --ignore tests/unitary/with_extras/hpo
           - name: "slow_tests"
-            test-path: "tests/unitary/with_extras/model/test_model_framework_xgboost_model.py tests/unitary/with_extras/model/test_artifact.py tests/unitary/with_extras/model/test_model_framework_sklearn_model.py"
+            test-path: "tests/unitary/with_extras/model"
 
     steps:
       - uses: actions/checkout@v4
