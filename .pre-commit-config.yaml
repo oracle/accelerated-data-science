@@ -1,4 +1,16 @@
 repos:
+    # ruff
+    - repo: https://github.com/astral-sh/ruff-pre-commit
+      rev: v0.4.9
+      hooks:
+          - id: ruff
+            types_or: [ python, pyi, jupyter ]
+            args: [ --fix ]
+            files: ^ads
+            exclude: ^docs/
+          - id: ruff-format
+            types_or: [ python, pyi, jupyter ]
+            exclude: ^docs/
     # Standard hooks
     - repo: https://github.com/pre-commit/pre-commit-hooks
       rev: v4.4.0
@@ -19,12 +31,6 @@ repos:
             args: ["--autofix"]
           - id: trailing-whitespace
             args: [--markdown-linebreak-ext=md]
-            exclude: ^docs/
-    # Black, the code formatter, natively supports pre-commit
-    - repo: https://github.com/psf/black
-      rev: 23.3.0
-      hooks:
-          - id: black
             exclude: ^docs/
     # Regex based rst files common mistakes detector
     - repo: https://github.com/pre-commit/pygrep-hooks

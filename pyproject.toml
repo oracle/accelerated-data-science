@@ -236,3 +236,45 @@ name = "ads" # name for local build and import, see https://flit.pypa.io/en/late
 # By default `ads` folder and `LICENSE.txt` file included in sdist. Folders `docs` and `tests` are excluded, as weel as other project files
 # Use this section to include/exclude files and folders. See doc: https://flit.pypa.io/en/latest/pyproject_toml.html#sdist-section
 include = ["THIRD_PARTY_LICENSES.txt"]
+
+# Configuring Ruff (https://docs.astral.sh/ruff/configuration/)
+[tool.ruff]
+fix = true
+
+[tool.ruff.lint]
+exclude = ["*.yaml", "*jinja2"]
+# rules - https://docs.astral.sh/ruff/rules/
+extend-ignore = ["E402", "N806", "N803"]
+ignore = [
+  "S101",    # use of assert
+  "B008",    # function call in argument defaults
+  "B017",    # pytest.raises considered evil
+  "B023",    # function definition in loop (TODO: un-ignore this)
+  "B028",    # explicit stacklevel for warnings
+  "C901",    # function is too complex (TODO: un-ignore this)
+  "E501",    # from scripts/lint_backend.sh
+  "PLR091",  # complexity rules
+  "PLR2004", # magic numbers
+  "PLW2901", # `for` loop variable overwritten by assignment target
+  "SIM105",  # contextlib.suppress (has a performance cost)
+  "SIM117",  # multiple nested with blocks (doesn't look good with gr.Row etc)
+  "UP006",   # use `list` instead of `List` for type annotations (fails for 3.8)
+  "UP007",   # use X | Y for type annotations (TODO: can be enabled once Pydantic plays nice with them)
+]
+extend-select = [
+  "ARG",
+  "B",
+  "C",
+  "E",
+  "F",
+  "I",
+  "N",
+  "PL",
+  "S101",
+  "SIM",
+  "UP",
+  "W",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]

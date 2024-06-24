@@ -10,3 +10,4 @@ pip
 pytest
 pytest-cov
 pytest-xdist
+ruff
