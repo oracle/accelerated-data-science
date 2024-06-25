@@ -129,7 +129,8 @@ optuna = ["optuna==2.9.0", "oracle_ads[viz]"]
 spark = ["pyspark>=3.0.0"]
 tensorflow = [
   "oracle_ads[viz]",
-  "tensorflow<=2.15.1"  # v2.16.1 with consequence on tf2onnx v1.16.1 (latest) has an issue with Keras 3 installed in py3.11+ (https://github.com/onnx/tensorflow-onnx/issues/2319)
+  "tensorflow",
+  "tf-keras", # tensorflow v2.16.1 (only version that supports python3.12) has an issue with Keras 3 installed in py3.11+ (https://github.com/onnx/tensorflow-onnx/issues/2319 and https://github.com/Signa-Lingua/singa-ml/issues/4). Need to install the backwards-compatible tf-keras for Keras 2
 ]
 text = [
   "spacy>=3.4.2",   # the first version of spacy that supports python 3.11 is spacy v3.4.2
