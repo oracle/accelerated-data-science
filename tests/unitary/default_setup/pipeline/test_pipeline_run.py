@@ -699,7 +699,7 @@ stepOverrideDetails:
         mock_logs.return_value = ConsolidatedLog(OCILog(log_type="SERVICE"))
 
         pipeline_run.watch(log_type="service_log")
-        mock_logs.called_with(log_type="service_log")
+        mock_logs.assert_called_with(log_type="service_log")
         mock_stream_log.assert_called_with(mock_logs.return_value, [], 3, "service_log")
 
     @patch.object(PipelineRun, "_PipelineRun__stream_log")
@@ -710,7 +710,7 @@ stepOverrideDetails:
         mock_logs.return_value = ConsolidatedLog(OCILog(log_type="CUSTOM"))
 
         pipeline_run.watch(log_type="custom_log")
-        mock_logs.called_with(log_type="custom_log")
+        mock_logs.assert_called_with(log_type="custom_log")
         mock_stream_log.assert_called_with(mock_logs.return_value, [], 3, "custom_log")
 
     @patch.object(PipelineRun, "_PipelineRun__stream_log")
@@ -724,7 +724,7 @@ stepOverrideDetails:
         )
 
         pipeline_run.watch()
-        mock_logs.called_with(log_type=None)
+        mock_logs.assert_called_with(log_type=None)
         mock_stream_log.assert_called_with(mock_logs.return_value, [], 3, None)
 
     def test_build_filter_expression(self):
