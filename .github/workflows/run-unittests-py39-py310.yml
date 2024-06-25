@@ -46,6 +46,7 @@ jobs:
             ignore-path: |
               --ignore tests/unitary/with_extras/model \
               --ignore tests/unitary/with_extras/feature_store \
+              --ignore tests/unitary/with_extras/operator/feature-store \
               --ignore tests/unitary/with_extras/operator/forecast \
               --ignore tests/unitary/with_extras/operator/pii \
               --ignore tests/unitary/with_extras/hpo
