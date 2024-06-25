@@ -1010,6 +1010,9 @@ class TensorFlowOnnxModelSerializer(OnnxModelSerializer):
         ValueError
             if model_path is not provided
         """
+        import os
+        os.environ["TF_USE_LEGACY_KERAS"] = "1"
+
         opset_version = kwargs.get("opset_version", None)
         input_signature = kwargs.get("input_signature", None)
 

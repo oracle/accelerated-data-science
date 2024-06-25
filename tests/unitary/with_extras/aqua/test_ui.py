@@ -332,7 +332,7 @@ class TestAquaUI(unittest.TestCase):
         mock_list_vcns.return_value.data = [oci.core.models.Vcn(**vcn) for vcn in vcns]
         results = self.app.list_vcn()
 
-        mock_list_vcns.called_once()
+        mock_list_vcns.assert_called_once()
         expected_attributes = {
             "cidrBlock",
             "cidrBlocks",
@@ -369,7 +369,7 @@ class TestAquaUI(unittest.TestCase):
         ]
         results = self.app.list_subnets(vcn_id=TestDataset.VCN_ID)
 
-        mock_list_subnets.called_once()
+        mock_list_subnets.assert_called_once()
         expected_attributes = {
             "cidrBlock",
             "compartmentId",
@@ -421,7 +421,7 @@ class TestAquaUI(unittest.TestCase):
             instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAMES[0]
         )
 
-        mock_get_resource_availability.called_once()
+        mock_get_resource_availability.assert_called_once()
         expected_attributes = {"available_count"}
         self.assertTrue(
             expected_attributes.issuperset(set(result)), "Attributes mismatch"
