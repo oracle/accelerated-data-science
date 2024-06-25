@@ -205,7 +205,6 @@ testsuite = [
   "faiss-cpu",
   "fastparquet==2024.2.0",  # set version to avoid backtracking
   "imbalanced-learn",
-  "kubernetes",
   "lxml",
   "mysql-connector-python",
   "nltk",
