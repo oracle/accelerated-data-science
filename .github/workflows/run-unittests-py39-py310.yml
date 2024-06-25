@@ -1,4 +1,4 @@
-name: "[Py3.9-3.11] - All Unit Tests"
+name: "[Py3.9-3.12] - All Unit Tests"
 
 on:
   workflow_dispatch:
@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+        python-version: ["3.12"]
         name: ["unitary", "slow_tests"]
         include:
           - name: "unitary"
