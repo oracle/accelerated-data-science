@@ -71,6 +71,7 @@ class MyTFModel:
         )
         loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
         model.compile(optimizer="adam", loss=loss_fn, metrics=["accuracy"])
+        model.output_names = ['output']
         model.fit(self.x_train, self.y_train, epochs=1)
 
         return model
