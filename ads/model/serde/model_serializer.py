@@ -994,6 +994,8 @@ class TensorFlowOnnxModelSerializer(OnnxModelSerializer):
 
         Parameters
         ----------
+        estimator: object
+            The model.
         model_path: str, default to None
             Path to save the serialized model.
         X_sample: Union[list, tuple, pd.Series, np.ndarray, pd.DataFrame]. Defaults to None.
@@ -1010,11 +1012,11 @@ class TensorFlowOnnxModelSerializer(OnnxModelSerializer):
         ValueError
             if model_path is not provided
         """
-        import os
-        os.environ["TF_USE_LEGACY_KERAS"] = "1"
-
         opset_version = kwargs.get("opset_version", None)
         input_signature = kwargs.get("input_signature", None)
+        # Resolve issue (tensorflow v2.16.1+ and tf2onnx v1.16.1) - https://github.com/onnx/tensorflow-onnx/issues/2319
+        if not hasattr(estimator, "output_names"):
+            estimator.output_names = []
 
         if not model_path:
             raise ValueError(
@@ -1022,25 +1024,14 @@ class TensorFlowOnnxModelSerializer(OnnxModelSerializer):
             )
         if input_signature is None:
             if hasattr(estimator, "input_shape"):
-                if not isinstance(estimator.input, list):
-                    # single input
-                    detected_input_signature = (
+                detected_input_signature = []
+                for i in range(len(estimator.inputs)):
+                    detected_input_signature.append(
                         tf.TensorSpec(
-                            estimator.input_shape,
-                            dtype=estimator.input.dtype,
-                            name="input",
-                        ),
-                    )
-                else:
-                    # multiple input
-                    detected_input_signature = []
-                    for i in range(len(estimator.input)):
-                        detected_input_signature.append(
-                            tf.TensorSpec(
-                                estimator.input_shape[i],
-                                dtype=estimator.input[i].dtype,
-                            )
+                            estimator.inputs[i].shape,
+                            dtype=estimator.inputs[i].dtype,
                         )
+                    )
 
             elif X_sample is not None and hasattr(X_sample, "shape"):
                 logger.warning(

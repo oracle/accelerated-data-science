@@ -61,7 +61,7 @@ class MyTFModel:
     x_train, y_train = x_train[:1000], y_train[:1000]
 
     def training(self):
-        model = tf.keras.models.Sequential(
+        model = tf.keras.Sequential(
             [
                 tf.keras.layers.Flatten(input_shape=(28, 28)),
                 tf.keras.layers.Dense(128, activation="relu"),
@@ -71,7 +71,6 @@ class MyTFModel:
         )
         loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
         model.compile(optimizer="adam", loss=loss_fn, metrics=["accuracy"])
-        model.output_names = ['output']
         model.fit(self.x_train, self.y_train, epochs=1)
 
         return model
