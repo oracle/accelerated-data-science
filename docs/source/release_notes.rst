@@ -2,8 +2,15 @@
 Release Notes
 =============
 
+2.11.14
+-------
+Release date: June 27, 2024
+
+* Added compatibility with Python ``3.11``.
+* Fixed the bug in model deployment tail logging.
+
 2.11.13
-------
+-------
 Release date: June 18, 2024
 
 * Update langchain dependencies.
@@ -11,14 +18,14 @@ Release date: June 18, 2024
 
 
 2.11.12
-------
+-------
 Release date: June 13, 2024
 
 * Fixed bugs and introduced enhancements following our recent release.
 
 
 2.11.11
-------
+-------
 Release date: June 11, 2024
 
 * Fixed the bug that led to timeout when loading config files during jupyterlab load.
@@ -26,7 +33,7 @@ Release date: June 11, 2024
 
 
 2.11.10
-------
+-------
 Release date: June 5, 2024
 
 * Support for Bring Your Own Model (BYOM) via AI Quick Actions.
