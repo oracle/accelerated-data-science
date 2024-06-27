@@ -21,11 +21,12 @@ type:
   type: string
   default: recommender
   meta:
-    description: "Type should always be `pii` when using a pii operator"
+    description: "Type should always be `recommender` when using a recommender operator"
 
 
 spec:
   required: true
+  type: dict
   schema:
     user_data:
       required: true
@@ -83,6 +84,7 @@ spec:
     item_data:
       required: true
       type: dict
+      default: {"url": "item_data.csv"}
       meta:
         description: "This should contain item related attribute"
       schema:
@@ -134,6 +136,7 @@ spec:
 
     interactions_data:
       required: true
+      default: {"url": "interactions_data.csv"}
       meta:
         description: "This should include interactions between items and users"
       schema:
