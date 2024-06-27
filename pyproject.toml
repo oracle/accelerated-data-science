@@ -136,7 +136,7 @@ text = [
 ]
 torch = [
   "oracle_ads[viz]",
-  "torch<2.1.0",  # torch > 2.1.0 brings nvidia dependecy by default
+  "torch",
   "torchvision"
 ]
 viz = [

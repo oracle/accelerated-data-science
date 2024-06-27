@@ -1,17 +1,19 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
 Contains tests for ads.common.data
 """
+
 import os
 import pandas as pd
 import pytest
 import unittest
 
 from ads.common.data import ADSData
+
 
 #
 # run with:
@@ -112,7 +114,7 @@ class ADSDataTest(unittest.TestCase):
         Test corner cases and error handling
         """
         bad_input = [(None, None), ("test", None), (None, "test")]
-        for (X, y) in bad_input:
+        for X, y in bad_input:
             with pytest.raises(ValueError):
                 ADSData.build(X, y)
 

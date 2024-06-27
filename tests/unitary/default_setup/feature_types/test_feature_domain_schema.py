@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -523,7 +523,6 @@ class TestFeatureDomainSchema:
             with patch.object(logger, "warning") as mock_warning:
                 self.model_artifact.populate_schema(X_sample=list(self.X))
                 mock_warning.assert_called()
-
 
     def test_simple_constraint(self):
         self.df["sepal length (cm)"].ads.feature_type = ["category"]
