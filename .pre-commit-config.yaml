@@ -1,7 +1,7 @@
 repos:
     # ruff
     - repo: https://github.com/astral-sh/ruff-pre-commit
-      rev: v0.4.9
+      rev: v0.5.0
       hooks:
           - id: ruff
             types_or: [ python, pyi, jupyter ]
@@ -13,7 +13,7 @@ repos:
             exclude: ^docs/
     # Standard hooks
     - repo: https://github.com/pre-commit/pre-commit-hooks
-      rev: v4.4.0
+      rev: v4.6.0
       hooks:
           - id: check-ast
             exclude: ^docs/
@@ -42,7 +42,7 @@ repos:
             files: ^docs/
     # Hardcoded secrets and ocids detector
     - repo: https://github.com/gitleaks/gitleaks
-      rev: v8.17.0
+      rev: v8.18.4
       hooks:
           - id: gitleaks
             exclude: .github/workflows/reusable-actions/set-dummy-conf.yml
