@@ -352,22 +352,10 @@ class TestAquaDeployment(unittest.TestCase):
     ):
         """Test to create a deployment for fine-tuned model"""
 
-        # todo: DataScienceModel.from_yaml should update model_file_description attribute, current workaround is to
-        #   load using with_model_file_description property.
-        def yaml_to_json(input_file):
-            with open(input_file, "r") as f:
-                return yaml.safe_load(f)
-
         aqua_model = os.path.join(
             self.curr_dir, "test_data/deployment/aqua_finetuned_model.yaml"
         )
-        model_description_json = json.dumps(
-            yaml_to_json(aqua_model)["spec"]["modelDescription"]
-        )
         datascience_model = DataScienceModel.from_yaml(uri=aqua_model)
-        datascience_model.with_model_file_description(
-            json_string=model_description_json
-        )
         mock_create.return_value = datascience_model
 
         config_json = os.path.join(
