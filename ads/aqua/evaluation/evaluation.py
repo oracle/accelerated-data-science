@@ -316,7 +316,7 @@ class AquaEvaluationApp(AquaApp):
         evaluation_model_taxonomy_metadata = ModelTaxonomyMetadata()
         evaluation_model_taxonomy_metadata[
             MetadataTaxonomyKeys.HYPERPARAMETERS
-        ].value = {"model_params": {dict(asdict(evaluation_model_parameters))}}
+        ].value = {"model_params": dict(asdict(evaluation_model_parameters))}
 
         evaluation_model = (
             DataScienceModel()
@@ -1192,7 +1192,7 @@ class AquaEvaluationApp(AquaApp):
                 f"Exception message: {ex}"
             )
 
-    def load_evaluation_config(self):
+    def load_evaluation_config(self, eval_id):
         """Loads evaluation config."""
         return {
             "model_params": {

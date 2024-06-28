@@ -120,7 +120,7 @@ class AquaEvaluationConfigHandler(AquaAPIhandler):
     def get(self, model_id):
         """Handle GET request."""
 
-        return self.finish(AquaEvaluationApp().load_evaluation_config())
+        return self.finish(AquaEvaluationApp().load_evaluation_config(model_id))
 
 
 __handlers__ = [
