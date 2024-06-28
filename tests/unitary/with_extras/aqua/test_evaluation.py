@@ -894,7 +894,9 @@ class TestAquaEvaluation(unittest.TestCase):
         from .utils import EvaluationConfigFormat as config_schema
         from .utils import check
 
-        response = self.app.load_evaluation_config(eval_id=TestDataset.EVAL_ID)
+        # todo: revisit after updating load_evaluation_config to accept eval_id
+        # response = self.app.load_evaluation_config(eval_id=TestDataset.EVAL_ID)
+        response = self.app.load_evaluation_config()
         assert isinstance(response, dict)
         assert check(config_schema, response)
 

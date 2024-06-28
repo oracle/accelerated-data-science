@@ -14,7 +14,6 @@ from unittest.mock import MagicMock, patch
 
 import oci
 import pytest
-import yaml
 from parameterized import parameterized
 
 import ads.aqua.modeldeployment.deployment
@@ -413,27 +412,36 @@ class TestAquaDeployment(unittest.TestCase):
                 "VLLM_PARAMS",
                 "odsc-vllm-serving",
                 ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
+                ["--max-model-len 4096", "--trust-remote-code"],
             ),
             (
                 "VLLM_PARAMS",
                 "odsc-vllm-serving",
                 [],
+                [],
             ),
             (
                 "TGI_PARAMS",
                 "odsc-tgi-serving",
-                ["--sharded true", "--trust-remote-code"],
+                ["--sharded true", "--trust-remote-code", "--max-stop-sequences"],
+                ["--max-stop-sequences"],
             ),
             (
                 "CUSTOM_PARAMS",
                 "custom-container-key",
+                ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
                 ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
             ),
         ]
     )
     @patch("ads.model.datascience_model.DataScienceModel.from_id")
     def test_get_deployment_default_params(
-        self, container_params_field, container_type_key, params, mock_from_id
+        self,
+        container_params_field,
+        container_type_key,
+        params,
+        allowed_params,
+        mock_from_id,
     ):
         """Test for fetching config details for a given deployment."""
 
@@ -462,7 +470,7 @@ class TestAquaDeployment(unittest.TestCase):
         if container_params_field == "CUSTOM_PARAMS":
             assert result == []
         else:
-            assert result == params
+            assert result == allowed_params
 
     @parameterized.expand(
         [
