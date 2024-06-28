@@ -7,7 +7,6 @@ from typing import Dict, List, Union
 
 from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.enums import (
-    InferenceContainerType,
     InferenceContainerTypeFamily,
     Tags,
 )
@@ -22,6 +21,7 @@ from ads.aqua.common.utils import (
     get_params_dict,
     get_params_list,
     get_resource_name,
+    get_restricted_params_by_container,
     load_config,
 )
 from ads.aqua.constants import (
@@ -34,10 +34,6 @@ from ads.aqua.constants import (
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
 from ads.aqua.model import AquaModelApp
-from ads.aqua.modeldeployment.constants import (
-    TGIInferenceRestrictedParams,
-    VLLMInferenceRestrictedParams,
-)
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
@@ -567,19 +563,27 @@ class AquaDeploymentApp(AquaApp):
                 f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field for model {model_id}."
             )
 
-        if container_type_key:
-            container_type_key = container_type_key.lower()
-            if container_type_key in InferenceContainerTypeFamily.values():
-                deployment_config = self.get_deployment_config(model_id)
-                params = (
-                    deployment_config.get("configuration", UNKNOWN_DICT)
-                    .get(instance_shape, UNKNOWN_DICT)
-                    .get("parameters", UNKNOWN_DICT)
-                    .get(get_container_params_type(container_type_key))
+        if (
+            container_type_key
+            and container_type_key in InferenceContainerTypeFamily.values()
+        ):
+            deployment_config = self.get_deployment_config(model_id)
+            config_params = (
+                deployment_config.get("configuration", UNKNOWN_DICT)
+                .get(instance_shape, UNKNOWN_DICT)
+                .get("parameters", UNKNOWN_DICT)
+                .get(get_container_params_type(container_type_key), UNKNOWN)
+            )
+            if config_params:
+                params_list = get_params_list(config_params)
+                restricted_params_set = get_restricted_params_by_container(
+                    container_type_key
                 )
-                if params:
-                    # account for param that can have --arg but no values, e.g. --trust-remote-code
-                    default_params.extend(get_params_list(params))
+
+                # remove restricted params from the list as user cannot override them during deployment
+                for params in params_list:
+                    if params.split()[0] not in restricted_params_set:
+                        default_params.append(params)
 
         return default_params
 
@@ -651,8 +655,7 @@ class AquaDeploymentApp(AquaApp):
         container_family: str,
     ) -> List[str]:
         """Returns a list of restricted params that user chooses to override when creating an Aqua deployment.
-        The default parameters coming from the container index json file cannot be overridden. In addition to this,
-        a set of parameters maintained in
+        The default parameters coming from the container index json file cannot be overridden.
 
         Parameters
         ----------
@@ -673,18 +676,9 @@ class AquaDeploymentApp(AquaApp):
             default_params_dict = get_params_dict(default_params)
             user_params_dict = get_params_dict(user_params)
 
+            restricted_params_set = get_restricted_params_by_container(container_family)
             for key, _items in user_params_dict.items():
-                if (
-                    key in default_params_dict
-                    or (
-                        InferenceContainerType.CONTAINER_TYPE_VLLM in container_family
-                        and key in VLLMInferenceRestrictedParams
-                    )
-                    or (
-                        InferenceContainerType.CONTAINER_TYPE_TGI in container_family
-                        and key in TGIInferenceRestrictedParams
-                    )
-                ):
+                if key in default_params_dict or key in restricted_params_set:
                     restricted_params.append(key.lstrip("-"))
 
         return restricted_params

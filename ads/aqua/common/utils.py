@@ -42,6 +42,10 @@ from ads.aqua.constants import (
     UNKNOWN_JSON_STR,
 )
 from ads.aqua.data import AquaResourceIdentifier
+from ads.aqua.modeldeployment.constants import (
+    TGIInferenceRestrictedParams,
+    VLLMInferenceRestrictedParams,
+)
 from ads.common.auth import default_signer
 from ads.common.decorator.threaded import threaded
 from ads.common.extended_enum import ExtendedEnumMeta
@@ -862,7 +866,7 @@ def copy_model_config(artifact_path: str, os_path: str, auth: dict = None):
         logger.debug(f"Failed to copy config folder from {artifact_path} to {os_path}.")
 
 
-def get_container_params_type(container_type_name: str):
+def get_container_params_type(container_type_name: str) -> str:
     """The utility function accepts the deployment container type name and returns the corresponding params name.
     Parameters
     ----------
@@ -875,9 +879,31 @@ def get_container_params_type(container_type_name: str):
 
     """
     # check substring instead of direct match in case container_type_name changes in the future
-    if InferenceContainerType.CONTAINER_TYPE_VLLM in container_type_name:
+    if InferenceContainerType.CONTAINER_TYPE_VLLM in container_type_name.lower():
         return InferenceContainerParamType.PARAM_TYPE_VLLM
-    elif InferenceContainerType.CONTAINER_TYPE_TGI in container_type_name:
+    elif InferenceContainerType.CONTAINER_TYPE_TGI in container_type_name.lower():
         return InferenceContainerParamType.PARAM_TYPE_TGI
     else:
         return UNKNOWN
+
+
+def get_restricted_params_by_container(container_type_name: str) -> set:
+    """The utility function accepts the deployment container type name and returns a set of restricted params
+        for that container.
+    Parameters
+    ----------
+    container_type_name: str
+        type of deployment container, like odsc-vllm-serving or odsc-tgi-serving.
+
+    Returns
+    -------
+        InferenceContainerParamType value
+
+    """
+    # check substring instead of direct match in case container_type_name changes in the future
+    if InferenceContainerType.CONTAINER_TYPE_VLLM in container_type_name.lower():
+        return VLLMInferenceRestrictedParams
+    elif InferenceContainerType.CONTAINER_TYPE_TGI in container_type_name.lower():
+        return TGIInferenceRestrictedParams
+    else:
+        return set()
