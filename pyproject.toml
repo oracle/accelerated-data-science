@@ -159,6 +159,12 @@ anomaly  = [
   "oracledb",
   "report-creator==1.0.9",
 ]
+recommender = [
+  "oracle_ads[opctl]",
+  "scikit-surprise",
+  "plotly",
+  "report-creator==1.0.9",
+]
 feature-store-marketplace = [
     "oracle-ads[opctl]",
     "kubernetes"
