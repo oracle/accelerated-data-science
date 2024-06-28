@@ -38,14 +38,12 @@ from ads.aqua.constants import (
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     SERVICE_MANAGED_CONTAINER_URI_SCHEME,
     SUPPORTED_FILE_FORMATS,
+    TGI_INFERENCE_RESTRICTED_PARAMS,
     UNKNOWN,
     UNKNOWN_JSON_STR,
+    VLLM_INFERENCE_RESTRICTED_PARAMS,
 )
 from ads.aqua.data import AquaResourceIdentifier
-from ads.aqua.modeldeployment.constants import (
-    TGIInferenceRestrictedParams,
-    VLLMInferenceRestrictedParams,
-)
 from ads.common.auth import default_signer
 from ads.common.decorator.threaded import threaded
 from ads.common.extended_enum import ExtendedEnumMeta
@@ -897,13 +895,13 @@ def get_restricted_params_by_container(container_type_name: str) -> set:
 
     Returns
     -------
-        InferenceContainerParamType value
+        Set of restricted params based on container type
 
     """
     # check substring instead of direct match in case container_type_name changes in the future
     if InferenceContainerType.CONTAINER_TYPE_VLLM in container_type_name.lower():
-        return VLLMInferenceRestrictedParams
+        return VLLM_INFERENCE_RESTRICTED_PARAMS
     elif InferenceContainerType.CONTAINER_TYPE_TGI in container_type_name.lower():
-        return TGIInferenceRestrictedParams
+        return TGI_INFERENCE_RESTRICTED_PARAMS
     else:
         return set()
