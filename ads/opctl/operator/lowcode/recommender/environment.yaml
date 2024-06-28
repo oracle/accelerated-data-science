@@ -1,4 +1,4 @@
-name: pii
+name: recommender
 channels:
   - conda-forge
 dependencies:
