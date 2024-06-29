@@ -290,5 +290,9 @@ class OCIModelDeployment(BaseLLM):
         return "oci_model_deployment"
 
     @classmethod
+    @_validate_dependency
     def help(cls, inference_framework: Optional[str] = None) -> None:
-        print("The Help Method")
+        """Provides comprehensive information about each inference framework."""
+        from ads.llm.langchain.inference_backend import InferenceBackendFactory
+
+        InferenceBackendFactory.help(framework=inference_framework)
