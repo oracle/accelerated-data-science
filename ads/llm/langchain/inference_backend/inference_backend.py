@@ -8,6 +8,7 @@ import logging
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from langchain_core.callbacks import CallbackManagerForLLMRun
+from langchain_core.outputs import Generation, LLMResult
 from langchain_core.pydantic_v1 import BaseModel, Extra, Field
 
 from ads.llm.langchain.inference_backend.model_invoker import ModelInvoker
@@ -27,6 +28,7 @@ class InferenceBackend(BaseModel):
     model_kwargs: Dict[str, Any] = Field(default_factory=dict)
     transform_input_fn: Optional[Callable[..., Dict[str, Any]]] = None
     transform_output_fn: Optional[Callable[..., str]] = None
+    allow_unsafe_deserialization: bool = False
 
     def _construct_json_body(
         self,
@@ -49,7 +51,7 @@ class InferenceBackend(BaseModel):
         """
         raise NotImplementedError
 
-    def _process_response(self, response_json: Dict[str, Any]) -> str:
+    def _process_response(self, response_json: Dict[str, Any]) -> List[Generation]:
         """
         Processes the response from the model.
 
@@ -59,7 +61,7 @@ class InferenceBackend(BaseModel):
 
         Returns
         -------
-        str: The processed response.
+        List[Generation]: The processed response.
         """
         raise NotImplementedError
 
@@ -83,48 +85,63 @@ class InferenceBackend(BaseModel):
                 if self.transform_output_fn is None
                 else serialize_function_to_hex(self.transform_output_fn)
             ),
-            **self._default_params,
+            "model_kwargs": self._default_params,
+            "allow_unsafe_deserialization": self.allow_unsafe_deserialization,
         }
 
-    def _call(
+    def _generate(
         self,
-        prompt: str,
+        prompts: List[str],
         stop: Optional[List[str]] = None,
         run_manager: Optional[CallbackManagerForLLMRun] = None,
         **kwargs: Any,
-    ) -> str:
+    ) -> LLMResult:
         """
-        Invokes the model with the given prompt and additional parameters.
+        Run the LLM on the given prompts and input.
 
-        Parameters
-        ----------
-        prompt (str): The prompt for the model.
-        stop (Optional[List[str]]): Optional list of stop words.
-        run_manager (Optional[CallbackManagerForLLMRun]): Optional callback manager.
-        **kwargs (Any): Additional keyword arguments.
+        Args:
+            prompts (List[str]): The list of prompts to process.
+            stop (Optional[List[str]]): Optional stop words.
+            run_manager (Optional[CallbackManagerForLLMRun]): Optional run manager.
+            kwargs (Any): Additional keyword arguments.
 
-        Returns
-        -------
-        str: The model's response.
+        Returns:
+            LLMResult: The result from the backend.
         """
+
+        generations: List[List[Generation]] = []
 
         request_kwargs = kwargs.pop("request_kwargs", {}) or {}
+        headers = kwargs.pop("headers", {}) or {}
         model_invoker = ModelInvoker(
             endpoint=self.endpoint, auth=self.auth, **request_kwargs
         )
-
         stop = stop or self._default_params.get("stop", []) or []
-
         transform_input_fn = self.transform_input_fn or self._construct_json_body
         transform_output_fn = self.transform_output_fn or self._process_response
 
-        return transform_output_fn(
-            model_invoker.invoke(
-                params=transform_input_fn(
-                    prompt=prompt, stop=stop, params=self._default_params
+        for prompt in prompts:
+            prompt_result: List[Generation] = transform_output_fn(
+                model_invoker.invoke(
+                    params=transform_input_fn(
+                        prompt=prompt, stop=stop, params=self._default_params
+                    ),
+                    headers=headers,
                 )
             )
-        )
+            generations.append(prompt_result)
+
+        return LLMResult(generations=generations)
+
+    @property
+    def _default_params(self) -> Dict[str, Any]:
+        """Return default parameters for the model."""
+        return self.ModelParams(**self.model_kwargs).dict()
+
+    @classmethod
+    def is_lc_serializable(cls) -> bool:
+        """Return whether this class is serializable."""
+        return True
 
 
 class InferenceBackendGeneric(InferenceBackend):
@@ -171,7 +188,7 @@ class InferenceBackendGeneric(InferenceBackend):
         """
         return {**(params or {}), "prompt": prompt, "stop": stop}
 
-    def _process_response(self, response_json: Dict[str, Any]) -> str:
+    def _process_response(self, response_json: Dict[str, Any]) -> List[Generation]:
         """
         Processes the response from the model.
 
@@ -181,16 +198,23 @@ class InferenceBackendGeneric(InferenceBackend):
 
         Returns
         -------
-        str: The processed response.
+        List[Generation]: The processed response.
         """
-        if response_json["object"] == "error":
-            return response_json.get("message", "")
-        return response_json["choices"][0]["text"]
 
-    @property
-    def _default_params(self) -> Dict[str, Any]:
-        """Return default parameters for the model."""
-        return self.ModelParams(**self.model_kwargs).dict()
+        # if response_json["object"] == "error":
+        #   return response_json.get("message", "")
+
+        return [
+            Generation(
+                text=choice.get("text", ""),
+                generation_info={
+                    "finish_reason": choice.get("finish_reason"),
+                    "logprobs": choice.get("logprobs"),
+                    "index": choice.get("index"),
+                },
+            )
+            for choice in response_json.get("choices", [])
+        ]
 
 
 class InferenceBackendVLLM(InferenceBackendGeneric):

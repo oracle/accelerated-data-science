@@ -7,10 +7,11 @@
 import logging
 import re
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Protocol
+from typing import Any, Callable, Dict, List, Optional, Protocol, Union
 
 from langchain_core.callbacks import CallbackManagerForLLMRun
-from langchain_core.language_models.llms import LLM
+from langchain_core.language_models.llms import BaseLLM
+from langchain_core.outputs import Generation, LLMResult
 from langchain_core.pydantic_v1 import Extra, Field, root_validator
 from langchain_core.utils import get_from_dict_or_env
 from packaging import version
@@ -33,15 +34,14 @@ class UnsupportedAdsVersionError(Exception):
 class InferenceBackend(Protocol):
     """Protocol for the inference backend."""
 
-    def _call(
+    def _generate(
         self,
-        prompt: str,
+        prompts: List[str],
         stop: Optional[List[str]] = None,
         run_manager: Optional[CallbackManagerForLLMRun] = None,
         **kwargs: Any,
-    ) -> str:
-        """Make an inference call with the given prompt."""
-        ...
+    ) -> LLMResult:
+        """Run the LLM on the given prompts."""
 
     @property
     def _identifying_params(self) -> Dict[str, Any]:
@@ -127,7 +127,7 @@ def _deserialize_function_from_hex(
         raise ValueError(f"Failed to deserialize function from hex string. Error: {e}")
 
 
-class OCIModelDeployment(LLM):
+class OCIModelDeployment(BaseLLM):
     """OCI Data Science Model Deployment."""
 
     auth: Dict[str, Any] = Field(default_factory=dict, exclude=True)
@@ -164,7 +164,7 @@ class OCIModelDeployment(LLM):
     a malicious payload that, when deserialized with pickle, can execute arbitrary code on your machine.
     """
 
-    transform_input_fn: Optional[Callable[..., Dict]] = None
+    transform_input_fn: Optional[Union[str, Callable[..., Dict]]] = None
     """
     Function to convert `{prompt, stop, **model_kwargs}` into a JSON-compatible request object that is accepted by the endpoint.
     By default, the one implemented at the framework level will be used. However, if the
@@ -175,9 +175,9 @@ class OCIModelDeployment(LLM):
     a malicious payload that, when deserialized with pickle, can execute arbitrary code on your machine.
     """
 
-    transform_output_fn: Optional[Callable[..., str]] = None
+    transform_output_fn: Optional[Union[str, Callable[..., List[Generation]]]] = None
     """
-    Function to transform the output from the endpoint to the text before returning it.
+    Function to transform the response from the endpoint to the `List[Generation]` before returning it.
     By default, the one implemented at the framework level will be used. However, if the
     default behavior needs to be changed, this function can be used.
 
@@ -226,7 +226,6 @@ class OCIModelDeployment(LLM):
         values["auth"] = values.get("auth") or default_signer()
         values["endpoint"] = get_from_dict_or_env(values, "endpoint", OCI_LLM_ENDPOINT)
 
-        # deserialize the transform functions if were provided
         if values.get("transform_input_fn") and _is_hex_string(
             values["transform_input_fn"]
         ):
@@ -263,42 +262,33 @@ class OCIModelDeployment(LLM):
             **self._backend._identifying_params,
         }
 
-    def _call(
+    def _generate(
         self,
-        prompt: str,
+        prompts: List[str],
         stop: Optional[List[str]] = None,
         run_manager: Optional[CallbackManagerForLLMRun] = None,
         **kwargs: Any,
-    ) -> str:
+    ) -> LLMResult:
         """
-        Call the backend with the given prompt.
+        Run the LLM on the given prompts and input.
 
         Args:
-            prompt (str): The prompt to process.
+            prompts (List[str]): The list of prompts to process.
             stop (Optional[List[str]]): Optional stop words.
             run_manager (Optional[CallbackManagerForLLMRun]): Optional run manager.
             kwargs (Any): Additional keyword arguments.
 
         Returns:
-            str: The result from the backend.
-
-        Raises:
-            Exception: If an error occurs during the call.
+            LLMResult: The result from the backend.
         """
-        try:
-            logging.debug("Calling backend with prompt: %s", prompt)
-            result = self._backend._call(
-                prompt=prompt, stop=stop, run_manager=run_manager, **kwargs
-            )
-            logging.debug("Received result from backend: %s", result)
-            return result
-        except Exception as e:
-            logging.error("Error calling backend: %s", e)
-            raise
+        return self._backend._generate(
+            prompts=prompts, stop=stop, run_manager=run_manager, **kwargs
+        )
 
     @property
     def _llm_type(self) -> str:
         return "oci_model_deployment"
 
-    def help(self, inference_framework: Optional[str] = None) -> None:
+    @classmethod
+    def help(cls, inference_framework: Optional[str] = None) -> None:
         print("The Help Method")
