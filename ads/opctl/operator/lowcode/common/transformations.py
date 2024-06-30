@@ -32,8 +32,8 @@ class Transformations(ABC):
         self.dataset_info = dataset_info
         self.target_category_columns = dataset_info.target_category_columns
         self.target_column_name = dataset_info.target_column
-        self.dt_column_name = dataset_info.datetime_column.name
-        self.dt_column_format = dataset_info.datetime_column.format
+        self.dt_column_name = dataset_info.datetime_column.name if dataset_info.datetime_column else None
+        self.dt_column_format = dataset_info.datetime_column.format if dataset_info.datetime_column else None
         self.preprocessing = dataset_info.preprocessing
 
     def run(self, data):
@@ -55,7 +55,8 @@ class Transformations(ABC):
         if self.name == "historical_data":
             self._check_historical_dataset(clean_df)
         clean_df = self._set_series_id_column(clean_df)
-        clean_df = self._format_datetime_col(clean_df)
+        if self.dt_column_name:
+            clean_df = self._format_datetime_col(clean_df)
         clean_df = self._set_multi_index(clean_df)
 
         if self.preprocessing and self.preprocessing.enabled:
@@ -124,8 +125,10 @@ class Transformations(ABC):
         -------
             A new Pandas DataFrame with sorted dates for each series
         """
-        df = df.set_index([self.dt_column_name, DataColumns.Series])
-        return df.sort_values([self.dt_column_name, DataColumns.Series], ascending=True)
+        if self.dt_column_name:
+            df = df.set_index([self.dt_column_name, DataColumns.Series])
+            return df.sort_values([self.dt_column_name, DataColumns.Series], ascending=True)
+        return df.set_index([df.index, DataColumns.Series])
 
     def _missing_value_imputation_hist(self, df):
         """

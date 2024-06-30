@@ -4,10 +4,12 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from ..const import SupportedModels
+from ..const import SupportedModels, NonTimeADSupportedModels
 from ..operator_config import AnomalyOperatorConfig
 from .automlx import AutoMLXOperatorModel
 from .autots import AutoTSOperatorModel
+from .oneclasssvm import OneClassSVMOperatorModel
+from .isolationforest import IsolationForestOperatorModel
 from ads.opctl.operator.lowcode.anomaly.utils import select_auto_model
 
 # from .tods import TODSOperatorModel
@@ -16,11 +18,24 @@ from .anomaly_dataset import AnomalyDatasets
 
 
 class UnSupportedModelError(Exception):
-    def __init__(self, model_type: str):
-        super().__init__(
-            f"Model: `{model_type}` "
-            f"is not supported. Supported models: {SupportedModels.values}"
+    """Exception raised when the model is not supported.
+
+    Attributes:
+        operator_config (AnomalyOperatorConfig): The operator configuration.
+        model_type (str): The type of the unsupported model.
+    """
+
+    def __init__(self, operator_config: AnomalyOperatorConfig, model_type: str):
+        supported_models = (
+            SupportedModels.values
+            if operator_config.spec.datetime_column
+            else NonTimeADSupportedModels.values
         )
+        message = (
+            f"Model: `{model_type}` is not supported. "
+            f"Supported models: {supported_models}"
+        )
+        super().__init__(message)
 
 
 class AnomalyOperatorModelFactory:
@@ -32,6 +47,13 @@ class AnomalyOperatorModelFactory:
         SupportedModels.AutoMLX: AutoMLXOperatorModel,
         # SupportedModels.TODS: TODSOperatorModel,
         SupportedModels.AutoTS: AutoTSOperatorModel,
+    }
+
+    _NonTime_MAP = {
+        NonTimeADSupportedModels.OneClassSVM: OneClassSVMOperatorModel,
+        NonTimeADSupportedModels.IsolationForest: IsolationForestOperatorModel,
+        # TODO: Add DBScan model for non time based anomaly
+        # NonTimeADSupportedModels.DBScan: DBScanOperatorModel,
     }
 
     @classmethod
@@ -62,6 +84,12 @@ class AnomalyOperatorModelFactory:
         model_type = operator_config.spec.model
         if model_type == "auto":
             model_type = select_auto_model(datasets, operator_config)
-        if model_type not in cls._MAP:
-            raise UnSupportedModelError(model_type)
-        return cls._MAP[model_type](config=operator_config, datasets=datasets)
+
+        model_map = (
+            cls._MAP if operator_config.spec.datetime_column else cls._NonTime_MAP
+        )
+
+        if model_type not in model_map:
+            raise UnSupportedModelError(operator_config, model_type)
+
+        return model_map[model_type](config=operator_config, datasets=datasets)

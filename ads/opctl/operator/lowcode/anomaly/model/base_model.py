@@ -25,7 +25,7 @@ from ads.opctl.operator.lowcode.common.utils import (
     write_data,
 )
 from .anomaly_dataset import AnomalyDatasets, AnomalyOutput, TestData
-from ..const import SupportedModels
+from ..const import NonTimeADSupportedModels, SupportedModels
 from ..operator_config import AnomalyOperatorConfig, AnomalyOperatorSpec
 
 
@@ -61,7 +61,8 @@ class AnomalyOperatorBaseModel(ABC):
         try:
             anomaly_output = self._build_model()
         except Exception as e:
-            anomaly_output = self._fallback_build_model()
+            if self.spec.datetime_column:
+                anomaly_output = self._fallback_build_model()
 
         elapsed_time = time.time() - start_time
 
@@ -79,7 +80,9 @@ class AnomalyOperatorBaseModel(ABC):
             for col, df in self.datasets.full_data_dict.items()
         ]
         data_table = rc.Select(blocks=table_blocks)
-        date_column = self.spec.datetime_column.name
+        date_column = (
+            self.spec.datetime_column.name if self.spec.datetime_column else "index"
+        )
 
         blocks = []
         for target, df in self.datasets.full_data_dict.items():
@@ -114,7 +117,7 @@ class AnomalyOperatorBaseModel(ABC):
                 rc.Text(f"You selected the **`{self.spec.model}`** model."),
                 rc.Text(
                     "Based on your dataset, you could have also selected "
-                    f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
+                    f"any of the models: `{'`, `'.join(SupportedModels.keys() if self.spec.datetime_column else NonTimeADSupportedModels.keys())}`."
                 ),
                 rc.Metric(
                     heading="Analysis was completed in ",
@@ -320,7 +323,9 @@ class AnomalyOperatorBaseModel(ABC):
             y_pred = np.vectorize(self.outlier_map.get)(
                 est.predict(df[self.spec.target_column].fillna(0).values.reshape(-1, 1))
             )
-            scores = est.score_samples(df[self.spec.target_column].fillna(0).values.reshape(-1, 1))
+            scores = est.score_samples(
+                df[self.spec.target_column].fillna(0).values.reshape(-1, 1)
+            )
 
             anomaly = pd.DataFrame(
                 {date_column: df[date_column], OutputColumns.ANOMALY_COL: y_pred}
