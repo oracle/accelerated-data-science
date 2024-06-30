@@ -9,12 +9,14 @@ from typing import List, Optional
 
 from ads.aqua.evaluation.entities import AquaEvaluationSummary
 from ads.aqua.model.entities import AquaModelSummary
+from ads.aqua.modeldeployment.entities import AquaDeployment
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.serializer import DataClassSerializable
 
 
 class RequestResponseType(str, metaclass=ExtendedEnumMeta):
     ListEvaluations = "ListEvaluations"
+    ListDeployments = "ListDeployments"
     ListModels = "ListModels"
     Error = "Error"
 
@@ -43,13 +45,26 @@ class ListEvaluationsRequest(BaseRequest):
 @dataclass
 class ListModelsRequest(BaseRequest):
     compartment_id: Optional[str] = None
+    project_id: Optional[str] = None
+    model_type: Optional[str] = None
+    kind = RequestResponseType.ListDeployments
 
 
 @dataclass
 class ListEvaluationsResponse(BaseResponse):
     data: List[AquaEvaluationSummary]
 
+@dataclass
+class ListDeploymentRequest(BaseRequest):
+    compartment_id: str
+    project_id: Optional[str] = None
+    kind = RequestResponseType.ListDeployments
 
+
+@dataclass
+class ListDeploymentResponse(BaseResponse):
+    data: List[AquaDeployment]
+    
 @dataclass
 class ListModelsResponse(BaseResponse):
     data: List[AquaModelSummary]
