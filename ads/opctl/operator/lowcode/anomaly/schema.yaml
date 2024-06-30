@@ -133,10 +133,9 @@ spec:
 
     datetime_column:
       type: dict
-      required: true
-      default: {"name": "uid"}
+      required: false
       meta:
-          description: "`datetime_column` is required for time series anomaly detection, only non time-based anomaly detection models can be run without `datetime_column`"
+        description: "`datetime_column` is required for time series anomaly detection, only non time-based anomaly detection models can be run without `datetime_column`"
       schema:
         name:
           type: string
