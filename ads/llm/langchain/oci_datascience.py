@@ -143,7 +143,7 @@ class OCIModelDeployment(BaseLLM):
 
     inference_framework: Optional[str] = "vllm"
     """
-    The framework used for inference. Examples include 'vllm', 'tgi', 'generic'.
+    The framework used for inference. Examples include 'vllm', 'tgi', 'generic', 'llama.cpp'.
     Use `OCIModelDeployment.supported_frameworks()` to see the list of supported frameworks.
     The `vllm` is used by default.
     """
@@ -210,6 +210,7 @@ class OCIModelDeployment(BaseLLM):
         return InferenceBackendFactory.supported_frameworks()
 
     @root_validator()
+    @_validate_dependency
     def validate_environment(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """
         Validate and set up the environment.
