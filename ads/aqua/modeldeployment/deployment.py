@@ -396,6 +396,7 @@ class AquaDeploymentApp(AquaApp):
         List[AquaDeployment]:
             The list of the Aqua model deployments.
         """
+        print("kwargs: ",kwargs)
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
 
         model_deployments = self.list_resource(

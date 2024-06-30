@@ -614,14 +614,13 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
             A list of log records.
             Each log record is a dictionary with the following keys: `id`, `time`, `message`.
         """
-        tail_logs = self._search_and_format(
+        return self._search_and_format(
             source=source,
             limit=limit,
-            sort_order=SortOrder.DESC,
+            sort_order=SortOrder.ASC,
             time_start=time_start,
             log_filter=log_filter,
         )
-        return sorted(tail_logs, key=lambda log: log["time"])
 
     def head(
         self,
@@ -855,15 +854,14 @@ class ConsolidatedLog:
             Expression for filtering the logs. This will be the WHERE clause of the query.
             Defaults to None.
         """
-        tail_logs = self._search_and_format(
-            source=source,
-            limit=limit,
-            sort_order=SortOrder.DESC,
-            time_start=time_start,
-            log_filter=log_filter,
-        )
         self._print(
-            sorted(tail_logs, key=lambda log: log["time"])
+            self._search_and_format(
+                source=source,
+                limit=limit,
+                sort_order=SortOrder.ASC,
+                time_start=time_start,
+                log_filter=log_filter,
+            )
         )
 
     def head(

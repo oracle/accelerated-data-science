@@ -1,4 +1,4 @@
-name: "[Py3.8-3.11] - Default Tests"
+name: "[Py3.8][Py3.9][Py3.10] tests/unitary/default_setup/**"
 
 on:
   workflow_dispatch:
@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10"]
 
     steps:
       - uses: actions/checkout@v4

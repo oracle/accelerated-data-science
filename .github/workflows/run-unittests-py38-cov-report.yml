@@ -1,4 +1,4 @@
-name: "[Py3.8][COV REPORT] - All Unit Tests"
+name: "[Py3.8][COV REPORT] tests/unitary/**"
 
 on:
   workflow_dispatch:
@@ -44,7 +44,6 @@ jobs:
             ignore-path: |
               --ignore tests/unitary/with_extras/model \
               --ignore tests/unitary/with_extras/feature_store \
-              --ignore  tests/unitary/with_extras/operator/feature-store \
               --ignore tests/unitary/with_extras/operator/forecast \
               --ignore tests/unitary/with_extras/hpo
           - name: "slow_tests"

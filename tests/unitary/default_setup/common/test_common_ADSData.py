@@ -1,19 +1,17 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
 Contains tests for ads.common.data
 """
-
 import os
 import pandas as pd
 import pytest
 import unittest
 
 from ads.common.data import ADSData
-
 
 #
 # run with:
@@ -114,7 +112,7 @@ class ADSDataTest(unittest.TestCase):
         Test corner cases and error handling
         """
         bad_input = [(None, None), ("test", None), (None, "test")]
-        for X, y in bad_input:
+        for (X, y) in bad_input:
             with pytest.raises(ValueError):
                 ADSData.build(X, y)
 
@@ -150,6 +148,22 @@ class ADSDataTest(unittest.TestCase):
         assert expected.X.shape == (3, 3)
         assert expected.y.name == "target"
         assert expected.y.shape == (3,)
+
+    @pytest.mark.skipif("NoDependency" in os.environ, reason="skip for dependency test")
+    def test_ADSData_build_valid_input_dask_dataframe(self):
+        """
+        Ensures build method takes dask dataframe
+        """
+        import dask
+
+        X = dask.datasets.timeseries().drop("y", axis=1)
+        y = dask.datasets.timeseries()["y"]
+        expected = ADSData.build(X, y)
+        assert sorted(expected.X.columns.tolist()) == sorted(["id", "name", "x"])
+        assert expected.X.shape[0] == 2592000
+        assert expected.X.shape[1] == 3
+        assert expected.y.name == "y"
+        assert expected.y.shape[0] == 2592000
 
     @pytest.mark.skip("api change. this test should be re-written.")
     def test_ADSData_build_with_data(self):

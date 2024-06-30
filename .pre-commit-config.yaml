@@ -1,19 +1,7 @@
 repos:
-    # ruff
-    - repo: https://github.com/astral-sh/ruff-pre-commit
-      rev: v0.5.0
-      hooks:
-          - id: ruff
-            types_or: [ python, pyi, jupyter ]
-            args: [ --fix ]
-            files: ^ads
-            exclude: ^docs/
-          - id: ruff-format
-            types_or: [ python, pyi, jupyter ]
-            exclude: ^docs/
     # Standard hooks
     - repo: https://github.com/pre-commit/pre-commit-hooks
-      rev: v4.6.0
+      rev: v4.4.0
       hooks:
           - id: check-ast
             exclude: ^docs/
@@ -32,6 +20,12 @@ repos:
           - id: trailing-whitespace
             args: [--markdown-linebreak-ext=md]
             exclude: ^docs/
+    # Black, the code formatter, natively supports pre-commit
+    - repo: https://github.com/psf/black
+      rev: 23.3.0
+      hooks:
+          - id: black
+            exclude: ^docs/
     # Regex based rst files common mistakes detector
     - repo: https://github.com/pre-commit/pygrep-hooks
       rev: v1.10.0
@@ -42,7 +36,7 @@ repos:
             files: ^docs/
     # Hardcoded secrets and ocids detector
     - repo: https://github.com/gitleaks/gitleaks
-      rev: v8.18.4
+      rev: v8.17.0
       hooks:
           - id: gitleaks
             exclude: .github/workflows/reusable-actions/set-dummy-conf.yml

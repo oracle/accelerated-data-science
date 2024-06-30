@@ -2,14 +2,6 @@
 Release Notes
 =============
 
-2.11.13
-------
-Release date: June 18, 2024
-
-* Update langchain dependencies.
-* Support adding and removing artifact in a multi-model setting for model created by reference.
-
-
 2.11.12
 ------
 Release date: June 13, 2024

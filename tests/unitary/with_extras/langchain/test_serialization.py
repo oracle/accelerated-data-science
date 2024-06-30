@@ -7,25 +7,20 @@
 
 import os
 from copy import deepcopy
-from unittest import SkipTest, TestCase, mock, skipIf
+from unittest import TestCase, mock, SkipTest
 
-import langchain_core
-from langchain.chains import LLMChain
 from langchain.llms import Cohere
+from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 from langchain.schema.runnable import RunnableParallel, RunnablePassthrough
 
+from ads.llm.serialize import load, dump
 from ads.llm import (
     GenerativeAI,
     GenerativeAIEmbeddings,
     ModelDeploymentTGI,
     ModelDeploymentVLLM,
 )
-from ads.llm.serialize import dump, load
-
-
-def version_tuple(version):
-    return tuple(map(int, version.split(".")))
 
 
 class ChainSerializationTest(TestCase):
@@ -147,10 +142,6 @@ class ChainSerializationTest(TestCase):
         self.assertEqual(llm_chain.llm.model, "my_model")
         self.assertEqual(llm_chain.input_keys, ["subject"])
 
-    @skipIf(
-        version_tuple(langchain_core.__version__) > (0, 1, 50),
-        "Serialization not supported in this langchain_core version",
-    )
     def test_oci_gen_ai_serialization(self):
         """Tests serialization of OCI Gen AI LLM."""
         try:
@@ -166,10 +157,6 @@ class ChainSerializationTest(TestCase):
         self.assertEqual(llm.compartment_id, self.COMPARTMENT_ID)
         self.assertEqual(llm.client_kwargs, self.GEN_AI_KWARGS)
 
-    @skipIf(
-        version_tuple(langchain_core.__version__) > (0, 1, 50),
-        "Serialization not supported in this langchain_core version",
-    )
     def test_gen_ai_embeddings_serialization(self):
         """Tests serialization of OCI Gen AI embeddings."""
         try:
@@ -214,27 +201,10 @@ class ChainSerializationTest(TestCase):
         element_3 = kwargs.get("last")
         self.assertNotIn("_type", element_3)
         self.assertEqual(element_3.get("id"), ["ads", "llm", "ModelDeploymentTGI"])
-
-        if version_tuple(langchain_core.__version__) > (0, 1, 50):
-            self.assertEqual(
-                element_3.get("kwargs"),
-                {
-                    "max_tokens": 256,
-                    "temperature": 0.2,
-                    "p": 0.75,
-                    "endpoint": "https://modeldeployment.customer-oci.com/ocid/predict",
-                    "best_of": 1,
-                    "do_sample": True,
-                    "watermark": True,
-                },
-            )
-        else:
-            self.assertEqual(
-                element_3.get("kwargs"),
-                {
-                    "endpoint": "https://modeldeployment.customer-oci.com/ocid/predict",
-                },
-            )
+        self.assertEqual(
+            element_3.get("kwargs"),
+            {"endpoint": "https://modeldeployment.customer-oci.com/ocid/predict"},
+        )
 
         chain = load(serialized)
         self.assertEqual(len(chain.steps), 3)
