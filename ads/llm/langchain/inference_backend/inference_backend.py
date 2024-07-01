@@ -255,11 +255,11 @@ the OpenAI specification.
 
 class InferenceBackendVLLM(InferenceBackendGeneric):
     """
-    An implementation of the InferenceBackend class for the Versatile Large Language Model (vLLM).
+    An implementation of the InferenceBackend class for the vLLM.
     """
 
     DESCRIPTION: ClassVar = """
-    The Versatile Large Language Model (vLLM) backend implements the OpenAI specification
+    The vLLM backend implements the OpenAI specification
 and includes a list of default parameters that are used if none are provided. You have
 the flexibility to override any default parameter as needed or to provide additional
 parameters supported by the OpenAI specification.
