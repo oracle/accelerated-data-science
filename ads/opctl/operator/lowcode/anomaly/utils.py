@@ -1,31 +1,32 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
+
 import pandas as pd
-import fsspec
-from .operator_config import AnomalyOperatorSpec
-from .const import SupportedMetrics, SupportedModels
+
 from ads.opctl import logger
+
+from .const import SupportedMetrics, SupportedModels
+from .operator_config import AnomalyOperatorSpec
 
 
 def _build_metrics_df(y_true, y_pred, column_name):
     from sklearn.metrics import (
-        recall_score,
-        precision_score,
         accuracy_score,
-        f1_score,
-        confusion_matrix,
-        roc_auc_score,
-        precision_recall_curve,
         auc,
+        confusion_matrix,
+        f1_score,
         matthews_corrcoef,
+        precision_recall_curve,
+        precision_score,
+        recall_score,
+        roc_auc_score,
     )
 
-    metrics = dict()
+    metrics = {}
     metrics[SupportedMetrics.RECALL] = recall_score(y_true, y_pred)
     metrics[SupportedMetrics.PRECISION] = precision_score(y_true, y_pred)
     metrics[SupportedMetrics.ACCURACY] = accuracy_score(y_true, y_pred)
@@ -78,5 +79,7 @@ def default_signer(**kwargs):
     return default_signer(**kwargs)
 
 
-def select_auto_model(datasets, operator_config):
-    return SupportedModels.AutoTS
+def select_auto_model(operator_config):
+    if operator_config.spec.datetime_column is not None:
+        return SupportedModels.AutoTS
+    return SupportedModels.IsolationForest

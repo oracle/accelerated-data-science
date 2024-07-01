@@ -1,20 +1,20 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from ..const import SupportedModels, NonTimeADSupportedModels
+from ads.opctl.operator.lowcode.anomaly.utils import select_auto_model
+
+from ..const import NonTimeADSupportedModels, SupportedModels
 from ..operator_config import AnomalyOperatorConfig
+from .anomaly_dataset import AnomalyDatasets
 from .automlx import AutoMLXOperatorModel
 from .autots import AutoTSOperatorModel
-from .oneclasssvm import OneClassSVMOperatorModel
-from .isolationforest import IsolationForestOperatorModel
-from ads.opctl.operator.lowcode.anomaly.utils import select_auto_model
 
 # from .tods import TODSOperatorModel
 from .base_model import AnomalyOperatorBaseModel
-from .anomaly_dataset import AnomalyDatasets
+from .isolationforest import IsolationForestOperatorModel
+from .oneclasssvm import OneClassSVMOperatorModel
 
 
 class UnSupportedModelError(Exception):
@@ -83,7 +83,7 @@ class AnomalyOperatorModelFactory:
         """
         model_type = operator_config.spec.model
         if model_type == "auto":
-            model_type = select_auto_model(datasets, operator_config)
+            model_type = select_auto_model(operator_config)
 
         model_map = (
             cls._MAP if operator_config.spec.datetime_column else cls._NonTime_MAP
