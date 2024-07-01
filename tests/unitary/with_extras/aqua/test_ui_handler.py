@@ -6,16 +6,16 @@
 
 import os
 import unittest
-from unittest.mock import MagicMock, patch
 from importlib import reload
+from unittest.mock import MagicMock, patch
+
+from notebook.base.handlers import IPythonHandler
 from parameterized import parameterized
 
-import ads.config
 import ads.aqua
-from notebook.base.handlers import IPythonHandler
+import ads.config
+from ads.aqua.common.enums import Tags
 from ads.aqua.extension.ui_handler import AquaUIHandler
-from ads.aqua.ui import AquaUIApp
-from ads.aqua.data import Tags
 
 
 class TestDataset:
@@ -48,7 +48,7 @@ class TestAquaUIHandler(unittest.TestCase):
         reload(ads.aqua)
         reload(ads.aqua.extension.ui_handler)
 
-    @patch.object(AquaUIApp, "list_log_groups")
+    @patch("ads.aqua.ui.AquaUIApp.list_log_groups")
     def test_list_log_groups(self, mock_list_log_groups):
         """Test get method to fetch log groups"""
         self.ui_handler.request.path = "aqua/logging"
@@ -57,49 +57,56 @@ class TestAquaUIHandler(unittest.TestCase):
             compartment_id=TestDataset.USER_COMPARTMENT_ID
         )
 
-    @patch.object(AquaUIApp, "list_logs")
+    @patch("ads.aqua.ui.AquaUIApp.list_logs")
     def test_list_logs(self, mock_list_logs):
         """Test get method to fetch logs for a given log group."""
         self.ui_handler.request.path = "aqua/logging"
         self.ui_handler.get(id="mock-log-id")
         mock_list_logs.assert_called_with(log_group_id="mock-log-id")
 
-    @patch.object(AquaUIApp, "list_compartments")
+    @patch("ads.aqua.ui.AquaUIApp.list_compartments")
     def test_list_compartments(self, mock_list_compartments):
         """Test get method to fetch list of compartments."""
         self.ui_handler.request.path = "aqua/compartments"
         self.ui_handler.get()
         mock_list_compartments.assert_called()
 
-    @patch.object(AquaUIApp, "get_default_compartment")
+    @patch("ads.aqua.ui.AquaUIApp.list_containers")
+    def test_list_containers(self, mock_list_containers):
+        """Test get method to fetch list of containers."""
+        self.ui_handler.request.path = "aqua/containers"
+        self.ui_handler.get()
+        mock_list_containers.assert_called()
+
+    @patch("ads.aqua.ui.AquaUIApp.get_default_compartment")
     def test_get_default_compartment(self, mock_get_default_compartment):
         """Test get method to fetch default compartment."""
         self.ui_handler.request.path = "aqua/compartments/default"
         self.ui_handler.get()
         mock_get_default_compartment.assert_called()
 
-    @patch.object(AquaUIApp, "list_model_version_sets")
+    @patch("ads.aqua.ui.AquaUIApp.list_model_version_sets")
     def test_list_experiments(self, mock_list_experiments):
         """Test get method to fetch list of experiments."""
         self.ui_handler.request.path = "aqua/experiment"
         self.ui_handler.get()
         mock_list_experiments.assert_called_with(
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
-            target_tag=Tags.AQUA_EVALUATION.value,
+            target_tag=Tags.AQUA_EVALUATION,
         )
 
-    @patch.object(AquaUIApp, "list_model_version_sets")
+    @patch("ads.aqua.ui.AquaUIApp.list_model_version_sets")
     def test_list_model_version_sets(self, mock_list_model_version_sets):
         """Test get method to fetch version sets."""
         self.ui_handler.request.path = "aqua/versionsets"
         self.ui_handler.get()
         mock_list_model_version_sets.assert_called_with(
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
-            target_tag=Tags.AQUA_FINE_TUNING.value,
+            target_tag=Tags.AQUA_FINE_TUNING,
         )
 
     @parameterized.expand(["true", ""])
-    @patch.object(AquaUIApp, "list_buckets")
+    @patch("ads.aqua.ui.AquaUIApp.list_buckets")
     def test_list_buckets(self, versioned, mock_list_buckets):
         """Test get method to fetch list of buckets."""
         self.ui_handler.request.path = "aqua/buckets"
@@ -113,7 +120,7 @@ class TestAquaUIHandler(unittest.TestCase):
             versioned=True if versioned == "true" else False,
         )
 
-    @patch.object(AquaUIApp, "list_job_shapes")
+    @patch("ads.aqua.ui.AquaUIApp.list_job_shapes")
     def test_list_job_shapes(self, mock_list_job_shapes):
         """Test get method to fetch jobs shapes list."""
         self.ui_handler.request.path = "aqua/job/shapes"
@@ -122,14 +129,14 @@ class TestAquaUIHandler(unittest.TestCase):
             compartment_id=TestDataset.USER_COMPARTMENT_ID
         )
 
-    @patch.object(AquaUIApp, "list_vcn")
+    @patch("ads.aqua.ui.AquaUIApp.list_vcn")
     def test_list_vcn(self, mock_list_vcn):
         """Test get method to fetch list of vcns."""
         self.ui_handler.request.path = "aqua/vcn"
         self.ui_handler.get()
         mock_list_vcn.assert_called_with(compartment_id=TestDataset.USER_COMPARTMENT_ID)
 
-    @patch.object(AquaUIApp, "list_subnets")
+    @patch("ads.aqua.ui.AquaUIApp.list_subnets")
     def test_list_subnets(self, mock_list_subnets):
         """Test the get method to fetch list of subnets."""
         self.ui_handler.request.path = "aqua/subnets"
@@ -142,7 +149,7 @@ class TestAquaUIHandler(unittest.TestCase):
             compartment_id=TestDataset.USER_COMPARTMENT_ID, vcn_id="mock-vcn-id"
         )
 
-    @patch.object(AquaUIApp, "get_shape_availability")
+    @patch("ads.aqua.ui.AquaUIApp.get_shape_availability")
     def test_get_shape_availability(self, mock_get_shape_availability):
         """Test get shape availability."""
         self.ui_handler.request.path = "aqua/shapes/limit"
@@ -156,7 +163,7 @@ class TestAquaUIHandler(unittest.TestCase):
             instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
         )
 
-    @patch.object(AquaUIApp, "is_bucket_versioned")
+    @patch("ads.aqua.ui.AquaUIApp.is_bucket_versioned")
     def test_is_bucket_versioned(self, mock_is_bucket_versioned):
         """Test get method to check if a bucket is versioned."""
         self.ui_handler.request.path = "aqua/bucket/versioning"

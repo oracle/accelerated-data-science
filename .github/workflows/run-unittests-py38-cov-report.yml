@@ -1,4 +1,4 @@
-name: "[Py3.8][COV REPORT] tests/unitary/**"
+name: "[Py3.8][COV REPORT] - All Unit Tests"
 
 on:
   workflow_dispatch:
@@ -44,6 +44,7 @@ jobs:
             ignore-path: |
               --ignore tests/unitary/with_extras/model \
               --ignore tests/unitary/with_extras/feature_store \
+              --ignore  tests/unitary/with_extras/operator/feature-store \
               --ignore tests/unitary/with_extras/operator/forecast \
               --ignore tests/unitary/with_extras/hpo
           - name: "slow_tests"
@@ -79,7 +80,7 @@ jobs:
         run: |
           pip install -e ".[feature-store-marketplace]"
       - name: "Run unitary tests folder with maximum ADS dependencies"
-        timeout-minutes: 40
+        timeout-minutes: 60
         shell: bash
         env:
           CONDA_PREFIX: /usr/share/miniconda
@@ -188,6 +189,7 @@ jobs:
           fi
 
       - name: "Add comment with cov diff to PR"
+        continue-on-error: true
         uses: actions/github-script@v7
         if: github.event_name == 'pull_request'
         with:

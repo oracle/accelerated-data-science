@@ -18,13 +18,13 @@ from tornado.httputil import HTTPServerRequest
 from tornado.web import Application, HTTPError
 
 import ads.aqua
-import ads.aqua.exception
+import ads.aqua.common.errors
 import ads.aqua.extension
 import ads.aqua.extension.common_handler
 import ads.config
+from ads.aqua.common.errors import AquaError
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.evaluation import AquaEvaluationApp
-from ads.aqua.exception import AquaError
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.common_handler import (
     ADSVersionHandler,

@@ -7,9 +7,11 @@ from urllib.parse import urlparse
 
 from tornado.web import HTTPError
 
-from ads.aqua.decorator import handle_exceptions
-from ads.aqua.deployment import AquaDeploymentApp, MDInferenceResponse, ModelParams
-from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
+from ads.aqua.common.decorator import handle_exceptions
+from ads.aqua.extension.errors import Errors
+from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
+from ads.aqua.modeldeployment.entities import ModelParams
 from ads.config import COMPARTMENT_OCID, PROJECT_OCID
 
 
@@ -93,6 +95,11 @@ class AquaDeploymentHandler(AquaAPIhandler):
         description = input_data.get("description")
         instance_count = input_data.get("instance_count")
         bandwidth_mbps = input_data.get("bandwidth_mbps")
+        web_concurrency = input_data.get("web_concurrency")
+        server_port = input_data.get("server_port")
+        health_check_port = input_data.get("health_check_port")
+        env_var = input_data.get("env_var")
+        container_family = input_data.get("container_family")
 
         self.finish(
             AquaDeploymentApp().create(
@@ -107,6 +114,11 @@ class AquaDeploymentHandler(AquaAPIhandler):
                 access_log_id=access_log_id,
                 predict_log_id=predict_log_id,
                 bandwidth_mbps=bandwidth_mbps,
+                web_concurrency=web_concurrency,
+                server_port=server_port,
+                health_check_port=health_check_port,
+                env_var=env_var,
+                container_family=container_family,
             )
         )
 
@@ -192,8 +204,62 @@ class AquaDeploymentInferenceHandler(AquaAPIhandler):
         )
 
 
+class AquaDeploymentParamsHandler(AquaAPIhandler):
+    """Handler for Aqua deployment params REST APIs.
+
+    Methods
+    -------
+    get(self, model_id)
+        Retrieves a list of model deployment parameters.
+    post(self, *args, **kwargs)
+        Validates parameters for the given model id.
+    """
+
+    @handle_exceptions
+    def get(self, model_id):
+        """Handle GET request."""
+        instance_shape = self.get_argument("instance_shape")
+        return self.finish(
+            AquaDeploymentApp().get_deployment_default_params(
+                model_id=model_id, instance_shape=instance_shape
+            )
+        )
+
+    @handle_exceptions
+    def post(self, *args, **kwargs):
+        """Handles post request for the deployment param handler API.
+
+        Raises
+        ------
+        HTTPError
+            Raises HTTPError if inputs are missing or are invalid.
+        """
+        try:
+            input_data = self.get_json_body()
+        except Exception:
+            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT)
+
+        if not input_data:
+            raise HTTPError(400, Errors.NO_INPUT_DATA)
+
+        model_id = input_data.get("model_id")
+        if not model_id:
+            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("model_id"))
+
+        params = input_data.get("params")
+        container_family = input_data.get("container_family")
+        return self.finish(
+            AquaDeploymentApp().validate_deployment_params(
+                model_id=model_id,
+                params=params,
+                container_family=container_family,
+            )
+        )
+
+
 __handlers__ = [
-    ("deployments/?([^/]*)", AquaDeploymentHandler),
+    ("deployments/?([^/]*)/params", AquaDeploymentParamsHandler),
     ("deployments/config/?([^/]*)", AquaDeploymentHandler),
+    ("deployments/?([^/]*)", AquaDeploymentHandler),
     ("inference", AquaDeploymentInferenceHandler),
 ]

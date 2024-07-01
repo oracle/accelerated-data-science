@@ -10,8 +10,8 @@ import pytest
 from oci.resource_search.models.resource_summary import ResourceSummary
 from parameterized import parameterized
 
-from ads.aqua import utils
-from ads.aqua.exception import AquaRuntimeError
+from ads.aqua.common import utils
+from ads.aqua.common.errors import AquaRuntimeError
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.config import TENANCY_OCID
 

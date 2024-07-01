@@ -2,6 +2,38 @@
 Release Notes
 =============
 
+2.11.13
+------
+Release date: June 18, 2024
+
+* Update langchain dependencies.
+* Support adding and removing artifact in a multi-model setting for model created by reference.
+
+
+2.11.12
+------
+Release date: June 13, 2024
+
+* Fixed bugs and introduced enhancements following our recent release.
+
+
+2.11.11
+------
+Release date: June 11, 2024
+
+* Fixed the bug that led to timeout when loading config files during jupyterlab load.
+* Fixed bugs and introduced enhancements following our recent release.
+
+
+2.11.10
+------
+Release date: June 5, 2024
+
+* Support for Bring Your Own Model (BYOM) via AI Quick Actions.
+* Introduced enhancements following our recent release.
+
+
+
 2.11.9
 ------
 Release date: April 24, 2024

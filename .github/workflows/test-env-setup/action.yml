@@ -7,6 +7,11 @@ runs:
   using: composite
   steps:
     - shell: bash
+      env:
+        # torch > v2.1.0 brings nvidia dependency by default, we want to install torch for cpu for tests.
+        # Fot that --index-url https://download.pytorch.org/whl/cpu needed - https://pytorch.org/get-started/locally/.
+        # Setting env variable here instead of flag --index-url (docs: https://pip.pypa.io/en/stable/cli/pip_install/):
+        PIP_EXTRA_INDEX_URL: "https://download.pytorch.org/whl/cpu"
       run: |
         set -x # print commands that are executed
 

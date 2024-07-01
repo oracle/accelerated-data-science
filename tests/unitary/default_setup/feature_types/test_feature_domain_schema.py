@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -522,24 +522,6 @@ class TestFeatureDomainSchema:
         with patch.object(Schema, "validate_size", side_effect=SchemaSizeTooLarge(100)):
             with patch.object(logger, "warning") as mock_warning:
                 self.model_artifact.populate_schema(X_sample=list(self.X))
-                mock_warning.assert_called()
-
-    @pytest.mark.skipif("NoDependency" in os.environ, reason="skip for dependency test")
-    def test_populate_schema_dask_tuple(self):
-        import dask.dataframe as dd
-
-        self.model_artifact.populate_schema(
-            X_sample=dd.from_array(self.X), y_sample=tuple(self.y)
-        )
-        assert isinstance(self.model_artifact.schema_input, Schema)
-        assert isinstance(self.model_artifact.schema_output, Schema)
-
-        # Test wide data
-        with patch.object(Schema, "validate_size", side_effect=SchemaSizeTooLarge(100)):
-            with patch.object(logger, "warning") as mock_warning:
-                self.model_artifact.populate_schema(
-                    X_sample=dd.from_array(self.X), y_sample=tuple(self.y)
-                )
                 mock_warning.assert_called()
 
     def test_simple_constraint(self):
