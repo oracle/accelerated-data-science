@@ -35,13 +35,13 @@ class IsolationForestOperatorModel(AnomalyOperatorBaseModel):
 
         for target, df in self.datasets.full_data_dict.items():
             model = IsolationForest(**model_kwargs)
-            model.fit(df[self.spec.target_column].values.reshape(-1, 1))
+            model.fit(df)
             y_pred = np.vectorize(self.outlier_map.get)(
-                model.predict(df[self.spec.target_column].values.reshape(-1, 1))
+                model.predict(df)
             )
 
             scores = model.score_samples(
-                df[self.spec.target_column].values.reshape(-1, 1)
+                df
             )
 
             index_col = df.columns[0]

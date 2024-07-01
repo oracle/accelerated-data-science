@@ -173,7 +173,7 @@ class AnomalyOperatorBaseModel(ABC):
 
         for cat in anomaly_output.list_categories():
             output = anomaly_output.category_map[cat][0]
-            date_col = self.spec.datetime_column.name
+            date_col = self.spec.datetime_column.name  if self.spec.datetime_column else "index"
 
             test_data_i = test_data.get_data_for_series(cat)
 
