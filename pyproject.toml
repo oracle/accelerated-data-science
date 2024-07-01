@@ -168,13 +168,13 @@ forecast = [
   "statsmodels",
   "plotly",
   "oracledb",
-  "report-creator==1.0.9",
+  "report-creator==1.0.19",
 ]
 anomaly  = [
   "oracle_ads[opctl]",
   "autots",
   "oracledb",
-  "report-creator==1.0.9",
+  "report-creator==1.0.19",
 ]
 feature-store-marketplace = [
     "oracle-ads[opctl]",
@@ -190,7 +190,7 @@ pii = [
   "scrubadub_spacy",
   "spacy-transformers==1.2.5",
   "spacy==3.6.1",
-  "report-creator==1.0.9",
+  "report-creator==1.0.19",
 ]
 llm = ["langchain-community<0.0.32", "langchain>=0.1.10,<0.1.14", "evaluate>=0.4.0"]
 aqua = ["jupyter_server"]
