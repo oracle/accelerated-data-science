@@ -9,7 +9,7 @@ import pandas as pd
 
 from ads.opctl import logger
 
-from .const import SupportedMetrics, SupportedModels
+from ..const import NonTimeADSupportedModels, SupportedMetrics, SupportedModels
 from .operator_config import AnomalyOperatorSpec
 
 
@@ -80,6 +80,6 @@ def default_signer(**kwargs):
 
 
 def select_auto_model(operator_config):
-    if operator_config.spec.datetime_column.name is not None:
+    if operator_config.spec.datetime_column is not None:
         return SupportedModels.AutoTS
-    return SupportedModels.IsolationForest
+    return NonTimeADSupportedModels.IsolationForest
