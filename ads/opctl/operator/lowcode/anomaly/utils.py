@@ -9,7 +9,7 @@ import pandas as pd
 
 from ads.opctl import logger
 
-from ..const import NonTimeADSupportedModels, SupportedMetrics, SupportedModels
+from .const import NonTimeADSupportedModels, SupportedMetrics, SupportedModels
 from .operator_config import AnomalyOperatorSpec
 
 
