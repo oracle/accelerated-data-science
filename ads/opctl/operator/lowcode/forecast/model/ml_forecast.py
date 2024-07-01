@@ -61,6 +61,18 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                 "verbosity": -1,
                 "num_leaves": 512,
             }
+            additional_data_params = dict()
+            if len(self.datasets.get_additional_data_column_names()) > 0:
+                additional_data_params = {
+                    "target_transforms": [Differences([12])],
+                    "lags": model_kwargs.get("lags", [1, 6, 12]),
+                    "lag_transforms": (
+                        {
+                            1: [ExpandingMean()],
+                            12: [RollingMean(window_size=24)],
+                        }
+                    ),
+                }
 
             fcst = MLForecast(
                 models={
@@ -80,24 +92,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                 },
                 freq=pd.infer_freq(data_train[self.date_col].drop_duplicates())
                 or pd.infer_freq(data_train[self.date_col].drop_duplicates()[-5:]),
-                target_transforms=[Differences([12])],
-                lags=model_kwargs.get(
-                    "lags",
-                    (
-                        [1, 6, 12]
-                        if len(self.datasets.get_additional_data_column_names()) > 0
-                        else []
-                    ),
-                ),
-                lag_transforms=(
-                    {
-                        1: [ExpandingMean()],
-                        12: [RollingMean(window_size=24)],
-                    }
-                    if len(self.datasets.get_additional_data_column_names()) > 0
-                    else {}
-                ),
-                # date_features=[hour_index],
+                **additional_data_params,
             )
 
             num_models = model_kwargs.get("recursive_models", False)
@@ -164,6 +159,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                 "error": str(e),
             }
             logger.debug(f"Encountered Error: {e}. Skipping.")
+            raise e
 
     def _build_model(self) -> pd.DataFrame:
         data_train = self.datasets.get_all_data_long(include_horizon=False)
