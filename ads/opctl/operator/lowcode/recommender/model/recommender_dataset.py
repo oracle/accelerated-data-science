@@ -6,6 +6,7 @@
 
 import pandas as pd
 
+from ads.opctl.operator.lowcode.common.utils import load_data
 from ..operator_config import RecommenderOperatorConfig
 
 
@@ -19,6 +20,6 @@ class RecommenderDatasets:
             The recommender operator spec.
         """
         spec = config.spec
-        self.interactions: pd.DataFrame = pd.read_csv(spec.interactions_data.url)
-        self.users: pd.DataFrame = pd.read_csv(spec.user_data.url)
-        self.items: pd.DataFrame = pd.read_csv(spec.item_data.url)
+        self.interactions: pd.DataFrame = load_data(getattr(spec, "interactions_data"))
+        self.users: pd.DataFrame = load_data(getattr(spec, "user_data"))
+        self.items: pd.DataFrame = load_data(getattr(spec, "item_data"))
