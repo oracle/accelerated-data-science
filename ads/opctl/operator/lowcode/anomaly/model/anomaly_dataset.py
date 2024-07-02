@@ -84,8 +84,10 @@ class AnomalyOutput:
         scores = self.get_scores_by_cat(category)
         inlier_indices = anomaly.index[anomaly[OutputColumns.ANOMALY_COL] == 0]
         inliers = data.iloc[inlier_indices]
-        if scores is not None and not scores.empty:
+        if scores is not None and not scores.empty and self.date_column != "index":
             inliers = pd.merge(inliers, scores, on=self.date_column, how="inner")
+        else:
+            inliers = pd.merge(inliers, anomaly, left_index=True, right_index=True, how="inner")
         return inliers
 
     def get_outliers_by_cat(self, category: str, data: pd.DataFrame):
@@ -93,8 +95,10 @@ class AnomalyOutput:
         scores = self.get_scores_by_cat(category)
         outliers_indices = anomaly.index[anomaly[OutputColumns.ANOMALY_COL] == 1]
         outliers = data.iloc[outliers_indices]
-        if scores is not None and not scores.empty:
+        if scores is not None and not scores.empty and self.date_column != "index":
             outliers = pd.merge(outliers, scores, on=self.date_column, how="inner")
+        else:
+            outliers = pd.merge(outliers, anomaly, left_index=True, right_index=True, how="inner")
         return outliers
 
     def get_inliers(self, datasets):
