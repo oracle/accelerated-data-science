@@ -58,7 +58,7 @@ The operator will run in your local environment without requiring any additional
 
 ## 4. Running anomaly detection on the local container
 
-To run the anomaly detection detection operator within a local container, follow these steps:
+To run the anomaly detection operator within a local container, follow these steps:
 
 Use the command below to build the anomaly detection container.
 
@@ -106,7 +106,7 @@ ads operator run -f ~/anomaly/anomaly.yaml --backend-config ~/anomaly/backend_op
 
 ## 5. Running anomaly detection in the Data Science job within container runtime
 
-To execute the anomaly detection detection operator within a Data Science job using container runtime, please follow the steps outlined below:
+To execute the anomaly detection operator within a Data Science job using container runtime, please follow the steps outlined below:
 
 You can use the following command to build the anomaly detection container. This step can be skipped if you have already done this for running the operator within a local container.
 
@@ -155,7 +155,7 @@ ads opctl watch <OCID>
 
 ## 6. Running anomaly detection in the Data Science job within conda runtime
 
-To execute the anomaly detection detection operator within a Data Science job using conda runtime, please follow the steps outlined below:
+To execute the anomaly detection operator within a Data Science job using conda runtime, please follow the steps outlined below:
 
 You can use the following command to build the anomaly detection conda environment.
 

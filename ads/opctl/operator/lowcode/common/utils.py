@@ -7,7 +7,9 @@
 import argparse
 import logging
 import os
+import shutil
 import sys
+import tempfile
 import time
 from string import Template
 from typing import Any, Dict, List, Tuple
@@ -28,6 +30,7 @@ from ads.opctl.operator.lowcode.common.errors import (
 )
 from ads.opctl.operator.common.operator_config import OutputDirectory
 from ads.common.object_storage_details import ObjectStorageDetails
+from ads.secrets import ADBSecretKeeper
 
 
 def call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
@@ -53,10 +56,12 @@ def load_data(data_spec, storage_options=None, **kwargs):
     sql = data_spec.sql
     table_name = data_spec.table_name
     limit = data_spec.limit
-
+    vault_secret_id = data_spec.vault_secret_id
     storage_options = storage_options or (
         default_signer() if ObjectStorageDetails.is_oci_path(filename) else {}
     )
+    if vault_secret_id is not None and connect_args is None:
+        connect_args = dict()
 
     if filename is not None:
         if not format:
@@ -76,15 +81,32 @@ def load_data(data_spec, storage_options=None, **kwargs):
                 f"The format {format} is not currently supported for reading data. Please reformat the data source: {filename} ."
             )
     elif connect_args is not None:
-        con = oracledb.connect(**connect_args)
-        if table_name is not None:
-            data = pd.read_sql_table(table_name, con)
-        elif sql is not None:
-            data = pd.read_sql(sql, con)
-        else:
-            raise InvalidParameterError(
-                f"Database `connect_args` provided without sql query or table name. Please specify either `sql` or `table_name`."
-            )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            if vault_secret_id is not None:
+                try:
+                    with ADBSecretKeeper.load_secret(vault_secret_id, wallet_dir=temp_dir) as adwsecret:
+                        if 'wallet_location' in adwsecret and 'wallet_location' not in connect_args:
+                            shutil.unpack_archive(adwsecret["wallet_location"], temp_dir)
+                            connect_args['wallet_location'] = temp_dir
+                        if 'user_name' in adwsecret and 'user' not in connect_args:
+                            connect_args['user'] = adwsecret['user_name']
+                        if 'password' in adwsecret and 'password' not in connect_args:
+                            connect_args['password'] = adwsecret['password']
+                        if 'service_name' in adwsecret and 'service_name' not in connect_args:
+                            connect_args['service_name'] = adwsecret['service_name']
+
+                except Exception as e:
+                    raise Exception(f"Could not retrieve database credentials from vault {vault_secret_id}: {e}")
+
+            con = oracledb.connect(**connect_args)
+            if table_name is not None:
+                data = pd.read_sql(f"SELECT * FROM {table_name}", con)
+            elif sql is not None:
+                data = pd.read_sql(sql, con)
+            else:
+                raise InvalidParameterError(
+                    f"Database `connect_args` provided without sql query or table name. Please specify either `sql` or `table_name`."
+                )
     else:
         raise InvalidParameterError(
             f"No filename/url provided, and no connect_args provided. Please specify one of these if you want to read data from a file or a database respectively."

@@ -25,6 +25,7 @@ class AbstractData(ABC):
         self.data = None
         self._data_dict = dict()
         self.name = name
+        self.spec = spec
         self.load_transform_ingest_data(spec)
 
     def get_raw_data_by_cat(self, category):
@@ -36,7 +37,7 @@ class AbstractData(ABC):
             for col, val in mapping[category].items():
                 condition &= (self.raw_data[col] == val)
         data_by_cat = self.raw_data[condition].reset_index(drop=True)
-        data_by_cat = self._data_transformer._format_datetime_col(data_by_cat)
+        data_by_cat = self._data_transformer._format_datetime_col(data_by_cat) if self.spec.datetime_column else data_by_cat
         return data_by_cat
 
 
