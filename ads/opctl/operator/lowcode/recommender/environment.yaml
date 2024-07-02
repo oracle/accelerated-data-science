@@ -1,0 +1,11 @@
+name: recommender
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pip
+  - pip:
+      - report-creator
+      - oracle_ads[opctl]
+      - plotly
+      - scikit-surprise

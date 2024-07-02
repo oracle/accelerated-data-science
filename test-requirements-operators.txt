@@ -1,5 +1,6 @@
 -r test-requirements.txt
 -e ".[forecast]"
+-e ".[recommender]"
 -e ".[feature-store-marketplace]"
 plotly
 pandas>=2.0.0
