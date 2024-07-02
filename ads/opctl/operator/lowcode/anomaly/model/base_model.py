@@ -1,32 +1,33 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import fsspec
-import numpy as np
 import os
-import pandas as pd
 import tempfile
 import time
 from abc import ABC, abstractmethod
-from sklearn import linear_model
 from typing import Tuple
+
+import fsspec
+import numpy as np
+import pandas as pd
+from sklearn import linear_model
 
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
 from ads.opctl.operator.lowcode.anomaly.const import OutputColumns, SupportedMetrics
 from ads.opctl.operator.lowcode.anomaly.utils import _build_metrics_df, default_signer
 from ads.opctl.operator.lowcode.common.utils import (
-    human_time_friendly,
-    enable_print,
     disable_print,
+    enable_print,
+    human_time_friendly,
     write_data,
 )
-from .anomaly_dataset import AnomalyDatasets, AnomalyOutput, TestData
-from ..const import SupportedModels
+
+from ..const import NonTimeADSupportedModels, SupportedModels
 from ..operator_config import AnomalyOperatorConfig, AnomalyOperatorSpec
+from .anomaly_dataset import AnomalyDatasets, AnomalyOutput, TestData
 
 
 class AnomalyOperatorBaseModel(ABC):
@@ -53,15 +54,18 @@ class AnomalyOperatorBaseModel(ABC):
 
     def generate_report(self):
         """Generates the report."""
-        import report_creator as rc
         import matplotlib.pyplot as plt
+        import report_creator as rc
 
         start_time = time.time()
         # fallback using sklearn oneclasssvm when the sub model _build_model fails
         try:
             anomaly_output = self._build_model()
         except Exception as e:
-            anomaly_output = self._fallback_build_model()
+            logger.warn(f"Found exception: {e}")
+            if self.spec.datetime_column:
+                anomaly_output = self._fallback_build_model()
+            raise e
 
         elapsed_time = time.time() - start_time
 
@@ -79,7 +83,9 @@ class AnomalyOperatorBaseModel(ABC):
             for col, df in self.datasets.full_data_dict.items()
         ]
         data_table = rc.Select(blocks=table_blocks)
-        date_column = self.spec.datetime_column.name
+        date_column = (
+            self.spec.datetime_column.name if self.spec.datetime_column else "index"
+        )
 
         blocks = []
         for target, df in self.datasets.full_data_dict.items():
@@ -95,7 +101,7 @@ class AnomalyOperatorBaseModel(ABC):
                 ax.grid()
                 ax.plot(time_col, y, color="black")
                 for i, index in enumerate(anomaly_col):
-                    if anomaly_col[i] == 1:
+                    if index == 1:
                         ax.scatter(time_col[i], y[i], color="red", marker="o")
                 plt.xlabel(date_column)
                 plt.ylabel(col)
@@ -114,7 +120,7 @@ class AnomalyOperatorBaseModel(ABC):
                 rc.Text(f"You selected the **`{self.spec.model}`** model."),
                 rc.Text(
                     "Based on your dataset, you could have also selected "
-                    f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
+                    f"any of the models: `{'`, `'.join(SupportedModels.keys() if self.spec.datetime_column else NonTimeADSupportedModels.keys())}`."
                 ),
                 rc.Metric(
                     heading="Analysis was completed in ",
@@ -170,7 +176,9 @@ class AnomalyOperatorBaseModel(ABC):
 
         for cat in anomaly_output.list_categories():
             output = anomaly_output.category_map[cat][0]
-            date_col = self.spec.datetime_column.name
+            date_col = (
+                self.spec.datetime_column.name if self.spec.datetime_column else "index"
+            )
 
             test_data_i = test_data.get_data_for_series(cat)
 
@@ -247,7 +255,7 @@ class AnomalyOperatorBaseModel(ABC):
         if ObjectStorageDetails.is_oci_path(unique_output_dir):
             storage_options = default_signer()
         else:
-            storage_options = dict()
+            storage_options = {}
 
         # report-creator html report
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -301,12 +309,11 @@ class AnomalyOperatorBaseModel(ABC):
         Fallback method for the sub model _build_model method.
         """
         logger.warn(
-            "The build_model method has failed for the model: {}. "
-            "A fallback model will be built.".format(self.spec.model)
+            f"The build_model method has failed for the model: {self.spec.model}. "
+            "A fallback model will be built."
         )
 
         date_column = self.spec.datetime_column.name
-        dataset = self.datasets
 
         anomaly_output = AnomalyOutput(date_column=date_column)
 
@@ -320,7 +327,9 @@ class AnomalyOperatorBaseModel(ABC):
             y_pred = np.vectorize(self.outlier_map.get)(
                 est.predict(df[self.spec.target_column].fillna(0).values.reshape(-1, 1))
             )
-            scores = est.score_samples(df[self.spec.target_column].fillna(0).values.reshape(-1, 1))
+            scores = est.score_samples(
+                df[self.spec.target_column].fillna(0).values.reshape(-1, 1)
+            )
 
             anomaly = pd.DataFrame(
                 {date_column: df[date_column], OutputColumns.ANOMALY_COL: y_pred}

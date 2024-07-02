@@ -16,6 +16,14 @@ class SupportedModels(str, metaclass=ExtendedEnumMeta):
     Auto = "auto"
     # TODS = "tods"
 
+class NonTimeADSupportedModels(str, metaclass=ExtendedEnumMeta):
+    """Supported non time-based anomaly detection models."""
+
+    OneClassSVM = "oneclasssvm"
+    IsolationForest = "isolationforest"
+    # TODO : Add DBScan
+    # DBScan = "dbscan"
+    
 
 class TODSSubModels(str, metaclass=ExtendedEnumMeta):
     """Supported TODS sub models."""

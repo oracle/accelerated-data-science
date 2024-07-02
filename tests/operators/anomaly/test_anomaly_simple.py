@@ -3,6 +3,7 @@
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from ads.opctl.operator.lowcode.anomaly.const import NonTimeADSupportedModels
 import yaml
 import subprocess
 import pandas as pd
@@ -51,6 +52,7 @@ for m in MODELS:
     for d in DATASETS:
         parameters_short.append((m, d))
 
+MODELS = ["autots", "oneclasssvm", "isolationforest"]
 
 @pytest.mark.parametrize("model", ["autots"])
 def test_artificial_big(model):
@@ -71,7 +73,8 @@ def test_artificial_big(model):
         df_i = pd.DataFrame(
             d1, columns=[TARGET_COLUMN, "extra reg 1", "extra reg 2"]
         )  # columns=[f"sensor {i}", f"extra reg {i}-1", f"extra reg {i}-2"]  # Uncomment for wide format
-        df_i[DATETIME_COLUMN] = yr_in_30_min
+        if model not in NonTimeADSupportedModels.values():
+            df_i[DATETIME_COLUMN] = yr_in_30_min
         df_i[TARGET_CATEGORY_COLUMN] = f"GHNI007894032{i}"
         all_data.append(df_i)
 
@@ -90,7 +93,10 @@ def test_artificial_big(model):
         yaml_i["spec"]["output_directory"]["url"] = output_dirname
         yaml_i["spec"]["target_column"] = TARGET_COLUMN
         yaml_i["spec"]["target_category_columns"] = [TARGET_CATEGORY_COLUMN]
-        yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COLUMN
+        if model in NonTimeADSupportedModels.values():
+            del yaml_i["spec"]["datetime_column"]
+        else:
+            yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COLUMN
 
         # run(yaml_i, backend="operator.local", debug=False)
 
@@ -131,6 +137,8 @@ def test_artificial_small(model):
         yaml_i["spec"]["input_data"]["url"] = input_data
         yaml_i["spec"]["output_directory"]["url"] = output_dirname
         yaml_i["spec"]["contamination"] = 0.3
+        if model in NonTimeADSupportedModels.values():
+            del yaml_i["spec"]["datetime_column"]
 
         # run(yaml_i, debug=False)
 
@@ -162,8 +170,9 @@ def test_validation(model):
         np.concatenate([np.zeros(100), np.ones(2), np.zeros(100)], axis=0),
         columns=["anomaly"],
     )
-    d = d.reset_index().rename({"index": "ds"}, axis=1)
-    anomaly_col["ds"] = d["ds"]
+    if model not in NonTimeADSupportedModels.values():
+        d = d.reset_index().rename({"index": "ds"}, axis=1)
+        anomaly_col["ds"] = d["ds"]
     v = d.copy()
     v["anomaly"] = anomaly_col["anomaly"]
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -185,6 +194,8 @@ def test_validation(model):
         yaml_i["spec"]["test_data"] = {"url": test_data}
         yaml_i["spec"]["output_directory"]["url"] = output_dirname
         yaml_i["spec"]["contamination"] = 0.05
+        if model in NonTimeADSupportedModels.values():
+            del yaml_i["spec"]["datetime_column"]
 
         # run(yaml_i, backend="operator.local", debug=False)
         with open(anomaly_yaml_filename, "w") as f:
@@ -207,7 +218,10 @@ def test_load_datasets(model, data_dict):
         yaml_i = deepcopy(TEMPLATE_YAML)
         yaml_i["spec"]["model"] = model
         yaml_i["spec"]["input_data"]["url"] = data_dict["url"]
-        yaml_i["spec"]["datetime_column"]["name"] = data_dict["dt_col"]
+        if model in NonTimeADSupportedModels.values():
+            del yaml_i["spec"]["datetime_column"]
+        else:
+            yaml_i["spec"]["datetime_column"]["name"] = data_dict["dt_col"]
         yaml_i["spec"]["output_directory"]["url"] = output_dirname
 
         # run(yaml_i, backend="operator.local", debug=False)

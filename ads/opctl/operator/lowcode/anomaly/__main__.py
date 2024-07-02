@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -15,7 +14,7 @@ from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
 
-from .model.anomaly_dataset import AnomalyDatasets, AnomalyData
+from .model.anomaly_dataset import AnomalyDatasets
 from .operator_config import AnomalyOperatorConfig
 
 
@@ -34,7 +33,7 @@ def operate(operator_config: AnomalyOperatorConfig) -> None:
                 f"Failed to forecast with error {e.args}. Trying again with model `autots`."
             )
             operator_config.spec.model = "autots"
-            operator_config.spec.model_kwargs = dict()
+            operator_config.spec.model_kwargs = {}
             datasets = AnomalyDatasets(operator_config.spec)
             try:
                 AnomalyOperatorModelFactory.get_model(
@@ -44,12 +43,12 @@ def operate(operator_config: AnomalyOperatorConfig) -> None:
                 logger.debug(
                     f"Failed to backup forecast with error {ee.args}. Raising original error."
                 )
-            raise ee
+                raise ee
         else:
             raise e
 
 
-def verify(spec: Dict, **kwargs: Dict) -> bool:
+def verify(spec: Dict) -> bool:
     """Verifies the anomaly detection operator config."""
     operator = AnomalyOperatorConfig.from_dict(spec)
     msg_header = (
@@ -83,7 +82,7 @@ def main(raw_args: List[str]):
             yaml_string = yaml.safe_dump(json.loads(operator_spec_str))
         except json.JSONDecodeError:
             yaml_string = yaml.safe_dump(yaml.safe_load(operator_spec_str))
-        except:
+        except Exception:
             yaml_string = operator_spec_str
 
     operator_config = AnomalyOperatorConfig.from_yaml(

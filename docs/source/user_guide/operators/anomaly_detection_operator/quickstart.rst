@@ -41,7 +41,7 @@ Within the ``anomaly`` folder created above there will be a ``anomaly.yaml`` fil
             name: ds
         input_data:
             url: https://raw.githubusercontent.com/facebook/prophet/main/examples/example_yosemite_temps.csv
-        model: automlx
+        model: autots
         target_column: y
 
 There are many more options in this :doc:`YAML file <./yaml_schema>`.
