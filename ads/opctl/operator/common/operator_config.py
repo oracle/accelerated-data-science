@@ -28,6 +28,7 @@ class InputData(DataClassSerializable):
     limit: int = None
     sql: str = None
     table_name: str = None
+    vault_secret_id: str = None
 
 
 @dataclass(repr=True)

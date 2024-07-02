@@ -78,6 +78,9 @@ spec:
         limit:
           required: false
           type: integer
+        vault_secret_id:
+          required: false
+          type: string
 
     validation_data:
       required: false
@@ -130,6 +133,9 @@ spec:
         limit:
           required: false
           type: integer
+        vault_secret_id:
+          required: false
+          type: string
 
     datetime_column:
       type: dict
