@@ -2,6 +2,7 @@
   "configuration": {
     "VM.GPU.A10.1": {
       "parameters": {
+        "TGI_PARAMS": "--max-stop-sequences 6",
         "VLLM_PARAMS": "--max-model-len 4096"
       }
     }

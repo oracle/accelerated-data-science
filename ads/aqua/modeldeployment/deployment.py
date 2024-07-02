@@ -1,31 +1,27 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import json
 import logging
 from typing import Dict, List, Union
 
-from oci.data_science.models import ModelDeployment
-
 from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.enums import (
-    Tags,
-    InferenceContainerParamType,
-    InferenceContainerType,
     InferenceContainerTypeFamily,
+    Tags,
 )
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
+    get_combined_params,
     get_container_config,
     get_container_image,
+    get_container_params_type,
     get_model_by_reference_paths,
     get_ocid_substring,
-    get_combined_params,
     get_params_dict,
     get_params_list,
     get_resource_name,
+    get_restricted_params_by_container,
     load_config,
 )
 from ads.aqua.constants import (
@@ -42,10 +38,6 @@ from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
     ContainerSpec,
-)
-from ads.aqua.modeldeployment.constants import (
-    VLLMInferenceRestrictedParams,
-    TGIInferenceRestrictedParams,
 )
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
@@ -187,24 +179,24 @@ class AquaDeploymentApp(AquaApp):
                 model_name = aqua_model.custom_metadata_list.get(
                     FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME
                 ).value
-            except:
+            except ValueError as err:
                 raise AquaValueError(
                     f"Either {FineTuneCustomMetadata.FINE_TUNE_SOURCE} or {FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME} is missing "
                     f"from custom metadata for the model {config_source_id}"
-                )
+                ) from err
 
         # set up env vars
         if not env_var:
-            env_var = dict()
+            env_var = {}
 
         try:
             model_path_prefix = aqua_model.custom_metadata_list.get(
                 MODEL_BY_REFERENCE_OSS_PATH_KEY
             ).value.rstrip("/")
-        except ValueError:
+        except ValueError as err:
             raise AquaValueError(
                 f"{MODEL_BY_REFERENCE_OSS_PATH_KEY} key is not available in the custom metadata field."
-            )
+            ) from err
 
         if ObjectStorageDetails.is_oci_path(model_path_prefix):
             os_path = ObjectStorageDetails.from_path(model_path_prefix)
@@ -219,7 +211,7 @@ class AquaDeploymentApp(AquaApp):
 
             if not fine_tune_output_path:
                 raise AquaValueError(
-                    f"Fine tuned output path is not available in the model artifact."
+                    "Fine tuned output path is not available in the model artifact."
                 )
 
             os_path = ObjectStorageDetails.from_path(fine_tune_output_path)
@@ -232,7 +224,7 @@ class AquaDeploymentApp(AquaApp):
             container_type_key = aqua_model.custom_metadata_list.get(
                 AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
             ).value
-        except ValueError:
+        except ValueError as err:
             message = (
                 f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field "
                 f"for model {aqua_model.id}."
@@ -242,7 +234,7 @@ class AquaDeploymentApp(AquaApp):
                 raise AquaValueError(
                     f"{message}. For unverified Aqua models, container_family parameter should be "
                     f"set and value can be one of {', '.join(InferenceContainerTypeFamily.values())}."
-                )
+                ) from err
             container_type_key = container_family
         try:
             # Check if the container override flag is set. If set, then the user has chosen custom image
@@ -282,11 +274,12 @@ class AquaDeploymentApp(AquaApp):
         )  # Give precendece to the input parameter
 
         deployment_config = self.get_deployment_config(config_source_id)
-        vllm_params = (
+
+        config_params = (
             deployment_config.get("configuration", UNKNOWN_DICT)
             .get(instance_shape, UNKNOWN_DICT)
             .get("parameters", UNKNOWN_DICT)
-            .get(InferenceContainerParamType.PARAM_TYPE_VLLM, UNKNOWN)
+            .get(get_container_params_type(container_type_key), UNKNOWN)
         )
 
         # validate user provided params
@@ -301,7 +294,7 @@ class AquaDeploymentApp(AquaApp):
                     f"and cannot be overridden or are invalid."
                 )
 
-        deployment_params = get_combined_params(vllm_params, user_params)
+        deployment_params = get_combined_params(config_params, user_params)
 
         if deployment_params:
             params = f"{params} {deployment_params}"
@@ -429,7 +422,7 @@ class AquaDeploymentApp(AquaApp):
                     # tracks unique deployments that were listed in the user compartment
                     # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
                     self.telemetry.record_event_async(
-                        category=f"aqua/deployment",
+                        category="aqua/deployment",
                         action="list",
                         detail=get_ocid_substring(deployment_id, key_len=8),
                         value=state,
@@ -570,32 +563,27 @@ class AquaDeploymentApp(AquaApp):
                 f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field for model {model_id}."
             )
 
-        if container_type_key:
-            container_type_key = container_type_key.lower()
-            if container_type_key in InferenceContainerTypeFamily.values():
-                deployment_config = self.get_deployment_config(model_id)
-                config_parameters = (
-                    deployment_config.get("configuration", UNKNOWN_DICT)
-                    .get(instance_shape, UNKNOWN_DICT)
-                    .get("parameters", UNKNOWN_DICT)
+        if (
+            container_type_key
+            and container_type_key in InferenceContainerTypeFamily.values()
+        ):
+            deployment_config = self.get_deployment_config(model_id)
+            config_params = (
+                deployment_config.get("configuration", UNKNOWN_DICT)
+                .get(instance_shape, UNKNOWN_DICT)
+                .get("parameters", UNKNOWN_DICT)
+                .get(get_container_params_type(container_type_key), UNKNOWN)
+            )
+            if config_params:
+                params_list = get_params_list(config_params)
+                restricted_params_set = get_restricted_params_by_container(
+                    container_type_key
                 )
-                if InferenceContainerType.CONTAINER_TYPE_VLLM in container_type_key:
-                    params = config_parameters.get(
-                        InferenceContainerParamType.PARAM_TYPE_VLLM, UNKNOWN
-                    )
-                elif InferenceContainerType.CONTAINER_TYPE_TGI in container_type_key:
-                    params = config_parameters.get(
-                        InferenceContainerParamType.PARAM_TYPE_TGI, UNKNOWN
-                    )
-                else:
-                    params = UNKNOWN
-                    logger.debug(
-                        f"Default inference parameters are not available for the model {model_id} and "
-                        f"instance {instance_shape}."
-                    )
-                if params:
-                    # account for param that can have --arg but no values, e.g. --trust-remote-code
-                    default_params.extend(get_params_list(params))
+
+                # remove restricted params from the list as user cannot override them during deployment
+                for params in params_list:
+                    if params.split()[0] not in restricted_params_set:
+                        default_params.append(params)
 
         return default_params
 
@@ -629,7 +617,7 @@ class AquaDeploymentApp(AquaApp):
                 container_type_key = model.custom_metadata_list.get(
                     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
                 ).value
-            except ValueError:
+            except ValueError as err:
                 message = (
                     f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field "
                     f"for model {model_id}."
@@ -640,7 +628,7 @@ class AquaDeploymentApp(AquaApp):
                     raise AquaValueError(
                         f"{message}. For unverified Aqua models, container_family parameter should be "
                         f"set and value can be one of {', '.join(InferenceContainerTypeFamily.values())}."
-                    )
+                    ) from err
                 container_type_key = container_family
 
             container_config = get_container_config()
@@ -658,7 +646,7 @@ class AquaDeploymentApp(AquaApp):
                 f"Parameters {restricted_params} are set by Aqua "
                 f"and cannot be overridden or are invalid."
             )
-        return dict(valid=True)
+        return {"valid": True}
 
     @staticmethod
     def _find_restricted_params(
@@ -667,8 +655,7 @@ class AquaDeploymentApp(AquaApp):
         container_family: str,
     ) -> List[str]:
         """Returns a list of restricted params that user chooses to override when creating an Aqua deployment.
-        The default parameters coming from the container index json file cannot be overridden. In addition to this,
-        a set of parameters maintained in
+        The default parameters coming from the container index json file cannot be overridden.
 
         Parameters
         ----------
@@ -689,18 +676,9 @@ class AquaDeploymentApp(AquaApp):
             default_params_dict = get_params_dict(default_params)
             user_params_dict = get_params_dict(user_params)
 
-            for key, items in user_params_dict.items():
-                if (
-                    key in default_params_dict
-                    or (
-                        InferenceContainerType.CONTAINER_TYPE_VLLM in container_family
-                        and key in VLLMInferenceRestrictedParams
-                    )
-                    or (
-                        InferenceContainerType.CONTAINER_TYPE_TGI in container_family
-                        and key in TGIInferenceRestrictedParams
-                    )
-                ):
-                    restricted_params.append(key.lstrip("--"))
+            restricted_params_set = get_restricted_params_by_container(container_family)
+            for key, _items in user_params_dict.items():
+                if key in default_params_dict or key in restricted_params_set:
+                    restricted_params.append(key.lstrip("-"))
 
         return restricted_params
