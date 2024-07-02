@@ -1,0 +1,16 @@
+type: recommender
+version: v1
+conda_type: service
+name: Recommender Operator
+gpu: no
+keywords:
+  - Recommender
+backends:
+  - job
+  - operator.local
+description: |
+  Recommender Systems are designed to suggest relevant items, products, or content to users based on their
+  preferences and behaviors. These systems are widely used in various industries such as e-commerce, entertainment,
+  and social media to enhance user experience by providing personalized recommendations. They help in increasing user
+  engagement, satisfaction, and sales by predicting what users might like or need based on their past interactions
+  and the preferences of similar users.

@@ -19,19 +19,21 @@ version:
 type:
   required: true
   type: string
-  default: forecast
+  default: recommender
   meta:
-    description: "Type should always be `forecast` when using a forecast operator"
+    description: "Type should always be `recommender` when using a recommender operator"
+
 
 spec:
   required: true
+  type: dict
   schema:
-    historical_data:
+    user_data:
       required: true
       type: dict
-      default: {"url": "data.csv"}
+      default: {"url": "user_data.csv"}
       meta:
-        description: "This should be indexed by date and target category (optionally). It should include all targets and endogeneous data."
+        description: "This should contain user related attribute."
       schema:
         connect_args:
           nullable: true
@@ -78,15 +80,13 @@ spec:
         limit:
           required: false
           type: integer
-        vault_secret_id:
-          required: false
-          type: string
 
-    additional_data:
-      required: false
+    item_data:
+      required: true
       type: dict
+      default: {"url": "item_data.csv"}
       meta:
-        description: "Additional datasets must be indexed by the same targets and target categories as the historical data. Also is must have datapoints for each date/category for your horizon. This must be exogeneous data."
+        description: "This should contain item related attribute"
       schema:
         connect_args:
           nullable: true
@@ -133,14 +133,12 @@ spec:
         limit:
           required: false
           type: integer
-        vault_secret_id:
-          required: false
-          type: string
 
-    test_data:
-      required: false
+    interactions_data:
+      required: true
+      default: {"url": "interactions_data.csv"}
       meta:
-        description: "Optional, only if evaluation is needed."
+        description: "This should include interactions between items and users"
       schema:
         connect_args:
           nullable: true
@@ -187,10 +185,12 @@ spec:
         limit:
           required: false
           type: integer
-        vault_secret_id:
-          required: false
-          type: string
       type: dict
+
+    top_k:
+      required: true
+      type: integer
+      default: 1
 
     output_directory:
       required: false
@@ -248,183 +248,18 @@ spec:
       default: report.html
       meta:
         description: "Placed into output_directory location. Defaults to report.html"
-    report_title:
-      required: false
-      type: string
-    report_theme:
-      required: false
-      type: string
-      default: light
-      allowed:
-        - light
-        - dark
-    metrics_filename:
-      required: false
-      type: string
-      default: metrics.csv
-      meta:
-        description: "Placed into output_directory location. Defaults to metrics.csv"
-    test_metrics_filename:
-      required: false
-      type: string
-      default: test_metrics.csv
-      meta:
-        description: "Placed into output_directory location. Defaults to test_metrics.csv"
-    forecast_filename:
-      required: false
-      type: string
-      default: forecast.csv
-      meta:
-        description: "Placed into output_directory location. Defaults to forecast.csv"
-    global_explanation_filename:
-      required: false
-      type: string
-      default: global_explanations.csv
-      meta:
-        description: "Placed into output_directory location. Defaults to global_explanations.csv"
-    local_explanation_filename:
-      required: false
-      type: string
-      default: local_explanations.csv
-      meta:
-        description: "Placed into output_directory location. Defaults to local_explanations.csv"
 
-    target_column:
+    user_column:
       type: string
       required: true
-      default: target
+      default: "user_id"
 
-    preprocessing:
-      type: dict
-      required: false
-      schema:
-        enabled:
-          type: boolean
-          required: false
-          default: true
-          meta:
-            description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
-        steps:
-          type: dict
-          required: false
-          schema:
-            missing_value_imputation:
-              type: boolean
-              required: false
-              default: false
-            outlier_treatment:
-              type: boolean
-              required: false
-              default: false
-
-    generate_explanations:
-      type: boolean
-      required: false
-      default: false
-      meta:
-        description: "Explainability, both local and global, can be disabled using this flag. Defaults to false."
-
-    explanations_accuracy_mode:
+    item_column:
       type: string
-      required: false
-      default: FAST_APPROXIMATE
-      allowed:
-        - HIGH_ACCURACY
-        - BALANCED
-        - FAST_APPROXIMATE
-
-    generate_report:
-      type: boolean
-      required: false
-      default: true
-      meta:
-        description: "Report file generation can be enabled using this flag. Defaults to true."
-
-    generate_metrics:
-      type: boolean
-      required: false
-      default: true
-      meta:
-        description: "Metrics files generation can be enabled using this flag. Defaults to true."
-
-    datetime_column:
-      type: dict
       required: true
-      schema:
-        name:
-          type: string
-          required: true
-          default: Date
-        format:
-          type: string
-          required: false
+      default: "item_id"
 
-    target_category_columns:
-      type: list
-      required: false
-      schema:
-        type: string
-      default: ["Series ID"]
-
-    horizon:
+    interaction_column:
+      type: string
       required: true
-      type: integer
-      default: 1
-
-    model:
-      type: string
-      required: false
-      default: auto-select
-      allowed:
-        - prophet
-        - arima
-        - neuralprophet
-        - mlforecast
-        - automlx
-        - autots
-        - auto-select
-
-    model_kwargs:
-      type: dict
-      required: false
-
-    previous_output_dir:
-      type: string
-      required: false
-
-    generate_model_parameters:
-      type: boolean
-      required: false
-
-    generate_model_pickle:
-      type: boolean
-      required: false
-
-    confidence_interval_width:
-      type: float
-      required: false
-      default: 0.80
-
-    tuning:
-      type: dict
-      required: false
-      schema:
-        n_trials:
-          type: integer
-          required: false
-          default: 10
-
-    metric:
-      type: string
-      required: false
-      default: MAPE
-      allowed:
-        - MAPE
-        - RMSE
-        - MSE
-        - SMAPE
-        - mape
-        - rmse
-        - mse
-        - smape
-  type: dict
+      default: "rating"
