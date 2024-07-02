@@ -33,7 +33,7 @@ MODELS = [
     "neuralprophet",
     "autots",
     "mlforecast",
-    # "auto",
+    "auto-select",
 ]
 
 TEMPLATE_YAML = {
@@ -134,12 +134,17 @@ def test_load_datasets(model, data_details):
             yaml_i["spec"]["model_kwargs"] = {"model_list": "superfast"}
         if model == "automlx":
             yaml_i["spec"]["model_kwargs"] = {"time_budget": 2}
+        if model == "auto-select":
+            yaml_i["spec"]["model_kwargs"] = {"model_list": ['prophet', 'arima', 'mlforecast']}
+            if dataset_name == f'{DATASET_PREFIX}dataset4.csv':
+                pytest.skip("Skipping dataset4 with auto-select")  # todo:// ODSC-58584
 
         run(yaml_i, backend="operator.local", debug=False)
         subprocess.run(f"ls -a {output_data_path}", shell=True)
         if yaml_i["spec"]["generate_explanations"] and model not in [
             "automlx",
             "mlforecast",
+            "auto-select"
         ]:
             verify_explanations(
                 tmpdirname=tmpdirname,
