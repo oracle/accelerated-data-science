@@ -62,7 +62,6 @@ CONSOLE_LINK_RESOURCE_TYPE_MAPPING = {
 }
 
 VLLM_INFERENCE_RESTRICTED_PARAMS = {
-    "--tensor-parallel-size",
     "--port",
     "--host",
     "--served-model-name",

@@ -492,7 +492,7 @@ class TestAquaDeployment(unittest.TestCase):
             ),
             (
                 "odsc-vllm-serving",
-                ["--tensor-parallel-size 2"],
+                ["--port 8081"],
             ),
             (
                 "odsc-tgi-serving",
