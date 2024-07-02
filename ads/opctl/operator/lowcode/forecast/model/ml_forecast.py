@@ -61,7 +61,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                 "verbosity": -1,
                 "num_leaves": 512,
             }
-            additional_data_params = dict()
+            additional_data_params = {}
             if len(self.datasets.get_additional_data_column_names()) > 0:
                 additional_data_params = {
                     "target_transforms": [Differences([12])],
