@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """Contains classes for conversion between ADS runtime and OCI Data Science Job implementation.
 This module is for ADS developers only.
@@ -157,6 +157,21 @@ class RuntimeHandler:
         """
         return runtime.envs
 
+    def _translate_env_config(self, runtime: Runtime) -> dict:
+        """Translate the environment configuration details for container runtime.
+
+        OCI Data Science job requires ``jobEnvironmentConfigurationDetails`` payload if job is running in custom container.
+        This method is designed to handle the conversion of the ADS runtime properties to ``jobEnvironmentConfigurationDetails`` payload.
+        By default, no conversion is made in this method.
+        Sub-class should override this method to add conversion logic.
+
+        Returns
+        -------
+        dict
+            A dictionary storing the ``jobEnvironmentConfigurationDetails`` payload for OCI data science job.
+        """
+        return None
+
     def _translate_config(self, runtime: Runtime) -> dict:
         """Prepares the job configuration from runtime specifications.
 
@@ -305,10 +320,29 @@ class RuntimeHandler:
             self._extract_envs,
             self._extract_artifact,
             self._extract_runtime_minutes,
+            self._extract_properties,
         ]
         for extraction in extractions:
             runtime_spec.update(extraction(dsc_job))
         return self.RUNTIME_CLASS(self._format_env_var(runtime_spec))
+    
+    def _extract_properties(self, dsc_job) -> dict:
+        """Extract the job runtime properties from data science job.
+
+        This is the base method which does not extract the job runtime properties.
+        Sub-class should implement the extraction if needed.
+
+        Parameters
+        ----------
+        dsc_job : DSCJob or oci.datascience.models.Job
+            The data science job containing runtime information.
+
+        Returns
+        -------
+        dict
+            A runtime specification dictionary for initializing a runtime.
+        """
+        return {}
 
     def _extract_args(self, dsc_job) -> dict:
         """Extracts the command line arguments from data science job.
@@ -942,9 +976,12 @@ class GitPythonRuntimeHandler(CondaRuntimeHandler):
 class ContainerRuntimeHandler(RuntimeHandler):
     RUNTIME_CLASS = ContainerRuntime
     CMD_DELIMITER = ","
-    CONST_CONTAINER_IMAGE = "CONTAINER_CUSTOM_IMAGE"
-    CONST_CONTAINER_ENTRYPOINT = "CONTAINER_ENTRYPOINT"
-    CONST_CONTAINER_CMD = "CONTAINER_CMD"
+
+    def translate(self, runtime: Runtime) -> dict:
+        payload = super().translate(runtime)
+        job_env_config = self._translate_env_config(runtime)
+        payload["job_environment_configuration_details"] = job_env_config
+        return payload
 
     def _translate_artifact(self, runtime: Runtime):
         """Specifies a dummy script as the job artifact.
@@ -964,29 +1001,34 @@ class ContainerRuntimeHandler(RuntimeHandler):
             os.path.dirname(__file__), "../../templates", "container.py"
         )
 
-    def _translate_env(self, runtime: ContainerRuntime) -> dict:
-        """Translate the environment variable.
+    def _translate_env_config(self, runtime: Runtime) -> dict:
+        """Converts runtime properties to ``jobEnvironmentConfigurationDetails`` payload required by OCI Data Science job.
 
         Parameters
         ----------
-        runtime : GitPythonRuntime
-            An instance of GitPythonRuntime
+        runtime : Runtime
+            The runtime containing the properties to be converted.
 
         Returns
         -------
         dict
-            A dictionary containing environment variables for OCI data science job.
+            A dictionary storing the ``jobEnvironmentConfigurationDetails`` payload for OCI data science job.
         """
-        if not runtime.image:
-            raise ValueError("Specify container image for ContainerRuntime.")
-        envs = super()._translate_env(runtime)
-        spec_mappings = {
-            ContainerRuntime.CONST_IMAGE: self.CONST_CONTAINER_IMAGE,
-            ContainerRuntime.CONST_ENTRYPOINT: self.CONST_CONTAINER_ENTRYPOINT,
-            ContainerRuntime.CONST_CMD: self.CONST_CONTAINER_CMD,
+        job_environment_configuration_details = {
+            "job_environment_type": runtime.job_env_type
         }
-        envs.update(self._translate_specs(runtime, spec_mappings, self.CMD_DELIMITER))
-        return envs
+
+        for key, value in ContainerRuntime.attribute_map.items():
+            property = runtime.get_spec(key, None)
+            if key in [
+                ContainerRuntime.CONST_CMD,
+                ContainerRuntime.CONST_ENTRYPOINT
+            ] and isinstance(property, str):
+                property = self.split_args(property)
+            if property is not None:
+                job_environment_configuration_details[value] = property
+
+        return job_environment_configuration_details
 
     @staticmethod
     def split_args(args: str) -> list:
@@ -1031,17 +1073,37 @@ class ContainerRuntimeHandler(RuntimeHandler):
         """
         spec = super()._extract_envs(dsc_job)
         envs = spec.pop(ContainerRuntime.CONST_ENV_VAR, {})
-        if self.CONST_CONTAINER_IMAGE not in envs:
-            raise IncompatibleRuntime()
-        spec[ContainerRuntime.CONST_IMAGE] = envs.pop(self.CONST_CONTAINER_IMAGE)
-        cmd = self.split_args(envs.pop(self.CONST_CONTAINER_CMD, ""))
-        if cmd:
-            spec[ContainerRuntime.CONST_CMD] = cmd
-        entrypoint = self.split_args(envs.pop(self.CONST_CONTAINER_ENTRYPOINT, ""))
-        if entrypoint:
-            spec[ContainerRuntime.CONST_ENTRYPOINT] = entrypoint
+
         if envs:
             spec[ContainerRuntime.CONST_ENV_VAR] = envs
+
+        return spec
+    
+    def _extract_properties(self, dsc_job) -> dict:
+        """Extract the runtime properties from data science job.
+
+        Parameters
+        ----------
+        dsc_job : DSCJob or oci.datascience.models.Job
+            The data science job containing runtime information.
+
+        Returns
+        -------
+        dict
+            A runtime specification dictionary for initializing a runtime.
+        """
+        spec = super()._extract_envs(dsc_job)
+        
+        job_env_config = getattr(dsc_job, "job_environment_configuration_details", None)
+        job_env_type = getattr(job_env_config, "job_environment_type", None)
+        
+        if not (job_env_config and job_env_type == "OCIR_CONTAINER"):
+            raise IncompatibleRuntime()
+
+        for key, value in ContainerRuntime.attribute_map.items():
+            property = getattr(job_env_config, value, None)
+            if property is not None:
+                spec[key] = property
         return spec
 
 

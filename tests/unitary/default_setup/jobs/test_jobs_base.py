@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
@@ -43,7 +43,12 @@ class DataScienceJobPayloadTest(unittest.TestCase):
         "jobConfigurationDetails": {"jobType": "DEFAULT", "environmentVariables": {}},
         "jobInfrastructureConfigurationDetails": {
             "jobInfrastructureType": "ME_STANDALONE",
-            "blockStorageSizeInGBs": 50,
+            "blockStorageSizeInGBs": 800,
+            "shapeName": "VM.Standard.E4.Flex",
+            "jobShapeConfigDetails": {
+                "memoryInGBs": 128.0,
+                "ocpus": 8.0
+            }
         },
     }
 
@@ -59,7 +64,13 @@ class DataScienceJobPayloadTest(unittest.TestCase):
         ):
             return job.create()
 
-    def assert_payload(self, job, expected_env_var=None, expected_arguments=None):
+    def assert_payload(
+        self,
+        job,
+        expected_env_var=None,
+        expected_arguments=None,
+        expected_runtime=None
+    ):
         """Checks the payload for OCI data science job.
 
         Parameters
@@ -70,6 +81,8 @@ class DataScienceJobPayloadTest(unittest.TestCase):
             Expected environment variables, by default None
         expected_arguments : str, optional
             Expected command line arguments, by default None
+        expected_runtime : str, optional
+            Expected runtime properties, by default None
         """
         expected_payload = copy.deepcopy(self.PAYLOAD_TEMPLATE)
         # Do not check job names here as they are randomly generated
@@ -82,6 +95,10 @@ class DataScienceJobPayloadTest(unittest.TestCase):
             expected_payload["jobConfigurationDetails"][
                 "commandLineArguments"
             ] = expected_arguments
+        if expected_runtime:
+            expected_payload[
+                "jobEnvironmentConfigurationDetails"
+            ] = expected_runtime
         actual_payload = job.infrastructure.dsc_job.to_dict()
         self.assertEqual(actual_payload, expected_payload)
 
@@ -90,6 +107,7 @@ class DataScienceJobPayloadTest(unittest.TestCase):
         runtime,
         expected_env_var=None,
         expected_arguments=None,
+        expected_runtime=None,
         assert_extraction=True,
     ):
         """Checks the runtime translation and extraction by mocking the API calls to create a data science job.
@@ -101,6 +119,8 @@ class DataScienceJobPayloadTest(unittest.TestCase):
             Runtime of a job
         expected_env_var : dict, optional
             Expected environment variables, by default None
+        expected_runtime : dict, optional
+            Expected runtime properties, by default None
         expected_arguments : str, optional
             Expected command line arguments, by default None
         """
@@ -114,12 +134,12 @@ class DataScienceJobPayloadTest(unittest.TestCase):
             .with_runtime(runtime)
         )
         self.mock_create_job(job)
-        self.assert_payload(job, expected_env_var, expected_arguments)
+        self.assert_payload(job, expected_env_var, expected_arguments, expected_runtime)
         # Serialize to string and de-serialize
         job_from_string = Job.from_string(str(job))
         # Test the payload again
         self.mock_create_job(job_from_string)
-        self.assert_payload(job, expected_env_var, expected_arguments)
+        self.assert_payload(job, expected_env_var, expected_arguments, expected_runtime)
         if assert_extraction:
             self.assert_runtime_extraction(job.infrastructure, job.runtime)
 
