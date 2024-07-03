@@ -77,7 +77,7 @@ class AnomalyOperatorSpec(DataClassSerializable):
     model: str = None
     model_kwargs: Dict = field(default_factory=dict)
     contamination: float = None
-    optimize_report: bool = None
+    subsample_report_data: bool = None
 
     def __post_init__(self):
         """Adjusts the specification details."""

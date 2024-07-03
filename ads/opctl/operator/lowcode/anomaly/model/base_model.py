@@ -79,7 +79,7 @@ class AnomalyOperatorBaseModel(ABC):
                 anomaly_output, test_data, elapsed_time
             )
         table_blocks = [
-            rc.DataTable(df.head(1000) if self.spec.optimize_report and len(df) > 1000 else df, label=col, index=True)
+            rc.DataTable(df.head(1000) if self.spec.subsample_report_data and len(df) > 1000 else df, label=col, index=True)
             for col, df in self.datasets.full_data_dict.items()
         ]
         data_table = rc.Select(blocks=table_blocks)
@@ -97,7 +97,7 @@ class AnomalyOperatorBaseModel(ABC):
             anomaly_indices = [i for i, index in enumerate(anomaly_col) if index == 1]
             downsampled_time_col = time_col
             selected_indices = list(range(len(time_col)))
-            if self.spec.optimize_report:
+            if self.spec.subsample_report_data:
                 non_anomaly_indices = [i for i in range(len(time_col)) if i not in anomaly_indices]
                 # Downsample non-anomalous data if it exceeds the threshold (1000)
                 if len(non_anomaly_indices) > 1000:

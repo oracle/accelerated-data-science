@@ -377,9 +377,8 @@ spec:
       type: dict
       required: false
 
-    optimize_report:
+    subsample_report_data:
       type: boolean
       required: false
-      default: true
 
   type: dict
