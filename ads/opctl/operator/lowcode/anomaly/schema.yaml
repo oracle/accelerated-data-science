@@ -377,4 +377,9 @@ spec:
       type: dict
       required: false
 
+    optimize_report:
+      type: boolean
+      required: false
+      default: true
+
   type: dict
