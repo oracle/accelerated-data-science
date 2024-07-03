@@ -30,7 +30,7 @@ class AquaEvaluationHandler(AquaAPIhandler):
         return self.read(eval_id)
 
     @handle_exceptions
-    def post(self):
+    def post(self, *args, **kwargs):
         """Handles post request for the evaluation APIs
 
         Raises
