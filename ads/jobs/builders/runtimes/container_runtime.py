@@ -103,6 +103,10 @@ class ContainerRuntime(MultiNodeRuntime):
         ContainerRuntime
             The runtime instance.
         """
+        if not isinstance(image, str):
+            raise ValueError(
+                "Custom image must be provided as a string."
+            )
         if image.find(":") < 0:
             logger.warning(
                 "Tag is required for custom image. Accepted format: iad.ocir.io/<tenancy>/<image>:<tag>."
