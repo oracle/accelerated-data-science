@@ -1,8 +1,10 @@
+import json
 from typing import List, Union
 
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.extension.aqua_ws_msg_handler import AquaWSMsgHandler
-from ads.aqua.extension.models.ws_models import RequestResponseType,ListModelsResponse, ListModelsRequest
+from ads.aqua.extension.models.ws_models import RequestResponseType, ListModelsResponse, ListModelsRequest, \
+    ModelDetailsResponse
 from ads.aqua.model import AquaModelApp
 from ads.config import COMPARTMENT_OCID
 
@@ -14,20 +16,27 @@ class AquaModelWSMsgHandler(AquaWSMsgHandler):
 
     @staticmethod
     def get_message_types() -> List[RequestResponseType]:
-        return [RequestResponseType.ListModels]
+        return [RequestResponseType.ListModels,RequestResponseType.ModelDetails]
 
     @handle_exceptions
-    def process(self) -> ListModelsResponse:
-        list_models_request = ListModelsRequest.from_json(self.message)
-        print(list_models_request)
-        models_list = AquaModelApp().list(
-            compartment_id=list_models_request.compartment_id or COMPARTMENT_OCID,
-            project_id=list_models_request.project_id,
-            model_type=list_models_request.model_type
-        )
-        response = ListModelsResponse(
-            message_id=list_models_request.message_id,
-            kind=RequestResponseType.ListModels,
-            data=models_list,
-        )
-        return response
+    def process(self) -> ListModelsResponse | ModelDetailsResponse:
+        request = json.loads(self.message)
+        if request.get('kind') == 'ListModels':
+            models_list = AquaModelApp().list(
+                compartment_id=request.get("compartment_id") or COMPARTMENT_OCID,
+                project_id=request.get("project_id"),
+                model_type=request.get("model_type")
+            )
+            response = ListModelsResponse(
+                message_id=request.get("message_id"),
+                kind=RequestResponseType.ListModels,
+                data=models_list,
+            )
+            return response
+        elif request.get('kind') == 'ModelDetails':
+            model_id=request.get("model_id")
+            response=AquaModelApp().get(model_id)
+            return ModelDetailsResponse(message_id=request.get("message_id"),
+                                        kind=RequestResponseType.ModelDetails,
+                                        data=response)
+
