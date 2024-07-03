@@ -93,7 +93,6 @@ class RuntimeHandler:
         * _translate_artifact()
         * _translate_config()
           * _translate_env()
-        * _translate_env_config() for container runtime.
         A sub-class can modify one of more of these methods.
 
         Parameters
@@ -109,9 +108,6 @@ class RuntimeHandler:
         payload = {}
         payload["artifact"] = self._translate_artifact(runtime)
         payload["job_configuration_details"] = self._translate_config(runtime)
-        job_env_config = self._translate_env_config(runtime)
-        if job_env_config:
-            payload["job_environment_configuration_details"] = job_env_config
         if runtime.freeform_tags:
             payload["freeform_tags"] = runtime.freeform_tags
         if runtime.defined_tags:
@@ -981,6 +977,12 @@ class ContainerRuntimeHandler(RuntimeHandler):
     RUNTIME_CLASS = ContainerRuntime
     CMD_DELIMITER = ","
 
+    def translate(self, runtime: Runtime) -> dict:
+        payload = super().translate(runtime)
+        job_env_config = self._translate_env_config(runtime)
+        payload["job_environment_configuration_details"] = job_env_config
+        return payload
+
     def _translate_artifact(self, runtime: Runtime):
         """Specifies a dummy script as the job artifact.
         runtime is not used in this method.
@@ -1012,21 +1014,19 @@ class ContainerRuntimeHandler(RuntimeHandler):
         dict
             A dictionary storing the ``jobEnvironmentConfigurationDetails`` payload for OCI data science job.
         """
-        job_environment_configuration_details = {}
+        job_environment_configuration_details = {
+            "job_environment_type": runtime.job_env_type
+        }
 
         for key, value in ContainerRuntime.attribute_map.items():
-            property = runtime.get_spec(key)
+            property = runtime.get_spec(key, None)
             if key in [
                 ContainerRuntime.CONST_CMD,
                 ContainerRuntime.CONST_ENTRYPOINT
             ] and isinstance(property, str):
                 property = self.split_args(property)
-            job_environment_configuration_details[value] = property
-
-        if job_environment_configuration_details:
-            job_environment_configuration_details[
-                "job_environment_type"
-            ] = runtime.job_env_type,
+            if property is not None:
+                job_environment_configuration_details[value] = property
 
         return job_environment_configuration_details
 
@@ -1102,7 +1102,7 @@ class ContainerRuntimeHandler(RuntimeHandler):
 
         for key, value in ContainerRuntime.attribute_map.items():
             property = getattr(job_env_config, value, None)
-            if property:
+            if property is not None:
                 spec[key] = property
         return spec
 

@@ -21,8 +21,7 @@ Here is an example to create and run a container job:
 .. include:: ../jobs/tabs/container_runtime.rst
 
 To configure ``ContainerRuntime``, you must specify the container ``image``.
-Similar to other runtime, you can add environment variables.
-You can optionally specify the `entrypoint` and `cmd` for running the container.
+You can optionally specify the `entrypoint`, `cmd`, `image_digest` and `image_signature_id` for running the container.
 
 See also:
 

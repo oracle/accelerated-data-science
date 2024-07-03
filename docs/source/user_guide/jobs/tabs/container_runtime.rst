@@ -27,7 +27,9 @@
         )
         .with_runtime(
             ContainerRuntime()
-            .with_image("<region>.ocir.io/<your_tenancy>/<your_image>")
+            .with_image("<region>.ocir.io/<your_tenancy>/<your_image>:<tag>")
+            .with_image_digest("<image_digest>")
+            .with_image_signature_id("<image_signature_id>")
             .with_environment_variable(GREETINGS="Welcome to OCI Data Science")
             .with_entrypoint(["/bin/sh", "-c"])
             .with_cmd("sleep 5 && echo $GREETINGS")

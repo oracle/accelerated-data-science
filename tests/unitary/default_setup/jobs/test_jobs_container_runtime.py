@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from tests.unitary.default_setup.jobs.test_jobs_base import DataScienceJobPayloadTest
@@ -17,10 +17,14 @@ class ContainerRuntimeTestCase(DataScienceJobPayloadTest):
     # The container runtime is expect to modify only the environmentVariables in the payload.
     def test_create_container_job(self):
         expected_env_var = {
-            "CONTAINER_CUSTOM_IMAGE": "iad.ocir.io/my_namespace/my_ubuntu_image",
-            "CONTAINER_ENTRYPOINT": "/bin/sh",
-            "CONTAINER_CMD": "-c,echo Hello World",
             "MY_ENV": "MY_VALUE",
+        }
+
+        expected_runtime = {
+            "cmd": ['-c', 'echo Hello World'],
+            "entrypoint": ['/bin/sh'],
+            "image": "iad.ocir.io/my_namespace/my_ubuntu_image",
+            "jobEnvironmentType": "OCIR_CONTAINER"
         }
 
         # Use different ways to create the same runtime
@@ -46,7 +50,11 @@ class ContainerRuntimeTestCase(DataScienceJobPayloadTest):
 
         for runtime in runtimes:
             self.assertEqual(runtime.entrypoint, "/bin/sh")
-            self.assert_runtime_translation(runtime, expected_env_var)
+            self.assert_runtime_translation(
+                runtime,
+                expected_env_var=expected_env_var,
+                expected_runtime=expected_runtime
+            )
 
     def test_container_runtime_extraction(self):
         ds_job = infrastructure.DataScienceJob.from_dsc_job(
@@ -59,9 +67,6 @@ class ContainerRuntimeTestCase(DataScienceJobPayloadTest):
                         "jobType": "DEFAULT",
                         "commandLineArguments": "pos_arg1 pos_arg2 --key1 val1 --key2 val2",
                         "environmentVariables": {
-                            ContainerRuntimeHandler.CONST_CONTAINER_IMAGE: "python",
-                            ContainerRuntimeHandler.CONST_CONTAINER_ENTRYPOINT: "/bin/sh",
-                            ContainerRuntimeHandler.CONST_CONTAINER_CMD: "-c,ls -l",
                             "KEY1": "VALUE1",
                             "KEY2": "VALUE2",
                             # Conda env var will be kept as env var for container runtime.
@@ -76,6 +81,14 @@ class ContainerRuntimeTestCase(DataScienceJobPayloadTest):
                         "blockStorageSizeInGBs": "100",
                         "subnetId": "ocid1.subnet.oc1.iad.<unique_ocid>",
                     },
+                    "jobEnvironmentConfigurationDetails": {
+                        "jobEnvironmentType": "OCIR_CONTAINER",
+                        "image": "iad.ocir.io/<namespace>/<image>:<tag>",
+                        "imageDigest": "sha256",
+                        "cmd": ["ls", "-h"],
+                        "entrypoint": ["-l"],
+                        "imageSignatureId": "ocid1.containerimagesignature.oc1.iad.0.<unique_ocid>",
+                    },
                 }
             )
         )
@@ -83,9 +96,11 @@ class ContainerRuntimeTestCase(DataScienceJobPayloadTest):
         runtime = DataScienceJobRuntimeManager(ds_job).extract(ds_job.dsc_job)
         expected_runtime_spec = {
             "args": ["pos_arg1", "pos_arg2", "--key1", "val1", "--key2", "val2"],
-            "image": "python",
-            "cmd": ["-c", "ls -l"],
-            "entrypoint": ["/bin/sh"],
+            "image": "iad.ocir.io/<namespace>/<image>:<tag>",
+            "imageDigest": "sha256",
+            "cmd": ["ls", "-h"],
+            "entrypoint": ["-l"],
+            "imageSignatureId": "ocid1.containerimagesignature.oc1.iad.0.<unique_ocid>",
             "env": [
                 {"name": "KEY1", "value": "VALUE1"},
                 {"name": "KEY2", "value": "VALUE2"},
