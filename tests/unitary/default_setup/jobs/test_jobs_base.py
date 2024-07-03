@@ -43,12 +43,7 @@ class DataScienceJobPayloadTest(unittest.TestCase):
         "jobConfigurationDetails": {"jobType": "DEFAULT", "environmentVariables": {}},
         "jobInfrastructureConfigurationDetails": {
             "jobInfrastructureType": "ME_STANDALONE",
-            "blockStorageSizeInGBs": 800,
-            "shapeName": "VM.Standard.E4.Flex",
-            "jobShapeConfigDetails": {
-                "memoryInGBs": 128.0,
-                "ocpus": 8.0
-            }
+            "blockStorageSizeInGBs": 50
         },
     }
 
