@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """This module defines constants used in ads.aqua module."""
@@ -45,19 +44,33 @@ SERVICE_MANAGED_CONTAINER_URI_SCHEME = "dsmc://"
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "artifact_location"
 
-CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
-    datasciencemodel="models",
-    datasciencemodeldeployment="model-deployments",
-    datasciencemodeldeploymentdev="model-deployments",
-    datasciencemodeldeploymentint="model-deployments",
-    datasciencemodeldeploymentpre="model-deployments",
-    datasciencejob="jobs",
-    datasciencejobrun="job-runs",
-    datasciencejobrundev="job-runs",
-    datasciencejobrunint="job-runs",
-    datasciencejobrunpre="job-runs",
-    datasciencemodelversionset="model-version-sets",
-    datasciencemodelversionsetpre="model-version-sets",
-    datasciencemodelversionsetint="model-version-sets",
-    datasciencemodelversionsetdev="model-version-sets",
-)
+CONSOLE_LINK_RESOURCE_TYPE_MAPPING = {
+    "datasciencemodel": "models",
+    "datasciencemodeldeployment": "model-deployments",
+    "datasciencemodeldeploymentdev": "model-deployments",
+    "datasciencemodeldeploymentint": "model-deployments",
+    "datasciencemodeldeploymentpre": "model-deployments",
+    "datasciencejob": "jobs",
+    "datasciencejobrun": "job-runs",
+    "datasciencejobrundev": "job-runs",
+    "datasciencejobrunint": "job-runs",
+    "datasciencejobrunpre": "job-runs",
+    "datasciencemodelversionset": "model-version-sets",
+    "datasciencemodelversionsetpre": "model-version-sets",
+    "datasciencemodelversionsetint": "model-version-sets",
+    "datasciencemodelversionsetdev": "model-version-sets",
+}
+
+VLLM_INFERENCE_RESTRICTED_PARAMS = {
+    "--port",
+    "--host",
+    "--served-model-name",
+    "--seed",
+}
+TGI_INFERENCE_RESTRICTED_PARAMS = {
+    "--port",
+    "--hostname",
+    "--num-shard",
+    "--sharded",
+    "--trust-remote-code",
+}
