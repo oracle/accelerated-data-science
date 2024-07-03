@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -9,6 +8,7 @@ aqua.model.entities
 
 This module contains dataclasses for Aqua Model.
 """
+
 import re
 from dataclasses import InitVar, dataclass, field
 from typing import List, Optional
@@ -18,7 +18,7 @@ import oci
 from ads.aqua import logger
 from ads.aqua.app import CLIBuilderMixin
 from ads.aqua.common import utils
-from ads.aqua.constants import UNKNOWN_VALUE
+from ads.aqua.constants import LIFECYCLE_DETAILS_MISSING_JOBRUN, UNKNOWN_VALUE
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model.enums import FineTuningDefinedMetadata
 from ads.aqua.training.exceptions import exit_code_dict
@@ -147,14 +147,14 @@ class AquaEvalFTCommon(DataClassSerializable):
             try:
                 log = utils.query_resource(log_id, return_all=False)
                 log_name = log.display_name if log else ""
-            except:
+            except Exception:
                 pass
 
         if loggroup_id:
             try:
                 loggroup = utils.query_resource(loggroup_id, return_all=False)
                 loggroup_name = loggroup.display_name if loggroup else ""
-            except:
+            except Exception:
                 pass
 
         experiment_id, experiment_name = utils._get_experiment_info(model)
@@ -168,9 +168,7 @@ class AquaEvalFTCommon(DataClassSerializable):
         )
         self.job = utils._build_job_identifier(job_run_details=jobrun, region=region)
         self.lifecycle_details = (
-            utils.LIFECYCLE_DETAILS_MISSING_JOBRUN
-            if not jobrun
-            else jobrun.lifecycle_details
+            LIFECYCLE_DETAILS_MISSING_JOBRUN if not jobrun else jobrun.lifecycle_details
         )
 
 
@@ -247,7 +245,7 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
                     lifecycle_details,
                 )
                 message = f"{exception.reason} (exit code {exit_code})"
-        except:
+        except Exception:
             pass
 
         return message
