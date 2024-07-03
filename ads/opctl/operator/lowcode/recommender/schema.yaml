@@ -19,19 +19,21 @@ version:
 type:
   required: true
   type: string
-  default: anomaly
+  default: recommender
   meta:
-    description: "Type should always be `anomaly` when using a anomaly detection operator"
+    description: "Type should always be `recommender` when using a recommender operator"
+
 
 spec:
   required: true
+  type: dict
   schema:
-    input_data:
+    user_data:
       required: true
       type: dict
-      default: { "url": "data.csv" }
+      default: {"url": "user_data.csv"}
       meta:
-        description: "The payload that the detector should evaluate."
+        description: "This should contain user related attribute."
       schema:
         connect_args:
           nullable: true
@@ -78,15 +80,13 @@ spec:
         limit:
           required: false
           type: integer
-        vault_secret_id:
-          required: false
-          type: string
 
-    validation_data:
-      required: false
+    item_data:
+      required: true
       type: dict
+      default: {"url": "item_data.csv"}
       meta:
-        description: "Data that has already been labeled as anomalous or not."
+        description: "This should contain item related attribute"
       schema:
         connect_args:
           nullable: true
@@ -133,28 +133,12 @@ spec:
         limit:
           required: false
           type: integer
-        vault_secret_id:
-          required: false
-          type: string
 
-    datetime_column:
-      type: dict
-      required: false
+    interactions_data:
+      required: true
+      default: {"url": "interactions_data.csv"}
       meta:
-        description: "`datetime_column` is required for time series anomaly detection, only non time-based anomaly detection models can be run without `datetime_column`"
-      schema:
-        name:
-          type: string
-          required: true
-          default: Date
-        format:
-          type: string
-          required: false
-
-    test_data:
-      required: false
-      meta:
-        description: "Optional, only if evaluation is needed."
+        description: "This should include interactions between items and users"
       schema:
         connect_args:
           nullable: true
@@ -202,6 +186,11 @@ spec:
           required: false
           type: integer
       type: dict
+
+    top_k:
+      required: true
+      type: integer
+      default: 1
 
     output_directory:
       required: false
@@ -259,122 +248,18 @@ spec:
       default: report.html
       meta:
         description: "Placed into output_directory location. Defaults to report.html"
-    report_title:
-      required: false
-      type: string
-    report_theme:
-      required: false
-      type: string
-      default: light
-      allowed:
-        - light
-        - dark
 
-    metrics_filename:
-      required: false
-      type: string
-      default: metrics.csv
-      meta:
-        description: "Placed into output_directory location. Defaults to metrics.csv"
-
-    test_metrics_filename:
-      required: false
-      type: string
-      default: test_metrics.csv
-      meta:
-        description: "Placed into output_directory location. Defaults to test_metrics.csv"
-
-    inliers_filename:
-      required: false
-      type: string
-      default: inliers.csv
-      meta:
-        description: "Placed into output_directory location. Defaults to inliers.csv"
-
-    outliers_filename:
-      required: false
-      type: string
-      default: outliers.csv
-      meta:
-        description: "Placed into output_directory location. Defaults to outliers.csv"
-
-    target_column:
+    user_column:
       type: string
       required: true
-      default: target
-      meta:
-        description: "Identifier column for the series in the dataset"
+      default: "user_id"
 
-    target_category_columns:
-      type: list
-      required: false
-      schema:
-        type: string
-      default: ["Series ID"]
-      meta:
-        description: "When provided, target_category_columns [list] indexes the data into multiple related datasets for anomaly detection"
-
-    preprocessing:
-      type: dict
-      required: false
-      schema:
-        enabled:
-          type: boolean
-          required: false
-          default: true
-          meta:
-            description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
-        steps:
-          type: dict
-          required: false
-          schema:
-            missing_value_imputation:
-              type: boolean
-              required: false
-              default: false
-
-    generate_report:
-      type: boolean
-      required: false
-      default: true
-      meta:
-        description: "Report file generation can be enabled using this flag. Defaults to true."
-
-    generate_metrics:
-      type: boolean
-      required: false
-      default: true
-      meta:
-        description: "Metrics files generation can be enabled using this flag. Defaults to true."
-
-    generate_inliers:
-      type: boolean
-      required: false
-      default: false
-      meta:
-        description: "Generates inliers.csv"
-
-    model:
+    item_column:
       type: string
-      required: false
-      default: autots
-      allowed:
-        - autots
-        - auto
-        - oneclasssvm
-        - isolationforest
-      meta:
-        description: "The model to be used for anomaly detection"
+      required: true
+      default: "item_id"
 
-    contamination:
-      required: false
-      default: 0.1
-      type: float
-      meta:
-        description: "Fraction of training dataset corresponding to anomalies (between 0.0 and 0.5)"
-
-    model_kwargs:
-      type: dict
-      required: false
-
-  type: dict
+    interaction_column:
+      type: string
+      required: true
+      default: "rating"
