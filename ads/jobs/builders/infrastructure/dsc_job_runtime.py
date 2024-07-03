@@ -160,15 +160,15 @@ class RuntimeHandler:
     def _translate_env_config(self, runtime: Runtime) -> dict:
         """Translate the environment configuration details for container runtime.
 
-        OCI Data Science job requires ``jobEnvironmentConfigurationDetails`` payload if job is running in custom container.
-        This method is designed to handle the conversion of the ADS runtime properties to ``jobEnvironmentConfigurationDetails`` payload.
+        OCI Data Science job requires ``OcirContainerJobEnvironmentConfigurationDetails`` payload if job is running in custom container.
+        This method is designed to handle the conversion of the ADS runtime properties to ``OcirContainerJobEnvironmentConfigurationDetails`` payload.
         By default, no conversion is made in this method.
         Sub-class should override this method to add conversion logic.
 
         Returns
         -------
         dict
-            A dictionary storing the ``jobEnvironmentConfigurationDetails`` payload for OCI data science job.
+            A dictionary storing the ``OcirContainerJobEnvironmentConfigurationDetails`` payload for OCI data science job.
         """
         return None
 
@@ -1002,7 +1002,7 @@ class ContainerRuntimeHandler(RuntimeHandler):
         )
 
     def _translate_env_config(self, runtime: Runtime) -> dict:
-        """Converts runtime properties to ``jobEnvironmentConfigurationDetails`` payload required by OCI Data Science job.
+        """Converts runtime properties to ``OcirContainerJobEnvironmentConfigurationDetails`` payload required by OCI Data Science job.
 
         Parameters
         ----------
@@ -1012,7 +1012,7 @@ class ContainerRuntimeHandler(RuntimeHandler):
         Returns
         -------
         dict
-            A dictionary storing the ``jobEnvironmentConfigurationDetails`` payload for OCI data science job.
+            A dictionary storing the ``OcirContainerJobEnvironmentConfigurationDetails`` payload for OCI data science job.
         """
         job_environment_configuration_details = {
             "job_environment_type": runtime.job_env_type
