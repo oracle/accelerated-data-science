@@ -128,7 +128,28 @@ def _deserialize_function_from_hex(
 
 
 class OCIModelDeployment(BaseLLM):
-    """OCI Data Science Model Deployment."""
+    """LLM deployed on OCI Data Science Model Deployment
+
+    To use, you must provide the model HTTP endpoint from your deployed
+    model, e.g. https://<MD_OCID>/predict.
+
+    To authenticate, `oracle-ads` has been used to automatically load
+    credentials: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/cli/authentication.html
+
+    Make sure to have the required policies to access the OCI Data
+    Science Model Deployment endpoint. See:
+    https://docs.oracle.com/en-us/iaas/data-science/using/model-dep-policies-auth.htm#model_dep_policies_auth__predict-endpoint
+
+    Example:
+        .. code-block:: python
+
+            from langchain_community.llms import OCIModelDeployment
+
+            oci_md = OCIModelDeployment(
+                endpoint="https://<MD_OCID>/predict",
+                model="mymodel"
+            )
+    """
 
     auth: Dict[str, Any] = Field(default_factory=dict, exclude=True)
     """
@@ -141,12 +162,26 @@ class OCIModelDeployment(BaseLLM):
     endpoint: Optional[str] = None
     """The URI of the endpoint from the deployed model."""
 
-    inference_framework: Optional[str] = "vllm"
+    max_tokens: Optional[int] = 256
+    """Denotes the number of tokens to predict per generation."""
+
+    temperature: Optional[float] = 0.2
+    """A non-negative float that tunes the degree of randomness in generation."""
+
+    k: Optional[int] = 50
+    """Number of most likely tokens to consider at each step."""
+
+    p: Optional[float] = 0.75
+    """Total probability mass of tokens to consider at each step."""
+
+    best_of: Optional[int] = 1
+    """Generates best_of completions server-side and returns the "best"
+    (the one with the highest log probability per token).
     """
-    The framework used for inference. Examples include 'vllm', 'tgi', 'generic', 'llama.cpp'.
-    Use `OCIModelDeployment.supported_frameworks()` to see the list of supported frameworks.
-    The `vllm` is used by default.
-    """
+
+    stop: Optional[List[str]] = None
+    """Stop words to use when generating. Model output is cut off
+    at the first occurrence of any of these substrings."""
 
     model_kwargs: Optional[Dict[str, Any]] = Field(default_factory=dict)
     """
@@ -186,6 +221,13 @@ class OCIModelDeployment(BaseLLM):
     a malicious payload that, when deserialized with pickle, can execute arbitrary code on your machine.
     """
 
+    inference_framework: Optional[str] = "generic"
+    """
+    The framework used for inference. Examples include 'vllm', 'tgi', 'generic', 'llama.cpp'.
+    Use `OCIModelDeployment.supported_frameworks()` to see the list of supported frameworks.
+    The `generic` is used by default.
+    """
+
     _backend: InferenceBackend = Field(default=None, exclude=True)
     """
     The backend interface for the inference model.
@@ -208,6 +250,28 @@ class OCIModelDeployment(BaseLLM):
         from ads.llm.langchain.inference_backend import InferenceBackendFactory
 
         return InferenceBackendFactory.supported_frameworks()
+
+    @classmethod
+    def _extract_child_class_attributes(cls):
+        base_class_attributes = [
+            "max_tokens",
+            "temperature",
+            "k",
+            "p",
+            "best_of",
+            "stop",
+        ]
+
+        if not cls.__bases__ or cls.__name__ == "OCIModelDeployment":
+            return base_class_attributes
+
+        parent_cls = cls.__bases__[0]
+        child_attributes = set(cls.__annotations__.keys())
+        parent_attributes = set(parent_cls.__annotations__.keys())
+        all_attributes = list(
+            child_attributes - parent_attributes | set(base_class_attributes)
+        )
+        return all_attributes
 
     @root_validator()
     @_validate_dependency
@@ -242,10 +306,14 @@ class OCIModelDeployment(BaseLLM):
                 allow_unsafe_deserialization=values.get("allow_unsafe_deserialization"),
             )
 
+        framework_kwargs = {
+            arg: values.get(arg) for arg in cls._extract_child_class_attributes()
+        }
+
         # setup backend
         values["_backend"] = InferenceBackendFactory.get_backend(
             values.get("inference_framework")
-        )(**values)
+        )(**{**values, "framework_kwargs": framework_kwargs})
 
         return values
 
@@ -291,9 +359,106 @@ class OCIModelDeployment(BaseLLM):
         return "oci_model_deployment"
 
     @classmethod
-    @_validate_dependency
-    def help(cls, inference_framework: Optional[str] = None) -> None:
-        """Provides comprehensive information about each inference framework."""
-        from ads.llm.langchain.inference_backend import InferenceBackendFactory
+    def is_lc_serializable(cls) -> bool:
+        """Return whether this class is serializable."""
+        return True
 
-        InferenceBackendFactory.help(framework=inference_framework)
+
+class OCIModelDeploymentVLLM(OCIModelDeployment):
+    """VLLM deployed on OCI Data Science Model Deployment
+
+    To use, you must provide the model HTTP endpoint from your deployed
+    model, e.g. https://<MD_OCID>/predict.
+
+    To authenticate, `oracle-ads` has been used to automatically load
+    credentials: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/cli/authentication.html
+
+    Make sure to have the required policies to access the OCI Data
+    Science Model Deployment endpoint. See:
+    https://docs.oracle.com/en-us/iaas/data-science/using/model-dep-policies-auth.htm#model_dep_policies_auth__predict-endpoint
+
+    Example:
+        .. code-block:: python
+
+            from langchain_community.llms import OCIModelDeploymentVLLM
+
+            oci_md = OCIModelDeploymentVLLM(
+                endpoint="https://<MD_OCID>/predict",
+                model="mymodel"
+            )
+
+    """
+
+    model: str = "odsc-llm"
+    """The name of the model."""
+
+    n: int = 1
+    """Number of output sequences to return for the given prompt."""
+
+    k: int = -1
+    """Number of most likely tokens to consider at each step."""
+
+    frequency_penalty: float = 0.0
+    """Penalizes repeated tokens according to frequency. Between 0 and 1."""
+
+    presence_penalty: float = 0.0
+    """Penalizes repeated tokens. Between 0 and 1."""
+
+    use_beam_search: bool = False
+    """Whether to use beam search instead of sampling."""
+
+    ignore_eos: bool = False
+    """Whether to ignore the EOS token and continue generating tokens after
+    the EOS token is generated."""
+
+    logprobs: Optional[int] = None
+    """Number of log probabilities to return per output token."""
+
+    inference_framework: Optional[str] = "vllm"
+
+    @property
+    def _llm_type(self) -> str:
+        """Return type of llm."""
+        return "oci_model_deployment_vllm_endpoint"
+
+
+class OCIModelDeploymentTGI(OCIModelDeployment):
+    """OCI Data Science Model Deployment TGI Endpoint.
+
+    To use, you must provide the model HTTP endpoint from your deployed
+    model, e.g. https://<MD_OCID>/predict.
+
+    To authenticate, `oracle-ads` has been used to automatically load
+    credentials: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/cli/authentication.html
+
+    Make sure to have the required policies to access the OCI Data
+    Science Model Deployment endpoint. See:
+    https://docs.oracle.com/en-us/iaas/data-science/using/model-dep-policies-auth.htm#model_dep_policies_auth__predict-endpoint
+
+    Example:
+        .. code-block:: python
+
+            from langchain_community.llms import ModelDeploymentTGI
+
+            oci_md = ModelDeploymentTGI(endpoint="https://<MD_OCID>/predict")
+    """
+
+    do_sample: bool = True
+    """If set to True, this parameter enables decoding strategies such as
+    multi-nominal sampling, beam-search multi-nominal sampling, Top-K
+    sampling and Top-p sampling.
+    """
+
+    watermark: bool = True
+    """Watermarking with `A Watermark for Large Language Models <https://arxiv.org/abs/2301.10226>`_.
+    Defaults to True."""
+
+    return_full_text = False
+    """Whether to prepend the prompt to the generated text. Defaults to False."""
+
+    inference_framework: Optional[str] = "tgi"
+
+    @property
+    def _llm_type(self) -> str:
+        """Return type of llm."""
+        return "oci_model_deployment_tgi_endpoint"

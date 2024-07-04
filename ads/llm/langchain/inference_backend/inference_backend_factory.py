@@ -71,23 +71,3 @@ class InferenceBackendFactory:
         List[str]: A list of supported inference framework names.
         """
         return InferenceFramework.values()
-
-    @staticmethod
-    def help(framework: Optional[str] = None) -> None:
-        help_data = []
-        frameworks = [framework] if framework else InferenceFramework.values()
-
-        for framework in frameworks:
-            backend = InferenceBackendFactory.get_backend(framework)
-            params = tabulate.tabulate(
-                list(backend.ModelParams().dict().items()),
-                headers=("Param", "Value"),
-                tablefmt="fancy_grid",
-            )
-            help_data.append((backend.TYPE, f"{backend.DESCRIPTION}\n{params}"))
-
-        print(
-            tabulate.tabulate(
-                help_data, headers=("Framework", "Description"), tablefmt="simple_grid"
-            )
-        )

@@ -6,6 +6,7 @@
 
 import json
 from typing import Any, Dict, Generator, Optional, Tuple, Union
+from venv import logger
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -127,6 +128,7 @@ class ModelInvoker:
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
+            logger.error(response.text)
             raise
         except json.JSONDecodeError as e:
             raise json.JSONDecodeError(
@@ -183,6 +185,7 @@ class ModelInvoker:
                     yield line.decode("utf-8")
 
         except requests.RequestException as e:
+            logger.error(response.text)
             raise
         except json.JSONDecodeError as e:
             raise json.JSONDecodeError(

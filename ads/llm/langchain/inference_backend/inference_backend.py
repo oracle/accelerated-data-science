@@ -5,7 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
-from typing import Any, Callable, ClassVar, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.outputs import Generation, LLMResult
@@ -14,6 +14,7 @@ from langchain_core.pydantic_v1 import BaseModel, Extra, Field
 from ads.llm.langchain.inference_backend.const import InferenceFramework
 from ads.llm.langchain.inference_backend.model_invoker import ModelInvoker
 from ads.llm.langchain.inference_backend.utils import serialize_function_to_hex
+from ads.model import framework
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +25,9 @@ class InferenceBackend(BaseModel):
     handling model invocations and transformations.
     """
 
-    DESCRIPTION: ClassVar[str] = ""
-    TYPE: ClassVar[str] = ""
-
     auth: Dict[str, Any] = Field(default_factory=dict, exclude=True)
     endpoint: Optional[str] = None
+    framework_kwargs: Dict[str, Any] = Field(default_factory=dict)
     model_kwargs: Dict[str, Any] = Field(default_factory=dict)
     transform_input_fn: Optional[Callable[..., Dict[str, Any]]] = None
     transform_output_fn: Optional[Callable[..., str]] = None
@@ -72,11 +71,33 @@ class InferenceBackend(BaseModel):
     @property
     def _default_params(self) -> Dict[str, Any]:
         """Return default parameters for the model."""
-        raise NotImplementedError
+        framework_kwargs = {**self.framework_kwargs}
+        return self.ModelParams(
+            **{
+                **self.model_kwargs,
+                **{
+                    "top_k": framework_kwargs.pop("k", None),
+                    "top_p": framework_kwargs.pop("p", None),
+                    **framework_kwargs,
+                },
+            }
+        ).dict()
 
     @property
     def _identifying_params(self) -> Dict[str, Any]:
         """Get the identifying parameters for the model."""
+        default_params = {**self._default_params} or {}
+        default_params.update(
+            {
+                "k": default_params.pop("top_k", None),
+                "p": default_params.pop("top_p", None),
+            }
+        )
+        framework_kwargs = {
+            attr: default_params.pop(attr, None)
+            for attr in self.framework_kwargs.keys()
+        }
+
         return {
             "endpoint": self.endpoint,
             "transform_input_fn": (
@@ -89,7 +110,8 @@ class InferenceBackend(BaseModel):
                 if self.transform_output_fn is None
                 else serialize_function_to_hex(self.transform_output_fn)
             ),
-            "model_kwargs": self._default_params,
+            "model_kwargs": default_params,
+            **framework_kwargs,
             "allow_unsafe_deserialization": self.allow_unsafe_deserialization,
         }
 
@@ -137,53 +159,11 @@ class InferenceBackend(BaseModel):
 
         return LLMResult(generations=generations)
 
-    @property
-    def _default_params(self) -> Dict[str, Any]:
-        """Return default parameters for the model."""
-        return self.ModelParams(**self.model_kwargs).dict()
-
-    @classmethod
-    def is_lc_serializable(cls) -> bool:
-        """Return whether this class is serializable."""
-        return True
-
 
 class InferenceBackendGeneric(InferenceBackend):
     """
     A generic implementation of the InferenceBackend class.
     """
-
-    DESCRIPTION: ClassVar = """
-    The Generic Inference Backend implements the OpenAI specification and includes a list of
-default parameters that are used if none are provided. This backend is designed to be used
-alongside custom `transform_input_fn` and `transform_output_fn` functions. You have the flexibility
-to override any default parameter as needed or to provide additional parameters supported by
-the OpenAI specification.
-
-    def transform_input_fn(
-        prompt: str,
-        stop: Optional[List[str]] = None,
-        params: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        print("CUSTOM transform_input_fn is used.")
-        return {**(params or {}), "prompt": prompt, "stop": stop}
-
-
-    def transform_output_fn(response_json: Dict[str, Any]) -> List[Generation]:
-        return [
-            Generation(
-                text=choice.get("text", ""),
-                generation_info={
-                    "finish_reason": choice.get("finish_reason"),
-                    "logprobs": choice.get("logprobs"),
-                    "index": choice.get("index"),
-                },
-            )
-            for choice in response_json.get("choices", [])
-        ]
-    """
-
-    TYPE: ClassVar[str] = InferenceFramework.GENERIC
 
     class ModelParams(BaseModel):
         """
@@ -191,14 +171,14 @@ the OpenAI specification.
         """
 
         model: Optional[str] = "odsc-llm"
-        temperature: Optional[float] = 0.7
-        top_p: Optional[float] = 0.9
+        temperature: Optional[float] = 0.2
+        top_p: Optional[float] = 0.75
         n: Optional[int] = 1
-        max_tokens: Optional[int] = 500
+        max_tokens: Optional[int] = 256
         seed: Optional[int] = None
         stop: Optional[Union[str, List[str]]] = Field(default_factory=list)
         top_k: Optional[int] = 50
-        best_of: Optional[int] = None
+        best_of: Optional[int] = 1
 
         class Config:
             extra = Extra.allow
@@ -258,38 +238,14 @@ class InferenceBackendVLLM(InferenceBackendGeneric):
     An implementation of the InferenceBackend class for the vLLM.
     """
 
-    DESCRIPTION: ClassVar = """
-    The vLLM backend implements the OpenAI specification
-and includes a list of default parameters that are used if none are provided. You have
-the flexibility to override any default parameter as needed or to provide additional
-parameters supported by the OpenAI specification.
-    """
-    TYPE: ClassVar[str] = InferenceFramework.VLLM
-
 
 class InferenceBackendTGI(InferenceBackendGeneric):
     """
     An implementation of the InferenceBackend class for the TGI (Text Generation Inference) model.
     """
 
-    DESCRIPTION: ClassVar = """
-    The Text Generation Inference (TGI) backend implements the OpenAI specification and
-includes a list of default parameters that are used if none are provided. You have
-the flexibility to override any default parameter as needed or to provide additional
-parameters supported by the OpenAI specification.
-    """
-    TYPE: ClassVar[str] = InferenceFramework.TGI
-
 
 class InferenceBackendLLamaCPP(InferenceBackendGeneric):
     """
     An implementation of the InferenceBackend class for the Llama.CPP model.
     """
-
-    DESCRIPTION: ClassVar = """
-    The Llama.CPP Backend implements the OpenAI specification and includes a list of
-default parameters that are used if none are provided. You have the flexibility to
-override any default parameter as needed or to provide additional parameters
-supported by the OpenAI specification.
-    """
-    TYPE: ClassVar[str] = InferenceFramework.LLAMA_CPP
