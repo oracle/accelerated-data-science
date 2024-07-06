@@ -36,8 +36,7 @@ class AquaEvaluationWSMsgHandler(AquaWSMsgHandler):
     def list_evaluations(request) -> ListEvaluationsResponse:
 
         eval_list = AquaEvaluationApp().list(
-            request.get("compartment_id") or COMPARTMENT_OCID,
-            request.get("project_id"),
+            request.get("compartment_id") or COMPARTMENT_OCID
         )
         response = ListEvaluationsResponse(
             message_id=request["message_id"],

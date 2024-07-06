@@ -23,7 +23,6 @@ class AquaCommonWsMsgHandler(AquaWSMsgHandler):
     @handle_exceptions
     def process(self) -> AdsVersionResponse | CompatibilityCheckResponse:
         request = json.loads(self.message)
-        print("request: {}".format(request))
         if request.get('kind') == 'AdsVersion':
             version = metadata.version("oracle_ads")
             response = AdsVersionResponse(

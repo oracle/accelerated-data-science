@@ -6,7 +6,6 @@ from ads.aqua.extension.aqua_ws_msg_handler import AquaWSMsgHandler
 from ads.aqua.extension.models.ws_models import RequestResponseType, ListModelsResponse, ListModelsRequest, \
     ModelDetailsResponse
 from ads.aqua.model import AquaModelApp
-from ads.config import COMPARTMENT_OCID
 
 
 class AquaModelWSMsgHandler(AquaWSMsgHandler):
@@ -23,7 +22,7 @@ class AquaModelWSMsgHandler(AquaWSMsgHandler):
         request = json.loads(self.message)
         if request.get('kind') == 'ListModels':
             models_list = AquaModelApp().list(
-                compartment_id=request.get("compartment_id") or COMPARTMENT_OCID,
+                compartment_id=request.get("compartment_id"),
                 project_id=request.get("project_id"),
                 model_type=request.get("model_type")
             )
