@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -10,8 +9,8 @@ from tornado.web import HTTPError
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.evaluation.entities import CreateAquaEvaluationDetails
-from ads.aqua.extension.errors import Errors
 from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.aqua.extension.errors import Errors
 from ads.aqua.extension.utils import validate_function_parameters
 from ads.config import COMPARTMENT_OCID
 
@@ -41,8 +40,8 @@ class AquaEvaluationHandler(AquaAPIhandler):
         """
         try:
             input_data = self.get_json_body()
-        except Exception:
-            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT)
+        except Exception as ex:
+            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT) from ex
 
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)
@@ -77,9 +76,7 @@ class AquaEvaluationHandler(AquaAPIhandler):
     def list(self):
         """List Aqua models."""
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
-        # project_id is no needed.
-        project_id = self.get_argument("project_id", default=None)
-        return self.finish(AquaEvaluationApp().list(compartment_id, project_id))
+        return self.finish(AquaEvaluationApp().list(compartment_id))
 
     def get_default_metrics(self):
         """Lists supported metrics for evaluation."""
