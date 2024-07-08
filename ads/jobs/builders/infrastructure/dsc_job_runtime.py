@@ -157,21 +157,6 @@ class RuntimeHandler:
         """
         return runtime.envs
 
-    def _translate_env_config(self, runtime: Runtime) -> dict:
-        """Translate the environment configuration details for container runtime.
-
-        OCI Data Science job requires ``OcirContainerJobEnvironmentConfigurationDetails`` payload if job is running in custom container.
-        This method is designed to handle the conversion of the ADS runtime properties to ``OcirContainerJobEnvironmentConfigurationDetails`` payload.
-        By default, no conversion is made in this method.
-        Sub-class should override this method to add conversion logic.
-
-        Returns
-        -------
-        dict
-            A dictionary storing the ``OcirContainerJobEnvironmentConfigurationDetails`` payload for OCI data science job.
-        """
-        return None
-
     def _translate_config(self, runtime: Runtime) -> dict:
         """Prepares the job configuration from runtime specifications.
 
