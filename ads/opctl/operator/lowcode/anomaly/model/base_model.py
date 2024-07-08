@@ -16,7 +16,7 @@ from sklearn import linear_model
 
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
-from ads.opctl.operator.lowcode.anomaly.const import OutputColumns, SupportedMetrics
+from ads.opctl.operator.lowcode.anomaly.const import OutputColumns, SupportedMetrics, SUBSAMPLE_THRESHOLD
 from ads.opctl.operator.lowcode.anomaly.utils import _build_metrics_df, default_signer
 from ads.opctl.operator.lowcode.common.utils import (
     disable_print,
@@ -79,7 +79,7 @@ class AnomalyOperatorBaseModel(ABC):
                 anomaly_output, test_data, elapsed_time
             )
         table_blocks = [
-            rc.DataTable(df.head(1000) if self.spec.subsample_report_data and len(df) > 1000 else df, label=col, index=True)
+            rc.DataTable(df.head(SUBSAMPLE_THRESHOLD) if self.spec.subsample_report_data and len(df) > SUBSAMPLE_THRESHOLD else df, label=col, index=True)
             for col, df in self.datasets.full_data_dict.items()
         ]
         data_table = rc.Select(blocks=table_blocks)
@@ -100,9 +100,10 @@ class AnomalyOperatorBaseModel(ABC):
             if self.spec.subsample_report_data:
                 non_anomaly_indices = [i for i in range(len(time_col)) if i not in anomaly_indices]
                 # Downsample non-anomalous data if it exceeds the threshold (1000)
-                if len(non_anomaly_indices) > 1000:
-                    downsampled_non_anomaly_indices = non_anomaly_indices[::len(non_anomaly_indices)//1000]
-                    selected_indices = sorted(anomaly_indices + downsampled_non_anomaly_indices)
+                if len(non_anomaly_indices) > SUBSAMPLE_THRESHOLD:
+                    downsampled_non_anomaly_indices = non_anomaly_indices[::len(non_anomaly_indices)//SUBSAMPLE_THRESHOLD]
+                    selected_indices = anomaly_indices + downsampled_non_anomaly_indices
+                    selected_indices.sort()
                 downsampled_time_col = time_col[selected_indices]
 
             columns = set(df.columns).difference({date_column})
