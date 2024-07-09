@@ -41,6 +41,7 @@ class TestDataset:
     MODEL_ID = "ocid1.datasciencemodeldeployment.oc1.<region>.<MODEL_OCID>"
     DEPLOYMENT_IMAGE_NAME = "dsmc://image-name:1.0.0.0"
     DEPLOYMENT_SHAPE_NAME = "VM.GPU.A10.1"
+    DEPLOYMENT_SHAPE_NAME_CPU = "VM.Standard.A1.Flex"
 
     model_deployment_object = [
         {
@@ -111,6 +112,65 @@ class TestDataset:
         }
     ]
 
+    model_deployment_object_gguf = [
+        {
+            "compartment_id": "ocid1.compartment.oc1..<OCID>",
+            "created_by": "ocid1.user.oc1..<OCID>",
+            "defined_tags": {},
+            "description": "Mock description",
+            "display_name": "model-deployment-name",
+            "freeform_tags": {"OCI_AQUA": "active", "aqua_model_name": "model-name"},
+            "id": "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>",
+            "lifecycle_state": "ACTIVE",
+            "model_deployment_configuration_details": oci.data_science.models.SingleModelDeploymentConfigurationDetails(
+                **{
+                    "deployment_type": "SINGLE_MODEL",
+                    "environment_configuration_details": oci.data_science.models.OcirModelDeploymentEnvironmentConfigurationDetails(
+                        **{
+                            "cmd": [],
+                            "entrypoint": [],
+                            "environment_configuration_type": "OCIR_CONTAINER",
+                            "environment_variables": {
+                                "BASE_MODEL": "service_models/model-name/artifact",
+                                "BASE_MODEL_FILE": "model-name.gguf",
+                                "MODEL_DEPLOY_ENABLE_STREAMING": "true",
+                                "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
+                                "MODEL_DEPLOY_HEALTH_ENDPOINT": "/v1/models",
+                            },
+                            "health_check_port": 8080,
+                            "image": "dsmc://image-name:1.0.0.0",
+                            "image_digest": "sha256:mock22373c16f2015f6f33c5c8553923cf8520217da0bd9504471c5e53cbc9d",
+                            "server_port": 8080,
+                        }
+                    ),
+                    "model_configuration_details": oci.data_science.models.ModelConfigurationDetails(
+                        **{
+                            "bandwidth_mbps": 10,
+                            "instance_configuration": oci.data_science.models.InstanceConfiguration(
+                                **{
+                                    "instance_shape_name": DEPLOYMENT_SHAPE_NAME_CPU,
+                                    "model_deployment_instance_shape_config_details": oci.data_science.models.ModelDeploymentInstanceShapeConfigDetails(
+                                        **{
+                                            "ocpus": 10,
+                                            "memory_in_gbs": 60.0,
+                                        }
+                                    ),
+                                }
+                            ),
+                            "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
+                            "scaling_policy": oci.data_science.models.FixedSizeScalingPolicy(
+                                **{"instance_count": 1, "policy_type": "FIXED_SIZE"}
+                            ),
+                        }
+                    ),
+                }
+            ),
+            "model_deployment_url": MODEL_DEPLOYMENT_URL,
+            "project_id": "ocid1.datascienceproject.oc1.<region>.<OCID>",
+            "time_created": "2024-01-01T00:00:00.000000+00:00",
+        }
+    ]
+
     aqua_deployment_object = {
         "id": "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>",
         "display_name": "model-deployment-name",
@@ -130,6 +190,13 @@ class TestDataset:
             "memory_in_gbs": null,
         },
         "tags": {"OCI_AQUA": "active", "aqua_model_name": "model-name"},
+    }
+
+    aqua_deployment_gguf_shape_info = {
+        "instance_shape": DEPLOYMENT_SHAPE_NAME_CPU,
+        "instance_count": 1,
+        "ocpus": 10,
+        "memory_in_gbs": 60.0,
     }
 
     aqua_deployment_detail = {
@@ -404,6 +471,79 @@ class TestAquaDeployment(unittest.TestCase):
         assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
         expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
         expected_result["state"] = "CREATING"
+        assert actual_attributes == expected_result
+
+    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
+    @patch("ads.aqua.model.AquaModelApp.create")
+    @patch("ads.aqua.modeldeployment.deployment.get_container_image")
+    @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
+    def test_create_deployment_for_gguf_model(
+        self,
+        mock_deploy,
+        mock_get_container_image,
+        mock_create,
+        mock_get_container_config,
+    ):
+        """Test to create a deployment for fine-tuned model"""
+
+        aqua_model = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_foundation_model.yaml"
+        )
+        datascience_model = DataScienceModel.from_yaml(uri=aqua_model)
+        mock_create.return_value = datascience_model
+
+        config_json = os.path.join(
+            self.curr_dir, "test_data/deployment/deployment_config.json"
+        )
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        self.app.get_deployment_config = MagicMock(return_value=config)
+
+        container_index_json = os.path.join(
+            self.curr_dir, "test_data/ui/container_index.json"
+        )
+        with open(container_index_json, "r") as _file:
+            container_index_config = json.load(_file)
+        mock_get_container_config.return_value = container_index_config
+
+        mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
+        aqua_deployment = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_create_gguf_deployment.yaml"
+        )
+        model_deployment_obj = ModelDeployment.from_yaml(uri=aqua_deployment)
+        model_deployment_dsc_obj = copy.deepcopy(
+            TestDataset.model_deployment_object_gguf[0]
+        )
+        model_deployment_dsc_obj["lifecycle_state"] = "CREATING"
+        model_deployment_obj.dsc_model_deployment = (
+            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+        )
+        mock_deploy.return_value = model_deployment_obj
+
+        result = self.app.create(
+            model_id=TestDataset.MODEL_ID,
+            instance_shape="VM.Standard.A1.Flex",
+            display_name="model-deployment-name",
+            log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
+            access_log_id="ocid1.log.oc1.<region>.<OCID>",
+            predict_log_id="ocid1.log.oc1.<region>.<OCID>",
+            ocpus=10.0,
+            memory_in_gbs=60.0,
+        )
+
+        mock_create.assert_called_with(
+            model_id=TestDataset.MODEL_ID, compartment_id=None, project_id=None
+        )
+        mock_get_container_image.assert_called()
+        mock_deploy.assert_called()
+
+        expected_attributes = set(AquaDeployment.__annotations__.keys())
+        actual_attributes = asdict(result)
+        assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
+        expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
+        expected_result["state"] = "CREATING"
+        expected_result["shape_info"] = TestDataset.aqua_deployment_gguf_shape_info
         assert actual_attributes == expected_result
 
     @parameterized.expand(

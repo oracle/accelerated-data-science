@@ -3,7 +3,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.enums import (
@@ -102,6 +102,8 @@ class AquaDeploymentApp(AquaApp):
         health_check_port: int = None,
         env_var: Dict = None,
         container_family: str = None,
+        memory_in_gbs: Optional[float] = None,
+        ocpus: Optional[float] = None,
     ) -> "AquaDeployment":
         """
         Creates a new Aqua deployment
@@ -142,6 +144,10 @@ class AquaDeploymentApp(AquaApp):
             Environment variable for the deployment, by default None.
         container_family: str
             The image family of model deployment container runtime. Required for unverified Aqua models.
+        memory_in_gbs: float
+            The memory in gbs for the shape selected.
+        ocpus: float
+            The ocpu count for the shape selected.
         Returns
         -------
         AquaDeployment
@@ -325,6 +331,11 @@ class AquaDeploymentApp(AquaApp):
                 log_id=predict_log_id,
             )
         )
+        if memory_in_gbs and ocpus and infrastructure.shape_name.endswith("Flex"):
+            infrastructure.with_shape_config_details(
+                ocpus=ocpus,
+                memory_in_gbs=memory_in_gbs,
+            )
         # configure model deployment runtime
         container_runtime = (
             ModelDeploymentContainerRuntime()
@@ -338,6 +349,7 @@ class AquaDeploymentApp(AquaApp):
             .with_overwrite_existing_artifact(True)
             .with_remove_existing_artifact(True)
         )
+
         # configure model deployment and deploy model on container runtime
         deployment = (
             ModelDeployment()

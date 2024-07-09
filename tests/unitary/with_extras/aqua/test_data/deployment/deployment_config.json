@@ -5,9 +5,26 @@
         "TGI_PARAMS": "--max-stop-sequences 6",
         "VLLM_PARAMS": "--max-model-len 4096"
       }
+    },
+    "VM.Standard.A1.Flex": {
+      "parameters": {},
+      "shape_info": {
+        "configs": [
+          {
+            "memory_in_gbs": 128,
+            "ocpu": 32
+          },
+          {
+            "memory_in_gbs": 256,
+            "ocpu": 64
+          }
+        ],
+        "type": "CPU"
+      }
     }
   },
   "shape": [
-    "VM.GPU.A10.1"
+    "VM.GPU.A10.1",
+    "VM.Standard.A1.Flex"
   ]
 }

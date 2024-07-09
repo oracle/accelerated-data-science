@@ -1,5 +1,27 @@
 {
   "containerSpec": {
+    "odsc-llama-cpp-serving": {
+      "cliParam": "",
+      "envVars": [
+        {
+          "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"
+        },
+        {
+          "MODEL_DEPLOY_HEALTH_ENDPOINT": "/v1/models"
+        },
+        {
+          "MODEL_DEPLOY_ENABLE_STREAMING": "true"
+        },
+        {
+          "PORT": "8080"
+        },
+        {
+          "HEALTH_CHECK_PORT": "8080"
+        }
+      ],
+      "healthCheckPort": "8080",
+      "serverPort": "8080"
+    },
     "odsc-tgi-serving": {
       "cliParam": "--sharded true --trust-remote-code",
       "envVars": [
@@ -39,6 +61,14 @@
       "serverPort": "8080"
     }
   },
+  "odsc-llama-cpp-serving": [
+    {
+      "displayName": "llama.cpp",
+      "name": "dsmc://odsc-llama-cpp-serving",
+      "type": "inference",
+      "version": "0.2.75.2"
+    }
+  ],
   "odsc-llm-evaluate": [
     {
       "name": "dsmc://odsc-llm-evaluate",
