@@ -12,7 +12,8 @@ from ads.opctl import logger
 from ads.opctl.operator.lowcode.common.const import DataColumns
 from .model.forecast_datasets import ForecastDatasets
 from .operator_config import ForecastOperatorConfig
-
+from ads.opctl.operator.lowcode.forecast.model.factory import SupportedModels
+from ads.opctl.operator.lowcode.common.errors import InsufficientDataError
 
 class ModelEvaluator:
     """
@@ -61,6 +62,9 @@ class ModelEvaluator:
         unique_dates = min_series_data[date_col].unique()
 
         cut_offs = self.generate_cutoffs(unique_dates, horizon)
+        if not len(cut_offs):
+            raise InsufficientDataError("Insufficient data to evaluate multiple models. Please specify a model "
+                                        "instead of using auto-select.")
         training_datasets = [sampled_historical_data[sampled_historical_data[date_col] <= cut_off_date] for cut_off_date
                              in cut_offs]
         test_datasets = [sampled_historical_data[sampled_historical_data[date_col] > cut_offs[0]]]
@@ -137,7 +141,12 @@ class ModelEvaluator:
         return metrics
 
     def find_best_model(self, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig):
-        metrics = self.run_all_models(datasets, operator_config)
+        try:
+            metrics = self.run_all_models(datasets, operator_config)
+        except InsufficientDataError as e:
+            model = SupportedModels.Prophet
+            logger.error(f"Running {model} model as auto-select failed with the following error: {e.message}")
+            return model
         avg_backtests_metrics = {key: sum(value.values()) / len(value.values()) for key, value in metrics.items()}
         best_model = min(avg_backtests_metrics, key=avg_backtests_metrics.get)
         logger.info(f"Among models {self.models}, {best_model} model shows better performance during backtesting.")

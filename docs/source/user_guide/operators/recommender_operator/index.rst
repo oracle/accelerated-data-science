@@ -1,6 +1,6 @@
-===
+===========
 Recommender
-===
+===========
 
 The Recommender Operator utilizes advanced algorithms to provide personalized recommendations based on user behavior and preferences. This operator streamlines the data science workflow by automating the process of selecting the best recommendation algorithms, tuning hyperparameters, and extracting relevant features, ensuring that users receive the most relevant and effective suggestions for their needs.
 
