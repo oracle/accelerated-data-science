@@ -29,7 +29,7 @@ spec:
     input_data:
       required: true
       type: dict
-      default: {"url": "data.csv"}
+      default: { "url": "data.csv" }
       meta:
         description: "The payload that the detector should evaluate."
       schema:
@@ -78,6 +78,9 @@ spec:
         limit:
           required: false
           type: integer
+        vault_secret_id:
+          required: false
+          type: string
 
     validation_data:
       required: false
@@ -130,10 +133,15 @@ spec:
         limit:
           required: false
           type: integer
+        vault_secret_id:
+          required: false
+          type: string
 
     datetime_column:
       type: dict
-      required: true
+      required: false
+      meta:
+        description: "`datetime_column` is required for time series anomaly detection, only non time-based anomaly detection models can be run without `datetime_column`"
       schema:
         name:
           type: string
@@ -353,6 +361,8 @@ spec:
       allowed:
         - autots
         - auto
+        - oneclasssvm
+        - isolationforest
       meta:
         description: "The model to be used for anomaly detection"
 

@@ -1,0 +1,265 @@
+kind:
+  allowed:
+    - operator
+  required: true
+  type: string
+  default: operator
+  meta:
+    description: "Which service are you trying to use? Common kinds: `operator`, `job`"
+
+version:
+  allowed:
+    - "v1"
+  required: true
+  type: string
+  default: v1
+  meta:
+    description: "Operators may change yaml file schemas from version to version, as well as implementation details. Double check the version to ensure compatibility."
+
+type:
+  required: true
+  type: string
+  default: recommender
+  meta:
+    description: "Type should always be `recommender` when using a recommender operator"
+
+
+spec:
+  required: true
+  type: dict
+  schema:
+    user_data:
+      required: true
+      type: dict
+      default: {"url": "user_data.csv"}
+      meta:
+        description: "This should contain user related attribute."
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        format:
+          allowed:
+            - csv
+            - json
+            - clipboard
+            - excel
+            - feather
+            - sql_table
+            - sql_query
+            - hdf
+            - tsv
+          required: false
+          type: string
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        filters:
+          required: false
+          type: list
+          schema:
+            type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+        sql:
+          required: false
+          type: string
+        table_name:
+          required: false
+          type: string
+        url:
+          required: false
+          type: string
+          meta:
+            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
+        limit:
+          required: false
+          type: integer
+
+    item_data:
+      required: true
+      type: dict
+      default: {"url": "item_data.csv"}
+      meta:
+        description: "This should contain item related attribute"
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        format:
+          allowed:
+            - csv
+            - json
+            - clipboard
+            - excel
+            - feather
+            - sql_table
+            - sql_query
+            - hdf
+            - tsv
+          required: false
+          type: string
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        filters:
+          required: false
+          type: list
+          schema:
+            type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+        sql:
+          required: false
+          type: string
+        table_name:
+          required: false
+          type: string
+        url:
+          required: false
+          type: string
+          meta:
+            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
+        limit:
+          required: false
+          type: integer
+
+    interactions_data:
+      required: true
+      default: {"url": "interactions_data.csv"}
+      meta:
+        description: "This should include interactions between items and users"
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        format:
+          allowed:
+            - csv
+            - json
+            - clipboard
+            - excel
+            - feather
+            - sql_table
+            - sql_query
+            - hdf
+            - tsv
+          required: false
+          type: string
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        filters:
+          required: false
+          type: list
+          schema:
+            type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+        sql:
+          required: false
+          type: string
+        table_name:
+          required: false
+          type: string
+        url:
+          required: false
+          type: string
+          meta:
+            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
+        limit:
+          required: false
+          type: integer
+      type: dict
+
+    top_k:
+      required: true
+      type: integer
+      default: 1
+
+    output_directory:
+      required: false
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        format:
+          allowed:
+            - csv
+            - json
+            - clipboard
+            - excel
+            - feather
+            - sql_table
+            - sql_query
+            - hdf
+            - tsv
+          required: false
+          type: string
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        filters:
+          required: false
+          type: list
+          schema:
+            type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+        sql:
+          required: false
+          type: string
+        table_name:
+          required: false
+          type: string
+        url:
+          required: false
+          type: string
+          meta:
+            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
+        limit:
+          required: false
+          type: integer
+      type: dict
+
+    report_filename:
+      required: false
+      type: string
+      default: report.html
+      meta:
+        description: "Placed into output_directory location. Defaults to report.html"
+
+    user_column:
+      type: string
+      required: true
+      default: "user_id"
+
+    item_column:
+      type: string
+      required: true
+      default: "item_id"
+
+    interaction_column:
+      type: string
+      required: true
+      default: "rating"

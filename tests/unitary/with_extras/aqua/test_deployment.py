@@ -14,7 +14,6 @@ from unittest.mock import MagicMock, patch
 
 import oci
 import pytest
-import yaml
 from parameterized import parameterized
 
 import ads.aqua.modeldeployment.deployment
@@ -352,22 +351,10 @@ class TestAquaDeployment(unittest.TestCase):
     ):
         """Test to create a deployment for fine-tuned model"""
 
-        # todo: DataScienceModel.from_yaml should update model_file_description attribute, current workaround is to
-        #   load using with_model_file_description property.
-        def yaml_to_json(input_file):
-            with open(input_file, "r") as f:
-                return yaml.safe_load(f)
-
         aqua_model = os.path.join(
             self.curr_dir, "test_data/deployment/aqua_finetuned_model.yaml"
         )
-        model_description_json = json.dumps(
-            yaml_to_json(aqua_model)["spec"]["modelDescription"]
-        )
         datascience_model = DataScienceModel.from_yaml(uri=aqua_model)
-        datascience_model.with_model_file_description(
-            json_string=model_description_json
-        )
         mock_create.return_value = datascience_model
 
         config_json = os.path.join(
@@ -425,27 +412,36 @@ class TestAquaDeployment(unittest.TestCase):
                 "VLLM_PARAMS",
                 "odsc-vllm-serving",
                 ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
+                ["--max-model-len 4096", "--trust-remote-code"],
             ),
             (
                 "VLLM_PARAMS",
                 "odsc-vllm-serving",
                 [],
+                [],
             ),
             (
                 "TGI_PARAMS",
                 "odsc-tgi-serving",
-                ["--sharded true", "--trust-remote-code"],
+                ["--sharded true", "--trust-remote-code", "--max-stop-sequences"],
+                ["--max-stop-sequences"],
             ),
             (
                 "CUSTOM_PARAMS",
                 "custom-container-key",
+                ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
                 ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
             ),
         ]
     )
     @patch("ads.model.datascience_model.DataScienceModel.from_id")
     def test_get_deployment_default_params(
-        self, container_params_field, container_type_key, params, mock_from_id
+        self,
+        container_params_field,
+        container_type_key,
+        params,
+        allowed_params,
+        mock_from_id,
     ):
         """Test for fetching config details for a given deployment."""
 
@@ -474,7 +470,7 @@ class TestAquaDeployment(unittest.TestCase):
         if container_params_field == "CUSTOM_PARAMS":
             assert result == []
         else:
-            assert result == params
+            assert result == allowed_params
 
     @parameterized.expand(
         [
@@ -496,7 +492,7 @@ class TestAquaDeployment(unittest.TestCase):
             ),
             (
                 "odsc-vllm-serving",
-                ["--tensor-parallel-size 2"],
+                ["--port 8081"],
             ),
             (
                 "odsc-tgi-serving",

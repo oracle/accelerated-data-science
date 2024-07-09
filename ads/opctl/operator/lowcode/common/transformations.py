@@ -32,8 +32,14 @@ class Transformations(ABC):
         self.dataset_info = dataset_info
         self.target_category_columns = dataset_info.target_category_columns
         self.target_column_name = dataset_info.target_column
-        self.dt_column_name = dataset_info.datetime_column.name
-        self.dt_column_format = dataset_info.datetime_column.format
+        self.dt_column_name = (
+            dataset_info.datetime_column.name if dataset_info.datetime_column else None
+        )
+        self.dt_column_format = (
+            dataset_info.datetime_column.format
+            if dataset_info.datetime_column
+            else None
+        )
         self.preprocessing = dataset_info.preprocessing
 
     def run(self, data):
@@ -55,8 +61,10 @@ class Transformations(ABC):
         if self.name == "historical_data":
             self._check_historical_dataset(clean_df)
         clean_df = self._set_series_id_column(clean_df)
-        clean_df = self._format_datetime_col(clean_df)
+        if self.dt_column_name:
+            clean_df = self._format_datetime_col(clean_df)
         clean_df = self._set_multi_index(clean_df)
+        clean_df = self._fill_na(clean_df) if not self.dt_column_name else clean_df
 
         if self.preprocessing and self.preprocessing.enabled:
             if self.name == "historical_data":
@@ -66,7 +74,9 @@ class Transformations(ABC):
                     except Exception as e:
                         logger.debug(f"Missing value imputation failed with {e.args}")
                 else:
-                    logger.info("Skipping missing value imputation because it is disabled")
+                    logger.info(
+                        "Skipping missing value imputation because it is disabled"
+                    )
                 if self.preprocessing.steps.outlier_treatment:
                     try:
                         clean_df = self._outlier_treatment(clean_df)
@@ -77,7 +87,9 @@ class Transformations(ABC):
             elif self.name == "additional_data":
                 clean_df = self._missing_value_imputation_add(clean_df)
         else:
-            logger.info("Skipping all preprocessing steps because preprocessing is disabled")
+            logger.info(
+                "Skipping all preprocessing steps because preprocessing is disabled"
+            )
         return clean_df
 
     def _remove_trailing_whitespace(self, df):
@@ -95,7 +107,14 @@ class Transformations(ABC):
             merged_values = df[DataColumns.Series].unique().tolist()
             if self.target_category_columns:
                 for value in merged_values:
-                    self._target_category_columns_map[value] = df[df[DataColumns.Series] == value][self.target_category_columns].drop_duplicates().iloc[0].to_dict()
+                    self._target_category_columns_map[value] = (
+                        df[df[DataColumns.Series] == value][
+                            self.target_category_columns
+                        ]
+                        .drop_duplicates()
+                        .iloc[0]
+                        .to_dict()
+                    )
 
             if self.target_category_columns != [DataColumns.Series]:
                 df = df.drop(self.target_category_columns, axis=1)
@@ -124,8 +143,12 @@ class Transformations(ABC):
         -------
             A new Pandas DataFrame with sorted dates for each series
         """
-        df = df.set_index([self.dt_column_name, DataColumns.Series])
-        return df.sort_values([self.dt_column_name, DataColumns.Series], ascending=True)
+        if self.dt_column_name:
+            df = df.set_index([self.dt_column_name, DataColumns.Series])
+            return df.sort_values(
+                [self.dt_column_name, DataColumns.Series], ascending=True
+            )
+        return df.set_index([df.index, DataColumns.Series])
 
     def _missing_value_imputation_hist(self, df):
         """
@@ -222,5 +245,10 @@ class Transformations(ABC):
             
         }
     """
+
     def get_target_category_columns_map(self):
         return self._target_category_columns_map
+
+    def _fill_na(self, df: pd.DataFrame, na_value=0) -> pd.DataFrame:
+        """Fill nans in dataframe"""
+        return df.fillna(value=na_value)
