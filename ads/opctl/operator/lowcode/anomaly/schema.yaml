@@ -377,4 +377,8 @@ spec:
       type: dict
       required: false
 
+    subsample_report_data:
+      type: boolean
+      required: false
+
   type: dict
