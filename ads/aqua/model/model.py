@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
@@ -15,13 +14,17 @@ from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import (
+    copy_model_config,
     create_word_icon,
     get_artifact_path,
-    read_file,
-    copy_model_config,
     load_config,
+    read_file,
 )
 from ads.aqua.constants import (
+    AQUA_MODEL_ARTIFACT_CONFIG,
+    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME,
+    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE,
+    AQUA_MODEL_TYPE_CUSTOM,
     LICENSE_TXT,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     README,
@@ -33,10 +36,6 @@ from ads.aqua.constants import (
     UNKNOWN,
     VALIDATION_METRICS,
     VALIDATION_METRICS_FINAL,
-    AQUA_MODEL_ARTIFACT_CONFIG,
-    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME,
-    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE,
-    AQUA_MODEL_TYPE_CUSTOM,
 )
 from ads.aqua.model.constants import *
 from ads.aqua.model.entities import *
@@ -236,7 +235,7 @@ class AquaModelApp(AquaApp):
             try:
                 jobrun_ocid = ds_model.provenance_metadata.training_id
                 jobrun = self.ds_client.get_job_run(jobrun_ocid).data
-            except Exception as e:
+            except Exception:
                 logger.debug(
                     f"Missing jobrun information in the provenance metadata of the given model {model_id}."
                 )
@@ -268,8 +267,7 @@ class AquaModelApp(AquaApp):
 
             job_run_status = (
                 jobrun.lifecycle_state
-                if jobrun
-                and not jobrun.lifecycle_state == JobRun.LIFECYCLE_STATE_DELETED
+                if jobrun and jobrun.lifecycle_state != JobRun.LIFECYCLE_STATE_DELETED
                 else (
                     JobRun.LIFECYCLE_STATE_SUCCEEDED
                     if self.if_artifact_exist(ds_model.id)
@@ -540,7 +538,7 @@ class AquaModelApp(AquaApp):
             dict with the key used, and True if cache has the key that needs to be deleted.
         """
         res = {}
-        logger.info(f"Clearing _service_models_cache")
+        logger.info("Clearing _service_models_cache")
         with self._cache_lock:
             if ODSC_MODEL_COMPARTMENT_OCID in self._service_models_cache.keys():
                 self._service_models_cache.pop(key=ODSC_MODEL_COMPARTMENT_OCID)
@@ -561,6 +559,7 @@ class AquaModelApp(AquaApp):
         verified_model: DataScienceModel,
         compartment_id: Optional[str],
         project_id: Optional[str],
+        is_gguf_model: bool,
     ) -> DataScienceModel:
         """Create model by reference from the object storage path
 
@@ -581,9 +580,14 @@ class AquaModelApp(AquaApp):
             {
                 **verified_model.freeform_tags,
                 Tags.AQUA_SERVICE_MODEL_TAG: verified_model.id,
+                Tags.PLATFORM: "cpu" if is_gguf_model else "gpu",
             }
             if verified_model
-            else {Tags.AQUA_TAG: "active", Tags.BASE_MODEL_CUSTOM: "true"}
+            else {
+                Tags.AQUA_TAG: "active",
+                Tags.BASE_MODEL_CUSTOM: "true",
+                Tags.PLATFORM: "cpu" if is_gguf_model else "gpu",
+            }
         )
         tags.update({Tags.BASE_MODEL_CUSTOM: "true"})
 
@@ -615,8 +619,8 @@ class AquaModelApp(AquaApp):
                 )
             else:
                 logger.warn(
-                    f"Proceeding with model registration without the fine-tuning container information. "
-                    f"This model will not be available for fine tuning."
+                    "Proceeding with model registration without the fine-tuning container information. "
+                    "This model will not be available for fine tuning."
                 )
 
             metadata.add(
@@ -693,24 +697,25 @@ class AquaModelApp(AquaApp):
                 The registered model as a AquaModel object.
         """
         verified_model_details: DataScienceModel = None
-
+        model_config = None
         if not import_model_details:
             import_model_details = ImportModelDetails(**kwargs)
-
-        try:
-            model_config = load_config(
-                file_path=import_model_details.os_path,
-                config_file_name=AQUA_MODEL_ARTIFACT_CONFIG,
-            )
-        except Exception as ex:
-            logger.error(
-                f"Exception occurred while loading config file from {import_model_details.os_path}"
-                f"Exception message: {ex}"
-            )
-            raise AquaRuntimeError(
-                f"The model path {import_model_details.os_path} does not contain the file config.json. "
-                f"Please check if the path is correct or the model artifacts are available at this location."
-            )
+        is_gguf_model = import_model_details.inference_container == "odsc-llama-cpp"
+        if not is_gguf_model:
+            try:
+                model_config = load_config(
+                    file_path=import_model_details.os_path,
+                    config_file_name=AQUA_MODEL_ARTIFACT_CONFIG,
+                )
+            except Exception as ex:
+                logger.error(
+                    f"Exception occurred while loading config file from {import_model_details.os_path}"
+                    f"Exception message: {ex}"
+                )
+                raise AquaRuntimeError(
+                    f"The model path {import_model_details.os_path} does not contain the file config.json. "
+                    f"Please check if the path is correct or the model artifacts are available at this location."
+                )
 
         model_service_id = None
         # If OCID of a model is passed, we need to copy the defaults for Tags and metadata from the service model.
@@ -770,6 +775,7 @@ class AquaModelApp(AquaApp):
             verified_model=verified_model_details,
             compartment_id=import_model_details.compartment_id,
             project_id=import_model_details.project_id,
+            is_gguf_model=is_gguf_model,
         )
         # registered model will always have inference and evaluation container, but
         # fine-tuning container may be not set
@@ -786,6 +792,7 @@ class AquaModelApp(AquaApp):
         except:
             finetuning_container = None
 
+        platform = "cpu" if is_gguf_model else "gpu"
         aqua_model_attributes = dict(
             **self._process_model(ds_model, self.region),
             project_id=ds_model.project_id,
@@ -798,17 +805,23 @@ class AquaModelApp(AquaApp):
             inference_container=inference_container,
             finetuning_container=finetuning_container,
             evaluation_container=evaluation_container,
+            platform=platform,
         )
 
         if verified_model_details:
             telemetry_model_name = model_name
+        elif (
+            model_config is not None
+            and AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME in model_config
+        ):
+            telemetry_model_name = f"{AQUA_MODEL_TYPE_CUSTOM}_{model_config[AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME]}"
+        elif (
+            model_config is not None
+            and AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE in model_config
+        ):
+            telemetry_model_name = f"{AQUA_MODEL_TYPE_CUSTOM}_{model_config[AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE]}"
         else:
-            if AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME in model_config:
-                telemetry_model_name = f"{AQUA_MODEL_TYPE_CUSTOM}_{model_config[AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME]}"
-            elif AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE in model_config:
-                telemetry_model_name = f"{AQUA_MODEL_TYPE_CUSTOM}_{model_config[AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE]}"
-            else:
-                telemetry_model_name = AQUA_MODEL_TYPE_CUSTOM
+            telemetry_model_name = AQUA_MODEL_TYPE_CUSTOM
 
         self.telemetry.record_event_async(
             category="aqua/model",
