@@ -76,6 +76,7 @@ class AquaModelSummary(DataClassSerializable):
     ready_to_deploy: bool = True
     ready_to_finetune: bool = False
     ready_to_import: bool = False
+    platform: List[str] = field(default_factory=lambda: ["nvidia_gpu"])
 
 
 @dataclass(repr=False)

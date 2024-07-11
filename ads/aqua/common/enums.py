@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -8,6 +7,7 @@ aqua.common.enums
 ~~~~~~~~~~~~~~
 This module contains the set of enums used in AQUA.
 """
+
 from ads.common.extended_enum import ExtendedEnumMeta
 
 
@@ -28,6 +28,7 @@ class Tags(str, metaclass=ExtendedEnumMeta):
     TASK = "task"
     LICENSE = "license"
     ORGANIZATION = "organization"
+    PLATFORM = "platform"
     AQUA_TAG = "OCI_AQUA"
     AQUA_SERVICE_MODEL_TAG = "aqua_service_model"
     AQUA_FINE_TUNED_MODEL_TAG = "aqua_fine_tuned_model"
@@ -48,6 +49,7 @@ class InferenceContainerType(str, metaclass=ExtendedEnumMeta):
 class InferenceContainerTypeFamily(str, metaclass=ExtendedEnumMeta):
     AQUA_VLLM_CONTAINER_FAMILY = "odsc-vllm-serving"
     AQUA_TGI_CONTAINER_FAMILY = "odsc-tgi-serving"
+    AQUA_LLAMA_CPP_CONTAINER_FAMILY = "odsc-llama-cpp-serving"
 
 
 class InferenceContainerParamType(str, metaclass=ExtendedEnumMeta):
