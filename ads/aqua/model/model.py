@@ -447,7 +447,7 @@ class AquaModelApp(AquaApp):
         inference_containers = AquaContainerConfig.from_container_index_json().inference
 
         model_format = ModelFormat[
-            freeform_tags.get(Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS.value)
+            freeform_tags.get(Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS.value).upper()
         ]
         supported_platform: Set[AquaContainerConfigItem.Platform] = set()
 
