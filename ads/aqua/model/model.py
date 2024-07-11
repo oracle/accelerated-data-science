@@ -11,20 +11,16 @@ from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.app import AquaApp
-from ads.aqua.common.enums import Tags
+from ads.aqua.common.enums import Tags, InferenceContainerTypeFamily
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import (
-    copy_model_config,
     create_word_icon,
     get_artifact_path,
-    load_config,
     read_file,
+    copy_model_config,
+    load_config,
 )
 from ads.aqua.constants import (
-    AQUA_MODEL_ARTIFACT_CONFIG,
-    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME,
-    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE,
-    AQUA_MODEL_TYPE_CUSTOM,
     LICENSE_TXT,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     README,
@@ -36,6 +32,10 @@ from ads.aqua.constants import (
     UNKNOWN,
     VALIDATION_METRICS,
     VALIDATION_METRICS_FINAL,
+    AQUA_MODEL_ARTIFACT_CONFIG,
+    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME,
+    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE,
+    AQUA_MODEL_TYPE_CUSTOM, ARM_CPU, NVIDIA_GPU,
 )
 from ads.aqua.model.constants import *
 from ads.aqua.model.entities import *
@@ -235,7 +235,7 @@ class AquaModelApp(AquaApp):
             try:
                 jobrun_ocid = ds_model.provenance_metadata.training_id
                 jobrun = self.ds_client.get_job_run(jobrun_ocid).data
-            except Exception:
+            except Exception as e:
                 logger.debug(
                     f"Missing jobrun information in the provenance metadata of the given model {model_id}."
                 )
@@ -580,16 +580,15 @@ class AquaModelApp(AquaApp):
             {
                 **verified_model.freeform_tags,
                 Tags.AQUA_SERVICE_MODEL_TAG: verified_model.id,
-                Tags.PLATFORM: "cpu" if is_gguf_model else "gpu",
             }
             if verified_model
             else {
                 Tags.AQUA_TAG: "active",
                 Tags.BASE_MODEL_CUSTOM: "true",
-                Tags.PLATFORM: "cpu" if is_gguf_model else "gpu",
             }
         )
         tags.update({Tags.BASE_MODEL_CUSTOM: "true"})
+        tags.update({Tags.PLATFORM: ARM_CPU if is_gguf_model else NVIDIA_GPU})
 
         # Remove `ready_to_import` tag that might get copied from service model.
         tags.pop(Tags.READY_TO_IMPORT, None)
@@ -700,7 +699,8 @@ class AquaModelApp(AquaApp):
         model_config = None
         if not import_model_details:
             import_model_details = ImportModelDetails(**kwargs)
-        is_gguf_model = import_model_details.inference_container == "odsc-llama-cpp"
+        is_gguf_model = import_model_details.inference_container == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
+        platform = ARM_CPU if is_gguf_model else NVIDIA_GPU
         if not is_gguf_model:
             try:
                 model_config = load_config(
@@ -792,7 +792,6 @@ class AquaModelApp(AquaApp):
         except:
             finetuning_container = None
 
-        platform = "cpu" if is_gguf_model else "gpu"
         aqua_model_attributes = dict(
             **self._process_model(ds_model, self.region),
             project_id=ds_model.project_id,
