@@ -17,7 +17,6 @@ from string import Template
 from typing import List, Union
 
 import fsspec
-import ocifs
 from cachetools import TTLCache, cached
 
 import oci
@@ -55,6 +54,7 @@ from ads.common.utils import copy_file, get_console_link, upload_to_os
 from ads.config import AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, TENANCY_OCID
 from ads.model import DataScienceModel, ModelVersionSet
 from oci.data_science.models import JobRun, Model
+from oci.object_storage.models import ObjectSummary
 
 logger = logging.getLogger("ads.aqua")
 
@@ -243,15 +243,20 @@ def list_os_files_with_extension(oss_path: str, extension: str) -> [str]:
     - A list of file paths matching the specified extension.
     """
 
+    oss_client = ObjectStorageDetails.from_path(oss_path)
     signer = default_signer()
 
     # Ensure the extension is prefixed with a dot if not already
+
     if not extension.startswith("."):
         extension = "." + extension
-    fs = ocifs.OCIFileSystem(**signer)
-    files: [str] = fs.ls(oss_path)
+    files: List[ObjectSummary] = oss_client.list_objects().objects
 
-    return [file for file in files if file.endswith(extension)]
+    return [
+        file.name
+        for file in files
+        if file.name.endswith(extension) and "/" not in file.name
+    ]
 
 
 def is_valid_ocid(ocid: str) -> bool:

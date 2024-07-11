@@ -742,12 +742,7 @@ class AquaModelApp(AquaApp):
 
         if model_format == ModelFormat.GGUF:
             model_files.extend(
-                [
-                    os.path.basename(path)
-                    for path in list_os_files_with_extension(
-                        oss_path=os_path, extension=".gguf"
-                    )
-                ]
+                list_os_files_with_extension(oss_path=os_path, extension=".gguf")
             )
         return model_files
 
