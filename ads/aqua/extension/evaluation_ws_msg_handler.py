@@ -29,7 +29,7 @@ class AquaEvaluationWSMsgHandler(AquaWSMsgHandler):
         super().__init__(message)
 
     @handle_exceptions
-    def process(self) -> ListEvaluationsResponse | EvaluationDetailsResponse:
+    def process(self) -> Union[ListEvaluationsResponse, EvaluationDetailsResponse]:
         request = json.loads(self.message)
         if request["kind"] == "ListEvaluations":
             return self.list_evaluations(request)
