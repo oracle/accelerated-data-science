@@ -28,7 +28,6 @@ class Tags(str, metaclass=ExtendedEnumMeta):
     TASK = "task"
     LICENSE = "license"
     ORGANIZATION = "organization"
-    PLATFORM = "platform"
     AQUA_TAG = "OCI_AQUA"
     AQUA_SERVICE_MODEL_TAG = "aqua_service_model"
     AQUA_FINE_TUNED_MODEL_TAG = "aqua_fine_tuned_model"
@@ -39,6 +38,7 @@ class Tags(str, metaclass=ExtendedEnumMeta):
     READY_TO_IMPORT = "ready_to_import"
     BASE_MODEL_CUSTOM = "aqua_custom_base_model"
     AQUA_EVALUATION_MODEL_ID = "evaluation_model_id"
+    MODEL_FORMAT = "model_format"
 
 
 class InferenceContainerType(str, metaclass=ExtendedEnumMeta):

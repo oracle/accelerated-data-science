@@ -4,23 +4,28 @@
 import os
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import List, Optional, Union
+from typing import Dict, Optional, Set, Union
 
 from cachetools import TTLCache
-from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.app import AquaApp
-from ads.aqua.common.enums import Tags, InferenceContainerTypeFamily
-from ads.aqua.common.errors import AquaRuntimeError
+from ads.aqua.common.enums import Tags
+from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
+    copy_model_config,
     create_word_icon,
     get_artifact_path,
-    read_file,
-    copy_model_config,
+    list_os_files_with_extension,
     load_config,
+    read_file,
 )
 from ads.aqua.constants import (
+    AQUA_MODEL_ARTIFACT_CONFIG,
+    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME,
+    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE,
+    AQUA_MODEL_ARTIFACT_FILE,
+    AQUA_MODEL_TYPE_CUSTOM,
     LICENSE_TXT,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     README,
@@ -32,13 +37,10 @@ from ads.aqua.constants import (
     UNKNOWN,
     VALIDATION_METRICS,
     VALIDATION_METRICS_FINAL,
-    AQUA_MODEL_ARTIFACT_CONFIG,
-    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME,
-    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE,
-    AQUA_MODEL_TYPE_CUSTOM, ARM_CPU, NVIDIA_GPU,
 )
 from ads.aqua.model.constants import *
 from ads.aqua.model.entities import *
+from ads.aqua.ui import AquaContainerConfig, AquaContainerConfigItem
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link
@@ -53,6 +55,13 @@ from ads.config import (
 from ads.model import DataScienceModel
 from ads.model.model_metadata import ModelCustomMetadata, ModelCustomMetadataItem
 from ads.telemetry import telemetry
+from oci.data_science.models import JobRun, Model
+
+
+class ModelValidationResult:
+    model_file: Optional[str] = None
+    model_format: ModelFormat = None
+    telemetry_model_name: str = None
 
 
 class AquaModelApp(AquaApp):
@@ -235,7 +244,7 @@ class AquaModelApp(AquaApp):
             try:
                 jobrun_ocid = ds_model.provenance_metadata.training_id
                 jobrun = self.ds_client.get_job_run(jobrun_ocid).data
-            except Exception as e:
+            except Exception:
                 logger.debug(
                     f"Missing jobrun information in the provenance metadata of the given model {model_id}."
                 )
@@ -361,8 +370,21 @@ class AquaModelApp(AquaApp):
             training_final,
         ]
 
-    def _process_model(
+    def to_aqua_model(
         self,
+        model: Union[
+            DataScienceModel,
+            oci.data_science.models.model.Model,
+            oci.data_science.models.ModelSummary,
+            oci.resource_search.models.ResourceSummary,
+        ],
+        region: str,
+    ) -> AquaModel:
+        """Converts a model to an Aqua model."""
+        return AquaModel(**self._process_model(model, region))
+
+    @staticmethod
+    def _process_model(
         model: Union[
             DataScienceModel,
             oci.data_science.models.model.Model,
@@ -387,12 +409,10 @@ class AquaModelApp(AquaApp):
             else model.id
         )
 
-        console_link = (
-            get_console_link(
-                resource="models",
-                ocid=model_id,
-                region=region,
-            ),
+        console_link = get_console_link(
+            resource="models",
+            ocid=model_id,
+            region=region,
         )
 
         description = ""
@@ -404,7 +424,7 @@ class AquaModelApp(AquaApp):
             description = model.additional_details.get("description")
 
         search_text = (
-            self._build_search_text(tags=tags, description=description)
+            AquaModelApp._build_search_text(tags=tags, description=description)
             if tags
             else UNKNOWN
         )
@@ -414,6 +434,7 @@ class AquaModelApp(AquaApp):
         ready_to_deploy = (
             freeform_tags.get(Tags.AQUA_TAG, "").upper() == READY_TO_DEPLOY_STATUS
         )
+
         ready_to_finetune = (
             freeform_tags.get(Tags.READY_TO_FINE_TUNE, "").upper()
             == READY_TO_FINE_TUNE_STATUS
@@ -421,6 +442,24 @@ class AquaModelApp(AquaApp):
         ready_to_import = (
             freeform_tags.get(Tags.READY_TO_IMPORT, "").upper()
             == READY_TO_IMPORT_STATUS
+        )
+
+        inference_containers = AquaContainerConfig.from_container_index_json().inference
+
+        model_format = ModelFormat[
+            freeform_tags.get(Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS.value)
+        ]
+        supported_platform: Set[AquaContainerConfigItem.Platform] = set()
+
+        for container in inference_containers.values():
+            if model_format in container.model_formats:
+                supported_platform.update(container.platforms)
+
+        nvidia_gpu_supported = (
+            AquaContainerConfigItem.Platform.NVIDIA_GPU in supported_platform
+        )
+        arm_cpu_supported = (
+            AquaContainerConfigItem.Platform.ARM_CPU in supported_platform
         )
 
         return dict(
@@ -431,7 +470,7 @@ class AquaModelApp(AquaApp):
             name=model.display_name,
             organization=freeform_tags.get(Tags.ORGANIZATION, UNKNOWN),
             task=freeform_tags.get(Tags.TASK, UNKNOWN),
-            time_created=model.time_created,
+            time_created=str(model.time_created),
             is_fine_tuned_model=is_fine_tuned_model,
             tags=tags,
             console_link=console_link,
@@ -439,6 +478,9 @@ class AquaModelApp(AquaApp):
             ready_to_deploy=ready_to_deploy,
             ready_to_finetune=ready_to_finetune,
             ready_to_import=ready_to_import,
+            nvidia_gpu_supported=nvidia_gpu_supported,
+            arm_cpu_supported=arm_cpu_supported,
+            model_format=model_format,
         )
 
     @telemetry(entry_point="plugin=model&action=list", name="aqua")
@@ -557,9 +599,10 @@ class AquaModelApp(AquaApp):
         inference_container: str,
         finetuning_container: str,
         verified_model: DataScienceModel,
+        model_format: ModelFormat,
         compartment_id: Optional[str],
         project_id: Optional[str],
-        is_gguf_model: bool,
+        model_file: Optional[str],
     ) -> DataScienceModel:
         """Create model by reference from the object storage path
 
@@ -576,7 +619,7 @@ class AquaModelApp(AquaApp):
             DataScienceModel: Returns Datascience model instance.
         """
         model = DataScienceModel()
-        tags = (
+        tags: Dict[str, str] = (
             {
                 **verified_model.freeform_tags,
                 Tags.AQUA_SERVICE_MODEL_TAG: verified_model.id,
@@ -588,7 +631,7 @@ class AquaModelApp(AquaApp):
             }
         )
         tags.update({Tags.BASE_MODEL_CUSTOM: "true"})
-        tags.update({Tags.PLATFORM: ARM_CPU if is_gguf_model else NVIDIA_GPU})
+        tags.update({Tags.MODEL_FORMAT: model_format.value})
 
         # Remove `ready_to_import` tag that might get copied from service model.
         tags.pop(Tags.READY_TO_IMPORT, None)
@@ -620,6 +663,13 @@ class AquaModelApp(AquaApp):
                 logger.warn(
                     "Proceeding with model registration without the fine-tuning container information. "
                     "This model will not be available for fine tuning."
+                )
+            if model_file:
+                metadata.add(
+                    key=AQUA_MODEL_ARTIFACT_FILE,
+                    value=model_file,
+                    description=f"The model file for {model_name}",
+                    category="Other",
                 )
 
             metadata.add(
@@ -676,6 +726,155 @@ class AquaModelApp(AquaApp):
         logger.debug(model)
         return model
 
+    @staticmethod
+    def get_model_files(os_path: str, model_format: ModelFormat) -> [str]:
+        model_files: List[str] = []
+        if model_format == ModelFormat.SAFETENSORS:
+            try:
+                load_config(
+                    file_path=os_path,
+                    config_file_name=AQUA_MODEL_ARTIFACT_CONFIG,
+                )
+            except AquaValueError:
+                pass
+            else:
+                model_files.append(AQUA_MODEL_ARTIFACT_CONFIG)
+
+        if model_format == ModelFormat.GGUF:
+            model_files.extend(
+                [
+                    os.path.basename(path)
+                    for path in list_os_files_with_extension(
+                        oss_path=os_path, extension=".gguf"
+                    )
+                ]
+            )
+        return model_files
+
+    def validate_model_config(
+        self,
+        import_model_details: ImportModelDetails,
+        verified_model: Optional[DataScienceModel],
+    ) -> ModelValidationResult:
+        inference_containers_config = (
+            AquaContainerConfig.from_container_index_json().inference
+        )
+        inference_container = import_model_details.inference_container
+        model_format: ModelFormat
+        validation_result: ModelValidationResult = ModelValidationResult()
+        if verified_model:
+            aqua_model = self.to_aqua_model(verified_model, self.region)
+            model_format = aqua_model.model_format
+        else:
+            # Todo: Revisit this logic once a container supports multiple formats
+            try:
+                model_format = inference_containers_config[
+                    inference_container
+                ].model_formats[0]
+            except (KeyError, IndexError):
+                logger.warn(
+                    "Unable to fetch model format for the model automatically defaulting to safetensors"
+                )
+                model_format = ModelFormat.SAFETENSORS
+                pass
+        validation_result.model_format = model_format
+        if model_format == ModelFormat.SAFETENSORS:
+            try:
+                model_config = load_config(
+                    file_path=import_model_details.os_path,
+                    config_file_name=AQUA_MODEL_ARTIFACT_CONFIG,
+                )
+            except Exception as ex:
+                logger.error(
+                    f"Exception occurred while loading config file from {import_model_details.os_path}"
+                    f"Exception message: {ex}"
+                )
+                raise AquaRuntimeError(
+                    f"The model path {import_model_details.os_path} does not contain the file config.json. "
+                    f"Please check if the path is correct or the model artifacts are available at this location."
+                )
+            else:
+                try:
+                    metadata_model_type = verified_model.custom_metadata_list.get(
+                        AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE
+                    ).value
+                    if metadata_model_type:
+                        if AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE in model_config:
+                            if (
+                                model_config[AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE]
+                                != metadata_model_type
+                            ):
+                                raise AquaRuntimeError(
+                                    f"The {AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE} attribute in {AQUA_MODEL_ARTIFACT_CONFIG}"
+                                    f" at {import_model_details.os_path} is invalid, expected {metadata_model_type} for "
+                                    f"the model {import_model_details.model}. Please check if the path is correct or "
+                                    f"the correct model artifacts are available at this location."
+                                    f""
+                                )
+                        else:
+                            logger.debug(
+                                f"Could not find {AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE} attribute in "
+                                f"{AQUA_MODEL_ARTIFACT_CONFIG}. Proceeding with model registration."
+                            )
+                except:
+                    pass
+                if verified_model:
+                    validation_result.telemetry_model_name = verified_model.display_name
+                elif (
+                    model_config is not None
+                    and AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME in model_config
+                ):
+                    validation_result.telemetry_model_name = f"{AQUA_MODEL_TYPE_CUSTOM}_{model_config[AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME]}"
+                elif (
+                    model_config is not None
+                    and AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE in model_config
+                ):
+                    validation_result.telemetry_model_name = f"{AQUA_MODEL_TYPE_CUSTOM}_{model_config[AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE]}"
+                else:
+                    validation_result.telemetry_model_name = AQUA_MODEL_TYPE_CUSTOM
+
+        elif model_format == ModelFormat.GGUF:
+            if import_model_details.finetuning_container:
+                raise AquaValueError(
+                    "Finetuning is currently not supported with GGUF model format"
+                )
+            if verified_model:
+                model_file = verified_model.custom_metadata_list.get(
+                    AQUA_MODEL_ARTIFACT_FILE, None
+                )
+            else:
+                model_file = import_model_details.model_file
+            model_files = self.get_model_files(
+                import_model_details.os_path, model_format
+            )
+            if model_file:
+                if model_file not in model_files:
+                    raise AquaRuntimeError(
+                        f"The model path {import_model_details.os_path} does not contain the file {model_file}. "
+                        f"Please check if the path is correct or the model artifacts are available at this location."
+                    )
+                else:
+                    validation_result.model_file = model_file
+            elif len(model_files) == 0:
+                raise AquaRuntimeError(
+                    f"The model path {import_model_details.os_path} does not contain any GGUF format files. "
+                    f"Please check if the path is correct or the model artifacts are available at this location."
+                )
+            elif len(model_files) > 1:
+                raise AquaRuntimeError(
+                    f"The model path {import_model_details.os_path} contains multiple GGUF format files. Please specify the file that needs to be deployed."
+                )
+            else:
+                validation_result.model_file = model_files[0]
+
+            if verified_model:
+                validation_result.telemetry_model_name = verified_model.display_name
+            else:
+                validation_result.telemetry_model_name = AQUA_MODEL_TYPE_CUSTOM
+        else:
+            raise AquaValueError("This model format is currently not supported by AQUA")
+        return validation_result
+
     def register(
         self, import_model_details: ImportModelDetails = None, **kwargs
     ) -> AquaModel:
@@ -695,74 +894,34 @@ class AquaModelApp(AquaApp):
             AquaModel:
                 The registered model as a AquaModel object.
         """
-        verified_model_details: DataScienceModel = None
-        model_config = None
         if not import_model_details:
             import_model_details = ImportModelDetails(**kwargs)
-        is_gguf_model = import_model_details.inference_container == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
-        platform = ARM_CPU if is_gguf_model else NVIDIA_GPU
-        if not is_gguf_model:
-            try:
-                model_config = load_config(
-                    file_path=import_model_details.os_path,
-                    config_file_name=AQUA_MODEL_ARTIFACT_CONFIG,
-                )
-            except Exception as ex:
-                logger.error(
-                    f"Exception occurred while loading config file from {import_model_details.os_path}"
-                    f"Exception message: {ex}"
-                )
-                raise AquaRuntimeError(
-                    f"The model path {import_model_details.os_path} does not contain the file config.json. "
-                    f"Please check if the path is correct or the model artifacts are available at this location."
-                )
 
-        model_service_id = None
         # If OCID of a model is passed, we need to copy the defaults for Tags and metadata from the service model.
+        verified_model: Optional[DataScienceModel] = None
         if (
             import_model_details.model.startswith("ocid")
             and "datasciencemodel" in import_model_details.model
         ):
-            model_service_id = import_model_details.model
+            verified_model = DataScienceModel.from_id(import_model_details.model)
         else:
             # If users passes model name, check if there is model with the same name in the service model catalog. If it is there, then use that model
             model_service_id = self._find_matching_aqua_model(
                 import_model_details.model
             )
-            logger.info(
-                f"Found service model for {import_model_details.model}: {model_service_id}"
-            )
-        if model_service_id:
-            verified_model_details = DataScienceModel.from_id(model_service_id)
-            try:
-                metadata_model_type = verified_model_details.custom_metadata_list.get(
-                    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE
-                ).value
-                if metadata_model_type:
-                    if AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE in model_config:
-                        if (
-                            model_config[AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE]
-                            != metadata_model_type
-                        ):
-                            raise AquaRuntimeError(
-                                f"The {AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE} attribute in {AQUA_MODEL_ARTIFACT_CONFIG}"
-                                f" at {import_model_details.os_path} is invalid, expected {metadata_model_type} for "
-                                f"the model {import_model_details.model}. Please check if the path is correct or "
-                                f"the correct model artifacts are available at this location."
-                                f""
-                            )
-                    else:
-                        logger.debug(
-                            f"Could not find {AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE} attribute in "
-                            f"{AQUA_MODEL_ARTIFACT_CONFIG}. Proceeding with model registration."
-                        )
-            except:
-                pass
+            if model_service_id:
+                logger.info(
+                    f"Found service model for {import_model_details.model}: {model_service_id}"
+                )
+                verified_model = DataScienceModel.from_id(model_service_id)
 
+        validation_result = self.validate_model_config(
+            import_model_details, verified_model
+        )
         # Copy the model name from the service model if `model` is ocid
         model_name = (
-            verified_model_details.display_name
-            if verified_model_details
+            verified_model.display_name
+            if verified_model
             else import_model_details.model
         )
 
@@ -772,10 +931,11 @@ class AquaModelApp(AquaApp):
             model_name=model_name,
             inference_container=import_model_details.inference_container,
             finetuning_container=import_model_details.finetuning_container,
-            verified_model=verified_model_details,
+            verified_model=verified_model,
             compartment_id=import_model_details.compartment_id,
             project_id=import_model_details.project_id,
-            is_gguf_model=is_gguf_model,
+            model_file=validation_result.model_file,
+            model_format=validation_result.model_format,
         )
         # registered model will always have inference and evaluation container, but
         # fine-tuning container may be not set
@@ -804,28 +964,12 @@ class AquaModelApp(AquaApp):
             inference_container=inference_container,
             finetuning_container=finetuning_container,
             evaluation_container=evaluation_container,
-            platform=platform,
         )
-
-        if verified_model_details:
-            telemetry_model_name = model_name
-        elif (
-            model_config is not None
-            and AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME in model_config
-        ):
-            telemetry_model_name = f"{AQUA_MODEL_TYPE_CUSTOM}_{model_config[AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME]}"
-        elif (
-            model_config is not None
-            and AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE in model_config
-        ):
-            telemetry_model_name = f"{AQUA_MODEL_TYPE_CUSTOM}_{model_config[AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE]}"
-        else:
-            telemetry_model_name = AQUA_MODEL_TYPE_CUSTOM
 
         self.telemetry.record_event_async(
             category="aqua/model",
             action="register",
-            detail=telemetry_model_name,
+            detail=validation_result.telemetry_model_name,
         )
 
         return AquaModel(**aqua_model_attributes)
@@ -868,7 +1012,8 @@ class AquaModelApp(AquaApp):
             query, type=SEARCH_TYPE.STRUCTURED, tenant_id=TENANCY_OCID, **kwargs
         )
 
-    def _build_search_text(self, tags: dict, description: str = None) -> str:
+    @staticmethod
+    def _build_search_text(tags: dict, description: str = None) -> str:
         """Constructs search_text field in response."""
         description = description or ""
         tags_text = (

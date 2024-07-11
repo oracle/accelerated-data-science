@@ -1,27 +1,50 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import re
-from typing import Optional
 from urllib.parse import urlparse
 
 from tornado.web import HTTPError
-from ads.aqua.extension.errors import Errors
+
 from ads.aqua.common.decorator import handle_exceptions
+from ads.aqua.common.errors import AquaValueError
 from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.aqua.extension.errors import Errors
 from ads.aqua.model import AquaModelApp
+from ads.aqua.ui import ModelFormat
 
 
 class AquaModelHandler(AquaAPIhandler):
     """Handler for Aqua Model REST APIs."""
 
     @handle_exceptions
-    def get(self, model_id=""):
+    def get(
+        self,
+        model_id="",
+    ):
         """Handle GET request."""
-        if not model_id:
+        url_parse = urlparse(self.request.path)
+        paths = url_parse.path.strip("/")
+        if paths.startswith("aqua/model/files"):
+            os_path = self.get_argument("os_path")
+            if not os_path:
+                raise HTTPError(
+                    400, Errors.MISSING_REQUIRED_PARAMETER.format("os_path")
+                )
+            model_format = self.get_argument("model_format")
+            if not model_format:
+                raise HTTPError(
+                    400, Errors.MISSING_REQUIRED_PARAMETER.format("model_format")
+                )
+            try:
+                model_format = ModelFormat(model_format.upper())
+            except ValueError:
+                raise AquaValueError(f"Invalid model format: {model_format}")
+            else:
+                return self.finish(AquaModelApp.get_model_files(os_path, model_format))
+        elif not model_id:
             return self.list()
+
         return self.read(model_id)
 
     def read(self, model_id):
@@ -81,6 +104,7 @@ class AquaModelHandler(AquaAPIhandler):
         finetuning_container = input_data.get("finetuning_container")
         compartment_id = input_data.get("compartment_id")
         project_id = input_data.get("project_id")
+        model_file = input_data.get("model_file")
 
         return self.finish(
             AquaModelApp().register(
@@ -90,6 +114,7 @@ class AquaModelHandler(AquaAPIhandler):
                 finetuning_container=finetuning_container,
                 compartment_id=compartment_id,
                 project_id=project_id,
+                model_file=model_file,
             )
         )
 
