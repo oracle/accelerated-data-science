@@ -41,6 +41,12 @@ class AquaFineTuneValidation(DataClassSerializable):
     value: str = ""
 
 
+class ModelValidationResult:
+    model_file: Optional[str] = None
+    model_format: ModelFormat = None
+    telemetry_model_name: str = None
+
+
 @dataclass(repr=False)
 class AquaFineTuningMetric(DataClassSerializable):
     name: str = field(default_factory=str)

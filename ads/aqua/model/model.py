@@ -58,12 +58,6 @@ from ads.telemetry import telemetry
 from oci.data_science.models import JobRun, Model
 
 
-class ModelValidationResult:
-    model_file: Optional[str] = None
-    model_format: ModelFormat = None
-    telemetry_model_name: str = None
-
-
 class AquaModelApp(AquaApp):
     """Provides a suite of APIs to interact with Aqua models within the Oracle
     Cloud Infrastructure Data Science service, serving as an interface for
@@ -728,6 +722,17 @@ class AquaModelApp(AquaApp):
 
     @staticmethod
     def get_model_files(os_path: str, model_format: ModelFormat) -> [str]:
+        """
+        Get a list of model files based on the given OS path and model format.
+
+        Args:
+            os_path (str): The OS path where the model files are located.
+            model_format (ModelFormat): The format of the model files.
+
+        Returns:
+            List[str]: A list of model file names.
+
+        """
         model_files: List[str] = []
         if model_format == ModelFormat.SAFETENSORS:
             try:
@@ -751,6 +756,19 @@ class AquaModelApp(AquaApp):
         import_model_details: ImportModelDetails,
         verified_model: Optional[DataScienceModel],
     ) -> ModelValidationResult:
+        """
+        Validates the model configuration and returns the model format telemetry model name.
+
+        Args:
+            import_model_details (ImportModelDetails): The details of the imported model.
+            verified_model (Optional[DataScienceModel]): The verified model.
+
+        Returns:
+            ModelValidationResult: The result of the model validation.
+
+        Raises:
+            AquaRuntimeError: If there is an error while loading the config file or if the model path is incorrect.
+            AquaValueError: If the model format is not supported by AQUA."""
         inference_containers_config = (
             AquaContainerConfig.from_container_index_json().inference
         )

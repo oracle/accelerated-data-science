@@ -244,10 +244,8 @@ def list_os_files_with_extension(oss_path: str, extension: str) -> [str]:
     """
 
     oss_client = ObjectStorageDetails.from_path(oss_path)
-    signer = default_signer()
 
     # Ensure the extension is prefixed with a dot if not already
-
     if not extension.startswith("."):
         extension = "." + extension
     files: List[ObjectSummary] = oss_client.list_objects().objects
