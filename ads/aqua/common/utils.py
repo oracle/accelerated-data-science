@@ -10,15 +10,16 @@ import logging
 import os
 import random
 import re
+from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 from string import Template
 from typing import List, Union
 
 import fsspec
-import oci
-from oci.data_science.models import JobRun, Model
+from cachetools import TTLCache, cached
 
+import oci
 from ads.aqua.common.enums import (
     InferenceContainerParamType,
     InferenceContainerType,
@@ -52,6 +53,8 @@ from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import copy_file, get_console_link, upload_to_os
 from ads.config import AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, TENANCY_OCID
 from ads.model import DataScienceModel, ModelVersionSet
+from oci.data_science.models import JobRun, Model
+from oci.object_storage.models import ObjectSummary
 
 logger = logging.getLogger("ads.aqua")
 
@@ -226,6 +229,32 @@ def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
             500,
         )
     return config
+
+
+def list_os_files_with_extension(oss_path: str, extension: str) -> [str]:
+    """
+    List files in the specified directory with the given extension.
+
+    Parameters:
+    - oss_path: The path to the directory where files are located.
+    - extension: The file extension to filter by (e.g., 'txt' for text files).
+
+    Returns:
+    - A list of file paths matching the specified extension.
+    """
+
+    oss_client = ObjectStorageDetails.from_path(oss_path)
+
+    # Ensure the extension is prefixed with a dot if not already
+    if not extension.startswith("."):
+        extension = "." + extension
+    files: List[ObjectSummary] = oss_client.list_objects().objects
+
+    return [
+        file.name
+        for file in files
+        if file.name.endswith(extension) and "/" not in file.name
+    ]
 
 
 def is_valid_ocid(ocid: str) -> bool:
@@ -503,6 +532,7 @@ def container_config_path():
     return f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=5), timer=datetime.now))
 def get_container_config():
     config = load_config(
         file_path=container_config_path(),

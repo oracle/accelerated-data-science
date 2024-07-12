@@ -1,16 +1,14 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import concurrent.futures
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from enum import Enum
 from threading import Lock
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from cachetools import TTLCache
-from oci.exceptions import ServiceError
-from oci.identity.models import Compartment
 
 from ads.aqua import logger
 from ads.aqua.app import AquaApp
@@ -29,16 +27,36 @@ from ads.config import (
     TENANCY_OCID,
 )
 from ads.telemetry import telemetry
+from oci.exceptions import ServiceError
+from oci.identity.models import Compartment
+
+
+class ModelFormat(Enum):
+    GGUF = "GGUF"
+    SAFETENSORS = "SAFETENSORS"
+    UNKNOWN = "UNKNOWN"
+
+    def to_dict(self):
+        return self.value
 
 
 @dataclass(repr=False)
 class AquaContainerConfigItem(DataClassSerializable):
     """Represents an item of the AQUA container configuration."""
 
+    class Platform(Enum):
+        ARM_CPU = "ARM_CPU"
+        NVIDIA_GPU = "NVIDIA_GPU"
+
+        def to_dict(self):
+            return self.value
+
     name: str = None
     version: str = None
     display_name: str = None
     family: str = None
+    platforms: List[Platform] = None
+    model_formats: List[ModelFormat] = None
 
 
 @dataclass(repr=False)
@@ -47,12 +65,21 @@ class AquaContainerConfig(DataClassSerializable):
     Represents a configuration with AQUA containers to be returned to the client.
     """
 
-    inference: List[AquaContainerConfigItem] = field(default_factory=list)
-    finetune: List[AquaContainerConfigItem] = field(default_factory=list)
-    evaluate: List[AquaContainerConfigItem] = field(default_factory=list)
+    inference: Dict[str, AquaContainerConfigItem] = field(default_factory=dict)
+    finetune: Dict[str, AquaContainerConfigItem] = field(default_factory=dict)
+    evaluate: Dict[str, AquaContainerConfigItem] = field(default_factory=dict)
+
+    def to_dict(self):
+        return {
+            "inference": list(self.inference.values()),
+            "finetune": list(self.finetune.values()),
+            "evaluate": list(self.evaluate.values()),
+        }
 
     @classmethod
-    def from_container_index_json(cls, config: Dict) -> "AquaContainerConfig":
+    def from_container_index_json(
+        cls, config: Optional[Dict] = None
+    ) -> "AquaContainerConfig":
         """
         Create an AquaContainerConfig instance from a container index JSON.
 
@@ -66,15 +93,24 @@ class AquaContainerConfig(DataClassSerializable):
         AquaContainerConfig
             The container configuration instance.
         """
-        config = config or {}
-        inference_items = []
-        finetune_items = []
-        evaluate_items = []
+        if not config:
+            config = get_container_config()
+        inference_items = {}
+        finetune_items = {}
+        evaluate_items = {}
 
         # extract inference containers
         for container_type, containers in config.items():
             if isinstance(containers, list):
                 for container in containers:
+                    platforms = [
+                        AquaContainerConfigItem.Platform[platform]
+                        for platform in container.get("platforms", [])
+                    ]
+                    model_formats = [
+                        ModelFormat[model_format]
+                        for model_format in container.get("modelFormats", [])
+                    ]
                     container_item = AquaContainerConfigItem(
                         name=container.get("name", ""),
                         version=container.get("version", ""),
@@ -82,13 +118,15 @@ class AquaContainerConfig(DataClassSerializable):
                             "displayName", container.get("version", "")
                         ),
                         family=container_type,
+                        platforms=platforms,
+                        model_formats=model_formats,
                     )
                     if container.get("type") == "inference":
-                        inference_items.append(container_item)
+                        inference_items[container_type] = container_item
                     elif container_type == "odsc-llm-fine-tuning":
-                        finetune_items.append(container_item)
+                        finetune_items[container_type] = container_item
                     elif container_type == "odsc-llm-evaluate":
-                        evaluate_items.append(container_item)
+                        evaluate_items[container_type] = container_item
 
         return AquaContainerConfig(
             inference=inference_items, finetune=finetune_items, evaluate=evaluate_items
@@ -175,11 +213,11 @@ class AquaUIApp(AquaApp):
         try:
             if not TENANCY_OCID:
                 raise AquaValueError(
-                    f"TENANCY_OCID must be available in environment"
+                    "TENANCY_OCID must be available in environment"
                     " variables to list the sub compartments."
                 )
 
-            if TENANCY_OCID in self._compartments_cache.keys():
+            if TENANCY_OCID in self._compartments_cache:
                 logger.info(
                     f"Returning compartments list in {TENANCY_OCID} from cache."
                 )
@@ -196,7 +234,7 @@ class AquaUIApp(AquaApp):
                         access_level="ANY",
                     )
                 )
-            except ServiceError as se:
+            except ServiceError:
                 logger.error(
                     f"ERROR: Unable to list all sub compartment in tenancy {TENANCY_OCID}."
                 )
@@ -207,7 +245,7 @@ class AquaUIApp(AquaApp):
                             compartment_id=TENANCY_OCID,
                         )
                     )
-                except ServiceError as se:
+                except ServiceError:
                     logger.error(
                         f"ERROR: Unable to list all child compartment in tenancy {TENANCY_OCID}."
                     )
@@ -216,7 +254,7 @@ class AquaUIApp(AquaApp):
                     TENANCY_OCID
                 ).data
                 compartments.insert(0, root_compartment)
-            except ServiceError as se:
+            except ServiceError:
                 logger.error(
                     f"ERROR: Unable to get details of the root compartment {TENANCY_OCID}."
                 )
@@ -248,7 +286,7 @@ class AquaUIApp(AquaApp):
         """
         if not COMPARTMENT_OCID:
             logger.error("No compartment id found from environment variables.")
-        return dict(compartment_id=COMPARTMENT_OCID)
+        return {"compartment_id": COMPARTMENT_OCID}
 
     def clear_compartments_list_cache(self) -> dict:
         """Allows caller to clear compartments list cache
@@ -257,9 +295,9 @@ class AquaUIApp(AquaApp):
             dict with the key used, and True if cache has the key that needs to be deleted.
         """
         res = {}
-        logger.info(f"Clearing list_compartments cache")
+        logger.info("Clearing list_compartments cache")
         with self._cache_lock:
-            if TENANCY_OCID in self._compartments_cache.keys():
+            if TENANCY_OCID in self._compartments_cache:
                 self._compartments_cache.pop(key=TENANCY_OCID)
                 res = {
                     "key": {
@@ -332,6 +370,7 @@ class AquaUIApp(AquaApp):
         response = os_client.list_buckets(
             namespace_name=namespace_name,
             compartment_id=compartment_id,
+            limit=1000,
             **kwargs,
         ).data
 
@@ -474,16 +513,16 @@ class AquaUIApp(AquaApp):
             raise AquaResourceAccessError(
                 f"Could not check limits availability for the shape {instance_shape}. Make sure you have the necessary policy to check limits availability.",
                 service_payload=se.args[0] if se.args else None,
-            )
+            ) from None
 
         available = res.available
 
         try:
             cards = int(instance_shape.split(".")[-1])
-        except:
+        except Exception:
             cards = 1
 
-        response = dict(available_count=available)
+        response = {"available_count": available}
 
         if available < cards:
             raise AquaValueError(
@@ -516,7 +555,7 @@ class AquaUIApp(AquaApp):
             is_versioned = False
             message = f"Model artifact bucket {bucket_uri} is not versioned. Check if the path exists and enable versioning on the bucket to proceed with model creation."
 
-        return dict(is_versioned=is_versioned, message=message)
+        return {"is_versioned": is_versioned, "message": message}
 
     @telemetry(entry_point="plugin=ui&action=list_containers", name="aqua")
     def list_containers(self) -> AquaContainerConfig:
@@ -526,7 +565,7 @@ class AquaUIApp(AquaApp):
         Returns
         -------
         AquaContainerConfig
-            The AQUA containers configuration.
+            The AQUA containers configurations.
         """
         return AquaContainerConfig.from_container_index_json(
             config=get_container_config()

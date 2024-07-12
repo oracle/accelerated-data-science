@@ -45,7 +45,7 @@ repos:
       rev: v8.18.4
       hooks:
           - id: gitleaks
-            exclude: .github/workflows/reusable-actions/set-dummy-conf.yml
+            exclude: .github/workflows/reusable-actions/set-dummy-conf.yml|./tests/operators/common/test_load_data.py
     # Oracle copyright checker
     - repo: https://github.com/oracle-samples/oci-data-science-ai-samples/
       rev: 1bc5270a443b791c62f634233c0f4966dfcc0dd6
