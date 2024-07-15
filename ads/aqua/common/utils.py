@@ -251,9 +251,9 @@ def list_os_files_with_extension(oss_path: str, extension: str) -> [str]:
     files: List[ObjectSummary] = oss_client.list_objects().objects
 
     return [
-        file.name
+        file.name[len(oss_client.filepath) :]
         for file in files
-        if file.name.endswith(extension) and "/" not in file.name
+        if file.name.endswith(extension)
     ]
 
 
