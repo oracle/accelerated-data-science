@@ -25,6 +25,7 @@ from ads.aqua.common.utils import (
     load_config,
 )
 from ads.aqua.constants import (
+    AQUA_MODEL_ARTIFACT_FILE,
     AQUA_MODEL_TYPE_CUSTOM,
     AQUA_MODEL_TYPE_SERVICE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
@@ -39,6 +40,7 @@ from ads.aqua.modeldeployment.entities import (
     AquaDeploymentDetail,
     ContainerSpec,
 )
+from ads.aqua.ui import ModelFormat
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
 from ads.config import (
@@ -309,6 +311,17 @@ class AquaDeploymentApp(AquaApp):
         for env in container_spec.get(ContainerSpec.ENV_VARS, []):
             if isinstance(env, dict):
                 env_var.update(env)
+
+        if (
+            AquaModelApp.to_aqua_model(
+                model=aqua_model, region=self.region
+            ).model_format
+            == ModelFormat.GGUF
+        ):
+            model_file = aqua_model.custom_metadata_list.get(
+                AQUA_MODEL_ARTIFACT_FILE
+            ).value
+            env_var.update({"MODEL": f"/opt/ds/model/deployed_model/{model_file}"})
 
         logging.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
 
