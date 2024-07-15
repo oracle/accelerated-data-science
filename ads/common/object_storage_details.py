@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*--
 
 # Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -6,15 +7,16 @@
 import json
 import os
 import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Dict, List
 from urllib.parse import urlparse
+
 
 import oci
 from ads.common import auth as authutil
 from ads.common import oci_client
 from ads.dataset.progress import TqdmProgressBar
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 THREAD_POOL_MAX_WORKERS = 10
 
@@ -167,7 +169,8 @@ class ObjectStorageDetails:
 
     def list_objects(self, **kwargs):
         """Lists objects in a given oss path
-            Parameters
+
+        Parameters
         -------
         **kwargs:
             namespace, bucket, filepath are set by the class. By default, fields gets all values. For other supported
