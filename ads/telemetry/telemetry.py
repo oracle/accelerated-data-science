@@ -14,7 +14,6 @@ from typing import Any, Callable, Dict, Optional
 import ads.config
 from ads import __version__
 from ads.common import logger
-from ads.common.auth import AuthState
 
 TELEMETRY_ARGUMENT_NAME = "telemetry"
 
@@ -42,7 +41,7 @@ def update_oci_client_config(config: Optional[Dict[str, Any]] = None) -> Dict[st
     """
 
     try:
-        config = config or AuthState().oci_config
+        config = config or {}
         if not config.get(USER_AGENT_KEY):
             config.update(
                 {

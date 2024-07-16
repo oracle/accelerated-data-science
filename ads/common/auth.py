@@ -678,7 +678,7 @@ class ResourcePrincipal(AuthSignerGenerator):
         >>> signer_generator = AuthFactory().signerGenerator(AuthType.RESOURCE_PRINCIPAL)
         >>> signer_generator(signer_args).create_signer()
         """
-        configuration = ads.telemetry.update_oci_client_config()
+        configuration = ads.telemetry.update_oci_client_config(AuthState().oci_config)
         signer_dict = {
             "config": configuration,
             "signer": oci.auth.signers.get_resource_principals_signer(),
@@ -744,7 +744,7 @@ class InstancePrincipal(AuthSignerGenerator):
         >>> signer_generator = AuthFactory().signerGenerator(AuthType.INSTANCE_PRINCIPAL)
         >>> signer_generator(signer_args).create_signer()
         """
-        configuration = ads.telemetry.update_oci_client_config()
+        configuration = ads.telemetry.update_oci_client_config(AuthState().oci_config)
         signer_dict = {
             "config": configuration,
             "signer": oci.auth.signers.InstancePrincipalsSecurityTokenSigner(
