@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import oci
 import pytest
+from ads.aqua.ui import ModelFormat
 from parameterized import parameterized
 
 import ads.aqua.model
@@ -323,16 +324,17 @@ class TestAquaModel:
             )
 
         assert asdict(aqua_model) == {
+            "arm_cpu_supported": False,
             "compartment_id": f"{ds_model.compartment_id}",
-            "console_link": (
-                f"https://cloud.oracle.com/data-science/models/{ds_model.id}?region={self.app.region}",
-            ),
+            "console_link": f"https://cloud.oracle.com/data-science/models/{ds_model.id}?region={self.app.region}",
             "icon": "",
             "id": f"{ds_model.id}",
             "is_fine_tuned_model": False,
             "license": f'{ds_model.freeform_tags["license"]}',
             "model_card": f"{mock_read_file.return_value}",
+            "model_format": ModelFormat.SAFETENSORS,
             "name": f"{ds_model.display_name}",
+            "nvidia_gpu_supported": False,
             "organization": f'{ds_model.freeform_tags["organization"]}',
             "project_id": f"{ds_model.project_id}",
             "ready_to_deploy": False if foundation_model_type == "verified" else True,
@@ -464,10 +466,9 @@ class TestAquaModel:
         mock_query_resource.assert_called()
 
         assert asdict(model) == {
+            "arm_cpu_supported": False,
             "compartment_id": f"{ds_model.compartment_id}",
-            "console_link": (
-                f"https://cloud.oracle.com/data-science/models/{ds_model.id}?region={self.app.region}",
-            ),
+            "console_link": f"https://cloud.oracle.com/data-science/models/{ds_model.id}?region={self.app.region}",
             "dataset": "test_training_data",
             "experiment": {"id": "", "name": "", "url": ""},
             "icon": "",
@@ -504,7 +505,9 @@ class TestAquaModel:
                 },
             ],
             "model_card": f"{mock_read_file.return_value}",
+            "model_format": ModelFormat.SAFETENSORS,
             "name": f"{ds_model.display_name}",
+            "nvidia_gpu_supported": False,
             "organization": "test_organization",
             "project_id": f"{ds_model.project_id}",
             "ready_to_deploy": True,
@@ -564,6 +567,7 @@ class TestAquaModel:
         ds_freeform_tags = {
             "OCI_AQUA": "ACTIVE",
             "license": "aqua-license",
+            "model_format": "SAFETENSORS",
             "organization": "oracle",
             "task": "text-generation",
             "ready_to_import": "true",
@@ -762,6 +766,7 @@ class TestAquaModel:
             )
             assert model.tags == {
                 "aqua_custom_base_model": "true",
+                "model_format": "SAFETENSORS",
                 "ready_to_fine_tune": "true",
                 **ds_freeform_tags,
             }

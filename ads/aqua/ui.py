@@ -51,6 +51,9 @@ class AquaContainerConfigItem(DataClassSerializable):
         def to_dict(self):
             return self.value
 
+        def __repr__(self):
+            return repr(self.value)
+
     name: str = None
     version: str = None
     display_name: str = None

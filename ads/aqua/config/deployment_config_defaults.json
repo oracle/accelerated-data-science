@@ -6,19 +6,19 @@
         "configs": [
           {
             "memory_in_gbs": 128,
-            "ocpu": 32
+            "ocpu": 20
           },
           {
             "memory_in_gbs": 256,
-            "ocpu": 64
+            "ocpu": 40
+          },
+          {
+            "memory_in_gbs": 384,
+            "ocpu": 60
           },
           {
             "memory_in_gbs": 512,
-            "ocpu": 128
-          },
-          {
-            "memory_in_gbs": 1024,
-            "ocpu": 256
+            "ocpu": 80
           }
         ],
         "type": "CPU"
