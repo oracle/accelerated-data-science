@@ -25,6 +25,7 @@ from ads.aqua.common.utils import (
     load_config,
 )
 from ads.aqua.constants import (
+    AQUA_MODEL_ARTIFACT_FILE,
     AQUA_MODEL_TYPE_CUSTOM,
     AQUA_MODEL_TYPE_SERVICE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
@@ -39,6 +40,7 @@ from ads.aqua.modeldeployment.entities import (
     AquaDeploymentDetail,
     ContainerSpec,
 )
+from ads.aqua.ui import ModelFormat
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
 from ads.config import (
@@ -210,6 +212,21 @@ class AquaDeploymentApp(AquaApp):
 
         env_var.update({"BASE_MODEL": f"{model_path_prefix}"})
 
+        model_format = aqua_model.freeform_tags.get(
+            Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS.value
+        ).upper()
+        if model_format == ModelFormat.GGUF.value:
+            try:
+                model_file = aqua_model.custom_metadata_list.get(
+                    AQUA_MODEL_ARTIFACT_FILE
+                ).value
+            except ValueError as err:
+                raise AquaValueError(
+                    f"{AQUA_MODEL_ARTIFACT_FILE} key is not available in the custom metadata field "
+                    f"for model {aqua_model.id}."
+                ) from err
+            env_var.update({"BASE_MODEL_FILE": f"{model_file}"})
+
         if is_fine_tuned_model:
             _, fine_tune_output_path = get_model_by_reference_paths(
                 aqua_model.model_file_description
@@ -302,13 +319,15 @@ class AquaDeploymentApp(AquaApp):
 
         deployment_params = get_combined_params(config_params, user_params)
 
-        if deployment_params:
-            params = f"{params} {deployment_params}"
+        params = f"{params} {deployment_params}".strip()
+        if params:
+            env_var.update({"PARAMS": params})
 
-        env_var.update({"PARAMS": params})
         for env in container_spec.get(ContainerSpec.ENV_VARS, []):
             if isinstance(env, dict):
-                env_var.update(env)
+                for key, _items in env.items():
+                    if key not in env_var:
+                        env_var.update(env)
 
         logging.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
 

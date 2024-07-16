@@ -364,8 +364,8 @@ class AquaModelApp(AquaApp):
             training_final,
         ]
 
+    @staticmethod
     def to_aqua_model(
-        self,
         model: Union[
             DataScienceModel,
             oci.data_science.models.model.Model,
@@ -375,7 +375,7 @@ class AquaModelApp(AquaApp):
         region: str,
     ) -> AquaModel:
         """Converts a model to an Aqua model."""
-        return AquaModel(**self._process_model(model, region))
+        return AquaModel(**AquaModelApp._process_model(model, region))
 
     @staticmethod
     def _process_model(
