@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
@@ -73,7 +73,7 @@ class AuthState(metaclass=SingletonMeta):
         self.oci_key_profile = self.oci_key_profile or os.environ.get(
             "OCI_CONFIG_PROFILE", DEFAULT_PROFILE
         )
-        self.oci_config = self.oci_config or {}
+        self.oci_config = self.oci_config or {"region": "us-ashburn-1"}
         self.oci_signer_kwargs = self.oci_signer_kwargs or {}
         self.oci_client_kwargs = self.oci_client_kwargs or {}
 
@@ -691,7 +691,12 @@ class ResourcePrincipal(AuthSignerGenerator):
     def supported():
         return any(
             os.environ.get(var)
-            for var in ['JOB_RUN_OCID', 'NB_SESSION_OCID', 'DATAFLOW_RUN_ID', 'PIPELINE_RUN_OCID']
+            for var in [
+                "JOB_RUN_OCID",
+                "NB_SESSION_OCID",
+                "DATAFLOW_RUN_ID",
+                "PIPELINE_RUN_OCID",
+            ]
         )
 
 
