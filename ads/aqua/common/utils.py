@@ -193,8 +193,6 @@ def read_file(file_path: str, **kwargs) -> str:
             return f.read()
     except Exception as e:
         logger.debug(f"Failed to read file {file_path}. {e}")
-        logger.info(f"DELETE THIS. file_path: {file_path}, kwargs: {kwargs}")
-        logger.exception(e)
         return UNKNOWN
 
 
