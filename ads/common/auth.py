@@ -82,7 +82,7 @@ def set_auth(
     auth: Optional[str] = AuthType.API_KEY,
     oci_config_location: Optional[str] = DEFAULT_LOCATION,
     profile: Optional[str] = DEFAULT_PROFILE,
-    config: Optional[Dict] = {},
+    config: Optional[Dict] = {"region": "us-ashburn-1"},
     signer: Optional[Any] = None,
     signer_callable: Optional[Callable] = None,
     signer_kwargs: Optional[Dict] = {},
