@@ -483,12 +483,12 @@ class TestAquaUI(unittest.TestCase):
             ],
             "inference": [
                 {
-                    "name": "dsmc://odsc-vllm-serving",
-                    "version": "0.4.1.3",
-                    "display_name": "VLLM:0.4.1",
-                    "family": "odsc-vllm-serving",
-                    "platforms": ["NVIDIA_GPU"],
-                    "model_formats": ["SAFETENSORS"],
+                    "name": "iad.ocir.io/ociodscdev/odsc-llama-cpp-python-aio-linux_arm64_v8",
+                    "version": "0.2.75.5",
+                    "display_name": "LLAMA-CPP:0.2.75",
+                    "family": "odsc-llama-cpp-serving",
+                    "platforms": ["ARM_CPU"],
+                    "model_formats": ["GGUF"],
                 },
                 {
                     "name": "dsmc://odsc-text-generation-inference",
@@ -499,12 +499,12 @@ class TestAquaUI(unittest.TestCase):
                     "model_formats": ["SAFETENSORS"],
                 },
                 {
-                    "name": "iad.ocir.io/ociodscdev/odsc-llama-cpp-python-aio-linux_arm64_v8",
-                    "version": "0.2.75.5",
-                    "display_name": "LLAMA-CPP:0.2.75",
-                    "family": "odsc-llama-cpp-serving",
-                    "platforms": ["ARM_CPU"],
-                    "model_formats": ["GGUF"],
+                    "name": "dsmc://odsc-vllm-serving",
+                    "version": "0.4.1.3",
+                    "display_name": "VLLM:0.4.1",
+                    "family": "odsc-vllm-serving",
+                    "platforms": ["NVIDIA_GPU"],
+                    "model_formats": ["SAFETENSORS"],
                 },
             ],
             "finetune": [
