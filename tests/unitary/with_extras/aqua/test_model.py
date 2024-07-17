@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
-
+import json
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -35,6 +35,21 @@ from ads.model.service.oci_datascience_model import OCIDataScienceModel
 def mock_auth():
     with patch("ads.common.auth.default_signer") as mock_default_signer:
         yield mock_default_signer
+
+
+@pytest.fixture(autouse=True, scope="class")
+def mock_get_container_config():
+    with patch("ads.aqua.ui.get_container_config") as mock_config:
+        with open(
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "test_data/ui/container_index.json",
+            ),
+            "r",
+        ) as _file:
+            container_index_json = json.load(_file)
+        mock_config.return_value = container_index_json
+        yield mock_config
 
 
 @pytest.fixture(autouse=True, scope="class")
@@ -256,6 +271,7 @@ class TestAquaModel:
         mock_from_id,
         mock_read_file,
         foundation_model_type,
+        mock_get_container_config,
         mock_auth,
     ):
         ds_model = MagicMock()
@@ -334,7 +350,7 @@ class TestAquaModel:
             "model_card": f"{mock_read_file.return_value}",
             "model_format": ModelFormat.SAFETENSORS,
             "name": f"{ds_model.display_name}",
-            "nvidia_gpu_supported": False,
+            "nvidia_gpu_supported": True,
             "organization": f'{ds_model.freeform_tags["organization"]}',
             "project_id": f"{ds_model.project_id}",
             "ready_to_deploy": False if foundation_model_type == "verified" else True,
@@ -366,6 +382,7 @@ class TestAquaModel:
         mock_from_id,
         mock_read_file,
         mock_query_resource,
+        mock_get_container_config,
         mock_auth,
     ):
         ds_model = MagicMock()
@@ -507,7 +524,7 @@ class TestAquaModel:
             "model_card": f"{mock_read_file.return_value}",
             "model_format": ModelFormat.SAFETENSORS,
             "name": f"{ds_model.display_name}",
-            "nvidia_gpu_supported": False,
+            "nvidia_gpu_supported": True,
             "organization": "test_organization",
             "project_id": f"{ds_model.project_id}",
             "ready_to_deploy": True,
@@ -709,12 +726,16 @@ class TestAquaModel:
         assert model.project_id == project_override
 
     @patch("ads.aqua.common.utils.load_config", side_effect=AquaFileNotFoundError)
-    def test_import_model_with_missing_config(self, mock_load_config):
+    def test_import_model_with_missing_config(
+        self, mock_load_config, mock_get_container_config
+    ):
         """Test for validating if error is returned when model artifacts are incomplete or not available."""
+
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
         model_name = "oracle/aqua-1t-mega-model"
         reload(ads.aqua.model.model)
         app = AquaModelApp()
+        app.list_resource = MagicMock(return_value=[])
         with pytest.raises(AquaRuntimeError):
             model: AquaModel = app.register(
                 model=model_name,
