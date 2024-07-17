@@ -735,7 +735,7 @@ class TestAquaModel:
         model_name = "oracle/aqua-1t-mega-model"
         reload(ads.aqua.model.model)
         app = AquaModelApp()
-        app.list_resource = MagicMock(return_value=[])
+        app.list = MagicMock(return_value=[])
         with pytest.raises(AquaRuntimeError):
             model: AquaModel = app.register(
                 model=model_name,
