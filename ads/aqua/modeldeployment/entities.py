@@ -5,7 +5,10 @@
 from dataclasses import dataclass, field
 from typing import Union
 
-from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
+from oci.data_science.models import (
+    ModelDeployment,
+    ModelDeploymentSummary,
+)
 
 from ads.aqua.common.enums import Tags
 from ads.aqua.constants import UNKNOWN, UNKNOWN_DICT
@@ -48,6 +51,7 @@ class AquaDeployment(DataClassSerializable):
     lifecycle_details: str = None
     shape_info: field(default_factory=ShapeInfo) = None
     tags: dict = None
+    environment_variables: dict = None
 
     @classmethod
     def from_oci_model_deployment(
@@ -75,6 +79,7 @@ class AquaDeployment(DataClassSerializable):
             instance_configuration.model_deployment_instance_shape_config_details
         )
         instance_count = oci_model_deployment.model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
+        environment_variables = oci_model_deployment.model_deployment_configuration_details.environment_configuration_details.environment_variables
         shape_info = ShapeInfo(
             instance_shape=instance_configuration.instance_shape_name,
             instance_count=instance_count,
@@ -114,6 +119,7 @@ class AquaDeployment(DataClassSerializable):
                 region=region,
             ),
             tags=freeform_tags,
+            environment_variables=environment_variables,
         )
 
 
