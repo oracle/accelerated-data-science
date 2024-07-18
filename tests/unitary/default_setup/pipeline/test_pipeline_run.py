@@ -391,6 +391,8 @@ class TestPipelineRun:
             **PIPELINE_RUN_LOG_DETAILS
         )
         pipeline_run.time_accepted = datetime.now()
+        service_logging = OCILog()
+        pipeline_run._set_service_logging_resource(service_logging)
         pipeline_run._PipelineRun__stream_log(
             ConsolidatedLog(OCILog()),
             [custom_script_step.step_name, ml_job_step.step_name],
