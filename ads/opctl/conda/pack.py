@@ -47,7 +47,8 @@ def main(pack_folder_path, manifest_file=None):
             raise e
 
         manifest = env["manifest"]
-        manifest["type"] = "published"
+        if not "type" in manifest:
+            manifest["type"] = "published"
         new_env_info["manifest"] = manifest
         with open(manifest_path, "w") as f:
             yaml.safe_dump(new_env_info, f)
