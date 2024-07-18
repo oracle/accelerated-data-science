@@ -181,6 +181,12 @@ class TestDataset:
         "created_on": "2024-01-01T00:00:00.000000+00:00",
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
+        "environment_variables": {
+            "BASE_MODEL": "service_models/model-name/artifact",
+            "MODEL_DEPLOY_ENABLE_STREAMING": "true",
+            "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
+            "PARAMS": "--served-model-name odsc-llm --seed 42",
+        },
         "console_link": "https://cloud.oracle.com/data-science/model-deployments/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>?region=region-name",
         "lifecycle_details": "",
         "shape_info": {
@@ -190,6 +196,14 @@ class TestDataset:
             "memory_in_gbs": null,
         },
         "tags": {"OCI_AQUA": "active", "aqua_model_name": "model-name"},
+    }
+
+    aqua_deployment_gguf_env_vars = {
+        "BASE_MODEL": "service_models/model-name/artifact",
+        "BASE_MODEL_FILE": "model-name.gguf",
+        "MODEL_DEPLOY_ENABLE_STREAMING": "true",
+        "MODEL_DEPLOY_HEALTH_ENDPOINT": "/v1/models",
+        "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
     }
 
     aqua_deployment_gguf_shape_info = {
@@ -544,6 +558,9 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
         expected_result["state"] = "CREATING"
         expected_result["shape_info"] = TestDataset.aqua_deployment_gguf_shape_info
+        expected_result["environment_variables"] = (
+            TestDataset.aqua_deployment_gguf_env_vars
+        )
         assert actual_attributes == expected_result
 
     @parameterized.expand(
