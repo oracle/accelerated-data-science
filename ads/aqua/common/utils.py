@@ -17,9 +17,11 @@ from string import Template
 from typing import List, Union
 
 import fsspec
-from cachetools import TTLCache, cached
-
 import oci
+from cachetools import TTLCache, cached
+from oci.data_science.models import JobRun, Model
+from oci.object_storage.models import ObjectSummary
+
 from ads.aqua.common.enums import (
     InferenceContainerParamType,
     InferenceContainerType,
@@ -52,8 +54,6 @@ from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import copy_file, get_console_link, upload_to_os
 from ads.config import AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, TENANCY_OCID
 from ads.model import DataScienceModel, ModelVersionSet
-from oci.data_science.models import JobRun, Model
-from oci.object_storage.models import ObjectSummary
 
 logger = logging.getLogger("ads.aqua")
 
@@ -909,6 +909,8 @@ def get_container_params_type(container_type_name: str) -> str:
         return InferenceContainerParamType.PARAM_TYPE_VLLM
     elif InferenceContainerType.CONTAINER_TYPE_TGI in container_type_name.lower():
         return InferenceContainerParamType.PARAM_TYPE_TGI
+    elif InferenceContainerType.CONTAINER_TYPE_LLAMA_CPP in container_type_name.lower():
+        return InferenceContainerParamType.PARAM_TYPE_LLAMA_CPP
     else:
         return UNKNOWN
 

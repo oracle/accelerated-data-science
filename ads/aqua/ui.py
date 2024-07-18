@@ -9,9 +9,12 @@ from threading import Lock
 from typing import Dict, List, Optional
 
 from cachetools import TTLCache
+from oci.exceptions import ServiceError
+from oci.identity.models import Compartment
 
 from ads.aqua import logger
 from ads.aqua.app import AquaApp
+from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaResourceAccessError, AquaValueError
 from ads.aqua.common.utils import get_container_config, load_config, sanitize_response
@@ -27,8 +30,6 @@ from ads.config import (
     TENANCY_OCID,
 )
 from ads.telemetry import telemetry
-from oci.exceptions import ServiceError
-from oci.identity.models import Compartment
 
 
 class ModelFormat(Enum):
@@ -38,6 +39,19 @@ class ModelFormat(Enum):
 
     def to_dict(self):
         return self.value
+
+
+# todo: the container config spec information is shared across ui and deployment modules, move them
+#   within ads.aqua.common.entities. In that case, check for circular imports due to usage of get_container_config.
+
+
+@dataclass(repr=False)
+class AquaContainerConfigSpec(DataClassSerializable):
+    cli_param: str = None
+    server_port: str = None
+    health_check_port: str = None
+    env_vars: List[dict] = None
+    restricted_params: List[str] = None
 
 
 @dataclass(repr=False)
@@ -60,6 +74,7 @@ class AquaContainerConfigItem(DataClassSerializable):
     family: str = None
     platforms: List[Platform] = None
     model_formats: List[ModelFormat] = None
+    spec: AquaContainerConfigSpec = field(default_factory=AquaContainerConfigSpec)
 
 
 @dataclass(repr=False)
@@ -81,7 +96,9 @@ class AquaContainerConfig(DataClassSerializable):
 
     @classmethod
     def from_container_index_json(
-        cls, config: Optional[Dict] = None
+        cls,
+        config: Optional[Dict] = None,
+        enable_spec: Optional[bool] = False,
     ) -> "AquaContainerConfig":
         """
         Create an AquaContainerConfig instance from a container index JSON.
@@ -90,6 +107,8 @@ class AquaContainerConfig(DataClassSerializable):
         ----------
         config : Dict
             The container index JSON.
+        enable_spec: bool
+            flag to check if container specification details should be fetched.
 
         Returns
         -------
@@ -114,6 +133,13 @@ class AquaContainerConfig(DataClassSerializable):
                         ModelFormat[model_format]
                         for model_format in container.get("modelFormats", [])
                     ]
+                    container_spec = (
+                        config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
+                            container_type, {}
+                        )
+                        if enable_spec
+                        else None
+                    )
                     container_item = AquaContainerConfigItem(
                         name=container.get("name", ""),
                         version=container.get("version", ""),
@@ -123,6 +149,21 @@ class AquaContainerConfig(DataClassSerializable):
                         family=container_type,
                         platforms=platforms,
                         model_formats=model_formats,
+                        spec=AquaContainerConfigSpec(
+                            cli_param=container_spec.get(ContainerSpec.CLI_PARM, ""),
+                            server_port=container_spec.get(
+                                ContainerSpec.SERVER_PORT, ""
+                            ),
+                            health_check_port=container_spec.get(
+                                ContainerSpec.HEALTH_CHECK_PORT, ""
+                            ),
+                            env_vars=container_spec.get(ContainerSpec.ENV_VARS, []),
+                            restricted_params=container_spec.get(
+                                ContainerSpec.RESTRICTED_PARAMS, []
+                            ),
+                        )
+                        if container_spec
+                        else None,
                     )
                     if container.get("type") == "inference":
                         inference_items[container_type] = container_item
@@ -571,5 +612,6 @@ class AquaUIApp(AquaApp):
             The AQUA containers configurations.
         """
         return AquaContainerConfig.from_container_index_json(
-            config=get_container_config()
+            config=get_container_config(),
+            enable_spec=True,
         )

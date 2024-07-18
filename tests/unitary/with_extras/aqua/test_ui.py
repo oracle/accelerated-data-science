@@ -479,6 +479,7 @@ class TestAquaUI(unittest.TestCase):
                     "family": "odsc-llm-evaluate",
                     "platforms": [],
                     "model_formats": [],
+                    "spec": None,
                 }
             ],
             "inference": [
@@ -489,6 +490,19 @@ class TestAquaUI(unittest.TestCase):
                     "family": "odsc-llama-cpp-serving",
                     "platforms": ["ARM_CPU"],
                     "model_formats": ["GGUF"],
+                    "spec": {
+                        "cli_param": "",
+                        "env_vars": [
+                            {"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"},
+                            {"MODEL_DEPLOY_HEALTH_ENDPOINT": "/v1/models"},
+                            {"MODEL_DEPLOY_ENABLE_STREAMING": "true"},
+                            {"PORT": "8080"},
+                            {"HEALTH_CHECK_PORT": "8080"},
+                        ],
+                        "health_check_port": "8080",
+                        "restricted_params": [],
+                        "server_port": "8080",
+                    },
                 },
                 {
                     "name": "dsmc://odsc-text-generation-inference",
@@ -497,6 +511,24 @@ class TestAquaUI(unittest.TestCase):
                     "family": "odsc-tgi-serving",
                     "platforms": ["NVIDIA_GPU"],
                     "model_formats": ["SAFETENSORS"],
+                    "spec": {
+                        "cli_param": "--sharded true --trust-remote-code",
+                        "env_vars": [
+                            {"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"},
+                            {"MODEL_DEPLOY_ENABLE_STREAMING": "true"},
+                            {"PORT": "8080"},
+                            {"HEALTH_CHECK_PORT": "8080"},
+                        ],
+                        "health_check_port": "8080",
+                        "restricted_params": [
+                            "--port",
+                            "--hostname",
+                            "--num-shard",
+                            "--sharded",
+                            "--trust-remote-code",
+                        ],
+                        "server_port": "8080",
+                    },
                 },
                 {
                     "name": "dsmc://odsc-vllm-serving",
@@ -505,6 +537,23 @@ class TestAquaUI(unittest.TestCase):
                     "family": "odsc-vllm-serving",
                     "platforms": ["NVIDIA_GPU"],
                     "model_formats": ["SAFETENSORS"],
+                    "spec": {
+                        "cli_param": "--served-model-name odsc-llm --seed 42 ",
+                        "env_vars": [
+                            {"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"},
+                            {"MODEL_DEPLOY_ENABLE_STREAMING": "true"},
+                            {"PORT": "8080"},
+                            {"HEALTH_CHECK_PORT": "8080"},
+                        ],
+                        "health_check_port": "8080",
+                        "restricted_params": [
+                            "--port",
+                            "--host",
+                            "--served-model-name",
+                            "--seed",
+                        ],
+                        "server_port": "8080",
+                    },
                 },
             ],
             "finetune": [
@@ -515,6 +564,7 @@ class TestAquaUI(unittest.TestCase):
                     "family": "odsc-llm-fine-tuning",
                     "platforms": [],
                     "model_formats": [],
+                    "spec": None,
                 }
             ],
         }
