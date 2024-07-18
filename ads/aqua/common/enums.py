@@ -44,6 +44,7 @@ class Tags(str, metaclass=ExtendedEnumMeta):
 class InferenceContainerType(str, metaclass=ExtendedEnumMeta):
     CONTAINER_TYPE_VLLM = "vllm"
     CONTAINER_TYPE_TGI = "tgi"
+    CONTAINER_TYPE_LLAMA_CPP = "llama-cpp"
 
 
 class InferenceContainerTypeFamily(str, metaclass=ExtendedEnumMeta):
@@ -55,6 +56,7 @@ class InferenceContainerTypeFamily(str, metaclass=ExtendedEnumMeta):
 class InferenceContainerParamType(str, metaclass=ExtendedEnumMeta):
     PARAM_TYPE_VLLM = "VLLM_PARAMS"
     PARAM_TYPE_TGI = "TGI_PARAMS"
+    PARAM_TYPE_LLAMA_CPP = "LLAMA_CPP_PARAMS"
 
 
 class HuggingFaceTags(str, metaclass=ExtendedEnumMeta):

@@ -126,7 +126,7 @@ class TestAquaDecorators(TestCase):
                     "status": 500,
                     "message": "Internal Server Error",
                     "service_payload": {},
-                    "reason": f"MultipartUploadError: MultipartUploadError exception has occurred. {UPLOAD_MANAGER_DEBUG_INFORMATION_LOG}",
+                    "reason": f"MultipartUploadError: MultipartUploadError exception has occured. {UPLOAD_MANAGER_DEBUG_INFORMATION_LOG}",
                     "request_id": TestDataset.mock_request_id,
                 },
             ],

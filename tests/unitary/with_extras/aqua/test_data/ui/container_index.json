@@ -20,6 +20,7 @@
         }
       ],
       "healthCheckPort": "8080",
+      "restrictedParams": [],
       "serverPort": "8080"
     },
     "odsc-tgi-serving": {
@@ -39,10 +40,17 @@
         }
       ],
       "healthCheckPort": "8080",
+      "restrictedParams": [
+        "--port",
+        "--hostname",
+        "--num-shard",
+        "--sharded",
+        "--trust-remote-code"
+      ],
       "serverPort": "8080"
     },
     "odsc-vllm-serving": {
-      "cliParam": "--served-model-name $(python -c 'import os; print(os.environ.get(\"ODSC_SERVED_MODEL_NAME\",\"odsc-llm\"))') --seed 42 ",
+      "cliParam": "--served-model-name odsc-llm --seed 42 ",
       "envVars": [
         {
           "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"
@@ -58,6 +66,12 @@
         }
       ],
       "healthCheckPort": "8080",
+      "restrictedParams": [
+        "--port",
+        "--host",
+        "--served-model-name",
+        "--seed"
+      ],
       "serverPort": "8080"
     }
   },

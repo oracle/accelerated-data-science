@@ -6,6 +6,7 @@ import logging
 from typing import Dict, List, Optional, Union
 
 from ads.aqua.app import AquaApp, logger
+from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.common.enums import (
     InferenceContainerTypeFamily,
     Tags,
@@ -38,7 +39,6 @@ from ads.aqua.model import AquaModelApp
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
-    ContainerSpec,
 )
 from ads.aqua.ui import ModelFormat
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -281,8 +281,10 @@ class AquaDeploymentApp(AquaApp):
             f"Aqua Image used for deploying {aqua_model.id} : {container_image}"
         )
 
+        # todo: use AquaContainerConfig.from_container_index_json instead.
         # Fetch the startup cli command for the container
-        # container_index.json will have "containerSpec" section which will provide the cli params for a given container family
+        # container_index.json will have "containerSpec" section which will provide the cli params for
+        # a given container family
         container_config = get_container_config()
         container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
             container_type_key, {}
@@ -308,6 +310,18 @@ class AquaDeploymentApp(AquaApp):
         # validate user provided params
         user_params = env_var.get("PARAMS", UNKNOWN)
         if user_params:
+            # todo: remove this check in the future version, logic to be moved to container_index
+            if (
+                container_type_key.lower()
+                == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
+            ):
+                # AQUA_LLAMA_CPP_CONTAINER_FAMILY container uses uvicorn that required model/server params
+                # to be set as env vars
+                raise AquaValueError(
+                    f"Currently, parameters cannot be overridden for the container: {container_image}. Please proceed "
+                    f"with deployment without parameter overrides."
+                )
+
             restricted_params = self._find_restricted_params(
                 params, user_params, container_type_key
             )

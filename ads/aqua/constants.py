@@ -74,3 +74,7 @@ TGI_INFERENCE_RESTRICTED_PARAMS = {
     "--sharded",
     "--trust-remote-code",
 }
+LLAMA_CPP_INFERENCE_RESTRICTED_PARAMS = {
+    "--port",
+    "--host",
+}

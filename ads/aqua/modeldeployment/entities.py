@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -22,18 +21,6 @@ class ModelParams:
     top_k: float = None
     top_p: float = None
     model: str = None
-
-
-class ContainerSpec:
-    """
-    Class to hold to hold keys within the container spec.
-    """
-
-    CONTAINER_SPEC = "containerSpec"
-    CLI_PARM = "cliParam"
-    SERVER_PORT = "serverPort"
-    HEALTH_CHECK_PORT = "healthCheckPort"
-    ENV_VARS = "envVars"
 
 
 @dataclass
@@ -83,15 +70,11 @@ class AquaDeployment(DataClassSerializable):
         AquaDeployment:
             The instance of the Aqua model deployment.
         """
-        instance_configuration = (
-            oci_model_deployment.model_deployment_configuration_details.model_configuration_details.instance_configuration
-        )
+        instance_configuration = oci_model_deployment.model_deployment_configuration_details.model_configuration_details.instance_configuration
         instance_shape_config_details = (
             instance_configuration.model_deployment_instance_shape_config_details
         )
-        instance_count = (
-            oci_model_deployment.model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
-        )
+        instance_count = oci_model_deployment.model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
         shape_info = ShapeInfo(
             instance_shape=instance_configuration.instance_shape_name,
             instance_count=instance_count,
