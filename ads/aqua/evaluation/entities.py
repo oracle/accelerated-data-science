@@ -12,7 +12,6 @@ This module contains dataclasses for aqua evaluation.
 from dataclasses import dataclass, field
 from typing import List, Optional, Union
 
-from ads.aqua.constants import EVALUATION_INFERENCE_DEFAULT_THREADS
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.serializer import DataClassSerializable
 
@@ -88,7 +87,7 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
     log_id: Optional[str] = None
     metrics: Optional[List] = None
     force_overwrite: Optional[bool] = False
-    inference_max_threads: Optional[int] = EVALUATION_INFERENCE_DEFAULT_THREADS
+    inference_max_threads: Optional[int] = None
 
 
 @dataclass(repr=False)

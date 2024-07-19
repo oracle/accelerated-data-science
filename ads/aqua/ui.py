@@ -9,8 +9,6 @@ from threading import Lock
 from typing import Dict, List, Optional
 
 from cachetools import TTLCache
-from oci.exceptions import ServiceError
-from oci.identity.models import Compartment
 
 from ads.aqua import logger
 from ads.aqua.app import AquaApp
@@ -18,6 +16,7 @@ from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaResourceAccessError, AquaValueError
 from ads.aqua.common.utils import get_container_config, load_config, sanitize_response
+from ads.aqua.constants import EVALUATION_INFERENCE_DEFAULT_THREADS
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -30,6 +29,8 @@ from ads.config import (
     TENANCY_OCID,
 )
 from ads.telemetry import telemetry
+from oci.exceptions import ServiceError
+from oci.identity.models import Compartment
 
 
 class ModelFormat(Enum):
@@ -46,12 +47,36 @@ class ModelFormat(Enum):
 
 
 @dataclass(repr=False)
+class AquaContainerEvaluationConfiguration(DataClassSerializable):
+    """
+    Represents the evaluation configuration for the container.
+    """
+
+    evaluation_max_threads: Optional[int] = None
+    evaluation_default_threads: int = field(
+        default=EVALUATION_INFERENCE_DEFAULT_THREADS
+    )
+
+    @classmethod
+    def from_config(cls, config: dict) -> "AquaContainerEvaluationConfiguration":
+        return cls(
+            evaluation_max_threads=config.get("MAX_THREADS"),
+            evaluation_default_threads=config.get(
+                "DEFAULT_THREADS", EVALUATION_INFERENCE_DEFAULT_THREADS
+            ),
+        )
+
+
+@dataclass(repr=False)
 class AquaContainerConfigSpec(DataClassSerializable):
     cli_param: str = None
     server_port: str = None
     health_check_port: str = None
     env_vars: List[dict] = None
     restricted_params: List[str] = None
+    evaluation_configuration: AquaContainerEvaluationConfiguration = field(
+        default_factory=AquaContainerEvaluationConfiguration
+    )
 
 
 @dataclass(repr=False)
@@ -160,6 +185,11 @@ class AquaContainerConfig(DataClassSerializable):
                             env_vars=container_spec.get(ContainerSpec.ENV_VARS, []),
                             restricted_params=container_spec.get(
                                 ContainerSpec.RESTRICTED_PARAMS, []
+                            ),
+                            evaluation_configuration=AquaContainerEvaluationConfiguration.from_config(
+                                container_spec.get(
+                                    ContainerSpec.EVALUATION_CONFIGURATION, {}
+                                )
                             ),
                         )
                         if container_spec

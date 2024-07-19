@@ -13,15 +13,9 @@ from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Union
 
-import oci
 from cachetools import TTLCache
-from oci.data_science.models import (
-    JobRun,
-    Metadata,
-    UpdateModelDetails,
-    UpdateModelProvenanceDetails,
-)
 
+import oci
 from ads.aqua import logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common import utils
@@ -47,6 +41,7 @@ from ads.aqua.common.utils import (
 )
 from ads.aqua.constants import (
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
+    EVALUATION_INFERENCE_DEFAULT_THREADS,
     EVALUATION_REPORT,
     EVALUATION_REPORT_JSON,
     EVALUATION_REPORT_MD,
@@ -76,6 +71,7 @@ from ads.aqua.evaluation.entities import (
     ModelParams,
 )
 from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
+from ads.aqua.ui import AquaContainerConfig
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_console_link, get_files, get_log_links
@@ -90,7 +86,9 @@ from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.model.datascience_model import DataScienceModel
+from ads.model.deployment import ModelDeploymentContainerRuntime
 from ads.model.deployment.model_deployment import ModelDeployment
+from ads.model.generic_model import ModelDeploymentRuntimeType
 from ads.model.model_metadata import (
     MetadataTaxonomyKeys,
     ModelCustomMetadata,
@@ -99,6 +97,12 @@ from ads.model.model_metadata import (
 )
 from ads.model.model_version_set import ModelVersionSet
 from ads.telemetry import telemetry
+from oci.data_science.models import (
+    JobRun,
+    Metadata,
+    UpdateModelDetails,
+    UpdateModelProvenanceDetails,
+)
 
 
 class AquaEvaluationApp(AquaApp):
@@ -166,7 +170,6 @@ class AquaEvaluationApp(AquaApp):
                 f"Invalid evaluation source {create_aqua_evaluation_details.evaluation_source_id}. "
                 "Specify either a model or model deployment id."
             )
-
         evaluation_source = None
         if (
             DataScienceResource.MODEL_DEPLOYMENT
@@ -175,6 +178,33 @@ class AquaEvaluationApp(AquaApp):
             evaluation_source = ModelDeployment.from_id(
                 create_aqua_evaluation_details.evaluation_source_id
             )
+            if evaluation_source.runtime.type == ModelDeploymentRuntimeType.CONTAINER:
+                runtime = ModelDeploymentContainerRuntime.from_dict(
+                    evaluation_source.runtime.to_dict()
+                )
+                container_config = AquaContainerConfig.from_container_index_json(
+                    enable_spec=True
+                )
+                for container in container_config.inference.values():
+                    if container.name == runtime.image.split(":")[0]:
+                        max_threads = container.spec.evaluation_configuration.evaluation_max_threads
+                        if (
+                            max_threads
+                            and create_aqua_evaluation_details.inference_max_threads
+                            and max_threads
+                            < create_aqua_evaluation_details.inference_max_threads
+                        ):
+                            raise AquaValueError(
+                                f"Invalid inference max threads. The maximum allowed value for {runtime.image} is {max_threads}."
+                            )
+                        if not create_aqua_evaluation_details.inference_max_threads:
+                            create_aqua_evaluation_details.inference_max_threads = container.spec.evaluation_configuration.evaluation_default_threads
+                        break
+                if not create_aqua_evaluation_details.inference_max_threads:
+                    create_aqua_evaluation_details.inference_max_threads = (
+                        EVALUATION_INFERENCE_DEFAULT_THREADS
+                    )
+
         elif (
             DataScienceResource.MODEL
             in create_aqua_evaluation_details.evaluation_source_id
@@ -1197,7 +1227,7 @@ class AquaEvaluationApp(AquaApp):
                 f"Exception message: {ex}"
             )
 
-    def load_evaluation_config(self, eval_id):
+    def load_evaluation_config(self, _):
         """Loads evaluation config."""
         return {
             "model_params": {
