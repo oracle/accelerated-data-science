@@ -146,7 +146,11 @@ def _create(
     if not os.path.exists(env_file):
         raise FileNotFoundError(f"Environment file {env_file} is not found.")
 
-    slug = f"{name}_v{version}".replace(" ", "").replace(".", "_").lower()
+    with open(env_file) as mfile:
+        conda_dep = yaml.safe_load(mfile.read())
+    # If manifest exists in the environment.yaml file, use that
+    manifest = conda_dep.get("manifest", {})
+    slug = manifest.get("slug", f"{name}_v{version}".replace(" ", "").replace(".", "_").lower())
     pack_folder_path = os.path.join(
         os.path.abspath(os.path.expanduser(conda_pack_folder)), slug
     )
@@ -172,21 +176,24 @@ def _create(
     os.makedirs(pack_folder_path, exist_ok=True)
 
     manifest = _fetch_manifest_template()
-    manifest["manifest"]["name"] = name
+    if not "name" in manifest:
+        manifest["manifest"]["name"] = name
     manifest["manifest"]["slug"] = slug
-    manifest["manifest"]["type"] = "published"
-    manifest["manifest"]["version"] = version
+    if not "type" in manifest:
+        manifest["manifest"]["type"] = "published"
+    if not "version" in manifest:
+        manifest["manifest"]["version"] = version
     manifest["manifest"]["arch_type"] = "GPU" if gpu else "CPU"
 
     manifest["manifest"]["create_date"] = datetime.utcnow().strftime(
         "%a, %b %d, %Y, %H:%M:%S %Z UTC"
     )
-    manifest["manifest"]["manifest_version"] = "1.0"
+
+    if not "manifest_version" in manifest:
+        manifest["manifest"]["manifest_version"] = "1.0"
 
     logger.info(f"Creating conda environment {slug}")
     conda_dep = None
-    with open(env_file) as mfile:
-        conda_dep = yaml.safe_load(mfile.read())
     conda_dep["manifest"] = manifest["manifest"]
 
     if is_in_notebook_session() or NO_CONTAINER:
