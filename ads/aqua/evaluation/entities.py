@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -13,6 +12,7 @@ This module contains dataclasses for aqua evaluation.
 from dataclasses import dataclass, field
 from typing import List, Optional, Union
 
+from ads.aqua.constants import EVALUATION_INFERENCE_DEFAULT_THREADS
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.serializer import DataClassSerializable
 
@@ -65,6 +65,8 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
         The metrics for the evaluation.
     force_overwrite: (bool, optional). Defaults to `False`.
         Whether to force overwrite the existing file in object storage.
+    inference_max_threads: (int, optional). Defaults to None
+        Set the value of concurrent requests to be made to the inference endpoint during evaluation.
     """
 
     evaluation_source_id: str
@@ -86,6 +88,7 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
     log_id: Optional[str] = None
     metrics: Optional[List] = None
     force_overwrite: Optional[bool] = False
+    inference_max_threads: Optional[int] = EVALUATION_INFERENCE_DEFAULT_THREADS
 
 
 @dataclass(repr=False)
@@ -142,6 +145,7 @@ class AquaEvaluationCommands(DataClassSerializable):
     metrics: list
     output_dir: str
     params: dict
+    inference_max_threads: int
 
 
 @dataclass(repr=False)

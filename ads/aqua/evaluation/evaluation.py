@@ -390,6 +390,7 @@ class AquaEvaluationApp(AquaApp):
                 report_path=create_aqua_evaluation_details.report_path,
                 model_parameters=create_aqua_evaluation_details.model_parameters,
                 metrics=create_aqua_evaluation_details.metrics,
+                inference_max_threads=create_aqua_evaluation_details.inference_max_threads,
             )
         ).create(**kwargs)  ## TODO: decide what parameters will be needed
         logger.debug(
@@ -511,6 +512,7 @@ class AquaEvaluationApp(AquaApp):
         report_path: str,
         model_parameters: dict,
         metrics: List = None,
+        inference_max_threads: int = None,
     ) -> Runtime:
         """Builds evaluation runtime for Job."""
         # TODO the image name needs to be extracted from the mapping index.json file.
@@ -528,6 +530,7 @@ class AquaEvaluationApp(AquaApp):
                                 report_path=report_path,
                                 model_parameters=model_parameters,
                                 metrics=metrics,
+                                inference_max_threads=inference_max_threads,
                             )
                         )
                     ),
@@ -587,6 +590,7 @@ class AquaEvaluationApp(AquaApp):
         report_path: str,
         model_parameters: dict,
         metrics: List = None,
+        inference_max_threads: int = None,
     ):
         return AquaEvaluationCommands(
             evaluation_id=evaluation_id,
@@ -603,6 +607,7 @@ class AquaEvaluationApp(AquaApp):
             metrics=metrics,
             output_dir=report_path,
             params=model_parameters,
+            inference_max_threads=inference_max_threads,
         )
 
     @telemetry(entry_point="plugin=evaluation&action=get", name="aqua")
