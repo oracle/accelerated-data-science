@@ -194,7 +194,7 @@ def _create(
         manifest["manifest"]["manifest_version"] = "1.0"
 
     logger.info(f"Creating conda environment {slug}")
-    conda_dep["manifest"] = manifest["manifest"]
+    conda_dep["manifest"].update({k: manifest["manifest"][k] for k in manifest["manifest"] if manifest["manifest"][k]})
 
     if is_in_notebook_session() or NO_CONTAINER:
         command = f"conda env create --prefix {pack_folder_path} --file {os.path.abspath(os.path.expanduser(env_file))}"
@@ -671,14 +671,17 @@ def _publish(
         str(manifest["version"]),
         publish_slug,
     )
-    manifest["pack_path"] = os.path.join(
-        prefix,
-        manifest.get("arch_type", "CPU").lower(),
-        manifest["name"],
-        str(manifest["version"]),
-        publish_slug,
-    )
-    manifest["pack_uri"] = pack_uri
+    if os.environ.get("CONDA_PUBLISH_TYPE") != "service":
+        # Set these values only for 
+        manifest["pack_path"] = os.path.join(
+            prefix,
+            manifest.get("arch_type", "CPU").lower(),
+            manifest["name"],
+            str(manifest["version"]),
+            publish_slug,
+        )
+        manifest["pack_uri"] = pack_uri
+        manifest["type"] = "published"
     with open(manifest_location, "w") as f:
         yaml.safe_dump(env, f)
     if pack_size > 100:
