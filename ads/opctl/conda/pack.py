@@ -47,7 +47,7 @@ def main(pack_folder_path, manifest_file=None):
 
         manifest = env["manifest"]
         slug = manifest.get("slug", os.path.basename(pack_folder_path))
-        if not "type" in manifest:
+        if os.environ.get("CONDA_PUBLISH_TYPE") != "service":
             manifest["type"] = "published"
         new_env_info["manifest"] = manifest
         with open(manifest_path, "w") as f:
