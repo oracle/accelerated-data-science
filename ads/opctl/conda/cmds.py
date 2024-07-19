@@ -672,7 +672,7 @@ def _publish(
         publish_slug,
     )
     if os.environ.get("CONDA_PUBLISH_TYPE") != "service":
-        # Set these values only for 
+        # Set these values only for published conda pack
         manifest["pack_path"] = os.path.join(
             prefix,
             manifest.get("arch_type", "CPU").lower(),
@@ -681,7 +681,7 @@ def _publish(
             publish_slug,
         )
         manifest["pack_uri"] = pack_uri
-        manifest["type"] = "published"
+
     with open(manifest_location, "w") as f:
         yaml.safe_dump(env, f)
     if pack_size > 100:
