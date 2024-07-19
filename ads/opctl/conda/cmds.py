@@ -80,7 +80,7 @@ def _check_job_image_exists(gpu: bool) -> None:
 def _get_name(name: str, env_file: str) -> str:
     if not name and env_file:
         with open(env_file) as f:
-            name = yaml.safe_load(f.read()).get("name", None)
+            name = yaml.safe_load(f.read()).get("manifest").get("name", None)
     if not name:
         raise ValueError(
             "Either specify environment name in environment yaml or with `--name`."
