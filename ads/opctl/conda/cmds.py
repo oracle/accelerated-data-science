@@ -146,6 +146,7 @@ def _create(
     if not os.path.exists(env_file):
         raise FileNotFoundError(f"Environment file {env_file} is not found.")
 
+    conda_dep = None
     with open(env_file) as mfile:
         conda_dep = yaml.safe_load(mfile.read())
     # If manifest exists in the environment.yaml file, use that
@@ -193,7 +194,6 @@ def _create(
         manifest["manifest"]["manifest_version"] = "1.0"
 
     logger.info(f"Creating conda environment {slug}")
-    conda_dep = None
     conda_dep["manifest"] = manifest["manifest"]
 
     if is_in_notebook_session() or NO_CONTAINER:
