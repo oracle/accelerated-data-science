@@ -20,7 +20,6 @@ import argparse
 
 
 def main(pack_folder_path, manifest_file=None):
-    slug = os.path.basename(pack_folder_path)
     manifest_path = (
         manifest_file or glob.glob(os.path.join(pack_folder_path, "*_manifest.yaml"))[0]
     )
@@ -47,6 +46,7 @@ def main(pack_folder_path, manifest_file=None):
             raise e
 
         manifest = env["manifest"]
+        slug = manifest.get("slug", os.path.basename(pack_folder_path))
         if not "type" in manifest:
             manifest["type"] = "published"
         new_env_info["manifest"] = manifest
