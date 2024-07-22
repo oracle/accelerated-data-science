@@ -868,10 +868,14 @@ class DataScienceJobRun(
         return self
 
     def delete(self, force_delete: bool = False):
-        if force_delete:
+        if force_delete and self.status in [
+            oci.data_science.models.JobRun.LIFECYCLE_STATE_ACCEPTED,
+            oci.data_science.models.JobRun.LIFECYCLE_STATE_IN_PROGRESS,
+            oci.data_science.models.JobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
+        ]:
             self.cancel(wait_for_completion=True)
         super().delete()
-        return
+        return self
 
 
 # This is for backward compatibility
