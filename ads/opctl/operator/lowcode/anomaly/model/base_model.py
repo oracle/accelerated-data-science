@@ -16,7 +16,7 @@ from sklearn import linear_model
 
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
-from ads.opctl.operator.lowcode.anomaly.const import OutputColumns, SupportedMetrics
+from ads.opctl.operator.lowcode.anomaly.const import OutputColumns, SupportedMetrics, SUBSAMPLE_THRESHOLD
 from ads.opctl.operator.lowcode.anomaly.utils import _build_metrics_df, default_signer
 from ads.opctl.operator.lowcode.common.utils import (
     disable_print,
@@ -79,7 +79,7 @@ class AnomalyOperatorBaseModel(ABC):
                 anomaly_output, test_data, elapsed_time
             )
         table_blocks = [
-            rc.DataTable(df, label=col, index=True)
+            rc.DataTable(df.head(SUBSAMPLE_THRESHOLD) if self.spec.subsample_report_data and len(df) > SUBSAMPLE_THRESHOLD else df, label=col, index=True)
             for col, df in self.datasets.full_data_dict.items()
         ]
         data_table = rc.Select(blocks=table_blocks)
@@ -94,20 +94,36 @@ class AnomalyOperatorBaseModel(ABC):
             anomaly_col = anomaly_output.get_anomalies_by_cat(category=target)[
                 OutputColumns.ANOMALY_COL
             ]
+            anomaly_indices = [i for i, index in enumerate(anomaly_col) if index == 1]
+            downsampled_time_col = time_col
+            selected_indices = list(range(len(time_col)))
+            if self.spec.subsample_report_data:
+                non_anomaly_indices = [i for i in range(len(time_col)) if i not in anomaly_indices]
+                # Downsample non-anomalous data if it exceeds the threshold (1000)
+                if len(non_anomaly_indices) > SUBSAMPLE_THRESHOLD:
+                    downsampled_non_anomaly_indices = non_anomaly_indices[::len(non_anomaly_indices)//SUBSAMPLE_THRESHOLD]
+                    selected_indices = anomaly_indices + downsampled_non_anomaly_indices
+                    selected_indices.sort()
+                downsampled_time_col = time_col[selected_indices]
+
             columns = set(df.columns).difference({date_column})
             for col in columns:
                 y = df[col].reset_index(drop=True)
+
+                downsampled_y = y[selected_indices]
+
                 fig, ax = plt.subplots(figsize=(8, 3), layout="constrained")
                 ax.grid()
-                ax.plot(time_col, y, color="black")
-                for i, index in enumerate(anomaly_col):
-                    if index == 1:
-                        ax.scatter(time_col[i], y[i], color="red", marker="o")
+                ax.plot(downsampled_time_col, downsampled_y, color="black")
+                # Plot anomalies
+                for i in anomaly_indices:
+                    ax.scatter(time_col[i], y[i], color="red", marker="o")
                 plt.xlabel(date_column)
                 plt.ylabel(col)
                 plt.title(f"`{col}` with reference to anomalies")
                 figure_blocks.append(rc.Widget(ax))
-            blocks.append(rc.Group(*figure_blocks, label=target))
+
+        blocks.append(rc.Group(*figure_blocks, label=target))
         plots = rc.Select(blocks)
 
         report_sections = []

@@ -39,3 +39,9 @@ class PermissionsError(Exception):
             "complies with the required schema for the operator. \n"
             f"{error}"
         )
+
+
+class InsufficientDataError(Exception):
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(message)
