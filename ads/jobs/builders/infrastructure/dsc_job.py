@@ -868,9 +868,9 @@ class DataScienceJobRun(
 
     def delete(self, force_delete: bool = False):
         if force_delete and self.status in [
-            oci.data_science.models.JobRun.LIFECYCLE_STATE_ACCEPTED,
-            oci.data_science.models.JobRun.LIFECYCLE_STATE_IN_PROGRESS,
-            oci.data_science.models.JobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
+            DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
+            DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
+            DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
         ]:
             self.cancel(wait_for_completion=True)
         super().delete()
