@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from datetime import datetime
@@ -391,6 +391,8 @@ class TestPipelineRun:
             **PIPELINE_RUN_LOG_DETAILS
         )
         pipeline_run.time_accepted = datetime.now()
+        service_logging = OCILog()
+        pipeline_run._set_service_logging_resource(service_logging)
         pipeline_run._PipelineRun__stream_log(
             ConsolidatedLog(OCILog()),
             [custom_script_step.step_name, ml_job_step.step_name],
@@ -748,6 +750,9 @@ stepOverrideDetails:
             ml_job_step,
             ml_job_step_without_job_run_id,
         ]
+
+        service_logging = OCILog()
+        pipeline_run._set_service_logging_resource(service_logging)
 
         consolidated_log_expression = pipeline_run._build_filter_expression()
 
