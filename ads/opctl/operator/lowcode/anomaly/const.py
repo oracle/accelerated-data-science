@@ -94,3 +94,4 @@ class OutputColumns(str, metaclass=ExtendedEnumMeta):
 
 
 TODS_DEFAULT_MODEL = "ocsvm"
+SUBSAMPLE_THRESHOLD = 1000
