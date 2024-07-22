@@ -376,13 +376,12 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
         """
         runs = self.run_list()
         for run in runs:
-            if force_delete:
-                if run.lifecycle_state in [
-                    DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
-                    DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
-                    DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
-                ]:
-                    run.cancel(wait_for_completion=True)
+            if force_delete and run.lifecycle_state in [
+                DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
+                DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
+                DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
+            ]:
+                run.cancel(wait_for_completion=True)
             run.delete()
         self.client.delete_job(self.id)
         return self
