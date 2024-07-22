@@ -31,6 +31,7 @@
     "BM.GPU.A10.4",
     "BM.GPU4.8",
     "BM.GPU.A100-v2.8",
+    "BM.GPU.H100.8",
     "VM.Standard.A1.Flex"
   ]
 }

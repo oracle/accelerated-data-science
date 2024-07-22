@@ -7,7 +7,7 @@ import os
 import re
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from datetime import datetime, timedelta
 from pathlib import Path
 from threading import Lock
@@ -160,8 +160,9 @@ class AquaEvaluationApp(AquaApp):
                 create_aqua_evaluation_details = CreateAquaEvaluationDetails(**kwargs)
             except Exception as ex:
                 raise AquaValueError(
-                    "Invalid create evaluation parameters. Allowable parameters are: "
-                    f"{', '.join(list(asdict(CreateAquaEvaluationDetails).keys()))}."
+                    "Invalid create evaluation parameters. "
+                    "Allowable parameters are: "
+                    f"{', '.join([field.name for field in fields(CreateAquaEvaluationDetails)])}."
                 ) from ex
 
         if not is_valid_ocid(create_aqua_evaluation_details.evaluation_source_id):
@@ -178,18 +179,28 @@ class AquaEvaluationApp(AquaApp):
             evaluation_source = ModelDeployment.from_id(
                 create_aqua_evaluation_details.evaluation_source_id
             )
-            if evaluation_source.runtime.type == ModelDeploymentRuntimeType.CONTAINER:
-                runtime = ModelDeploymentContainerRuntime.from_dict(
-                    evaluation_source.runtime.to_dict()
+            try:
+                if (
+                    evaluation_source.runtime.type
+                    == ModelDeploymentRuntimeType.CONTAINER
+                ):
+                    runtime = ModelDeploymentContainerRuntime.from_dict(
+                        evaluation_source.runtime.to_dict()
+                    )
+                    inference_config = AquaContainerConfig.from_container_index_json(
+                        enable_spec=True
+                    ).inference
+                    for container in inference_config.values():
+                        if container.name == runtime.image.split(":")[0]:
+                            eval_inference_configuration = (
+                                container.spec.evaluation_configuration
+                            )
+            except Exception:
+                logger.debug(
+                    f"Could not load inference config details for the evaluation id: "
+                    f"{create_aqua_evaluation_details.evaluation_source_id}. Please check if the container"
+                    f" runtime has the correct SMC image information."
                 )
-                inference_config = AquaContainerConfig.from_container_index_json(
-                    enable_spec=True
-                ).inference
-                for container in inference_config.values():
-                    if container.name == runtime.image.split(":")[0]:
-                        eval_inference_configuration = (
-                            container.spec.evaluation_configuration
-                        )
         elif (
             DataScienceResource.MODEL
             in create_aqua_evaluation_details.evaluation_source_id
@@ -550,7 +561,7 @@ class AquaEvaluationApp(AquaApp):
                                     metrics=metrics,
                                 ),
                             ),
-                            **inference_configuration,
+                            **(inference_configuration or {}),
                         },
                     ),
                     "CONDA_BUCKET_NS": CONDA_BUCKET_NS,
