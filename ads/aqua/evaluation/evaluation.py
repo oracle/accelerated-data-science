@@ -13,9 +13,15 @@ from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Union
 
-from cachetools import TTLCache
-
 import oci
+from cachetools import TTLCache
+from oci.data_science.models import (
+    JobRun,
+    Metadata,
+    UpdateModelDetails,
+    UpdateModelProvenanceDetails,
+)
+
 from ads.aqua import logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common import utils
@@ -41,7 +47,6 @@ from ads.aqua.common.utils import (
 )
 from ads.aqua.constants import (
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
-    EVALUATION_INFERENCE_DEFAULT_THREADS,
     EVALUATION_REPORT,
     EVALUATION_REPORT_JSON,
     EVALUATION_REPORT_MD,
@@ -97,12 +102,6 @@ from ads.model.model_metadata import (
 )
 from ads.model.model_version_set import ModelVersionSet
 from ads.telemetry import telemetry
-from oci.data_science.models import (
-    JobRun,
-    Metadata,
-    UpdateModelDetails,
-    UpdateModelProvenanceDetails,
-)
 
 
 class AquaEvaluationApp(AquaApp):
@@ -171,6 +170,7 @@ class AquaEvaluationApp(AquaApp):
                 "Specify either a model or model deployment id."
             )
         evaluation_source = None
+        eval_inference_configuration = None
         if (
             DataScienceResource.MODEL_DEPLOYMENT
             in create_aqua_evaluation_details.evaluation_source_id
@@ -182,29 +182,14 @@ class AquaEvaluationApp(AquaApp):
                 runtime = ModelDeploymentContainerRuntime.from_dict(
                     evaluation_source.runtime.to_dict()
                 )
-                container_config = AquaContainerConfig.from_container_index_json(
+                inference_config = AquaContainerConfig.from_container_index_json(
                     enable_spec=True
-                )
-                for container in container_config.inference.values():
+                ).inference
+                for container in inference_config.values():
                     if container.name == runtime.image.split(":")[0]:
-                        max_threads = container.spec.evaluation_configuration.evaluation_max_threads
-                        if (
-                            max_threads
-                            and create_aqua_evaluation_details.inference_max_threads
-                            and max_threads
-                            < create_aqua_evaluation_details.inference_max_threads
-                        ):
-                            raise AquaValueError(
-                                f"Invalid inference max threads. The maximum allowed value for {runtime.image} is {max_threads}."
-                            )
-                        if not create_aqua_evaluation_details.inference_max_threads:
-                            create_aqua_evaluation_details.inference_max_threads = container.spec.evaluation_configuration.evaluation_default_threads
-                        break
-                if not create_aqua_evaluation_details.inference_max_threads:
-                    create_aqua_evaluation_details.inference_max_threads = (
-                        EVALUATION_INFERENCE_DEFAULT_THREADS
-                    )
-
+                        eval_inference_configuration = (
+                            container.spec.evaluation_configuration
+                        )
         elif (
             DataScienceResource.MODEL
             in create_aqua_evaluation_details.evaluation_source_id
@@ -420,7 +405,9 @@ class AquaEvaluationApp(AquaApp):
                 report_path=create_aqua_evaluation_details.report_path,
                 model_parameters=create_aqua_evaluation_details.model_parameters,
                 metrics=create_aqua_evaluation_details.metrics,
-                inference_max_threads=create_aqua_evaluation_details.inference_max_threads,
+                inference_configuration=eval_inference_configuration.to_filtered_dict()
+                if eval_inference_configuration
+                else {},
             )
         ).create(**kwargs)  ## TODO: decide what parameters will be needed
         logger.debug(
@@ -542,7 +529,7 @@ class AquaEvaluationApp(AquaApp):
         report_path: str,
         model_parameters: dict,
         metrics: List = None,
-        inference_max_threads: int = None,
+        inference_configuration: dict = None,
     ) -> Runtime:
         """Builds evaluation runtime for Job."""
         # TODO the image name needs to be extracted from the mapping index.json file.
@@ -552,17 +539,19 @@ class AquaEvaluationApp(AquaApp):
             .with_environment_variable(
                 **{
                     "AIP_SMC_EVALUATION_ARGUMENTS": json.dumps(
-                        asdict(
-                            self._build_launch_cmd(
-                                evaluation_id=evaluation_id,
-                                evaluation_source_id=evaluation_source_id,
-                                dataset_path=dataset_path,
-                                report_path=report_path,
-                                model_parameters=model_parameters,
-                                metrics=metrics,
-                                inference_max_threads=inference_max_threads,
-                            )
-                        )
+                        {
+                            **asdict(
+                                self._build_launch_cmd(
+                                    evaluation_id=evaluation_id,
+                                    evaluation_source_id=evaluation_source_id,
+                                    dataset_path=dataset_path,
+                                    report_path=report_path,
+                                    model_parameters=model_parameters,
+                                    metrics=metrics,
+                                ),
+                            ),
+                            **inference_configuration,
+                        },
                     ),
                     "CONDA_BUCKET_NS": CONDA_BUCKET_NS,
                 },
@@ -620,7 +609,6 @@ class AquaEvaluationApp(AquaApp):
         report_path: str,
         model_parameters: dict,
         metrics: List = None,
-        inference_max_threads: int = None,
     ):
         return AquaEvaluationCommands(
             evaluation_id=evaluation_id,
@@ -637,7 +625,6 @@ class AquaEvaluationApp(AquaApp):
             metrics=metrics,
             output_dir=report_path,
             params=model_parameters,
-            inference_max_threads=inference_max_threads,
         )
 
     @telemetry(entry_point="plugin=evaluation&action=get", name="aqua")
@@ -1227,7 +1214,7 @@ class AquaEvaluationApp(AquaApp):
                 f"Exception message: {ex}"
             )
 
-    def load_evaluation_config(self, _):
+    def load_evaluation_config(self, eval_id):
         """Loads evaluation config."""
         return {
             "model_params": {

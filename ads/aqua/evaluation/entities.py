@@ -64,8 +64,6 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
         The metrics for the evaluation.
     force_overwrite: (bool, optional). Defaults to `False`.
         Whether to force overwrite the existing file in object storage.
-    inference_max_threads: (int, optional). Defaults to None
-        Set the value of concurrent requests to be made to the inference endpoint during evaluation.
     """
 
     evaluation_source_id: str
@@ -87,7 +85,6 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
     log_id: Optional[str] = None
     metrics: Optional[List] = None
     force_overwrite: Optional[bool] = False
-    inference_max_threads: Optional[int] = None
 
 
 @dataclass(repr=False)
@@ -144,7 +141,6 @@ class AquaEvaluationCommands(DataClassSerializable):
     metrics: list
     output_dir: str
     params: dict
-    inference_max_threads: int
 
 
 @dataclass(repr=False)

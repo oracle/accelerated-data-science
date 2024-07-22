@@ -484,7 +484,7 @@ class TestAquaUI(unittest.TestCase):
             ],
             "inference": [
                 {
-                    "name": "iad.ocir.io/ociodscdev/odsc-llama-cpp-python-aio-linux_arm64_v8",
+                    "name": "dsmc://odsc-llama-cpp-python-aio-linux_arm64_v8",
                     "version": "0.2.75.5",
                     "display_name": "LLAMA-CPP:0.2.75",
                     "family": "odsc-llama-cpp-serving",
@@ -502,6 +502,14 @@ class TestAquaUI(unittest.TestCase):
                         "health_check_port": "8080",
                         "restricted_params": [],
                         "server_port": "8080",
+                        "evaluation_configuration": {
+                            "inference_max_threads": 1,
+                            "inference_rps": None,
+                            "inference_timeout": None,
+                            "inference_backoff_factor": None,
+                            "inference_delay": 1,
+                            "inference_retries": None,
+                        },
                     },
                 },
                 {
@@ -528,6 +536,14 @@ class TestAquaUI(unittest.TestCase):
                             "--trust-remote-code",
                         ],
                         "server_port": "8080",
+                        "evaluation_configuration": {
+                            "inference_max_threads": None,
+                            "inference_rps": None,
+                            "inference_timeout": None,
+                            "inference_backoff_factor": None,
+                            "inference_delay": None,
+                            "inference_retries": None,
+                        },
                     },
                 },
                 {
@@ -553,6 +569,14 @@ class TestAquaUI(unittest.TestCase):
                             "--seed",
                         ],
                         "server_port": "8080",
+                        "evaluation_configuration": {
+                            "inference_max_threads": None,
+                            "inference_rps": None,
+                            "inference_timeout": None,
+                            "inference_backoff_factor": None,
+                            "inference_delay": None,
+                            "inference_retries": None,
+                        },
                     },
                 },
             ],
