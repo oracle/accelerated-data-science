@@ -14,6 +14,8 @@ from tornado.websocket import WebSocketHandler
 
 from ads.aqua import logger
 from ads.aqua.extension.aqua_ws_msg_handler import AquaWSMsgHandler
+from ads.aqua.extension.common_ws_msg_handler import AquaCommonWsMsgHandler
+from ads.aqua.extension.deployment_ws_msg_handler import AquaDeploymentWSMsgHandler
 from ads.aqua.extension.evaluation_ws_msg_handler import AquaEvaluationWSMsgHandler
 from ads.aqua.extension.models.ws_models import (
     AquaWsError,
@@ -22,6 +24,7 @@ from ads.aqua.extension.models.ws_models import (
     ErrorResponse,
     RequestResponseType,
 )
+from ads.aqua.extension.models_ws_msg_handler import AquaModelWSMsgHandler
 
 MAX_WORKERS = 20
 
@@ -43,7 +46,10 @@ def get_aqua_internal_error_response(message_id: str) -> ErrorResponse:
 class AquaUIWebSocketHandler(WebSocketHandler):
     """Handler for Aqua Websocket."""
 
-    _handlers_: List[Type[AquaWSMsgHandler]] = [AquaEvaluationWSMsgHandler]
+    _handlers_: List[Type[AquaWSMsgHandler]] = [AquaEvaluationWSMsgHandler,
+                                                AquaDeploymentWSMsgHandler,
+                                                AquaModelWSMsgHandler,
+                                                AquaCommonWsMsgHandler]
 
     thread_pool: ThreadPoolExecutor
 

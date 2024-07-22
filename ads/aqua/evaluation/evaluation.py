@@ -7,7 +7,7 @@ import os
 import re
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from datetime import datetime, timedelta
 from pathlib import Path
 from threading import Lock
@@ -76,6 +76,7 @@ from ads.aqua.evaluation.entities import (
     ModelParams,
 )
 from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
+from ads.aqua.ui import AquaContainerConfig
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_console_link, get_files, get_log_links
@@ -90,7 +91,9 @@ from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.model.datascience_model import DataScienceModel
+from ads.model.deployment import ModelDeploymentContainerRuntime
 from ads.model.deployment.model_deployment import ModelDeployment
+from ads.model.generic_model import ModelDeploymentRuntimeType
 from ads.model.model_metadata import (
     MetadataTaxonomyKeys,
     ModelCustomMetadata,
@@ -157,8 +160,9 @@ class AquaEvaluationApp(AquaApp):
                 create_aqua_evaluation_details = CreateAquaEvaluationDetails(**kwargs)
             except Exception as ex:
                 raise AquaValueError(
-                    "Invalid create evaluation parameters. Allowable parameters are: "
-                    f"{', '.join(list(asdict(CreateAquaEvaluationDetails).keys()))}."
+                    "Invalid create evaluation parameters. "
+                    "Allowable parameters are: "
+                    f"{', '.join([field.name for field in fields(CreateAquaEvaluationDetails)])}."
                 ) from ex
 
         if not is_valid_ocid(create_aqua_evaluation_details.evaluation_source_id):
@@ -166,8 +170,8 @@ class AquaEvaluationApp(AquaApp):
                 f"Invalid evaluation source {create_aqua_evaluation_details.evaluation_source_id}. "
                 "Specify either a model or model deployment id."
             )
-
         evaluation_source = None
+        eval_inference_configuration = None
         if (
             DataScienceResource.MODEL_DEPLOYMENT
             in create_aqua_evaluation_details.evaluation_source_id
@@ -175,6 +179,28 @@ class AquaEvaluationApp(AquaApp):
             evaluation_source = ModelDeployment.from_id(
                 create_aqua_evaluation_details.evaluation_source_id
             )
+            try:
+                if (
+                    evaluation_source.runtime.type
+                    == ModelDeploymentRuntimeType.CONTAINER
+                ):
+                    runtime = ModelDeploymentContainerRuntime.from_dict(
+                        evaluation_source.runtime.to_dict()
+                    )
+                    inference_config = AquaContainerConfig.from_container_index_json(
+                        enable_spec=True
+                    ).inference
+                    for container in inference_config.values():
+                        if container.name == runtime.image.split(":")[0]:
+                            eval_inference_configuration = (
+                                container.spec.evaluation_configuration
+                            )
+            except Exception:
+                logger.debug(
+                    f"Could not load inference config details for the evaluation id: "
+                    f"{create_aqua_evaluation_details.evaluation_source_id}. Please check if the container"
+                    f" runtime has the correct SMC image information."
+                )
         elif (
             DataScienceResource.MODEL
             in create_aqua_evaluation_details.evaluation_source_id
@@ -390,6 +416,9 @@ class AquaEvaluationApp(AquaApp):
                 report_path=create_aqua_evaluation_details.report_path,
                 model_parameters=create_aqua_evaluation_details.model_parameters,
                 metrics=create_aqua_evaluation_details.metrics,
+                inference_configuration=eval_inference_configuration.to_filtered_dict()
+                if eval_inference_configuration
+                else {},
             )
         ).create(**kwargs)  ## TODO: decide what parameters will be needed
         logger.debug(
@@ -511,6 +540,7 @@ class AquaEvaluationApp(AquaApp):
         report_path: str,
         model_parameters: dict,
         metrics: List = None,
+        inference_configuration: dict = None,
     ) -> Runtime:
         """Builds evaluation runtime for Job."""
         # TODO the image name needs to be extracted from the mapping index.json file.
@@ -520,16 +550,19 @@ class AquaEvaluationApp(AquaApp):
             .with_environment_variable(
                 **{
                     "AIP_SMC_EVALUATION_ARGUMENTS": json.dumps(
-                        asdict(
-                            self._build_launch_cmd(
-                                evaluation_id=evaluation_id,
-                                evaluation_source_id=evaluation_source_id,
-                                dataset_path=dataset_path,
-                                report_path=report_path,
-                                model_parameters=model_parameters,
-                                metrics=metrics,
-                            )
-                        )
+                        {
+                            **asdict(
+                                self._build_launch_cmd(
+                                    evaluation_id=evaluation_id,
+                                    evaluation_source_id=evaluation_source_id,
+                                    dataset_path=dataset_path,
+                                    report_path=report_path,
+                                    model_parameters=model_parameters,
+                                    metrics=metrics,
+                                ),
+                            ),
+                            **(inference_configuration or {}),
+                        },
                     ),
                     "CONDA_BUCKET_NS": CONDA_BUCKET_NS,
                 },

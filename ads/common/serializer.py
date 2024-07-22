@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
 # Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -25,10 +24,8 @@ from ads.common import logger
 from ads.common.auth import default_signer
 
 try:
-    from yaml import CSafeDumper as dumper
     from yaml import CSafeLoader as loader
 except:
-    from yaml import SafeDumper as dumper
     from yaml import SafeLoader as loader
 
 
@@ -99,6 +96,8 @@ class Serializable(ABC):
         """JSON serializer for objects not serializable by default json code."""
         if isinstance(obj, datetime):
             return obj.isoformat()
+        if hasattr(obj, "to_dict"):
+            return obj.to_dict()
         raise TypeError(f"Type {type(obj)} not serializable.")
 
     @staticmethod
