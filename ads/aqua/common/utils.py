@@ -249,7 +249,7 @@ def list_os_files_with_extension(oss_path: str, extension: str) -> [str]:
     files: List[ObjectSummary] = oss_client.list_objects().objects
 
     return [
-        file.name[len(oss_client.filepath) :]
+        file.name[len(oss_client.filepath) :].lstrip("/")
         for file in files
         if file.name.endswith(extension)
     ]

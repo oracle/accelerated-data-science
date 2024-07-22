@@ -2,7 +2,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import concurrent.futures
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from datetime import datetime, timedelta
 from enum import Enum
 from threading import Lock
@@ -46,12 +46,47 @@ class ModelFormat(Enum):
 
 
 @dataclass(repr=False)
+class AquaContainerEvaluationConfig(DataClassSerializable):
+    """
+    Represents the evaluation configuration for the container.
+    """
+
+    inference_max_threads: Optional[int] = None
+    inference_rps: Optional[int] = None
+    inference_timeout: Optional[int] = None
+    inference_retries: Optional[int] = None
+    inference_backoff_factor: Optional[int] = None
+    inference_delay: Optional[int] = None
+
+    @classmethod
+    def from_config(cls, config: dict) -> "AquaContainerEvaluationConfig":
+        return cls(
+            inference_max_threads=config.get("inference_max_threads"),
+            inference_rps=config.get("inference_rps"),
+            inference_timeout=config.get("inference_timeout"),
+            inference_retries=config.get("inference_retries"),
+            inference_backoff_factor=config.get("inference_backoff_factor"),
+            inference_delay=config.get("inference_delay"),
+        )
+
+    def to_filtered_dict(self):
+        return {
+            field.name: getattr(self, field.name)
+            for field in fields(self)
+            if getattr(self, field.name) is not None
+        }
+
+
+@dataclass(repr=False)
 class AquaContainerConfigSpec(DataClassSerializable):
     cli_param: str = None
     server_port: str = None
     health_check_port: str = None
     env_vars: List[dict] = None
     restricted_params: List[str] = None
+    evaluation_configuration: AquaContainerEvaluationConfig = field(
+        default_factory=AquaContainerEvaluationConfig
+    )
 
 
 @dataclass(repr=False)
@@ -160,6 +195,11 @@ class AquaContainerConfig(DataClassSerializable):
                             env_vars=container_spec.get(ContainerSpec.ENV_VARS, []),
                             restricted_params=container_spec.get(
                                 ContainerSpec.RESTRICTED_PARAMS, []
+                            ),
+                            evaluation_configuration=AquaContainerEvaluationConfig.from_config(
+                                container_spec.get(
+                                    ContainerSpec.EVALUATION_CONFIGURATION, {}
+                                )
                             ),
                         )
                         if container_spec

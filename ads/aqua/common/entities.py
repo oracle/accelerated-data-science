@@ -14,3 +14,4 @@ class ContainerSpec:
     HEALTH_CHECK_PORT = "healthCheckPort"
     ENV_VARS = "envVars"
     RESTRICTED_PARAMS = "restrictedParams"
+    EVALUATION_CONFIGURATION = "evaluationConfiguration"
