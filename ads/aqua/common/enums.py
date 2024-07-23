@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -8,6 +7,7 @@ aqua.common.enums
 ~~~~~~~~~~~~~~
 This module contains the set of enums used in AQUA.
 """
+
 from ads.common.extended_enum import ExtendedEnumMeta
 
 
@@ -38,21 +38,25 @@ class Tags(str, metaclass=ExtendedEnumMeta):
     READY_TO_IMPORT = "ready_to_import"
     BASE_MODEL_CUSTOM = "aqua_custom_base_model"
     AQUA_EVALUATION_MODEL_ID = "evaluation_model_id"
+    MODEL_FORMAT = "model_format"
 
 
 class InferenceContainerType(str, metaclass=ExtendedEnumMeta):
     CONTAINER_TYPE_VLLM = "vllm"
     CONTAINER_TYPE_TGI = "tgi"
+    CONTAINER_TYPE_LLAMA_CPP = "llama-cpp"
 
 
 class InferenceContainerTypeFamily(str, metaclass=ExtendedEnumMeta):
     AQUA_VLLM_CONTAINER_FAMILY = "odsc-vllm-serving"
     AQUA_TGI_CONTAINER_FAMILY = "odsc-tgi-serving"
+    AQUA_LLAMA_CPP_CONTAINER_FAMILY = "odsc-llama-cpp-serving"
 
 
 class InferenceContainerParamType(str, metaclass=ExtendedEnumMeta):
     PARAM_TYPE_VLLM = "VLLM_PARAMS"
     PARAM_TYPE_TGI = "TGI_PARAMS"
+    PARAM_TYPE_LLAMA_CPP = "LLAMA_CPP_PARAMS"
 
 
 class HuggingFaceTags(str, metaclass=ExtendedEnumMeta):

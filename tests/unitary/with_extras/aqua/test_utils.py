@@ -7,6 +7,8 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import pytest
+from ads.common.object_storage_details import ObjectStorageDetails
+from oci.object_storage.models import ListObjects, ObjectSummary
 from oci.resource_search.models.resource_summary import ResourceSummary
 from parameterized import parameterized
 
@@ -14,6 +16,7 @@ from ads.aqua.common import utils
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.config import TENANCY_OCID
+from ads.common import auth as authutil
 
 
 class TestDataset:
@@ -127,3 +130,46 @@ class TestAquaUtils(unittest.TestCase):
             expected_query, type=SEARCH_TYPE.STRUCTURED, tenant_id=TENANCY_OCID
         )
         assert isinstance(resources, list)
+
+    @patch("ads.common.object_storage_details.authutil.default_signer")
+    def test_list_os_files_with_invalid_path(self, mock_auth: MagicMock):
+        auth = MagicMock()
+        auth["signer"] = MagicMock()
+        mock_auth.return_value = auth
+        with self.assertRaises(Exception) as e:
+            utils.list_os_files_with_extension("/mock", "*.ff")
+        self.assertEqual(
+            "OCI path is not properly configured. It should follow the pattern `oci://<bucket-name>@<namespace>/object_path`.",
+            str(e.exception),
+        )
+
+    @patch("ads.common.object_storage_details.authutil.default_signer")
+    def test_list_os_files_with_empty_path(self, mock_auth: MagicMock):
+        auth = MagicMock()
+        auth["signer"] = MagicMock()
+        mock_auth.return_value = auth
+        with self.assertRaises(Exception) as e:
+            utils.list_os_files_with_extension("", "*.ff")
+        self.assertEqual(
+            "OCI path is not properly configured. It should follow the pattern `oci://<bucket-name>@<namespace>/object_path`.",
+            str(e.exception),
+        )
+
+    @patch.object(ObjectStorageDetails, "from_path")
+    def test_list_os_files_with_extension(self, oss_mock: MagicMock):
+        list_obj_resp: ListObjects = ListObjects()
+        prefix = "/mock/test/"
+        obj1 = ObjectSummary()
+        obj1_name = "test1.safetensors"
+        obj2_name = "test2.gguf"
+        obj1.name = f"{prefix}{obj1_name}"
+        obj2 = ObjectSummary()
+        obj2.name = f"{prefix}{obj2_name}"
+        list_obj_resp.objects = [obj1, obj2]
+
+        oss_mock_client = MagicMock()
+        oss_mock.return_value = oss_mock_client
+        oss_mock_client.list_objects = MagicMock(return_value=list_obj_resp)
+        oss_mock_client.filepath = prefix
+        resp = utils.list_os_files_with_extension(prefix, ".gguf")
+        self.assertIn(obj2_name, resp)
