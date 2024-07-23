@@ -3,9 +3,10 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 from ads.aqua.app import AquaApp, logger
+from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.common.enums import (
     InferenceContainerTypeFamily,
     Tags,
@@ -25,6 +26,7 @@ from ads.aqua.common.utils import (
     load_config,
 )
 from ads.aqua.constants import (
+    AQUA_MODEL_ARTIFACT_FILE,
     AQUA_MODEL_TYPE_CUSTOM,
     AQUA_MODEL_TYPE_SERVICE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
@@ -37,8 +39,8 @@ from ads.aqua.model import AquaModelApp
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
-    ContainerSpec,
 )
+from ads.aqua.ui import ModelFormat
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
 from ads.config import (
@@ -102,6 +104,8 @@ class AquaDeploymentApp(AquaApp):
         health_check_port: int = None,
         env_var: Dict = None,
         container_family: str = None,
+        memory_in_gbs: Optional[float] = None,
+        ocpus: Optional[float] = None,
     ) -> "AquaDeployment":
         """
         Creates a new Aqua deployment
@@ -142,6 +146,10 @@ class AquaDeploymentApp(AquaApp):
             Environment variable for the deployment, by default None.
         container_family: str
             The image family of model deployment container runtime. Required for unverified Aqua models.
+        memory_in_gbs: float
+            The memory in gbs for the shape selected.
+        ocpus: float
+            The ocpu count for the shape selected.
         Returns
         -------
         AquaDeployment
@@ -204,6 +212,21 @@ class AquaDeploymentApp(AquaApp):
 
         env_var.update({"BASE_MODEL": f"{model_path_prefix}"})
 
+        model_format = aqua_model.freeform_tags.get(
+            Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS.value
+        ).upper()
+        if model_format == ModelFormat.GGUF.value:
+            try:
+                model_file = aqua_model.custom_metadata_list.get(
+                    AQUA_MODEL_ARTIFACT_FILE
+                ).value
+            except ValueError as err:
+                raise AquaValueError(
+                    f"{AQUA_MODEL_ARTIFACT_FILE} key is not available in the custom metadata field "
+                    f"for model {aqua_model.id}."
+                ) from err
+            env_var.update({"BASE_MODEL_FILE": f"{model_file}"})
+
         if is_fine_tuned_model:
             _, fine_tune_output_path = get_model_by_reference_paths(
                 aqua_model.model_file_description
@@ -258,8 +281,10 @@ class AquaDeploymentApp(AquaApp):
             f"Aqua Image used for deploying {aqua_model.id} : {container_image}"
         )
 
+        # todo: use AquaContainerConfig.from_container_index_json instead.
         # Fetch the startup cli command for the container
-        # container_index.json will have "containerSpec" section which will provide the cli params for a given container family
+        # container_index.json will have "containerSpec" section which will provide the cli params for
+        # a given container family
         container_config = get_container_config()
         container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
             container_type_key, {}
@@ -285,6 +310,18 @@ class AquaDeploymentApp(AquaApp):
         # validate user provided params
         user_params = env_var.get("PARAMS", UNKNOWN)
         if user_params:
+            # todo: remove this check in the future version, logic to be moved to container_index
+            if (
+                container_type_key.lower()
+                == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
+            ):
+                # AQUA_LLAMA_CPP_CONTAINER_FAMILY container uses uvicorn that required model/server params
+                # to be set as env vars
+                raise AquaValueError(
+                    f"Currently, parameters cannot be overridden for the container: {container_image}. Please proceed "
+                    f"with deployment without parameter overrides."
+                )
+
             restricted_params = self._find_restricted_params(
                 params, user_params, container_type_key
             )
@@ -296,13 +333,15 @@ class AquaDeploymentApp(AquaApp):
 
         deployment_params = get_combined_params(config_params, user_params)
 
-        if deployment_params:
-            params = f"{params} {deployment_params}"
+        params = f"{params} {deployment_params}".strip()
+        if params:
+            env_var.update({"PARAMS": params})
 
-        env_var.update({"PARAMS": params})
         for env in container_spec.get(ContainerSpec.ENV_VARS, []):
             if isinstance(env, dict):
-                env_var.update(env)
+                for key, _items in env.items():
+                    if key not in env_var:
+                        env_var.update(env)
 
         logging.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
 
@@ -325,6 +364,11 @@ class AquaDeploymentApp(AquaApp):
                 log_id=predict_log_id,
             )
         )
+        if memory_in_gbs and ocpus and infrastructure.shape_name.endswith("Flex"):
+            infrastructure.with_shape_config_details(
+                ocpus=ocpus,
+                memory_in_gbs=memory_in_gbs,
+            )
         # configure model deployment runtime
         container_runtime = (
             ModelDeploymentContainerRuntime()
@@ -338,6 +382,7 @@ class AquaDeploymentApp(AquaApp):
             .with_overwrite_existing_artifact(True)
             .with_remove_existing_artifact(True)
         )
+
         # configure model deployment and deploy model on container runtime
         deployment = (
             ModelDeployment()

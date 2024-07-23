@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
-
+import json
+import os
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -23,13 +24,19 @@ class ModelHandlerTestCase(TestCase):
         self.model_handler = AquaModelHandler(MagicMock(), MagicMock())
         self.model_handler.request = MagicMock()
 
+    @patch("ads.aqua.extension.model_handler.urlparse")
     @patch.object(AquaModelHandler, "list")
-    def test_get_no_id(self, mock_list):
+    def test_get_no_id(self, mock_list, mock_urlparse):
+        request_path = MagicMock(path="aqua/model")
+        mock_urlparse.return_value = request_path
         self.model_handler.get()
         mock_list.assert_called()
 
+    @patch("ads.aqua.extension.model_handler.urlparse")
     @patch.object(AquaModelHandler, "read")
-    def test_get_with_id(self, mock_read):
+    def test_get_with_id(self, mock_read, mock_urlparse):
+        request_path = MagicMock(path="aqua/model/test_model_id")
+        mock_urlparse.return_value = request_path
         self.model_handler.get(model_id="test_model_id")
         mock_read.assert_called_with("test_model_id")
 
@@ -99,6 +106,7 @@ class ModelHandlerTestCase(TestCase):
             finetuning_container=None,
             compartment_id=None,
             project_id=None,
+            model_file=None,
         )
         assert result["id"] == "test_id"
         assert result["inference_container"] == "odsc-tgi-serving"

@@ -211,6 +211,7 @@ class TestHandlers(unittest.TestCase):
                 "load_evaluation_config",
                 TestDataset.MOCK_OCID,
                 TestDataset.MOCK_OCID,
+                "/evaluation/config",
             ),
             (
                 "AquaEvaluationMetricsHandler",
@@ -219,6 +220,7 @@ class TestHandlers(unittest.TestCase):
                 "load_metrics",
                 TestDataset().mock_url("metrics"),
                 TestDataset.MOCK_OCID,
+                f"/evaluation/{TestDataset.MOCK_OCID}/metrics",
             ),
             (
                 "AquaEvaluationReportHandler",
@@ -227,6 +229,7 @@ class TestHandlers(unittest.TestCase):
                 "download_report",
                 TestDataset().mock_url("report"),
                 TestDataset.MOCK_OCID,
+                f"/evaluation/{TestDataset.MOCK_OCID}/report",
             ),
             (
                 "AquaEvaluationStatusHandler",
@@ -235,6 +238,7 @@ class TestHandlers(unittest.TestCase):
                 "get_status",
                 TestDataset().mock_url("status"),
                 TestDataset.MOCK_OCID,
+                f"/aqua/evaluation/{TestDataset.MOCK_OCID}/status",
             ),
             (
                 "ADSVersionHandler",
@@ -243,6 +247,7 @@ class TestHandlers(unittest.TestCase):
                 None,
                 None,
                 {"data": metadata.version("oracle_ads")},
+                f"/aqua/ads_version",
             ),
             (
                 "CompatibilityCheckHandler",
@@ -251,6 +256,7 @@ class TestHandlers(unittest.TestCase):
                 None,
                 None,
                 dict(status="ok"),
+                "/aqua/hello",
             ),
             (
                 "AquaModelLicenseHandler",
@@ -259,6 +265,7 @@ class TestHandlers(unittest.TestCase):
                 "load_license",
                 TestDataset().mock_url("license"),
                 TestDataset.MOCK_OCID,
+                f"/aqua/model/{TestDataset.MOCK_OCID}/license",
             ),
             (
                 "AquaModelHandler",
@@ -267,6 +274,7 @@ class TestHandlers(unittest.TestCase):
                 "get",
                 TestDataset.MOCK_OCID,
                 TestDataset.MOCK_OCID,
+                f"/aqua/model/{TestDataset.MOCK_OCID}",
             ),
             (
                 "AquaModelHandler_list",
@@ -275,6 +283,7 @@ class TestHandlers(unittest.TestCase):
                 "list",
                 "",
                 (None, None),
+                f"/aqua/model",
             ),
         ]
     )
@@ -287,6 +296,7 @@ class TestHandlers(unittest.TestCase):
         associated_api,
         url,
         expected_call,
+        path,
         ipython_init_mock,
     ):
         """Tests invoking GET method successfully."""
@@ -295,6 +305,7 @@ class TestHandlers(unittest.TestCase):
         test_instance = target_handler(MagicMock(), MagicMock())
         test_instance.finish = MagicMock()
         test_instance.request = MagicMock()
+        test_instance.request.path = path
 
         if associated_api:
             with patch.object(target_app, associated_api) as mock_api:
