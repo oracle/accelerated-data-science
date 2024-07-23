@@ -236,7 +236,7 @@ This creates a new ``<operator-type>_<operator-version>`` conda environment and 
 
 .. code-block:: bash
 
-    ads operator publish --type <operator-type>
+    ads opctl conda publish --slug <operator-type>_<operator-version>
 
 For more details on configuring the CLI, refer to the :doc:`Explore & Configure Operators<./explore>` documentation.
 
