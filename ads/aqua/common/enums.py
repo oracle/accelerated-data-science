@@ -59,6 +59,14 @@ class InferenceContainerParamType(str, metaclass=ExtendedEnumMeta):
     PARAM_TYPE_LLAMA_CPP = "LLAMA_CPP_PARAMS"
 
 
+class EvaluationContainerTypeFamily(str, metaclass=ExtendedEnumMeta):
+    AQUA_EVALUATION_CONTAINER_FAMILY = "odsc-llm-evaluate"
+
+
+class FineTuningContainerTypeFamily(str, metaclass=ExtendedEnumMeta):
+    AQUA_FINETUNING_CONTAINER_FAMILY = "odsc-llm-fine-tuning"
+
+
 class HuggingFaceTags(str, metaclass=ExtendedEnumMeta):
     TEXT_GENERATION_INFERENCE = "text-generation-inference"
 

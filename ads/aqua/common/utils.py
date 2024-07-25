@@ -10,6 +10,8 @@ import logging
 import os
 import random
 import re
+import shlex
+import subprocess
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
@@ -37,6 +39,7 @@ from ads.aqua.constants import (
     COMPARTMENT_MAPPING_KEY,
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     CONTAINER_INDEX,
+    HF_LOGIN_DEFAULT_TIMEOUT,
     MAXIMUM_ALLOWED_DATASET_IN_BYTE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     SERVICE_MANAGED_CONTAINER_URI_SCHEME,
@@ -47,7 +50,7 @@ from ads.aqua.constants import (
     VLLM_INFERENCE_RESTRICTED_PARAMS,
 )
 from ads.aqua.data import AquaResourceIdentifier
-from ads.common.auth import default_signer
+from ads.common.auth import AuthState, default_signer
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
@@ -771,6 +774,33 @@ def get_ocid_substring(ocid: str, key_len: int) -> str:
     return ocid[-key_len:] if ocid and len(ocid) > key_len else ""
 
 
+def upload_folder(os_path: str, local_dir: str, model_name: str) -> str:
+    """Upload the local folder to the object storage
+
+    Args:
+        os_path (str): object storage URI with prefix. This is the path to upload
+        local_dir (str): Local directory where the object is downloaded
+        model_name (str): Name of the huggingface model
+    Retuns:
+        str: Object name inside the bucket
+    """
+    os_details: ObjectStorageDetails = ObjectStorageDetails.from_path(os_path)
+    if not os_details.is_bucket_versioned():
+        raise ValueError(f"Version is not enabled at object storage location {os_path}")
+    auth_state = AuthState()
+    object_path = os_details.filepath.rstrip("/") + "/" + model_name + "/"
+    command = f"oci os object bulk-upload --src-dir {local_dir} --prefix {object_path} -bn {os_details.bucket} -ns {os_details.namespace} --auth {auth_state.oci_iam_type} --profile {auth_state.oci_key_profile} --no-overwrite"
+    try:
+        logger.info(f"Running: {command}")
+        subprocess.check_call(shlex.split(command))
+    except subprocess.CalledProcessError as e:
+        logger.error(
+            f"Error uploading the object. Exit code: {e.returncode} with error {e.stdout}"
+        )
+
+    return f"oci://{os_details.bucket}@{os_details.namespace}" + "/" + object_path
+
+
 def is_service_managed_container(container):
     return container and container.startswith(SERVICE_MANAGED_CONTAINER_URI_SCHEME)
 
@@ -935,3 +965,22 @@ def get_restricted_params_by_container(container_type_name: str) -> set:
         return TGI_INFERENCE_RESTRICTED_PARAMS
     else:
         return set()
+
+
+def get_huggingface_login_timeout() -> int:
+    """This helper function returns the huggingface login timeout, returns default if not set via
+    env var.
+    Returns
+    -------
+    timeout: int
+        huggingface login timeout.
+
+    """
+    timeout = HF_LOGIN_DEFAULT_TIMEOUT
+    try:
+        timeout = int(
+            os.environ.get("HF_LOGIN_DEFAULT_TIMEOUT", HF_LOGIN_DEFAULT_TIMEOUT)
+        )
+    except ValueError:
+        pass
+    return timeout

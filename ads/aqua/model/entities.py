@@ -14,6 +14,8 @@ from dataclasses import InitVar, dataclass, field
 from typing import List, Optional
 
 import oci
+from huggingface_hub import hf_api
+
 from ads.aqua import logger
 from ads.aqua.app import CLIBuilderMixin
 from ads.aqua.common import utils
@@ -95,6 +97,7 @@ class AquaModel(AquaModelSummary, DataClassSerializable):
     inference_container: str = None
     finetuning_container: str = None
     evaluation_container: str = None
+    artifact_location: str = None
 
 
 @dataclass(repr=False)
@@ -103,6 +106,16 @@ class HFModelContainerInfo:
 
     inference_container: str = None
     finetuning_container: str = None
+
+
+@dataclass(repr=False)
+class HFModelSummary:
+    """Represents a summary of Hugging Face model."""
+
+    model_info: hf_api.ModelInfo = field(default_factory=hf_api.ModelInfo)
+    aqua_model_info: Optional[AquaModelSummary] = field(
+        default_factory=AquaModelSummary
+    )
 
 
 @dataclass(repr=False)
