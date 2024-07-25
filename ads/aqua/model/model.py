@@ -7,6 +7,7 @@ from threading import Lock
 from typing import Dict, Optional, Set, Union
 
 from cachetools import TTLCache
+from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.app import AquaApp
@@ -55,7 +56,6 @@ from ads.config import (
 from ads.model import DataScienceModel
 from ads.model.model_metadata import ModelCustomMetadata, ModelCustomMetadataItem
 from ads.telemetry import telemetry
-from oci.data_science.models import JobRun, Model
 
 
 class AquaModelApp(AquaApp):
@@ -218,6 +218,10 @@ class AquaModelApp(AquaApp):
             ModelCustomMetadataFields.FINETUNE_CONTAINER,
             ModelCustomMetadataItem(key=ModelCustomMetadataFields.FINETUNE_CONTAINER),
         ).value
+        artifact_location = ds_model.custom_metadata_list.get(
+            ModelCustomMetadataFields.ARTIFACT_LOCATION,
+            ModelCustomMetadataItem(key=ModelCustomMetadataFields.ARTIFACT_LOCATION),
+        ).value
 
         aqua_model_attributes = dict(
             **self._process_model(ds_model, self.region),
@@ -226,6 +230,7 @@ class AquaModelApp(AquaApp):
             inference_container=inference_container,
             finetuning_container=finetuning_container,
             evaluation_container=evaluation_container,
+            artifact_location=artifact_location,
         )
 
         if not is_fine_tuned_model:
