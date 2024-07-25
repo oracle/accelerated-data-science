@@ -97,6 +97,7 @@ class AquaModel(AquaModelSummary, DataClassSerializable):
     inference_container: str = None
     finetuning_container: str = None
     evaluation_container: str = None
+    artifact_location: str = None
 
 
 @dataclass(repr=False)
