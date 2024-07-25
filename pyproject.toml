@@ -122,7 +122,8 @@ opctl = [
   "py-cpuinfo",
   "rich",
   "fire",
-  "cachetools"
+  "cachetools",
+  "huggingface_hub==0.23.4"
 ]
 optuna = ["optuna==2.9.0", "oracle_ads[viz]"]
 spark = ["pyspark>=3.0.0"]
