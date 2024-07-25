@@ -14,7 +14,11 @@ from tornado.web import HTTPError
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.errors import AquaResourceAccessError, AquaRuntimeError
-from ads.aqua.common.utils import fetch_service_compartment, known_realm
+from ads.aqua.common.utils import (
+    fetch_service_compartment,
+    get_huggingface_login_timeout,
+    known_realm,
+)
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 
@@ -62,8 +66,8 @@ class NetworkStatusHandler(AquaAPIhandler):
 
     @handle_exceptions
     def get(self):
-        requests.get("https://huggingface.com", timeout=2)
-        return self.finish("success")
+        requests.get("https://huggingface.com", timeout=get_huggingface_login_timeout())
+        return self.finish({"status": 200, "message": "success"})
 
 
 class HFLoginHandler(AquaAPIhandler):
@@ -92,7 +96,12 @@ class HFLoginHandler(AquaAPIhandler):
             raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("token"))
 
         # Login to HF
-        huggingface_hub.login(token=token, new_session=False)
+        try:
+            huggingface_hub.login(token=token, new_session=False)
+        except Exception as ex:
+            raise AquaRuntimeError(
+                reason=str(ex), service_payload={"error": type(ex).__name__}
+            ) from ex
 
         return self.finish({"status": 200, "message": "login successful"})
 

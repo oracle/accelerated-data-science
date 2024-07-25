@@ -39,6 +39,7 @@ from ads.aqua.constants import (
     COMPARTMENT_MAPPING_KEY,
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     CONTAINER_INDEX,
+    HF_LOGIN_DEFAULT_TIMEOUT,
     MAXIMUM_ALLOWED_DATASET_IN_BYTE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     SERVICE_MANAGED_CONTAINER_URI_SCHEME,
@@ -964,3 +965,22 @@ def get_restricted_params_by_container(container_type_name: str) -> set:
         return TGI_INFERENCE_RESTRICTED_PARAMS
     else:
         return set()
+
+
+def get_huggingface_login_timeout() -> int:
+    """This helper function returns the huggingface login timeout, returns default if not set via
+    env var.
+    Returns
+    -------
+    timeout: int
+        huggingface login timeout.
+
+    """
+    timeout = HF_LOGIN_DEFAULT_TIMEOUT
+    try:
+        timeout = int(
+            os.environ.get("HF_LOGIN_DEFAULT_TIMEOUT", HF_LOGIN_DEFAULT_TIMEOUT)
+        )
+    except ValueError:
+        pass
+    return timeout
