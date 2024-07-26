@@ -648,7 +648,7 @@ class AquaModelApp(AquaApp):
         )
         tags.update({Tags.BASE_MODEL_CUSTOM: "true"})
 
-        if validation_result:
+        if validation_result and validation_result.model_formats:
             tags.update(
                 {
                     Tags.MODEL_FORMAT: ",".join(
