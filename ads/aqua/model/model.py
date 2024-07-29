@@ -832,10 +832,10 @@ class AquaModelApp(AquaApp):
                 )
             for model_sibling in model_siblings:
                 extension = pathlib.Path(model_sibling.rfilename).suffix[1:].upper()
-                if ModelFormat.SAFETENSORS == extension:
+                if ModelFormat.SAFETENSORS.value == extension:
                     if AQUA_MODEL_ARTIFACT_CONFIG not in safetensors_model_files:
                         safetensors_model_files.append(AQUA_MODEL_ARTIFACT_CONFIG)
-                elif ModelFormat.GGUF == extension:
+                elif ModelFormat.GGUF.value == extension:
                     gguf_model_files.append(model_sibling.rfilename)
                 elif model_sibling.rfilename == AQUA_MODEL_ARTIFACT_CONFIG:
                     hf_download_config_present = True
@@ -845,22 +845,11 @@ class AquaModelApp(AquaApp):
 
         if not (safetensors_model_files or gguf_model_files):
             raise AquaRuntimeError(
-                f"The model {model_name} does not contain either {ModelFormat.SAFETENSORS} "
-                f"or {ModelFormat.GGUF} files in {os_path} or HugginFace. Please check if the path is correct or the model "
+                f"The model {model_name} does not contain either {ModelFormat.SAFETENSORS.value} "
+                f"or {ModelFormat.GGUF.value} files in {os_path} or HugginFace. Please check if the path is correct or the model "
                 f"artifacts are available at this location."
             )
         
-        if verified_model:
-            aqua_model = self.to_aqua_model(verified_model, self.region)
-            model_formats = aqua_model.model_formats
-        else:
-            if safetensors_model_files:
-                model_formats.append(ModelFormat.SAFETENSORS)
-            if gguf_model_files:
-                model_formats.append(ModelFormat.GGUF)
-
-        validation_result.model_formats = model_formats
-
         if verified_model:
             aqua_model = self.to_aqua_model(verified_model, self.region)
             model_formats = aqua_model.model_formats
@@ -885,7 +874,7 @@ class AquaModelApp(AquaApp):
                     if not hf_download_config_present:
                         raise AquaRuntimeError(
                             f"The model {model_name} does not contain {AQUA_MODEL_ARTIFACT_CONFIG} file as required "
-                            f"by {ModelFormat.SAFETENSORS} format model. Please check if the model name is correct in HugginFace."
+                            f"by {ModelFormat.SAFETENSORS.value} format model. Please check if the model name is correct in HugginFace."
                         )
                 else:
                     try:
@@ -1071,7 +1060,7 @@ class AquaModelApp(AquaApp):
 
         # download model from hugginface if indicates
         if import_model_details.download_from_hf:
-            model_name = self._download_model_from_hf(
+            self._download_model_from_hf(
                 import_model_details=import_model_details
             )
 
