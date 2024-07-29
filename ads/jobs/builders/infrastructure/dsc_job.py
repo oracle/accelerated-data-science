@@ -997,9 +997,9 @@ class DataScienceJob(Infrastructure):
             if key not in attribute_map and key.lower() in snake_to_camel_map:
                 value = spec.pop(key)
                 if isinstance(value, dict):
-                    spec[snake_to_camel_map[key.lower()]] = (
-                        DataScienceJob.standardize_spec(value)
-                    )
+                    spec[
+                        snake_to_camel_map[key.lower()]
+                    ] = DataScienceJob.standardize_spec(value)
                 else:
                     spec[snake_to_camel_map[key.lower()]] = value
         return spec
@@ -1697,9 +1697,9 @@ class DataScienceJob(Infrastructure):
             return self.runtime.run(self.dsc_job, **kwargs)
         return self.dsc_job.run(**kwargs)
 
-    def delete(self) -> None:
+    def delete(self, force_delete=False) -> None:
         """Deletes a job"""
-        self.dsc_job.delete()
+        self.dsc_job.delete(force_delete=force_delete)
 
     def run_list(self, **kwargs) -> List[DataScienceJobRun]:
         """Gets a list of job runs.
