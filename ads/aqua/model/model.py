@@ -784,8 +784,6 @@ class AquaModelApp(AquaApp):
         self,
         os_path: str,
         model_name: str,
-        inference_container: str,
-        finetuning_container: str,
         verified_model: DataScienceModel,
     ) -> ModelValidationResult:
         """
@@ -794,8 +792,6 @@ class AquaModelApp(AquaApp):
         Args:
             os_path (str): OCI  where the model is uploaded - oci://bucket@namespace/prefix
             model_name (str): name of the model
-            inference_container (str): selects service defaults
-            finetuning_container (str): selects service defaults
             verified_model (DataScienceModel): If set, then copies all the tags and custom metadata information from the service verified model
 
         Returns:
@@ -805,39 +801,13 @@ class AquaModelApp(AquaApp):
             AquaRuntimeError: If there is an error while loading the config file or if the model path is incorrect.
             AquaValueError: If the model format is not supported by AQUA."""
 
-        inference_containers_config = (
-            AquaContainerConfig.from_container_index_json().inference
-        )
-        model_formats: List[ModelFormat]
+        model_formats = []
         validation_result: ModelValidationResult = ModelValidationResult()
-
-        if verified_model:
-            aqua_model = self.to_aqua_model(verified_model, self.region)
-            model_formats = aqua_model.model_formats
-        else:
-            try:
-                model_formats = inference_containers_config[
-                    inference_container
-                ].model_formats
-            except (KeyError, IndexError):
-                logger.warn(
-                    "Unable to fetch model format for the model automatically defaulting to safetensors."
-                )
-                model_formats = [ModelFormat.SAFETENSORS]
-                pass
-        validation_result.model_formats = model_formats
 
         # as model formats can be either gguf or safetensors or both, we need to validate if there's at least
         # one way to register a valid model by checking if the oss path has the required artifacts.
-        safetensors_model_files = None
-        gguf_model_files = None
-
-        if ModelFormat.SAFETENSORS in model_formats:
-            safetensors_model_files = self.get_model_files(
-                os_path, ModelFormat.SAFETENSORS
-            )
-        if ModelFormat.GGUF in model_formats:
-            gguf_model_files = self.get_model_files(os_path, ModelFormat.GGUF)
+        safetensors_model_files = self.get_model_files(os_path, ModelFormat.SAFETENSORS)
+        gguf_model_files = self.get_model_files(os_path, ModelFormat.GGUF)
 
         if not (safetensors_model_files or gguf_model_files):
             raise AquaRuntimeError(
@@ -845,6 +815,17 @@ class AquaModelApp(AquaApp):
                 f"or {ModelFormat.GGUF} files. Please check if the path is correct or the model "
                 f"artifacts are available at this location."
             )
+
+        if verified_model:
+            aqua_model = self.to_aqua_model(verified_model, self.region)
+            model_formats = aqua_model.model_formats
+        else:
+            if safetensors_model_files:
+                model_formats.append(ModelFormat.SAFETENSORS)
+            if gguf_model_files:
+                model_formats.append(ModelFormat.GGUF)
+
+        validation_result.model_formats = model_formats
 
         # now as we know that at least one type of model files exist, validate the content of oss path.
         # for safetensors, we check if config.json files exist, and for gguf format we check if files with
@@ -911,10 +892,6 @@ class AquaModelApp(AquaApp):
                         validation_result.telemetry_model_name = AQUA_MODEL_TYPE_CUSTOM
 
             elif model_format == ModelFormat.GGUF and len(gguf_model_files) > 0:
-                if finetuning_container:
-                    raise AquaValueError(
-                        "Finetuning is currently not supported with GGUF model format"
-                    )
                 if verified_model:
                     try:
                         model_files = verified_model.custom_metadata_list.get(
@@ -997,8 +974,6 @@ class AquaModelApp(AquaApp):
             validation_result = self._validate_model_from_object_storage(
                 os_path=import_model_details.os_path,
                 model_name=model_name,
-                inference_container=import_model_details.inference_container,
-                finetuning_container=import_model_details.finetuning_container,
                 verified_model=verified_model,
             )
 
