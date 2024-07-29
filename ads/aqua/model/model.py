@@ -822,8 +822,8 @@ class AquaModelApp(AquaApp):
                 ).siblings
             except Exception as e:
                 huggingface_err_message = str(e)
-                raise Exception(
-                    f"Could not get the model_info of {model_name} from https://huggingface.co with message {huggingface_err_message}"
+                raise AquaValueError(
+                    f"Could not get the model_info of {model_name} from https://huggingface.co with message {huggingface_err_message}."
                 )
 
             if not model_siblings:
@@ -846,7 +846,7 @@ class AquaModelApp(AquaApp):
         if not (safetensors_model_files or gguf_model_files):
             raise AquaRuntimeError(
                 f"The model {model_name} does not contain either {ModelFormat.SAFETENSORS.value} "
-                f"or {ModelFormat.GGUF.value} files in {os_path} or HugginFace. Please check if the path is correct or the model "
+                f"or {ModelFormat.GGUF.value} files in {os_path} or Hugging Face repository. Please check if the path is correct or the model "
                 f"artifacts are available at this location."
             )
         
@@ -874,7 +874,7 @@ class AquaModelApp(AquaApp):
                     if not hf_download_config_present:
                         raise AquaRuntimeError(
                             f"The model {model_name} does not contain {AQUA_MODEL_ARTIFACT_CONFIG} file as required "
-                            f"by {ModelFormat.SAFETENSORS.value} format model. Please check if the model name is correct in HugginFace."
+                            f"by {ModelFormat.SAFETENSORS.value} format model. Please check if the model name is correct in Hugging Face repository."
                         )
                 else:
                     try:
@@ -992,7 +992,7 @@ class AquaModelApp(AquaApp):
         os.makedirs(local_dir, exist_ok=True)
         # Copy the model from the cache to destination
         snapshot_download(
-            repo_id=model_name, local_dir=local_dir, local_dir_use_symlinks=False
+            repo_id=model_name, local_dir=local_dir
         )
         # Upload to object storage
         model_artifact_path = upload_folder(
