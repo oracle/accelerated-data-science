@@ -846,9 +846,21 @@ class AquaModelApp(AquaApp):
         if not (safetensors_model_files or gguf_model_files):
             raise AquaRuntimeError(
                 f"The model {model_name} does not contain either {ModelFormat.SAFETENSORS} "
-                f"or {ModelFormat.GGUF} files. Please check if the model name is correct in HugginFace."
+                f"or {ModelFormat.GGUF} files in {os_path} or HugginFace. Please check if the path is correct or the model "
+                f"artifacts are available at this location."
             )
         
+        if verified_model:
+            aqua_model = self.to_aqua_model(verified_model, self.region)
+            model_formats = aqua_model.model_formats
+        else:
+            if safetensors_model_files:
+                model_formats.append(ModelFormat.SAFETENSORS)
+            if gguf_model_files:
+                model_formats.append(ModelFormat.GGUF)
+
+        validation_result.model_formats = model_formats
+
         if verified_model:
             aqua_model = self.to_aqua_model(verified_model, self.region)
             model_formats = aqua_model.model_formats
