@@ -278,7 +278,8 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
 class ImportModelDetails(CLIBuilderMixin):
     model: str
     os_path: str
-    download_from_hf: bool = True
+    download_from_hf: Optional[bool] = True
+    local_dir: Optional[str] = None
     inference_container: Optional[str] = None
     finetuning_container: Optional[str] = None
     compartment_id: Optional[str] = None
