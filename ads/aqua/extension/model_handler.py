@@ -37,11 +37,9 @@ class AquaModelHandler(AquaAPIhandler):
         url_parse = urlparse(self.request.path)
         paths = url_parse.path.strip("/")
         if paths.startswith("aqua/model/files"):
-            os_path = self.get_argument("os_path")
-            if not os_path:
-                raise HTTPError(
-                    400, Errors.MISSING_REQUIRED_PARAMETER.format("os_path")
-                )
+            os_path = self.get_argument("os_path", None)
+            model_name = self.get_argument("model_name", None)
+
             model_format = self.get_argument("model_format")
             if not model_format:
                 raise HTTPError(
@@ -52,7 +50,21 @@ class AquaModelHandler(AquaAPIhandler):
             except ValueError as err:
                 raise AquaValueError(f"Invalid model format: {model_format}") from err
             else:
-                return self.finish(AquaModelApp.get_model_files(os_path, model_format))
+                if os_path:
+                    return self.finish(
+                        AquaModelApp.get_model_files(os_path, model_format)
+                    )
+                elif model_name:
+                    return self.finish(
+                        AquaModelApp.get_hf_model_files(model_name, model_format)
+                    )
+                else:
+                    raise HTTPError(
+                        400,
+                        Errors.MISSING_ONEOF_REQUIRED_PARAMETER.format(
+                            "os_path", "model_name"
+                        ),
+                    )
         elif not model_id:
             return self.list()
 
@@ -116,11 +128,15 @@ class AquaModelHandler(AquaAPIhandler):
         compartment_id = input_data.get("compartment_id")
         project_id = input_data.get("project_id")
         model_file = input_data.get("model_file")
+        download_from_hf = (
+            str(input_data.get("download_from_hf", "false")).lower() == "true"
+        )
 
         return self.finish(
             AquaModelApp().register(
                 model=model,
                 os_path=os_path,
+                download_from_hf=download_from_hf,
                 inference_container=inference_container,
                 finetuning_container=finetuning_container,
                 compartment_id=compartment_id,

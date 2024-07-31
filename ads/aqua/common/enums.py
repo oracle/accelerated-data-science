@@ -39,6 +39,7 @@ class Tags(str, metaclass=ExtendedEnumMeta):
     BASE_MODEL_CUSTOM = "aqua_custom_base_model"
     AQUA_EVALUATION_MODEL_ID = "evaluation_model_id"
     MODEL_FORMAT = "model_format"
+    MODEL_ARTIFACT_FILE = "model_file"
 
 
 class InferenceContainerType(str, metaclass=ExtendedEnumMeta):
