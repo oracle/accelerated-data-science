@@ -215,10 +215,11 @@ class AquaDeploymentApp(AquaApp):
 
         env_var.update({"BASE_MODEL": f"{model_path_prefix}"})
 
-        model_format = aqua_model.freeform_tags.get(
+        model_formats_str = aqua_model.freeform_tags.get(
             Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS.value
         ).upper()
-        if model_format == ModelFormat.GGUF.value:
+        model_format = model_formats_str.split(",")
+        if ModelFormat.GGUF.value in model_format:
             if model_file is not None:
                 logger.info(
                     f"Overriding {model_file} as model_file for model {aqua_model.id}."

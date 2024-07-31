@@ -8,7 +8,7 @@ from threading import Lock
 from typing import Dict, List, Optional, Set, Union
 
 import oci
-from cachetools import TTLCache
+from cachetools import TTLCache, cached
 from huggingface_hub import HfApi, snapshot_download
 from oci.data_science.models import JobRun, Model
 
@@ -791,6 +791,49 @@ class AquaModelApp(AquaApp):
             )
         return model_files
 
+    @staticmethod
+    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=1), timer=datetime.now))
+    def get_hf_model_files(model_name: str, model_format: ModelFormat) -> List[str]:
+        """
+        Get a list of model files based on the given OS path and model format.
+
+        Args:
+            model_name (str): The huggingface model name.
+            model_format (ModelFormat): The format of the model files.
+
+        Returns:
+            List[str]: A list of model file names.
+
+        """
+        model_files: List[str] = []
+
+        # todo: revisit this logic to account for .bin files. In the current state, .bin and .safetensor models
+        #   are grouped in one category and returns config.json file only.
+
+        try:
+            model_siblings = HfApi().model_info(repo_id=model_name).siblings
+        except Exception as e:
+            huggingface_err_message = str(e)
+            raise AquaValueError(
+                f"Could not get the model_info of {model_name} from https://huggingface.co. "
+                f"Error: {huggingface_err_message}."
+            ) from e
+
+        if not model_siblings:
+            raise AquaValueError(
+                f"Failed to fetch the model files of {model_name} from https://huggingface.co."
+            )
+
+        for model_sibling in model_siblings:
+            extension = pathlib.Path(model_sibling.rfilename).suffix[1:].upper()
+            if model_format == ModelFormat.SAFETENSORS:
+                if model_sibling.rfilename == AQUA_MODEL_ARTIFACT_CONFIG:
+                    model_files.append(model_sibling.rfilename)
+            elif extension == model_format.value:
+                model_files.append(model_sibling.rfilename)
+
+        return model_files
+
     def _validate_model(
         self,
         import_model_details: ImportModelDetails = None,
@@ -816,35 +859,15 @@ class AquaModelApp(AquaApp):
         model_formats = []
         validation_result: ModelValidationResult = ModelValidationResult()
 
-        safetensors_model_files = []
-        gguf_model_files = []
         hf_download_config_present = False
 
-        # todo: decouple HF validation into a separate function
         if import_model_details.download_from_hf:
-            model_siblings = []
-            try:
-                model_siblings = HfApi().model_info(repo_id=model_name).siblings
-            except Exception as e:
-                huggingface_err_message = str(e)
-                raise AquaValueError(
-                    f"Could not get the model_info of {model_name} from https://huggingface.co. "
-                    f"Error: {huggingface_err_message}."
-                ) from e
-
-            if not model_siblings:
-                raise AquaValueError(
-                    f"Failed to fetch the model files of {model_name} from https://huggingface.co."
-                )
-            for model_sibling in model_siblings:
-                extension = pathlib.Path(model_sibling.rfilename).suffix[1:].upper()
-                if ModelFormat.SAFETENSORS.value == extension:
-                    if AQUA_MODEL_ARTIFACT_CONFIG not in safetensors_model_files:
-                        safetensors_model_files.append(AQUA_MODEL_ARTIFACT_CONFIG)
-                elif ModelFormat.GGUF.value == extension:
-                    gguf_model_files.append(model_sibling.rfilename)
-                elif model_sibling.rfilename == AQUA_MODEL_ARTIFACT_CONFIG:
-                    hf_download_config_present = True
+            safetensors_model_files = self.get_hf_model_files(
+                model_name, ModelFormat.SAFETENSORS
+            )
+            if safetensors_model_files:
+                hf_download_config_present = True
+            gguf_model_files = self.get_hf_model_files(model_name, ModelFormat.GGUF)
         else:
             safetensors_model_files = self.get_model_files(
                 import_model_details.os_path, ModelFormat.SAFETENSORS
