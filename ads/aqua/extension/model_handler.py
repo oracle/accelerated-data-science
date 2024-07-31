@@ -115,16 +115,21 @@ class AquaModelHandler(AquaAPIhandler):
         finetuning_container = input_data.get("finetuning_container")
         compartment_id = input_data.get("compartment_id")
         project_id = input_data.get("project_id")
+        model_file = input_data.get("model_file")
+        download_from_hf = (
+            str(input_data.get("download_from_hf", "false")).lower() == "true"
+        )
 
         return self.finish(
             AquaModelApp().register(
                 model=model,
                 os_path=os_path,
-                download_from_hf=False,
+                download_from_hf=download_from_hf,
                 inference_container=inference_container,
                 finetuning_container=finetuning_container,
                 compartment_id=compartment_id,
                 project_id=project_id,
+                model_file=model_file,
             )
         )
 

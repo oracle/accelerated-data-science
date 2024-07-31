@@ -106,6 +106,7 @@ class AquaDeploymentApp(AquaApp):
         container_family: str = None,
         memory_in_gbs: Optional[float] = None,
         ocpus: Optional[float] = None,
+        model_file: Optional[str] = None,
     ) -> "AquaDeployment":
         """
         Creates a new Aqua deployment
@@ -150,6 +151,8 @@ class AquaDeploymentApp(AquaApp):
             The memory in gbs for the shape selected.
         ocpus: float
             The ocpu count for the shape selected.
+        model_file: str
+            The file used for model deployment.
         Returns
         -------
         AquaDeployment
@@ -216,16 +219,24 @@ class AquaDeploymentApp(AquaApp):
             Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS.value
         ).upper()
         if model_format == ModelFormat.GGUF.value:
-            try:
-                model_file = aqua_model.custom_metadata_list.get(
-                    AQUA_MODEL_ARTIFACT_FILE
-                ).value
-            except ValueError as err:
-                raise AquaValueError(
-                    f"{AQUA_MODEL_ARTIFACT_FILE} key is not available in the custom metadata field "
-                    f"for model {aqua_model.id}."
-                ) from err
+            if model_file is not None:
+                logger.info(
+                    f"Overriding {model_file} as model_file for model {aqua_model.id}."
+                )
+            else:
+                try:
+                    model_file = aqua_model.custom_metadata_list.get(
+                        AQUA_MODEL_ARTIFACT_FILE
+                    ).value
+                except ValueError as err:
+                    raise AquaValueError(
+                        f"{AQUA_MODEL_ARTIFACT_FILE} key is not available in the custom metadata field "
+                        f"for model {aqua_model.id}. Either register the model with a default model_file or pass "
+                        f"as a parameter when creating a deployment."
+                    ) from err
+
             env_var.update({"BASE_MODEL_FILE": f"{model_file}"})
+            tags.update({Tags.MODEL_ARTIFACT_FILE: model_file})
 
         if is_fine_tuned_model:
             _, fine_tune_output_path = get_model_by_reference_paths(

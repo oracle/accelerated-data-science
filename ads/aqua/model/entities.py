@@ -45,7 +45,7 @@ class AquaFineTuneValidation(DataClassSerializable):
 
 @dataclass(repr=False)
 class ModelValidationResult:
-    model_files: List[str] = field(default_factory=list)
+    model_file: Optional[str] = None
     model_formats: List[ModelFormat] = field(default_factory=list)
     telemetry_model_name: str = None
 
@@ -87,6 +87,7 @@ class AquaModelSummary(DataClassSerializable):
     ready_to_import: bool = False
     nvidia_gpu_supported: bool = False
     arm_cpu_supported: bool = False
+    model_file: Optional[str] = None
     model_formats: List[ModelFormat] = field(default_factory=list)
 
 
@@ -284,6 +285,7 @@ class ImportModelDetails(CLIBuilderMixin):
     finetuning_container: Optional[str] = None
     compartment_id: Optional[str] = None
     project_id: Optional[str] = None
+    model_file: Optional[str] = None
 
     def __post_init__(self):
         self._command = "model register"

@@ -801,33 +801,6 @@ def upload_folder(os_path: str, local_dir: str, model_name: str) -> str:
     return f"oci://{os_details.bucket}@{os_details.namespace}" + "/" + object_path
 
 
-def upload_folder(os_path: str, local_dir: str, model_name: str) -> str:
-    """Upload the local folder to the object storage
-
-    Args:
-        os_path (str): object storage URI with prefix. This is the path to upload
-        local_dir (str): Local directory where the object is downloaded
-        model_name (str): Name of the huggingface model
-    Retuns:
-        str: Object name inside the bucket
-    """
-    os_details: ObjectStorageDetails = ObjectStorageDetails.from_path(os_path)
-    if not os_details.is_bucket_versioned():
-        raise ValueError(f"Version is not enabled at object storage location {os_path}")
-    auth_state = AuthState()
-    object_path = os_details.filepath.rstrip("/") + "/" + model_name + "/"
-    command = f"oci os object bulk-upload --src-dir {local_dir} --prefix {object_path} -bn {os_details.bucket} -ns {os_details.namespace} --auth {auth_state.oci_iam_type} --profile {auth_state.oci_key_profile} --no-overwrite"
-    try:
-        logger.info(f"Running: {command}")
-        subprocess.check_call(shlex.split(command))
-    except subprocess.CalledProcessError as e:
-        logger.error(
-            f"Error uploading the object. Exit code: {e.returncode} with error {e.stdout}"
-        )
-
-    return f"oci://{os_details.bucket}@{os_details.namespace}" + "/" + object_path
-
-
 def is_service_managed_container(container):
     return container and container.startswith(SERVICE_MANAGED_CONTAINER_URI_SCHEME)
 
