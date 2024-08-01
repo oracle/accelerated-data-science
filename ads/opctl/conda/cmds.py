@@ -176,7 +176,8 @@ def _create(
 
     os.makedirs(pack_folder_path, exist_ok=True)
 
-    manifest = _fetch_manifest_template()
+    if not manifest:
+        manifest = _fetch_manifest_template()
     if not "name" in manifest:
         manifest["manifest"]["name"] = name
     manifest["manifest"]["slug"] = slug
