@@ -176,14 +176,13 @@ def _create(
 
     os.makedirs(pack_folder_path, exist_ok=True)
 
-    if not manifest:
-        manifest = _fetch_manifest_template()
-    if not "name" in manifest:
+    manifest = _fetch_manifest_template()
+    if not "name" in conda_dep["manifest"]:
         manifest["manifest"]["name"] = name
     manifest["manifest"]["slug"] = slug
-    if not "type" in manifest:
+    if not "type" in conda_dep["manifest"]:
         manifest["manifest"]["type"] = "published"
-    if not "version" in manifest:
+    if not "version" in conda_dep["manifest"]:
         manifest["manifest"]["version"] = version
     manifest["manifest"]["arch_type"] = "GPU" if gpu else "CPU"
 
