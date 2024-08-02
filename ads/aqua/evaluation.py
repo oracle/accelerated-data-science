@@ -1167,6 +1167,33 @@ class AquaEvaluationApp(AquaApp):
                 ),
                 "args": {},
             },
+            {
+                "use_case": ["text_generation"],
+                "key": "perplexity_score",
+                "name": "perplexity_score",
+                "description": (
+                    "Perplexity is a metric to evaluate the quality of language models, particularly for \"Text Generation\" task type "
+                    "Perplexity quantifies how well a LLM can predict the next word in a sequence of words. "
+                    "A high perplexity score indicates that the LLM is not confident in its text generation — that is, the model is \"perplexed\" — "
+                    "whereas a low perplexity score indicates that the LLM is confident in its generation."
+                ),
+                "args": {},
+            },
+            {
+                "use_case": ["text_generation"],
+                "key": "text_readability",
+                "name": "text_readability",
+                "description": (
+                    "Text quality/readability metrics offer valuable insights into the quality and suitability of generated responses. "
+                    "Monitoring these metrics helps ensure that Language Model (LLM) outputs are clear, concise, and appropriate for the target audience. "
+                    "Evaluating text complexity and grade level helps tailor the generated content to the intended readers. "
+                    "By considering aspects such as sentence structure, vocabulary, and domain-specific needs, we can make sure the LLM produces"
+                    "responses that match the desired reading level and professional context. "
+                    "Additionally, metrics like syllable count, word count, and character count allow you to keep track of the "
+                    "length and structure of the generated text."
+                ),
+                "args": {},
+            },
         ]
 
     @telemetry(entry_point="plugin=evaluation&action=load_metrics", name="aqua")
