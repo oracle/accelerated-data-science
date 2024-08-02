@@ -22,6 +22,12 @@ import fsspec
 import oci
 from cachetools import TTLCache, cached
 from huggingface_hub.hf_api import HfApi, ModelInfo
+from huggingface_hub.utils import (
+    GatedRepoError,
+    HfHubHTTPError,
+    RepositoryNotFoundError,
+    RevisionNotFoundError,
+)
 from oci.data_science.models import JobRun, Model
 from oci.object_storage.models import ObjectSummary
 
@@ -987,6 +993,56 @@ def get_huggingface_login_timeout() -> int:
     return timeout
 
 
+def format_hf_custom_error_message(error: HfHubHTTPError):
+    """
+    Formats a custom error message based on the Hugging Face error response.
+
+    Parameters
+    ----------
+    error (HfHubHTTPError): The caught exception.
+
+    Raises
+    ------
+    AquaRuntimeError: A user-friendly error message.
+    """
+    # Extract the repository URL from the error message if present
+    match = re.search(r"(https://huggingface.co/[^\s]+)", str(error))
+    url = match.group(1) if match else "the requested Hugging Face URL."
+
+    if isinstance(error, RepositoryNotFoundError):
+        raise AquaRuntimeError(
+            reason=f"Failed to access `{url}`. Please check if the provided repository name is correct. "
+            "If the repo is private, make sure you are authenticated and have a valid HF token registered. "
+            "To register your token, run this command in your terminal: `huggingface-cli login`",
+            service_payload={"error": "RepositoryNotFoundError"},
+        )
+
+    if isinstance(error, GatedRepoError):
+        raise AquaRuntimeError(
+            reason=f"Access denied to `{url}` "
+            "This repository is gated. Access is restricted to authorized users. "
+            "Please request access or check with the repository administrator. "
+            "If you are trying to access a gated repository, ensure you have a valid HF token registered. "
+            "To register your token, run this command in your terminal: `huggingface-cli login`",
+            service_payload={"error": "GatedRepoError"},
+        )
+
+    if isinstance(error, RevisionNotFoundError):
+        raise AquaRuntimeError(
+            reason=f"The specified revision could not be found at `{url}` "
+            "Please check the revision identifier and try again.",
+            service_payload={"error": "RevisionNotFoundError"},
+        )
+
+    raise AquaRuntimeError(
+        reason=f"An error occurred while accessing `{url}` "
+        "Please check your network connection and try again. "
+        "If you are trying to access a gated repository, ensure you have a valid HF token registered. "
+        "To register your token, run this command in your terminal: `huggingface-cli login`",
+        service_payload={"error": "Error"},
+    )
+
+
 @cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=5), timer=datetime.now))
 def get_hf_model_info(repo_id: str) -> ModelInfo:
     """Gets the model information object for the given model repository name. For models that requires a token,
@@ -1004,9 +1060,5 @@ def get_hf_model_info(repo_id: str) -> ModelInfo:
     """
     try:
         return HfApi().model_info(repo_id=repo_id)
-    except Exception as e:
-        huggingface_err_message = str(e)
-        raise AquaValueError(
-            f"Could not get the model_info of {repo_id} from https://huggingface.co. "
-            f"Error: {huggingface_err_message}."
-        ) from e
+    except HfHubHTTPError as err:
+        raise format_hf_custom_error_message(err) from err

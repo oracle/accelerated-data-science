@@ -19,6 +19,7 @@ from ads.aqua.extension.model_handler import (
 )
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import AquaModel, AquaModelSummary, HFModelSummary
+from ads.aqua.common.utils import get_hf_model_info
 
 
 class ModelHandlerTestCase(TestCase):
@@ -27,6 +28,9 @@ class ModelHandlerTestCase(TestCase):
         ipython_init_mock.return_value = None
         self.model_handler = AquaModelHandler(MagicMock(), MagicMock())
         self.model_handler.request = MagicMock()
+
+    def tearDown(self) -> None:
+        get_hf_model_info.cache_clear()
 
     @patch("ads.aqua.extension.model_handler.urlparse")
     @patch.object(AquaModelHandler, "list")
@@ -196,8 +200,9 @@ class TestAquaHuggingFaceHandler:
             else:
                 assert test_result == None
 
+    @patch("ads.aqua.common.utils.format_hf_custom_error_message")
     @patch("uuid.uuid4")
-    def test_post_negative(self, mock_uuid):
+    def test_post_negative(self, mock_uuid, mock_format_hf_custom_error_message):
         mock_uuid.return_value = "###"
 
         # case 1
@@ -206,6 +211,7 @@ class TestAquaHuggingFaceHandler:
         self.mock_handler.finish.assert_called_with(
             '{"status": 400, "message": "Invalid format of input data.", "service_payload": {}, "reason": "Invalid format of input data.", "request_id": "###"}'
         )
+        get_hf_model_info.cache_clear()
 
         # case 2
         self.mock_handler.get_json_body = MagicMock(return_value={})
@@ -214,6 +220,7 @@ class TestAquaHuggingFaceHandler:
             '{"status": 400, "message": "No input data provided.", "service_payload": {}, '
             '"reason": "No input data provided.", "request_id": "###"}'
         )
+        get_hf_model_info.cache_clear()
 
         # case 3
         self.mock_handler.get_json_body = MagicMock(return_value={"some_field": None})
@@ -222,14 +229,16 @@ class TestAquaHuggingFaceHandler:
             '{"status": 400, "message": "Missing required parameter: \'model_id\'", '
             '"service_payload": {}, "reason": "Missing required parameter: \'model_id\'", "request_id": "###"}'
         )
+        get_hf_model_info.cache_clear()
 
         # case 4
         self.mock_handler.get_json_body = MagicMock(
             return_value={"model_id": "test_model_id"}
         )
-        self.mock_handler._format_custom_error_message = MagicMock(
-            side_effect=AquaRuntimeError("test error message")
+        mock_format_hf_custom_error_message.side_effect = AquaRuntimeError(
+            "test error message"
         )
+
         with patch.object(HfApi, "model_info") as mock_model_info:
             mock_model_info.side_effect = GatedRepoError(message="test message")
             self.mock_handler.post()
@@ -237,6 +246,7 @@ class TestAquaHuggingFaceHandler:
                 '{"status": 400, "message": "Something went wrong with your request.", '
                 '"service_payload": {}, "reason": "test error message", "request_id": "###"}'
             )
+        get_hf_model_info.cache_clear()
 
         # case 5
         self.mock_handler.get_json_body = MagicMock(
@@ -251,6 +261,7 @@ class TestAquaHuggingFaceHandler:
                 "imported into AQUA. Please verify the model's status on the Hugging Face Model "
                 'Hub or select a different model.", "request_id": "###"}'
             )
+        get_hf_model_info.cache_clear()
 
         # case 6
         self.mock_handler.get_json_body = MagicMock(
@@ -267,6 +278,7 @@ class TestAquaHuggingFaceHandler:
                 "model: 'not-text-generation'. AQUA currently supports the following tasks only: "
                 'text-generation. Please select a model with a compatible pipeline tag.", "request_id": "###"}'
             )
+        get_hf_model_info.cache_clear()
 
     @patch("uuid.uuid4")
     def test_post_positive(self, mock_uuid):

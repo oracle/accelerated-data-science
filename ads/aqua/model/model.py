@@ -898,15 +898,34 @@ class AquaModelApp(AquaApp):
             # get tags for models from hf
             if import_model_details.download_from_hf:
                 model_info = get_hf_model_info(repo_id=model_name)
-                hf_tags = {
-                    Tags.TASK: (model_info and model_info.pipeline_tag) or UNKNOWN,
-                    Tags.ORGANIZATION: (
-                        model_info.author
-                        if model_info and hasattr(model_info, "author")
-                        else UNKNOWN
-                    ),
-                }
-                validation_result.tags = hf_tags
+
+                try:
+                    license_value = UNKNOWN
+                    if model_info.tags:
+                        license_tag = next(
+                            (
+                                tag
+                                for tag in model_info.tags
+                                if tag.startswith("license:")
+                            ),
+                            UNKNOWN,
+                        )
+                        license_value = (
+                            license_tag.split(":")[1] if license_tag else UNKNOWN
+                        )
+
+                    hf_tags = {
+                        Tags.TASK: (model_info and model_info.pipeline_tag) or UNKNOWN,
+                        Tags.ORGANIZATION: (
+                            model_info.author
+                            if model_info and hasattr(model_info, "author")
+                            else UNKNOWN
+                        ),
+                        Tags.LICENSE: license_value,
+                    }
+                    validation_result.tags = hf_tags
+                except Exception:
+                    pass
 
         validation_result.model_formats = model_formats
 
