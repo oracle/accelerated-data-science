@@ -176,11 +176,13 @@ def _create(
 
     os.makedirs(pack_folder_path, exist_ok=True)
 
+    logger.info(f"Preparing manifest. Manifest in the environment: {conda_dep.get('manifest')}")
     manifest = _fetch_manifest_template()
     if not "name" in conda_dep["manifest"]:
         manifest["manifest"]["name"] = name
     manifest["manifest"]["slug"] = slug
     if not "type" in conda_dep["manifest"]:
+        logger.info(f"Setting manifest to published")
         manifest["manifest"]["type"] = "published"
     if not "version" in conda_dep["manifest"]:
         manifest["manifest"]["version"] = version
@@ -195,6 +197,7 @@ def _create(
 
     logger.info(f"Creating conda environment {slug}")
     conda_dep["manifest"].update({k: manifest["manifest"][k] for k in manifest["manifest"] if manifest["manifest"][k]})
+    logger.info(f"Updated conda environment manifest: {conda_dep.get('manifest')}")
 
     if is_in_notebook_session() or NO_CONTAINER:
         command = f"conda env create --prefix {pack_folder_path} --file {os.path.abspath(os.path.expanduser(env_file))}"
@@ -681,6 +684,8 @@ def _publish(
             publish_slug,
         )
         manifest["pack_uri"] = pack_uri
+    else:
+        manifest["type"] = "published"
 
     with open(manifest_location, "w") as f:
         yaml.safe_dump(env, f)
