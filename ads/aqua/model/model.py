@@ -724,6 +724,7 @@ class AquaModelApp(AquaApp):
                 tags[Tags.ORGANIZATION] = validation_result.tags.get(
                     Tags.ORGANIZATION, UNKNOWN
                 )
+                tags[Tags.LICENSE] = validation_result.tags.get(Tags.LICENSE, UNKNOWN)
 
         try:
             # If verified model already has a artifact json, use that.
