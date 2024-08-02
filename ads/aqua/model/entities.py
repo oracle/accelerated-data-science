@@ -48,6 +48,7 @@ class ModelValidationResult:
     model_file: Optional[str] = None
     model_formats: List[ModelFormat] = field(default_factory=list)
     telemetry_model_name: str = None
+    tags: Optional[dict] = None
 
 
 @dataclass(repr=False)

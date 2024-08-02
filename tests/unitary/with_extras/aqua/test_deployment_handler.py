@@ -128,6 +128,7 @@ class TestAquaDeploymentHandler(unittest.TestCase):
             container_family=None,
             memory_in_gbs=None,
             ocpus=None,
+            model_file=None,
         )
 
 

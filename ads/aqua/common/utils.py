@@ -21,6 +21,7 @@ from typing import List, Union
 import fsspec
 import oci
 from cachetools import TTLCache, cached
+from huggingface_hub.hf_api import HfApi, ModelInfo
 from oci.data_science.models import JobRun, Model
 from oci.object_storage.models import ObjectSummary
 
@@ -984,3 +985,28 @@ def get_huggingface_login_timeout() -> int:
     except ValueError:
         pass
     return timeout
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=5), timer=datetime.now))
+def get_hf_model_info(repo_id: str) -> ModelInfo:
+    """Gets the model information object for the given model repository name. For models that requires a token,
+    this method assumes that the token validation is already done.
+
+    Parameters
+    ----------
+    repo_id: str
+        hugging face model repository name
+
+    Returns
+    -------
+        instance of ModelInfo object
+
+    """
+    try:
+        return HfApi().model_info(repo_id=repo_id)
+    except Exception as e:
+        huggingface_err_message = str(e)
+        raise AquaValueError(
+            f"Could not get the model_info of {repo_id} from https://huggingface.co. "
+            f"Error: {huggingface_err_message}."
+        ) from e
