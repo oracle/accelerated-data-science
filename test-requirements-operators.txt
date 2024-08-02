@@ -1,5 +1,6 @@
 -r test-requirements.txt
 -e ".[forecast]"
+-e ".[anomaly]"
 -e ".[recommender]"
 -e ".[feature-store-marketplace]"
 plotly

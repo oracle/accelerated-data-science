@@ -363,6 +363,7 @@ spec:
         - auto
         - oneclasssvm
         - isolationforest
+        - randomcutforest
       meta:
         description: "The model to be used for anomaly detection"
 

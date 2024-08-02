@@ -175,6 +175,8 @@ anomaly  = [
   "autots",
   "oracledb",
   "report-creator==1.0.9",
+  "rrcf==0.4.4",
+  "scikit-learn"
 ]
 recommender = [
   "oracle_ads[opctl]",
