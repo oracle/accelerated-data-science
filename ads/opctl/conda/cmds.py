@@ -626,7 +626,8 @@ def _publish(
     pack_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pack.py")
     if not skip_archive:
         if is_in_notebook_session() or NO_CONTAINER:
-            command = f"python {pack_script} --conda-path {pack_folder_path}"
+            # Set the CONDA_PUBLISH_TYPE environment variable so that the `type` attribute inside the manifest is not changed
+            command = f"CONDA_PUBLISH_TYPE={os.environ.get('CONDA_PUBLISH_TYPE','')} python {pack_script} --conda-path {pack_folder_path}"
             run_command(command, shell=True)
         else:
             volumes = {
