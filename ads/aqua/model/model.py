@@ -8,8 +8,8 @@ from threading import Lock
 from typing import Dict, List, Optional, Set, Union
 
 import oci
-from cachetools import TTLCache, cached
-from huggingface_hub import HfApi, snapshot_download
+from cachetools import TTLCache
+from huggingface_hub import snapshot_download
 from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
@@ -22,6 +22,7 @@ from ads.aqua.common.utils import (
     copy_model_config,
     create_word_icon,
     get_artifact_path,
+    get_hf_model_info,
     list_os_files_with_extension,
     load_config,
     read_file,
@@ -717,9 +718,13 @@ class AquaModelApp(AquaApp):
                 description="Evaluation container mapping for SMC",
                 category="Other",
             )
-            # TODO: either get task and organization from user or a config file
-            # tags["task"] = "UNKNOWN"
-            # tags["organization"] = "UNKNOWN"
+
+            if validation_result and validation_result.tags:
+                tags[Tags.TASK] = validation_result.tags.get(Tags.TASK, UNKNOWN)
+                tags[Tags.ORGANIZATION] = validation_result.tags.get(
+                    Tags.ORGANIZATION, UNKNOWN
+                )
+                tags[Tags.LICENSE] = validation_result.tags.get(Tags.LICENSE, UNKNOWN)
 
         try:
             # If verified model already has a artifact json, use that.
@@ -792,7 +797,6 @@ class AquaModelApp(AquaApp):
         return model_files
 
     @staticmethod
-    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=1), timer=datetime.now))
     def get_hf_model_files(model_name: str, model_format: ModelFormat) -> List[str]:
         """
         Get a list of model files based on the given OS path and model format.
@@ -811,11 +815,11 @@ class AquaModelApp(AquaApp):
         #   are grouped in one category and returns config.json file only.
 
         try:
-            model_siblings = HfApi().model_info(repo_id=model_name).siblings
+            model_siblings = get_hf_model_info(repo_id=model_name).siblings
         except Exception as e:
             huggingface_err_message = str(e)
             raise AquaValueError(
-                f"Could not get the model_info of {model_name} from https://huggingface.co. "
+                f"Could not get the model files of {model_name} from https://huggingface.co. "
                 f"Error: {huggingface_err_message}."
             ) from e
 
@@ -891,6 +895,38 @@ class AquaModelApp(AquaApp):
                 model_formats.append(ModelFormat.SAFETENSORS)
             if gguf_model_files:
                 model_formats.append(ModelFormat.GGUF)
+
+            # get tags for models from hf
+            if import_model_details.download_from_hf:
+                model_info = get_hf_model_info(repo_id=model_name)
+
+                try:
+                    license_value = UNKNOWN
+                    if model_info.tags:
+                        license_tag = next(
+                            (
+                                tag
+                                for tag in model_info.tags
+                                if tag.startswith("license:")
+                            ),
+                            UNKNOWN,
+                        )
+                        license_value = (
+                            license_tag.split(":")[1] if license_tag else UNKNOWN
+                        )
+
+                    hf_tags = {
+                        Tags.TASK: (model_info and model_info.pipeline_tag) or UNKNOWN,
+                        Tags.ORGANIZATION: (
+                            model_info.author
+                            if model_info and hasattr(model_info, "author")
+                            else UNKNOWN
+                        ),
+                        Tags.LICENSE: license_value,
+                    }
+                    validation_result.tags = hf_tags
+                except Exception:
+                    pass
 
         validation_result.model_formats = model_formats
 
