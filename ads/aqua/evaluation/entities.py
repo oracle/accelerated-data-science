@@ -105,6 +105,16 @@ class ModelParams(DataClassSerializable):
 
 
 @dataclass(repr=False)
+class ServiceModelParams(DataClassSerializable):
+    """
+    The service model params that will be added to the final list of the user-defined parameters.
+    """
+
+    model: Optional[str] = "odsc-llm"
+    add_generation_prompt: Optional[bool] = False
+
+
+@dataclass(repr=False)
 class AquaEvalParams(ModelParams, DataClassSerializable):
     shape: str = ""
     dataset_path: str = ""

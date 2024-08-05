@@ -74,6 +74,7 @@ from ads.aqua.evaluation.entities import (
     AquaResourceIdentifier,
     CreateAquaEvaluationDetails,
     ModelParams,
+    ServiceModelParams,
 )
 from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
 from ads.aqua.ui import AquaContainerConfig
@@ -414,11 +415,16 @@ class AquaEvaluationApp(AquaApp):
                 container_image=container_image,
                 dataset_path=evaluation_dataset_path,
                 report_path=create_aqua_evaluation_details.report_path,
-                model_parameters=create_aqua_evaluation_details.model_parameters,
+                model_parameters={
+                    **ServiceModelParams().to_dict(),
+                    **create_aqua_evaluation_details.model_parameters,
+                },
                 metrics=create_aqua_evaluation_details.metrics,
-                inference_configuration=eval_inference_configuration.to_filtered_dict()
-                if eval_inference_configuration
-                else {},
+                inference_configuration=(
+                    eval_inference_configuration.to_filtered_dict()
+                    if eval_inference_configuration
+                    else {}
+                ),
             )
         ).create(**kwargs)  ## TODO: decide what parameters will be needed
         logger.debug(
@@ -1225,7 +1231,7 @@ class AquaEvaluationApp(AquaApp):
                 f"Exception message: {ex}"
             )
 
-    def load_evaluation_config(self, eval_id):
+    def load_evaluation_config(self, eval_id: str = ""):  # noqa: ARG002
         """Loads evaluation config."""
         return {
             "model_params": {

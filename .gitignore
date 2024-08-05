@@ -163,3 +163,6 @@ logs/
 
 # Python Wheel
 *.whl
+
+# Demo folder
+.demo
