@@ -68,7 +68,7 @@ class AdditionalData(AbstractData):
             add_dates.sort()
             if historical_data.get_max_time() > add_dates[-spec.horizon]:
                 raise DataMismatchError(
-                    f"The Historical Data ends on {historical_data.get_max_time()}. The additional data horizon starts on {add_dates[-spec.horizon]}. The horizon should have exactly {spec.horizon} dates after the Hisotrical at a frequency of {historical_data.freq}"
+                    f"The Historical Data ends on {historical_data.get_max_time()}. The additional data horizon starts on {add_dates[-spec.horizon]}. The horizon should have exactly {spec.horizon} dates after the Historical at a frequency of {historical_data.freq}"
                 )
             elif historical_data.get_max_time() != add_dates[-(spec.horizon + 1)]:
                 raise DataMismatchError(
