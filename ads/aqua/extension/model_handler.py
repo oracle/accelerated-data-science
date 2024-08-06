@@ -77,10 +77,7 @@ class AquaModelHandler(AquaAPIhandler):
         if not os_path:
             raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("os_path"))
 
-        try:
-            inference_container = input_data.get("inference_container")
-        except:
-            inference_container = None
+        inference_container = input_data.get("inference_container")
         finetuning_container = input_data.get("finetuning_container")
         compartment_id = input_data.get("compartment_id")
         project_id = input_data.get("project_id")
