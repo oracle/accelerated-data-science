@@ -763,7 +763,7 @@ class AquaModelApp(AquaApp):
         return model
 
     @staticmethod
-    def get_model_files(os_path: str, model_format: ModelFormat) -> List[str]:
+    def get_model_files(os_path: str, model_format: str) -> List[str]:
         """
         Get a list of model files based on the given OS path and model format.
 
@@ -775,6 +775,11 @@ class AquaModelApp(AquaApp):
             List[str]: A list of model file names.
 
         """
+        try:
+            model_format = ModelFormat(model_format.upper())
+        except ValueError as err:
+            raise AquaValueError(f"Invalid model format: {model_format}") from err
+        
         model_files: List[str] = []
         # todo: revisit this logic to account for .bin files. In the current state, .bin and .safetensor models
         #   are grouped in one category and validation checks for config.json files only.
@@ -796,7 +801,7 @@ class AquaModelApp(AquaApp):
         return model_files
 
     @staticmethod
-    def get_hf_model_files(model_name: str, model_format: ModelFormat) -> List[str]:
+    def get_hf_model_files(model_name: str, model_format: str) -> List[str]:
         """
         Get a list of model files based on the given OS path and model format.
 
@@ -812,7 +817,11 @@ class AquaModelApp(AquaApp):
 
         # todo: revisit this logic to account for .bin files. In the current state, .bin and .safetensor models
         #   are grouped in one category and returns config.json file only.
-
+        try:
+            model_format = ModelFormat(model_format.upper())
+        except ValueError as err:
+            raise AquaValueError(f"Invalid model format: {model_format}") from err
+        
         try:
             model_siblings = get_hf_model_info(repo_id=model_name).siblings
         except Exception as e:

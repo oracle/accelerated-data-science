@@ -38,26 +38,21 @@ class AquaModelHandler(AquaAPIhandler):
                 raise HTTPError(
                     400, Errors.MISSING_REQUIRED_PARAMETER.format("model_format")
                 )
-            try:
-                model_format = ModelFormat(model_format.upper())
-            except ValueError as err:
-                raise AquaValueError(f"Invalid model format: {model_format}") from err
+            if os_path:
+                return self.finish(
+                    AquaModelApp.get_model_files(os_path, model_format)
+                )
+            elif model_name:
+                return self.finish(
+                    AquaModelApp.get_hf_model_files(model_name, model_format)
+                )
             else:
-                if os_path:
-                    return self.finish(
-                        AquaModelApp.get_model_files(os_path, model_format)
-                    )
-                elif model_name:
-                    return self.finish(
-                        AquaModelApp.get_hf_model_files(model_name, model_format)
-                    )
-                else:
-                    raise HTTPError(
-                        400,
-                        Errors.MISSING_ONEOF_REQUIRED_PARAMETER.format(
-                            "os_path", "model_name"
-                        ),
-                    )
+                raise HTTPError(
+                    400,
+                    Errors.MISSING_ONEOF_REQUIRED_PARAMETER.format(
+                        "os_path", "model_name"
+                    ),
+                )
         elif not model_id:
             return self.list()
 
