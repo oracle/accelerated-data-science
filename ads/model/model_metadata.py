@@ -752,9 +752,6 @@ class ModelMetadata(ABC):
         ValueError
             If provided key is empty or metadata item not found.
         """
-        if key == "deployment-container" and value is _sentinel:
-            return None
-
         if key is None or not isinstance(key, str) or key == "":
             raise ValueError("The key must not be an empty string.")
         for item in self._items:

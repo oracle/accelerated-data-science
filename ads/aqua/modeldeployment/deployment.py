@@ -233,6 +233,8 @@ class AquaDeploymentApp(AquaApp):
             container_type_key = aqua_model.custom_metadata_list.get(
                 AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
             ).value
+            if container_type_key == "dummy":
+                raise ValueError
         except ValueError:
             message = (
                 f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field "

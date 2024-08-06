@@ -601,10 +601,10 @@ class AquaModelApp(AquaApp):
 
         else:
             metadata = ModelCustomMetadata()
-            # if not inference_container:
-            #     raise AquaRuntimeError(
-            #         f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container."
-            #     )
+            if not inference_container:
+                raise AquaRuntimeError(
+                    f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container."
+                )
             if finetuning_container:
                 tags[Tags.READY_TO_FINE_TUNE] = "true"
                 metadata.add(
@@ -618,7 +618,12 @@ class AquaModelApp(AquaApp):
                     f"Proceeding with model registration without the fine-tuning container information. "
                     f"This model will not be available for fine tuning."
                 )
-
+            metadata.add(
+                key=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
+                value=inference_container,
+                description=f"Inference container mapping for {model_name}",
+                category="Other",
+            )
             if inference_container:
                 metadata.add(
                     key=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
