@@ -618,18 +618,13 @@ class AquaModelApp(AquaApp):
                     f"Proceeding with model registration without the fine-tuning container information. "
                     f"This model will not be available for fine tuning."
                 )
-            metadata.add(
-                key=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
-                value=inference_container,
-                description=f"Inference container mapping for {model_name}",
-                category="Other",
-            )
             if inference_container:
                 metadata.add(
                     key=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
                     value=inference_container,
                     description=f"Inference container mapping for {model_name}",
                     category="Other",
+                    replace=True,
                 )
             metadata.add(
                 key=AQUA_EVALUATION_CONTAINER_METADATA_NAME,
