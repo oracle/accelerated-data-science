@@ -68,16 +68,16 @@ def set_debug_mode(mode=True):
     """
     global debug_mode
     debug_mode = mode
-    import IPython
+    # import IPython
 
-    if debug_mode:
-        from ads.common.ipython import orig_ipython_traceback
-
-        IPython.core.interactiveshell.InteractiveShell.showtraceback = (
-            orig_ipython_traceback
-        )
-    else:
-        IPython.core.interactiveshell.InteractiveShell.showtraceback = _log_traceback
+    # if debug_mode:
+    #     from ads.common.ipython import orig_ipython_traceback
+    #
+    #     IPython.core.interactiveshell.InteractiveShell.showtraceback = (
+    #         orig_ipython_traceback
+    #     )
+    # else:
+    #     IPython.core.interactiveshell.InteractiveShell.showtraceback = _log_traceback
 
 
 @deprecated("2.3.1")
