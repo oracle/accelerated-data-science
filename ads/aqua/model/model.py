@@ -1069,14 +1069,18 @@ class AquaModelApp(AquaApp):
 
     @staticmethod
     def _download_model_from_hf(
-        import_model_details: ImportModelDetails,
+        model_name: str,
+        os_path: str,
+        local_dir: str = None,
     ) -> str:
         """This helper function downloads the model artifact from Hugging Face to a local folder, then uploads
         to object storage location.
 
         Parameters
         ----------
-        import_model_details (ImportModelDetails): Model details for importing the model.
+        model_name (str): The huggingface model name.
+        os_path (str): The OS path where the model files are located.
+        local_dir (str): The local temp dir to store the huggingface model.
 
         Returns
         -------
@@ -1084,8 +1088,6 @@ class AquaModelApp(AquaApp):
 
         """
         # Download the model from hub
-        model_name = import_model_details.model
-        local_dir = import_model_details.local_dir
         if not local_dir:
             local_dir = os.path.join(os.path.expanduser("~"), "cached-model")
         local_dir = os.path.join(local_dir, model_name)
@@ -1110,7 +1112,7 @@ class AquaModelApp(AquaApp):
         snapshot_download(repo_id=model_name, local_dir=local_dir)
         # Upload to object storage
         model_artifact_path = upload_folder(
-            os_path=import_model_details.os_path,
+            os_path=os_path,
             local_dir=local_dir,
             model_name=model_name,
         )
@@ -1174,7 +1176,9 @@ class AquaModelApp(AquaApp):
         # download model from hugginface if indicates
         if import_model_details.download_from_hf:
             artifact_path = self._download_model_from_hf(
-                import_model_details=import_model_details
+                model_name=model_name,
+                os_path=import_model_details.os_path,
+                local_dir=import_model_details.local_dir,
             ).rstrip("/")
         else:
             artifact_path = import_model_details.os_path.rstrip("/")
