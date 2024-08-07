@@ -80,7 +80,7 @@ def _check_job_image_exists(gpu: bool) -> None:
 def _get_name(name: str, env_file: str) -> str:
     if not name and env_file:
         with open(env_file) as f:
-            name = yaml.safe_load(f.read()).get("name", None)
+            name = yaml.safe_load(f.read()).get("manifest").get("name", None)
     if not name:
         raise ValueError(
             "Either specify environment name in environment yaml or with `--name`."
@@ -146,7 +146,12 @@ def _create(
     if not os.path.exists(env_file):
         raise FileNotFoundError(f"Environment file {env_file} is not found.")
 
-    slug = f"{name}_v{version}".replace(" ", "").replace(".", "_").lower()
+    conda_dep = None
+    with open(env_file) as mfile:
+        conda_dep = yaml.safe_load(mfile.read())
+    # If manifest exists in the environment.yaml file, use that
+    manifest = conda_dep.get("manifest", {})
+    slug = manifest.get("slug", f"{name}_v{version}".replace(" ", "").replace(".", "_").lower())
     pack_folder_path = os.path.join(
         os.path.abspath(os.path.expanduser(conda_pack_folder)), slug
     )
@@ -171,23 +176,28 @@ def _create(
 
     os.makedirs(pack_folder_path, exist_ok=True)
 
+    logger.info(f"Preparing manifest. Manifest in the environment: {conda_dep.get('manifest')}")
     manifest = _fetch_manifest_template()
-    manifest["manifest"]["name"] = name
+    if not "name" in conda_dep["manifest"]:
+        manifest["manifest"]["name"] = name
     manifest["manifest"]["slug"] = slug
-    manifest["manifest"]["type"] = "published"
-    manifest["manifest"]["version"] = version
+    if not "type" in conda_dep["manifest"]:
+        logger.info(f"Setting manifest to published")
+        manifest["manifest"]["type"] = "published"
+    if not "version" in conda_dep["manifest"]:
+        manifest["manifest"]["version"] = version
     manifest["manifest"]["arch_type"] = "GPU" if gpu else "CPU"
 
     manifest["manifest"]["create_date"] = datetime.utcnow().strftime(
         "%a, %b %d, %Y, %H:%M:%S %Z UTC"
     )
-    manifest["manifest"]["manifest_version"] = "1.0"
+
+    if not "manifest_version" in manifest:
+        manifest["manifest"]["manifest_version"] = "1.0"
 
     logger.info(f"Creating conda environment {slug}")
-    conda_dep = None
-    with open(env_file) as mfile:
-        conda_dep = yaml.safe_load(mfile.read())
-    conda_dep["manifest"] = manifest["manifest"]
+    conda_dep["manifest"].update({k: manifest["manifest"][k] for k in manifest["manifest"] if manifest["manifest"][k]})
+    logger.info(f"Updated conda environment manifest: {conda_dep.get('manifest')}")
 
     if is_in_notebook_session() or NO_CONTAINER:
         command = f"conda env create --prefix {pack_folder_path} --file {os.path.abspath(os.path.expanduser(env_file))}"
@@ -616,7 +626,8 @@ def _publish(
     pack_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pack.py")
     if not skip_archive:
         if is_in_notebook_session() or NO_CONTAINER:
-            command = f"python {pack_script} --conda-path {pack_folder_path}"
+            # Set the CONDA_PUBLISH_TYPE environment variable so that the `type` attribute inside the manifest is not changed
+            command = f"CONDA_PUBLISH_TYPE={os.environ.get('CONDA_PUBLISH_TYPE','')} python {pack_script} --conda-path {pack_folder_path}"
             run_command(command, shell=True)
         else:
             volumes = {
@@ -664,14 +675,19 @@ def _publish(
         str(manifest["version"]),
         publish_slug,
     )
-    manifest["pack_path"] = os.path.join(
-        prefix,
-        manifest.get("arch_type", "CPU").lower(),
-        manifest["name"],
-        str(manifest["version"]),
-        publish_slug,
-    )
-    manifest["pack_uri"] = pack_uri
+    if os.environ.get("CONDA_PUBLISH_TYPE") != "service":
+        # Set these values only for published conda pack
+        manifest["pack_path"] = os.path.join(
+            prefix,
+            manifest.get("arch_type", "CPU").lower(),
+            manifest["name"],
+            str(manifest["version"]),
+            publish_slug,
+        )
+        manifest["pack_uri"] = pack_uri
+    else:
+        manifest["type"] = "published"
+
     with open(manifest_location, "w") as f:
         yaml.safe_dump(env, f)
     if pack_size > 100:

@@ -20,7 +20,6 @@ import argparse
 
 
 def main(pack_folder_path, manifest_file=None):
-    slug = os.path.basename(pack_folder_path)
     manifest_path = (
         manifest_file or glob.glob(os.path.join(pack_folder_path, "*_manifest.yaml"))[0]
     )
@@ -47,7 +46,9 @@ def main(pack_folder_path, manifest_file=None):
             raise e
 
         manifest = env["manifest"]
-        manifest["type"] = "published"
+        slug = manifest.get("slug", os.path.basename(pack_folder_path))
+        if os.environ.get("CONDA_PUBLISH_TYPE") != "service":
+            manifest["type"] = "published"
         new_env_info["manifest"] = manifest
         with open(manifest_path, "w") as f:
             yaml.safe_dump(new_env_info, f)
