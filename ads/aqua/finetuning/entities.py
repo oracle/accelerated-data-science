@@ -103,3 +103,4 @@ class CreateFineTuningDetails(DataClassSerializable):
     log_group_id: Optional[str] = None
     force_overwrite: Optional[bool] = False
     wait_for_completion: Optional[bool] = False
+    ft_container: Optional[str] = None

@@ -519,9 +519,7 @@ def get_container_image(
     config_file_name = container_config_path()
 
     if container_type not in config:
-        raise AquaValueError(
-            f"{config_file_name} does not have config details for model: {container_type}"
-        )
+        return container_type
 
     container_image = None
     mapping = config[container_type]

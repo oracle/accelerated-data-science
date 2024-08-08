@@ -110,6 +110,7 @@ class AquaDeploymentApp(AquaApp):
         health_check_port: int = None,
         env_var: Dict = None,
         container_family: str = None,
+        container_version: str = None,
         wait_for_completion: bool = False,
     ) -> "AquaDeployment":
         """
