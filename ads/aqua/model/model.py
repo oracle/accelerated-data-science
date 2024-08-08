@@ -1012,7 +1012,7 @@ class AquaModelApp(AquaApp):
                                 AQUA_MODEL_TYPE_CUSTOM
                             )
             elif model_format == ModelFormat.GGUF and len(gguf_model_files) > 0:
-                if import_model_details.finetuning_container:
+                if import_model_details.finetuning_container and not safetensors_model_files:
                     raise AquaValueError(
                         "Fine-tuning is currently not supported with GGUF model format."
                     )
