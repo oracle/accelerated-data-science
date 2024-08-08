@@ -312,8 +312,6 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
         logger.debug(oci_model)
         res = self.client.create_job(oci_model)
         self.update_from_oci_model(res.data)
-        if self.lifecycle_state == "ACTIVE":
-            return
         try:
             if issubclass(self.artifact.__class__, Artifact):
                 with self.artifact as artifact:
@@ -487,7 +485,9 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             oci.data_science.models.DefaultJobConfigurationDetails().swagger_types.keys()
         )
         env_config_swagger_types = {}
-        if hasattr(oci.data_science.models, "OcirContainerJobEnvironmentConfigurationDetails"):
+        if hasattr(
+            oci.data_science.models, "OcirContainerJobEnvironmentConfigurationDetails"
+        ):
             env_config_swagger_types = (
                 oci.data_science.models.OcirContainerJobEnvironmentConfigurationDetails().swagger_types.keys()
             )
@@ -501,7 +501,7 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
                 value = kwargs.pop(key)
                 if key in [
                     ContainerRuntime.CONST_CMD,
-                    ContainerRuntime.CONST_ENTRYPOINT
+                    ContainerRuntime.CONST_ENTRYPOINT,
                 ] and isinstance(value, str):
                     value = ContainerRuntimeHandler.split_args(value)
                 env_config_kwargs[key] = value
@@ -535,9 +535,13 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
 
         if env_config_kwargs:
             env_config_kwargs["jobEnvironmentType"] = "OCIR_CONTAINER"
-            env_config_override = kwargs.get("job_environment_configuration_override_details", {})
+            env_config_override = kwargs.get(
+                "job_environment_configuration_override_details", {}
+            )
             env_config_override.update(env_config_kwargs)
-            kwargs["job_environment_configuration_override_details"] = env_config_override
+            kwargs["job_environment_configuration_override_details"] = (
+                env_config_override
+            )
 
         wait = kwargs.pop("wait", False)
         run = DataScienceJobRun(**kwargs, **self.auth).create()
