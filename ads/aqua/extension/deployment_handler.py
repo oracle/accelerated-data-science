@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -8,8 +7,8 @@ from urllib.parse import urlparse
 from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
-from ads.aqua.extension.errors import Errors
 from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.aqua.extension.errors import Errors
 from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
 from ads.aqua.modeldeployment.entities import ModelParams
 from ads.config import COMPARTMENT_OCID, PROJECT_OCID
@@ -66,8 +65,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
         """
         try:
             input_data = self.get_json_body()
-        except Exception:
-            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT)
+        except Exception as ex:
+            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT) from ex
 
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)
@@ -100,6 +99,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
         health_check_port = input_data.get("health_check_port")
         env_var = input_data.get("env_var")
         container_family = input_data.get("container_family")
+        ocpus = input_data.get("ocpus")
+        memory_in_gbs = input_data.get("memory_in_gbs")
 
         self.finish(
             AquaDeploymentApp().create(
@@ -119,6 +120,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
                 health_check_port=health_check_port,
                 env_var=env_var,
                 container_family=container_family,
+                ocpus=ocpus,
+                memory_in_gbs=memory_in_gbs,
             )
         )
 
@@ -153,9 +156,7 @@ class AquaDeploymentInferenceHandler(AquaAPIhandler):
                 return False
             if not url.netloc:
                 return False
-            if not url.path.endswith("/predict"):
-                return False
-            return True
+            return url.path.endswith("/predict")
         except Exception:
             return False
 
@@ -170,8 +171,8 @@ class AquaDeploymentInferenceHandler(AquaAPIhandler):
         """
         try:
             input_data = self.get_json_body()
-        except Exception:
-            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT)
+        except Exception as ex:
+            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT) from ex
 
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)
@@ -192,10 +193,10 @@ class AquaDeploymentInferenceHandler(AquaAPIhandler):
         )
         try:
             model_params_obj = ModelParams(**model_params)
-        except:
+        except Exception as ex:
             raise HTTPError(
                 400, Errors.INVALID_INPUT_DATA_FORMAT.format("model_params")
-            )
+            ) from ex
 
         return self.finish(
             MDInferenceResponse(prompt, model_params_obj).get_model_deployment_response(
@@ -236,8 +237,8 @@ class AquaDeploymentParamsHandler(AquaAPIhandler):
         """
         try:
             input_data = self.get_json_body()
-        except Exception:
-            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT)
+        except Exception as ex:
+            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT) from ex
 
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)

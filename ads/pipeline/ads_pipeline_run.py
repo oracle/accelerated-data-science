@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import copy
 import logging
@@ -689,6 +689,16 @@ class PipelineRun(
         sources = []
         subjects = []
         skipped_step_list = []
+
+        is_service_logging_enabled = False
+        try:
+            if self.service_logging:
+                is_service_logging_enabled = True
+        except LogNotConfiguredError:
+            logger.warning(
+                "Service log is not configured for pipeline. Streaming custom log."
+            )
+
         for step_run in self.step_runs:
             if not steps or (step_run.step_name in steps):
                 step_name = step_run.step_name
@@ -703,7 +713,8 @@ class PipelineRun(
                         subjects.append(f"subject = '{step_name}'")
                     else:
                         sources.append(f"source = '*{job_run_id}'")
-                        subjects.append(f"subject = '{step_name}'")
+                        if is_service_logging_enabled:
+                            subjects.append(f"subject = '{step_name}'")
                 else:
                     subjects.append(f"subject = '{step_name}'")
 

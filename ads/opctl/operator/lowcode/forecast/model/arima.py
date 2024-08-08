@@ -67,7 +67,9 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             self.forecast_output.init_series_output(series_id=s_id, data_at_series=df)
             # If trend is constant, remove constant columns
             if "trend" not in model_kwargs or model_kwargs["trend"] == "c":
-                self.constant_cols[s_id] = df.columns[df.nunique() == 1]
+                self.constant_cols[s_id] = list(df.columns[df.nunique() == 1])
+                if target in self.constant_cols[s_id]:
+                    self.constant_cols[s_id].remove(target)
                 df = df.drop(columns=self.constant_cols[s_id])
 
             # format the dataframe for this target. Dropping NA on target[df] will remove all future data

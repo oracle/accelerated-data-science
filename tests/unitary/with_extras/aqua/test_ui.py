@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import oci
 import pytest
+from ads.aqua.extension.base_handler import AquaAPIhandler
 from parameterized import parameterized
 
 import ads.config
@@ -470,42 +471,129 @@ class TestAquaUI(unittest.TestCase):
         test_result = self.app.list_containers().to_dict()
 
         expected_result = {
+            "evaluate": [
+                {
+                    "name": "dsmc://odsc-llm-evaluate",
+                    "version": "0.1.2.1",
+                    "display_name": "0.1.2.1",
+                    "family": "odsc-llm-evaluate",
+                    "platforms": [],
+                    "model_formats": [],
+                    "spec": None,
+                }
+            ],
             "inference": [
                 {
-                    "name": "dsmc://odsc-tgi-serving",
-                    "version": "1.4.5",
-                    "display_name": "TGI:1.4.5",
-                    "family": "odsc-tgi-serving",
+                    "name": "dsmc://odsc-llama-cpp-python-aio-linux_arm64_v8",
+                    "version": "0.2.75.5",
+                    "display_name": "LLAMA-CPP:0.2.75",
+                    "family": "odsc-llama-cpp-serving",
+                    "platforms": ["ARM_CPU"],
+                    "model_formats": ["GGUF"],
+                    "spec": {
+                        "cli_param": "",
+                        "env_vars": [
+                            {"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"},
+                            {"MODEL_DEPLOY_HEALTH_ENDPOINT": "/v1/models"},
+                            {"MODEL_DEPLOY_ENABLE_STREAMING": "true"},
+                            {"PORT": "8080"},
+                            {"HEALTH_CHECK_PORT": "8080"},
+                        ],
+                        "health_check_port": "8080",
+                        "restricted_params": [],
+                        "server_port": "8080",
+                        "evaluation_configuration": {
+                            "inference_max_threads": 1,
+                            "inference_rps": None,
+                            "inference_timeout": None,
+                            "inference_backoff_factor": None,
+                            "inference_delay": 1,
+                            "inference_retries": None,
+                        },
+                    },
                 },
                 {
-                    "name": "dsmc://odsc-tgi-serving",
-                    "version": "2.0.2",
-                    "display_name": "TGI:2.0.2",
+                    "name": "dsmc://odsc-text-generation-inference",
+                    "version": "2.0.1.4",
+                    "display_name": "TGI:2.0.1",
                     "family": "odsc-tgi-serving",
+                    "platforms": ["NVIDIA_GPU"],
+                    "model_formats": ["SAFETENSORS"],
+                    "spec": {
+                        "cli_param": "--sharded true --trust-remote-code",
+                        "env_vars": [
+                            {"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"},
+                            {"MODEL_DEPLOY_ENABLE_STREAMING": "true"},
+                            {"PORT": "8080"},
+                            {"HEALTH_CHECK_PORT": "8080"},
+                        ],
+                        "health_check_port": "8080",
+                        "restricted_params": [
+                            "--port",
+                            "--hostname",
+                            "--num-shard",
+                            "--sharded",
+                            "--trust-remote-code",
+                        ],
+                        "server_port": "8080",
+                        "evaluation_configuration": {
+                            "inference_max_threads": None,
+                            "inference_rps": None,
+                            "inference_timeout": None,
+                            "inference_backoff_factor": None,
+                            "inference_delay": None,
+                            "inference_retries": None,
+                        },
+                    },
                 },
                 {
                     "name": "dsmc://odsc-vllm-serving",
-                    "version": "0.3.0.7",
-                    "display_name": "VLLM:0.3.0",
+                    "version": "0.4.1.3",
+                    "display_name": "VLLM:0.4.1",
                     "family": "odsc-vllm-serving",
+                    "platforms": ["NVIDIA_GPU"],
+                    "model_formats": ["SAFETENSORS"],
+                    "spec": {
+                        "cli_param": "--served-model-name odsc-llm --seed 42 ",
+                        "env_vars": [
+                            {"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"},
+                            {"MODEL_DEPLOY_ENABLE_STREAMING": "true"},
+                            {"PORT": "8080"},
+                            {"HEALTH_CHECK_PORT": "8080"},
+                        ],
+                        "health_check_port": "8080",
+                        "restricted_params": [
+                            "--port",
+                            "--host",
+                            "--served-model-name",
+                            "--seed",
+                        ],
+                        "server_port": "8080",
+                        "evaluation_configuration": {
+                            "inference_max_threads": None,
+                            "inference_rps": None,
+                            "inference_timeout": None,
+                            "inference_backoff_factor": None,
+                            "inference_delay": None,
+                            "inference_retries": None,
+                        },
+                    },
                 },
             ],
             "finetune": [
                 {
                     "name": "dsmc://odsc-llm-fine-tuning",
-                    "version": "1.1.33.34",
-                    "display_name": "1.1.33.34",
+                    "version": "1.1.37.37",
+                    "display_name": "1.1.37.37",
                     "family": "odsc-llm-fine-tuning",
-                }
-            ],
-            "evaluate": [
-                {
-                    "name": "dsmc://odsc-llm-evaluate",
-                    "version": "0.1.2.0",
-                    "display_name": "0.1.2.0",
-                    "family": "odsc-llm-evaluate",
+                    "platforms": [],
+                    "model_formats": [],
+                    "spec": None,
                 }
             ],
         }
-
-        assert test_result == expected_result
+        test_result = json.loads(
+            json.dumps(test_result, default=AquaAPIhandler.serialize)
+        )
+        for key in expected_result:
+            assert expected_result[key] == test_result[key]
