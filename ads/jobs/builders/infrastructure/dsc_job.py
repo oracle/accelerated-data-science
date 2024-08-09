@@ -312,6 +312,8 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
         logger.debug(oci_model)
         res = self.client.create_job(oci_model)
         self.update_from_oci_model(res.data)
+        if not self.artifact:
+            return
         try:
             if issubclass(self.artifact.__class__, Artifact):
                 with self.artifact as artifact:
