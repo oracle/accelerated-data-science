@@ -191,7 +191,7 @@ class AquaEvaluationApp(AquaApp):
                         enable_spec=True
                     ).inference
                     for container in inference_config.values():
-                        if container.name == runtime.image.split(":")[0]:
+                        if container.name == runtime.image[:runtime.image.rfind(":")]:
                             eval_inference_configuration = (
                                 container.spec.evaluation_configuration
                             )

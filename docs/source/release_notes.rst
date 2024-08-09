@@ -2,6 +2,12 @@
 Release Notes
 =============
 
+2.11.17
+-------
+Release date: August 9, 2024
+
+* Integration with Huggingface repository
+
 2.11.16
 -------
 Release date: July 22, 2024
