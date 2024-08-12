@@ -20,7 +20,7 @@ Oracle Accelerated Data Science (ADS)
 .. toctree::
    :hidden:
    :maxdepth: 5
-   :caption: Getting Started:
+   :caption: Getting Started
 
    release_notes
    user_guide/quick_start/quick_start
@@ -28,7 +28,7 @@ Oracle Accelerated Data Science (ADS)
 .. toctree::
    :hidden:
    :maxdepth: 5
-   :caption: Installation and Configuration:
+   :caption: Installation and Configuration
 
    user_guide/cli/quickstart
    user_guide/cli/authentication
@@ -38,7 +38,7 @@ Oracle Accelerated Data Science (ADS)
 .. toctree::
    :hidden:
    :maxdepth: 5
-   :caption: Low-Code AI Operators:
+   :caption: Low-Code AI Operators
 
    user_guide/operators/index
    user_guide/operators/common/index
@@ -50,7 +50,7 @@ Oracle Accelerated Data Science (ADS)
 .. toctree::
    :hidden:
    :maxdepth: 5
-   :caption: Tasks:
+   :caption: Tasks
 
    user_guide/loading_data/connect
    user_guide/data_labeling/index
@@ -62,7 +62,7 @@ Oracle Accelerated Data Science (ADS)
 .. toctree::
    :hidden:
    :maxdepth: 5
-   :caption: Integrations:
+   :caption: Integrations
 
    user_guide/apachespark/spark
    user_guide/big_data_service/index
@@ -76,7 +76,7 @@ Oracle Accelerated Data Science (ADS)
 .. toctree::
    :hidden:
    :maxdepth: 5
-   :caption: Classes:
+   :caption: Classes
 
    modules
 
