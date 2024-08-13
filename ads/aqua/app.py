@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -175,7 +174,7 @@ class AquaApp:
                         f"Invalid model version set name. Please provide a model version set with `{tag}` in tags."
                     )
 
-            except:
+            except Exception:
                 logger.debug(
                     f"Model version set {model_version_set_name} doesn't exist. "
                     "Creating new model version set."
@@ -254,7 +253,7 @@ class AquaApp:
 
         try:
             response = self.ds_client.head_model_artifact(model_id=model_id, **kwargs)
-            return True if response.status == 200 else False
+            return response.status == 200
         except oci.exceptions.ServiceError as ex:
             if ex.status == 404:
                 logger.info(f"Artifact not found in model {model_id}.")
@@ -302,7 +301,7 @@ class AquaApp:
                 config_path,
                 config_file_name=config_file_name,
             )
-        except:
+        except Exception:
             # todo: temp fix for issue related to config load for byom models, update logic to choose the right path
             try:
                 config_path = f"{artifact_path.rstrip('/')}/config/"
@@ -310,7 +309,7 @@ class AquaApp:
                     config_path,
                     config_file_name=config_file_name,
                 )
-            except:
+            except Exception:
                 pass
 
         if not config:
@@ -343,7 +342,7 @@ class CLIBuilderMixin:
         params = [
             f"--{field.name} {getattr(self,field.name)}"
             for field in fields(self.__class__)
-            if getattr(self, field.name)
+            if getattr(self, field.name) is not None
         ]
         cmd = f"{cmd} {' '.join(params)}"
         return cmd
