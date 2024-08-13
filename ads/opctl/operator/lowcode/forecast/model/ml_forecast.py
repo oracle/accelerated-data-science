@@ -211,10 +211,10 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
             self.datasets.list_series_ids(),
         )
 
-        # Section 2: MlForecast Model Parameters
+        # Section 2: LGBForecast Model Parameters
         sec2_text = rc.Block(
-            rc.Heading("MlForecast Model Parameters", level=2),
-            rc.Text("These are the parameters used for the MlForecast model."),
+            rc.Heading("LGBForecast Model Parameters", level=2),
+            rc.Text("These are the parameters used for the LGBForecast model."),
         )
 
         blocks = [
@@ -228,7 +228,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
 
         all_sections = [sec1_text, sec_1, sec2_text, sec_2]
         model_description = rc.Text(
-            "mlforecast is a framework to perform time series forecasting using machine learning models"
+            "LGBForecast uses mlforecast framework to perform time series forecasting using machine learning models"
             "with the option to scale to massive amounts of data using remote clusters."
             "Fastest implementations of feature engineering for time series forecasting in Python."
             "Support for exogenous variables and static covariates."
