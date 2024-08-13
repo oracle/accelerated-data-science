@@ -49,7 +49,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         time_budget = model_kwargs_cleaned.pop("time_budget", -1)
         model_kwargs_cleaned[
             "preprocessing"
-        ] = self.spec.preprocessing or model_kwargs_cleaned.get("preprocessing", True)
+        ] = self.spec.preprocessing.enabled or model_kwargs_cleaned.get("preprocessing", True)
         return model_kwargs_cleaned, time_budget
 
     def preprocess(self, data, series_id=None):  # TODO: re-use self.le for explanations
