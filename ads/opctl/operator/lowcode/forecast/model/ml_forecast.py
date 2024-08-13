@@ -154,7 +154,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                 )
 
                 self.model_parameters[s_id] = {
-                    "framework": SupportedModels.MLForecast,
+                    "framework": SupportedModels.LGBForecast,
                     **lgb_params,
                 }
 
