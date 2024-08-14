@@ -57,33 +57,4 @@ Example: Reading from Oracle Database
 Data Preprocessing
 ------------------
 
-Operators are enabled to be powerful through simplicity. The forecasting operator provides several pre-processing steps by default to ensure the dataset is compliant with each framework. Occasionally a user may know better and want to disable one or more of these steps. This may cause the modeling to fail, proceed with caution.
-The steps are:
-- missing_value_imputation
-- outlier_treatment
-
-To disable ``outlier_treatment``, amend the yaml file as shown below:
-
-.. code-block:: yaml
-
-    kind: operator
-    type: forecast
-    version: v1
-    spec:
-        datetime_column:
-            name: ds
-        historical_data:
-            url: https://raw.githubusercontent.com/facebook/prophet/main/examples/example_yosemite_temps.csv
-        horizon: 3
-        target_column: y
-        preprocessing: 
-            enabled: true
-            steps:
-                missing_value_imputation: True
-                outlier_treatment: False
-
-
-Real Time Trigger
------------------
-
-The Operator runs locally or on an OCI Data Science Job. The resultant model can be saved and deployed for future use if need be. Please reach out to the OCI Data Science team with any questions surrounding this integration.
+Operators are enabled to be powerful through the simplicity. Pre-processing is fundamental to this mission. By pre-processing 

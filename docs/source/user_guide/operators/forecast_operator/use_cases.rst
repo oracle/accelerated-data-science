@@ -71,3 +71,88 @@ As a low-code extensible framework, operators enable a wide range of use cases. 
 * Apart from ARIMA, it is not recommended to create features around "day of the week" or "holiday" as NeuralProphet, Prophet, AutoTS and AutoMLX can generate this information internally.
 * AutoMLX performs further feature engineering on your behalf. It will expand your features into lag, min, max, average, and more. When using automlx, it is recommended that you only pass in features that contain new information.
 * AutoTS performs some feature engineering, but it is not as extensive as AutoMLX.
+
+
+The Science of Forecasting
+--------------------------
+
+Forecasting is a complex yet essential discipline that involves predicting future values or events based on historical data and various mathematical and statistical techniques. To achieve accurate forecasts, it is crucial to understand some fundamental concepts:
+
+**Seasonality**
+
+Seasonality refers to patterns in data that repeat at regular intervals, typically within a year. For example, retail sales often exhibit seasonality with spikes during holidays or specific seasons. Seasonal components can be daily, weekly, monthly, or yearly, and understanding them is vital for capturing and predicting such patterns accurately.
+
+**Stationarity**
+
+Stationarity is a critical property of time series data. A time series is considered stationary when its statistical properties, such as mean, variance, and autocorrelation, remain constant over time. Stationary data simplifies forecasting since it allows models to assume that future patterns will resemble past patterns.
+
+**Cold Start**
+
+The "cold start" problem arises when you have limited historical data for a new product, service, or entity. Traditional forecasting models may struggle to make accurate predictions in these cases due to insufficient historical context.
+
+**Passing Parameters to Models**
+
+To enhance the accuracy and adaptability of forecasting models, our system allows you to pass parameters directly.
+
+
+Data Parameterization
+---------------------
+
+**Read Data from the Database**
+
+.. code-block:: yaml
+
+    kind: operator
+    type: forecast
+    version: v1
+    spec:
+        historical_data:
+            connect_args:
+                user: XXX
+                password: YYY
+                dsn: "localhost/orclpdb"
+            sql: 'SELECT Store_ID, Sales, Date FROM live_data'
+        datetime_column:
+            name: ds
+        horizon: 1
+        target_column: y
+
+
+**Read Part of a Dataset**
+
+
+.. code-block:: yaml
+
+    kind: operator
+    type: forecast
+    version: v1
+    spec:
+        historical_data:
+            url: oci://bucket@namespace/data
+            format: tsv
+            limit: 1000  # Only the first 1000 rows
+            columns: ["y", "ds"]  # Ignore other columns
+        datetime_column:
+            name: ds
+        horizon: 1
+        target_column: y
+
+
+
+Model Parameterization
+----------------------
+
+When using autots, there are model_list *families*. These families are named after the shared characteristics of the models included. For example, we can use the autots "superfast" model_list and set it in the following way:
+
+.. code-block:: yaml
+
+  kind: operator
+  type: forecast
+  version: v1
+  spec:
+    model: autots
+    model_kwargs:
+      model_list: superfast
+
+
+Note: this is only supported for the ``autots`` model.
