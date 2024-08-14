@@ -6,6 +6,7 @@ Supported Data Sources
 ----------------------
 
 The Operator can read data from the following sources:
+
 - Oracle RDBMS
 - OCI Object Storage
 - OCI Data Lake
