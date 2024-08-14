@@ -6,11 +6,11 @@ Operators are a suite of pre-packaged solutions designed to address a wide range
 
 Operator Solutions Available Today
 ----------------------------------
-- `**Forecasting** <forecast_operator/index.rst>`_
-- **Anomaly Dection**
-- **Time-Based Anomaly Detection**
-- **Recommendation Engine**
-- **PII**
+- `Forecasting <forecast_operator/index.rst>`_ 
+- `Anomaly Dection <anomaly_detection_operator/index.rst>`_ 
+- `Time-Based Anomaly Detection <time_anomaly_detection_operator/index.rst>`_ 
+- `Recommendation Engine <recommender_operator/index.rst>`_ 
+- `PII <pii_operator/index.rst>`_ 
 
 
 Key Characteristics of Operators

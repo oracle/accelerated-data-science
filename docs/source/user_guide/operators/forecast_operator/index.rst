@@ -36,7 +36,7 @@ There is no perfect model. A core feature of operators is model framework select
 - **NeuralProphet**
 - **AutoTS**
 
-Note: AutoTS is not a modeling framework, but a combination of many frameworks. AutoTS algorithms include (v 0.6.15): ConstantNaive, LastValueNaive, AverageValueNaive, GLS, GLM, ETS, ARIMA, FBProphet, RollingRegression, GluonTS, SeasonalNaive, UnobservedComponents, VECM, DynamicFactor, MotifSimulation, WindowRegression, VAR, DatepartRegression, UnivariateRegression, UnivariateMotif, MultivariateMotif, NVAR, MultivariateRegression, SectionalMotif, Theta, ARDL, NeuralProphet, DynamicFactorMQ, PytorchForecasting, ARCH, RRVAR, MAR, TMF, LATC, KalmanStateSpace, MetricMotif, Cassandra, SeasonalityMotif, MLEnsemble, PreprocessingRegression, FFT, BallTreeMultivariateMotif, TiDE, NeuralForecast, DMD
+*Note: AutoTS is not a modeling framework, but a combination of many frameworks. AutoTS algorithms include (v 0.6.15): ConstantNaive, LastValueNaive, AverageValueNaive, GLS, GLM, ETS, ARIMA, FBProphet, RollingRegression, GluonTS, SeasonalNaive, UnobservedComponents, VECM, DynamicFactor, MotifSimulation, WindowRegression, VAR, DatepartRegression, UnivariateRegression, UnivariateMotif, MultivariateMotif, NVAR, MultivariateRegression, SectionalMotif, Theta, ARDL, NeuralProphet, DynamicFactorMQ, PytorchForecasting, ARCH, RRVAR, MAR, TMF, LATC, KalmanStateSpace, MetricMotif, Cassandra, SeasonalityMotif, MLEnsemble, PreprocessingRegression, FFT, BallTreeMultivariateMotif, TiDE, NeuralForecast, DMD*
 
 Auto-Select
 -----------
@@ -125,7 +125,7 @@ When additional data is provided, the operator will optionally provide explanati
         historical_data:
             url: https://raw.githubusercontent.com/facebook/prophet/main/examples/example_pedestrians_covid.csv
         additional_data:
-            url: https://raw.githubusercontent.com/facebook/prophet/main/examples/example_pedestrians_multivariate.csv
+            url: additional_data.csv
         horizon: 3
         model: prophet
         target_column: y
@@ -163,9 +163,11 @@ Note: The above example won't generate explanations because there is no addition
   :maxdepth: 1
 
   ./quickstart
-  ./use_cases
+  ./data_sources
+  ./scalability
+  ./multivariate
   ./install
-  ./productionize
-  ./advanced_use_cases
+  ./development
+  ./use_cases
   ./yaml_schema
   ./faq
