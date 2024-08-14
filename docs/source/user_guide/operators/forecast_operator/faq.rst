@@ -2,24 +2,26 @@
 FAQs
 ====
 
-**How do I learn more about AutoMLX?**
+**How can I learn more about AutoMLX?**
 
-More details in the documentation here: https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/latest/automl.html
+For more details, refer to the official documentation: `AutoMLX Documentation <https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/latest/automl.html>`_
 
-**How do I learn More about AutoTS?**
+**How can I learn more about AutoTS?**
 
-More details in the documentation here: https://winedarksea.github.io/AutoTS/build/html/source/tutorial.html
+For more details, refer to the official documentation: `AutoTS Documentation <https://winedarksea.github.io/AutoTS/build/html/source/tutorial.html>`_
 
-**Pip Install Failing with "ERROR: No matching distribution found for oracle-automlx==23.4.1; extra == "forecast""**
+**Why is my pip install failing with "ERROR: No matching distribution found for oracle-automlx==23.4.1; extra == 'forecast'"?**
 
-Automlx only supports Python<=3.8, != 3.9, <= 3.10.7 . If you are builing in Python 3.9 or 3.10.8+, no automlx distribution will be available. It's recommended to use the conda pack available through Notebook Sessions, or to use Python 3.8
+AutoMLX supports Python versions <=3.8, !=3.9, <=3.10.7. If you are using Python 3.9 or 3.10.8+, no AutoMLX distribution will be available. We recommend using the Conda pack available through Notebook Sessions or downgrading to Python 3.8.
 
-**How do you impute missing values?**
+**How do you handle missing values?**
 
-We use linear interpolation by default
+By default, missing values are imputed using linear interpolation.
 
-**Is there a way to specify the % increase which should be marked as anomaly?**
-Yes, we can use the contamination parameter to control the percentage of anomalies. The default value is 0.1
+**Is there a way to specify the percentage increase that should be marked as an anomaly?**
+
+Yes, the ``contamination`` parameter can be used to control the percentage of anomalies. The default value is 0.1 (10%).
 
 **How is seasonality handled?**
-Seasonality is examined differently by each modeling framework. Refer to a specific model's documentation for more information.
+
+Seasonality is analyzed differently by each modeling framework. Refer to the specific model's documentation for more detailed information.

@@ -1,11 +1,11 @@
-================
+=================
 Data Integration
-================
+=================
 
-Data Sources
-------------
+Supported Data Sources
+----------------------
 
-The Operator can read data from:
+The Operator can read data from the following sources:
 - Oracle RDBMS
 - OCI Object Storage
 - OCI Data Lake
@@ -13,12 +13,17 @@ The Operator can read data from:
 - S3
 - Azure Blob Storage
 - Google Cloud Storage
-- local
+- Local file systems
 
-The operator supports any data source supported by `fsspec <https://filesystem-spec.readthedocs.io/en/latest/_modules/fsspec/registry.html>`_.
+Additionally, the operator supports any data source supported by `fsspec <https://filesystem-spec.readthedocs.io/en/latest/_modules/fsspec/registry.html>`_.
 
-Example: Reading from Object Storage
-=====================================
+Examples
+--------
+
+Reading from OCI Object Storage
+===============================
+
+Below is an example of reading data from OCI Object Storage using the operator:
 
 .. code-block:: yaml
 
@@ -33,8 +38,10 @@ Example: Reading from Object Storage
         horizon: 3
         target_column: y
 
-Example: Reading from Oracle Database
-=====================================
+Reading from Oracle Database
+============================
+
+Below is an example of reading data from an Oracle Database:
 
 .. code-block:: yaml
 
@@ -57,12 +64,13 @@ Example: Reading from Oracle Database
 Data Preprocessing
 ------------------
 
-Operators are enabled to be powerful through simplicity. The forecasting operator provides several pre-processing steps by default to ensure the dataset is compliant with each framework. Occasionally a user may know better and want to disable one or more of these steps. This may cause the modeling to fail, proceed with caution.
-The steps are:
-- missing_value_imputation
-- outlier_treatment
+The forecasting operator simplifies powerful data preprocessing. By default, it includes several preprocessing steps to ensure dataset compliance with each framework. However, users can disable one or more of these steps if needed, though doing so may cause the model to fail. Proceed with caution.
 
-To disable ``outlier_treatment``, amend the yaml file as shown below:
+Default preprocessing steps:
+- Missing value imputation
+- Outlier treatment
+
+To disable ``outlier_treatment``, modify the YAML file as shown below:
 
 .. code-block:: yaml
 
@@ -83,7 +91,7 @@ To disable ``outlier_treatment``, amend the yaml file as shown below:
                 outlier_treatment: False
 
 
-Real Time Trigger
+Real-Time Trigger
 -----------------
 
-The Operator runs locally or on an OCI Data Science Job. The resultant model can be saved and deployed for future use if need be. Please reach out to the OCI Data Science team with any questions surrounding this integration.
+The Operator can be run locally or on an OCI Data Science Job. The resultant model can be saved and deployed for future use if needed. For questions regarding this integration, please reach out to the OCI Data Science team.

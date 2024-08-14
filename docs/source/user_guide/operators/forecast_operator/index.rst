@@ -2,12 +2,12 @@
 AI Forecast Operator
 ====================
 
-The Forecasting Operator leverages historical time series data to generate accurate forecasts for future trends. This operator aims to simplify and expedite the data science process by automating the selection of appropriate models and hyperparameters, as well as identifying relevant features for a given prediction task.
+The AI Forecast Operator leverages historical time series data to generate accurate forecasts for future trends. This operator simplifies and accelerates the data science process by automating model selection, hyperparameter tuning, and feature identification for a given prediction task.
 
 Power in Simplicity
 ===================
 
-The Operator is simple to use, easy to extend, and as powerful as a team of data scieintists. To get started with the simplest forecast, use the following yaml file:
+The Operator is designed to be simple to use, easy to extend, and as powerful as a team of data scientists. To get started with the simplest forecast, use the following YAML configuration:
 
 .. code-block:: yaml
 
@@ -22,13 +22,12 @@ The Operator is simple to use, easy to extend, and as powerful as a team of data
         horizon: 3
         target_column: y
 
-We will extend this example in various ways throughout this documentation, however every parameter beyond those above are optional.
-
+We will extend this example in various ways throughout this documentation. However, all parameters beyond those shown above are optional.
 
 Modeling Options
 ================
 
-There is no perfect model. A core feature of operators is model framework selection. For enterprise AI, usually 1 or 2 model frameworks perform best for your problem space. Each model framework is optimized for different assumptions of dataset size, frequency, complexity, seasonality, and more. The best way to determine which framework is right for you is to test on empirical data. Having worked across several enterprise forecasting problems, the ADS team has found the following frameworks to be the most effective. The model frameworks range from traditional statisical models, to complex machine learning models, all the way to deep neural networks:
+There is no perfect model. A core feature of the Operator is the ability to select from various model frameworks. For enterprise AI, typically one or two frameworks perform best for your problem space. Each model is optimized for different assumptions, such as dataset size, frequency, complexity, and seasonality. The best way to determine which framework is right for you is through empirical testing. Based on experience with several enterprise forecasting problems, the ADS team has found the following frameworks to be the most effective, ranging from traditional statistical models to complex machine learning and deep neural networks:
 
 - **Prophet**
 - **ARIMA**
@@ -36,18 +35,17 @@ There is no perfect model. A core feature of operators is model framework select
 - **NeuralProphet**
 - **AutoTS**
 
-*Note: AutoTS is not a modeling framework, but a combination of many frameworks. AutoTS algorithms include (v 0.6.15): ConstantNaive, LastValueNaive, AverageValueNaive, GLS, GLM, ETS, ARIMA, FBProphet, RollingRegression, GluonTS, SeasonalNaive, UnobservedComponents, VECM, DynamicFactor, MotifSimulation, WindowRegression, VAR, DatepartRegression, UnivariateRegression, UnivariateMotif, MultivariateMotif, NVAR, MultivariateRegression, SectionalMotif, Theta, ARDL, NeuralProphet, DynamicFactorMQ, PytorchForecasting, ARCH, RRVAR, MAR, TMF, LATC, KalmanStateSpace, MetricMotif, Cassandra, SeasonalityMotif, MLEnsemble, PreprocessingRegression, FFT, BallTreeMultivariateMotif, TiDE, NeuralForecast, DMD*
+*Note: AutoTS is not a single modeling framework but a combination of many. AutoTS algorithms include (v0.6.15): ConstantNaive, LastValueNaive, AverageValueNaive, GLS, GLM, ETS, ARIMA, FBProphet, RollingRegression, GluonTS, SeasonalNaive, UnobservedComponents, VECM, DynamicFactor, MotifSimulation, WindowRegression, VAR, DatepartRegression, UnivariateRegression, UnivariateMotif, MultivariateMotif, NVAR, MultivariateRegression, SectionalMotif, Theta, ARDL, NeuralProphet, DynamicFactorMQ, PytorchForecasting, ARCH, RRVAR, MAR, TMF, LATC, KalmanStateSpace, MetricMotif, Cassandra, SeasonalityMotif, MLEnsemble, PreprocessingRegression, FFT, BallTreeMultivariateMotif, TiDE, NeuralForecast, DMD.*
 
 Auto-Select
 -----------
 
-For users that are completely new to forecasting, the operator also has an ``auto-select`` option. This will be the most computationally expensive option. The operator will split the training data into several validation sets, evaluate each framework, and attempt to determine the best. Auto-select does not guarentee to find the best, and is not recommended as a defualt configuration for end users due to its complexity.
+For users new to forecasting, the Operator also has an ``auto-select`` option. This is the most computationally expensive option as it splits the training data into several validation sets, evaluates each framework, and attempts to determine the best one. However, auto-select does not guarantee to find the optimal model and is not recommended as the default configuration for end-users due to its complexity.
 
 Specify Model
 -------------
 
-Pick the desired model from the list above and insert it into the ``model`` parameter slot.
-
+You can manually select the desired model from the list above and insert it into the ``model`` parameter slot.
 
 .. code-block:: yaml
 
@@ -63,35 +61,34 @@ Pick the desired model from the list above and insert it into the ``model`` para
         model: <INSERT_MODEL_NAME_HERE>
         target_column: y
 
-
 Evaluation and Explanation
 ==========================
 
-As an Enterprise AI Solution, Operators know the evaluation and explanation of forecasts can be as critical as the forecasts themselves.
+As an enterprise AI solution, the Operator ensures that the evaluation and explanation of forecasts are as critical as the forecasts themselves.
 
 Reporting
 ---------
 
-With every operator run, a report is generated to summarize the work done. The report includes the following:
+With every operator run, a report is generated to summarize the work done. The report includes:
 
-- summary of the input data
-- visualization of the forecast
-- breakdown of major trends
-- explanation (via shap values) of additional features
-- table of metrics
-- copy of the configuration yaml file.
+- Summary of the input data
+- Visualization of the forecast
+- Breakdown of major trends
+- Explanation (via SHAP values) of additional features
+- Table of metrics
+- A copy of the configuration YAML file
 
 Metrics
 -------
 
-Different use cases will optimizie for different metrics. The operator allows users to specify the metric they want to optimize over from the following list:
+Different use cases optimize for different metrics. The Operator allows users to specify the metric they want to optimize from the following list:
 
 - MAPE
 - RMSE
 - SMAPE
 - MSE
 
-The metric is optinoally specified in the yaml file:
+The metric can be optionally specified in the YAML file:
 
 .. code-block:: yaml
 
@@ -108,11 +105,10 @@ The metric is optinoally specified in the yaml file:
         target_column: y
         metric: rmse
 
-
 Explanations
 ------------
 
-When additional data is provided, the operator will optionally provide explanations for these additional features (columns). Explanations are generated from shap values. Users can enable explanations from the yaml file:
+When additional data is provided, the Operator can optionally generate explanations for these additional features (columns) using SHAP values. Users can enable explanations in the YAML file:
 
 .. code-block:: yaml
 
@@ -131,12 +127,11 @@ When additional data is provided, the operator will optionally provide explanati
         target_column: y
         generate_explanations: True
 
+With large datasets, SHAP values can be expensive to generate. Enterprise applications may vary in their need for decimal accuracy versus computational cost. Therefore, the Operator offers several options:
 
-With large datasets shap values can be expensive to generate. Enterprise applications may vary in their need for decimal accuracy versus cost. Therefore the operator offers several options:
-
-- FAST_APPROXIMATE: (default) Generated shap values are typically within 1% of the true values and takes 1% of the time.
-- BALANCED: Generated shap values are typically within 0.1% of the true values and takes 10% of the time.
-- HIGH_ACCURACY: Generates the true shap values at full precision.
+- **FAST_APPROXIMATE** (default): Generated SHAP values are typically within 1% of the true values and require 1% of the time.
+- **BALANCED**: Generated SHAP values are typically within 0.1% of the true values and require 10% of the time.
+- **HIGH_ACCURACY**: Generates the true SHAP values at full precision.
 
 .. code-block:: yaml
 
@@ -154,10 +149,9 @@ With large datasets shap values can be expensive to generate. Enterprise applica
         generate_explanations: True
         explanations_accuracy_mode: BALANCED
 
-Selecting the best accuracy mode will require empircal testing, but ``FAST_APPROXIMATE`` is usually enough for real-world data.
+Selecting the best accuracy mode will require empirical testing, but ``FAST_APPROXIMATE`` is usually sufficient for real-world data.
 
-Note: The above example won't generate explanations because there is no additional data. The shap values would be 100% for the feature ``y``.
-
+*Note: The above example won't generate explanations because there is no additional data. The SHAP values would be 100% for the feature ``y``.*
 
 .. toctree::
   :maxdepth: 1

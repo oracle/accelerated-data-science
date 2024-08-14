@@ -2,19 +2,21 @@
 Quick Start
 ===========
 
-Install (locally)
------------------
+Local Installation
+------------------
 
-Install ads using pip (shown below) or OCI Conda Packs (see :doc:`Installation <./install>`)
+Install the ADS library using ``pip`` (as shown below) or through OCI Conda Packs (see :doc:`Installation <./install>`).
 
 .. code-block:: bash
 
     python3 -m pip install "oracle_ads[forecast]"
 
-Install (Notebook Session)
---------------------------
+Installation in a Notebook Session
+----------------------------------
 
-Go to ``Envirnoment Explorer`` and search for ``AI Forecasting``. Install that conda pack. Activate the conda pack. For example:
+1. Open ``Environment Explorer`` and search for ``AI Forecasting``.
+2. Install the relevant Conda pack.
+3. Activate the Conda environment. For example:
 
 .. code-block:: bash
 
@@ -22,25 +24,25 @@ Go to ``Envirnoment Explorer`` and search for ``AI Forecasting``. Install that c
     conda activate /home/datascience/forecast_v3
 
 
-Initialize
-----------
+Initialization
+--------------
 
-Initialize your forecast through the ads cli command. This will create several configuration files which can later be used to run the operators on OCI Data Science Jobs.
+Initialize your forecast project using the ADS CLI command. This command will create several configuration files that can later be used to run the operators on OCI Data Science Jobs.
 
 .. code-block:: bash
 
-   ads operator init -t forecast --output my-forecast
+    ads operator init -t forecast --output my-forecast
 
 
 Input Data 
------------
+----------
 
-Within the ``forecast`` folder created above there will be a ``forecast.yaml`` file. This file should be updated to contain the details about your data and forecast. Prophet's Yosemite Temperature dataset is provided as an example below:
+Within the ``my-forecast`` folder created above, you'll find a ``forecast.yaml`` file. Update this file with the details of your data and forecast. Below is an example using Prophet's Yosemite Temperature dataset:
 
 .. code-block:: bash
 
-   cd my-forecast
-   vi forecast.yaml
+    cd my-forecast
+    vi forecast.yaml
 
 .. code-block:: yaml
 
@@ -56,23 +58,23 @@ Within the ``forecast`` folder created above there will be a ``forecast.yaml`` f
         model: prophet
         target_column: y
 
-There are many more options in this :doc:`YAML file <./yaml_schema>`.
+There are many more options available in this :doc:`YAML file <./yaml_schema>`.
 
 
-Run
----
+Running the Forecast
+--------------------
 
-Now run the forecast locally:
+Run the forecast locally using the following command:
 
 .. code-block:: bash
 
     ads operator run -f forecast.yaml
 
 
-Results
--------
+Viewing Results
+---------------
 
-If not specified in the YAML, all results will be placed in a new folder called ``results``. Performance is summarized in the ``report.html`` file, and the full forecast is available in the ``forecast.csv`` file.
+If the YAML configuration does not specify an output directory, all results will be placed in a new folder called ``results``. The performance summary is provided in the ``report.html`` file, and the full forecast is available in the ``forecast.csv`` file.
 
 .. code-block:: bash
 

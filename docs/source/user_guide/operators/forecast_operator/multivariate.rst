@@ -5,15 +5,15 @@ Multivariate Forecast
 Structuring Data
 ----------------
 
-Multivariate Forecasting is different to other multivariate machine learning problem types. When forecasting, all additional variables need be known over the full horizon. As such, the Forecast Operator **requires** additional_data for the entire horizon. (If you want to forecast the peak temperature for tomorrow, you can't use tomorrow's humidity - it's unknown!). For many enterprise problems this is not an issue: many retailers have long-term marketing projects with knowable future spends, Holidays are knowable in advance, etc. And sometimes our users will make assumptions for a what if analysis.
+Multivariate forecasting differs from other multivariate machine learning problems. In forecasting, all additional variables must be known over the entire forecast horizon. Consequently, the Forecast Operator **requires** ``additional_data`` to cover the full horizon. For example, if you're forecasting the peak temperature for tomorrow, you cannot use tomorrow's humidity because it's unknown. However, many enterprise scenarios do not face this issue, as retailers often have long-term marketing plans with knowable future expenditures, holidays are predictable, etc. In some cases, users might make assumptions for a "what-if" analysis.
 
-However, some variables are unknowable but still useful. For these we recommend *lagging*. To lag a variable, you will want to shift all of the values so that the horizon is full of data. (Typically users will shift by the entire horizon, but advanced users may have reasons to shift more than the horizon.) In essence, the operator is using the humidity from 5 days ago to predict the peak temperature today. 
+Sometimes, variables are useful but unknowable in advance. For these cases, we recommend *lagging* the variable. To lag a variable, shift all its values so that the horizon is filled with data. Typically, users shift by the entire horizon, though advanced users may shift by more or less depending on their needs. Essentially, the operator uses the humidity from five days ago to predict today's peak temperature.
 
-Additional data should always have the same datetime column as the historical data plus the horizon. i.e. #rows(additional_data) = #rows(historical) + horizon.
+The additional data must always share the same datetime column as the historical data and must extend beyond the horizon. In other words, the number of rows in ``additional_data`` should equal the number of rows in the historical data plus the horizon.
 
-If there is a target_category_column in the historical data, it should be present in the additional data as well.
+If the historical data includes a ``target_category_column``, it should also be present in the additional data.
 
-As an example, if the historical data is:
+For example, if the historical data is:
 
 ====  ========= 
  Qtr   Revenue 
@@ -21,9 +21,9 @@ As an example, if the historical data is:
  Q1    1200     
  Q2    1300  
  Q3    1500  
-===  ======== 
+====  ========= 
 
-Then the additional data (with a horizon=1) will need to be formatted as:
+Then the additional data (with a horizon of 1) should be formatted as:
 
 ====  ========  ========  ==============
  Qtr    COGS    Discount   SP500 Futures
@@ -32,10 +32,9 @@ Then the additional data (with a horizon=1) will need to be formatted as:
  Q2    100        0.1      1.03
  Q3    105        0        1.04
  Q4    105        0.1      1.01
-===  ========  ========  ==============
+====  ========  ========  ==============
 
-
-Note that the additional data does not contain the target column (Revenue), but it does contain the datetime column (Qtr). We would include this additional data in the yaml as shown below:
+Note that the additional data does not include the target column (Revenue), but it does include the datetime column (Qtr). You would include this additional data in the YAML file as follows:
 
 .. code-block:: yaml
 
@@ -53,7 +52,7 @@ Note that the additional data does not contain the target column (Revenue), but 
         model: prophet
         target_column: Revenue
 
-We can experiment with removing columns and examining how the results change. Below we ingest only 2 of the 3 additional columns.
+You can experiment by removing columns and observing how the results change. Below is an example of ingesting only two of the three additional columns:
 
 .. code-block:: yaml
 

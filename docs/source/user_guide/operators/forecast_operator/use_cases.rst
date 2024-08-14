@@ -2,98 +2,96 @@
 Will the Forecast Operator Work for My Use Case?
 =================================================
 
-As a low-code extensible framework, operators enable a wide range of use cases. This section will highlight some of the use cases that the AI Forecast Operator aims to serve.
+As a low-code, extensible framework, the AI Forecast Operator supports a wide range of use cases. This section highlights key considerations for determining if the Forecast Operator is suitable for your needs.
 
+Dataset Size
+------------
 
-**Dataset Size**
+- If you're unsure which model to use, we recommend starting with the default "auto" setting. This setting selects an algorithm based on your data's parameters, aiming for a reasonable convergence time. Note that "auto" may not always choose the most accurate algorithm. If accuracy is critical, and cost or time is not a concern, consider running all five frameworks and comparing results across test datasets.
+- For datasets with fewer than 5,000 rows and 5 columns, all operators should complete quickly, typically within a few minutes. However, including explainability features may increase runtime.
+- For datasets with more than 5,000 rows, performance varies by algorithm. Recommendations for selecting the appropriate model based on dataset size are provided in the next section, *Which Model is Right for You?*.
+- For optimal results, we recommend a minimum of 100 rows per category, although this is not a strict requirement (see "Cold Start Problem" below).
+- The service recommends fewer than 100 total categories for best performance. Increasing the number of categories is expected to linearly increase the time to completion.
 
-* First off, if you're unsure what model to use, we recommend using the "auto" setting, which is the default. "auto" will look at the parameters of your data and pick an algorithm that is likely to converge in a reasonable amount of time. Note, this may not always be the most performant algorithm! If need accuracy and do not care about cost or time, we recommend using all 5 frameworks and comparing across test datasets.
-* When under 5,000 rows, and 5 columns, all operators should be quick, finishing in a couple minutes. If you include explainability, it may take longer.
-* Over 5,000 rows, different algorithms perform to different degrees. This varies on more than the size of the dataset, but the service provides some recommendations in the next section, *Which Model is Right for You?*.
-* For best results, the service recommends a minimum of 100 rows per category, however this is not a requirement, see "Cold Start Problem" below.
-* For best results, the service recommends fewer than 100 total categories. Increasing category count is expected to linearly increase the time to completion.
+Which Model is Right for You?
+-----------------------------
 
+- **ARIMA and AutoMLX**: These models slow down significantly as the number of columns increases. They are best suited for datasets with fewer than 10 additional data columns.
+- **AutoTS**: A global model that works well with wide datasets but can take a long time to train, especially on long datasets. For faster initial runs, consider passing ``model_list: superfast`` in the model kwargs. To fully utilize AutoTS, set ``model_list: all`` in the ``model_kwargs``; however, this may significantly increase runtime or cause the model to hang.
+- **Prophet and NeuralProphet**: These models are more consistent in their completion times and perform well on most datasets.
+- **AutoMLX**: Not recommended for datasets with intervals shorter than 1 hour.
+- **Explainability**: Generating explanations can take several minutes to hours. Explanations are disabled by default (``generate_explanations: False``). Enabling them (``generate_explanations: True``) and scaling up your compute shape can speed up this highly parallelized computation.
 
-**Which Model is Right for You?**
+Target Column
+-------------
 
-* The ARIMA and AutoMLX models slow down substantially as you increase columns. Aim to use these when you have less than 10 additional data columns.
-* AutoTS is a global model. It works well for wide datasets but can take a long time to train especially on long datasets. One technique here is to pass ``model_list: superfast`` into the model kwargs to speed up an initial run.  To fully utilize autots, consider setting ``model_list: all`` in the ``model_kwargs``, however this may lead to the model taking a long time or even hanging.
-* Prophet and NeuralProphet are much more consistent in their time to completion, and perform very well on most datasets.
-* Automlx is not recommended when the data interval is less than 1 hour.
-* Note: Explainability usually takes several minutes to a couple of hours. Explanations can be enabled using the flag ``generate_explanations: True``, however this is False by default. Because explanations are highly parallelized computations, explanations can be sped up by scaling up your compute shape.
+- The target column must be present in the dataset specified in the ``historical_data`` field.
+- The ``historical_data`` dataset must include: 1) a target column, 2) a datetime column, and optionally, 3) a target_category_column or series.
+- The ``historical_data`` dataset should not contain any other columns.
+- If you include ``additional_data``, it must have the same datetime column, the target_category_column (if present in the historical data), and any other required additional features.
+- The ``additional_data`` dataset should not contain the target column.
 
+Additional Features
+-------------------
 
-**Target Column**
+- Including additional "future regressors" is recommended when available, as these features can significantly improve forecasting accuracy.
+- A "future regressor" is a variable known for all future timestamps within your forecast horizon at the time of training (e.g., decisions about product discounts or staffing levels).
+- All additional data must be stored separately and passed into the "additional_data" field in the ``forecast.yaml`` file.
+- Ensure that all additional data covers each period in the forecast horizon. Missing values may result in suboptimal forecasts.
 
-* The target column should be present in the dataset passed into the ``historical_data`` field. 
-* The ``historical_data`` dataset must have 1. a target column, 2. a datetime column, and optionally 3. a target_category_column or series.
-* The ``historical_data`` cannot contain any other columns.
-* If passing ``additional_data``, it must match have the datetime column, the target_category_column if it's present in the historical data, and then as many additional features as needed.
-* The ``additional_data`` cannot contain the target column.
+Long Horizon Problems
+---------------------
 
+- A Long Horizon Problem occurs when the forecast horizon exceeds 50% of the historical data period (e.g., forecasting the next 2 years based on 4 years of data). These problems are particularly challenging for AutoMLX, AutoTS, and ARIMA. We recommend using NeuralProphet and/or Prophet for such scenarios.
 
-**Additional Features**
+Cold Start Problems
+-------------------
 
-* It is recommended to include additional "future regressors" when available. These features can greatly improve the ability to forecast.
-* A "future regressor" is one that is known for all future timestamps in your forecast horizon during training time. (Typically these are variables within your control, such as whether or not to discount a product or the staffing of a particular outlet.)
-* All additional data provided must be put in a separate location and passed into "additional_data" in the ``forecast.yaml`` file.
-* All additional data must be given for each period of the forecast horizon. Missing values may result in sub-optimal forecasts.
+- A cold start problem arises when there is data for some categories of the target variable but not all. The model can use proxies to forecast categories it has not encountered, based on trends and characteristics of the additional data.
+- For cold start problems, we strongly recommend using AutoTS, as it is a global model that can ensemble multiple models into a single aggregate model, leveraging all dataset features to make predictions.
 
+Datetime Input
+--------------
 
-**Long Horizon Problems**
+- The datetime column must have a consistent interval throughout both the historical and additional datasets. Inconsistent intervals will cause failures in AutoMLX and may affect performance in other frameworks.
+- Missing data is acceptable but may lead to suboptimal forecasts.
+- It is strongly recommended that the datetime column be sorted from earliest to latest, although the operator will attempt to sort it if not.
+- We recommend specifying the format of your datetime string using the ``format`` option in the ``datetime_column`` parameter. The operator follows the Python datetime string format guidelines found here: https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes.
 
-* A Long Horizon Problem is defined by having a forecast horizon period that's more than 50% of the length of the input data period (e.g. forecasting next 2 years on 4 years of data). These problems are particularly difficult for AutoMLX, AutoTS, and ARMIA. Customers are encouraged to use NeuralProphet and/or Prophet for these types of problems. 
+Output Files
+------------
 
+- Apart from ``report.html``, all output files should follow a consistent format, regardless of the model framework used (e.g., AutoMLX vs. Prophet).
+- The ``report.html`` file is custom-built for each model framework and will differ accordingly.
+- All output files can be disabled except for ``forecast.csv``. To learn more about disabling output files, refer to the ``generate_X`` boolean parameters in the ``forecast.yaml`` file.
 
-**Cold Start Problems**
+Feature Engineering
+-------------------
 
-* A cold start problem can occur when there's data available for some categories of the target variable, but not all. Using these proxies, the model can make a forecast for the categories it hasn't seen yet based on the trends and the additional data characteristics. 
-* For cold start problems, customers are strongly encouraged to use AutoTS as AutoTS is a "global model" implementation. AutoTS can ensemble many models into a single aggregate model, allowing it to rely on all features of the dataset in making any 1 prediction.
-
-
-**Datetime Input**
-
-* The datetime input column must have a consistent interval throughout the historical and additional datasets. Inconsistent diffs will cause failure on automlx and may affect performance on other frameworks.
-* Note: missing data is okay, however it will likely cause sub-optimal forecasting.
-* It is strongly recommended that the datetime column is passed in sorted from earliest to latest, however this is not a requirement, and the operator will attempt to sort on your behalf.
-* It is recommended that you pass in the format of your datetime string into the ``format`` option of the ``datetime_column`` parameter. The operator uses the python datetime string format outlined here: https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes
-
-
-**Output Files**
-
-* Apart from the ``report.html``, all output files should match formatting regardless of the model framework used (e.g. AutoMLX v Prophet).
-* The ``report.html`` is custom built for each model framework, and so it will differ.
-* All output files can be disabled, with the exception of ``forecast.csv``. For more details in disabling, look for ``generate_X`` boolean parameters in the ``forecast.yaml`` file.
-
-
-**Feature Engineering**
-
-* Apart from ARIMA, it is not recommended to create features around "day of the week" or "holiday" as NeuralProphet, Prophet, AutoTS and AutoMLX can generate this information internally.
-* AutoMLX performs further feature engineering on your behalf. It will expand your features into lag, min, max, average, and more. When using automlx, it is recommended that you only pass in features that contain new information.
-* AutoTS performs some feature engineering, but it is not as extensive as AutoMLX.
-
+- Except for ARIMA, avoid creating features based on "day of the week" or "holiday" as NeuralProphet, Prophet, AutoTS, and AutoMLX can generate this information internally.
+- AutoMLX performs extensive feature engineering on your behalf, expanding features into lag, min, max, average, and more. When using AutoMLX, it is recommended to only pass features that contain new information.
+- AutoTS also performs some feature engineering, though it is less extensive than AutoMLX.
 
 The Science of Forecasting
 --------------------------
 
-Forecasting is a complex yet essential discipline that involves predicting future values or events based on historical data and various mathematical and statistical techniques. To achieve accurate forecasts, it is crucial to understand some fundamental concepts:
+Forecasting is a complex yet essential discipline that involves predicting future values or events based on historical data and various mathematical and statistical techniques. Understanding the following concepts is crucial for accurate forecasting:
 
 **Seasonality**
 
-Seasonality refers to patterns in data that repeat at regular intervals, typically within a year. For example, retail sales often exhibit seasonality with spikes during holidays or specific seasons. Seasonal components can be daily, weekly, monthly, or yearly, and understanding them is vital for capturing and predicting such patterns accurately.
+- Seasonality refers to patterns in data that repeat at regular intervals, typically within a year (e.g., retail sales spikes during holidays). Understanding and accurately capturing these patterns is essential for effective forecasting.
 
 **Stationarity**
 
-Stationarity is a critical property of time series data. A time series is considered stationary when its statistical properties, such as mean, variance, and autocorrelation, remain constant over time. Stationary data simplifies forecasting since it allows models to assume that future patterns will resemble past patterns.
+- Stationarity is a critical property of time series data, where statistical properties like mean, variance, and autocorrelation remain constant over time. Stationary data simplifies forecasting by allowing models to assume that future patterns will resemble past patterns.
 
 **Cold Start**
 
-The "cold start" problem arises when you have limited historical data for a new product, service, or entity. Traditional forecasting models may struggle to make accurate predictions in these cases due to insufficient historical context.
+- The "cold start" problem occurs when there is limited historical data for a new product, service, or entity. Traditional forecasting models may struggle in these cases due to insufficient historical context.
 
 **Passing Parameters to Models**
 
-To enhance the accuracy and adaptability of forecasting models, our system allows you to pass parameters directly.
-
+- Our system allows you to pass parameters directly to enhance the accuracy and adaptability of forecasting models.
 
 Data Parameterization
 ---------------------
@@ -117,9 +115,7 @@ Data Parameterization
         horizon: 1
         target_column: y
 
-
 **Read Part of a Dataset**
-
 
 .. code-block:: yaml
 
@@ -137,12 +133,10 @@ Data Parameterization
         horizon: 1
         target_column: y
 
-
-
 Model Parameterization
 ----------------------
 
-When using autots, there are model_list *families*. These families are named after the shared characteristics of the models included. For example, we can use the autots "superfast" model_list and set it in the following way:
+When using AutoTS, there are *model_list* families, which group models based on shared characteristics. For example, to use the "superfast" model_list in AutoTS, configure it as follows:
 
 .. code-block:: yaml
 
@@ -154,5 +148,4 @@ When using autots, there are model_list *families*. These families are named aft
     model_kwargs:
       model_list: superfast
 
-
-Note: this is only supported for the ``autots`` model.
+Note: This configuration is supported only for the ``autots`` model.
