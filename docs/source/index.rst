@@ -41,11 +41,12 @@ Oracle Accelerated Data Science (ADS)
    :caption: Low-Code AI Operators
 
    user_guide/operators/index
-   user_guide/operators/common/index
    user_guide/operators/forecast_operator/index
    user_guide/operators/anomaly_detection_operator/index
    user_guide/operators/pii_operator/index
    user_guide/operators/recommender_operator/index
+   user_guide/operators/common/index
+
 
 .. toctree::
    :hidden:
