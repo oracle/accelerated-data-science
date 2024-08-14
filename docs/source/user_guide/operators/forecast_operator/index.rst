@@ -123,7 +123,9 @@ When additional data is provided, the operator will optionally provide explanati
         datetime_column:
             name: ds
         historical_data:
-            url: https://raw.githubusercontent.com/facebook/prophet/main/examples/example_yosemite_temps.csv
+            url: https://raw.githubusercontent.com/facebook/prophet/main/examples/example_pedestrians_covid.csv
+        additional_data:
+            url: https://raw.githubusercontent.com/facebook/prophet/main/examples/example_pedestrians_multivariate.csv
         horizon: 3
         model: prophet
         target_column: y

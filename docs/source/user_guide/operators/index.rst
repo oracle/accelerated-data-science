@@ -1,8 +1,17 @@
-==================
-What Are Operators
-==================
+==================================
+Operators: Enterprise AI Solutions
+==================================
 
 Operators are a suite of pre-packaged solutions designed to address a wide range of data science needs. They offer a user-friendly, low-code interface, making data science tasks accessible to users with varying levels of expertise. Domain experts can leverage and extend operators to encapsulate their domain-specific knowledge. Data Scientists and AI Engineers can focus on customizing the data and modeling parameters, and allow the Operator to handle the more mundane tasks: ETL, data cleaning, OCI AI Platform integration, report generation, explainability, and more.
+
+Operator Solutions Available Today
+----------------------------------
+- `**Forecasting** <forecast_operator/index.rst>`_
+- **Anomaly Dection**
+- **Time-Based Anomaly Detection**
+- **Recommendation Engine**
+- **PII**
+
 
 Key Characteristics of Operators
 ---------------------------------

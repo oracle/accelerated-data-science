@@ -53,7 +53,7 @@ Note that the additional data does not contain the target column (Revenue), but 
         model: prophet
         target_column: Revenue
 
-We can experiment with removing columns and examining how the results change. Below we select only 2 of the 3 additional columns.
+We can experiment with removing columns and examining how the results change. Below we ingest only 2 of the 3 additional columns.
 
 .. code-block:: yaml
 
