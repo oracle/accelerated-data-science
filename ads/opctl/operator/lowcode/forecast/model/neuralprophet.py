@@ -218,6 +218,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             logger.debug("===========Done===========")
         except Exception as e:
             self.errors_dict[s_id] = {"model_name": self.spec.model, "error": str(e)}
+            logger.warn(traceback.format_exc())
             raise e
 
     def _build_model(self) -> pd.DataFrame:

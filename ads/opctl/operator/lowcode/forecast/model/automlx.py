@@ -149,6 +149,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 if f"{target}_ci_lower" not in summary_frame:
                     summary_frame[f"{target}_ci_lower"] = np.NAN
 
+                if summary_frame[target].isna().all():
+                    raise ValueError("The forecasts are completely NaN")
+
                 self.forecast_output.populate_series_output(
                     series_id=s_id,
                     fit_val=fitted_values,
@@ -168,7 +171,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     "model_name": self.spec.model,
                     "error": str(e),
                 }
-                logger.debug(f"Encountered Error: {e}. Skipping.")
+                logger.warn(f"Encountered Error: {e}. Skipping.")
+                logger.warn(traceback.format_exc())
 
         logger.debug("===========Forecast Generated===========")
 
