@@ -259,12 +259,8 @@ class AquaDeploymentApp(AquaApp):
 
         # fetch image name from config
         # If the image is of type custom, then `container_type_key` is the inference image
-        container_image = (
-            get_container_image(
-                container_type=container_type_key,
-            )
-            if not is_custom_container
-            else container_type_key
+        container_image = get_container_image(
+            container_type=container_type_key,
         )
         logging.info(
             f"Aqua Image used for deploying {aqua_model.id} : {container_image}"
