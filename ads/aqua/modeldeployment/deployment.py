@@ -110,7 +110,6 @@ class AquaDeploymentApp(AquaApp):
         health_check_port: int = None,
         env_var: Dict = None,
         container_family: str = None,
-        container_version: str = None,
         wait_for_completion: bool = False,
     ) -> "AquaDeployment":
         """
@@ -229,38 +228,10 @@ class AquaDeploymentApp(AquaApp):
 
             env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
 
-        is_custom_container = False
-        try:
-            container_type_key = aqua_model.custom_metadata_list.get(
-                AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
-            ).value
-            if container_type_key == "dummy":
-                raise ValueError
-        except ValueError:
-            message = (
-                f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field "
-                f"for model {aqua_model.id}."
-            )
-            logger.debug(message)
-            if not container_family:
-                raise AquaValueError(
-                    f"{message}. For unverified Aqua models, container_family parameter should be "
-                    f"set and value can be one of {', '.join(InferenceContainerTypeFamily.values())}."
-                )
-            container_type_key = container_family
-        try:
-            # Check if the container override flag is set. If set, then the user has chosen custom image
-            if aqua_model.custom_metadata_list.get(
-                AQUA_DEPLOYMENT_CONTAINER_OVERRIDE_FLAG_METADATA_NAME
-            ).value:
-                is_custom_container = True
-        except Exception:
-            pass
-
         # fetch image name from config
         # If the image is of type custom, then `container_type_key` is the inference image
         container_image = get_container_image(
-            container_type=container_type_key,
+            container_type=container_family,
         )
         logging.info(
             f"Aqua Image used for deploying {aqua_model.id} : {container_image}"
@@ -270,7 +241,7 @@ class AquaDeploymentApp(AquaApp):
         # container_index.json will have "containerSpec" section which will provide the cli params for a given container family
         container_config = get_container_config()
         container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
-            container_type_key, {}
+            container_family, {}
         )
         # these params cannot be overridden for Aqua deployments
         params = container_spec.get(ContainerSpec.CLI_PARM, "")
@@ -293,7 +264,7 @@ class AquaDeploymentApp(AquaApp):
         user_params = env_var.get("PARAMS", UNKNOWN)
         if user_params:
             restricted_params = self._find_restricted_params(
-                params, user_params, container_type_key
+                params, user_params, container_image
             )
             if restricted_params:
                 raise AquaValueError(
