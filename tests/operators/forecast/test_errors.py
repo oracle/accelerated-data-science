@@ -141,7 +141,7 @@ MODELS = [
     "prophet",
     "neuralprophet",
     "autots",
-    "mlforecast",
+    "lgbforecast",
     # "auto",
 ]
 
@@ -687,7 +687,7 @@ def test_arima_automlx_errors(operator_setup, model):
                 in error_content["13"]["error"]
             ), "Error message mismatch"
 
-    if model not in ["autots", "automlx", "mlforecast"]:
+    if model not in ["autots", "automlx", "lgbforecast"]:
         global_fn = f"{tmpdirname}/results/global_explanation.csv"
         assert os.path.exists(
             global_fn
