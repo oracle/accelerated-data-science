@@ -208,6 +208,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 self.errors_dict[s_id] = {
                     "model_name": self.spec.model,
                     "error": str(e),
+                    "error_trace": traceback.format_exc()
                 }
             logger.warn(f"Encountered Error: {e}. Skipping.")
             logger.warn(traceback.format_exc())
