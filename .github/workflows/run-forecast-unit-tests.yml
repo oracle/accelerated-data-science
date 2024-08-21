@@ -56,7 +56,7 @@ jobs:
           $CONDA/bin/conda init
           source /home/runner/.bashrc
           pip install -r test-requirements-operators.txt
-          pip install "oracle-automlx[classic]>=24.2.0"
+          pip install "oracle-automlx[classic]>=24.3.0"
           pip install "oracle-automlx[forecasting]>=24.3.0"
           pip install pandas>=2.2.0
           python -m pytest -v -p no:warnings --durations=5 tests/operators/forecast
