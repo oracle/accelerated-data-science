@@ -30,32 +30,62 @@ class RandomCutForestOperatorModel(AnomalyOperatorBaseModel):
 
         model_kwargs = self.spec.model_kwargs
         # map the output as per anomaly dataset class, 1: outlier, 0: inlier
-        self.outlier_map = {1: 0, -1: 1}
+        # self.outlier_map = {1: 0, -1: 1}
 
         anomaly_output = AnomalyOutput(date_column="index")
-        #TODO: PDB
-        import pdb
+        # TODO: PDB
 
-        pdb.set_trace()
+        # Set tree parameters
+        num_trees = model_kwargs.get("num_trees", 200)
+        shingle_size = model_kwargs.get("shingle_size", 1)
+        tree_size = model_kwargs.get("tree_size", 1000)
 
         for target, df in self.datasets.full_data_dict.items():
-            model = RCTree(**model_kwargs)
-            model.fit(df)
-            y_pred = model.predict(df)
-            y_pred = np.vectorize(self.outlier_map.get)(y_pred)
+            df_values = df[self.spec.target_column].astype(float).values
+            points = np.vstack(list(rrcf.shingle(df_values, size=4)))
 
-            scores = model.score_samples(df)
+            sample_size_range = (1, 6)
+            n = points.shape[0]
+            avg_codisp = pd.Series(0.0, index=np.arange(n))
+            index = np.zeros(n)
 
-            index_col = df.columns[0]
+            forest = []
+            while len(forest) < num_trees:
+                ixs = np.random.choice(n, size=sample_size_range, replace=False)
+                trees = [rrcf.RCTree(points[ix], index_labels=ix) for ix in ixs]
+                forest.extend(trees)
+                print(len(forest))
 
-            anomaly = pd.DataFrame(
-                {index_col: df[index_col], OutputColumns.ANOMALY_COL: y_pred}
-            ).reset_index(drop=True)
-            score = pd.DataFrame(
-                {"index": df[index_col], OutputColumns.SCORE_COL: scores}
-            ).reset_index(drop=True)
+            for tree in forest:
+                codisp = pd.Series({leaf: tree.codisp(leaf) for leaf in tree.leaves})
+                avg_codisp[codisp.index] += codisp
+                np.add.at(index, codisp.index.values, 1)
 
-            anomaly_output.add_output(target, anomaly, score)
+            avg_codisp /= index
+            avg_codisp.index = df.iloc[(4 - 1) :].index
+            avg_codisp = (avg_codisp - avg_codisp.min()) / (
+                avg_codisp.max() - avg_codisp.min()
+            )
+
+            y_pred = (avg_codisp > np.percentile(avg_codisp, 95)).astype(int)
+
+            import pdb
+
+            pdb.set_trace()
+            print("Done")
+
+            # scores = model.score_samples(df)
+
+            # index_col = df.columns[0]
+
+            # anomaly = pd.DataFrame(
+            #     {index_col: df[index_col], OutputColumns.ANOMALY_COL: y_pred}
+            # ).reset_index(drop=True)
+            # score = pd.DataFrame(
+            #     {"index": df[index_col], OutputColumns.SCORE_COL: scores}
+            # ).reset_index(drop=True)
+
+            # anomaly_output.add_output(target, anomaly, score)
 
         return anomaly_output
 
