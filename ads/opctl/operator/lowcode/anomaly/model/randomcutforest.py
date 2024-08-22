@@ -33,7 +33,6 @@ class RandomCutForestOperatorModel(AnomalyOperatorBaseModel):
         # self.outlier_map = {1: 0, -1: 1}
 
         anomaly_output = AnomalyOutput(date_column="index")
-        # TODO: PDB
 
         # Set tree parameters
         num_trees = model_kwargs.get("num_trees", 200)
@@ -42,8 +41,11 @@ class RandomCutForestOperatorModel(AnomalyOperatorBaseModel):
 
         for target, df in self.datasets.full_data_dict.items():
             df_values = df[self.spec.target_column].astype(float).values
+
+            # TODO: Update size to log logic
             points = np.vstack(list(rrcf.shingle(df_values, size=4)))
 
+            # TODO: remove hardcode
             sample_size_range = (1, 6)
             n = points.shape[0]
             avg_codisp = pd.Series(0.0, index=np.arange(n))
@@ -62,16 +64,19 @@ class RandomCutForestOperatorModel(AnomalyOperatorBaseModel):
                 np.add.at(index, codisp.index.values, 1)
 
             avg_codisp /= index
+            # TODO: remove hardcode
             avg_codisp.index = df.iloc[(4 - 1) :].index
             avg_codisp = (avg_codisp - avg_codisp.min()) / (
                 avg_codisp.max() - avg_codisp.min()
             )
 
+            # TODO: use model kwargs for percentile threshold
             y_pred = (avg_codisp > np.percentile(avg_codisp, 95)).astype(int)
 
-            import pdb
+            # TODO: rem pdb
+            # import pdb
 
-            pdb.set_trace()
+            # pdb.set_trace()
             print("Done")
 
             # scores = model.score_samples(df)
