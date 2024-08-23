@@ -62,6 +62,10 @@ class TestADSString:
         assert s3 == s and isinstance(s3, ADSString)
 
     def test_nlp_methods(self):
+        import nltk
+
+        nltk.download("punkt_tab")
+
         ADSString.nlp_backend("nltk")
         s = ADSString("Walking my dog on a breezy day is the best way to recharge.")
         assert list(s.adjective) == ["breezy", "best"]
