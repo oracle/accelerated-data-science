@@ -73,7 +73,7 @@ class AuthState(metaclass=SingletonMeta):
         self.oci_key_profile = self.oci_key_profile or os.environ.get(
             "OCI_CONFIG_PROFILE", DEFAULT_PROFILE
         )
-        self.oci_config = self.oci_config or {}
+        self.oci_config = self.oci_config or {"region": os.environ["OCI_RESOURCE_REGION"]} if os.environ.get("OCI_RESOURCE_REGION") else {}
         self.oci_signer_kwargs = self.oci_signer_kwargs or {}
         self.oci_client_kwargs = self.oci_client_kwargs or {}
 
@@ -82,7 +82,7 @@ def set_auth(
     auth: Optional[str] = AuthType.API_KEY,
     oci_config_location: Optional[str] = DEFAULT_LOCATION,
     profile: Optional[str] = DEFAULT_PROFILE,
-    config: Optional[Dict] = {},
+    config: Optional[Dict] = {"region": os.environ["OCI_RESOURCE_REGION"]} if os.environ.get("OCI_RESOURCE_REGION") else {},
     signer: Optional[Any] = None,
     signer_callable: Optional[Callable] = None,
     signer_kwargs: Optional[Dict] = {},
@@ -678,7 +678,7 @@ class ResourcePrincipal(AuthSignerGenerator):
         >>> signer_generator = AuthFactory().signerGenerator(AuthType.RESOURCE_PRINCIPAL)
         >>> signer_generator(signer_args).create_signer()
         """
-        configuration = ads.telemetry.update_oci_client_config()
+        configuration = ads.telemetry.update_oci_client_config(AuthState().oci_config)
         signer_dict = {
             "config": configuration,
             "signer": oci.auth.signers.get_resource_principals_signer(),
@@ -739,7 +739,7 @@ class InstancePrincipal(AuthSignerGenerator):
         >>> signer_generator = AuthFactory().signerGenerator(AuthType.INSTANCE_PRINCIPAL)
         >>> signer_generator(signer_args).create_signer()
         """
-        configuration = ads.telemetry.update_oci_client_config()
+        configuration = ads.telemetry.update_oci_client_config(AuthState().oci_config)
         signer_dict = {
             "config": configuration,
             "signer": oci.auth.signers.InstancePrincipalsSecurityTokenSigner(
