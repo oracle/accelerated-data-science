@@ -101,6 +101,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
         container_family = input_data.get("container_family")
         ocpus = input_data.get("ocpus")
         memory_in_gbs = input_data.get("memory_in_gbs")
+        model_file = input_data.get("model_file")
 
         self.finish(
             AquaDeploymentApp().create(
@@ -122,6 +123,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
                 container_family=container_family,
                 ocpus=ocpus,
                 memory_in_gbs=memory_in_gbs,
+                model_file=model_file,
             )
         )
 

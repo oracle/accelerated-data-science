@@ -182,13 +182,13 @@ def _create(
         f"Preparing manifest. Manifest in the environment: {conda_dep.get('manifest')}"
     )
     manifest = _fetch_manifest_template()
-    if not "name" in conda_dep["manifest"]:
+    if "name" not in manifest:
         manifest["manifest"]["name"] = name
     manifest["manifest"]["slug"] = slug
-    if not "type" in conda_dep["manifest"]:
-        logger.info(f"Setting manifest to published")
+    if "type" not in manifest:
+        logger.info("Setting manifest to published")
         manifest["manifest"]["type"] = "published"
-    if not "version" in conda_dep["manifest"]:
+    if "version" not in manifest:
         manifest["manifest"]["version"] = version
     manifest["manifest"]["arch_type"] = "GPU" if gpu else "CPU"
 
@@ -200,13 +200,15 @@ def _create(
         manifest["manifest"]["manifest_version"] = "1.0"
 
     logger.info(f"Creating conda environment {slug}")
-    conda_dep["manifest"].update(
-        {
-            k: manifest["manifest"][k]
-            for k in manifest["manifest"]
-            if manifest["manifest"][k]
-        }
-    )
+    manifest_dict = {
+        k: manifest["manifest"][k]
+        for k in manifest["manifest"]
+        if manifest["manifest"][k]
+    }
+    if "manifest" in conda_dep:
+        conda_dep["manifest"].update(manifest_dict)
+    else:
+        conda_dep["manifest"] = manifest_dict
     logger.info(f"Updated conda environment manifest: {conda_dep.get('manifest')}")
 
     if is_in_notebook_session() or NO_CONTAINER:
@@ -658,7 +660,10 @@ def _publish(
     if not skip_archive:
         if is_in_notebook_session() or NO_CONTAINER:
             # Set the CONDA_PUBLISH_TYPE environment variable so that the `type` attribute inside the manifest is not changed
-            command = f"CONDA_PUBLISH_TYPE={os.environ.get('CONDA_PUBLISH_TYPE','')} python {pack_script} --conda-path {pack_folder_path}"
+            publish_type = os.environ.get("CONDA_PUBLISH_TYPE")
+            command = f"python {pack_script} --conda-path {pack_folder_path}"
+            if publish_type:
+                command = f"CONDA_PUBLISH_TYPE={publish_type} {command}"
             proc = run_command(command, shell=True)
             if proc.returncode != 0:
                 raise RuntimeError(

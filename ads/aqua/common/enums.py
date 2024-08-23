@@ -39,6 +39,7 @@ class Tags(str, metaclass=ExtendedEnumMeta):
     BASE_MODEL_CUSTOM = "aqua_custom_base_model"
     AQUA_EVALUATION_MODEL_ID = "evaluation_model_id"
     MODEL_FORMAT = "model_format"
+    MODEL_ARTIFACT_FILE = "model_file"
 
 
 class InferenceContainerType(str, metaclass=ExtendedEnumMeta):
@@ -57,6 +58,14 @@ class InferenceContainerParamType(str, metaclass=ExtendedEnumMeta):
     PARAM_TYPE_VLLM = "VLLM_PARAMS"
     PARAM_TYPE_TGI = "TGI_PARAMS"
     PARAM_TYPE_LLAMA_CPP = "LLAMA_CPP_PARAMS"
+
+
+class EvaluationContainerTypeFamily(str, metaclass=ExtendedEnumMeta):
+    AQUA_EVALUATION_CONTAINER_FAMILY = "odsc-llm-evaluate"
+
+
+class FineTuningContainerTypeFamily(str, metaclass=ExtendedEnumMeta):
+    AQUA_FINETUNING_CONTAINER_FAMILY = "odsc-llm-fine-tuning"
 
 
 class HuggingFaceTags(str, metaclass=ExtendedEnumMeta):
