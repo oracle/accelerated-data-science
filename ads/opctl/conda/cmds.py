@@ -151,7 +151,9 @@ def _create(
         conda_dep = yaml.safe_load(mfile.read())
     # If manifest exists in the environment.yaml file, use that
     manifest = conda_dep.get("manifest", {})
-    slug = manifest.get("slug", f"{name}_v{version}".replace(" ", "").replace(".", "_").lower())
+    slug = manifest.get(
+        "slug", f"{name}_v{version}".replace(" ", "").replace(".", "_").lower()
+    )
     pack_folder_path = os.path.join(
         os.path.abspath(os.path.expanduser(conda_pack_folder)), slug
     )
@@ -176,9 +178,11 @@ def _create(
 
     os.makedirs(pack_folder_path, exist_ok=True)
 
-    logger.info(f"Preparing manifest. Manifest in the environment: {conda_dep.get('manifest')}")
+    logger.info(
+        f"Preparing manifest. Manifest in the environment: {conda_dep.get('manifest')}"
+    )
     manifest = _fetch_manifest_template()
-    if not "name" in conda_dep["manifest"]:
+    if not "name" in manifest:
         manifest["manifest"]["name"] = name
     manifest["manifest"]["slug"] = slug
     if not "type" in conda_dep["manifest"]:
@@ -196,7 +200,13 @@ def _create(
         manifest["manifest"]["manifest_version"] = "1.0"
 
     logger.info(f"Creating conda environment {slug}")
-    conda_dep["manifest"].update({k: manifest["manifest"][k] for k in manifest["manifest"] if manifest["manifest"][k]})
+    conda_dep["manifest"].update(
+        {
+            k: manifest["manifest"][k]
+            for k in manifest["manifest"]
+            if manifest["manifest"][k]
+        }
+    )
     logger.info(f"Updated conda environment manifest: {conda_dep.get('manifest')}")
 
     if is_in_notebook_session() or NO_CONTAINER:
@@ -210,13 +220,12 @@ def _create(
         )
 
         create_command = f"conda env create --prefix {docker_pack_folder_path} --file {docker_env_file_path}"
-            
+
         volumes = {
             pack_folder_path: {"bind": docker_pack_folder_path},
             os.path.abspath(os.path.expanduser(env_file)): {
                 "bind": docker_env_file_path
             },
-
         }
 
         if gpu:
@@ -227,26 +236,42 @@ def _create(
             if prepare_publish:
                 tmp_file = tempfile.NamedTemporaryFile(suffix=".yaml")
                 # Save the manifest in the temp file that can be mounted inside the container so that archiving will work
-                with open(tmp_file.name, 'w') as f:
-                    yaml.safe_dump(conda_dep, f)      
+                with open(tmp_file.name, "w") as f:
+                    yaml.safe_dump(conda_dep, f)
 
-                pack_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pack.py")
+                pack_script = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)), "pack.py"
+                )
                 pack_command = f"python {os.path.join(DEFAULT_IMAGE_HOME_DIR, 'pack.py')} --conda-path {docker_pack_folder_path} --manifest-location {os.path.join(DEFAULT_IMAGE_HOME_DIR, 'manifest.yaml')}"
 
                 # add pack script and manifest file to the mount so that archive can be created in the same container run
                 condapack_script = {
-                    pack_script: {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, "pack.py")},
-                    tmp_file.name: {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, "manifest.yaml")}
+                    pack_script: {
+                        "bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, "pack.py")
+                    },
+                    tmp_file.name: {
+                        "bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, "manifest.yaml")
+                    },
                 }
-                volumes = {**volumes, **condapack_script} # | not supported in python 3.8
+                volumes = {
+                    **volumes,
+                    **condapack_script,
+                }  # | not supported in python 3.8
 
                 run_container(
-                    image=image, bind_volumes=volumes, entrypoint="/bin/bash -c ", env_vars={}, command=f" '{create_command} && {pack_command}'"
+                    image=image,
+                    bind_volumes=volumes,
+                    entrypoint="/bin/bash -c ",
+                    env_vars={},
+                    command=f" '{create_command} && {pack_command}'",
                 )
             else:
                 run_container(
-                    image=image, bind_volumes=volumes, env_vars={}, command=create_command
-                )                
+                    image=image,
+                    bind_volumes=volumes,
+                    env_vars={},
+                    command=create_command,
+                )
         except Exception:
             if os.path.exists(pack_folder_path):
                 shutil.rmtree(pack_folder_path)
@@ -517,9 +542,11 @@ def publish(**kwargs) -> None:
             conda_pack_folder=exec_config["conda_pack_folder"],
             gpu=exec_config.get("gpu", False),
             overwrite=exec_config["overwrite"],
-            prepare_publish=True
+            prepare_publish=True,
         )
-        skip_archive = True # The conda pack archive is already created during create process.
+        skip_archive = (
+            True  # The conda pack archive is already created during create process.
+        )
     else:
         slug = exec_config.get("slug")
     if not slug:
@@ -536,10 +563,10 @@ def publish(**kwargs) -> None:
         oci_profile=exec_config.get("oci_profile"),
         overwrite=exec_config["overwrite"],
         auth_type=exec_config["auth"],
-        skip_archive=skip_archive
+        skip_archive=skip_archive,
     )
 
-    
+
 def _publish(
     conda_slug: str,
     conda_uri_prefix: str,
@@ -548,7 +575,7 @@ def _publish(
     oci_profile: str,
     overwrite: bool,
     auth_type: str,
-    skip_archive: bool = False
+    skip_archive: bool = False,
 ) -> None:
     """Publish a local conda pack to object storage location
 
@@ -627,7 +654,10 @@ def _publish(
     if not skip_archive:
         if is_in_notebook_session() or NO_CONTAINER:
             # Set the CONDA_PUBLISH_TYPE environment variable so that the `type` attribute inside the manifest is not changed
-            command = f"CONDA_PUBLISH_TYPE={os.environ.get('CONDA_PUBLISH_TYPE','')} python {pack_script} --conda-path {pack_folder_path}"
+            publish_type = os.environ.get("CONDA_PUBLISH_TYPE")
+            command = "python {pack_script} --conda-path {pack_folder_path}"
+            if publish_type:
+                command = f"CONDA_PUBLISH_TYPE={publish_type} {command}"
             run_command(command, shell=True)
         else:
             volumes = {
@@ -652,7 +682,9 @@ def _publish(
     NOT_ALLOWED_CHARS = "@#$%^&*/"
 
     if any(chr in conda_slug for chr in NOT_ALLOWED_CHARS):
-        raise ValueError(f"Invalid conda_slug. Found {NOT_ALLOWED_CHARS} in slug name. Please use a different slug name.")
+        raise ValueError(
+            f"Invalid conda_slug. Found {NOT_ALLOWED_CHARS} in slug name. Please use a different slug name."
+        )
     pack_file = os.path.join(pack_folder_path, f"{conda_slug}.tar.gz")
     if not os.path.exists(pack_file):
         raise RuntimeError(f"Pack {pack_file} was not created.")
