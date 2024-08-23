@@ -3,8 +3,11 @@
 
 # Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import logging
 from typing import Union
 from ads.jobs.builders.runtimes.base import MultiNodeRuntime
+
+logger = logging.getLogger(__name__)
 
 
 class ContainerRuntime(MultiNodeRuntime):
@@ -13,18 +16,23 @@ class ContainerRuntime(MultiNodeRuntime):
     To define container runtime:
 
     >>> ContainerRuntime()
-    >>> .with_image("iad.ocir.io/<your_tenancy>/<your_image>")
+    >>> .with_image("iad.ocir.io/<your_tenancy>/<your_image>:<tag>")
     >>> .with_cmd("sleep 5 && echo Hello World")
     >>> .with_entrypoint(["/bin/sh", "-c"])
+    >>> .with_image_digest("<image_digest>")
+    >>> .with_image_signature_id("<image_signature_id>")
     >>> .with_environment_variable(MY_ENV="MY_VALUE")
 
-    Alternatively, you can define the ``entrypoint`` and ``cmd`` along with the image.
+    Alternatively, you can define the ``entrypoint``, ``cmd``,
+    ``image_digest``and ``image_signature_id`` along with the image.
 
     >>> ContainerRuntime()
     >>> .with_image(
-    >>>     "iad.ocir.io/<your_tenancy>/<your_image>",
+    >>>     "iad.ocir.io/<your_tenancy>/<your_image>:<tag>",
     >>>     entrypoint=["/bin/sh", "-c"],
     >>>     cmd="sleep 5 && echo Hello World",
+    >>>     image_digest="<image_digest>",
+    >>>     image_signature_id="<image_signature_id>",
     >>> )
     >>> .with_environment_variable(MY_ENV="MY_VALUE")
 
@@ -46,12 +54,21 @@ class ContainerRuntime(MultiNodeRuntime):
     CONST_IMAGE = "image"
     CONST_ENTRYPOINT = "entrypoint"
     CONST_CMD = "cmd"
+    CONST_IMAGE_DIGEST = "imageDigest"
+    CONST_IMAGE_SIGNATURE_ID = "imageSignatureId"
     attribute_map = {
         CONST_IMAGE: CONST_IMAGE,
         CONST_ENTRYPOINT: CONST_ENTRYPOINT,
         CONST_CMD: CONST_CMD,
+        CONST_IMAGE_DIGEST: "image_digest",
+        CONST_IMAGE_SIGNATURE_ID: "image_signature_id",
     }
     attribute_map.update(MultiNodeRuntime.attribute_map)
+
+    @property
+    def job_env_type(self) -> str:
+        """The container type"""
+        return "OCIR_CONTAINER"
 
     @property
     def image(self) -> str:
@@ -59,7 +76,12 @@ class ContainerRuntime(MultiNodeRuntime):
         return self.get_spec(self.CONST_IMAGE)
 
     def with_image(
-        self, image: str, entrypoint: Union[str, list, None] = None, cmd: str = None
+        self,
+        image: str,
+        entrypoint: Union[str, list, None] = None, 
+        cmd: str = None,
+        image_digest: str = None,
+        image_signature_id: str = None,
     ) -> "ContainerRuntime":
         """Specify the image for the container job.
 
@@ -71,15 +93,72 @@ class ContainerRuntime(MultiNodeRuntime):
             Entrypoint for the job, by default None (the entrypoint defined in the image will be used).
         cmd : str, optional
             Command for the job, by default None.
+        image_digest: str, optional
+            The image digest, by default None.
+        image_signature_id: str, optional
+            The image signature id, by default None.
 
         Returns
         -------
         ContainerRuntime
             The runtime instance.
         """
+        if not isinstance(image, str):
+            raise ValueError(
+                "Custom image must be provided as a string."
+            )
+        if image.find(":") < 0:
+            logger.warning(
+                "Tag is required for custom image. Accepted format: iad.ocir.io/<tenancy>/<image>:<tag>."
+            )
         self.with_entrypoint(entrypoint)
         self.set_spec(self.CONST_CMD, cmd)
+        self.with_image_digest(image_digest)
+        self.with_image_signature_id(image_signature_id)
         return self.set_spec(self.CONST_IMAGE, image)
+
+    @property
+    def image_digest(self) -> str:
+        """The container image digest."""
+        return self.get_spec(self.CONST_IMAGE_DIGEST)
+    
+    def with_image_digest(self, image_digest: str) -> "ContainerRuntime":
+        """Sets the digest of custom image.
+
+        Parameters
+        ----------
+        image_digest: str
+            The image digest.
+
+        Returns
+        -------
+        ContainerRuntime
+            The runtime instance.
+        """
+        return self.set_spec(self.CONST_IMAGE_DIGEST, image_digest)
+    
+    @property
+    def image_signature_id(self) -> str:
+        """The container image signature id."""
+        return self.get_spec(self.CONST_IMAGE_SIGNATURE_ID)
+    
+    def with_image_signature_id(self, image_signature_id: str) -> "ContainerRuntime":
+        """Sets the signature id of custom image.
+
+        Parameters
+        ----------
+        image_signature_id: str
+            The image signature id.
+
+        Returns
+        -------
+        ContainerRuntime
+            The runtime instance.
+        """
+        return self.set_spec(
+            self.CONST_IMAGE_SIGNATURE_ID,
+            image_signature_id
+        )
 
     @property
     def entrypoint(self) -> str:

@@ -1,5 +1,32 @@
 {
   "containerSpec": {
+    "odsc-llama-cpp-serving": {
+      "cliParam": "",
+      "envVars": [
+        {
+          "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"
+        },
+        {
+          "MODEL_DEPLOY_HEALTH_ENDPOINT": "/v1/models"
+        },
+        {
+          "MODEL_DEPLOY_ENABLE_STREAMING": "true"
+        },
+        {
+          "PORT": "8080"
+        },
+        {
+          "HEALTH_CHECK_PORT": "8080"
+        }
+      ],
+      "evaluationConfiguration": {
+        "inference_delay": 1,
+        "inference_max_threads": 1
+      },
+      "healthCheckPort": "8080",
+      "restrictedParams": [],
+      "serverPort": "8080"
+    },
     "odsc-tgi-serving": {
       "cliParam": "--sharded true --trust-remote-code",
       "envVars": [
@@ -17,10 +44,17 @@
         }
       ],
       "healthCheckPort": "8080",
+      "restrictedParams": [
+        "--port",
+        "--hostname",
+        "--num-shard",
+        "--sharded",
+        "--trust-remote-code"
+      ],
       "serverPort": "8080"
     },
     "odsc-vllm-serving": {
-      "cliParam": "--served-model-name $(python -c 'import os; print(os.environ.get(\"ODSC_SERVED_MODEL_NAME\",\"odsc-llm\"))') --seed 42 ",
+      "cliParam": "--served-model-name odsc-llm --seed 42 ",
       "envVars": [
         {
           "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"
@@ -36,41 +70,67 @@
         }
       ],
       "healthCheckPort": "8080",
+      "restrictedParams": [
+        "--port",
+        "--host",
+        "--served-model-name",
+        "--seed"
+      ],
       "serverPort": "8080"
     }
   },
+  "odsc-llama-cpp-serving": [
+    {
+      "displayName": "LLAMA-CPP:0.2.75",
+      "modelFormats": [
+        "GGUF"
+      ],
+      "name": "dsmc://odsc-llama-cpp-python-aio-linux_arm64_v8",
+      "platforms": [
+        "ARM_CPU"
+      ],
+      "type": "inference",
+      "version": "0.2.75.5"
+    }
+  ],
   "odsc-llm-evaluate": [
     {
       "name": "dsmc://odsc-llm-evaluate",
-      "version": "0.1.2.0"
+      "version": "0.1.2.1"
     }
   ],
   "odsc-llm-fine-tuning": [
     {
       "name": "dsmc://odsc-llm-fine-tuning",
-      "version": "1.1.33.34"
+      "version": "1.1.37.37"
     }
   ],
   "odsc-tgi-serving": [
     {
-      "displayName": "TGI:1.4.5",
-      "name": "dsmc://odsc-tgi-serving",
+      "displayName": "TGI:2.0.1",
+      "modelFormats": [
+        "SAFETENSORS"
+      ],
+      "name": "dsmc://odsc-text-generation-inference",
+      "platforms": [
+        "NVIDIA_GPU"
+      ],
       "type": "inference",
-      "version": "1.4.5"
-    },
-    {
-      "displayName": "TGI:2.0.2",
-      "name": "dsmc://odsc-tgi-serving",
-      "type": "inference",
-      "version": "2.0.2"
+      "version": "2.0.1.4"
     }
   ],
   "odsc-vllm-serving": [
     {
-      "displayName": "VLLM:0.3.0",
+      "displayName": "VLLM:0.4.1",
+      "modelFormats": [
+        "SAFETENSORS"
+      ],
       "name": "dsmc://odsc-vllm-serving",
+      "platforms": [
+        "NVIDIA_GPU"
+      ],
       "type": "inference",
-      "version": "0.3.0.7"
+      "version": "0.4.1.3"
     }
   ]
 }

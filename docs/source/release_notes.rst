@@ -2,6 +2,22 @@
 Release Notes
 =============
 
+2.11.17
+-------
+Release date: August 9, 2024
+
+* Integration with Huggingface repository
+
+2.11.16
+-------
+Release date: July 22, 2024
+
+* Support for llama-cpp container for model deployment and evaluation via AI Quick Actions.
+* Added web socket support for AI Quick Actions APIs.
+* Added Recommender Operator, designed to provide personalised recommendations based on user behaviour and preferences.
+* Added apis ``with_image_digest`` and ``with_image_signature_id`` in ``ContainerRuntime`` class.
+* Fixed pipeline run logging issue when service logging is not enabled.
+
 2.11.15
 -------
 Release date: July 3, 2024

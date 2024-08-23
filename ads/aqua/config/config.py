@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -14,5 +13,6 @@ def get_finetuning_config_defaults():
             "BM.GPU.A10.4": {"batch_size": 1, "replica": 1},
             "BM.GPU4.8": {"batch_size": 4, "replica": 1},
             "BM.GPU.A100-v2.8": {"batch_size": 6, "replica": 1},
+            "BM.GPU.H100.8": {"batch_size": 6, "replica": 1},
         }
     }

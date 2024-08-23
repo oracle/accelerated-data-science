@@ -30,6 +30,7 @@ from ads.common.oci_logging import OCILog
 from ads.common.oci_resource import ResourceNotFoundError
 from ads.jobs.builders.infrastructure.base import Infrastructure, RunInstance
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
+    ContainerRuntimeHandler,
     DataScienceJobRuntimeManager,
 )
 from ads.jobs.builders.infrastructure.utils import get_value
@@ -376,13 +377,12 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
         """
         runs = self.run_list()
         for run in runs:
-            if force_delete:
-                if run.lifecycle_state in [
-                    DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
-                    DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
-                    DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
-                ]:
-                    run.cancel(wait_for_completion=True)
+            if force_delete and run.lifecycle_state in [
+                DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
+                DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
+                DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
+            ]:
+                run.cancel(wait_for_completion=True)
             run.delete()
         self.client.delete_job(self.id)
         return self
@@ -458,7 +458,7 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
         ----------
         **kwargs :
             Keyword arguments for initializing a Data Science Job Run.
-            The keys can be any keys in supported by OCI JobConfigurationDetails and JobRun, including:
+            The keys can be any keys in supported by OCI JobConfigurationDetails, OcirContainerJobEnvironmentConfigurationDetails and JobRun, including:
             * hyperparameter_values: dict(str, str)
             * environment_variables: dict(str, str)
             * command_line_arguments: str
@@ -466,6 +466,11 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             * display_name: str
             * freeform_tags: dict(str, str)
             * defined_tags: dict(str, dict(str, object))
+            * image: str
+            * cmd: list[str]
+            * entrypoint: list[str]
+            * image_digest: str
+            * image_signature_id: str
 
         If display_name is not specified, it will be generated as "<JOB_NAME>-run-<TIMESTAMP>".
 
@@ -478,14 +483,28 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
         if not self.id:
             self.create()
 
-        swagger_types = (
+        config_swagger_types = (
             oci.data_science.models.DefaultJobConfigurationDetails().swagger_types.keys()
         )
+        env_config_swagger_types = {}
+        if hasattr(oci.data_science.models, "OcirContainerJobEnvironmentConfigurationDetails"):
+            env_config_swagger_types = (
+                oci.data_science.models.OcirContainerJobEnvironmentConfigurationDetails().swagger_types.keys()
+            )
         config_kwargs = {}
+        env_config_kwargs = {}
         keys = list(kwargs.keys())
         for key in keys:
-            if key in swagger_types:
+            if key in config_swagger_types:
                 config_kwargs[key] = kwargs.pop(key)
+            elif key in env_config_swagger_types:
+                value = kwargs.pop(key)
+                if key in [
+                    ContainerRuntime.CONST_CMD,
+                    ContainerRuntime.CONST_ENTRYPOINT
+                ] and isinstance(value, str):
+                    value = ContainerRuntimeHandler.split_args(value)
+                env_config_kwargs[key] = value
 
         # remove timestamp from the job name (added in default names, when display_name not specified by user)
         if self.display_name:
@@ -513,6 +532,12 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             config_override = kwargs.get("job_configuration_override_details", {})
             config_override.update(config_kwargs)
             kwargs["job_configuration_override_details"] = config_override
+
+        if env_config_kwargs:
+            env_config_kwargs["jobEnvironmentType"] = "OCIR_CONTAINER"
+            env_config_override = kwargs.get("job_environment_configuration_override_details", {})
+            env_config_override.update(env_config_kwargs)
+            kwargs["job_environment_configuration_override_details"] = env_config_override
 
         wait = kwargs.pop("wait", False)
         run = DataScienceJobRun(**kwargs, **self.auth).create()
@@ -868,10 +893,14 @@ class DataScienceJobRun(
         return self
 
     def delete(self, force_delete: bool = False):
-        if force_delete:
+        if force_delete and self.status in [
+            DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
+            DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
+            DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
+        ]:
             self.cancel(wait_for_completion=True)
         super().delete()
-        return
+        return self
 
 
 # This is for backward compatibility

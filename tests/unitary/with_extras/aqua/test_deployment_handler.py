@@ -126,6 +126,9 @@ class TestAquaDeploymentHandler(unittest.TestCase):
             health_check_port=None,
             env_var=None,
             container_family=None,
+            memory_in_gbs=None,
+            ocpus=None,
+            model_file=None,
         )
 
 

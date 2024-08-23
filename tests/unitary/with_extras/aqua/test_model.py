@@ -1,20 +1,29 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
+import shlex
+import tempfile
+import json
 from dataclasses import asdict
 from importlib import reload
 from unittest.mock import MagicMock, patch
 
 import oci
 import pytest
+from ads.aqua.ui import ModelFormat
 from parameterized import parameterized
+from huggingface_hub.hf_api import HfApi, ModelInfo
 
 import ads.aqua.model
-from ads.aqua.model.entities import AquaModelSummary, ImportModelDetails, AquaModel
+from ads.aqua.model.entities import (
+    AquaModelSummary,
+    ImportModelDetails,
+    AquaModel,
+    ModelValidationResult,
+)
 import ads.common
 import ads.common.oci_client
 import ads.config
@@ -26,7 +35,11 @@ from ads.model.model_metadata import (
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
 )
-from ads.aqua.common.errors import AquaRuntimeError, AquaFileNotFoundError
+from ads.aqua.common.errors import (
+    AquaRuntimeError,
+    AquaFileNotFoundError,
+    AquaValueError,
+)
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
 
 
@@ -34,6 +47,107 @@ from ads.model.service.oci_datascience_model import OCIDataScienceModel
 def mock_auth():
     with patch("ads.common.auth.default_signer") as mock_default_signer:
         yield mock_default_signer
+
+
+@pytest.fixture(autouse=True, scope="class")
+def mock_get_container_config():
+    with patch("ads.aqua.ui.get_container_config") as mock_config:
+        with open(
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "test_data/ui/container_index.json",
+            ),
+            "r",
+        ) as _file:
+            container_index_json = json.load(_file)
+        mock_config.return_value = container_index_json
+        yield mock_config
+
+
+@pytest.fixture(autouse=True, scope="class")
+def mock_get_hf_model_info():
+    with patch.object(HfApi, "model_info") as mock_get_hf_model_info:
+        test_hf_model_info = ModelInfo(
+            disabled=False,
+            id="oracle/aqua-1t-mega-model",
+            pipeline_tag="text-generation",
+            author="test_author",
+            private=False,
+            downloads=10,
+            likes=10,
+            tags=None,
+            siblings=[
+                {
+                    "rfilename": ".gitattributes",
+                    "size": None,
+                    "blob_id": None,
+                    "lfs": None,
+                },
+                {"rfilename": "README.md", "size": None, "blob_id": None, "lfs": None},
+                {
+                    "rfilename": "config.json",
+                    "size": None,
+                    "blob_id": None,
+                    "lfs": None,
+                },
+                {
+                    "rfilename": "model_file.gguf",
+                    "size": None,
+                    "blob_id": None,
+                    "lfs": None,
+                },
+                {
+                    "rfilename": "generation_config.json",
+                    "size": None,
+                    "blob_id": None,
+                    "lfs": None,
+                },
+                {
+                    "rfilename": "model-00001-of-00001.safetensors",
+                    "size": None,
+                    "blob_id": None,
+                    "lfs": None,
+                },
+                {
+                    "rfilename": "model-00002-of-00002.safetensors",
+                    "size": None,
+                    "blob_id": None,
+                    "lfs": None,
+                },
+                {
+                    "rfilename": "model.safetensors.index.json",
+                    "size": None,
+                    "blob_id": None,
+                    "lfs": None,
+                },
+                {
+                    "rfilename": "special_tokens_map.json",
+                    "size": None,
+                    "blob_id": None,
+                    "lfs": None,
+                },
+                {
+                    "rfilename": "tokenizer.json",
+                    "size": None,
+                    "blob_id": None,
+                    "lfs": None,
+                },
+                {
+                    "rfilename": "tokenizer.model",
+                    "size": None,
+                    "blob_id": None,
+                    "lfs": None,
+                },
+                {
+                    "rfilename": "tokenizer_config.json",
+                    "size": None,
+                    "blob_id": None,
+                    "lfs": None,
+                },
+            ],
+        )
+        mock_get_hf_model_info.return_value = test_hf_model_info
+        yield mock_get_hf_model_info
 
 
 @pytest.fixture(autouse=True, scope="class")
@@ -255,6 +369,7 @@ class TestAquaModel:
         mock_from_id,
         mock_read_file,
         foundation_model_type,
+        mock_get_container_config,
         mock_auth,
     ):
         ds_model = MagicMock()
@@ -323,16 +438,19 @@ class TestAquaModel:
             )
 
         assert asdict(aqua_model) == {
+            "arm_cpu_supported": False,
+            "artifact_location": "oci://bucket@namespace/prefix/",
             "compartment_id": f"{ds_model.compartment_id}",
-            "console_link": (
-                f"https://cloud.oracle.com/data-science/models/{ds_model.id}?region={self.app.region}",
-            ),
+            "console_link": f"https://cloud.oracle.com/data-science/models/{ds_model.id}?region={self.app.region}",
             "icon": "",
             "id": f"{ds_model.id}",
             "is_fine_tuned_model": False,
             "license": f'{ds_model.freeform_tags["license"]}',
             "model_card": f"{mock_read_file.return_value}",
+            "model_formats": [ModelFormat.SAFETENSORS],
+            "model_file": "",
             "name": f"{ds_model.display_name}",
+            "nvidia_gpu_supported": True,
             "organization": f'{ds_model.freeform_tags["organization"]}',
             "project_id": f"{ds_model.project_id}",
             "ready_to_deploy": False if foundation_model_type == "verified" else True,
@@ -364,6 +482,7 @@ class TestAquaModel:
         mock_from_id,
         mock_read_file,
         mock_query_resource,
+        mock_get_container_config,
         mock_auth,
     ):
         ds_model = MagicMock()
@@ -464,10 +583,10 @@ class TestAquaModel:
         mock_query_resource.assert_called()
 
         assert asdict(model) == {
+            "arm_cpu_supported": False,
+            "artifact_location": "oci://bucket@namespace/prefix/",
             "compartment_id": f"{ds_model.compartment_id}",
-            "console_link": (
-                f"https://cloud.oracle.com/data-science/models/{ds_model.id}?region={self.app.region}",
-            ),
+            "console_link": f"https://cloud.oracle.com/data-science/models/{ds_model.id}?region={self.app.region}",
             "dataset": "test_training_data",
             "experiment": {"id": "", "name": "", "url": ""},
             "icon": "",
@@ -504,7 +623,10 @@ class TestAquaModel:
                 },
             ],
             "model_card": f"{mock_read_file.return_value}",
+            "model_formats": [ModelFormat.SAFETENSORS],
+            "model_file": "",
             "name": f"{ds_model.display_name}",
+            "nvidia_gpu_supported": True,
             "organization": "test_organization",
             "project_id": f"{ds_model.project_id}",
             "ready_to_deploy": True,
@@ -526,21 +648,31 @@ class TestAquaModel:
         }
 
     @pytest.mark.parametrize(
-        "artifact_location_set",
+        ("artifact_location_set", "download_from_hf"),
         [
-            True,
-            False,
+            (True, True),
+            (True, False),
+            (False, True),
+            (False, False),
         ],
     )
+    @patch.object(AquaModelApp, "_find_matching_aqua_model")
     @patch("ads.aqua.common.utils.copy_file")
     @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
     @patch("ads.aqua.common.utils.load_config", return_value={})
+    @patch("huggingface_hub.snapshot_download")
+    @patch("subprocess.check_call")
     def test_import_verified_model(
         self,
+        mock_subprocess,
+        mock_snapshot_download,
         mock_load_config,
         mock_list_objects,
         mock_copy_file,
+        mock__find_matching_aqua_model,
         artifact_location_set,
+        download_from_hf,
+        mock_get_hf_model_info,
     ):
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
         ads.common.oci_datascience.OCIDataScienceMixin.init_client = MagicMock()
@@ -564,6 +696,7 @@ class TestAquaModel:
         ds_freeform_tags = {
             "OCI_AQUA": "ACTIVE",
             "license": "aqua-license",
+            "model_format": "SAFETENSORS",
             "organization": "oracle",
             "task": "text-generation",
             "ready_to_import": "true",
@@ -596,12 +729,37 @@ class TestAquaModel:
         ds_model.set_spec(ds_model.CONST_MODEL_FILE_DESCRIPTION, {})
         ds_model.dsc_model = MagicMock(id="test_model_id")
         DataScienceModel.from_id = MagicMock(return_value=ds_model)
+        mock__find_matching_aqua_model.return_value = "test_model_id"
+
         reload(ads.aqua.model.model)
         app = AquaModelApp()
-        model: AquaModel = app.register(
-            model="ocid1.datasciencemodel.xxx.xxxx.",
-            os_path=os_path,
-        )
+        if download_from_hf:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                model: AquaModel = app.register(
+                    model=model_name,
+                    os_path=os_path,
+                    local_dir=str(tmpdir),
+                    download_from_hf=True,
+                )
+                mock_snapshot_download.assert_called_with(
+                    repo_id=model_name,
+                    local_dir=f"{str(tmpdir)}/{model_name}",
+                )
+                mock_subprocess.assert_called_with(
+                    shlex.split(
+                        f"oci os object bulk-upload --src-dir {str(tmpdir)}/{model_name} --prefix prefix/path/{model_name}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT --no-overwrite"
+                    )
+                )
+        else:
+            model: AquaModel = app.register(
+                model="ocid1.datasciencemodel.xxx.xxxx.",
+                os_path=os_path,
+                download_from_hf=False,
+            )
+            mock_snapshot_download.assert_not_called()
+            mock_subprocess.assert_not_called()
+            mock_load_config.assert_called()
+
         if not artifact_location_set:
             mock_copy_file.assert_called()
         ds_freeform_tags.pop(
@@ -612,7 +770,6 @@ class TestAquaModel:
             "aqua_service_model": "test_model_id",
             **ds_freeform_tags,
         }
-        mock_load_config.assert_called()
 
         assert model.inference_container == "odsc-tgi-serving"
         assert model.finetuning_container is None
@@ -621,15 +778,17 @@ class TestAquaModel:
         assert model.ready_to_deploy is True
         assert model.ready_to_finetune is False
 
+    @patch.object(AquaModelApp, "_validate_model")
     @patch("ads.aqua.common.utils.load_config", return_value={})
-    def test_import_any_model_no_containers_specified(self, mock_load_config):
+    def test_import_any_model_no_containers_specified(
+        self, mock_load_config, mock__validate_model, mock_get_hf_model_info
+    ):
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
         ads.common.oci_datascience.OCIDataScienceMixin.init_client = MagicMock()
         DataScienceModel.upload_artifact = MagicMock()
         DataScienceModel.sync = MagicMock()
         OCIDataScienceModel.create = MagicMock()
 
-        ds_model = DataScienceModel()
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
         model_name = "oracle/aqua-1t-mega-model"
         ds_freeform_tags = {
@@ -638,6 +797,12 @@ class TestAquaModel:
             "organization": "oracle",
             "task": "text-generation",
         }
+        mock__validate_model.return_value = ModelValidationResult(
+            model_file="model_file.gguf",
+            model_formats=[ModelFormat.SAFETENSORS],
+            telemetry_model_name=model_name,
+            tags=ds_freeform_tags,
+        )
 
         reload(ads.aqua.model.model)
         app = AquaModelApp()
@@ -650,19 +815,38 @@ class TestAquaModel:
                         organization="organization1",
                     ),
                 ]
-                model: DataScienceModel = app.register(
+                model: AquaModel = app.register(
                     model=model_name,
                     os_path=os_path,
+                    download_from_hf=False,
                 )
 
+    @pytest.mark.parametrize(
+        "download_from_hf",
+        [True, False],
+    )
+    @patch.object(AquaModelApp, "_find_matching_aqua_model")
+    @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
     @patch("ads.aqua.common.utils.load_config", return_value={})
-    def test_import_model_with_project_compartment_override(self, mock_load_config):
+    @patch("huggingface_hub.snapshot_download")
+    @patch("subprocess.check_call")
+    def test_import_model_with_project_compartment_override(
+        self,
+        mock_subprocess,
+        mock_snapshot_download,
+        mock_load_config,
+        mock_list_objects,
+        mock__find_matching_aqua_model,
+        download_from_hf,
+        mock_get_hf_model_info,
+    ):
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
         ads.common.oci_datascience.OCIDataScienceMixin.init_client = MagicMock()
         DataScienceModel.upload_artifact = MagicMock()
         DataScienceModel.sync = MagicMock()
         OCIDataScienceModel.create = MagicMock()
 
+        mock_list_objects.return_value = MagicMock(objects=[])
         ds_model = DataScienceModel()
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
         model_name = "oracle/aqua-1t-mega-model"
@@ -693,34 +877,87 @@ class TestAquaModel:
         ds_model.with_custom_metadata_list(custom_metadata_list)
         ds_model.set_spec(ds_model.CONST_MODEL_FILE_DESCRIPTION, {})
         DataScienceModel.from_id = MagicMock(return_value=ds_model)
+        mock__find_matching_aqua_model.return_value = "test_model_id"
         reload(ads.aqua.model.model)
         app = AquaModelApp()
-        model: AquaModel = app.register(
-            compartment_id=compartment_override,
-            project_id=project_override,
-            model="ocid1.datasciencemodel.xxx.xxxx.",
-            os_path=os_path,
-        )
+
+        if download_from_hf:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                model: AquaModel = app.register(
+                    compartment_id=compartment_override,
+                    project_id=project_override,
+                    model=model_name,
+                    os_path=os_path,
+                    local_dir=str(tmpdir),
+                    download_from_hf=True,
+                )
+        else:
+            model: AquaModel = app.register(
+                compartment_id=compartment_override,
+                project_id=project_override,
+                model="ocid1.datasciencemodel.xxx.xxxx.",
+                os_path=os_path,
+                download_from_hf=False,
+            )
         assert model.compartment_id == compartment_override
         assert model.project_id == project_override
 
+    @pytest.mark.parametrize(
+        "download_from_hf",
+        [True, False],
+    )
+    @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
     @patch("ads.aqua.common.utils.load_config", side_effect=AquaFileNotFoundError)
-    def test_import_model_with_missing_config(self, mock_load_config):
+    @patch("huggingface_hub.snapshot_download")
+    @patch("subprocess.check_call")
+    def test_import_model_with_missing_config(
+        self,
+        mock_subprocess,
+        mock_snapshot_download,
+        mock_load_config,
+        mock_list_objects,
+        mock_get_container_config,
+        download_from_hf,
+        mock_get_hf_model_info,
+    ):
         """Test for validating if error is returned when model artifacts are incomplete or not available."""
+
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
         model_name = "oracle/aqua-1t-mega-model"
+        ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
+        ads.common.oci_datascience.OCIDataScienceMixin.init_client = MagicMock()
+        DataScienceModel.upload_artifact = MagicMock()
+        mock_list_objects.return_value = MagicMock(objects=[])
         reload(ads.aqua.model.model)
         app = AquaModelApp()
-        with pytest.raises(AquaRuntimeError):
-            model: AquaModel = app.register(
-                model=model_name,
-                os_path=os_path,
-            )
+        app.list = MagicMock(return_value=[])
 
+        if download_from_hf:
+            with pytest.raises(AquaValueError):
+                mock_get_hf_model_info.return_value.siblings = []
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    model: AquaModel = app.register(
+                        model=model_name,
+                        os_path=os_path,
+                        local_dir=str(tmpdir),
+                        download_from_hf=True,
+                    )
+        else:
+            with pytest.raises(AquaRuntimeError):
+                model: AquaModel = app.register(
+                    model=model_name,
+                    os_path=os_path,
+                    download_from_hf=False,
+                )
+
+    @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
+    @patch.object(HfApi, "model_info")
     @patch("ads.aqua.common.utils.load_config", return_value={})
     def test_import_any_model_smc_container(
         self,
         mock_load_config,
+        mock_list_objects,
+        mock_get_hf_model_info,
     ):
         my_model = "oracle/aqua-1t-mega-model"
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
@@ -733,6 +970,7 @@ class TestAquaModel:
         ds_freeform_tags = {
             "OCI_AQUA": "active",
         }
+        mock_list_objects.return_value = MagicMock(objects=[])
 
         reload(ads.aqua.model.model)
         app = AquaModelApp()
@@ -759,9 +997,11 @@ class TestAquaModel:
                 os_path=os_path,
                 inference_container="odsc-vllm-or-tgi-container",
                 finetuning_container="odsc-llm-fine-tuning",
+                download_from_hf=False,
             )
             assert model.tags == {
                 "aqua_custom_base_model": "true",
+                "model_format": "SAFETENSORS",
                 "ready_to_fine_tune": "true",
                 **ds_freeform_tags,
             }
@@ -772,7 +1012,8 @@ class TestAquaModel:
             assert model.ready_to_deploy is True
             assert model.ready_to_finetune is True
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "data, expected_output",
         [
             (
                 {
@@ -780,16 +1021,33 @@ class TestAquaModel:
                     "model": "oracle/oracle-1it",
                     "inference_container": "odsc-vllm-serving",
                 },
-                f"ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --inference_container odsc-vllm-serving",
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --inference_container odsc-vllm-serving",
             ),
             (
                 {
                     "os_path": "oci://aqua-bkt@aqua-ns/path",
                     "model": "ocid1.datasciencemodel.oc1.iad.<OCID>",
                 },
-                f"ads aqua model register --model ocid1.datasciencemodel.oc1.iad.<OCID> --os_path oci://aqua-bkt@aqua-ns/path",
+                "ads aqua model register --model ocid1.datasciencemodel.oc1.iad.<OCID> --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True",
             ),
-        ]
+            (
+                {
+                    "os_path": "oci://aqua-bkt@aqua-ns/path",
+                    "model": "oracle/oracle-1it",
+                    "download_from_hf": False,
+                },
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf False",
+            ),
+            (
+                {
+                    "os_path": "oci://aqua-bkt@aqua-ns/path",
+                    "model": "oracle/oracle-1it",
+                    "download_from_hf": True,
+                    "model_file": "test_model_file",
+                },
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --model_file test_model_file",
+            ),
+        ],
     )
     def test_import_cli(self, data, expected_output):
         import_details = ImportModelDetails(**data)

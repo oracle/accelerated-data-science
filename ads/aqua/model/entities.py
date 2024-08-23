@@ -14,6 +14,7 @@ from dataclasses import InitVar, dataclass, field
 from typing import List, Optional
 
 import oci
+from huggingface_hub import hf_api
 
 from ads.aqua import logger
 from ads.aqua.app import CLIBuilderMixin
@@ -22,6 +23,7 @@ from ads.aqua.constants import LIFECYCLE_DETAILS_MISSING_JOBRUN, UNKNOWN_VALUE
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model.enums import FineTuningDefinedMetadata
 from ads.aqua.training.exceptions import exit_code_dict
+from ads.aqua.ui import ModelFormat
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_log_links
 from ads.model.datascience_model import DataScienceModel
@@ -39,6 +41,14 @@ class FineTuningShapeInfo(DataClassSerializable):
 class AquaFineTuneValidation(DataClassSerializable):
     type: str = "Automatic split"
     value: str = ""
+
+
+@dataclass(repr=False)
+class ModelValidationResult:
+    model_file: Optional[str] = None
+    model_formats: List[ModelFormat] = field(default_factory=list)
+    telemetry_model_name: str = None
+    tags: Optional[dict] = None
 
 
 @dataclass(repr=False)
@@ -76,6 +86,10 @@ class AquaModelSummary(DataClassSerializable):
     ready_to_deploy: bool = True
     ready_to_finetune: bool = False
     ready_to_import: bool = False
+    nvidia_gpu_supported: bool = False
+    arm_cpu_supported: bool = False
+    model_file: Optional[str] = None
+    model_formats: List[ModelFormat] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -86,6 +100,7 @@ class AquaModel(AquaModelSummary, DataClassSerializable):
     inference_container: str = None
     finetuning_container: str = None
     evaluation_container: str = None
+    artifact_location: str = None
 
 
 @dataclass(repr=False)
@@ -94,6 +109,16 @@ class HFModelContainerInfo:
 
     inference_container: str = None
     finetuning_container: str = None
+
+
+@dataclass(repr=False)
+class HFModelSummary:
+    """Represents a summary of Hugging Face model."""
+
+    model_info: hf_api.ModelInfo = field(default_factory=hf_api.ModelInfo)
+    aqua_model_info: Optional[AquaModelSummary] = field(
+        default_factory=AquaModelSummary
+    )
 
 
 @dataclass(repr=False)
@@ -255,10 +280,13 @@ class AquaFineTuneModel(AquaModel, AquaEvalFTCommon, DataClassSerializable):
 class ImportModelDetails(CLIBuilderMixin):
     model: str
     os_path: str
+    download_from_hf: Optional[bool] = True
+    local_dir: Optional[str] = None
     inference_container: Optional[str] = None
     finetuning_container: Optional[str] = None
     compartment_id: Optional[str] = None
     project_id: Optional[str] = None
+    model_file: Optional[str] = None
 
     def __post_init__(self):
         self._command = "model register"
