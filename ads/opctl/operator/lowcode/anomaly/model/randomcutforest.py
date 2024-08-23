@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from ads.common.decorator.runtime_dependency import runtime_dependency
+from ads.opctl import logger
 from ads.opctl.operator.lowcode.anomaly.const import OutputColumns
 
 from .anomaly_dataset import AnomalyOutput
@@ -29,68 +30,67 @@ class RandomCutForestOperatorModel(AnomalyOperatorBaseModel):
         from rrcf import RCTree
 
         model_kwargs = self.spec.model_kwargs
-        # map the output as per anomaly dataset class, 1: outlier, 0: inlier
-        # self.outlier_map = {1: 0, -1: 1}
 
         anomaly_output = AnomalyOutput(date_column="index")
 
         # Set tree parameters
         num_trees = model_kwargs.get("num_trees", 200)
-        shingle_size = model_kwargs.get("shingle_size", 1)
-        tree_size = model_kwargs.get("tree_size", 1000)
+        shingle_size = model_kwargs.get("shingle_size", None)
+        anamoly_threshold = model_kwargs.get("anamoly_threshold", 95)
 
         for target, df in self.datasets.full_data_dict.items():
-            df_values = df[self.spec.target_column].astype(float).values
+            try:
+                if df.shape[0] == 1:
+                    raise ValueError("Dataset size must be greater than 1")
+                df_values = df[self.spec.target_column].astype(float).values
 
-            # TODO: Update size to log logic
-            points = np.vstack(list(rrcf.shingle(df_values, size=4)))
+                cal_shingle_size = (
+                    shingle_size
+                    if shingle_size
+                    else int(2 ** np.floor(np.log2(df.shape[0])) / 2)
+                )
+                points = np.vstack(list(rrcf.shingle(df_values, size=cal_shingle_size)))
 
-            # TODO: remove hardcode
-            sample_size_range = (1, 6)
-            n = points.shape[0]
-            avg_codisp = pd.Series(0.0, index=np.arange(n))
-            index = np.zeros(n)
+                sample_size_range = (1, points.shape[0])
+                n = points.shape[0]
+                avg_codisp = pd.Series(0.0, index=np.arange(n))
+                index = np.zeros(n)
 
-            forest = []
-            while len(forest) < num_trees:
-                ixs = np.random.choice(n, size=sample_size_range, replace=False)
-                trees = [rrcf.RCTree(points[ix], index_labels=ix) for ix in ixs]
-                forest.extend(trees)
-                print(len(forest))
+                forest = []
+                while len(forest) < num_trees:
+                    ixs = np.random.choice(n, size=sample_size_range, replace=False)
+                    trees = [rrcf.RCTree(points[ix], index_labels=ix) for ix in ixs]
+                    forest.extend(trees)
 
-            for tree in forest:
-                codisp = pd.Series({leaf: tree.codisp(leaf) for leaf in tree.leaves})
-                avg_codisp[codisp.index] += codisp
-                np.add.at(index, codisp.index.values, 1)
+                for tree in forest:
+                    codisp = pd.Series(
+                        {leaf: tree.codisp(leaf) for leaf in tree.leaves}
+                    )
+                    avg_codisp[codisp.index] += codisp
+                    np.add.at(index, codisp.index.values, 1)
 
-            avg_codisp /= index
-            # TODO: remove hardcode
-            avg_codisp.index = df.iloc[(4 - 1) :].index
-            avg_codisp = (avg_codisp - avg_codisp.min()) / (
-                avg_codisp.max() - avg_codisp.min()
-            )
+                avg_codisp /= index
+                avg_codisp.index = df.iloc[(cal_shingle_size - 1) :].index
+                avg_codisp = (avg_codisp - avg_codisp.min()) / (
+                    avg_codisp.max() - avg_codisp.min()
+                )
 
-            # TODO: use model kwargs for percentile threshold
-            y_pred = (avg_codisp > np.percentile(avg_codisp, 95)).astype(int)
+                y_pred = (
+                    avg_codisp > np.percentile(avg_codisp, anamoly_threshold)
+                ).astype(int)
 
-            # TODO: rem pdb
-            # import pdb
+                index_col = df.columns[0]
 
-            # pdb.set_trace()
-            print("Done")
+                anomaly = pd.DataFrame(
+                    {index_col: y_pred.index, OutputColumns.ANOMALY_COL: y_pred}
+                ).reset_index(drop=True)
+                score = pd.DataFrame(
+                    {"index": avg_codisp.index, OutputColumns.SCORE_COL: avg_codisp}
+                ).reset_index(drop=True)
 
-            # scores = model.score_samples(df)
-
-            # index_col = df.columns[0]
-
-            # anomaly = pd.DataFrame(
-            #     {index_col: df[index_col], OutputColumns.ANOMALY_COL: y_pred}
-            # ).reset_index(drop=True)
-            # score = pd.DataFrame(
-            #     {"index": df[index_col], OutputColumns.SCORE_COL: scores}
-            # ).reset_index(drop=True)
-
-            # anomaly_output.add_output(target, anomaly, score)
+                anomaly_output.add_output(target, anomaly, score)
+            except Exception as e:
+                logger.warn(f"Encountered Error: {e}. Skipping series {target}.")
 
         return anomaly_output
 
