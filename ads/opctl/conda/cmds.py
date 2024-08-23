@@ -200,13 +200,15 @@ def _create(
         manifest["manifest"]["manifest_version"] = "1.0"
 
     logger.info(f"Creating conda environment {slug}")
-    conda_dep["manifest"].update(
-        {
-            k: manifest["manifest"][k]
-            for k in manifest["manifest"]
-            if manifest["manifest"][k]
-        }
-    )
+    manifest_dict = {
+        k: manifest["manifest"][k]
+        for k in manifest["manifest"]
+        if manifest["manifest"][k]
+    }
+    if "manifest" in conda_dep:
+        conda_dep["manifest"].update(manifest_dict)
+    else:
+        conda_dep["manifest"] = manifest_dict
     logger.info(f"Updated conda environment manifest: {conda_dep.get('manifest')}")
 
     if is_in_notebook_session() or NO_CONTAINER:
