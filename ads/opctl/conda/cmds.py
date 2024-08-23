@@ -182,13 +182,13 @@ def _create(
         f"Preparing manifest. Manifest in the environment: {conda_dep.get('manifest')}"
     )
     manifest = _fetch_manifest_template()
-    if not "name" in manifest:
+    if "name" not in manifest:
         manifest["manifest"]["name"] = name
     manifest["manifest"]["slug"] = slug
-    if not "type" in conda_dep["manifest"]:
-        logger.info(f"Setting manifest to published")
+    if "type" not in manifest:
+        logger.info("Setting manifest to published")
         manifest["manifest"]["type"] = "published"
-    if not "version" in conda_dep["manifest"]:
+    if "version" not in manifest:
         manifest["manifest"]["version"] = version
     manifest["manifest"]["arch_type"] = "GPU" if gpu else "CPU"
 
@@ -655,7 +655,7 @@ def _publish(
         if is_in_notebook_session() or NO_CONTAINER:
             # Set the CONDA_PUBLISH_TYPE environment variable so that the `type` attribute inside the manifest is not changed
             publish_type = os.environ.get("CONDA_PUBLISH_TYPE")
-            command = "python {pack_script} --conda-path {pack_folder_path}"
+            command = f"python {pack_script} --conda-path {pack_folder_path}"
             if publish_type:
                 command = f"CONDA_PUBLISH_TYPE={publish_type} {command}"
             run_command(command, shell=True)
