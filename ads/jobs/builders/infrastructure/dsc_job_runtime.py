@@ -181,9 +181,9 @@ class RuntimeHandler:
             "jobType": self.data_science_job.job_type,
         }
         if runtime.maximum_runtime_in_minutes:
-            job_configuration_details[
-                "maximum_runtime_in_minutes"
-            ] = runtime.maximum_runtime_in_minutes
+            job_configuration_details["maximum_runtime_in_minutes"] = (
+                runtime.maximum_runtime_in_minutes
+            )
         job_configuration_details["environment_variables"] = self._translate_env(
             runtime
         )
@@ -310,7 +310,7 @@ class RuntimeHandler:
         for extraction in extractions:
             runtime_spec.update(extraction(dsc_job))
         return self.RUNTIME_CLASS(self._format_env_var(runtime_spec))
-    
+
     def _extract_properties(self, dsc_job) -> dict:
         """Extract the job runtime properties from data science job.
 
@@ -968,23 +968,10 @@ class ContainerRuntimeHandler(RuntimeHandler):
         payload["job_environment_configuration_details"] = job_env_config
         return payload
 
-    def _translate_artifact(self, runtime: Runtime):
-        """Specifies a dummy script as the job artifact.
-        runtime is not used in this method.
-
-        Parameters
-        ----------
-        runtime : Runtime
-            This is not used.
-
-        Returns
-        -------
-        str
-            Path to the dummy script.
-        """
-        return os.path.join(
-            os.path.dirname(__file__), "../../templates", "container.py"
-        )
+    def _translate_artifact(self, runtime: ContainerRuntime):
+        """Additional artifact for the container"""
+        if runtime.artifact_uri:
+            return ScriptArtifact(runtime.artifact_uri, runtime)
 
     def _translate_env_config(self, runtime: Runtime) -> dict:
         """Converts runtime properties to ``OcirContainerJobEnvironmentConfigurationDetails`` payload required by OCI Data Science job.
@@ -1007,7 +994,7 @@ class ContainerRuntimeHandler(RuntimeHandler):
             property = runtime.get_spec(key, None)
             if key in [
                 ContainerRuntime.CONST_CMD,
-                ContainerRuntime.CONST_ENTRYPOINT
+                ContainerRuntime.CONST_ENTRYPOINT,
             ] and isinstance(property, str):
                 property = self.split_args(property)
             if property is not None:
@@ -1063,7 +1050,7 @@ class ContainerRuntimeHandler(RuntimeHandler):
             spec[ContainerRuntime.CONST_ENV_VAR] = envs
 
         return spec
-    
+
     def _extract_properties(self, dsc_job) -> dict:
         """Extract the runtime properties from data science job.
 
@@ -1078,10 +1065,10 @@ class ContainerRuntimeHandler(RuntimeHandler):
             A runtime specification dictionary for initializing a runtime.
         """
         spec = super()._extract_envs(dsc_job)
-        
+
         job_env_config = getattr(dsc_job, "job_environment_configuration_details", None)
         job_env_type = getattr(job_env_config, "job_environment_type", None)
-        
+
         if not (job_env_config and job_env_type == "OCIR_CONTAINER"):
             raise IncompatibleRuntime()
 

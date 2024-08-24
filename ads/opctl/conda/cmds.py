@@ -213,7 +213,11 @@ def _create(
 
     if is_in_notebook_session() or NO_CONTAINER:
         command = f"conda env create --prefix {pack_folder_path} --file {os.path.abspath(os.path.expanduser(env_file))}"
-        run_command(command, shell=True)
+        proc = run_command(command, shell=True)
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"Failed to create conda environment. (exit code {proc.returncode})"
+            )
     else:
         _check_job_image_exists(gpu)
         docker_pack_folder_path = os.path.join(DEFAULT_IMAGE_HOME_DIR, slug)
@@ -660,7 +664,11 @@ def _publish(
             command = f"python {pack_script} --conda-path {pack_folder_path}"
             if publish_type:
                 command = f"CONDA_PUBLISH_TYPE={publish_type} {command}"
-            run_command(command, shell=True)
+            proc = run_command(command, shell=True)
+            if proc.returncode != 0:
+                raise RuntimeError(
+                    f"Failed to archive the conda environment. (exit code {proc.returncode})"
+                )
         else:
             volumes = {
                 pack_folder_path: {

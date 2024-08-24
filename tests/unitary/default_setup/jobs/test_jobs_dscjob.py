@@ -41,9 +41,9 @@ class TestDSCJob:
 
     @property
     def sample_create_job_response(self):
-        self.payload[
-            "lifecycle_state"
-        ] = oci.data_science.models.Job.LIFECYCLE_STATE_ACTIVE
+        self.payload["lifecycle_state"] = (
+            oci.data_science.models.Job.LIFECYCLE_STATE_ACTIVE
+        )
         self.payload["id"] = "ocid1.datasciencejob.oc1.iad.<unique_ocid>"
         return Response(
             data=Job(**self.payload), status=None, headers=None, request=None
@@ -51,9 +51,9 @@ class TestDSCJob:
 
     @property
     def sample_create_job_response_with_default_display_name(self):
-        self.payload[
-            "lifecycle_state"
-        ] = oci.data_science.models.Job.LIFECYCLE_STATE_ACTIVE
+        self.payload["lifecycle_state"] = (
+            oci.data_science.models.Job.LIFECYCLE_STATE_ACTIVE
+        )
         random.seed(random_seed)
         self.payload["display_name"] = utils.get_random_name_for_resource()
         return Response(
@@ -62,9 +62,9 @@ class TestDSCJob:
 
     @property
     def sample_create_job_response_with_default_display_name_with_artifact(self):
-        self.payload[
-            "lifecycle_state"
-        ] = oci.data_science.models.Job.LIFECYCLE_STATE_ACTIVE
+        self.payload["lifecycle_state"] = (
+            oci.data_science.models.Job.LIFECYCLE_STATE_ACTIVE
+        )
         random.seed(random_seed)
         self.payload["display_name"] = "my_script_name"
         return Response(
@@ -155,14 +155,15 @@ class TestDSCJob:
         job = DSCJob(artifact=artifact, **self.payload)
         with patch.object(
             DSCJob, "client", mock_client_with_default_display_name_with_artifact
+        ), patch.object(
+            OCIModelMixin,
+            "to_oci_model",
+            mock_details_with_default_display_name_with_artifact,
+        ), patch.object(
+            DSCJob, "upload_artifact"
         ):
-            with patch.object(
-                OCIModelMixin,
-                "to_oci_model",
-                mock_details_with_default_display_name_with_artifact,
-            ):
-                job.create()
-                assert job.display_name == os.path.basename(str(artifact)).split(".")[0]
+            job.create()
+            assert job.display_name == os.path.basename(str(artifact)).split(".")[0]
 
     @pytest.mark.parametrize(
         "test_config_details, expected_result",
