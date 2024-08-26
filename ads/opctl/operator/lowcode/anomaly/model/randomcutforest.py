@@ -36,7 +36,7 @@ class RandomCutForestOperatorModel(AnomalyOperatorBaseModel):
         # Set tree parameters
         num_trees = model_kwargs.get("num_trees", 200)
         shingle_size = model_kwargs.get("shingle_size", None)
-        anamoly_threshold = model_kwargs.get("anamoly_threshold", 95)
+        anomaly_threshold = model_kwargs.get("anamoly_threshold", 95)
 
         for target, df in self.datasets.full_data_dict.items():
             try:
@@ -76,7 +76,7 @@ class RandomCutForestOperatorModel(AnomalyOperatorBaseModel):
                 )
 
                 y_pred = (
-                    avg_codisp > np.percentile(avg_codisp, anamoly_threshold)
+                    avg_codisp > np.percentile(avg_codisp, anomaly_threshold)
                 ).astype(int)
 
                 index_col = df.columns[0]
