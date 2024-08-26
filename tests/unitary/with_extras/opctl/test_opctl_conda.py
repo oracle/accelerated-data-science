@@ -4,7 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import pytest
-from mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, PropertyMock
 import tempfile
 import os
 from pathlib import Path
@@ -24,6 +24,8 @@ class TestOpctlConda:
     def test_conda_create(
         self, mock_run_container, mock_docker, mock_run_cmd, monkeypatch
     ):
+        type(mock_run_cmd.return_value).returncode = PropertyMock(return_value=0)
+        mock_run_cmd.returncode = 0
         with pytest.raises(FileNotFoundError):
             create(slug="test Abc", environment_file="environment.yaml")
         with tempfile.TemporaryDirectory() as td:
@@ -101,6 +103,7 @@ dependencies:
         mock_run_cmd,
         monkeypatch,
     ):
+        type(mock_run_cmd.return_value).returncode = PropertyMock(return_value=0)
         with tempfile.TemporaryDirectory() as td:
             with pytest.raises(FileNotFoundError):
                 publish(
