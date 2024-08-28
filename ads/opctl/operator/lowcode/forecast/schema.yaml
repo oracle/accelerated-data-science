@@ -317,6 +317,25 @@ spec:
               required: false
               default: false
 
+    postprocessing:
+      type: dict
+      required: false
+      schema:
+        enabled:
+          type: boolean
+          required: false
+          default: false
+          meta:
+            description: "postprocessing can be disabled using this flag, Defaults to false"
+        steps:
+          type: dict
+          required: false
+          schema:
+            set_min_forecast:
+              type: integer
+              required: false
+              default: 0
+
     generate_explanations:
       type: boolean
       required: false
