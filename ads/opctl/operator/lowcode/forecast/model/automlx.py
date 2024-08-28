@@ -96,6 +96,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             horizon=self.spec.horizon,
             target_column=self.original_target_column,
             dt_column=self.spec.datetime_column.name,
+            postprocessing=self.spec.postprocessing
         )
 
         # Clean up kwargs for pass through

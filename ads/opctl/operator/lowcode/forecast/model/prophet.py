@@ -45,7 +45,7 @@ def _add_unit(num, unit):
 
 def _fit_model(data, params, additional_regressors):
     from prophet import Prophet
-
+    params['growth'] = 'logistic'
     model = Prophet(**params)
     for add_reg in additional_regressors:
         model.add_regressor(add_reg)
@@ -81,6 +81,13 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             )
 
             data = self.preprocess(df, series_id)
+            cap = data['y'].max() * 1.2
+            if self.spec.postprocessing.enabled:
+                floor = self.spec.postprocessing.steps.set_min_forecast
+            else:
+                floor = data['y'].min() * 0.8
+            data['cap'] = cap
+            data['floor'] = floor
             data_i = self.drop_horizon(data)
             if self.loaded_models is not None and series_id in self.loaded_models:
                 model = self.loaded_models[series_id]
@@ -96,7 +103,8 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
             # Get future df for prediction
             future = data.drop("y", axis=1)
-
+            future['cap'] = cap
+            future['floor'] = floor
             # Make Prediction
             forecast = model.predict(future)
             logger.debug(f"-----------------Model {i}----------------------")
@@ -146,6 +154,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             horizon=self.spec.horizon,
             target_column=self.original_target_column,
             dt_column=self.spec.datetime_column.name,
+            postprocessing=self.spec.postprocessing
         )
 
         Parallel(n_jobs=-1, require="sharedmem")(

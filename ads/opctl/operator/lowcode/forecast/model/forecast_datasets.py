@@ -6,6 +6,7 @@
 
 import time
 import pandas as pd
+import numpy as np
 from pandas.api.types import is_datetime64_any_dtype, is_string_dtype, is_numeric_dtype
 
 from ..operator_config import ForecastOperatorConfig
@@ -28,6 +29,7 @@ from ads.opctl.operator.lowcode.common.errors import (
 )
 from ..const import SupportedModels
 from abc import ABC, abstractmethod
+from ..operator_config import DataPostprocessor
 
 
 class HistoricalData(AbstractData):
@@ -259,6 +261,7 @@ class ForecastOutput:
         horizon: int,
         target_column: str,
         dt_column: str,
+        postprocessing: DataPostprocessor
     ):
         """Forecast Output contains all of the details required to generate the forecast.csv output file.
 
@@ -268,12 +271,14 @@ class ForecastOutput:
         horizon: int  length of horizon
         target_column: str the name of the original target column
         dt_column: the name of the original datetime column
+        postprocessing: postprocessing steps to be executed
         """
         self.series_id_map = dict()
         self._set_ci_column_names(confidence_interval_width)
         self.horizon = horizon
         self.target_column_name = target_column
         self.dt_column_name = dt_column
+        self.postprocessing = postprocessing
 
     def add_series_id(
         self,
@@ -319,6 +324,9 @@ class ForecastOutput:
         --------
         None
         """
+        if self.postprocessing.enabled:
+            min_threshold = self.postprocessing.steps.set_min_forecast
+            forecast_val = np.maximum(forecast_val, min_threshold)
         try:
             output_i = self.series_id_map[series_id]
         except KeyError:
