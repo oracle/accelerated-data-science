@@ -8,7 +8,6 @@ from typing import Dict, List, Optional, Union
 from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.common.enums import (
-    InferenceContainerType,
     InferenceContainerTypeFamily,
     Tags,
 )
@@ -60,12 +59,6 @@ from ads.model.deployment import (
     ModelDeploymentMode,
 )
 from ads.telemetry import telemetry
-
-INFERENCE_CONTAINER_DICT = {
-    InferenceContainerType.CONTAINER_TYPE_VLLM : InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY,
-    InferenceContainerType.CONTAINER_TYPE_TGI : InferenceContainerTypeFamily.AQUA_TGI_CONTAINER_FAMILY,
-    InferenceContainerType.CONTAINER_TYPE_LLAMA_CPP : InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
-}
 
 
 class AquaDeploymentApp(AquaApp):
@@ -417,8 +410,7 @@ class AquaDeploymentApp(AquaApp):
     def _get_container_type_key(model: DataScienceModel, container_family: str) -> str:
         container_type_key = UNKNOWN
         if container_family:
-            container_type = container_family.split(":")[0].lower()
-            container_type_key = INFERENCE_CONTAINER_DICT[container_type]
+            container_type_key = container_family
         else:
             try:
                 container_type_key = model.custom_metadata_list.get(
