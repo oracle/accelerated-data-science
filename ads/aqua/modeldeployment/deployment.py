@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Union
 from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.common.enums import (
+    InferenceContainerType,
     InferenceContainerTypeFamily,
     Tags,
 )
@@ -59,6 +60,12 @@ from ads.model.deployment import (
     ModelDeploymentMode,
 )
 from ads.telemetry import telemetry
+
+INFERENCE_CONTAINER_DICT = {
+    InferenceContainerType.CONTAINER_TYPE_VLLM : InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY,
+    InferenceContainerType.CONTAINER_TYPE_TGI : InferenceContainerTypeFamily.AQUA_TGI_CONTAINER_FAMILY,
+    InferenceContainerType.CONTAINER_TYPE_LLAMA_CPP : InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
+}
 
 
 class AquaDeploymentApp(AquaApp):
@@ -146,7 +153,7 @@ class AquaDeploymentApp(AquaApp):
         env_var : dict, optional
             Environment variable for the deployment, by default None.
         container_family: str
-            The image family of model deployment container runtime. Required for unverified Aqua models.
+            The image family of model deployment container runtime.
         memory_in_gbs: float
             The memory in gbs for the shape selected.
         ocpus: float
@@ -230,41 +237,14 @@ class AquaDeploymentApp(AquaApp):
 
             env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
 
-        is_custom_container = False
-        try:
-            container_type_key = aqua_model.custom_metadata_list.get(
-                AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
-            ).value
-        except ValueError as err:
-            message = (
-                f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field "
-                f"for model {aqua_model.id}."
-            )
-            logger.debug(message)
-            if not container_family:
-                raise AquaValueError(
-                    f"{message}. For unverified Aqua models, container_family parameter should be "
-                    f"set and value can be one of {', '.join(InferenceContainerTypeFamily.values())}."
-                ) from err
-            container_type_key = container_family
-        try:
-            # Check if the container override flag is set. If set, then the user has chosen custom image
-            if aqua_model.custom_metadata_list.get(
-                    AQUA_DEPLOYMENT_CONTAINER_OVERRIDE_FLAG_METADATA_NAME
-            ).value:
-                is_custom_container = True
-        except Exception:
-            pass
+        container_type_key = self._get_container_type_key(
+            model=aqua_model,
+            container_family=container_family
+        )
 
         # fetch image name from config
-        # If the image is of type custom, then `container_type_key` is the inference image
-        container_image = (
-            get_container_image(
-                container_type=container_type_key,
-            )
-            if not is_custom_container
-            else container_type_key
-        )
+        container_image = get_container_image(container_type=container_type_key)
+
         logging.info(
             f"Aqua Image used for deploying {aqua_model.id} : {container_image}"
         )
@@ -405,7 +385,9 @@ class AquaDeploymentApp(AquaApp):
             .with_freeform_tags(**tags)
             .with_infrastructure(infrastructure)
             .with_runtime(container_runtime)
-        ).deploy(wait_for_completion=False)
+        ).deploy(
+            max_wait_time=7200,
+        )
 
         model_type = (
             AQUA_MODEL_TYPE_CUSTOM if is_fine_tuned_model else AQUA_MODEL_TYPE_SERVICE
@@ -432,6 +414,27 @@ class AquaDeploymentApp(AquaApp):
         return AquaDeployment.from_oci_model_deployment(
             deployment.dsc_model_deployment, self.region
         )
+
+    @staticmethod
+    def _get_container_type_key(model: DataScienceModel, container_family: str) -> str:
+        container_type_key = UNKNOWN
+        if container_family:
+            container_type = container_family.split(":")[0].lower()
+            container_type_key = INFERENCE_CONTAINER_DICT[container_type]
+        else:
+            try:
+                container_type_key = model.custom_metadata_list.get(
+                    AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
+                ).value
+            except ValueError as err:
+                raise AquaValueError(
+                    f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field "
+                    f"for model {model.id}. For unverified Aqua models, {AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} should be"
+                    f"set and value can be one of {', '.join(InferenceContainerTypeFamily.values())}."
+                ) from err
+            
+        return container_type_key
+        
 
     @telemetry(entry_point="plugin=deployment&action=list", name="aqua")
     def list(self, **kwargs) -> List["AquaDeployment"]:
@@ -672,23 +675,10 @@ class AquaDeploymentApp(AquaApp):
         restricted_params = []
         if params:
             model = DataScienceModel.from_id(model_id)
-            try:
-                container_type_key = model.custom_metadata_list.get(
-                    AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
-                ).value
-            except ValueError as err:
-                message = (
-                    f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field "
-                    f"for model {model_id}."
-                )
-                logger.debug(message)
-
-                if not container_family:
-                    raise AquaValueError(
-                        f"{message}. For unverified Aqua models, container_family parameter should be "
-                        f"set and value can be one of {', '.join(InferenceContainerTypeFamily.values())}."
-                    ) from err
-                container_type_key = container_family
+            container_type_key = self._get_container_type_key(
+                model=model,
+                container_family=container_family
+            )
 
             container_config = get_container_config()
             container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
