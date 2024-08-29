@@ -385,9 +385,7 @@ class AquaDeploymentApp(AquaApp):
             .with_freeform_tags(**tags)
             .with_infrastructure(infrastructure)
             .with_runtime(container_runtime)
-        ).deploy(
-            max_wait_time=7200,
-        )
+        ).deploy(wait_for_completion=False)
 
         model_type = (
             AQUA_MODEL_TYPE_CUSTOM if is_fine_tuned_model else AQUA_MODEL_TYPE_SERVICE
