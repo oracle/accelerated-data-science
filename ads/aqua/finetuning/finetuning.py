@@ -258,7 +258,7 @@ class AquaFineTuningApp(AquaApp):
             model_taxonomy_metadata=ft_model_taxonomy_metadata,
             compartment_id=target_compartment,
             project_id=target_project,
-            freeform_tags={"OCI_AQUA":""},
+            freeform_tags={"OCI_AQUA": ""},
             model_by_reference=True,
         )
 
@@ -296,15 +296,6 @@ class AquaFineTuningApp(AquaApp):
         ft_container = source.custom_metadata_list.get(
             FineTuneCustomMetadata.SERVICE_MODEL_FINE_TUNE_CONTAINER
         ).value
-        is_custom_container = False
-        try:
-            # Check if the container override flag is set. If set, then the user has chosen custom image
-            if source.custom_metadata_list.get(
-                AQUA_FINETUNING_CONTAINER_OVERRIDE_FLAG_METADATA_NAME
-            ).value:
-                is_custom_container = True
-        except Exception:
-            pass
 
         ft_parameters.batch_size = ft_parameters.batch_size or (
             ft_config.get("shape", UNKNOWN_DICT)
@@ -327,7 +318,6 @@ class AquaFineTuningApp(AquaApp):
                 ),
                 parameters=ft_parameters,
                 ft_container=ft_container,
-                is_custom_container=is_custom_container,
             )
         ).create()
         logger.debug(
@@ -473,12 +463,8 @@ class AquaFineTuningApp(AquaApp):
         is_custom_container: bool = False,
     ) -> Runtime:
         """Builds fine tuning runtime for Job."""
-        container = (
-            get_container_image(
-                container_type=ft_container,
-            )
-            if not is_custom_container
-            else ft_container
+        container = get_container_image(
+            container_type=ft_container,
         )
         runtime = (
             ContainerRuntime()
