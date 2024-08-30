@@ -57,6 +57,7 @@ from ads.aqua.constants import (
     VLLM_INFERENCE_RESTRICTED_PARAMS,
 )
 from ads.aqua.data import AquaResourceIdentifier
+from ads.aqua.model.constants import ModelTask
 from ads.common.auth import AuthState, default_signer
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -64,6 +65,7 @@ from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import copy_file, get_console_link, upload_to_os
 from ads.config import AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, TENANCY_OCID
 from ads.model import DataScienceModel, ModelVersionSet
+from tests.unitary.with_extras.model.score import model_name
 
 logger = logging.getLogger("ads.aqua")
 
@@ -1062,3 +1064,12 @@ def get_hf_model_info(repo_id: str) -> ModelInfo:
         return HfApi().model_info(repo_id=repo_id)
     except HfHubHTTPError as err:
         raise format_hf_custom_error_message(err) from err
+
+def list_hf_models(query:str) -> List[str]:
+    try:
+        models= HfApi().list_models(model_name=query,task=ModelTask.TEXT_GENERATION)
+        return [model.id for model in models if model.disabled is None]
+    except HfHubHTTPError as err:
+        raise format_hf_custom_error_message(err) from err
+
+

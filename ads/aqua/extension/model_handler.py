@@ -9,7 +9,7 @@ from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
-from ads.aqua.common.utils import get_hf_model_info
+from ads.aqua.common.utils import get_hf_model_info, list_hf_models
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.model import AquaModelApp
@@ -176,6 +176,29 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
             return aqua_model_app.get(model_ocid, load_model_card=False)
 
         return None
+
+    @handle_exceptions
+    def get(self):
+        """
+        Finds a list of matching models from hugging face based on query string provided from users.
+
+        Parameters
+        ----------
+        query (str): The Hugging Face model name to search for.
+
+        Returns
+        -------
+        List[AquaModelSummary]
+            Returns the matching AquaModelSummary object if found, else None.
+        """
+
+        query=self.get_argument("query",default=None)
+        if not query:
+            raise HTTPError(400,Errors.MISSING_REQUIRED_PARAMETER.format("query"))
+        models=list_hf_models(query)
+        return self.finish({"models":models})
+
+
 
     @handle_exceptions
     def post(self, *args, **kwargs):
