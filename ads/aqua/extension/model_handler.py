@@ -190,8 +190,8 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
 
         Returns
         -------
-        List[AquaModelSummary]
-            Returns the matching AquaModelSummary object if found, else None.
+        List[str]
+            Returns the matching model ids string
         """
 
         query=self.get_argument("query",default=None)
