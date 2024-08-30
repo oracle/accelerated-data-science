@@ -293,9 +293,7 @@ class AquaFineTuningApp(AquaApp):
 
         ft_config = self.get_finetuning_config(source.id)
 
-        ft_container = source.custom_metadata_list.get(
-            FineTuneCustomMetadata.SERVICE_MODEL_FINE_TUNE_CONTAINER
-        ).value
+        ft_container = create_fine_tuning_details.ft_container
 
         ft_parameters.batch_size = ft_parameters.batch_size or (
             ft_config.get("shape", UNKNOWN_DICT)
@@ -487,7 +485,6 @@ class AquaFineTuningApp(AquaApp):
                         finetuning_params=finetuning_params,
                     ),
                     "CONDA_BUCKET_NS": CONDA_BUCKET_NS,
-                    "CONTAINER_CUSTOM_IMAGE": container,
                 }
             )
             .with_image(image=container)
