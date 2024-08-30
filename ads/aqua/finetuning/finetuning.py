@@ -487,6 +487,7 @@ class AquaFineTuningApp(AquaApp):
                         finetuning_params=finetuning_params,
                     ),
                     "CONDA_BUCKET_NS": CONDA_BUCKET_NS,
+                    "CONTAINER_CUSTOM_IMAGE": container,
                 }
             )
             .with_image(image=container)
