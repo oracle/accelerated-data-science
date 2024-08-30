@@ -1067,7 +1067,7 @@ def get_hf_model_info(repo_id: str) -> ModelInfo:
 @cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=5), timer=datetime.now))
 def list_hf_models(query:str) -> List[str]:
     try:
-        models= HfApi().list_models(model_name=query,task="text-generation")
+        models= HfApi().list_models(model_name=query,task="text-generation",sort="downloads",direction=-1,limit=20)
         return [model.id for model in models if model.disabled is None]
     except HfHubHTTPError as err:
         raise format_hf_custom_error_message(err) from err
