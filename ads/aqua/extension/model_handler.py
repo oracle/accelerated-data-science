@@ -178,29 +178,6 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
         return None
 
     @handle_exceptions
-    def get(self):
-        """
-        Finds a list of matching models from hugging face based on query string provided from users.
-
-        Parameters
-        ----------
-        query (str): The Hugging Face model name to search for.
-
-        Returns
-        -------
-        List[AquaModelSummary]
-            Returns the matching AquaModelSummary object if found, else None.
-        """
-
-        query=self.get_argument("query",default=None)
-        if not query:
-            raise HTTPError(400,Errors.MISSING_REQUIRED_PARAMETER.format("query"))
-        models=list_hf_models(query)
-        return self.finish({"models":models})
-
-
-
-    @handle_exceptions
     def post(self, *args, **kwargs):
         """Handles post request for the HF Models APIs
 
