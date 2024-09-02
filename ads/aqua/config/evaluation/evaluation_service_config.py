@@ -1,0 +1,317 @@
+#!/usr/bin/env python
+
+# Copyright (c) 2024 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+from copy import deepcopy
+from typing import Any, Dict, List, Optional, Union
+
+from pydantic import Field
+
+from ads.aqua.config.utils.serializer import Serializable
+
+# Constants
+INFERENCE_RPS = 25  # Max RPS for inferencing deployed model.
+INFERENCE_TIMEOUT = 120
+INFERENCE_MAX_THREADS = 10  # Maximum parallel threads for model inference.
+INFERENCE_RETRIES = 3
+INFERENCE_BACKOFF_FACTOR = 3
+INFERENCE_DELAY = 0
+
+
+class ModelParamItem(Serializable):
+    """Represents min, max, and default values for a model parameter."""
+
+    min: Optional[Union[int, float]] = None
+    max: Optional[Union[int, float]] = None
+    default: Optional[Union[int, float]] = None
+
+    class Config:
+        extra = "ignore"
+
+
+class ModelParamsOverrides(Serializable):
+    """Defines overrides for model parameters, including exclusions and additional inclusions."""
+
+    exclude: Optional[List[str]] = Field(default_factory=list)
+    include: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+    class Config:
+        extra = "ignore"
+
+
+class ModelParamsVersion(Serializable):
+    """Handles version-specific model parameter overrides."""
+
+    overrides: Optional[ModelParamsOverrides] = Field(
+        default_factory=ModelParamsOverrides
+    )
+
+    class Config:
+        extra = "ignore"
+
+
+class ModelDefaultParams(Serializable):
+    """Defines default parameters for a model within a specific framework."""
+
+    model: Optional[str] = None
+    max_tokens: Optional[ModelParamItem] = Field(default_factory=ModelParamItem)
+    temperature: Optional[ModelParamItem] = Field(default_factory=ModelParamItem)
+    top_p: Optional[ModelParamItem] = Field(default_factory=ModelParamItem)
+    top_k: Optional[ModelParamItem] = Field(default_factory=ModelParamItem)
+    presence_penalty: Optional[ModelParamItem] = Field(default_factory=ModelParamItem)
+    frequency_penalty: Optional[ModelParamItem] = Field(default_factory=ModelParamItem)
+    stop: List[str] = Field(default_factory=list)
+
+    class Config:
+        extra = "allow"
+
+
+class ModelFramework(Serializable):
+    """Represents a framework's model configuration, including tasks, defaults, and versions."""
+
+    framework: Optional[str] = None
+    task: Optional[List[str]] = Field(default_factory=list)
+    default: Optional[ModelDefaultParams] = Field(default_factory=ModelDefaultParams)
+    versions: Optional[Dict[str, ModelParamsVersion]] = Field(default_factory=dict)
+
+    class Config:
+        extra = "ignore"
+
+
+class InferenceParams(Serializable):
+    """Contains inference-related parameters with defaults."""
+
+    inference_rps: Optional[int] = INFERENCE_RPS
+    inference_timeout: Optional[int] = INFERENCE_TIMEOUT
+    inference_max_threads: Optional[int] = INFERENCE_MAX_THREADS
+    inference_retries: Optional[int] = INFERENCE_RETRIES
+    inference_backoff_factor: Optional[float] = INFERENCE_BACKOFF_FACTOR
+    inference_delay: Optional[float] = INFERENCE_DELAY
+
+    class Config:
+        extra = "allow"
+
+
+class InferenceFramework(Serializable):
+    """Represents the inference parameters specific to a framework."""
+
+    framework: Optional[str] = None
+    params: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+    class Config:
+        extra = "ignore"
+
+
+class ReportParams(Serializable):
+    """Handles the report-related parameters."""
+
+    default: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+    class Config:
+        extra = "ignore"
+
+
+class InferenceParamsConfig(Serializable):
+    """Combines default inference parameters with framework-specific configurations."""
+
+    default: Optional[InferenceParams] = Field(default_factory=InferenceParams)
+    frameworks: Optional[List[InferenceFramework]] = Field(default_factory=list)
+
+    def get_merged_params(self, framework_name: str) -> InferenceParams:
+        """
+        Merges default inference params with those specific to the given framework.
+
+        Parameters
+        ----------
+        framework_name (str): The name of the framework.
+
+        Returns
+        -------
+        InferenceParams: The merged inference parameters.
+        """
+        merged_params = self.default.to_dict()
+        for framework in self.frameworks:
+            if framework.framework.lower() == framework_name.lower():
+                merged_params.update(framework.params or {})
+                break
+        return InferenceParams(**merged_params)
+
+    class Config:
+        extra = "ignore"
+
+
+class ModelParamsConfig(Serializable):
+    """Encapsulates the model parameters for different frameworks."""
+
+    default: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    frameworks: Optional[List[ModelFramework]] = Field(default_factory=list)
+
+    def get_model_params(
+        self,
+        framework_name: str,
+        version: Optional[str] = None,
+        task: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Gets the model parameters for a given framework, version, and tasks,
+        merged with the defaults.
+
+        Parameters
+        ----------
+        framework_name (str): The name of the framework.
+        version (Optional[str]): The specific version of the framework.
+        task (Optional[str]): The specific task.
+
+        Returns
+        -------
+        Dict[str, Any]: The merged model parameters.
+        """
+        params = deepcopy(self.default)
+
+        for framework in self.frameworks:
+            if framework.framework.lower() == framework_name.lower() and (
+                not task or task.lower() in framework.task
+            ):
+                params.update(framework.default.to_dict())
+
+                if version and version in framework.versions:
+                    version_overrides = framework.versions[version].overrides
+                    if version_overrides:
+                        if version_overrides.include:
+                            params.update(version_overrides.include)
+                        if version_overrides.exclude:
+                            for key in version_overrides.exclude:
+                                params.pop(key, None)
+                break
+
+        return params
+
+    class Config:
+        extra = "ignore"
+
+
+class ShapeFilterConfig(Serializable):
+    """Represents the filtering options for a specific shape."""
+
+    evaluation_container: Optional[List[str]] = Field(default_factory=list)
+    evaluation_target: Optional[List[str]] = Field(default_factory=list)
+
+    class Config:
+        extra = "ignore"
+
+
+class ShapeConfig(Serializable):
+    """Defines the configuration for a specific shape."""
+
+    name: Optional[str] = None
+    ocpu: Optional[int] = None
+    memory_in_gbs: Optional[int] = None
+    block_storage_size: Optional[int] = None
+    filter: Optional[ShapeFilterConfig] = Field(default_factory=ShapeFilterConfig)
+
+    class Config:
+        extra = "allow"
+
+
+class MetricConfig(Serializable):
+    """Handles metric configuration including task, key, and additional details."""
+
+    task: Optional[List[str]] = Field(default_factory=list)
+    key: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    args: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    tags: Optional[List[str]] = Field(default_factory=list)
+
+    class Config:
+        extra = "ignore"
+
+
+class EvaluationServiceConfig(Serializable):
+    """
+    Root configuration class for evaluation setup including model,
+    inference, and shape configurations.
+    """
+
+    version: Optional[str] = "1.0"
+    kind: Optional[str] = "evaluation"
+    report_params: Optional[ReportParams] = Field(default_factory=ReportParams)
+    inference_params: Optional[InferenceParamsConfig] = Field(
+        default_factory=InferenceParamsConfig
+    )
+    model_params: Optional[ModelParamsConfig] = Field(default_factory=ModelParamsConfig)
+    shapes: List[ShapeConfig] = Field(default_factory=list)
+    metrics: List[MetricConfig] = Field(default_factory=list)
+
+    def get_merged_inference_params(self, framework_name: str) -> InferenceParams:
+        """
+        Merges default inference params with those specific to the given framework.
+
+        Params
+        ------
+        framework_name (str): The name of the framework.
+
+        Returns
+        -------
+        InferenceParams: The merged inference parameters.
+        """
+        return self.inference_params.get_merged_params(framework_name=framework_name)
+
+    def get_merged_model_params(
+        self,
+        framework_name: str,
+        version: Optional[str] = None,
+        task: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Gets the model parameters for a given framework, version, and task, merged with the defaults.
+
+        Parameters
+        ----------
+        framework_name (str): The name of the framework.
+        version (Optional[str]): The specific version of the framework.
+        task (Optional[str]): The task.
+
+        Returns
+        -------
+        Dict[str, Any]: The merged model parameters.
+        """
+        return self.model_params.get_model_params(
+            framework_name=framework_name, version=version, task=task
+        )
+
+    def search_shapes(
+        self,
+        evaluation_container: Optional[str] = None,
+        evaluation_target: Optional[str] = None,
+    ) -> List[ShapeConfig]:
+        """
+        Searches for shapes that match the given filters.
+
+        Parameters
+        ----------
+        evaluation_container (Optional[str]): Filter for evaluation_container.
+        evaluation_target (Optional[str]): Filter for evaluation_target.
+
+        Returns
+        -------
+        List[ShapeConfig]: A list of shapes that match the filters.
+        """
+        results = []
+        for shape in self.shapes:
+            if (
+                evaluation_container
+                and evaluation_container not in shape.filter.evaluation_container
+            ):
+                continue
+            if (
+                evaluation_target
+                and evaluation_target not in shape.filter.evaluation_target
+            ):
+                continue
+            results.append(shape)
+        return results
+
+    class Config:
+        extra = "ignore"

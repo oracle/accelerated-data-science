@@ -3,6 +3,30 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
+from datetime import datetime, timedelta
+
+from cachetools import TTLCache, cached
+
+from ads.aqua.common.utils import service_config_path
+from ads.aqua.config.evaluation.evaluation_service_config import EvaluationServiceConfig
+from ads.aqua.constants import EVALUATION_SERVICE_CONFIG
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=5), timer=datetime.now))
+def evaluation_service_config() -> EvaluationServiceConfig:
+    """
+    Retrieves the common evaluation configuration.
+
+    Returns
+    -------
+    EvaluationServiceConfig: The evaluation common config.
+    """
+
+    return EvaluationServiceConfig.from_json(
+        uri=f"{service_config_path()}/{EVALUATION_SERVICE_CONFIG}"
+    )
+
+
 # TODO: move this to global config.json in object storage
 def get_finetuning_config_defaults():
     """Generate and return the fine-tuning default configuration dictionary."""

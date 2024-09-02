@@ -1,0 +1,24 @@
+{
+  "inference_params": {
+    "default": {
+      "inference_backoff_factor": 3,
+      "inference_delay": 0,
+      "inference_max_threads": 10,
+      "inference_retries": 3,
+      "inference_rps": 25,
+      "inference_timeout": 120
+    },
+    "frameworks": []
+  },
+  "kind": "evaluation",
+  "metrics": [],
+  "model_params": {
+    "default": {},
+    "frameworks": []
+  },
+  "report_params": {
+    "default": {}
+  },
+  "shapes": [],
+  "version": "1.0"
+}
