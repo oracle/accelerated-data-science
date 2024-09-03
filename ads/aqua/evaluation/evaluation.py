@@ -45,6 +45,7 @@ from ads.aqua.common.utils import (
     is_valid_ocid,
     upload_local_to_os,
 )
+from ads.aqua.config.config import evaluation_service_config
 from ads.aqua.constants import (
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     EVALUATION_REPORT,
@@ -191,7 +192,7 @@ class AquaEvaluationApp(AquaApp):
                         enable_spec=True
                     ).inference
                     for container in inference_config.values():
-                        if container.name == runtime.image[:runtime.image.rfind(":")]:
+                        if container.name == runtime.image[: runtime.image.rfind(":")]:
                             eval_inference_configuration = (
                                 container.spec.evaluation_configuration
                             )
@@ -416,9 +417,11 @@ class AquaEvaluationApp(AquaApp):
                 report_path=create_aqua_evaluation_details.report_path,
                 model_parameters=create_aqua_evaluation_details.model_parameters,
                 metrics=create_aqua_evaluation_details.metrics,
-                inference_configuration=eval_inference_configuration.to_filtered_dict()
-                if eval_inference_configuration
-                else {},
+                inference_configuration=(
+                    eval_inference_configuration.to_filtered_dict()
+                    if eval_inference_configuration
+                    else {}
+                ),
             )
         ).create(**kwargs)  ## TODO: decide what parameters will be needed
         logger.debug(
@@ -901,49 +904,7 @@ class AquaEvaluationApp(AquaApp):
 
     def get_supported_metrics(self) -> dict:
         """Gets a list of supported metrics for evaluation."""
-        # TODO: implement it when starting to support more metrics.
-        return [
-            {
-                "use_case": ["text_generation"],
-                "key": "bertscore",
-                "name": "bertscore",
-                "description": (
-                    "BERT Score is a metric for evaluating the quality of text "
-                    "generation models, such as machine translation or summarization. "
-                    "It utilizes pre-trained BERT contextual embeddings for both the "
-                    "generated and reference texts, and then calculates the cosine "
-                    "similarity between these embeddings."
-                ),
-                "args": {},
-            },
-            {
-                "use_case": ["text_generation"],
-                "key": "rouge",
-                "name": "rouge",
-                "description": (
-                    "ROUGE scores compare a candidate document to a collection of "
-                    "reference documents to evaluate the similarity between them. "
-                    "The metrics range from 0 to 1, with higher scores indicating "
-                    "greater similarity. ROUGE is more suitable for models that don't "
-                    "include paraphrasing and do not generate new text units that don't "
-                    "appear in the references."
-                ),
-                "args": {},
-            },
-            {
-                "use_case": ["text_generation"],
-                "key": "bleu",
-                "name": "bleu",
-                "description": (
-                    "BLEU (Bilingual Evaluation Understudy) is an algorithm for evaluating the "
-                    "quality of text which has been machine-translated from one natural language to another. "
-                    "Quality is considered to be the correspondence between a machine's output and that of a "
-                    "human: 'the closer a machine translation is to a professional human translation, "
-                    "the better it is'."
-                ),
-                "args": {},
-            },
-        ]
+        return [item.to_dict() for item in evaluation_service_config().metrics]
 
     @telemetry(entry_point="plugin=evaluation&action=load_metrics", name="aqua")
     def load_metrics(self, eval_id: str) -> AquaEvalMetrics:
@@ -1225,7 +1186,7 @@ class AquaEvaluationApp(AquaApp):
                 f"Exception message: {ex}"
             )
 
-    def load_evaluation_config(self, eval_id):
+    def load_evaluation_config(self):
         """Loads evaluation config."""
         return {
             "model_params": {

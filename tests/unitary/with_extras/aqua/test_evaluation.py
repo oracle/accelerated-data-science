@@ -22,6 +22,10 @@ from ads.aqua.common.errors import (
     AquaMissingKeyError,
     AquaRuntimeError,
 )
+from ads.aqua.config.evaluation.evaluation_service_config import (
+    EvaluationServiceConfig,
+    MetricConfig,
+)
 from ads.aqua.constants import EVALUATION_REPORT_JSON, EVALUATION_REPORT_MD, UNKNOWN
 from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.evaluation.entities import (
@@ -875,17 +879,33 @@ class TestAquaEvaluation(unittest.TestCase):
         msg = self.app._extract_job_lifecycle_details(input)
         assert msg == expect_output, msg
 
-    def test_get_supported_metrics(self):
-        """Tests getting a list of supported metrics for evaluation.
-        This method currently hardcoded the return value.
+    @patch("ads.aqua.evaluation.evaluation.evaluation_service_config")
+    def test_get_supported_metrics(self, mock_evaluation_service_config):
         """
-        from .utils import SupportMetricsFormat as metric_schema
-        from .utils import check
+        Tests getting a list of supported metrics for evaluation.
+        """
 
+        test_evaluation_service_config = EvaluationServiceConfig(
+            metrics=[
+                MetricConfig(
+                    **{
+                        "args": {},
+                        "description": "BERT Score.",
+                        "key": "bertscore",
+                        "name": "BERT Score",
+                        "tags": [],
+                        "task": ["text-generation"],
+                    },
+                )
+            ]
+        )
+        mock_evaluation_service_config.return_value = test_evaluation_service_config
         response = self.app.get_supported_metrics()
         assert isinstance(response, list)
-        for metric in response:
-            assert check(metric_schema, metric)
+        assert len(response) == len(test_evaluation_service_config.metrics)
+        assert response == [
+            item.to_dict() for item in test_evaluation_service_config.metrics
+        ]
 
     def test_load_evaluation_config(self):
         """Tests loading default config for evaluation.
