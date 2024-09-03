@@ -16,7 +16,11 @@ from sklearn import linear_model
 
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
-from ads.opctl.operator.lowcode.anomaly.const import OutputColumns, SupportedMetrics, SUBSAMPLE_THRESHOLD
+from ads.opctl.operator.lowcode.anomaly.const import (
+    SUBSAMPLE_THRESHOLD,
+    OutputColumns,
+    SupportedMetrics,
+)
 from ads.opctl.operator.lowcode.anomaly.utils import _build_metrics_df, default_signer
 from ads.opctl.operator.lowcode.common.utils import (
     disable_print,
@@ -137,8 +141,10 @@ class AnomalyOperatorBaseModel(ABC):
                     plt.ylabel(col)
                     plt.title(f"`{col}` with reference to anomalies")
                     figure_blocks.append(rc.Widget(ax))
+            else:
+                figure_blocks = None
 
-            blocks.append(rc.Group(*figure_blocks, label=target))
+            blocks.append(rc.Group(*figure_blocks, label=target)) if figure_blocks else None
         plots = rc.Select(blocks)
 
         report_sections = []
