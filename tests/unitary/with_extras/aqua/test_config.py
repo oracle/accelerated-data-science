@@ -2,28 +2,38 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
+import os
+from unittest.mock import patch
 
-from unittest.mock import MagicMock, patch
-
-from ads.aqua.common.utils import service_config_path
-from ads.aqua.config.config import evaluation_config
-from ads.aqua.config.evaluation.evaluation_service_config import EvaluationServiceConfig
-from ads.aqua.constants import EVALUATION_SERVICE_CONFIG
+from ads.aqua.common.entities import ContainerSpec
+from ads.aqua.config.config import evaluation_service_config
 
 
 class TestConfig:
     """Unit tests for AQUA common configurations."""
 
-    @patch.object(EvaluationServiceConfig, "from_json")
-    def test_evaluation_service_config(self, mock_from_json):
+    def setup_class(cls):
+        cls.curr_dir = os.path.dirname(os.path.abspath(__file__))
+        cls.artifact_dir = os.path.join(cls.curr_dir, "test_data", "config")
+
+    @patch("ads.aqua.config.config.get_container_config")
+    def test_evaluation_service_config(self, mock_get_container_config):
         """Ensures that the common evaluation configuration can be successfully retrieved."""
 
-        expected_result = MagicMock()
-        mock_from_json.return_value = expected_result
+        with open(
+            os.path.join(
+                self.artifact_dir, "evaluation_config_with_default_params.json"
+            )
+        ) as file:
+            expected_result = {
+                ContainerSpec.CONTAINER_SPEC: {"test_container": json.load(file)}
+            }
 
-        test_result = evaluation_config()
+        mock_get_container_config.return_value = expected_result
 
-        mock_from_json.assert_called_with(
-            uri=f"{service_config_path()}/{EVALUATION_SERVICE_CONFIG}"
+        test_result = evaluation_service_config(container="test_container")
+        assert (
+            test_result.to_dict()
+            == expected_result[ContainerSpec.CONTAINER_SPEC]["test_container"]
         )
-        assert test_result == expected_result

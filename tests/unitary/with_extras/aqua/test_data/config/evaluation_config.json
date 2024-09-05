@@ -1,130 +1,11 @@
 {
-  "inference_params": {
-    "default": {
-      "inference_backoff_factor": 3.0,
-      "inference_delay": 0.0,
-      "inference_max_threads": 10,
-      "inference_retries": 3,
-      "inference_rps": 25,
-      "inference_timeout": 120
-    },
-    "frameworks": [
-      {
-        "framework": "vllm",
-        "params": {}
-      },
-      {
-        "framework": "tgi",
-        "params": {}
-      },
-      {
-        "framework": "llama-cpp",
-        "params": {
-          "inference_delay": 1,
-          "inference_max_threads": 1
-        }
-      }
-    ]
-  },
-  "kind": "evaluation",
-  "metrics": [
-    {
-      "args": {},
-      "description": "BERT Score.",
-      "key": "bertscore",
-      "name": "BERT Score",
-      "tags": [],
-      "task": [
-        "text-generation"
-      ]
-    },
-    {
-      "args": {},
-      "description": "ROUGE scores.",
-      "key": "rouge",
-      "name": "ROUGE Score",
-      "tags": [],
-      "task": [
-        "text-generation"
-      ]
-    },
-    {
-      "args": {},
-      "description": "BLEU (Bilingual Evaluation Understudy).",
-      "key": "bleu",
-      "name": "BLEU Score",
-      "tags": [],
-      "task": [
-        "text-generation"
-      ]
-    },
-    {
-      "args": {},
-      "description": "Perplexity is a metric to evaluate the quality of language models.",
-      "key": "perplexity_score",
-      "name": "Perplexity Score",
-      "tags": [],
-      "task": [
-        "text-generation"
-      ]
-    },
-    {
-      "args": {},
-      "description": "Text quality/readability metrics.",
-      "key": "text_readability",
-      "name": "Text Readability",
-      "tags": [],
-      "task": [
-        "text-generation"
-      ]
-    }
-  ],
-  "model_params": {
-    "default": {
-      "some_default_param": "some_default_param"
-    },
-    "frameworks": [
+  "inference_model_params": {
+    "containers": [
       {
         "default": {
-          "add_generation_prompt": false,
-          "frequency_penalty": {
-            "default": 0.0,
-            "max": 2.0,
-            "min": -2.0
-          },
-          "max_tokens": {
-            "default": 500,
-            "max": 4096,
-            "min": 50
-          },
-          "model": "odsc-llm",
-          "presence_penalty": {
-            "default": 0.0,
-            "max": 2.0,
-            "min": -2.0
-          },
-          "stop": [],
-          "temperature": {
-            "default": 0.7,
-            "max": 2.0,
-            "min": 0.0
-          },
-          "top_k": {
-            "default": 50,
-            "max": 1000,
-            "min": 1
-          },
-          "top_p": {
-            "default": 0.9,
-            "max": 1.0,
-            "min": 0.0
-          }
+          "add_generation_prompt": false
         },
-        "framework": "vllm",
-        "task": [
-          "text-generation",
-          "image-text-to-text"
-        ],
+        "name": "odsc-vllm-serving",
         "versions": {
           "0.5.1": {
             "overrides": {
@@ -149,45 +30,9 @@
       },
       {
         "default": {
-          "add_generation_prompt": false,
-          "frequency_penalty": {
-            "default": 0.0,
-            "max": 2.0,
-            "min": -2.0
-          },
-          "max_tokens": {
-            "default": 500,
-            "max": 4096,
-            "min": 50
-          },
-          "model": "odsc-llm",
-          "presence_penalty": {
-            "default": 0.0,
-            "max": 2.0,
-            "min": -2.0
-          },
-          "stop": [],
-          "temperature": {
-            "default": 0.7,
-            "max": 2.0,
-            "min": 0.0
-          },
-          "top_k": {
-            "default": 50,
-            "max": 1000,
-            "min": 1
-          },
-          "top_p": {
-            "default": 0.9,
-            "max": 1.0,
-            "min": 0.0
-          }
+          "add_generation_prompt": false
         },
-        "framework": "tgi",
-        "task": [
-          "text-generation",
-          "image-text-to-text"
-        ],
+        "name": "odsc-tgi-serving",
         "versions": {
           "2.0.1.4": {
             "overrides": {
@@ -204,45 +49,9 @@
       },
       {
         "default": {
-          "add_generation_prompt": false,
-          "frequency_penalty": {
-            "default": 0.0,
-            "max": 2.0,
-            "min": -2.0
-          },
-          "max_tokens": {
-            "default": 500,
-            "max": 4096,
-            "min": 50
-          },
-          "model": "odsc-llm",
-          "presence_penalty": {
-            "default": 0.0,
-            "max": 2.0,
-            "min": -2.0
-          },
-          "stop": [],
-          "temperature": {
-            "default": 0.7,
-            "max": 2.0,
-            "min": 0.0
-          },
-          "top_k": {
-            "default": 50,
-            "max": 1000,
-            "min": 1
-          },
-          "top_p": {
-            "default": 0.9,
-            "max": 1.0,
-            "min": 0.0
-          }
+          "add_generation_prompt": false
         },
-        "framework": "llama-cpp",
-        "task": [
-          "text-generation",
-          "image-text-to-text"
-        ],
+        "name": "odsc-llama-cpp-serving",
         "versions": {
           "0.2.78.0": {
             "overrides": {
@@ -252,82 +61,188 @@
           }
         }
       }
-    ]
+    ],
+    "default": {
+      "add_generation_prompt": false,
+      "frequency_penalty": 0.0,
+      "max_tokens": 500,
+      "model": "odsc-llm",
+      "presence_penalty": 0.0,
+      "some_default_param": "some_default_param",
+      "stop": [],
+      "temperature": 0.7,
+      "top_k": 50,
+      "top_p": 0.9
+    }
   },
+  "inference_params": {
+    "containers": [
+      {
+        "name": "odsc-vllm-serving",
+        "params": {}
+      },
+      {
+        "name": "odsc-tgi-serving",
+        "params": {}
+      },
+      {
+        "name": "odsc-llama-cpp-serving",
+        "params": {
+          "inference_delay": 1,
+          "inference_max_threads": 1
+        }
+      }
+    ],
+    "default": {
+      "inference_backoff_factor": 3,
+      "inference_delay": 0,
+      "inference_max_threads": 10,
+      "inference_retries": 3,
+      "inference_rps": 25,
+      "inference_timeout": 120
+    }
+  },
+  "kind": "evaluation",
   "report_params": {
     "default": {}
   },
-  "shapes": [
-    {
-      "block_storage_size": 200,
-      "filter": {
-        "evaluation_container": [
-          "odsc-llm-evaluate"
-        ],
-        "evaluation_target": [
-          "datasciencemodeldeployment"
+  "ui_config": {
+    "metrics": [
+      {
+        "args": {},
+        "description": "BERT Score is a metric for evaluating the quality of text generation models, such as machine translation or summarization. It utilizes pre-trained BERT contextual embeddings for both the generated and reference texts, and then calculates the cosine similarity between these embeddings.",
+        "key": "bertscore",
+        "name": "BERT Score",
+        "tags": [],
+        "task": [
+          "text-generation"
         ]
       },
-      "memory_in_gbs": 128,
-      "name": "VM.Standard.E3.Flex",
-      "ocpu": 8
+      {
+        "args": {},
+        "description": "ROUGE scores compare a candidate document to a collection of reference documents to evaluate the similarity between them. The metrics range from 0 to 1, with higher scores indicating greater similarity. ROUGE is more suitable for models that don't include paraphrasing and do not generate new text units that don't appear in the references.",
+        "key": "rouge",
+        "name": "ROUGE Score",
+        "tags": [],
+        "task": [
+          "text-generation"
+        ]
+      },
+      {
+        "args": {},
+        "description": "BLEU (Bilingual Evaluation Understudy) is an algorithm for evaluating the quality of text which has been machine-translated from one natural language to another. Quality is considered to be the correspondence between a machine's output and that of a human: 'the closer a machine translation is to a professional human translation, the better it is'.",
+        "key": "bleu",
+        "name": "BLEU Score",
+        "tags": [],
+        "task": [
+          "text-generation"
+        ]
+      },
+      {
+        "args": {},
+        "description": "Perplexity is a metric to evaluate the quality of language models, particularly for \"Text Generation\" task type. Perplexity quantifies how well a LLM can predict the next word in a sequence of words. A high perplexity score indicates that the LLM is not confident in its text generation \u2014 that is, the model is \"perplexed\" \u2014 whereas a low perplexity score indicates that the LLM is confident in its generation.",
+        "key": "perplexity_score",
+        "name": "Perplexity Score",
+        "tags": [],
+        "task": [
+          "text-generation"
+        ]
+      },
+      {
+        "args": {},
+        "description": "Text quality/readability metrics offer valuable insights into the quality and suitability of generated responses. Monitoring these metrics helps ensure that Language Model (LLM) outputs are clear, concise, and appropriate for the target audience. Evaluating text complexity and grade level helps tailor the generated content to the intended readers. By considering aspects such as sentence structure, vocabulary, and domain-specific needs, we can make sure the LLM produces responses that match the desired reading level and professional context. Additionally, metrics like syllable count, word count, and character count allow you to keep track of the length and structure of the generated text.",
+        "key": "text_readability",
+        "name": "Text Readability",
+        "tags": [],
+        "task": [
+          "text-generation"
+        ]
+      }
+    ],
+    "model_params": {
+      "default": {
+        "frequency_penalty": 0.0,
+        "max_tokens": 500,
+        "model": "odsc-llm",
+        "presence_penalty": 0.0,
+        "stop": [],
+        "temperature": 0.7,
+        "top_k": 50,
+        "top_p": 0.9
+      }
     },
-    {
-      "block_storage_size": 200,
-      "filter": {
-        "evaluation_container": [
-          "odsc-llm-evaluate"
-        ],
-        "evaluation_target": [
-          "datasciencemodeldeployment"
-        ]
+    "shapes": [
+      {
+        "block_storage_size": 200,
+        "filter": {
+          "evaluation_container": [
+            "odsc-llm-evaluate"
+          ],
+          "evaluation_target": [
+            "datasciencemodeldeployment"
+          ]
+        },
+        "memory_in_gbs": 128,
+        "name": "VM.Standard.E3.Flex",
+        "ocpu": 8
       },
-      "memory_in_gbs": 128,
-      "name": "VM.Standard.E4.Flex",
-      "ocpu": 8
-    },
-    {
-      "block_storage_size": 200,
-      "filter": {
-        "evaluation_container": [
-          "odsc-llm-evaluate"
-        ],
-        "evaluation_target": [
-          "datasciencemodeldeployment"
-        ]
+      {
+        "block_storage_size": 200,
+        "filter": {
+          "evaluation_container": [
+            "odsc-llm-evaluate"
+          ],
+          "evaluation_target": [
+            "datasciencemodeldeployment"
+          ]
+        },
+        "memory_in_gbs": 128,
+        "name": "VM.Standard.E4.Flex",
+        "ocpu": 8
       },
-      "memory_in_gbs": 128,
-      "name": "VM.Standard3.Flex",
-      "ocpu": 8
-    },
-    {
-      "block_storage_size": 200,
-      "filter": {
-        "evaluation_container": [
-          "odsc-llm-evaluate"
-        ],
-        "evaluation_target": [
-          "datasciencemodeldeployment"
-        ]
+      {
+        "block_storage_size": 200,
+        "filter": {
+          "evaluation_container": [
+            "odsc-llm-evaluate"
+          ],
+          "evaluation_target": [
+            "datasciencemodeldeployment"
+          ]
+        },
+        "memory_in_gbs": 128,
+        "name": "VM.Standard3.Flex",
+        "ocpu": 8
       },
-      "memory_in_gbs": 128,
-      "name": "VM.Optimized3.Flex",
-      "ocpu": 8
-    },
-    {
-      "block_storage_size": 200,
-      "filter": {
-        "evaluation_container": [
-          "odsc-llm-evaluate"
-        ],
-        "evaluation_target": [
-          "datasciencemodel"
-        ]
+      {
+        "block_storage_size": 200,
+        "filter": {
+          "evaluation_container": [
+            "odsc-llm-evaluate"
+          ],
+          "evaluation_target": [
+            "datasciencemodeldeployment"
+          ]
+        },
+        "memory_in_gbs": 128,
+        "name": "VM.Optimized3.Flex",
+        "ocpu": 8
       },
-      "memory_in_gbs": null,
-      "name": "VM.GPU.A10.2",
-      "ocpu": null
-    }
-  ],
+      {
+        "block_storage_size": 200,
+        "filter": {
+          "evaluation_container": [
+            "odsc-llm-evaluate"
+          ],
+          "evaluation_target": [
+            "datasciencemodel"
+          ]
+        },
+        "memory_in_gbs": 128,
+        "name": "VM.Optimized3.Flex",
+        "ocpu": 8
+      }
+    ]
+  },
   "version": "1.0"
 }
