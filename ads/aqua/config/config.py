@@ -4,16 +4,21 @@
 
 
 from datetime import datetime, timedelta
+from typing import Optional
 
 from cachetools import TTLCache, cached
 
-from ads.aqua.common.utils import service_config_path
+from ads.aqua.common.entities import ContainerSpec
+from ads.aqua.common.utils import get_container_config
 from ads.aqua.config.evaluation.evaluation_service_config import EvaluationServiceConfig
-from ads.aqua.constants import EVALUATION_SERVICE_CONFIG
+
+DEFAULT_EVALUATION_CONTAINER = "odsc-llm-evaluate"
 
 
 @cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=5), timer=datetime.now))
-def evaluation_service_config() -> EvaluationServiceConfig:
+def evaluation_service_config(
+    container: Optional[str] = DEFAULT_EVALUATION_CONTAINER,
+) -> EvaluationServiceConfig:
     """
     Retrieves the common evaluation configuration.
 
@@ -22,8 +27,10 @@ def evaluation_service_config() -> EvaluationServiceConfig:
     EvaluationServiceConfig: The evaluation common config.
     """
 
-    return EvaluationServiceConfig.from_json(
-        uri=f"{service_config_path()}/{EVALUATION_SERVICE_CONFIG}"
+    return EvaluationServiceConfig(
+        **get_container_config()
+        .get(ContainerSpec.CONTAINER_SPEC, {})
+        .get(container, {})
     )
 
 

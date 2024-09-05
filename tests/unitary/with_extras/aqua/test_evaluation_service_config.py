@@ -47,20 +47,23 @@ class TestEvaluationServiceConfig:
         assert self.mock_config.to_dict() == expected_config
 
     @pytest.mark.parametrize(
-        "framework_name, extra_params",
+        "container_name, extra_params",
         [
-            ("vllm", {}),
-            ("VLLM", {}),
-            ("tgi", {}),
-            ("llama-cpp", {"inference_max_threads": 1, "inference_delay": 1}),
+            ("odsc-vllm-serving", {}),
+            ("odsc-vllm-serving", {}),
+            ("odsc-tgi-serving", {}),
+            (
+                "odsc-llama-cpp-serving",
+                {"inference_max_threads": 1, "inference_delay": 1},
+            ),
             ("none-exist", {}),
         ],
     )
-    def test_get_merged_inference_params(self, framework_name, extra_params):
+    def test_get_merged_inference_params(self, container_name, extra_params):
         """Tests merging default inference params with those specific to the given framework."""
 
         test_result = self.mock_config.get_merged_inference_params(
-            framework_name=framework_name
+            container_name=container_name
         )
         expected_result = {
             "inference_rps": 25,
@@ -75,55 +78,51 @@ class TestEvaluationServiceConfig:
         assert test_result.to_dict() == expected_result
 
     @pytest.mark.parametrize(
-        "framework_name, version, task, exclude, include",
+        "container_name, version, exclude, include",
         [
-            ("vllm", "0.5.3.post1", "text-generation", ["add_generation_prompt"], {}),
+            ("odsc-vllm-serving", "0.5.3.post1", ["add_generation_prompt"], {}),
             (
-                "vllm",
+                "odsc-vllm-serving",
                 "0.5.1",
-                "image-text-to-text",
                 ["max_tokens", "frequency_penalty"],
                 {"some_other_param": "some_other_param_value"},
             ),
-            ("vllm", "0.5.1", "none-exist", [], {}),
-            ("vllm", "none-exist", "text-generation", [], {}),
-            ("tgi", None, "text-generation", [], {}),
-            ("tgi", "none-exist", "text-generation", [], {}),
+            ("odsc-vllm-serving", "none-exist", [], {}),
+            ("odsc-tgi-serving", None, [], {}),
+            ("odsc-tgi-serving", "none-exist", [], {}),
             (
-                "tgi",
+                "odsc-tgi-serving",
                 "2.0.1.4",
-                "text-generation",
                 ["max_tokens", "frequency_penalty"],
                 {"some_other_param": "some_other_param_value"},
             ),
-            ("llama-cpp", "0.2.78.0", "text-generation", [], {}),
-            ("none-exist", "none-exist", "text-generation", [], {}),
+            ("odsc-llama-cpp-serving", "0.2.78.0", [], {}),
+            ("none-exist", "none-exist", [], {}),
         ],
     )
-    def test_get_merged_model_params(
-        self, framework_name, version, task, exclude, include
+    def test_get_merged_inference_model_params(
+        self, container_name, version, exclude, include
     ):
         expected_result = {"some_default_param": "some_default_param"}
-        if task != "none-exist" and framework_name != "none-exist":
-            expected_result.update(
-                {
-                    "model": "odsc-llm",
-                    "add_generation_prompt": False,
-                    "max_tokens": {"min": 50, "max": 4096, "default": 500},
-                    "temperature": {"min": 0.0, "max": 2.0, "default": 0.7},
-                    "top_p": {"min": 0.0, "max": 1.0, "default": 0.9},
-                    "top_k": {"min": 1, "max": 1000, "default": 50},
-                    "presence_penalty": {"min": -2.0, "max": 2.0, "default": 0.0},
-                    "frequency_penalty": {"min": -2.0, "max": 2.0, "default": 0.0},
-                    "stop": [],
-                }
-            )
+        expected_result.update(
+            {
+                "model": "odsc-llm",
+                "add_generation_prompt": False,
+                "max_tokens": 500,
+                "temperature": 0.7,
+                "top_p": 0.9,
+                "top_k": 50,
+                "presence_penalty": 0.0,
+                "frequency_penalty": 0.0,
+                "stop": [],
+            }
+        )
         expected_result.update(include)
         for key in exclude:
             expected_result.pop(key, None)
 
-        test_result = self.mock_config.get_merged_model_params(
-            framework_name=framework_name, version=version, task=task
+        test_result = self.mock_config.get_merged_inference_model_params(
+            container_name=container_name, version=version
         )
 
         assert test_result == expected_result
@@ -141,7 +140,7 @@ class TestEvaluationServiceConfig:
     )
     def test_search_shapes(self, evaluation_container, evaluation_target, shapes_found):
         """Ensures searching shapes that match the given filters."""
-        test_result = self.mock_config.search_shapes(
+        test_result = self.mock_config.ui_config.search_shapes(
             evaluation_container=evaluation_container,
             evaluation_target=evaluation_target,
         )

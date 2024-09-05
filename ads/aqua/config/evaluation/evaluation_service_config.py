@@ -4,7 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from pydantic import Field
 
@@ -17,17 +17,6 @@ INFERENCE_MAX_THREADS = 10  # Maximum parallel threads for model inference.
 INFERENCE_RETRIES = 3
 INFERENCE_BACKOFF_FACTOR = 3
 INFERENCE_DELAY = 0
-
-
-class ModelParamItem(Serializable):
-    """Represents min, max, and default values for a model parameter."""
-
-    min: Optional[Union[int, float]] = None
-    max: Optional[Union[int, float]] = None
-    default: Optional[Union[int, float]] = None
-
-    class Config:
-        extra = "ignore"
 
 
 class ModelParamsOverrides(Serializable):
@@ -51,28 +40,11 @@ class ModelParamsVersion(Serializable):
         extra = "ignore"
 
 
-class ModelDefaultParams(Serializable):
-    """Defines default parameters for a model within a specific framework."""
+class ModelParamsContainer(Serializable):
+    """Represents a container's model configuration, including tasks, defaults, and versions."""
 
-    model: Optional[str] = None
-    max_tokens: Optional[ModelParamItem] = Field(default_factory=ModelParamItem)
-    temperature: Optional[ModelParamItem] = Field(default_factory=ModelParamItem)
-    top_p: Optional[ModelParamItem] = Field(default_factory=ModelParamItem)
-    top_k: Optional[ModelParamItem] = Field(default_factory=ModelParamItem)
-    presence_penalty: Optional[ModelParamItem] = Field(default_factory=ModelParamItem)
-    frequency_penalty: Optional[ModelParamItem] = Field(default_factory=ModelParamItem)
-    stop: List[str] = Field(default_factory=list)
-
-    class Config:
-        extra = "allow"
-
-
-class ModelFramework(Serializable):
-    """Represents a framework's model configuration, including tasks, defaults, and versions."""
-
-    framework: Optional[str] = None
-    task: Optional[List[str]] = Field(default_factory=list)
-    default: Optional[ModelDefaultParams] = Field(default_factory=ModelDefaultParams)
+    name: Optional[str] = None
+    default: Optional[Dict[str, Any]] = Field(default_factory=dict)
     versions: Optional[Dict[str, ModelParamsVersion]] = Field(default_factory=dict)
 
     class Config:
@@ -93,10 +65,10 @@ class InferenceParams(Serializable):
         extra = "allow"
 
 
-class InferenceFramework(Serializable):
-    """Represents the inference parameters specific to a framework."""
+class InferenceContainer(Serializable):
+    """Represents the inference parameters specific to a container."""
 
-    framework: Optional[str] = None
+    name: Optional[str] = None
     params: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
     class Config:
@@ -113,27 +85,27 @@ class ReportParams(Serializable):
 
 
 class InferenceParamsConfig(Serializable):
-    """Combines default inference parameters with framework-specific configurations."""
+    """Combines default inference parameters with container-specific configurations."""
 
     default: Optional[InferenceParams] = Field(default_factory=InferenceParams)
-    frameworks: Optional[List[InferenceFramework]] = Field(default_factory=list)
+    containers: Optional[List[InferenceContainer]] = Field(default_factory=list)
 
-    def get_merged_params(self, framework_name: str) -> InferenceParams:
+    def get_merged_params(self, container_name: str) -> InferenceParams:
         """
-        Merges default inference params with those specific to the given framework.
+        Merges default inference params with those specific to the given container.
 
         Parameters
         ----------
-        framework_name (str): The name of the framework.
+        container_name (str): The name of the container.
 
         Returns
         -------
         InferenceParams: The merged inference parameters.
         """
         merged_params = self.default.to_dict()
-        for framework in self.frameworks:
-            if framework.framework.lower() == framework_name.lower():
-                merged_params.update(framework.params or {})
+        for containers in self.containers:
+            if containers.name.lower() == container_name.lower():
+                merged_params.update(containers.params or {})
                 break
         return InferenceParams(**merged_params)
 
@@ -141,27 +113,25 @@ class InferenceParamsConfig(Serializable):
         extra = "ignore"
 
 
-class ModelParamsConfig(Serializable):
-    """Encapsulates the model parameters for different frameworks."""
+class InferenceModelParamsConfig(Serializable):
+    """Encapsulates the model parameters for different containers."""
 
     default: Optional[Dict[str, Any]] = Field(default_factory=dict)
-    frameworks: Optional[List[ModelFramework]] = Field(default_factory=list)
+    containers: Optional[List[ModelParamsContainer]] = Field(default_factory=list)
 
-    def get_model_params(
+    def get_merged_model_params(
         self,
-        framework_name: str,
+        container_name: str,
         version: Optional[str] = None,
-        task: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Gets the model parameters for a given framework, version, and tasks,
+        Gets the model parameters for a given container, version,
         merged with the defaults.
 
         Parameters
         ----------
-        framework_name (str): The name of the framework.
-        version (Optional[str]): The specific version of the framework.
-        task (Optional[str]): The specific task.
+        container_name (str): The name of the container.
+        version (Optional[str]): The specific version of the container.
 
         Returns
         -------
@@ -169,14 +139,12 @@ class ModelParamsConfig(Serializable):
         """
         params = deepcopy(self.default)
 
-        for framework in self.frameworks:
-            if framework.framework.lower() == framework_name.lower() and (
-                not task or task.lower() in framework.task
-            ):
-                params.update(framework.default.to_dict())
+        for container in self.containers:
+            if container.name.lower() == container_name.lower():
+                params.update(container.default)
 
-                if version and version in framework.versions:
-                    version_overrides = framework.versions[version].overrides
+                if version and version in container.versions:
+                    version_overrides = container.versions[version].overrides
                     if version_overrides:
                         if version_overrides.include:
                             params.update(version_overrides.include)
@@ -228,58 +196,16 @@ class MetricConfig(Serializable):
         extra = "ignore"
 
 
-class EvaluationServiceConfig(Serializable):
-    """
-    Root configuration class for evaluation setup including model,
-    inference, and shape configurations.
-    """
+class ModelParamsConfig(Serializable):
+    """Encapsulates the default model parameters."""
 
-    version: Optional[str] = "1.0"
-    kind: Optional[str] = "evaluation"
-    report_params: Optional[ReportParams] = Field(default_factory=ReportParams)
-    inference_params: Optional[InferenceParamsConfig] = Field(
-        default_factory=InferenceParamsConfig
-    )
+    default: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+
+class UIConfig(Serializable):
     model_params: Optional[ModelParamsConfig] = Field(default_factory=ModelParamsConfig)
     shapes: List[ShapeConfig] = Field(default_factory=list)
     metrics: List[MetricConfig] = Field(default_factory=list)
-
-    def get_merged_inference_params(self, framework_name: str) -> InferenceParams:
-        """
-        Merges default inference params with those specific to the given framework.
-
-        Params
-        ------
-        framework_name (str): The name of the framework.
-
-        Returns
-        -------
-        InferenceParams: The merged inference parameters.
-        """
-        return self.inference_params.get_merged_params(framework_name=framework_name)
-
-    def get_merged_model_params(
-        self,
-        framework_name: str,
-        version: Optional[str] = None,
-        task: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """
-        Gets the model parameters for a given framework, version, and task, merged with the defaults.
-
-        Parameters
-        ----------
-        framework_name (str): The name of the framework.
-        version (Optional[str]): The specific version of the framework.
-        task (Optional[str]): The task.
-
-        Returns
-        -------
-        Dict[str, Any]: The merged model parameters.
-        """
-        return self.model_params.get_model_params(
-            framework_name=framework_name, version=version, task=task
-        )
 
     def search_shapes(
         self,
@@ -312,6 +238,62 @@ class EvaluationServiceConfig(Serializable):
                 continue
             results.append(shape)
         return results
+
+    class Config:
+        extra = "ignore"
+
+
+class EvaluationServiceConfig(Serializable):
+    """
+    Root configuration class for evaluation setup including model,
+    inference, and shape configurations.
+    """
+
+    version: Optional[str] = "1.0"
+    kind: Optional[str] = "evaluation"
+    report_params: Optional[ReportParams] = Field(default_factory=ReportParams)
+    inference_params: Optional[InferenceParamsConfig] = Field(
+        default_factory=InferenceParamsConfig
+    )
+    inference_model_params: Optional[InferenceModelParamsConfig] = Field(
+        default_factory=InferenceModelParamsConfig
+    )
+    ui_config: Optional[UIConfig] = Field(default_factory=UIConfig)
+
+    def get_merged_inference_params(self, container_name: str) -> InferenceParams:
+        """
+        Merges default inference params with those specific to the given container.
+
+        Params
+        ------
+        container_name (str): The name of the container.
+
+        Returns
+        -------
+        InferenceParams: The merged inference parameters.
+        """
+        return self.inference_params.get_merged_params(container_name=container_name)
+
+    def get_merged_inference_model_params(
+        self,
+        container_name: str,
+        version: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Gets the model parameters for a given container, version, and task, merged with the defaults.
+
+        Parameters
+        ----------
+        container_name (str): The name of the container.
+        version (Optional[str]): The specific version of the container.
+
+        Returns
+        -------
+        Dict[str, Any]: The merged model parameters.
+        """
+        return self.inference_model_params.get_merged_model_params(
+            container_name=container_name, version=version
+        )
 
     class Config:
         extra = "ignore"

@@ -1,5 +1,10 @@
 {
+  "inference_model_params": {
+    "containers": [],
+    "default": {}
+  },
   "inference_params": {
+    "containers": [],
     "default": {
       "inference_backoff_factor": 3,
       "inference_delay": 0,
@@ -7,18 +12,18 @@
       "inference_retries": 3,
       "inference_rps": 25,
       "inference_timeout": 120
-    },
-    "frameworks": []
+    }
   },
   "kind": "evaluation",
-  "metrics": [],
-  "model_params": {
-    "default": {},
-    "frameworks": []
-  },
   "report_params": {
     "default": {}
   },
-  "shapes": [],
+  "ui_config": {
+    "metrics": [],
+    "model_params": {
+      "default": {}
+    },
+    "shapes": []
+  },
   "version": "1.0"
 }
