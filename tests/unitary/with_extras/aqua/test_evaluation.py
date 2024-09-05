@@ -25,6 +25,7 @@ from ads.aqua.common.errors import (
 from ads.aqua.config.evaluation.evaluation_service_config import (
     EvaluationServiceConfig,
     MetricConfig,
+    UIConfig,
 )
 from ads.aqua.constants import EVALUATION_REPORT_JSON, EVALUATION_REPORT_MD, UNKNOWN
 from ads.aqua.evaluation import AquaEvaluationApp
@@ -886,25 +887,27 @@ class TestAquaEvaluation(unittest.TestCase):
         """
 
         test_evaluation_service_config = EvaluationServiceConfig(
-            metrics=[
-                MetricConfig(
-                    **{
-                        "args": {},
-                        "description": "BERT Score.",
-                        "key": "bertscore",
-                        "name": "BERT Score",
-                        "tags": [],
-                        "task": ["text-generation"],
-                    },
-                )
-            ]
+            ui_config=UIConfig(
+                metrics=[
+                    MetricConfig(
+                        **{
+                            "args": {},
+                            "description": "BERT Score.",
+                            "key": "bertscore",
+                            "name": "BERT Score",
+                            "tags": [],
+                            "task": ["text-generation"],
+                        },
+                    )
+                ]
+            )
         )
         mock_evaluation_service_config.return_value = test_evaluation_service_config
         response = self.app.get_supported_metrics()
         assert isinstance(response, list)
-        assert len(response) == len(test_evaluation_service_config.metrics)
+        assert len(response) == len(test_evaluation_service_config.ui_config.metrics)
         assert response == [
-            item.to_dict() for item in test_evaluation_service_config.metrics
+            item.to_dict() for item in test_evaluation_service_config.ui_config.metrics
         ]
 
     def test_load_evaluation_config(self):

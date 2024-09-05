@@ -904,7 +904,9 @@ class AquaEvaluationApp(AquaApp):
 
     def get_supported_metrics(self) -> dict:
         """Gets a list of supported metrics for evaluation."""
-        return [item.to_dict() for item in evaluation_service_config().metrics]
+        return [
+            item.to_dict() for item in evaluation_service_config().ui_config.metrics
+        ]
 
     @telemetry(entry_point="plugin=evaluation&action=load_metrics", name="aqua")
     def load_metrics(self, eval_id: str) -> AquaEvalMetrics:
