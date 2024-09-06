@@ -102,7 +102,7 @@
       "inference_timeout": 120
     }
   },
-  "kind": "evaluation",
+  "kind": "evaluation_service_config",
   "report_params": {
     "default": {}
   },

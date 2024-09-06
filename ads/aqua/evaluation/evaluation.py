@@ -11,7 +11,7 @@ from dataclasses import asdict, fields
 from datetime import datetime, timedelta
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import oci
 from cachetools import TTLCache
@@ -46,6 +46,7 @@ from ads.aqua.common.utils import (
     upload_local_to_os,
 )
 from ads.aqua.config.config import evaluation_service_config
+from ads.aqua.config.evaluation.evaluation_service_config import EvaluationServiceConfig
 from ads.aqua.constants import (
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     EVALUATION_REPORT,
@@ -171,8 +172,19 @@ class AquaEvaluationApp(AquaApp):
                 f"Invalid evaluation source {create_aqua_evaluation_details.evaluation_source_id}. "
                 "Specify either a model or model deployment id."
             )
+
+        # The model to evaluate
         evaluation_source = None
-        eval_inference_configuration = None
+        # The evaluation service config
+        evaluation_config: EvaluationServiceConfig = evaluation_service_config()
+        # The evaluation inference configuration. The inference configuration will be extracted
+        # based on the inferencing container family.
+        eval_inference_configuration: Dict = {}
+        # The evaluation inference model sampling params. The system parameters that will not be
+        # visible for user, but will be applied implicitly for evaluation. The service model params
+        # will be extracted based on the container family and version.
+        eval_inference_service_model_params: Dict = {}
+
         if (
             DataScienceResource.MODEL_DEPLOYMENT
             in create_aqua_evaluation_details.evaluation_source_id
@@ -188,17 +200,32 @@ class AquaEvaluationApp(AquaApp):
                     runtime = ModelDeploymentContainerRuntime.from_dict(
                         evaluation_source.runtime.to_dict()
                     )
-                    inference_config = AquaContainerConfig.from_container_index_json(
+                    container_config = AquaContainerConfig.from_container_index_json(
                         enable_spec=True
-                    ).inference
-                    for container in inference_config.values():
-                        if container.name == runtime.image[: runtime.image.rfind(":")]:
+                    )
+                    for (
+                        inference_container_family,
+                        inference_container_info,
+                    ) in container_config.inference.items():
+                        if (
+                            inference_container_info.name
+                            == runtime.image[: runtime.image.rfind(":")]
+                        ):
                             eval_inference_configuration = (
-                                container.spec.evaluation_configuration
+                                evaluation_config.get_merged_inference_params(
+                                    inference_container_family
+                                ).to_dict()
                             )
+                            eval_inference_service_model_params = (
+                                evaluation_config.get_merged_inference_model_params(
+                                    inference_container_family,
+                                    inference_container_info.version,
+                                )
+                            )
+
             except Exception:
                 logger.debug(
-                    f"Could not load inference config details for the evaluation id: "
+                    f"Could not load inference config details for the evaluation source id: "
                     f"{create_aqua_evaluation_details.evaluation_source_id}. Please check if the container"
                     f" runtime has the correct SMC image information."
                 )
@@ -415,13 +442,12 @@ class AquaEvaluationApp(AquaApp):
                 container_image=container_image,
                 dataset_path=evaluation_dataset_path,
                 report_path=create_aqua_evaluation_details.report_path,
-                model_parameters=create_aqua_evaluation_details.model_parameters,
+                model_parameters={
+                    **eval_inference_service_model_params,
+                    **create_aqua_evaluation_details.model_parameters,
+                },
                 metrics=create_aqua_evaluation_details.metrics,
-                inference_configuration=(
-                    eval_inference_configuration.to_filtered_dict()
-                    if eval_inference_configuration
-                    else {}
-                ),
+                inference_configuration=eval_inference_configuration or {},
             )
         ).create(**kwargs)  ## TODO: decide what parameters will be needed
         logger.debug(
@@ -1188,45 +1214,24 @@ class AquaEvaluationApp(AquaApp):
                 f"Exception message: {ex}"
             )
 
-    def load_evaluation_config(self):
+    def load_evaluation_config(self, container: Optional[str] = None) -> Dict:
         """Loads evaluation config."""
+
+        # retrieve the evaluation config by container family name
+        evaluation_config = evaluation_service_config(container)
+
+        # convert the new config representation to the old one
         return {
-            "model_params": {
-                "max_tokens": 500,
-                "temperature": 0.7,
-                "top_p": 1.0,
-                "top_k": 50,
-                "presence_penalty": 0.0,
-                "frequency_penalty": 0.0,
-                "stop": [],
-            },
+            "model_params": evaluation_config.ui_config.model_params.default,
             "shape": {
-                "VM.Standard.E3.Flex": {
-                    "ocpu": 8,
-                    "memory_in_gbs": 128,
-                    "block_storage_size": 200,
-                },
-                "VM.Standard.E4.Flex": {
-                    "ocpu": 8,
-                    "memory_in_gbs": 128,
-                    "block_storage_size": 200,
-                },
-                "VM.Standard3.Flex": {
-                    "ocpu": 8,
-                    "memory_in_gbs": 128,
-                    "block_storage_size": 200,
-                },
-                "VM.Optimized3.Flex": {
-                    "ocpu": 8,
-                    "memory_in_gbs": 128,
-                    "block_storage_size": 200,
-                },
+                shape.name: shape.to_dict()
+                for shape in evaluation_config.ui_config.shapes
             },
-            "default": {
-                "ocpu": 8,
-                "memory_in_gbs": 128,
-                "block_storage_size": 200,
-            },
+            "default": (
+                evaluation_config.ui_config.shapes[0].to_dict()
+                if len(evaluation_config.ui_config.shapes) > 0
+                else {}
+            ),
         }
 
     def _get_attribute_from_model_metadata(

@@ -25,6 +25,8 @@ from ads.aqua.common.errors import (
 from ads.aqua.config.evaluation.evaluation_service_config import (
     EvaluationServiceConfig,
     MetricConfig,
+    ModelParamsConfig,
+    ShapeConfig,
     UIConfig,
 )
 from ads.aqua.constants import EVALUATION_REPORT_JSON, EVALUATION_REPORT_MD, UNKNOWN
@@ -301,7 +303,7 @@ class TestDataset:
                         "category": null,
                         "description": null,
                         "key": "Hyperparameters",
-                        "value": '{"model_params": {"max_tokens": 500, "top_p": 1, "top_k": 50, "temperature": 0.7, "presence_penalty": 0, "frequency_penalty": 0, "stop": [], "shape": "VM.Standard.E3.Flex", "dataset_path": "oci://mybucket@mytenancy/data.jsonl", "report_path": "oci://mybucket@mytenancy/report"}}',
+                        "value": '{"model_params": {"model": "odsc-llm", "max_tokens": 500, "top_p": 1, "top_k": 50, "temperature": 0.7, "presence_penalty": 0, "frequency_penalty": 0, "stop": [], "shape": "VM.Standard.E3.Flex", "dataset_path": "oci://mybucket@mytenancy/data.jsonl", "report_path": "oci://mybucket@mytenancy/report"}}',
                     },
                     {
                         "category": null,
@@ -505,6 +507,7 @@ class TestAquaEvaluation(unittest.TestCase):
             "lifecycle_state": f"{evaluation_job_run.lifecycle_state}",
             "name": f"{evaluation_model.display_name}",
             "parameters": {
+                "model": "odsc-llm",
                 "dataset_path": "",
                 "frequency_penalty": 0.0,
                 "max_tokens": "",
@@ -910,16 +913,85 @@ class TestAquaEvaluation(unittest.TestCase):
             item.to_dict() for item in test_evaluation_service_config.ui_config.metrics
         ]
 
-    def test_load_evaluation_config(self):
-        """Tests loading default config for evaluation.
+    @patch("ads.aqua.evaluation.evaluation.evaluation_service_config")
+    def test_load_evaluation_config(self, mock_evaluation_service_config):
+        """
+        Tests loading default config for evaluation.
         This method currently hardcoded the return value.
         """
-        from .utils import EvaluationConfigFormat as config_schema
-        from .utils import check
 
-        response = self.app.load_evaluation_config(eval_id=TestDataset.EVAL_ID)
+        test_evaluation_service_config = EvaluationServiceConfig(
+            ui_config=UIConfig(
+                model_params=ModelParamsConfig(
+                    **{
+                        "default": {
+                            "model": "odsc-llm",
+                            "max_tokens": 500,
+                            "temperature": 0.7,
+                            "top_p": 0.9,
+                            "top_k": 50,
+                            "presence_penalty": 0.0,
+                            "frequency_penalty": 0.0,
+                            "stop": [],
+                        }
+                    }
+                ),
+                shapes=[
+                    ShapeConfig(
+                        **{
+                            "name": "VM.Standard.E3.Flex",
+                            "ocpu": 8,
+                            "memory_in_gbs": 128,
+                            "block_storage_size": 200,
+                            "filter": {
+                                "evaluation_container": ["odsc-llm-evaluate"],
+                                "evaluation_target": ["datasciencemodeldeployment"],
+                            },
+                        }
+                    )
+                ],
+            )
+        )
+        mock_evaluation_service_config.return_value = test_evaluation_service_config
+
+        expected_result = {
+            "model_params": {
+                "model": "odsc-llm",
+                "max_tokens": 500,
+                "temperature": 0.7,
+                "top_p": 0.9,
+                "top_k": 50,
+                "presence_penalty": 0.0,
+                "frequency_penalty": 0.0,
+                "stop": [],
+            },
+            "shape": {
+                "VM.Standard.E3.Flex": {
+                    "name": "VM.Standard.E3.Flex",
+                    "ocpu": 8,
+                    "memory_in_gbs": 128,
+                    "block_storage_size": 200,
+                    "filter": {
+                        "evaluation_container": ["odsc-llm-evaluate"],
+                        "evaluation_target": ["datasciencemodeldeployment"],
+                    },
+                }
+            },
+            "default": {
+                "name": "VM.Standard.E3.Flex",
+                "ocpu": 8,
+                "memory_in_gbs": 128,
+                "block_storage_size": 200,
+                "filter": {
+                    "evaluation_container": ["odsc-llm-evaluate"],
+                    "evaluation_target": ["datasciencemodeldeployment"],
+                },
+            },
+        }
+
+        response = self.app.load_evaluation_config()
         assert isinstance(response, dict)
-        assert check(config_schema, response)
+        assert response == expected_result
 
 
 class TestAquaEvaluationList(unittest.TestCase):

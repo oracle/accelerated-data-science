@@ -76,15 +76,6 @@ class BaseFormat:
                 )
 
 
-@dataclass
-class EvaluationConfigFormat(BaseFormat):
-    """Evaluation config format."""
-
-    model_params: dict
-    shape: Dict[str, dict]
-    default: Dict[str, int]
-
-
 def check(conf_schema, conf):
     """Check if the format of the output dictionary is correct."""
     try:
