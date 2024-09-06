@@ -76,17 +76,6 @@ class BaseFormat:
                 )
 
 
-@dataclass
-class SupportMetricsFormat(BaseFormat):
-    """Format for supported evaluation metrics."""
-
-    use_case: list
-    key: str
-    name: str
-    description: str
-    args: dict
-
-
 def check(conf_schema, conf):
     """Check if the format of the output dictionary is correct."""
     try:

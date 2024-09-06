@@ -10,14 +10,6 @@ from pydantic import Field
 
 from ads.aqua.config.utils.serializer import Serializable
 
-# Constants
-INFERENCE_RPS = 25  # Max RPS for inferencing deployed model.
-INFERENCE_TIMEOUT = 120
-INFERENCE_MAX_THREADS = 10  # Maximum parallel threads for model inference.
-INFERENCE_RETRIES = 3
-INFERENCE_BACKOFF_FACTOR = 3
-INFERENCE_DELAY = 0
-
 
 class ModelParamsOverrides(Serializable):
     """Defines overrides for model parameters, including exclusions and additional inclusions."""
@@ -53,13 +45,6 @@ class ModelParamsContainer(Serializable):
 
 class InferenceParams(Serializable):
     """Contains inference-related parameters with defaults."""
-
-    inference_rps: Optional[int] = INFERENCE_RPS
-    inference_timeout: Optional[int] = INFERENCE_TIMEOUT
-    inference_max_threads: Optional[int] = INFERENCE_MAX_THREADS
-    inference_retries: Optional[int] = INFERENCE_RETRIES
-    inference_backoff_factor: Optional[float] = INFERENCE_BACKOFF_FACTOR
-    inference_delay: Optional[float] = INFERENCE_DELAY
 
     class Config:
         extra = "allow"
@@ -224,20 +209,18 @@ class UIConfig(Serializable):
         -------
         List[ShapeConfig]: A list of shapes that match the filters.
         """
-        results = []
-        for shape in self.shapes:
+        return [
+            shape
+            for shape in self.shapes
             if (
-                evaluation_container
-                and evaluation_container not in shape.filter.evaluation_container
-            ):
-                continue
-            if (
-                evaluation_target
-                and evaluation_target not in shape.filter.evaluation_target
-            ):
-                continue
-            results.append(shape)
-        return results
+                not evaluation_container
+                or evaluation_container in shape.filter.evaluation_container
+            )
+            and (
+                not evaluation_target
+                or evaluation_target in shape.filter.evaluation_target
+            )
+        ]
 
     class Config:
         extra = "ignore"

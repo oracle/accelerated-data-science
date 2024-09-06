@@ -930,48 +930,8 @@ class AquaEvaluationApp(AquaApp):
 
     def get_supported_metrics(self) -> dict:
         """Gets a list of supported metrics for evaluation."""
-        # TODO: implement it when starting to support more metrics.
         return [
-            {
-                "use_case": ["text_generation"],
-                "key": "bertscore",
-                "name": "bertscore",
-                "description": (
-                    "BERT Score is a metric for evaluating the quality of text "
-                    "generation models, such as machine translation or summarization. "
-                    "It utilizes pre-trained BERT contextual embeddings for both the "
-                    "generated and reference texts, and then calculates the cosine "
-                    "similarity between these embeddings."
-                ),
-                "args": {},
-            },
-            {
-                "use_case": ["text_generation"],
-                "key": "rouge",
-                "name": "rouge",
-                "description": (
-                    "ROUGE scores compare a candidate document to a collection of "
-                    "reference documents to evaluate the similarity between them. "
-                    "The metrics range from 0 to 1, with higher scores indicating "
-                    "greater similarity. ROUGE is more suitable for models that don't "
-                    "include paraphrasing and do not generate new text units that don't "
-                    "appear in the references."
-                ),
-                "args": {},
-            },
-            {
-                "use_case": ["text_generation"],
-                "key": "bleu",
-                "name": "bleu",
-                "description": (
-                    "BLEU (Bilingual Evaluation Understudy) is an algorithm for evaluating the "
-                    "quality of text which has been machine-translated from one natural language to another. "
-                    "Quality is considered to be the correspondence between a machine's output and that of a "
-                    "human: 'the closer a machine translation is to a professional human translation, "
-                    "the better it is'."
-                ),
-                "args": {},
-            },
+            item.to_dict() for item in evaluation_service_config().ui_config.metrics
         ]
 
     @telemetry(entry_point="plugin=evaluation&action=load_metrics", name="aqua")

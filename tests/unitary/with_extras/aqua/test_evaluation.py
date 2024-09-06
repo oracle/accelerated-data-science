@@ -24,6 +24,7 @@ from ads.aqua.common.errors import (
 )
 from ads.aqua.config.evaluation.evaluation_service_config import (
     EvaluationServiceConfig,
+    MetricConfig,
     ModelParamsConfig,
     ShapeConfig,
     UIConfig,
@@ -302,7 +303,7 @@ class TestDataset:
                         "category": null,
                         "description": null,
                         "key": "Hyperparameters",
-                        "value": '{"model_params": {"max_tokens": 500, "top_p": 1, "top_k": 50, "temperature": 0.7, "presence_penalty": 0, "frequency_penalty": 0, "stop": [], "shape": "VM.Standard.E3.Flex", "dataset_path": "oci://mybucket@mytenancy/data.jsonl", "report_path": "oci://mybucket@mytenancy/report"}}',
+                        "value": '{"model_params": {"model": "odsc-llm", "max_tokens": 500, "top_p": 1, "top_k": 50, "temperature": 0.7, "presence_penalty": 0, "frequency_penalty": 0, "stop": [], "shape": "VM.Standard.E3.Flex", "dataset_path": "oci://mybucket@mytenancy/data.jsonl", "report_path": "oci://mybucket@mytenancy/report"}}',
                     },
                     {
                         "category": null,
@@ -506,6 +507,7 @@ class TestAquaEvaluation(unittest.TestCase):
             "lifecycle_state": f"{evaluation_job_run.lifecycle_state}",
             "name": f"{evaluation_model.display_name}",
             "parameters": {
+                "model": "odsc-llm",
                 "dataset_path": "",
                 "frequency_penalty": 0.0,
                 "max_tokens": "",
@@ -881,17 +883,35 @@ class TestAquaEvaluation(unittest.TestCase):
         msg = self.app._extract_job_lifecycle_details(input)
         assert msg == expect_output, msg
 
-    def test_get_supported_metrics(self):
-        """Tests getting a list of supported metrics for evaluation.
-        This method currently hardcoded the return value.
+    @patch("ads.aqua.evaluation.evaluation.evaluation_service_config")
+    def test_get_supported_metrics(self, mock_evaluation_service_config):
         """
-        from .utils import SupportMetricsFormat as metric_schema
-        from .utils import check
+        Tests getting a list of supported metrics for evaluation.
+        """
 
+        test_evaluation_service_config = EvaluationServiceConfig(
+            ui_config=UIConfig(
+                metrics=[
+                    MetricConfig(
+                        **{
+                            "args": {},
+                            "description": "BERT Score.",
+                            "key": "bertscore",
+                            "name": "BERT Score",
+                            "tags": [],
+                            "task": ["text-generation"],
+                        },
+                    )
+                ]
+            )
+        )
+        mock_evaluation_service_config.return_value = test_evaluation_service_config
         response = self.app.get_supported_metrics()
         assert isinstance(response, list)
-        for metric in response:
-            assert check(metric_schema, metric)
+        assert len(response) == len(test_evaluation_service_config.ui_config.metrics)
+        assert response == [
+            item.to_dict() for item in test_evaluation_service_config.ui_config.metrics
+        ]
 
     @patch("ads.aqua.evaluation.evaluation.evaluation_service_config")
     def test_load_evaluation_config(self, mock_evaluation_service_config):
