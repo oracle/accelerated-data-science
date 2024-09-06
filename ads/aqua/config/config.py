@@ -15,7 +15,7 @@ from ads.aqua.config.evaluation.evaluation_service_config import EvaluationServi
 DEFAULT_EVALUATION_CONTAINER = "odsc-llm-evaluate"
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=5), timer=datetime.now))
+@cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=1), timer=datetime.now))
 def evaluation_service_config(
     container: Optional[str] = DEFAULT_EVALUATION_CONTAINER,
 ) -> EvaluationServiceConfig:
@@ -27,6 +27,7 @@ def evaluation_service_config(
     EvaluationServiceConfig: The evaluation common config.
     """
 
+    container = container or DEFAULT_EVALUATION_CONTAINER
     return EvaluationServiceConfig(
         **get_container_config()
         .get(ContainerSpec.CONTAINER_SPEC, {})

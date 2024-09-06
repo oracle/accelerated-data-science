@@ -250,7 +250,7 @@ class EvaluationServiceConfig(Serializable):
     """
 
     version: Optional[str] = "1.0"
-    kind: Optional[str] = "evaluation"
+    kind: Optional[str] = "evaluation_service_config"
     report_params: Optional[ReportParams] = Field(default_factory=ReportParams)
     inference_params: Optional[InferenceParamsConfig] = Field(
         default_factory=InferenceParamsConfig
