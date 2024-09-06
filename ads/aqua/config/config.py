@@ -3,10 +3,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-from datetime import datetime, timedelta
 from typing import Optional
-
-from cachetools import TTLCache, cached
 
 from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.common.utils import get_container_config
@@ -15,7 +12,6 @@ from ads.aqua.config.evaluation.evaluation_service_config import EvaluationServi
 DEFAULT_EVALUATION_CONTAINER = "odsc-llm-evaluate"
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=1), timer=datetime.now))
 def evaluation_service_config(
     container: Optional[str] = DEFAULT_EVALUATION_CONTAINER,
 ) -> EvaluationServiceConfig:
