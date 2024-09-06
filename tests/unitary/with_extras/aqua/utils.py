@@ -77,17 +77,6 @@ class BaseFormat:
 
 
 @dataclass
-class SupportMetricsFormat(BaseFormat):
-    """Format for supported evaluation metrics."""
-
-    use_case: list
-    key: str
-    name: str
-    description: str
-    args: dict
-
-
-@dataclass
 class EvaluationConfigFormat(BaseFormat):
     """Evaluation config format."""
 
