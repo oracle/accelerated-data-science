@@ -46,6 +46,7 @@ from ads.aqua.common.utils import (
     upload_local_to_os,
 )
 from ads.aqua.config.config import evaluation_service_config
+from ads.aqua.config.evaluation.evaluation_service_config import EvaluationServiceConfig
 from ads.aqua.constants import (
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     EVALUATION_REPORT,
@@ -171,8 +172,19 @@ class AquaEvaluationApp(AquaApp):
                 f"Invalid evaluation source {create_aqua_evaluation_details.evaluation_source_id}. "
                 "Specify either a model or model deployment id."
             )
+
+        # The model to evaluate
         evaluation_source = None
+        # The evaluation service config
+        evaluation_config: EvaluationServiceConfig = evaluation_service_config()
+        # The evaluation inference configuration. The inference configuration will be extracted
+        # based on the inferencing container family.
         eval_inference_configuration: Dict = {}
+        # The evaluation inference model sampling params. The system parameters that will not be
+        # visible for user, but will be applied implicitly for evaluation. The service model params
+        # will be extracted based on the container family and version.
+        eval_inference_service_model_params: Dict = {}
+
         if (
             DataScienceResource.MODEL_DEPLOYMENT
             in create_aqua_evaluation_details.evaluation_source_id
@@ -200,9 +212,15 @@ class AquaEvaluationApp(AquaApp):
                             == runtime.image[: runtime.image.rfind(":")]
                         ):
                             eval_inference_configuration = (
-                                evaluation_service_config()
-                                .get_merged_inference_params(inference_container_family)
-                                .to_dict()
+                                evaluation_config.get_merged_inference_params(
+                                    inference_container_family
+                                ).to_dict()
+                            )
+                            eval_inference_service_model_params = (
+                                evaluation_config.get_merged_inference_model_params(
+                                    inference_container_family,
+                                    inference_container_info.version,
+                                )
                             )
 
             except Exception:
@@ -424,7 +442,10 @@ class AquaEvaluationApp(AquaApp):
                 container_image=container_image,
                 dataset_path=evaluation_dataset_path,
                 report_path=create_aqua_evaluation_details.report_path,
-                model_parameters=create_aqua_evaluation_details.model_parameters,
+                model_parameters={
+                    **eval_inference_service_model_params,
+                    **create_aqua_evaluation_details.model_parameters,
+                },
                 metrics=create_aqua_evaluation_details.metrics,
                 inference_configuration=eval_inference_configuration or {},
             )
