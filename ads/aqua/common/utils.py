@@ -536,14 +536,14 @@ def _build_job_identifier(
         return AquaResourceIdentifier()
 
 
-def container_config_path():
+def service_config_path():
     return f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
 
 
 @cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=5), timer=datetime.now))
 def get_container_config():
     config = load_config(
-        file_path=container_config_path(),
+        file_path=service_config_path(),
         config_file_name=CONTAINER_INDEX,
     )
 
@@ -568,7 +568,7 @@ def get_container_image(
     """
 
     config = config_file_name or get_container_config()
-    config_file_name = container_config_path()
+    config_file_name = service_config_path()
 
     if container_type not in config:
         raise AquaValueError(
