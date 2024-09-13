@@ -7,7 +7,7 @@ import os
 from unittest.mock import patch
 
 from ads.aqua.common.entities import ContainerSpec
-from ads.aqua.config.config import evaluation_service_config
+from ads.aqua.config.config import get_evaluation_service_config
 
 
 class TestConfig:
@@ -32,7 +32,7 @@ class TestConfig:
 
         mock_get_container_config.return_value = expected_result
 
-        test_result = evaluation_service_config(container="test_container")
+        test_result = get_evaluation_service_config(container="test_container")
         assert (
             test_result.to_dict()
             == expected_result[ContainerSpec.CONTAINER_SPEC]["test_container"]

@@ -45,7 +45,7 @@ from ads.aqua.common.utils import (
     is_valid_ocid,
     upload_local_to_os,
 )
-from ads.aqua.config.config import evaluation_service_config
+from ads.aqua.config.config import get_evaluation_service_config
 from ads.aqua.config.evaluation.evaluation_service_config import EvaluationServiceConfig
 from ads.aqua.constants import (
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
@@ -176,7 +176,7 @@ class AquaEvaluationApp(AquaApp):
         # The model to evaluate
         evaluation_source = None
         # The evaluation service config
-        evaluation_config: EvaluationServiceConfig = evaluation_service_config()
+        evaluation_config: EvaluationServiceConfig = get_evaluation_service_config()
         # The evaluation inference configuration. The inference configuration will be extracted
         # based on the inferencing container family.
         eval_inference_configuration: Dict = {}
@@ -931,7 +931,7 @@ class AquaEvaluationApp(AquaApp):
     def get_supported_metrics(self) -> dict:
         """Gets a list of supported metrics for evaluation."""
         return [
-            item.to_dict() for item in evaluation_service_config().ui_config.metrics
+            item.to_dict() for item in get_evaluation_service_config().ui_config.metrics
         ]
 
     @telemetry(entry_point="plugin=evaluation&action=load_metrics", name="aqua")
@@ -1218,7 +1218,7 @@ class AquaEvaluationApp(AquaApp):
         """Loads evaluation config."""
 
         # retrieve the evaluation config by container family name
-        evaluation_config = evaluation_service_config(container)
+        evaluation_config = get_evaluation_service_config(container)
 
         # convert the new config representation to the old one
         return {

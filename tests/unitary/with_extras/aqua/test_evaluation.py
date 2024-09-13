@@ -426,6 +426,7 @@ class TestAquaEvaluation(unittest.TestCase):
                 continue
             assert rdict.get(attr), f"{attr} is empty"
 
+    @patch("ads.aqua.evaluation.evaluation.get_evaluation_service_config")
     @patch.object(Job, "run")
     @patch("ads.jobs.ads_job.Job.name", new_callable=PropertyMock)
     @patch("ads.jobs.ads_job.Job.id", new_callable=PropertyMock)
@@ -444,6 +445,7 @@ class TestAquaEvaluation(unittest.TestCase):
         mock_job_id,
         mock_job_name,
         mock_job_run,
+        mock_get_evaluation_service_config,
     ):
         foundation_model = MagicMock()
         foundation_model.display_name = "test_foundation_model"
@@ -472,6 +474,8 @@ class TestAquaEvaluation(unittest.TestCase):
         evaluation_job_run.lifecycle_details = "Job run artifact execution in progress."
         evaluation_job_run.lifecycle_state = "IN_PROGRESS"
         mock_job_run.return_value = evaluation_job_run
+
+        mock_get_evaluation_service_config.return_value = EvaluationServiceConfig()
 
         self.app.ds_client.update_model = MagicMock()
         self.app.ds_client.update_model_provenance = MagicMock()
@@ -883,8 +887,8 @@ class TestAquaEvaluation(unittest.TestCase):
         msg = self.app._extract_job_lifecycle_details(input)
         assert msg == expect_output, msg
 
-    @patch("ads.aqua.evaluation.evaluation.evaluation_service_config")
-    def test_get_supported_metrics(self, mock_evaluation_service_config):
+    @patch("ads.aqua.evaluation.evaluation.get_evaluation_service_config")
+    def test_get_supported_metrics(self, mock_get_evaluation_service_config):
         """
         Tests getting a list of supported metrics for evaluation.
         """
@@ -905,7 +909,7 @@ class TestAquaEvaluation(unittest.TestCase):
                 ]
             )
         )
-        mock_evaluation_service_config.return_value = test_evaluation_service_config
+        mock_get_evaluation_service_config.return_value = test_evaluation_service_config
         response = self.app.get_supported_metrics()
         assert isinstance(response, list)
         assert len(response) == len(test_evaluation_service_config.ui_config.metrics)
@@ -913,8 +917,8 @@ class TestAquaEvaluation(unittest.TestCase):
             item.to_dict() for item in test_evaluation_service_config.ui_config.metrics
         ]
 
-    @patch("ads.aqua.evaluation.evaluation.evaluation_service_config")
-    def test_load_evaluation_config(self, mock_evaluation_service_config):
+    @patch("ads.aqua.evaluation.evaluation.get_evaluation_service_config")
+    def test_load_evaluation_config(self, mock_get_evaluation_service_config):
         """
         Tests loading default config for evaluation.
         This method currently hardcoded the return value.
@@ -952,7 +956,7 @@ class TestAquaEvaluation(unittest.TestCase):
                 ],
             )
         )
-        mock_evaluation_service_config.return_value = test_evaluation_service_config
+        mock_get_evaluation_service_config.return_value = test_evaluation_service_config
 
         expected_result = {
             "model_params": {
