@@ -12,7 +12,7 @@ from ads.aqua.config.evaluation.evaluation_service_config import EvaluationServi
 DEFAULT_EVALUATION_CONTAINER = "odsc-llm-evaluate"
 
 
-def evaluation_service_config(
+def get_evaluation_service_config(
     container: Optional[str] = DEFAULT_EVALUATION_CONTAINER,
 ) -> EvaluationServiceConfig:
     """
