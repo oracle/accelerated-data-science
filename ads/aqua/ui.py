@@ -152,14 +152,17 @@ class AquaContainerConfig(DataClassSerializable):
         """
         if not config:
             config = get_container_config()
+        logger.info(f"config: {config}")
         inference_items = {}
         finetune_items = {}
         evaluate_items = {}
 
         # extract inference containers
+        logger.info(f"config.items(): {config.items()} ")
         for container_type, containers in config.items():
             if isinstance(containers, list):
                 for container in containers:
+                    logger.info(f"container: {container}")
                     platforms = [
                         AquaContainerConfigItem.Platform[platform]
                         for platform in container.get("platforms", [])
@@ -205,6 +208,7 @@ class AquaContainerConfig(DataClassSerializable):
                         if container_spec
                         else None,
                     )
+                    logger.info(f"container_item: {container_item}")
                     if container.get("type") == "inference":
                         inference_items[container_type] = container_item
                     elif container_type == "odsc-llm-fine-tuning":
