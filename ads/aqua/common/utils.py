@@ -233,6 +233,7 @@ def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
     config = json.loads(
         read_file(file_path=artifact_path, auth=signer, **kwargs) or UNKNOWN_JSON_STR
     )
+    logger.info(f"artifact_path: {artifact_path}")
     logger.info(f"config: {config}")
     if not config:
         raise AquaFileNotFoundError(
