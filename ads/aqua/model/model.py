@@ -420,19 +420,19 @@ class AquaModelApp(AquaApp):
         tags = {}
         tags.update(model.defined_tags or {})
         tags.update(model.freeform_tags or {})
-
+        logger.info(f"tags: {tags}")
         model_id = (
             model.identifier
             if isinstance(model, oci.resource_search.models.ResourceSummary)
             else model.id
         )
-
+        logger.info(f"model_id: {model_id}")
         console_link = get_console_link(
             resource="models",
             ocid=model_id,
             region=region,
         )
-
+        logger.info(f"console_link: {console_link}")
         description = ""
         if isinstance(model, (DataScienceModel, oci.data_science.models.model.Model)):
             description = model.description
@@ -444,36 +444,37 @@ class AquaModelApp(AquaApp):
             if tags
             else UNKNOWN
         )
-
+        logger.info(f"search_text: {search_text}")
         freeform_tags = model.freeform_tags or {}
         is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG in freeform_tags
         ready_to_deploy = (
             freeform_tags.get(Tags.AQUA_TAG, "").upper() == READY_TO_DEPLOY_STATUS
         )
-
+        logger.info(f"ready_to_deploy: {ready_to_deploy}");
         ready_to_finetune = (
             freeform_tags.get(Tags.READY_TO_FINE_TUNE, "").upper()
             == READY_TO_FINE_TUNE_STATUS
         )
+        logger.info(f"ready_to_finetune: {ready_to_finetune}");
         ready_to_import = (
             freeform_tags.get(Tags.READY_TO_IMPORT, "").upper()
             == READY_TO_IMPORT_STATUS
         )
-
+        logger.info(f"ready_to_import: {ready_to_import}")
         try:
             model_file = model.custom_metadata_list.get(AQUA_MODEL_ARTIFACT_FILE).value
         except Exception:
             model_file = UNKNOWN
 
         inference_containers = AquaContainerConfig.from_container_index_json().inference
-
+        logger.info(f"inference_containers: {inference_containers}")
         model_formats_str = freeform_tags.get(
             Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS.value
         ).upper()
         model_formats = [
             ModelFormat[model_format] for model_format in model_formats_str.split(",")
         ]
-
+        logger.info(f"model_formats: {model_formats}")
         supported_platform: Set[AquaContainerConfigItem.Platform] = set()
 
         for container in inference_containers.values():
