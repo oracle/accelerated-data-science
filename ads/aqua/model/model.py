@@ -582,7 +582,7 @@ class AquaModelApp(AquaApp):
         )
 
         aqua_models = []
-
+        logger.info("region: ",self.region)
         for model in models:
             aqua_models.append(
                 AquaModelSummary(
