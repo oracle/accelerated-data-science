@@ -236,6 +236,7 @@ def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
     logger.info(f"artifact_path: {artifact_path}")
     logger.info(f"config: {config}")
     if not config:
+        logger.info(f"Config file `{config_file_name}` is either empty or missing at {artifact_path}")
         raise AquaFileNotFoundError(
             f"Config file `{config_file_name}` is either empty or missing at {artifact_path}",
             500,
