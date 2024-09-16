@@ -228,6 +228,8 @@ def read_file(file_path: str, **kwargs) -> str:
 def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
     artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
     signer = default_signer() if artifact_path.startswith("oci://") else {}
+    logger.info(f"default_signer(): {default_signer()}")
+    logger.info(f"signer: {signer}")
     config = json.loads(
         read_file(file_path=artifact_path, auth=signer, **kwargs) or UNKNOWN_JSON_STR
     )
@@ -537,11 +539,15 @@ def _build_job_identifier(
 
 
 def container_config_path():
+    logger.info(f"AQUA_SERVICE_MODELS_BUCKET: {AQUA_SERVICE_MODELS_BUCKET}")
+    logger.info(f"CONDA_BUCKET_NS: {CONDA_BUCKET_NS}")
     return f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
 
 
 @cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=5), timer=datetime.now))
 def get_container_config():
+    logger.info(f"container_config_path: {container_config_path()}")
+    logger.info(f"CONTAINER_INDEX: {CONTAINER_INDEX}")
     config = load_config(
         file_path=container_config_path(),
         config_file_name=CONTAINER_INDEX,
