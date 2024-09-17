@@ -136,7 +136,9 @@ class AquaModelApp(AquaApp):
         service_model = DataScienceModel.from_id(model_id)
         target_project = project_id or PROJECT_OCID
         target_compartment = compartment_id or COMPARTMENT_OCID
-
+        logger.info(f"service_model: {service_model}")
+        logger.info(f"target_project: {target_project}")
+        logger.info(f"target_compartment: {target_compartment}")
         if service_model.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
             logger.debug(
                 f"Aqua Model {model_id} already exists in user's compartment."

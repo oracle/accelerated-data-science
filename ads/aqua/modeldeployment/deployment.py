@@ -165,6 +165,7 @@ class AquaDeploymentApp(AquaApp):
             model_id=model_id, compartment_id=compartment_id, project_id=project_id
         )
 
+        logger.info(f"aqua_model: {aqua_model}")
         tags = {}
         for tag in [
             Tags.AQUA_SERVICE_MODEL_TAG,

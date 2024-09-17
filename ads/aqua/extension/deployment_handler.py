@@ -87,7 +87,9 @@ class AquaDeploymentHandler(AquaAPIhandler):
             raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("model_id"))
 
         compartment_id = input_data.get("compartment_id", COMPARTMENT_OCID)
+        logger.info(f"compartment_id: {compartment_id}")
         project_id = input_data.get("project_id", PROJECT_OCID)
+        logger.info(f"project_id: {project_id}")
         log_group_id = input_data.get("log_group_id")
         access_log_id = input_data.get("access_log_id")
         predict_log_id = input_data.get("predict_log_id")
