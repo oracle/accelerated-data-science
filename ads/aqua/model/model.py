@@ -468,15 +468,16 @@ class AquaModelApp(AquaApp):
         except Exception:
             model_file = UNKNOWN
 
-        inference_containers = AquaContainerConfig.from_container_index_json().inference
-        logger.info(f"inference_containers: {inference_containers}")
+        inference_containers =AquaContainerConfig.from_container_index_json()
+        logger.info(f"inference_containers1: {inference_containers}")
+        inference_containers=inference_containers.inference
+        logger.info(f"inference_containers2: {inference_containers}")
         model_formats_str = freeform_tags.get(
             Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS.value
         ).upper()
         model_formats = [
             ModelFormat[model_format] for model_format in model_formats_str.split(",")
         ]
-        logger.info(f"model_formats: {model_formats}")
         supported_platform: Set[AquaContainerConfigItem.Platform] = set()
 
         for container in inference_containers.values():

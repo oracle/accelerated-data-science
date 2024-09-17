@@ -216,6 +216,9 @@ class AquaContainerConfig(DataClassSerializable):
                     elif container_type == "odsc-llm-evaluate":
                         evaluate_items[container_type] = container_item
 
+        logger.info(f"inference_items: {inference_items}")
+        logger.info(f"finetune_items: {finetune_items}")
+        logger.info(f"evaluate_items: {evaluate_items}")
         return AquaContainerConfig(
             inference=inference_items, finetune=finetune_items, evaluate=evaluate_items
         )
