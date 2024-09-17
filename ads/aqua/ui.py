@@ -211,21 +211,11 @@ class AquaContainerConfig(DataClassSerializable):
                     logger.info(f"container_item: {container_item}")
                     logger.info(f"container_type: {container_type}")
                     if container.get("type") == "inference":
-                        logger.info(f"In first if condition...container_type: {container_type}")
                         inference_items[container_type] = container_item
-                        logger.info(f"inference_items: {inference_items}")
                     elif container_type == "odsc-llm-fine-tuning":
-                        logger.info(f"In second if condition...container_type: {container_type}")
                         finetune_items[container_type] = container_item
-                        logger.info(f"finetune_items: {finetune_items}")
                     elif container_type == "odsc-llm-evaluate":
-                        logger.info(f"In second if condition...container_type: {container_type}")
                         evaluate_items[container_type] = container_item
-                        logger.info(f"evaluate_items: {evaluate_items}")
-
-        logger.info(f"inference_items: {inference_items}")
-        logger.info(f"finetune_items: {finetune_items}")
-        logger.info(f"evaluate_items: {evaluate_items}")
         return AquaContainerConfig(
             inference=inference_items, finetune=finetune_items, evaluate=evaluate_items
         )

@@ -469,9 +469,7 @@ class AquaModelApp(AquaApp):
             model_file = UNKNOWN
 
         inference_containers =AquaContainerConfig.from_container_index_json()
-        logger.info(f"inference_containers1: {inference_containers}")
         inference_containers=inference_containers.inference
-        logger.info(f"inference_containers2: {inference_containers}")
         model_formats_str = freeform_tags.get(
             Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS.value
         ).upper()
