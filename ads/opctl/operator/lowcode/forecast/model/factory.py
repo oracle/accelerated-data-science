@@ -33,7 +33,7 @@ class ForecastOperatorModelFactory:
         SupportedModels.Prophet: ProphetOperatorModel,
         SupportedModels.Arima: ArimaOperatorModel,
         SupportedModels.NeuralProphet: NeuralProphetOperatorModel,
-        SupportedModels.LGBForecast: MLForecastOperatorModel,
+        SupportedModels.MLForecast: MLForecastOperatorModel,
         SupportedModels.AutoMLX: AutoMLXOperatorModel,
         SupportedModels.AutoTS: AutoTSOperatorModel
     }
