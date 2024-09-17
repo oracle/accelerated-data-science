@@ -209,6 +209,7 @@ class AquaContainerConfig(DataClassSerializable):
                         else None,
                     )
                     logger.info(f"container_item: {container_item}")
+                    logger.info(f"container_type: {container_type}")
                     if container.get("type") == "inference":
                         logger.info(f"In first if condition...container_type: {container_type}")
                         inference_items[container_type] = container_item
