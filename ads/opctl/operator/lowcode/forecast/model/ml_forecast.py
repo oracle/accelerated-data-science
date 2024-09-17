@@ -1,18 +1,18 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-from ads.opctl import logger
 from ads.common.decorator import runtime_dependency
+from ads.opctl import logger
 from ads.opctl.operator.lowcode.forecast.utils import _select_plot_list
+
+from ..const import ForecastOutputColumns, SupportedModels
+from ..operator_config import ForecastOperatorConfig
 from .base_model import ForecastOperatorBaseModel
 from .forecast_datasets import ForecastDatasets, ForecastOutput
-from ..operator_config import ForecastOperatorConfig
-from ..const import ForecastOutputColumns, SupportedModels
 
 
 class MLForecastOperatorModel(ForecastOperatorBaseModel):
@@ -58,18 +58,25 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
             from mlforecast.target_transforms import Differences
 
             lgb_params = {
-                "verbosity": -1,
-                "num_leaves": 512,
+                "verbosity": model_kwargs.get("verbosity", -1),
+                "num_leaves": model_kwargs.get("num_leaves", 512),
             }
             additional_data_params = {}
             if len(self.datasets.get_additional_data_column_names()) > 0:
                 additional_data_params = {
-                    "target_transforms": [Differences([12])],
+                    "target_transforms": [
+                        Differences([model_kwargs.get("Differences", 12)])
+                    ],
                     "lags": model_kwargs.get("lags", [1, 6, 12]),
                     "lag_transforms": (
                         {
                             1: [ExpandingMean()],
-                            12: [RollingMean(window_size=24)],
+                            12: [
+                                RollingMean(
+                                    window_size=model_kwargs.get("RollingMean", 24),
+                                    min_samples=1,
+                                )
+                            ],
                         }
                     ),
                 }
@@ -147,7 +154,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                 )
 
                 self.model_parameters[s_id] = {
-                    "framework": SupportedModels.MLForecast,
+                    "framework": SupportedModels.LGBForecast,
                     **lgb_params,
                 }
 
@@ -204,10 +211,10 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
             self.datasets.list_series_ids(),
         )
 
-        # Section 2: MlForecast Model Parameters
+        # Section 2: LGBForecast Model Parameters
         sec2_text = rc.Block(
-            rc.Heading("MlForecast Model Parameters", level=2),
-            rc.Text("These are the parameters used for the MlForecast model."),
+            rc.Heading("LGBForecast Model Parameters", level=2),
+            rc.Text("These are the parameters used for the LGBForecast model."),
         )
 
         blocks = [
@@ -221,7 +228,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
 
         all_sections = [sec1_text, sec_1, sec2_text, sec_2]
         model_description = rc.Text(
-            "mlforecast is a framework to perform time series forecasting using machine learning models"
+            "LGBForecast uses mlforecast framework to perform time series forecasting using machine learning models"
             "with the option to scale to massive amounts of data using remote clusters."
             "Fastest implementations of feature engineering for time series forecasting in Python."
             "Support for exogenous variables and static covariates."
