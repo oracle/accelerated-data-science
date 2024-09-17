@@ -183,11 +183,6 @@ class ScriptArtifact(Artifact):
         if os.path.isdir(source):
             basename = os.path.basename(str(source).rstrip("/"))
             source = str(source).rstrip("/")
-            # Runtime must have entrypoint if the source is a directory
-            if self.runtime and not self.runtime.entrypoint:
-                raise ValueError(
-                    "Please specify entrypoint when script source is a directory."
-                )
             output = os.path.join(self.temp_dir.name, basename)
             shutil.make_archive(
                 output, "zip", os.path.dirname(source), base_dir=basename
