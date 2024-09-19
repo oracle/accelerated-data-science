@@ -94,6 +94,7 @@ data = [
 ]
 geo = [
   "geopandas<1.0.0",  # in v1.0.0 removed the built-in dataset 'naturalearth_lowres', fix when relax version of geopandas needed
+  "fiona<=1.9.6",
   "oracle_ads[viz]"
 ]
 huggingface = [
