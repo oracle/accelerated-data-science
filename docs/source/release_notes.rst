@@ -2,6 +2,12 @@
 Release Notes
 =============
 
+2.11.18
+-------
+Release date: September 19, 2024
+
+* Added ``with_artifact()`` in ``ContainerRuntime`` class to support running container job with additional artifact.
+
 2.11.17
 -------
 Release date: August 9, 2024
