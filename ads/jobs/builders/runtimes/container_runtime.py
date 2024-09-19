@@ -56,6 +56,7 @@ class ContainerRuntime(MultiNodeRuntime):
     CONST_CMD = "cmd"
     CONST_IMAGE_DIGEST = "imageDigest"
     CONST_IMAGE_SIGNATURE_ID = "imageSignatureId"
+    CONST_SCRIPT_PATH = "scriptPathURI"
     attribute_map = {
         CONST_IMAGE: CONST_IMAGE,
         CONST_ENTRYPOINT: CONST_ENTRYPOINT,
@@ -121,7 +122,7 @@ class ContainerRuntime(MultiNodeRuntime):
     def image_digest(self) -> str:
         """The container image digest."""
         return self.get_spec(self.CONST_IMAGE_DIGEST)
-    
+
     def with_image_digest(self, image_digest: str) -> "ContainerRuntime":
         """Sets the digest of custom image.
 
@@ -136,12 +137,12 @@ class ContainerRuntime(MultiNodeRuntime):
             The runtime instance.
         """
         return self.set_spec(self.CONST_IMAGE_DIGEST, image_digest)
-    
+
     @property
     def image_signature_id(self) -> str:
         """The container image signature id."""
         return self.get_spec(self.CONST_IMAGE_SIGNATURE_ID)
-    
+
     def with_image_signature_id(self, image_signature_id: str) -> "ContainerRuntime":
         """Sets the signature id of custom image.
 
@@ -217,3 +218,25 @@ class ContainerRuntime(MultiNodeRuntime):
             entrypoint=["bash", "--login", "-c"],
             cmd="{Container CMD. For MLflow and Operator will be auto generated}",
         )
+
+    @property
+    def artifact_uri(self) -> str:
+        """The URI of the source code"""
+        return self.get_spec(self.CONST_SCRIPT_PATH)
+
+    def with_artifact(self, uri: str):
+        """Specifies the artifact to be added to the container.
+
+        Parameters
+        ----------
+        uri : str
+            URI to the source code script, which can be any URI supported by fsspec,
+            including http://, https:// and OCI object storage.
+            For example: oci://your_bucket@your_namespace/path/to/script.py
+
+        Returns
+        -------
+        self
+            The runtime instance.
+        """
+        return self.set_spec(self.CONST_SCRIPT_PATH, uri)

@@ -16,7 +16,11 @@ from sklearn import linear_model
 
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
-from ads.opctl.operator.lowcode.anomaly.const import OutputColumns, SupportedMetrics, SUBSAMPLE_THRESHOLD
+from ads.opctl.operator.lowcode.anomaly.const import (
+    SUBSAMPLE_THRESHOLD,
+    OutputColumns,
+    SupportedMetrics,
+)
 from ads.opctl.operator.lowcode.anomaly.utils import _build_metrics_df, default_signer
 from ads.opctl.operator.lowcode.common.utils import (
     disable_print,
@@ -55,6 +59,7 @@ class AnomalyOperatorBaseModel(ABC):
     def generate_report(self):
         """Generates the report."""
         import matplotlib.pyplot as plt
+        plt.rcParams.update({'figure.max_open_warning': 0})
         import report_creator as rc
 
         start_time = time.time()
@@ -87,43 +92,59 @@ class AnomalyOperatorBaseModel(ABC):
             self.spec.datetime_column.name if self.spec.datetime_column else "index"
         )
 
+        (
+            model_description,
+            other_sections,
+        ) = self._generate_report()
+
         blocks = []
         for target, df in self.datasets.full_data_dict.items():
-            figure_blocks = []
-            time_col = df[date_column].reset_index(drop=True)
-            anomaly_col = anomaly_output.get_anomalies_by_cat(category=target)[
-                OutputColumns.ANOMALY_COL
-            ]
-            anomaly_indices = [i for i, index in enumerate(anomaly_col) if index == 1]
-            downsampled_time_col = time_col
-            selected_indices = list(range(len(time_col)))
-            if self.spec.subsample_report_data:
-                non_anomaly_indices = [i for i in range(len(time_col)) if i not in anomaly_indices]
-                # Downsample non-anomalous data if it exceeds the threshold (1000)
-                if len(non_anomaly_indices) > SUBSAMPLE_THRESHOLD:
-                    downsampled_non_anomaly_indices = non_anomaly_indices[::len(non_anomaly_indices)//SUBSAMPLE_THRESHOLD]
-                    selected_indices = anomaly_indices + downsampled_non_anomaly_indices
-                    selected_indices.sort()
-                downsampled_time_col = time_col[selected_indices]
+            if target in anomaly_output.list_categories():
+                figure_blocks = []
+                time_col = df[date_column].reset_index(drop=True)
+                anomaly_col = anomaly_output.get_anomalies_by_cat(category=target)[
+                    OutputColumns.ANOMALY_COL
+                ]
+                anomaly_indices = [
+                    i for i, index in enumerate(anomaly_col) if index == 1
+                ]
+                downsampled_time_col = time_col
+                selected_indices = list(range(len(time_col)))
+                if self.spec.subsample_report_data:
+                    non_anomaly_indices = [
+                        i for i in range(len(time_col)) if i not in anomaly_indices
+                    ]
+                    # Downsample non-anomalous data if it exceeds the threshold (1000)
+                    if len(non_anomaly_indices) > SUBSAMPLE_THRESHOLD:
+                        downsampled_non_anomaly_indices = non_anomaly_indices[
+                            :: len(non_anomaly_indices) // SUBSAMPLE_THRESHOLD
+                        ]
+                        selected_indices = (
+                            anomaly_indices + downsampled_non_anomaly_indices
+                        )
+                        selected_indices.sort()
+                    downsampled_time_col = time_col[selected_indices]
 
-            columns = set(df.columns).difference({date_column})
-            for col in columns:
-                y = df[col].reset_index(drop=True)
+                columns = set(df.columns).difference({date_column})
+                for col in columns:
+                    y = df[col].reset_index(drop=True)
 
-                downsampled_y = y[selected_indices]
+                    downsampled_y = y[selected_indices]
 
-                fig, ax = plt.subplots(figsize=(8, 3), layout="constrained")
-                ax.grid()
-                ax.plot(downsampled_time_col, downsampled_y, color="black")
-                # Plot anomalies
-                for i in anomaly_indices:
-                    ax.scatter(time_col[i], y[i], color="red", marker="o")
-                plt.xlabel(date_column)
-                plt.ylabel(col)
-                plt.title(f"`{col}` with reference to anomalies")
-                figure_blocks.append(rc.Widget(ax))
+                    fig, ax = plt.subplots(figsize=(8, 3), layout="constrained")
+                    ax.grid()
+                    ax.plot(downsampled_time_col, downsampled_y, color="black")
+                    # Plot anomalies
+                    for i in anomaly_indices:
+                        ax.scatter(time_col[i], y[i], color="red", marker="o")
+                    plt.xlabel(date_column)
+                    plt.ylabel(col)
+                    plt.title(f"`{col}` with reference to anomalies")
+                    figure_blocks.append(rc.Widget(ax))
+            else:
+                figure_blocks = None
 
-        blocks.append(rc.Group(*figure_blocks, label=target))
+            blocks.append(rc.Group(*figure_blocks, label=target)) if figure_blocks else None
         plots = rc.Select(blocks)
 
         report_sections = []
@@ -133,7 +154,7 @@ class AnomalyOperatorBaseModel(ABC):
         yaml_appendix = rc.Yaml(self.config.to_dict())
         summary = rc.Block(
             rc.Group(
-                rc.Text(f"You selected the **`{self.spec.model}`** model."),
+                rc.Text(f"You selected the **`{self.spec.model}`** model.\n{model_description.text}\n"),
                 rc.Text(
                     "Based on your dataset, you could have also selected "
                     f"any of the models: `{'`, `'.join(SupportedModels.keys() if self.spec.datetime_column else NonTimeADSupportedModels.keys())}`."

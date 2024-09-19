@@ -45,6 +45,14 @@ class TestFeatureTypes:
             "averaged_perceptron_tagger",
             download_dir=os.environ["CONDA_PREFIX"] + "/nltk",
         )
+        nltk.download(
+            "averaged_perceptron_tagger_eng",
+            download_dir=os.environ["CONDA_PREFIX"] + "/nltk",
+        )
+        nltk.download(
+            "punkt_tab",
+            download_dir=os.environ["CONDA_PREFIX"] + "/nltk",
+        )
 
     def test_datatime_type(self):
         assert (
