@@ -181,29 +181,29 @@ def _create(
     logger.info(
         f"Preparing manifest. Manifest in the environment: {conda_dep.get('manifest')}"
     )
-    manifest = _fetch_manifest_template()
+    manifest_template = _fetch_manifest_template()
     if "name" not in manifest:
-        manifest["manifest"]["name"] = name
-    manifest["manifest"]["slug"] = slug
+        manifest_template["manifest"]["name"] = name
+    manifest_template["manifest"]["slug"] = slug
     if "type" not in manifest:
         logger.info("Setting manifest to published")
-        manifest["manifest"]["type"] = "published"
+        manifest_template["manifest"]["type"] = "published"
     if "version" not in manifest:
-        manifest["manifest"]["version"] = version
-    manifest["manifest"]["arch_type"] = "GPU" if gpu else "CPU"
+        manifest_template["manifest"]["version"] = version
+    manifest_template["manifest"]["arch_type"] = "GPU" if gpu else "CPU"
 
-    manifest["manifest"]["create_date"] = datetime.utcnow().strftime(
+    manifest_template["manifest"]["create_date"] = datetime.utcnow().strftime(
         "%a, %b %d, %Y, %H:%M:%S %Z UTC"
     )
 
     if not "manifest_version" in manifest:
-        manifest["manifest"]["manifest_version"] = "1.0"
+        manifest_template["manifest"]["manifest_version"] = "1.0"
 
     logger.info(f"Creating conda environment {slug}")
     manifest_dict = {
-        k: manifest["manifest"][k]
-        for k in manifest["manifest"]
-        if manifest["manifest"][k]
+        k: manifest_template["manifest"][k]
+        for k in manifest_template["manifest"]
+        if manifest_template["manifest"][k]
     }
     if "manifest" in conda_dep:
         conda_dep["manifest"].update(manifest_dict)
