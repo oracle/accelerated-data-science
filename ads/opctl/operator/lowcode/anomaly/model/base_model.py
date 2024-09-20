@@ -123,8 +123,8 @@ class AnomalyOperatorBaseModel(ABC):
                 plt.title(f"`{col}` with reference to anomalies")
                 figure_blocks.append(rc.Widget(ax))
 
-        blocks.append(rc.Group(*figure_blocks, label=target))
-        plots = rc.Select(blocks)
+            blocks.append(rc.Group(*figure_blocks, label=target))
+            plots = rc.Select(blocks)
 
         report_sections = []
         title_text = rc.Heading("Anomaly Detection Report", level=1)
