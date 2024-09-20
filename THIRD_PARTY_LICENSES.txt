@@ -72,6 +72,12 @@ fastavro
 * Source code: https://github.com/fastavro/fastavro
 * Project home: https://github.com/fastavro/fastavro
 
+fiona
+* Copyright (c) 2007, Sean C. Gillies
+* License: BSD 3-Clause "New" or "Revised" License
+* Source code: https://github.com/Toblerity/Fiona
+* Project home: https://github.com/Toblerity/Fiona
+
 folium
 * Copyright (C) 2013, Rob Story
 * License: MIT License
