@@ -58,6 +58,7 @@ from ads.aqua.constants import (
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.auth import AuthState, default_signer
+from ads.common.decorator.threaded import threaded
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
@@ -225,6 +226,7 @@ def read_file(file_path: str, **kwargs) -> str:
         return UNKNOWN
 
 
+@threaded()
 def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
     artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
     signer = default_signer() if artifact_path.startswith("oci://") else {}
@@ -1065,11 +1067,15 @@ def get_hf_model_info(repo_id: str) -> ModelInfo:
 
 
 @cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=5), timer=datetime.now))
-def list_hf_models(query:str) -> List[str]:
+def list_hf_models(query: str) -> List[str]:
     try:
-        models= HfApi().list_models(model_name=query,task="text-generation",sort="downloads",direction=-1,limit=20)
+        models = HfApi().list_models(
+            model_name=query,
+            task="text-generation",
+            sort="downloads",
+            direction=-1,
+            limit=20,
+        )
         return [model.id for model in models if model.disabled is None]
     except HfHubHTTPError as err:
         raise format_hf_custom_error_message(err) from err
-
-
