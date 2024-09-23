@@ -15,6 +15,7 @@ try:
         ChatOCIModelDeploymentVLLM,
         ChatOCIModelDeploymentTGI,
     )
+    from ads.llm.chat_template import ChatTemplates
 except ImportError as ex:
     if ex.name == "langchain":
         raise ImportError(
