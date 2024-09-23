@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
 import os
-from dataclasses import asdict, fields, MISSING
+from dataclasses import MISSING, asdict, fields
 from typing import Dict
 
 from oci.data_science.models import (
@@ -14,7 +13,7 @@ from oci.data_science.models import (
     UpdateModelProvenanceDetails,
 )
 
-from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
+from ads.aqua import logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import Resource, Tags
 from ads.aqua.common.errors import AquaFileExistsError, AquaValueError
@@ -22,6 +21,7 @@ from ads.aqua.common.utils import (
     get_container_image,
     upload_local_to_os,
 )
+from ads.aqua.config.config import get_finetuning_config_defaults
 from ads.aqua.constants import (
     DEFAULT_FT_BATCH_SIZE,
     DEFAULT_FT_BLOCK_STORAGE_SIZE,
@@ -31,7 +31,6 @@ from ads.aqua.constants import (
     UNKNOWN,
     UNKNOWN_DICT,
 )
-from ads.aqua.config.config import get_finetuning_config_defaults
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.constants import *
 from ads.aqua.finetuning.entities import *
@@ -132,7 +131,7 @@ class AquaFineTuningApp(AquaApp):
             or create_fine_tuning_details.validation_set_size >= 1
         ):
             raise AquaValueError(
-                f"Fine tuning validation set size should be a float number in between [0, 1)."
+                "Fine tuning validation set size should be a float number in between [0, 1)."
             )
 
         if create_fine_tuning_details.replica < DEFAULT_FT_REPLICA:
@@ -367,6 +366,7 @@ class AquaFineTuningApp(AquaApp):
         source_freeform_tags.update({Tags.READY_TO_FINE_TUNE: "false"})
         source_freeform_tags.update({Tags.AQUA_TAG: UNKNOWN})
         source_freeform_tags.pop(Tags.BASE_MODEL_CUSTOM, None)
+        source_freeform_tags.pop(Tags.READY_TO_IMPORT, None)
 
         self.update_model(
             model_id=ft_model.id,
@@ -394,7 +394,7 @@ class AquaFineTuningApp(AquaApp):
         )
         # track shapes that were used for fine-tune creation
         self.telemetry.record_event_async(
-            category=f"aqua/service/finetune/create/shape/",
+            category="aqua/service/finetune/create/shape/",
             action=f"{create_fine_tuning_details.shape_name}x{create_fine_tuning_details.replica}",
             **telemetry_kwargs,
         )
