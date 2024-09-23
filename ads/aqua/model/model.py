@@ -933,9 +933,9 @@ class AquaModelApp(AquaApp):
         # now as we know that at least one type of model files exist, validate the content of oss path.
         # for safetensors, we check if config.json files exist, and for gguf format we check if files with
         # gguf extension exist.
-        if ModelFormat.SAFETENSORS in model_formats and ModelFormat.GGUF in model_formats:
+        if {ModelFormat.SAFETENSORS, ModelFormat.GGUF}.issubset(set(model_formats)):
             if (
-                import_model_details.inference_container == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
+                import_model_details.inference_container.lower() == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
             ):
                 self._validate_gguf_format(
                     import_model_details=import_model_details,
