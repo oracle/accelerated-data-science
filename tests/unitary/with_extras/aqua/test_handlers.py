@@ -13,7 +13,6 @@ from unittest.mock import MagicMock, patch
 from notebook.base.handlers import APIHandler, IPythonHandler
 from oci.exceptions import ServiceError
 from parameterized import parameterized
-from tornado.httpserver import HTTPRequest
 from tornado.httputil import HTTPServerRequest
 from tornado.web import Application, HTTPError
 
@@ -191,6 +190,7 @@ class TestHandlers(unittest.TestCase):
 
         reload(ads.config)
         reload(ads.aqua)
+        reload(ads.aqua.extension.utils)
         reload(ads.aqua.extension.common_handler)
 
     @classmethod
@@ -200,6 +200,7 @@ class TestHandlers(unittest.TestCase):
 
         reload(ads.config)
         reload(ads.aqua)
+        reload(ads.aqua.extension.utils)
         reload(ads.aqua.extension.common_handler)
 
     @parameterized.expand(
