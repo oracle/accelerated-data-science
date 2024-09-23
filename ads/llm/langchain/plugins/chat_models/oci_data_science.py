@@ -29,7 +29,6 @@ from langchain_core.output_parsers import (
     PydanticOutputParser,
 )
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
-from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.runnables import Runnable, RunnableMap, RunnablePassthrough
 
 from langchain_community.adapters.openai import (
@@ -37,7 +36,8 @@ from langchain_community.adapters.openai import (
     convert_message_to_dict,
 )
 from langchain_community.chat_models.openai import _convert_delta_to_message_chunk
-from langchain_community.llms.oci_data_science_model_deployment_endpoint import (
+from pydantic import BaseModel, Field
+from ads.llm.langchain.plugins.llms.oci_data_science_model_deployment_endpoint import (
     DEFAULT_MODEL_NAME,
     BaseOCIModelDeployment,
 )
@@ -128,8 +128,7 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
         .. code-block:: python
 
             from typing import Optional
-
-            from langchain_core.pydantic_v1 import BaseModel, Field
+            from pydantic import BaseModel, Field
 
             class Joke(BaseModel):
                 setup: str = Field(description="The setup of the joke")
