@@ -12,7 +12,6 @@ from typing import Any, Dict, List, Optional
 import fsspec
 import yaml
 from langchain import llms
-from langchain.chains import RetrievalQA
 from langchain.chains.loading import load_chain_from_config
 from langchain.llms import loading
 from langchain.load.load import Reviver
@@ -46,7 +45,6 @@ custom_serialization = {
     GuardrailSequence: GuardrailSequence.save,
     CustomGuardrailBase: CustomGuardrailBase.save,
     RunnableParallel: RunnableParallelSerializer.save,
-    RetrievalQA: RetrievalQASerializer.save,
 }
 
 # Mapping _type to custom deserialization functions
