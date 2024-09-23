@@ -28,4 +28,7 @@ def validate_function_parameters(data_class, input_data: Dict):
 
 @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=1), timer=datetime.now))
 def ui_compatability_check():
+    """This method caches the service compartment OCID details that is set by either the environment variable or if
+    fetched from the configuration. The cached result is returned when multiple calls are made in quick succession
+    from the UI to avoid multiple config file loads."""
     return ODSC_MODEL_COMPARTMENT_OCID or fetch_service_compartment()
