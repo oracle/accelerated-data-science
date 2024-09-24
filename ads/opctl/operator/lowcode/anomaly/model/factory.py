@@ -15,6 +15,7 @@ from .autots import AutoTSOperatorModel
 from .base_model import AnomalyOperatorBaseModel
 from .isolationforest import IsolationForestOperatorModel
 from .oneclasssvm import OneClassSVMOperatorModel
+from .randomcutforest import RandomCutForestOperatorModel
 
 
 class UnSupportedModelError(Exception):
@@ -52,6 +53,7 @@ class AnomalyOperatorModelFactory:
     _NonTime_MAP = {
         NonTimeADSupportedModels.OneClassSVM: OneClassSVMOperatorModel,
         NonTimeADSupportedModels.IsolationForest: IsolationForestOperatorModel,
+        NonTimeADSupportedModels.RandomCutForest: RandomCutForestOperatorModel,
         # TODO: Add DBScan model for non time based anomaly
         # NonTimeADSupportedModels.DBScan: DBScanOperatorModel,
     }

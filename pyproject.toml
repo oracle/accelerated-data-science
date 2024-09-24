@@ -21,7 +21,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads" # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.11.17"
+version = "2.11.18"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -95,6 +95,7 @@ data = [
 ]
 geo = [
   "geopandas<1.0.0",  # in v1.0.0 removed the built-in dataset 'naturalearth_lowres', fix when relax version of geopandas needed
+  "fiona<=1.9.6",
   "oracle_ads[viz]"
 ]
 huggingface = [
@@ -177,6 +178,8 @@ anomaly  = [
   "autots",
   "oracledb",
   "report-creator==1.0.9",
+  "rrcf==0.4.4",
+  "scikit-learn"
 ]
 recommender = [
   "oracle_ads[opctl]",
