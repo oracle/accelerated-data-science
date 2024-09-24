@@ -24,3 +24,8 @@ class ChatTemplates:
     def mistral():
         """Chat template for auto tool calling with Mistral model deploy with vLLM."""
         return ChatTemplates._read_template("tool_chat_template_mistral_parallel.jinja")
+
+    @staticmethod
+    def hermes():
+        """Chat template for auto tool calling with Hermes model deploy with vLLM."""
+        return ChatTemplates._read_template("tool_chat_template_hermes.jinja")
