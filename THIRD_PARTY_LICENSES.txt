@@ -459,13 +459,19 @@ mlforecast
 * Source code: https://github.com/Nixtla/mlforecast
 * Project home: https://github.com/Nixtla/mlforecast
 
+pydantic
+* Copyright (c) 2017 to present Pydantic Services Inc. and individual contributors.
+* License: The MIT License (MIT)
+* Source code: https://github.com/pydantic/pydantic
+* Project home: https://docs.pydantic.dev/latest/
+
 rrcf
 * Copyright 2018 kLabUM
 * License: MIT License
 * Source code: https://github.com/kLabUM/rrcf
 * Project home: https://github.com/kLabUM/rrcf
 
-=======
+
 =============================== Licenses ===============================
 ------------------------------------------------------------------------
 

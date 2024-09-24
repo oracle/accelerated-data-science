@@ -2,6 +2,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from typing import Optional
 from urllib.parse import urlparse
 
 from tornado.web import HTTPError
@@ -30,7 +31,7 @@ class AquaEvaluationHandler(AquaAPIhandler):
         return self.read(eval_id)
 
     @handle_exceptions
-    def post(self, *args, **kwargs):
+    def post(self, *args, **kwargs):  # noqa
         """Handles post request for the evaluation APIs
 
         Raises
@@ -117,10 +118,10 @@ class AquaEvaluationConfigHandler(AquaAPIhandler):
     """Handler for Aqua Evaluation Config REST APIs."""
 
     @handle_exceptions
-    def get(self, model_id):
+    def get(self, container: Optional[str] = None, **kwargs):  # noqa
         """Handle GET request."""
 
-        return self.finish(AquaEvaluationApp().load_evaluation_config(model_id))
+        return self.finish(AquaEvaluationApp().load_evaluation_config(container))
 
 
 __handlers__ = [

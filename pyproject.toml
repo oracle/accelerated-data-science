@@ -74,6 +74,7 @@ dependencies = [
   "scikit-learn>=1.0",
   "tabulate>=0.8.9",
   "tqdm>=4.59.0",
+  "pydantic>=2.6.3",
 ]
 
 [project.optional-dependencies]

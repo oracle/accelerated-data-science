@@ -84,9 +84,6 @@ class AquaContainerConfigSpec(DataClassSerializable):
     health_check_port: str = None
     env_vars: List[dict] = None
     restricted_params: List[str] = None
-    evaluation_configuration: AquaContainerEvaluationConfig = field(
-        default_factory=AquaContainerEvaluationConfig
-    )
 
 
 @dataclass(repr=False)
@@ -184,32 +181,37 @@ class AquaContainerConfig(DataClassSerializable):
                         family=container_type,
                         platforms=platforms,
                         model_formats=model_formats,
-                        spec=AquaContainerConfigSpec(
-                            cli_param=container_spec.get(ContainerSpec.CLI_PARM, ""),
-                            server_port=container_spec.get(
-                                ContainerSpec.SERVER_PORT, ""
-                            ),
-                            health_check_port=container_spec.get(
-                                ContainerSpec.HEALTH_CHECK_PORT, ""
-                            ),
-                            env_vars=container_spec.get(ContainerSpec.ENV_VARS, []),
-                            restricted_params=container_spec.get(
-                                ContainerSpec.RESTRICTED_PARAMS, []
-                            ),
-                            evaluation_configuration=AquaContainerEvaluationConfig.from_config(
-                                container_spec.get(
-                                    ContainerSpec.EVALUATION_CONFIGURATION, {}
-                                )
-                            ),
-                        )
-                        if container_spec
-                        else None,
+                        spec=(
+                            AquaContainerConfigSpec(
+                                cli_param=container_spec.get(
+                                    ContainerSpec.CLI_PARM, ""
+                                ),
+                                server_port=container_spec.get(
+                                    ContainerSpec.SERVER_PORT, ""
+                                ),
+                                health_check_port=container_spec.get(
+                                    ContainerSpec.HEALTH_CHECK_PORT, ""
+                                ),
+                                env_vars=container_spec.get(ContainerSpec.ENV_VARS, []),
+                                restricted_params=container_spec.get(
+                                    ContainerSpec.RESTRICTED_PARAMS, []
+                                ),
+                            )
+                            if container_spec
+                            else None
+                        ),
                     )
                     if container.get("type") == "inference":
                         inference_items[container_type] = container_item
-                    elif container_type == "odsc-llm-fine-tuning":
+                    elif (
+                        container.get("type") == "fine-tune"
+                        or container_type == "odsc-llm-fine-tuning"
+                    ):
                         finetune_items[container_type] = container_item
-                    elif container_type == "odsc-llm-evaluate":
+                    elif (
+                        container.get("type") == "evaluate"
+                        or container_type == "odsc-llm-evaluate"
+                    ):
                         evaluate_items[container_type] = container_item
 
         return AquaContainerConfig(
