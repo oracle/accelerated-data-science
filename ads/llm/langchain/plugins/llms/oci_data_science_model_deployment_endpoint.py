@@ -21,6 +21,7 @@ from typing import (
 
 import aiohttp
 import requests
+import traceback
 from langchain_core.callbacks import (
     AsyncCallbackManagerForLLMRun,
     CallbackManagerForLLMRun,
@@ -175,6 +176,7 @@ class BaseOCIModelDeployment(Serializable):
             except TokenExpiredError as e:
                 raise e
             except Exception as err:
+                traceback.print_exc()
                 logger.debug(
                     f"Requests payload: {data}. Requests arguments: "
                     f"url={self.endpoint},timeout={request_timeout},stream={stream}. "
@@ -221,6 +223,7 @@ class BaseOCIModelDeployment(Serializable):
             except TokenExpiredError as e:
                 raise e
             except Exception as err:
+                traceback.print_exc()
                 logger.debug(
                     f"Requests payload: `{data}`. "
                     f"Stream mode={stream}. "
@@ -272,6 +275,7 @@ class BaseOCIModelDeployment(Serializable):
                 An iterator that yields parsed lines as strings.
         """
         for line in lines:
+            print("***" + str(line))
             _line = self._parse_stream_line(line)
             if _line is not None:
                 yield _line
@@ -307,13 +311,16 @@ class BaseOCIModelDeployment(Serializable):
                 The processed line as a string if valid, otherwise `None`.
         """
         line = line.strip()
-        if line:
-            _line = line.decode("utf-8")
-            if "[DONE]" in _line:
-                return None
+        if not line:
+            return None
+        _line = line.decode("utf-8")
 
-            if _line.lower().startswith("data:"):
-                return _line[5:].lstrip()
+        if _line.lower().startswith("data:"):
+            _line = _line[5:].lstrip()
+
+            if _line.startswith("[DONE]"):
+                return None
+            return _line
         return None
 
     async def _aiter_sse(
@@ -589,11 +596,11 @@ class OCIModelDeploymentLLM(BaseLLM, BaseOCIModelDeployment):
         response = self.completion_with_retry(
             data=body, run_manager=run_manager, stream=True, **requests_kwargs
         )
-
         for line in self._parse_stream(response.iter_lines()):
             chunk = self._handle_sse_line(line)
             if run_manager:
                 run_manager.on_llm_new_token(chunk.text, chunk=chunk)
+
             yield chunk
 
     async def _astream(
@@ -751,7 +758,7 @@ class OCIModelDeploymentTGI(OCIModelDeploymentLLM):
 
     """
 
-    api: Literal["/generate", "/v1/completions"] = "/generate"
+    api: Literal["/generate", "/v1/completions"] = "/v1/completions"
     """Api spec."""
 
     frequency_penalty: float = 0.0
