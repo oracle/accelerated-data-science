@@ -8,10 +8,17 @@ from ads.llm import OCIModelDeploymentTGI, OCIModelDeploymentVLLM
 
 CONST_MODEL_NAME = "odsc-vllm"
 CONST_ENDPOINT = "https://oci.endpoint/ocid/predict"
-CONST_PROMPT_FOR_COMPLETION = "This is a prompt."
+CONST_PROMPT = "This is a prompt."
 CONST_COMPLETION = "This is a completion."
 CONST_COMPLETION_RESPONSE = {
-    "choices": [{"index": 0, "text": CONST_COMPLETION}],
+    "choices": [
+        {
+            "index": 0,
+            "text": CONST_COMPLETION,
+            "logprobs": 0.1,
+            "finish_reason": "length",
+        }
+    ],
 }
 CONST_COMPLETION_RESPONSE_TGI = {"generated_text": CONST_COMPLETION}
 CONST_STREAM_TEMPLATE = (
@@ -68,7 +75,7 @@ def mocked_requests_post(self, **kwargs):
         prompt = payload.get("prompt")
         is_tgi = False
 
-    if prompt == CONST_PROMPT_FOR_COMPLETION:
+    if prompt == CONST_PROMPT:
         if is_tgi:
             return MockResponse(json_data=CONST_COMPLETION_RESPONSE_TGI)
         return MockResponse(json_data=CONST_COMPLETION_RESPONSE)
@@ -91,7 +98,7 @@ async def mocked_async_streaming_response(*args, **kwargs):
 def test_invoke_vllm(mock_post, mock_auth) -> None:
     """Tests invoking vLLM endpoint."""
     llm = OCIModelDeploymentVLLM(endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME)
-    output = llm.invoke(CONST_PROMPT_FOR_COMPLETION)
+    output = llm.invoke(CONST_PROMPT)
     assert output == CONST_COMPLETION
 
 
@@ -105,7 +112,7 @@ def test_stream_tgi(mock_post, mock_auth) -> None:
     )
     output = ""
     count = 0
-    for chunk in llm.stream(CONST_PROMPT_FOR_COMPLETION):
+    for chunk in llm.stream(CONST_PROMPT):
         output += chunk
         count += 1
     assert count == 4
@@ -120,7 +127,7 @@ def test_generate_tgi(mock_post, mock_auth) -> None:
     llm = OCIModelDeploymentTGI(
         endpoint=CONST_ENDPOINT, api="/generate", model=CONST_MODEL_NAME
     )
-    output = llm.invoke(CONST_PROMPT_FOR_COMPLETION)
+    output = llm.invoke(CONST_PROMPT)
     assert output == CONST_COMPLETION
 
 
@@ -144,5 +151,5 @@ async def test_stream_async(mock_auth):
         mock.MagicMock(return_value=mocked_async_streaming_response()),
     ):
 
-        chunks = [chunk async for chunk in llm.astream(CONST_PROMPT_FOR_COMPLETION)]
+        chunks = [chunk async for chunk in llm.astream(CONST_PROMPT)]
     assert "".join(chunks).strip() == CONST_COMPLETION
