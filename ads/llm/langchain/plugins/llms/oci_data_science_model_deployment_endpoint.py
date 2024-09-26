@@ -275,7 +275,6 @@ class BaseOCIModelDeployment(Serializable):
                 An iterator that yields parsed lines as strings.
         """
         for line in lines:
-            print("***" + str(line))
             _line = self._parse_stream_line(line)
             if _line is not None:
                 yield _line

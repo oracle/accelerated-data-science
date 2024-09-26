@@ -319,7 +319,6 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
         )
         default_chunk_class = AIMessageChunk
         for line in self._parse_stream(response.iter_lines()):
-            # print(">>>" + str(line))
             chunk = self._handle_sse_line(line, default_chunk_class)
             if run_manager:
                 run_manager.on_llm_new_token(chunk.text, chunk=chunk)
