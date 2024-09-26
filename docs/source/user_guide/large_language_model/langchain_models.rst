@@ -11,7 +11,7 @@ LangChain Integration
 .. admonition:: Requirements
   :class: note
 
-  The LangChain integration requires ``python>=3.9`` and ``LangChain>=0.3``
+  The LangChain integration requires ``python>=3.9`` and ``langchain>=0.3``
 
 
 LangChain compatible models/interfaces are needed for LangChain applications to invoke LLMs deployed on OCI data science model deployment service.
