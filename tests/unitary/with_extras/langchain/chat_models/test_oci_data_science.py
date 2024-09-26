@@ -1,10 +1,16 @@
 """Test OCI Data Science Model Deployment Endpoint."""
 
+import sys
 from unittest import mock
 import pytest
 from langchain_core.messages import AIMessage, AIMessageChunk
 from requests.exceptions import HTTPError
 from ads.llm import ChatOCIModelDeploymentVLLM, ChatOCIModelDeploymentTGI
+
+
+pytestmark = pytest.mark.skipif(
+    sys.version_info < (3, 9), reason="Requires Python 3.9 or higher"
+)
 
 
 CONST_MODEL_NAME = "odsc-vllm"

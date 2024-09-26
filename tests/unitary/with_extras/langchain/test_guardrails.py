@@ -7,6 +7,7 @@
 import json
 import os
 import tempfile
+import sys
 from typing import Any, List, Dict, Mapping, Optional
 from unittest import TestCase
 from langchain.callbacks.manager import CallbackManagerForLLMRun
@@ -18,6 +19,8 @@ from ads.llm.guardrails.base import BlockedByGuardrail, GuardrailIO
 from ads.llm.chain import GuardrailSequence
 from ads.llm.serialize import load, dump
 import pytest
+
+pytestmark = pytest.mark.skipif(sys.version_info < (3, 9), reason="Requires Python 3.9 or higher")
 
 
 class FakeLLM(LLM):
