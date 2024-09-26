@@ -7,7 +7,6 @@ import json
 from importlib import metadata
 from typing import List, Union
 
-from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, fetch_service_compartment
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.errors import AquaResourceAccessError
 from ads.aqua.common.utils import known_realm
@@ -17,6 +16,7 @@ from ads.aqua.extension.models.ws_models import (
     CompatibilityCheckResponse,
     RequestResponseType,
 )
+from ads.aqua.extension.utils import ui_compatability_check
 
 
 class AquaCommonWsMsgHandler(AquaWSMsgHandler):
@@ -39,7 +39,7 @@ class AquaCommonWsMsgHandler(AquaWSMsgHandler):
             )
             return response
         if request.get("kind") == "CompatibilityCheck":
-            if ODSC_MODEL_COMPARTMENT_OCID or fetch_service_compartment():
+            if ui_compatability_check():
                 return CompatibilityCheckResponse(
                     message_id=request.get("message_id"),
                     kind=RequestResponseType.CompatibilityCheck,

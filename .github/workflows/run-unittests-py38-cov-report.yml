@@ -115,6 +115,7 @@ jobs:
             cov-${{ matrix.name }}/htmlcov/
             cov-${{ matrix.name }}/.coverage
             cov-${{ matrix.name }}/coverage.xml
+          include-hidden-files: true
 
   coverage-report:
     name: "Coverage report"
