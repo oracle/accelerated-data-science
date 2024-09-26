@@ -3,12 +3,18 @@ LangChain Integration
 
 .. versionadded:: 2.11.19
 
-LangChain compatible models/interfaces are needed for LangChain applications to invoke LLMs deployed on OCI data science model deployment service.
-
 .. admonition:: LangChain Community
   :class: note
 
-  Integrations from ADS may provide additional or experimental features in the latest updates, while the stable integrations (such as ``OCIModelDeploymentVLLM`` and ``OCIModelDeploymentTGI``) are also available from `LangChain Community <https://python.langchain.com/docs/integrations/llms/oci_model_deployment_endpoint>`_.
+  While the stable integrations (such as ``OCIModelDeploymentVLLM`` and ``OCIModelDeploymentTGI``) are also available from `LangChain Community <https://python.langchain.com/docs/integrations/llms/oci_model_deployment_endpoint>`_, integrations from ADS may provide additional or experimental features in the latest updates, .
+
+.. admonition:: Requirements
+  :class: note
+
+  The LangChain integration requires ``python>=3.9`` and ``LangChain>=0.3``
+
+
+LangChain compatible models/interfaces are needed for LangChain applications to invoke LLMs deployed on OCI data science model deployment service.
 
 If you deploy LLM on OCI model deployment service using `AI Quick Actions <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/model-deployment-tips.md>`_ or `HuggingFace TGI <https://huggingface.co/docs/text-generation-inference/index>`_ , you can use the integration models described in this page to build your application with LangChain.
 
