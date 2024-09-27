@@ -156,9 +156,7 @@ The yaml can also be maximally stated as follows:
         datetime_column:
             format: "%d/%m/%y"
             name: Date
-        model: automlx
-        model_kwargs:
-            time_budget: 100 
+        model: ee
         preprocessing: true
         generate_metrics: true
         generate_report: true

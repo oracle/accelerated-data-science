@@ -4,50 +4,53 @@
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import pandas as pd
-
 from ads.common.decorator.runtime_dependency import runtime_dependency
-
-from .base_model import AnomalyOperatorBaseModel
-from .anomaly_dataset import AnomalyOutput
 from ads.opctl.operator.lowcode.anomaly.const import OutputColumns
+from .anomaly_dataset import AnomalyOutput
+from .base_model import AnomalyOperatorBaseModel
+from ..const import SupportedModels
+from ads.opctl import logger
 
 
 class AutoTSOperatorModel(AnomalyOperatorBaseModel):
     """Class representing AutoTS Anomaly Detection operator model."""
+    model_mapping = {
+        "isolationforest": "IsolationForest",
+        "lof": "LOF",
+        "ee": "EE",
+        "zscore": "zscore",
+        "rolling_zscore": "rolling_zscore",
+        "mad": "mad",
+        "minmax": "minmax",
+        "iqr": "IQR"
+    }
 
     @runtime_dependency(
         module="autots",
         err_msg=(
-            "Please run `pip3 install autots` to "
-            "install the required dependencies for AutoTS."
+                "Please run `pip3 install autots` to "
+                "install the required dependencies for AutoTS."
         ),
     )
     def _build_model(self) -> AnomalyOutput:
         from autots.evaluator.anomaly_detector import AnomalyDetector
 
-        method = self.spec.model_kwargs.get("method")
-        transform_dict = self.spec.model_kwargs.get("transform_dict", {})
+        method = SupportedModels.ISOLATIONFOREST if self.spec.model == SupportedModels.AutoTS else self.spec.model
+        model_params = {"method": self.model_mapping[method],
+                        "transform_dict": self.spec.model_kwargs.get("transform_dict", {}),
+                        "output": self.spec.model_kwargs.get("output", "univariate"), "method_params": {}}
+        # Supported methods with contamination param
+        if method in [SupportedModels.ISOLATIONFOREST, SupportedModels.LOF, SupportedModels.EE]:
+            model_params["method_params"][
+                "contamination"] = self.spec.contamination if self.spec.contamination else 0.01
+        else:
+            if self.spec.contamination:
+                logger.warn(
+                    f"The contamination parameter is not supported for the selected model \"{method}\" and will "
+                    f"be ignored.")
+        logger.info(f"model params: {model_params}")
 
-        if method == "random" or method == "deep" or method == "fast":
-            new_params = AnomalyDetector.get_new_params(method=method)
-            transform_dict = new_params.pop("transform_dict")
-
-            for key, value in new_params.items():
-                self.spec.model_kwargs[key] = value
-
-        if self.spec.model_kwargs.get("output") is None:
-            self.spec.model_kwargs["output"] = "univariate"
-
-        if "transform_dict" not in self.spec.model_kwargs:
-            self.spec.model_kwargs["transform_dict"] = transform_dict
-
-        if self.spec.contamination != 0.1:  # TODO: remove hard-coding
-            self.spec.model_kwargs.get("method_params", {})[
-                "contamination"
-            ] = self.spec.contamination
-
-        model = AnomalyDetector(**self.spec.model_kwargs)
+        model = AnomalyDetector(**model_params)
 
         date_column = self.spec.datetime_column.name
 
@@ -55,9 +58,7 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
 
         for target, df in self.datasets.full_data_dict.items():
             data = df.set_index(date_column)
-
             (anomaly, score) = model.detect(data)
-
             if len(anomaly.columns) == 1:
                 score.rename(
                     columns={score.columns.values[0]: OutputColumns.SCORE_COL},
@@ -65,19 +66,15 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
                 )
                 score = 1 - score
                 score = score.reset_index(drop=False)
-
                 col = anomaly.columns.values[0]
                 anomaly[col] = anomaly[col].replace({1: 0, -1: 1})
                 anomaly.rename(columns={col: OutputColumns.ANOMALY_COL}, inplace=True)
                 anomaly = anomaly.reset_index(drop=False)
-
                 anomaly_output.add_output(target, anomaly, score)
-
             else:
                 raise NotImplementedError(
                     "Multi-Output Anomaly Detection is not yet supported in autots"
                 )
-
         return anomaly_output
 
     def _generate_report(self):
