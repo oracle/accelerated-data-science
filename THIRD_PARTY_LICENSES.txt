@@ -471,6 +471,11 @@ rrcf
 * Source code: https://github.com/kLabUM/rrcf
 * Project home: https://github.com/kLabUM/rrcf
 
+Merlion
+* Copyright 2021 Salesforce.com Inc
+* License: BSD-3 Clause License
+* Source code: https://github.com/salesforce/Merlion
+* Project Home: https://github.com/salesforce/Merlion
 
 =============================== Licenses ===============================
 ------------------------------------------------------------------------

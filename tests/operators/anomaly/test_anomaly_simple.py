@@ -52,7 +52,7 @@ for m in MODELS:
     for d in DATASETS:
         parameters_short.append((m, d))
 
-MODELS = ["autots", "oneclasssvm", "isolationforest", "randomcutforest"]
+MODELS = ["autots", "oneclasssvm", "isolationforest", "randomcutforest", "merlion_ad"]
 
 @pytest.mark.parametrize("model", ["autots"])
 def test_artificial_big(model):
