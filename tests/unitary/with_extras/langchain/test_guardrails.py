@@ -12,9 +12,8 @@ from typing import Any, List, Dict, Mapping, Optional
 from unittest import TestCase
 import pytest
 
-pytestmark = pytest.mark.skipif(
-    sys.version_info < (3, 9), reason="Requires Python 3.9 or higher"
-)
+if sys.version_info < (3, 9):
+    pytest.skip("Requires Python 3.9 or higher", allow_module_level=True)
 
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 from langchain.llms.base import LLM
