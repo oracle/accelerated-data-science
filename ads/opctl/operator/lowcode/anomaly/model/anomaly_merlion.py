@@ -1,11 +1,9 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import importlib
-from collections import defaultdict
 
 import numpy as np
 import pandas as pd
@@ -100,20 +98,24 @@ class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
                 for model_name, (model_config, model) in model_config_map.items():
                     model_config = model_config(**self.spec.model_kwargs)
                     if hasattr(model_config, "target_seq_index"):
-                        model_config.target_seq_index = df.columns.get_loc(self.spec.target_column)
+                        model_config.target_seq_index = df.columns.get_loc(
+                            self.spec.target_column
+                        )
                     model = model(model_config)
-
 
                     scores = model.train(train_data=data, anomaly_labels=None)
 
                     try:
                         y_pred = model.get_anomaly_label(data)
-                        y_pred =(y_pred.to_pd().reset_index()["anom_score"] > 0).astype(int)
+                        y_pred = (
+                            y_pred.to_pd().reset_index()["anom_score"] > 0
+                        ).astype(int)
                     except Exception as e:
                         y_pred = (
                             scores.to_pd().reset_index()["anom_score"]
                             > np.percentile(
-                                scores.to_pd().reset_index()["anom_score"], anomaly_threshold
+                                scores.to_pd().reset_index()["anom_score"],
+                                anomaly_threshold,
                             )
                         ).astype(int)
 
