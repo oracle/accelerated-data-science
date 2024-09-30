@@ -18,7 +18,6 @@ from ads.opctl.operator.lowcode.anomaly.const import (
     MERLIONAD_MODEL_MAP,
     OutputColumns,
 )
-from tests.integration import other
 
 from .anomaly_dataset import AnomalyOutput
 from .base_model import AnomalyOperatorBaseModel
@@ -100,6 +99,8 @@ class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
                 data = TimeSeries.from_pd(data)
                 for model_name, (model_config, model) in model_config_map.items():
                     model_config = model_config(**self.spec.model_kwargs)
+                    if hasattr(model_config, "target_seq_index"):
+                        model_config.target_seq_index = df.columns.get_loc(self.spec.target_column)
                     model = model(model_config)
 
 
