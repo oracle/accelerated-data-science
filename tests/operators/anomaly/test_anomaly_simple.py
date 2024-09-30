@@ -17,7 +17,7 @@ from datetime import datetime
 from ads.opctl.operator.cmd import run
 
 
-MODELS = ["autots"]  # "automlx",
+MODELS = ["autots", "merlion_ad"]  # "automlx",
 
 # Mandatory YAML parameters
 TEMPLATE_YAML = {
@@ -52,9 +52,9 @@ for m in MODELS:
     for d in DATASETS:
         parameters_short.append((m, d))
 
-MODELS = ["autots", "oneclasssvm", "isolationforest", "randomcutforest", "merlion_ad"]
+MODELS = ["autots", "oneclasssvm", "isolationforest", "randomcutforest"]
 
-@pytest.mark.parametrize("model", ["autots"])
+@pytest.mark.parametrize("model", ["autots", "merlion_ad"])
 def test_artificial_big(model):
     all_data = []
     TARGET_COLUMN = "sensor"
