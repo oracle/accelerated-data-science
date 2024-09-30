@@ -177,10 +177,8 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
 
         return None
 
-
-
     @handle_exceptions
-    def get(self,*args, **kwargs):
+    def get(self, *args, **kwargs):
         """
         Finds a list of matching models from hugging face based on query string provided from users.
 
@@ -194,13 +192,11 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
             Returns the matching model ids string
         """
 
-        query=self.get_argument("query",default=None)
+        query = self.get_argument("query", default=None)
         if not query:
-            raise HTTPError(400,Errors.MISSING_REQUIRED_PARAMETER.format("query"))
-        models=list_hf_models(query)
-        return self.finish({"models":models})
-
-
+            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("query"))
+        models = list_hf_models(query)
+        return self.finish({"models": models})
 
     @handle_exceptions
     def post(self, *args, **kwargs):
@@ -235,9 +231,9 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
             )
 
         # Check pipeline_tag, it should be `text-generation`
-        if (
-            not hf_model_info.pipeline_tag
-            or hf_model_info.pipeline_tag.lower() != ModelTask.TEXT_GENERATION
+        if not (
+            hf_model_info.pipeline_tag
+            and hf_model_info.pipeline_tag.lower() in ModelTask
         ):
             raise AquaRuntimeError(
                 f"Unsupported pipeline tag for the chosen model: '{hf_model_info.pipeline_tag}'. "
