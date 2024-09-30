@@ -6,6 +6,7 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
+from aqua.model.constants import ModelTask
 import pytest
 from huggingface_hub.hf_api import HfApi, ModelInfo
 from huggingface_hub.utils import GatedRepoError
@@ -276,7 +277,8 @@ class TestAquaHuggingFaceHandler:
                 '{"status": 400, "message": "Something went wrong with your request.", '
                 '"service_payload": {}, "reason": "Unsupported pipeline tag for the chosen '
                 "model: 'not-text-generation'. AQUA currently supports the following tasks only: "
-                'text-generation. Please select a model with a compatible pipeline tag.", "request_id": "###"}'
+                f'{", ".join(ModelTask.values())}. '
+                'Please select a model with a compatible pipeline tag.", "request_id": "###"}'
             )
         get_hf_model_info.cache_clear()
 
