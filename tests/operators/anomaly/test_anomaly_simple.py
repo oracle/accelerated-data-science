@@ -17,7 +17,7 @@ from datetime import datetime
 from ads.opctl.operator.cmd import run
 
 
-MODELS = ["autots", "merlion_ad"]  # "automlx",
+MODELS = ["autots"]  # "automlx",
 
 # Mandatory YAML parameters
 TEMPLATE_YAML = {
