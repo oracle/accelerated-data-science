@@ -6,21 +6,21 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
-from aqua.model.constants import ModelTask
 import pytest
 from huggingface_hub.hf_api import HfApi, ModelInfo
 from huggingface_hub.utils import GatedRepoError
 from notebook.base.handlers import IPythonHandler
 
 from ads.aqua.common.errors import AquaRuntimeError
+from ads.aqua.common.utils import get_hf_model_info
 from ads.aqua.extension.model_handler import (
+    AquaHuggingFaceHandler,
     AquaModelHandler,
     AquaModelLicenseHandler,
-    AquaHuggingFaceHandler,
 )
 from ads.aqua.model import AquaModelApp
+from ads.aqua.model.constants import ModelTask
 from ads.aqua.model.entities import AquaModel, AquaModelSummary, HFModelSummary
-from ads.aqua.common.utils import get_hf_model_info
 
 
 class ModelHandlerTestCase(TestCase):
