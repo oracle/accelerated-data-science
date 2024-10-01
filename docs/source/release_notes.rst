@@ -2,7 +2,7 @@
 Release Notes
 =============
 
-2.12.1
+2.12.0
 -------
 Release date: October 1, 2024
 
