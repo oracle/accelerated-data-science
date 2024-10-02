@@ -13,7 +13,6 @@ from ads.aqua.common.utils import get_hf_model_info, list_hf_models
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.model import AquaModelApp
-from ads.aqua.model.constants import ModelTask
 from ads.aqua.model.entities import AquaModelSummary, HFModelSummary
 from ads.aqua.ui import ModelFormat
 
@@ -230,16 +229,17 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
                 "Please verify the model's status on the Hugging Face Model Hub or select a different model."
             )
 
-        # Check pipeline_tag, it should be `text-generation`
-        if not (
-            hf_model_info.pipeline_tag
-            and hf_model_info.pipeline_tag.lower() in ModelTask
-        ):
-            raise AquaRuntimeError(
-                f"Unsupported pipeline tag for the chosen model: '{hf_model_info.pipeline_tag}'. "
-                f"AQUA currently supports the following tasks only: {', '.join(ModelTask.values())}. "
-                "Please select a model with a compatible pipeline tag."
-            )
+        # Commented the validation below to let users to register any model type.
+        # # Check pipeline_tag, it should be `text-generation`
+        # if not (
+        #     hf_model_info.pipeline_tag
+        #     and hf_model_info.pipeline_tag.lower() in ModelTask
+        # ):
+        #     raise AquaRuntimeError(
+        #         f"Unsupported pipeline tag for the chosen model: '{hf_model_info.pipeline_tag}'. "
+        #         f"AQUA currently supports the following tasks only: {', '.join(ModelTask.values())}. "
+        #         "Please select a model with a compatible pipeline tag."
+        #     )
 
         # Check if it is a service/verified model
         aqua_model_info: AquaModelSummary = self._find_matching_aqua_model(
