@@ -8,6 +8,7 @@ from ads.opctl.operator.lowcode.anomaly.utils import select_auto_model
 from ..const import NonTimeADSupportedModels, SupportedModels
 from ..operator_config import AnomalyOperatorConfig
 from .anomaly_dataset import AnomalyDatasets
+from .anomaly_merlion import AnomalyMerlionOperatorModel
 from .automlx import AutoMLXOperatorModel
 from .autots import AutoTSOperatorModel
 
@@ -48,6 +49,7 @@ class AnomalyOperatorModelFactory:
         SupportedModels.AutoMLX: AutoMLXOperatorModel,
         # SupportedModels.TODS: TODSOperatorModel,
         SupportedModels.AutoTS: AutoTSOperatorModel,
+        SupportedModels.MerilonAD: AnomalyMerlionOperatorModel
     }
 
     _NonTime_MAP = {

@@ -54,7 +54,8 @@ for m in MODELS:
 
 MODELS = ["autots", "oneclasssvm", "isolationforest", "randomcutforest"]
 
-@pytest.mark.parametrize("model", ["autots"])
+
+@pytest.mark.parametrize("model", ["autots", "merlion_ad"])
 def test_artificial_big(model):
     all_data = []
     TARGET_COLUMN = "sensor"

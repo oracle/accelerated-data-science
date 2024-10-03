@@ -364,6 +364,7 @@ spec:
         - oneclasssvm
         - isolationforest
         - randomcutforest
+        - merlion_ad
       meta:
         description: "The model to be used for anomaly detection"
 
