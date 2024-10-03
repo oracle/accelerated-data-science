@@ -2,6 +2,24 @@
 Release Notes
 =============
 
+2.12.0
+-------
+Release date: October 1, 2024
+
+* Update LangChain Integration to add support for chat model, streaming and async calls.
+
+2.11.19
+-------
+Release date: September 24, 2024
+
+* Fixed bugs and introduced enhancements for AI Quick Actions.
+
+2.11.18
+-------
+Release date: September 20, 2024
+
+* Added ``with_artifact()`` in ``ContainerRuntime`` class to support running container job with additional artifact.
+
 2.11.17
 -------
 Release date: August 9, 2024

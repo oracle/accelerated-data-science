@@ -22,7 +22,7 @@ Here is an example to create and run a container job:
 
 To configure ``ContainerRuntime``, you must specify the container ``image``.
 Similar to other runtime, you can add environment variables.
-You can optionally specify the `entrypoint`, `cmd`, `image_digest` and `image_signature_id` for running the container.
+You can optionally specify the `entrypoint`, `cmd`, `image_digest` and `image_signature_id` for running the container. You may also add additional artifact (file or directory) if needed. Please note that if you add a directory, it will be compressed as a zip file under `/home/datascience` and you will need to unzip if in your container.
 
 See also:
 

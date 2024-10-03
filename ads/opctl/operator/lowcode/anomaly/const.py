@@ -21,6 +21,7 @@ class NonTimeADSupportedModels(str, metaclass=ExtendedEnumMeta):
 
     OneClassSVM = "oneclasssvm"
     IsolationForest = "isolationforest"
+    RandomCutForest = "randomcutforest"
     # TODO : Add DBScan
     # DBScan = "dbscan"
     
