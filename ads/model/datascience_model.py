@@ -36,6 +36,10 @@ from ads.model.model_metadata import (
     ModelCustomMetadataItem,
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
+    ModelBackupSetting,
+    ModelRetentionSetting,
+    ModelRetentionOperationDetails,
+    ModelBackupOperationDetails
 )
 from ads.model.service.oci_datascience_model import (
     ModelProvenanceNotFoundError,
@@ -120,6 +124,19 @@ class DataScienceModel(Builder):
         Model version id
     model_file_description: dict
         Contains object path details for models created by reference.
+    backup_setting: ModelBackupSetting
+        The value to assign to the backup_setting property of this CreateModelDetails.
+    retention_setting: ModelRetentionSetting
+        The value to assign to the retention_setting property of this CreateModelDetails.
+    retention_operation_details: ModelRetentionOperationDetails
+        The value to assign to the retention_operation_details property for the Model.
+    backup_operation_details: ModelBackupOperationDetails
+        The value to assign to the backup_operation_details property for the Model.
+
+
+
+    
+
 
     Methods
     -------
@@ -178,7 +195,6 @@ class DataScienceModel(Builder):
         Sets path details for models created by reference. Input can be either a dict, string or json file and
         the schema is dictated by model_file_description_schema.json
 
-
     Examples
     --------
     >>> ds_model = (DataScienceModel()
@@ -217,7 +233,12 @@ class DataScienceModel(Builder):
     CONST_MODEL_VERSION_ID = "versionId"
     CONST_TIME_CREATED = "timeCreated"
     CONST_LIFECYCLE_STATE = "lifecycleState"
+    CONST_LIFECYCLE_DETAILS = "lifecycleDetails"
     CONST_MODEL_FILE_DESCRIPTION = "modelDescription"
+    CONST_BACKUP_SETTING = "backupSetting"
+    CONST_RETENTION_SETTING = "retentionSetting"
+    CONST_BACKUP_OPERATION_DETAILS = "backupOperationDetails"
+    CONST_RETENTION_OPERATION_DETAILS = "retentionOperationDetails"
 
     attribute_map = {
         CONST_ID: "id",
@@ -239,7 +260,12 @@ class DataScienceModel(Builder):
         CONST_MODEL_VERSION_ID: "version_id",
         CONST_TIME_CREATED: "time_created",
         CONST_LIFECYCLE_STATE: "lifecycle_state",
+        CONST_LIFECYCLE_DETAILS: "lifecycle_details",
         CONST_MODEL_FILE_DESCRIPTION: "model_description",
+        CONST_BACKUP_SETTING: "backup_setting",
+        CONST_RETENTION_SETTING: "retention_setting",
+        CONST_BACKUP_OPERATION_DETAILS: "backup_operation_details",
+        CONST_RETENTION_OPERATION_DETAILS: "retention_operation_details"
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -685,6 +711,114 @@ class DataScienceModel(Builder):
 
         return self.set_spec(self.CONST_MODEL_FILE_DESCRIPTION, json_data)
 
+    @property
+    def retention_setting(self) -> ModelRetentionSetting:
+        """
+        Gets the retention_setting of this model.
+
+        :return: The retention_setting of this model.
+        :rtype: RetentionSetting
+        """
+        return self.get_spec(self.CONST_RETENTION_SETTING)
+    
+    def with_retention_setting(self, retention_setting: Union[Dict, ModelRetentionSetting]) -> "DataScienceModel":
+        """
+        Sets the retention setting details for the model.
+
+        Parameters
+        ----------
+        retention_setting : Union[Dict, RetentionSetting]
+            The retention setting details for the model. Can be provided as either a dictionary or 
+            an instance of the `RetentionSetting` class.
+
+        Returns
+        -------
+        DataScienceModel
+            The `DataScienceModel` instance (self) for method chaining.
+        """
+        if retention_setting and isinstance(retention_setting, dict):
+            try:
+                retention_setting = ModelRetentionSetting.from_dict(retention_setting)
+            except Exception as err:
+                logger.warn(f"Failed to convert retention_setting from dict: {err}")
+
+        return self.set_spec(self.CONST_RETENTION_SETTING, retention_setting)
+
+
+
+    @property
+    def backup_setting(self) -> ModelBackupSetting:
+        """
+        Gets the backup_setting of this model.
+
+        :return: The backup_setting of this model.
+        :rtype: BackupSetting
+        """
+        return self.get_spec(self.CONST_BACKUP_SETTING)
+    
+    def with_backup_setting(self, backup_setting: Union[Dict, ModelBackupSetting]) -> "DataScienceModel":
+        """
+        Sets the model's backup setting details.
+
+        Parameters
+        ----------
+        backup_setting : Union[Dict, BackupSetting]
+            The backup setting details for the model. This can be passed as either a dictionary or
+            an instance of the `BackupSetting` class.
+
+        Returns
+        -------
+        DataScienceModel
+            The `DataScienceModel` instance (self) for method chaining.
+        """
+        if backup_setting and isinstance(backup_setting, dict):
+            try:
+                backup_setting = ModelBackupSetting.from_dict(backup_setting)
+            except Exception as err:
+                logger.warn(f"Failed to convert backup_setting from dict: {err}")
+
+        return self.set_spec(self.CONST_BACKUP_SETTING, backup_setting)
+    
+    @property
+    def retention_operation_details(self) -> ModelRetentionOperationDetails:
+        """
+        Gets the retention_operation_details of this Model using the spec constant.
+
+        :return: The retention_operation_details of this Model.
+        :rtype: ModelRetentionOperationDetails
+        """
+        return self.get_spec(self.CONST_RETENTION_OPERATION_DETAILS)
+
+    @retention_operation_details.setter
+    def retention_operation_details(self, retention_operation_details: ModelRetentionOperationDetails) -> "DataScienceModel":
+        """
+        Sets the retention_operation_details of this Model using the spec constant.
+
+        :param retention_operation_details: The retention_operation_details of this Model.
+        :type: ModelRetentionOperationDetails
+        """
+        return self.set_spec(self.CONST_RETENTION_OPERATION_DETAILS, retention_operation_details)
+    
+    @property
+    def backup_operation_details(self) -> "ModelBackupOperationDetails":
+        """
+        Gets the backup_operation_details of this Model using the spec constant.
+
+        :return: The backup_operation_details of this Model.
+        :rtype: ModelBackupOperationDetails
+        """
+        return self.get_spec(self.CONST_BACKUP_OPERATION_DETAILS)
+
+    @backup_operation_details.setter
+    def backup_operation_details(self, backup_operation_details: "ModelBackupOperationDetails") -> "DataScienceModel":
+        """
+        Sets the backup_operation_details of this Model using the spec constant.
+
+        :param backup_operation_details: The backup_operation_details of this Model.
+        :type: ModelBackupOperationDetails
+        """
+        return self.set_spec(self.CONST_BACKUP_OPERATION_DETAILS, backup_operation_details)
+
     def create(self, **kwargs) -> "DataScienceModel":
         """Creates datascience model.
 
@@ -900,6 +1034,8 @@ class DataScienceModel(Builder):
         artifact_uploader.upload()
 
         self._remove_file_description_artifact()
+    
+    
 
     def _remove_file_description_artifact(self):
         """Removes temporary model file description artifact for model by reference."""
@@ -1181,6 +1317,8 @@ class DataScienceModel(Builder):
             self.CONST_CUSTOM_METADATA: "_to_oci_metadata",
             self.CONST_DEFINED_METADATA: "_to_oci_metadata",
             self.CONST_PROVENANCE_METADATA: "_to_oci_metadata",
+            self.CONST_BACKUP_SETTING: "to_json",
+            self.CONST_RETENTION_SETTING: "to_json"
         }
         dsc_spec = {}
         for infra_attr, dsc_attr in self.attribute_map.items():
@@ -1219,6 +1357,8 @@ class DataScienceModel(Builder):
             self.CONST_OUTPUT_SCHEMA: [Schema.from_json, json.loads],
             self.CONST_CUSTOM_METADATA: ModelCustomMetadata._from_oci_metadata,
             self.CONST_DEFINED_METADATA: ModelTaxonomyMetadata._from_oci_metadata,
+            self.CONST_BACKUP_SETTING: ModelBackupSetting.from_json,
+            self.CONST_RETENTION_SETTING: ModelRetentionSetting.from_json,
         }
 
         # Update the main properties

@@ -1761,3 +1761,83 @@ class ModelProvenanceMetadata(DataClassSerializable):
             Serialized version of object as a YAML string
         """
         return self.to_yaml()
+
+
+class CustomerNotificationType(str, metaclass=ExtendedEnumMeta):
+    NONE = "NONE"
+    ALL = "ALL"
+    ON_FAILURE = "ON_FAILURE"
+    ON_SUCCESS = "ON_SUCCESS"
+
+
+class ModelBackupSettingDetailsMetadata:
+    """
+    Class that represents Model Backup Setting Details Metadata.
+
+    Methods
+    -------
+    to_dict(self) -> Dict:
+        Serializes the backup settings into a dictionary.
+    from_dict(cls, data: Dict) -> 'ModelBackupSettingDetailsMetadata':
+        Constructs backup settings from a dictionary.
+    to_json(self) -> str:
+        Serializes the backup settings into a JSON string.
+    from_json(cls, json_str: str) -> 'ModelBackupSettingDetailsMetadata':
+        Constructs backup settings from a JSON string.
+    to_yaml(self) -> str:
+        Serializes the backup settings into a YAML string.
+    validate(self) -> bool:
+        Validates the backup settings details.
+    """
+
+    def __init__(self, is_backup_enabled: Optional[bool] = None, backup_region: Optional[str] = None,
+                 customer_notification_type: Optional[CustomerNotificationType] = None):
+        self.is_backup_enabled = is_backup_enabled if is_backup_enabled is not None else False
+        self.backup_region = backup_region
+        self.customer_notification_type = customer_notification_type if customer_notification_type is not None else CustomerNotificationType.NONE
+
+    def to_dict(self) -> Dict:
+        """Serializes the backup settings into a dictionary."""
+        return {
+            "is_backup_enabled": self.is_backup_enabled,
+            "backup_region": self.backup_region,
+            "customer_notification_type": self.customer_notification_type.value
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'ModelBackupSettingDetailsMetadata':
+        """Constructs backup settings from a dictionary."""
+        return cls(
+            is_backup_enabled=data.get("is_backup_enabled"),
+            backup_region=data.get("backup_region"),
+            customer_notification_type=CustomerNotificationType(data.get("customer_notification_type", CustomerNotificationType.NONE.value))
+        )
+
+    def to_json(self) -> str:
+        """Serializes the backup settings into a JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ModelBackupSettingDetailsMetadata':
+        """Constructs backup settings from a JSON string."""
+        data = json.loads(json_str)
+        return cls.from_dict(data)
+
+    def to_yaml(self) -> str:
+        """Serializes the backup settings into a YAML string."""
+        return yaml.dump(self.to_dict())
+
+    def validate(self) -> bool:
+        """Validates the backup settings details. Returns True if valid, False otherwise."""
+        if not isinstance(self.is_backup_enabled, bool):
+            return False
+        if self.backup_region and not isinstance(self.backup_region, str):
+            return False
+        if not isinstance(self.customer_notification_type, CustomerNotificationType):
+            return False
+        return True
+
+    def __repr__(self):
+        return f"ModelBackupSettingDetailsMetadata(is_backup_enabled={self.is_backup_enabled}, backup_region={self.backup_region}, customer_notification_type={self.customer_notification_type})"
+
+
