@@ -31,7 +31,6 @@ from ..const import SupportedModels
 from abc import ABC, abstractmethod
 from ..operator_config import PostprocessingSteps
 
-
 class HistoricalData(AbstractData):
     def __init__(self, spec: dict):
         super().__init__(spec=spec, name="historical_data")
