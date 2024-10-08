@@ -323,8 +323,8 @@ class ForecastOutput:
         --------
         None
         """
-        min_threshold = self.postprocessing.set_min_forecast
-        max_threshold = self.postprocessing.set_max_forecast
+        min_threshold = self.postprocessing.minimum_value
+        max_threshold = self.postprocessing.maximum_value
         if min_threshold is not None:
             forecast_val = np.maximum(forecast_val, min_threshold)
         if max_threshold is not None:

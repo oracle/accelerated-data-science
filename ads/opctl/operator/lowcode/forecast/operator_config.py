@@ -34,8 +34,8 @@ class DateTimeColumn(DataClassSerializable):
 class PostprocessingSteps(DataClassSerializable):
     """Class representing postprocessing steps for operator."""
 
-    set_min_forecast: int = None
-    set_max_forecast: int = None
+    minimum_value: int = None
+    maximum_value: int = None
 
 
 @dataclass(repr=True)
