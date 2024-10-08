@@ -7,10 +7,13 @@
 """Test OCI Data Science Model Deployment Endpoint."""
 
 import sys
+from typing import Any, AsyncGenerator, Dict, Generator
 from unittest import mock
+
 import pytest
 from langchain_core.messages import AIMessage, AIMessageChunk
 from requests.exceptions import HTTPError
+
 from ads.llm import ChatOCIModelDeploymentVLLM, ChatOCIModelDeploymentTGI
 
 
@@ -70,36 +73,42 @@ CONST_ASYNC_STREAM_RESPONSE = (
     for delta in CONST_STREAM_DELTAS
 )
 
+pytestmark = pytest.mark.skipif(
+    sys.version_info < (3, 9), reason="Requires Python 3.9 or higher"
+)
 
-def mocked_requests_post(self, **kwargs):
+
+class MockResponse:
+    """Represents a mocked response."""
+
+    def __init__(self, json_data: Dict, status_code: int = 200):
+        self.json_data = json_data
+        self.status_code = status_code
+
+    def raise_for_status(self) -> None:
+        """Mocked raise for status."""
+        if 400 <= self.status_code < 600:
+            raise HTTPError()
+
+    def json(self) -> Dict:
+        """Returns mocked json data."""
+        return self.json_data
+
+    def iter_lines(self, chunk_size: int = 4096) -> Generator[bytes, None, None]:
+        """Returns a generator of mocked streaming response."""
+        return CONST_STREAM_RESPONSE
+
+    @property
+    def text(self) -> str:
+        """Returns the mocked text representation."""
+        return ""
+
+
+def mocked_requests_post(url: str, **kwargs: Any) -> MockResponse:
     """Method to mock post requests"""
 
-    class MockResponse:
-        """Represents a mocked response."""
-
-        def __init__(self, json_data, status_code=200):
-            self.json_data = json_data
-            self.status_code = status_code
-
-        def raise_for_status(self):
-            """Mocked raise for status."""
-            if 400 <= self.status_code < 600:
-                raise HTTPError("", response=self)
-
-        def json(self):
-            """Returns mocked json data."""
-            return self.json_data
-
-        def iter_lines(self, chunk_size=4096):
-            """Returns a generator of mocked streaming response."""
-            return CONST_STREAM_RESPONSE
-
-        @property
-        def text(self):
-            return ""
-
-    payload = kwargs.get("json")
-    messages = payload.get("messages")
+    payload: dict = kwargs.get("json", {})
+    messages: list = payload.get("messages", [])
     prompt = messages[0].get("content")
 
     if prompt == CONST_PROMPT:
@@ -112,9 +121,10 @@ def mocked_requests_post(self, **kwargs):
 
 
 @pytest.mark.requires("ads")
+@pytest.mark.requires("langchain_openai")
 @mock.patch("ads.common.auth.default_signer", return_value=dict(signer=None))
 @mock.patch("requests.post", side_effect=mocked_requests_post)
-def test_invoke_vllm(mock_post, mock_auth) -> None:
+def test_invoke_vllm(*args: Any) -> None:
     """Tests invoking vLLM endpoint."""
     llm = ChatOCIModelDeploymentVLLM(endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME)
     output = llm.invoke(CONST_PROMPT)
@@ -123,9 +133,10 @@ def test_invoke_vllm(mock_post, mock_auth) -> None:
 
 
 @pytest.mark.requires("ads")
+@pytest.mark.requires("langchain_openai")
 @mock.patch("ads.common.auth.default_signer", return_value=dict(signer=None))
 @mock.patch("requests.post", side_effect=mocked_requests_post)
-def test_invoke_tgi(mock_post, mock_auth) -> None:
+def test_invoke_tgi(*args: Any) -> None:
     """Tests invoking TGI endpoint using OpenAI Spec."""
     llm = ChatOCIModelDeploymentTGI(endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME)
     output = llm.invoke(CONST_PROMPT)
@@ -134,24 +145,32 @@ def test_invoke_tgi(mock_post, mock_auth) -> None:
 
 
 @pytest.mark.requires("ads")
+@pytest.mark.requires("langchain_openai")
 @mock.patch("ads.common.auth.default_signer", return_value=dict(signer=None))
 @mock.patch("requests.post", side_effect=mocked_requests_post)
-def test_stream_vllm(mock_post, mock_auth) -> None:
+def test_stream_vllm(*args: Any) -> None:
     """Tests streaming with vLLM endpoint using OpenAI spec."""
     llm = ChatOCIModelDeploymentVLLM(
         endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME, streaming=True
     )
-    output = AIMessageChunk("")
+    output = None
     count = 0
     for chunk in llm.stream(CONST_PROMPT):
         assert isinstance(chunk, AIMessageChunk)
-        output += chunk
+        if output is None:
+            output = chunk
+        else:
+            output += chunk
         count += 1
     assert count == 5
-    assert output.content.strip() == CONST_COMPLETION
+    assert output is not None
+    if output is not None:
+        assert str(output.content).strip() == CONST_COMPLETION
 
 
-async def mocked_async_streaming_response(*args, **kwargs):
+async def mocked_async_streaming_response(
+    *args: Any, **kwargs: Any
+) -> AsyncGenerator[bytes, None]:
     """Returns mocked response for async streaming."""
     for item in CONST_ASYNC_STREAM_RESPONSE:
         yield item
@@ -159,6 +178,7 @@ async def mocked_async_streaming_response(*args, **kwargs):
 
 @pytest.mark.asyncio
 @pytest.mark.requires("ads")
+@pytest.mark.requires("langchain_openai")
 @mock.patch(
     "ads.common.auth.default_signer", return_value=dict(signer=mock.MagicMock())
 )
@@ -166,7 +186,7 @@ async def mocked_async_streaming_response(*args, **kwargs):
     "langchain_community.utilities.requests.Requests.apost",
     mock.MagicMock(),
 )
-async def test_stream_async(mock_auth):
+async def test_stream_async(*args: Any) -> None:
     """Tests async streaming."""
     llm = ChatOCIModelDeploymentVLLM(
         endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME, streaming=True
@@ -176,6 +196,5 @@ async def test_stream_async(mock_auth):
         "_aiter_sse",
         mock.MagicMock(return_value=mocked_async_streaming_response()),
     ):
-
-        chunks = [chunk.content async for chunk in llm.astream(CONST_PROMPT)]
+        chunks = [str(chunk.content) async for chunk in llm.astream(CONST_PROMPT)]
     assert "".join(chunks).strip() == CONST_COMPLETION

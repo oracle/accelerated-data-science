@@ -5,8 +5,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
+"""LLM for OCI data science model deployment endpoint."""
+
 import json
 import logging
+import traceback
 from typing import (
     Any,
     AsyncIterator,
@@ -21,7 +24,6 @@ from typing import (
 
 import aiohttp
 import requests
-import traceback
 from langchain_core.callbacks import (
     AsyncCallbackManagerForLLMRun,
     CallbackManagerForLLMRun,
@@ -29,9 +31,10 @@ from langchain_core.callbacks import (
 from langchain_core.language_models.llms import BaseLLM, create_base_retry_decorator
 from langchain_core.load.serializable import Serializable
 from langchain_core.outputs import Generation, GenerationChunk, LLMResult
-from langchain_core.utils import get_from_dict_or_env, pre_init
+from langchain_core.utils import get_from_dict_or_env
+from pydantic import Field, model_validator
+
 from langchain_community.utilities.requests import Requests
-from pydantic import Field
 
 logger = logging.getLogger(__name__)
 
@@ -83,11 +86,12 @@ class BaseOCIModelDeployment(Serializable):
     max_retries: int = 3
     """Maximum number of retries to make when generating."""
 
-    @pre_init
-    def validate_environment(  # pylint: disable=no-self-argument
-        cls, values: Dict
-    ) -> Dict:
-        """Validate that python package exists in environment."""
+    @model_validator(mode="before")
+    @classmethod
+    def validate_environment(cls, values: Dict) -> Dict:
+        """Checks if oracle-ads is installed and
+        get credentials/endpoint from environment.
+        """
         try:
             import ads
 
