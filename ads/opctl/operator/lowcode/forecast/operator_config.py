@@ -15,6 +15,7 @@ from ads.opctl.operator.common.operator_config import OperatorConfig, OutputDire
 from .const import SupportedMetrics, SpeedAccuracyMode
 from .const import SupportedModels
 from ads.opctl.operator.lowcode.common.utils import find_output_dirname
+from ads.opctl.operator.lowcode.common.const import OutlierTreatmentMethods, ImputationMethods
 
 @dataclass(repr=True)
 class TestData(InputData):
@@ -30,34 +31,20 @@ class DateTimeColumn(DataClassSerializable):
 
 
 @dataclass(repr=True)
-class PreprocessingSteps(DataClassSerializable):
-    """Class representing preprocessing steps for operator."""
-
-    missing_value_imputation: bool = True
-    outlier_treatment: bool = True
-
-
-@dataclass(repr=True)
 class PostprocessingSteps(DataClassSerializable):
     """Class representing postprocessing steps for operator."""
 
-    set_min_forecast: int = 0
+    set_min_forecast: int = None
+    set_max_forecast: int = None
 
 
 @dataclass(repr=True)
-class DataPreprocessor(DataClassSerializable):
-    """Class representing operator specification preprocessing details."""
+class PreprocessingSteps(DataClassSerializable):
+    """Class representing preprocessing steps for operator."""
 
-    enabled: bool = True
-    steps: PreprocessingSteps = field(default_factory=PreprocessingSteps)
+    missing_value_imputation: str = ImputationMethods.LINEAR_INTERPOLATION
+    outlier_treatment: str = OutlierTreatmentMethods.ZSCORE_WITH_MEAN
 
-
-@dataclass(repr=True)
-class DataPostprocessor(DataClassSerializable):
-    """Class representing operator specification preprocessing details."""
-
-    enabled: bool = False
-    steps: PostprocessingSteps = field(default_factory=PostprocessingSteps)
 
 @dataclass(repr=True)
 class Tuning(DataClassSerializable):
@@ -84,8 +71,8 @@ class ForecastOperatorSpec(DataClassSerializable):
     global_explanation_filename: str = None
     local_explanation_filename: str = None
     target_column: str = None
-    preprocessing: DataPreprocessor = field(default_factory=DataPreprocessor)
-    postprocessing: DataPostprocessor = field(default_factory=DataPostprocessor)
+    preprocessing: PreprocessingSteps = field(default_factory=PreprocessingSteps)
+    postprocessing: PostprocessingSteps = field(default_factory=PostprocessingSteps)
     datetime_column: DateTimeColumn = field(default_factory=DateTimeColumn)
     target_category_columns: List[str] = field(default_factory=list)
     generate_report: bool = None
@@ -111,10 +98,10 @@ class ForecastOperatorSpec(DataClassSerializable):
         self.confidence_interval_width = self.confidence_interval_width or 0.80
         self.report_filename = self.report_filename or "report.html"
         self.preprocessing = (
-            self.preprocessing if self.preprocessing is not None else DataPreprocessor(enabled=True)
+            self.preprocessing if self.preprocessing is not None else PreprocessingSteps()
         )
         self.postprocessing = (
-            self.postprocessing if self.postprocessing is not None else DataPostprocessor(enabled=False)
+            self.postprocessing if self.postprocessing is not None else PostprocessingSteps()
         )
         # For Report Generation. When user doesn't specify defaults to True
         self.generate_report = (
@@ -131,7 +118,7 @@ class ForecastOperatorSpec(DataClassSerializable):
             else False
         )
         self.explanations_accuracy_mode = (
-            self.explanations_accuracy_mode or SpeedAccuracyMode.FAST_APPROXIMATE
+                self.explanations_accuracy_mode or SpeedAccuracyMode.FAST_APPROXIMATE
         )
 
         self.generate_model_parameters = (
@@ -149,10 +136,10 @@ class ForecastOperatorSpec(DataClassSerializable):
         self.test_metrics_filename = self.test_metrics_filename or "test_metrics.csv"
         self.forecast_filename = self.forecast_filename or "forecast.csv"
         self.global_explanation_filename = (
-            self.global_explanation_filename or "global_explanation.csv"
+                self.global_explanation_filename or "global_explanation.csv"
         )
         self.local_explanation_filename = (
-            self.local_explanation_filename or "local_explanation.csv"
+                self.local_explanation_filename or "local_explanation.csv"
         )
         self.target_column = self.target_column or "Sales"
         self.errors_dict_filename = "errors.json"

@@ -9,14 +9,15 @@ from ads.opctl.operator.lowcode.common.errors import (
     InvalidParameterError,
     DataMismatchError,
 )
-from ads.opctl.operator.lowcode.common.const import DataColumns
+from ads.opctl.operator.lowcode.common.const import DataColumns, OutlierTreatmentMethods
 from ads.opctl.operator.lowcode.common.utils import merge_category_columns
+from ads.opctl.operator.lowcode.common.const import ImputationMethods
 import pandas as pd
 from abc import ABC
 
 
 class Transformations(ABC):
-    """A class which implements transformation for forecast operator"""
+    """A class which implements transformation for operator"""
 
     def __init__(self, dataset_info, name="historical_data"):
         """
@@ -65,31 +66,20 @@ class Transformations(ABC):
             clean_df = self._format_datetime_col(clean_df)
         clean_df = self._set_multi_index(clean_df)
         clean_df = self._fill_na(clean_df) if not self.dt_column_name else clean_df
-
-        if self.preprocessing and self.preprocessing.enabled:
-            if self.name == "historical_data":
-                if self.preprocessing.steps.missing_value_imputation:
-                    try:
-                        clean_df = self._missing_value_imputation_hist(clean_df)
-                    except Exception as e:
-                        logger.debug(f"Missing value imputation failed with {e.args}")
-                else:
-                    logger.info(
-                        "Skipping missing value imputation because it is disabled"
-                    )
-                if self.preprocessing.steps.outlier_treatment:
-                    try:
-                        clean_df = self._outlier_treatment(clean_df)
-                    except Exception as e:
-                        logger.debug(f"Outlier Treatment failed with {e.args}")
-                else:
-                    logger.info("Skipping outlier treatment because it is disabled")
-            elif self.name == "additional_data":
-                clean_df = self._missing_value_imputation_add(clean_df)
-        else:
-            logger.info(
-                "Skipping all preprocessing steps because preprocessing is disabled"
-            )
+        # preprocessing steps are not supported for additional data
+        if self.name == "historical_data":
+            mvi_method = self.preprocessing.missing_value_imputation
+            try:
+                mvi = MissingValueImputer(clean_df, self.target_column_name)
+                clean_df = mvi.impute(mvi_method)
+            except Exception as e:
+                logger.debug(f"Missing value imputation failed with {e.args}")
+            ot_method = self.preprocessing.outlier_treatment
+            try:
+                ot = OutlierTreatment(clean_df, self.target_column_name)
+                clean_df = ot.outlier_treatment(ot_method)
+            except Exception as e:
+                logger.debug(f"Outlier Treatment failed with {e.args}")
         return clean_df
 
     def _remove_trailing_whitespace(self, df):
@@ -150,72 +140,6 @@ class Transformations(ABC):
             )
         return df.set_index([df.index, DataColumns.Series])
 
-    def _missing_value_imputation_hist(self, df):
-        """
-        Function fills missing values in the pandas dataframe using liner interpolation
-
-        Parameters
-        ----------
-            df : The Pandas DataFrame.
-
-        Returns
-        -------
-            A new Pandas DataFrame without missing values.
-        """
-        # missing value imputation using linear interpolation
-        df[self.target_column_name] = (
-            df[self.target_column_name]
-            .groupby(DataColumns.Series)
-            .transform(lambda x: x.interpolate(limit_direction="both"))
-        )
-        return df
-
-    def _missing_value_imputation_add(self, df):
-        """
-        Function fills missing values in the pandas dataframe using liner interpolation
-
-        Parameters
-        ----------
-            df : The Pandas DataFrame.
-
-        Returns
-        -------
-            A new Pandas DataFrame without missing values.
-        """
-        # find columns that all all NA and replace with 0
-        for col in df.columns:
-            # find next int not in list
-            i = 0
-            vals = df[col].unique()
-            while i in vals:
-                i = i + 1
-            df[col] = df[col].fillna(0)
-        return df
-
-    def _outlier_treatment(self, df):
-        """
-        Function finds outliears using z_score and treats with mean value.
-
-        Parameters
-        ----------
-            df : The Pandas DataFrame.
-
-        Returns
-        -------
-            A new Pandas DataFrame with treated outliears.
-        """
-        df["z_score"] = (
-            df[self.target_column_name]
-            .groupby(DataColumns.Series)
-            .transform(lambda x: (x - x.mean()) / x.std())
-        )
-        outliers_mask = df["z_score"].abs() > 3
-        df.loc[outliers_mask, self.target_column_name] = (
-            df[self.target_column_name]
-            .groupby(DataColumns.Series)
-            .transform(lambda x: x.mean())
-        )
-        return df.drop("z_score", axis=1)
 
     def _check_historical_dataset(self, df):
         expected_names = [self.target_column_name, self.dt_column_name] + (
@@ -252,3 +176,64 @@ class Transformations(ABC):
     def _fill_na(self, df: pd.DataFrame, na_value=0) -> pd.DataFrame:
         """Fill nans in dataframe"""
         return df.fillna(value=na_value)
+
+
+class MissingValueImputer:
+    def __init__(self, data, target_column_name):
+        self.data = data
+        self.target_column_name = target_column_name
+
+    def impute(self, method):
+        """
+        Impute missing values based on the given method.
+        """
+        self.data[self.target_column_name] = (
+            self.data[self.target_column_name]
+            .groupby(DataColumns.Series)
+            .transform(lambda x: self._apply_imputation(x, method))
+        )
+        return self.data
+
+    @staticmethod
+    def _apply_imputation(x, method):
+        """
+        provide methods for imputation.
+        """
+        if method == ImputationMethods.LINEAR_INTERPOLATION or method is None:
+            return x.interpolate(limit_direction="both")
+        elif method == ImputationMethods.MEAN:
+            return x.fillna(x.mean())
+        elif method == ImputationMethods.MEDIAN:
+            return x.fillna(x.median())
+        elif method == "none":
+            return x
+        else:
+            raise ValueError(f"Unknown method for missing value imputation: {method}")
+
+
+class OutlierTreatment:
+    def __init__(self, data, target_column_name):
+        self.data = data
+        self.target_column_name = target_column_name
+
+    def outlier_treatment(self, method):
+        """
+        Function finds outliers using z_score and treats with mean value.
+        """
+        if method == OutlierTreatmentMethods.ZSCORE_WITH_MEAN or method is None:
+            self.data["z_score"] = (
+                self.data[self.target_column_name]
+                .groupby(DataColumns.Series)
+                .transform(lambda x: (x - x.mean()) / x.std())
+            )
+            outliers_mask = self.data["z_score"].abs() > 3
+            self.data.loc[outliers_mask, self.target_column_name] = (
+                self.data[self.target_column_name]
+                .groupby(DataColumns.Series)
+                .transform(lambda x: x.mean())
+            )
+            return self.data.drop("z_score", axis=1)
+        elif method == OutlierTreatmentMethods.NONE:
+            return self.data
+        else:
+            raise ValueError(f"Unknown method for outlier treatment: {method}")

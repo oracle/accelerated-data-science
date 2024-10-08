@@ -29,7 +29,7 @@ from ads.opctl.operator.lowcode.common.errors import (
 )
 from ..const import SupportedModels
 from abc import ABC, abstractmethod
-from ..operator_config import DataPostprocessor
+from ..operator_config import PostprocessingSteps
 
 
 class HistoricalData(AbstractData):
@@ -261,7 +261,7 @@ class ForecastOutput:
         horizon: int,
         target_column: str,
         dt_column: str,
-        postprocessing: DataPostprocessor
+        postprocessing: PostprocessingSteps
     ):
         """Forecast Output contains all of the details required to generate the forecast.csv output file.
 
@@ -324,9 +324,12 @@ class ForecastOutput:
         --------
         None
         """
-        if self.postprocessing.enabled:
-            min_threshold = self.postprocessing.steps.set_min_forecast
+        min_threshold = self.postprocessing.set_min_forecast
+        max_threshold = self.postprocessing.set_max_forecast
+        if min_threshold is not None:
             forecast_val = np.maximum(forecast_val, min_threshold)
+        if max_threshold is not None:
+            forecast_val = np.minimum(forecast_val, max_threshold)
         try:
             output_i = self.series_id_map[series_id]
         except KeyError:

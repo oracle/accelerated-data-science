@@ -298,43 +298,35 @@ spec:
       type: dict
       required: false
       schema:
-        enabled:
-          type: boolean
+        missing_value_imputation:
+          type: string
           required: false
-          default: true
+          default: "linear_interpolation"
           meta:
-            description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
-        steps:
-          type: dict
+            description: "Method to handle missing values in the dataset. Default is 'linear_interpolation'.
+             Other options are 'median', 'none' and 'mean'"
+        outlier_treatment:
+          type: string
           required: false
-          schema:
-            missing_value_imputation:
-              type: boolean
-              required: false
-              default: false
-            outlier_treatment:
-              type: boolean
-              required: false
-              default: false
+          default: mean
+          meta:
+            description: "Method to handle outliers in the data. Default is 'zscore_with_mean',
+              which can be disabled by setting it to 'none.'"
 
     postprocessing:
       type: dict
       required: false
       schema:
-        enabled:
-          type: boolean
+        set_min_forecast:
+          type: integer
           required: false
-          default: false
           meta:
-            description: "postprocessing can be disabled using this flag, Defaults to false"
-        steps:
-          type: dict
+            description: "This can be used to define the minimum forecast in the output."
+        set_max_forcast:
+          type: integer
           required: false
-          schema:
-            set_min_forecast:
-              type: integer
-              required: false
-              default: 0
+          meta:
+            description: "This can be used to define the maximum forecast in the output."
 
     generate_explanations:
       type: boolean
