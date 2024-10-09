@@ -318,20 +318,14 @@ spec:
       type: dict
       required: false
       schema:
-        enabled:
-          type: boolean
+        missing_value_imputation:
+          type: string
           required: false
-          default: true
+          default: linear_interpolation
           meta:
-            description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
-        steps:
-          type: dict
-          required: false
-          schema:
-            missing_value_imputation:
-              type: boolean
-              required: false
-              default: false
+            description: "Method to handle missing values in the dataset. Default is 'linear_interpolation'.
+             Other options are 'median', 'none' and 'mean'"
+
 
     generate_report:
       type: boolean

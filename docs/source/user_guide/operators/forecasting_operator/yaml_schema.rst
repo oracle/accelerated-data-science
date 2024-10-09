@@ -49,7 +49,12 @@ Here is an example forecast.yaml with every parameter specified:
 
     * **tuning**: (optional) This dictionary specific details around tuning the NeuralProphet and Prophet models.
         * **n_trials**: The number of separate tuning jobs to run. Increasing this integer increases the time to completion, but may improve the quality.
-    * **preprocessing**: (optional) Preprocessing and feature engineering can be disabled using this flag, Defaults to true
+    * **preprocessing**: (optional) This dictionary contains steps for preprocessing such as missing_value_imputation, outlier_treatment
+        * **missing_value_imputation** (optional) Method to handle missing values in the dataset. Default is 'linear_interpolation'. Other options are 'median', 'none' and 'mean'
+        * **outlier_treatment** (optional) Method to handle outliers in the data. Default is 'zscore_with_mean', which can be disabled by setting it to 'none.'
+    * **postprocessing**: (optional) This dictionary contains steps for postprocessing such as setting min, max values.
+        * **minimum_value** (optional) This can be used to define the minimum forecast in the output.
+        * **maximum_value** (optional) This can be used to define the maximum forecast in the output.
     * **metric**: (optional) The metric to select across. Users can select among: MAPE, RMSE, MSE, and SMAPE
     * **confidence_interval_width**: (optional) The width of the confidence interval to caluclate in the forecast and report.html. Defaults to 0.80 meaning an 80% confidence interval   
 

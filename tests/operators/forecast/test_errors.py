@@ -196,7 +196,7 @@ def populate_yaml(
 ):
     if historical_data_path is None:
         historical_data_path, additional_data_path, test_data_path = setup_rossman()
-    assert tmpdirname is not None, "Error casued from incomplete setup function"
+    assert tmpdirname is not None, "Error caused from incomplete setup function"
 
     output_data_path = output_data_path or f"{tmpdirname}/results"
     yaml_i = deepcopy(TEMPLATE_YAML)
@@ -397,7 +397,7 @@ def test_0_series(operator_setup, model):
         historical_data_path=historical_data_path,
         additional_data_path=additional_data_path,
         test_data_path=test_data_path,
-        preprocessing={"enabled": False},
+        preprocessing={"missing_value_imputation": "none", "outlier_treatment": "none"},
     )
     with pytest.raises(DataMismatchError):
         run_yaml(
@@ -493,10 +493,9 @@ def test_disabling_outlier_treatment(operator_setup):
         item not in input_vals_without_outlier for item in outliers
     ), "forecast file should not contain any outliers"
 
-    # switching off outlier_treatment
-    preprocessing_steps = {"missing_value_imputation": True, "outlier_treatment": False}
-    preprocessing = {"enabled": True, "steps": preprocessing_steps}
-    yaml_i["spec"]["preprocessing"] = preprocessing
+    # switching off outlier_treatment and using mean for MVI
+    preprocessing_steps = {"missing_value_imputation": "mean", "outlier_treatment": "none"}
+    yaml_i["spec"]["preprocessing"] = preprocessing_steps
     run_yaml(
         tmpdirname=tmpdirname,
         yaml_i=yaml_i,
@@ -535,14 +534,14 @@ def test_2_series(operator_setup, model):
     historical_data_path, additional_data_path, test_data_path = setup_artificial_data(
         tmpdirname, hist_data, add_data, test_data
     )
-    preprocessing_steps = {"missing_value_imputation": True, "outlier_treatment": False}
+    preprocessing_steps = {"outlier_treatment": "none"}
     yaml_i, output_data_path = populate_yaml(
         tmpdirname=tmpdirname,
         model=model,
         historical_data_path=historical_data_path,
         additional_data_path=additional_data_path,
         test_data_path=test_data_path,
-        preprocessing={"enabled": True, "steps": preprocessing_steps},
+        preprocessing= preprocessing_steps
     )
     with pytest.raises(DataMismatchError):
         # 4 columns in historical data, but only 1 cat col specified
@@ -573,10 +572,10 @@ def test_all_series_failure(model):
         historical_data_path=historical_data_path,
         additional_data_path=additional_data_path,
     )
-    preprocessing_steps = {"missing_value_imputation": True, "outlier_treatment": False}
+    preprocessing_steps = {"outlier_treatment": "none"}
     yaml_i["spec"]["model"] = model
     yaml_i["spec"]["horizon"] = 10
-    yaml_i["spec"]["preprocessing"] = {"enabled": True, "steps": preprocessing_steps}
+    yaml_i["spec"]["preprocessing"] = preprocessing_steps
     if yaml_i["spec"].get("additional_data") is not None and model != "autots":
         yaml_i["spec"]["generate_explanations"] = True
     if model == "autots":
@@ -651,7 +650,7 @@ def test_arima_automlx_errors(operator_setup, model):
      any supported types according to the casting rule ''safe''
     Added label encoding before passing data to explainer
     """
-    preprocessing_steps = {"missing_value_imputation": True, "outlier_treatment": False}
+    preprocessing_steps = {"outlier_treatment": "none"}
     yaml_i["spec"]["horizon"] = 10
     yaml_i["spec"]["preprocessing"] = preprocessing_steps
     yaml_i["spec"]["generate_explanations"] = True

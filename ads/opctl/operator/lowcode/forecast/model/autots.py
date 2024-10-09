@@ -53,6 +53,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             horizon=self.spec.horizon,
             target_column=self.original_target_column,
             dt_column=self.spec.datetime_column.name,
+            postprocessing=self.spec.postprocessing
         )
         try:
             model = self.loaded_models if self.loaded_models is not None else None

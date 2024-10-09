@@ -45,7 +45,6 @@ def _add_unit(num, unit):
 
 def _fit_model(data, params, additional_regressors):
     from prophet import Prophet
-
     model = Prophet(**params)
     for add_reg in additional_regressors:
         model.add_regressor(add_reg)
@@ -146,6 +145,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             horizon=self.spec.horizon,
             target_column=self.original_target_column,
             dt_column=self.spec.datetime_column.name,
+            postprocessing=self.spec.postprocessing
         )
 
         Parallel(n_jobs=-1, require="sharedmem")(

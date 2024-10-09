@@ -240,6 +240,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             horizon=self.spec.horizon,
             target_column=self.original_target_column,
             dt_column=self.spec.datetime_column.name,
+            postprocessing=self.spec.postprocessing
         )
 
         for i, (s_id, df) in enumerate(full_data_dict.items()):

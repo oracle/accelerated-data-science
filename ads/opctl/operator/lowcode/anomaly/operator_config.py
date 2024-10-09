@@ -17,6 +17,7 @@ from ads.opctl.operator.common.operator_config import (
 )
 from .const import SupportedModels
 from ads.opctl.operator.lowcode.common.utils import find_output_dirname
+from ads.opctl.operator.lowcode.common.const import ImputationMethods
 
 
 @dataclass(repr=True)
@@ -41,16 +42,8 @@ class TestData(InputData):
 class PreprocessingSteps(DataClassSerializable):
     """Class representing preprocessing steps for operator."""
 
-    missing_value_imputation: bool = True
-    outlier_treatment: bool = False
+    missing_value_imputation: str = ImputationMethods.LINEAR_INTERPOLATION
 
-
-@dataclass(repr=True)
-class DataPreprocessor(DataClassSerializable):
-    """Class representing operator specification preprocessing details."""
-
-    enabled: bool = True
-    steps: PreprocessingSteps = field(default_factory=PreprocessingSteps)
 
 @dataclass(repr=True)
 class AnomalyOperatorSpec(DataClassSerializable):
@@ -70,7 +63,7 @@ class AnomalyOperatorSpec(DataClassSerializable):
     outliers_filename: str = None
     target_column: str = None
     target_category_columns: List[str] = field(default_factory=list)
-    preprocessing: bool = None
+    preprocessing: PreprocessingSteps = field(default_factory=PreprocessingSteps)
     generate_report: bool = None
     generate_metrics: bool = None
     generate_inliers: bool = None
@@ -93,7 +86,7 @@ class AnomalyOperatorSpec(DataClassSerializable):
         )
         self.model_kwargs = self.model_kwargs or dict()
         self.preprocessing = (
-            self.preprocessing if self.preprocessing is not None else DataPreprocessor(enabled=True)
+            self.preprocessing if self.preprocessing is not None else PreprocessingSteps()
         )
 
 @dataclass(repr=True)
