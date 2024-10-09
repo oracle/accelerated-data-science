@@ -21,7 +21,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads" # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.11.18"
+version = "2.12.0"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -74,6 +74,7 @@ dependencies = [
   "scikit-learn>=1.0",
   "tabulate>=0.8.9",
   "tqdm>=4.59.0",
+  "pydantic>=2.6.3",
 ]
 
 [project.optional-dependencies]
@@ -133,7 +134,7 @@ tensorflow = [
   "tensorflow<=2.15.1"  # v2.16.1 with consequence on tf2onnx v1.16.1 (latest) has an issue with Keras 3 installed in py3.11+ (https://github.com/onnx/tensorflow-onnx/issues/2319)
 ]
 text = [
-  "spacy>=3.4.2",   # the first version of spacy that supports python 3.11 is spacy v3.4.2
+  "spacy>=3.4.2,<3.8",   # the first version of spacy that supports python 3.11 is spacy v3.4.2; 3.8.2 has dependency conflict.
   "wordcloud>=1.8.1"
 ]
 torch = [
@@ -202,7 +203,7 @@ pii = [
   "spacy==3.6.1",
   "report-creator==1.0.9",
 ]
-llm = ["langchain-community<0.0.32", "langchain>=0.1.10,<0.1.14", "evaluate>=0.4.0"]
+llm = ["langchain>=0.2", "langchain-community", "langchain_openai", "pydantic>=2,<3", "evaluate>=0.4.0"]
 aqua = ["jupyter_server"]
 
 # To reduce backtracking (decrese deps install time) during test/dev env setup reducing number of versions pip is

@@ -12,7 +12,6 @@ from typing import Any, Dict, List, Optional
 import fsspec
 import yaml
 from langchain import llms
-from langchain.chains import RetrievalQA
 from langchain.chains.loading import load_chain_from_config
 from langchain.llms import loading
 from langchain.load.load import Reviver
@@ -21,7 +20,7 @@ from langchain.schema.runnable import RunnableParallel
 
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.llm import GenerativeAI, ModelDeploymentTGI, ModelDeploymentVLLM
+from ads.llm import OCIModelDeploymentVLLM, OCIModelDeploymentTGI
 from ads.llm.chain import GuardrailSequence
 from ads.llm.guardrails.base import CustomGuardrailBase
 from ads.llm.serializers.runnable_parallel import RunnableParallelSerializer
@@ -29,9 +28,8 @@ from ads.llm.serializers.retrieval_qa import RetrievalQASerializer
 
 # This is a temp solution for supporting custom LLM in legacy load_chain
 __lc_llm_dict = llms.get_type_to_cls_dict()
-__lc_llm_dict[GenerativeAI.__name__] = lambda: GenerativeAI
-__lc_llm_dict[ModelDeploymentTGI.__name__] = lambda: ModelDeploymentTGI
-__lc_llm_dict[ModelDeploymentVLLM.__name__] = lambda: ModelDeploymentVLLM
+__lc_llm_dict[OCIModelDeploymentTGI.__name__] = lambda: OCIModelDeploymentTGI
+__lc_llm_dict[OCIModelDeploymentVLLM.__name__] = lambda: OCIModelDeploymentVLLM
 
 
 def __new_type_to_cls_dict():
@@ -47,7 +45,6 @@ custom_serialization = {
     GuardrailSequence: GuardrailSequence.save,
     CustomGuardrailBase: CustomGuardrailBase.save,
     RunnableParallel: RunnableParallelSerializer.save,
-    RetrievalQA: RetrievalQASerializer.save,
 }
 
 # Mapping _type to custom deserialization functions

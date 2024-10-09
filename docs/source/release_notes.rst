@@ -2,6 +2,18 @@
 Release Notes
 =============
 
+2.12.0
+-------
+Release date: October 1, 2024
+
+* Update LangChain Integration to add support for chat model, streaming and async calls.
+
+2.11.19
+-------
+Release date: September 24, 2024
+
+* Fixed bugs and introduced enhancements for AI Quick Actions.
+
 2.11.18
 -------
 Release date: September 20, 2024
