@@ -33,6 +33,7 @@
             .with_environment_variable(GREETINGS="Welcome to OCI Data Science")
             .with_entrypoint(["/bin/sh", "-c"])
             .with_cmd("sleep 5 && echo $GREETINGS")
+            .artifact("<path/to/artifact>")
         )
     )
 
@@ -69,6 +70,7 @@
           - name: GREETINGS
             value: Welcome to OCI Data Science
           image: <region>.ocir.io/<your_tenancy>/<your_image>
+          scriptPathURI: path/to/artifact
 
 
 .. code-block:: python

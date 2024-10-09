@@ -102,6 +102,7 @@ class ModelParams(DataClassSerializable):
     presence_penalty: Optional[float] = 0.0
     frequency_penalty: Optional[float] = 0.0
     stop: Optional[Union[str, List[str]]] = field(default_factory=list)
+    model: Optional[str] = "odsc-llm"
 
 
 @dataclass(repr=False)

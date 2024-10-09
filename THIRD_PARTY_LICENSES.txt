@@ -72,6 +72,12 @@ fastavro
 * Source code: https://github.com/fastavro/fastavro
 * Project home: https://github.com/fastavro/fastavro
 
+fiona
+* Copyright (c) 2007, Sean C. Gillies
+* License: BSD 3-Clause "New" or "Revised" License
+* Source code: https://github.com/Toblerity/Fiona
+* Project home: https://github.com/Toblerity/Fiona
+
 folium
 * Copyright (C) 2013, Rob Story
 * License: MIT License
@@ -150,6 +156,18 @@ langchain
 * License: MIT license
 * Source code: https://github.com/langchain-ai/langchain
 * Project home: https://www.langchain.com/
+
+langchain-community
+* Copyright (c) 2023 LangChain, Inc.
+* License: MIT license
+* Source code: https://github.com/langchain-ai/langchain/tree/master/libs/community
+* Project home: https://github.com/langchain-ai/langchain/tree/master/libs/community
+
+langchain-openai
+* Copyright (c) 2023 LangChain, Inc.
+* License: MIT license
+* Source code: https://github.com/langchain-ai/langchain/tree/master/libs/partners/openai
+* Project home: https://github.com/langchain-ai/langchain/tree/master/libs/partners/openai
 
 lightgbm
 * Copyright (c) 2023 Microsoft Corporation
@@ -453,7 +471,19 @@ mlforecast
 * Source code: https://github.com/Nixtla/mlforecast
 * Project home: https://github.com/Nixtla/mlforecast
 
-=======
+pydantic
+* Copyright (c) 2017 to present Pydantic Services Inc. and individual contributors.
+* License: The MIT License (MIT)
+* Source code: https://github.com/pydantic/pydantic
+* Project home: https://docs.pydantic.dev/latest/
+
+rrcf
+* Copyright 2018 kLabUM
+* License: MIT License
+* Source code: https://github.com/kLabUM/rrcf
+* Project home: https://github.com/kLabUM/rrcf
+
+
 =============================== Licenses ===============================
 ------------------------------------------------------------------------
 

@@ -6,7 +6,7 @@
 
 
 import evaluate
-from langchain.pydantic_v1 import root_validator
+from pydantic.v1 import root_validator
 from .base import Guardrail
 
 

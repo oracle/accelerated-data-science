@@ -6,10 +6,16 @@
 
 try:
     import langchain
-    from ads.llm.langchain.plugins.llm_gen_ai import GenerativeAI
-    from ads.llm.langchain.plugins.llm_md import ModelDeploymentTGI
-    from ads.llm.langchain.plugins.llm_md import ModelDeploymentVLLM
-    from ads.llm.langchain.plugins.embeddings import GenerativeAIEmbeddings
+    from ads.llm.langchain.plugins.llms.oci_data_science_model_deployment_endpoint import (
+        OCIModelDeploymentVLLM,
+        OCIModelDeploymentTGI,
+    )
+    from ads.llm.langchain.plugins.chat_models.oci_data_science import (
+        ChatOCIModelDeployment,
+        ChatOCIModelDeploymentVLLM,
+        ChatOCIModelDeploymentTGI,
+    )
+    from ads.llm.chat_template import ChatTemplates
 except ImportError as ex:
     if ex.name == "langchain":
         raise ImportError(
