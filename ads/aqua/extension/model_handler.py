@@ -68,7 +68,7 @@ class AquaModelHandler(AquaAPIhandler):
         return self.finish(AquaModelApp().get(model_id))
 
     @handle_exceptions
-    def delete(self):
+    def delete(self, id=""):
         """Handles DELETE request for clearing cache"""
         url_parse = urlparse(self.request.path)
         paths = url_parse.path.strip("/")
@@ -177,10 +177,8 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
 
         return None
 
-
-
     @handle_exceptions
-    def get(self,*args, **kwargs):
+    def get(self, *args, **kwargs):
         """
         Finds a list of matching models from hugging face based on query string provided from users.
 
@@ -194,13 +192,11 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
             Returns the matching model ids string
         """
 
-        query=self.get_argument("query",default=None)
+        query = self.get_argument("query", default=None)
         if not query:
-            raise HTTPError(400,Errors.MISSING_REQUIRED_PARAMETER.format("query"))
-        models=list_hf_models(query)
-        return self.finish({"models":models})
-
-
+            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("query"))
+        models = list_hf_models(query)
+        return self.finish({"models": models})
 
     @handle_exceptions
     def post(self, *args, **kwargs):
