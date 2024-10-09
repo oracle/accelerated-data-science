@@ -67,7 +67,7 @@ class AquaModelHandler(AquaAPIhandler):
         return self.finish(AquaModelApp().get(model_id))
 
     @handle_exceptions
-    def delete(self):
+    def delete(self, id=""):
         """Handles DELETE request for clearing cache"""
         url_parse = urlparse(self.request.path)
         paths = url_parse.path.strip("/")
