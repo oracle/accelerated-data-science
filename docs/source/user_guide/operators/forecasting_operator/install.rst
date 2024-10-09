@@ -12,7 +12,7 @@ Installing Through PyPi
 
 If you are running the operator from outside of a Notebook Session, you may download ``oracle_ads[forecast]`` from pypi. 
 
-*Note: Due to our dependence on Automlx, ``oracle_ads[forecast]``  only supports Python<=3.8, != 3.9, <= 3.10.7 . Python 3.8 is the recommended version.*
+*Note: Python 3.10 is recommended.*
 
 .. code-block:: bash
 
