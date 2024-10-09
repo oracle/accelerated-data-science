@@ -19,13 +19,19 @@ from ads.llm.serialize import dump, load_from_yaml
 
 
 class ChainDeployment(GenericModel):
+    """Represents a model deployment with LangChain.
+    """
     def __init__(self, chain, **kwargs):
         self.chain = chain
+        if "model_input_serializer" not in kwargs:
+            kwargs["model_input_serializer"] = self.model_input_serializer_type.JSON
         super().__init__(**kwargs)
 
     def prepare(self, **kwargs) -> GenericModel:
         """Prepares the model artifact."""
         chain_yaml_uri = os.path.join(self.artifact_dir, "chain.yaml")
+        if not os.path.exists(self.artifact_dir):
+            os.makedirs(self.artifact_dir)
         with open(chain_yaml_uri, "w", encoding="utf-8") as f:
             f.write(yaml.safe_dump(dump(self.chain)))
 
