@@ -6,12 +6,12 @@ LangChain Integration
 .. admonition:: LangChain Community
   :class: note
 
-  While the stable integrations (such as ``OCIModelDeploymentVLLM`` and ``OCIModelDeploymentTGI``) are also available from `LangChain Community <https://python.langchain.com/docs/integrations/llms/oci_model_deployment_endpoint>`_, integrations from ADS may provide additional or experimental features in the latest updates, .
+  While the stable integrations (such as ``ChatOCIModelDeploymentVLLM`` and ``OCIModelDeploymentVLLM``) are also available from `LangChain Community <https://python.langchain.com/docs/integrations/llms/oci_model_deployment_endpoint>`_, integrations from ADS may provide additional or experimental features in the latest updates.
 
 .. admonition:: Requirements
   :class: note
 
-  The LangChain integration requires ``python>=3.9`` and ``langchain>=0.3``
+  The LangChain integration requires ``python>=3.9`` and ``langchain>=0.3``. Chat model also requires ``langchain-openai``.
 
 
 LangChain compatible models/interfaces are needed for LangChain applications to invoke LLMs deployed on OCI data science model deployment service.
