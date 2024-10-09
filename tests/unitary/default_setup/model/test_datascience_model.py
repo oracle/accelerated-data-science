@@ -74,15 +74,15 @@ OCI_MODEL_PAYLOAD = {
         {"key": "Hyperparameters"},
         {"key": "ArtifactTestResults"},
     ],
-    "backupSetting": {
-        "isBackupEnabled": True,
-        "backupRegion": "us-phoenix-1",
-        "customerNotificationType": "ALL"
+    "backup_setting": {
+        "is_backup_enabled": True,
+        "backup_region": "us-phoenix-1",
+        "customer_notification_type": "ALL"
     },
-    "retentionSetting": {
-        "archiveAfterDays": 30,
-        "deleteAfterDays": 90,
-        "customerNotificationType": "ALL"
+    "retention_setting": {
+        "archive_after_days": 30,
+        "delete_after_days": 90,
+        "customer_notification_type": "ALL"
     },
     "input_schema": '{"schema": [{"dtype": "int64", "feature_type": "Integer", "name": 0, "domain": {"values": "", "stats": {}, "constraints": []}, "required": true, "description": "0", "order": 0}], "version": "1.1"}',
     "output_schema": '{"schema": [{"dtype": "int64", "feature_type": "Integer", "name": 0, "domain": {"values": "", "stats": {}, "constraints": []}, "required": true, "description": "0", "order": 0}], "version": "1.1"}',
