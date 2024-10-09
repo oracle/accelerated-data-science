@@ -45,9 +45,7 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
                 "contamination"] = self.spec.contamination if self.spec.contamination else 0.01
         else:
             if self.spec.contamination:
-                logger.warn(
-                    f"The contamination parameter is not supported for the selected model \"{method}\" and will "
-                    f"be ignored.")
+                raise ValueError(f"The contamination parameter is not supported for the selected model \"{method}\"")
         logger.info(f"model params: {model_params}")
 
         model = AnomalyDetector(**model_params)
