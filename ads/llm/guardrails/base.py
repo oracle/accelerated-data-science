@@ -14,7 +14,7 @@ import sys
 from typing import Any, List, Dict, Tuple
 from langchain.schema.prompt import PromptValue
 from langchain.tools.base import BaseTool, ToolException
-from langchain.pydantic_v1 import BaseModel, root_validator
+from pydantic import BaseModel, model_validator
 
 
 class RunInfo(BaseModel):
@@ -190,7 +190,8 @@ class Guardrail(BaseTool):
     This is used by the ``apply_filter()`` method.
     """
 
-    @root_validator
+    @model_validator(mode="before")
+    @classmethod
     def default_name(cls, values):
         """Sets the default name of the guardrail."""
         if not values.get("name"):
