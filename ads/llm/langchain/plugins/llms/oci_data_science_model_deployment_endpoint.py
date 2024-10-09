@@ -357,6 +357,11 @@ class BaseOCIModelDeployment(Serializable):
             self.auth["signer"].refresh_security_token()
             return True
         return False
+    
+    @classmethod
+    def is_lc_serializable(cls) -> bool:
+        """Return whether this model can be serialized by LangChain."""
+        return True
 
 
 class OCIModelDeploymentLLM(BaseLLM, BaseOCIModelDeployment):
@@ -448,11 +453,6 @@ class OCIModelDeploymentLLM(BaseLLM, BaseOCIModelDeployment):
     def _llm_type(self) -> str:
         """Return type of llm."""
         return "oci_model_deployment_endpoint"
-
-    @classmethod
-    def is_lc_serializable(cls) -> bool:
-        """Return whether this model can be serialized by Langchain."""
-        return True
 
     @property
     def _default_params(self) -> Dict[str, Any]:
