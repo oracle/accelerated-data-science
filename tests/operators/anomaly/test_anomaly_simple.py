@@ -3,7 +3,7 @@
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from ads.opctl.operator.lowcode.anomaly.const import NonTimeADSupportedModels
+from ads.opctl.operator.lowcode.anomaly.const import NonTimeADSupportedModels, SupportedModels
 import yaml
 import subprocess
 import pandas as pd
@@ -16,8 +16,7 @@ import numpy as np
 from datetime import datetime
 from ads.opctl.operator.cmd import run
 
-
-MODELS = ["autots"]  # "automlx",
+MODELS = ["autots", "iqr", "lof", "zscore", "rolling_zscore", "mad", "ee", "isolationforest"]
 
 # Mandatory YAML parameters
 TEMPLATE_YAML = {
@@ -218,7 +217,7 @@ def test_load_datasets(model, data_dict):
         yaml_i = deepcopy(TEMPLATE_YAML)
         yaml_i["spec"]["model"] = model
         yaml_i["spec"]["input_data"]["url"] = data_dict["url"]
-        if model in NonTimeADSupportedModels.values():
+        if model in set(NonTimeADSupportedModels.values()) - set(SupportedModels.values()):
             del yaml_i["spec"]["datetime_column"]
         else:
             yaml_i["spec"]["datetime_column"]["name"] = data_dict["dt_col"]

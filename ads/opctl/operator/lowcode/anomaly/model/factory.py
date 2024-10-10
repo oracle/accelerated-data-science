@@ -4,18 +4,14 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ads.opctl.operator.lowcode.anomaly.utils import select_auto_model
-
-from ..const import NonTimeADSupportedModels, SupportedModels
-from ..operator_config import AnomalyOperatorConfig
 from .anomaly_dataset import AnomalyDatasets
-from .automlx import AutoMLXOperatorModel
 from .autots import AutoTSOperatorModel
-
-# from .tods import TODSOperatorModel
 from .base_model import AnomalyOperatorBaseModel
 from .isolationforest import IsolationForestOperatorModel
 from .oneclasssvm import OneClassSVMOperatorModel
 from .randomcutforest import RandomCutForestOperatorModel
+from ..const import NonTimeADSupportedModels, SupportedModels
+from ..operator_config import AnomalyOperatorConfig
 
 
 class UnSupportedModelError(Exception):
@@ -45,9 +41,14 @@ class AnomalyOperatorModelFactory:
     """
 
     _MAP = {
-        SupportedModels.AutoMLX: AutoMLXOperatorModel,
-        # SupportedModels.TODS: TODSOperatorModel,
         SupportedModels.AutoTS: AutoTSOperatorModel,
+        SupportedModels.IQR: AutoTSOperatorModel,
+        SupportedModels.LOF: AutoTSOperatorModel,
+        SupportedModels.ISOLATIONFOREST: AutoTSOperatorModel,
+        SupportedModels.ZSCORE: AutoTSOperatorModel,
+        SupportedModels.ROLLING_ZSCORE: AutoTSOperatorModel,
+        SupportedModels.EE: AutoTSOperatorModel,
+        SupportedModels.MAD: AutoTSOperatorModel
     }
 
     _NonTime_MAP = {
