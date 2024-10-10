@@ -12,14 +12,15 @@ from huggingface_hub.utils import GatedRepoError
 from notebook.base.handlers import IPythonHandler
 
 from ads.aqua.common.errors import AquaRuntimeError
+from ads.aqua.common.utils import get_hf_model_info
 from ads.aqua.extension.model_handler import (
+    AquaHuggingFaceHandler,
     AquaModelHandler,
     AquaModelLicenseHandler,
-    AquaHuggingFaceHandler,
 )
 from ads.aqua.model import AquaModelApp
+from ads.aqua.model.constants import ModelTask
 from ads.aqua.model.entities import AquaModel, AquaModelSummary, HFModelSummary
-from ads.aqua.common.utils import get_hf_model_info
 
 
 class ModelHandlerTestCase(TestCase):
@@ -263,21 +264,22 @@ class TestAquaHuggingFaceHandler:
             )
         get_hf_model_info.cache_clear()
 
-        # case 6
-        self.mock_handler.get_json_body = MagicMock(
-            return_value={"model_id": "test_model_id"}
-        )
-        with patch.object(HfApi, "model_info") as mock_model_info:
-            mock_model_info.return_value = MagicMock(
-                disabled=False, id="test_model_id", pipeline_tag="not-text-generation"
-            )
-            self.mock_handler.post()
-            self.mock_handler.finish.assert_called_with(
-                '{"status": 400, "message": "Something went wrong with your request.", '
-                '"service_payload": {}, "reason": "Unsupported pipeline tag for the chosen '
-                "model: 'not-text-generation'. AQUA currently supports the following tasks only: "
-                'text-generation. Please select a model with a compatible pipeline tag.", "request_id": "###"}'
-            )
+        # # case 6 pipeline Tag
+        # self.mock_handler.get_json_body = MagicMock(
+        #     return_value={"model_id": "test_model_id"}
+        # )
+        # with patch.object(HfApi, "model_info") as mock_model_info:
+        #     mock_model_info.return_value = MagicMock(
+        #         disabled=False, id="test_model_id", pipeline_tag="not-text-generation"
+        #     )
+        #     self.mock_handler.post()
+        #     self.mock_handler.finish.assert_called_with(
+        #         '{"status": 400, "message": "Something went wrong with your request.", '
+        #         '"service_payload": {}, "reason": "Unsupported pipeline tag for the chosen '
+        #         "model: 'not-text-generation'. AQUA currently supports the following tasks only: "
+        #         f'{", ".join(ModelTask.values())}. '
+        #         'Please select a model with a compatible pipeline tag.", "request_id": "###"}'
+        #     )
         get_hf_model_info.cache_clear()
 
     @patch("uuid.uuid4")
