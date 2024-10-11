@@ -38,11 +38,13 @@ Within the ``anomaly`` folder created above there will be a ``anomaly.yaml`` fil
     version: v1
     spec:
         datetime_column:
-            name: ds
+            name: timestamp
+        target_category_columns:
+            - series_id
         input_data:
-            url: https://raw.githubusercontent.com/facebook/prophet/main/examples/example_yosemite_temps.csv
+            url: https://raw.githubusercontent.com/oracle/accelerated-data-science/refs/heads/main/ads/opctl/operator/common/data/synthetic.csv
         model: autots
-        target_column: y
+        target_column: target
 
 There are many more options in this :doc:`YAML file <./yaml_schema>`.
 
