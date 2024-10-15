@@ -334,6 +334,8 @@ class AquaFineTuningApp(AquaApp):
                 parameters=ft_parameters,
                 ft_container=ft_container,
                 is_custom_container=is_custom_container,
+                early_stopping_patience=create_fine_tuning_details.early_stopping_patience,
+                early_stopping_threshold=create_fine_tuning_details.early_stopping_threshold
             )
         ).create()
         logger.debug(
@@ -477,6 +479,8 @@ class AquaFineTuningApp(AquaApp):
         ft_container: str = None,
         finetuning_params: str = None,
         is_custom_container: bool = False,
+        early_stopping_patience: int = None,
+        early_stopping_threshold: float = 0.0
     ) -> Runtime:
         """Builds fine tuning runtime for Job."""
         container = (
@@ -505,6 +509,8 @@ class AquaFineTuningApp(AquaApp):
                         val_set_size=val_set_size,
                         parameters=parameters,
                         finetuning_params=finetuning_params,
+                        early_stopping_patience=early_stopping_patience,
+                        early_stopping_threshold=early_stopping_threshold
                     ),
                     "CONDA_BUCKET_NS": CONDA_BUCKET_NS,
                 }
@@ -522,9 +528,11 @@ class AquaFineTuningApp(AquaApp):
         val_set_size: float,
         parameters: AquaFineTuningParams,
         finetuning_params: str = None,
+        early_stopping_patience: int = None,
+        early_stopping_threshold: float = 0.0
     ) -> str:
         """Builds the oci launch cmd for fine tuning container runtime."""
-        oci_launch_cmd = f"--training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} "
+        oci_launch_cmd = f"--training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} --early_stopping_patience {early_stopping_patience} --early_stopping_threshold {early_stopping_threshold}"
         for key, value in asdict(parameters).items():
             if value is not None:
                 if key == "batch_size":
