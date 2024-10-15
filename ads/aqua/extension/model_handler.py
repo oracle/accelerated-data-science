@@ -13,7 +13,6 @@ from ads.aqua.common.utils import get_hf_model_info, list_hf_models
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.model import AquaModelApp
-from ads.aqua.model.constants import ModelTask
 from ads.aqua.model.entities import AquaModelSummary, HFModelSummary
 from ads.aqua.ui import ModelFormat
 
@@ -68,7 +67,7 @@ class AquaModelHandler(AquaAPIhandler):
         return self.finish(AquaModelApp().get(model_id))
 
     @handle_exceptions
-    def delete(self):
+    def delete(self, id=""):
         """Handles DELETE request for clearing cache"""
         url_parse = urlparse(self.request.path)
         paths = url_parse.path.strip("/")
@@ -177,10 +176,8 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
 
         return None
 
-
-
     @handle_exceptions
-    def get(self,*args, **kwargs):
+    def get(self, *args, **kwargs):
         """
         Finds a list of matching models from hugging face based on query string provided from users.
 
@@ -194,13 +191,11 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
             Returns the matching model ids string
         """
 
-        query=self.get_argument("query",default=None)
+        query = self.get_argument("query", default=None)
         if not query:
-            raise HTTPError(400,Errors.MISSING_REQUIRED_PARAMETER.format("query"))
-        models=list_hf_models(query)
-        return self.finish({"models":models})
-
-
+            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("query"))
+        models = list_hf_models(query)
+        return self.finish({"models": models})
 
     @handle_exceptions
     def post(self, *args, **kwargs):
@@ -234,16 +229,17 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
                 "Please verify the model's status on the Hugging Face Model Hub or select a different model."
             )
 
-        # Check pipeline_tag, it should be `text-generation`
-        if (
-            not hf_model_info.pipeline_tag
-            or hf_model_info.pipeline_tag.lower() != ModelTask.TEXT_GENERATION
-        ):
-            raise AquaRuntimeError(
-                f"Unsupported pipeline tag for the chosen model: '{hf_model_info.pipeline_tag}'. "
-                f"AQUA currently supports the following tasks only: {', '.join(ModelTask.values())}. "
-                "Please select a model with a compatible pipeline tag."
-            )
+        # Commented the validation below to let users to register any model type.
+        # # Check pipeline_tag, it should be `text-generation`
+        # if not (
+        #     hf_model_info.pipeline_tag
+        #     and hf_model_info.pipeline_tag.lower() in ModelTask
+        # ):
+        #     raise AquaRuntimeError(
+        #         f"Unsupported pipeline tag for the chosen model: '{hf_model_info.pipeline_tag}'. "
+        #         f"AQUA currently supports the following tasks only: {', '.join(ModelTask.values())}. "
+        #         "Please select a model with a compatible pipeline tag."
+        #     )
 
         # Check if it is a service/verified model
         aqua_model_info: AquaModelSummary = self._find_matching_aqua_model(

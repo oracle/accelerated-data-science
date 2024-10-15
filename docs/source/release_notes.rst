@@ -2,6 +2,12 @@
 Release Notes
 =============
 
+2.12.1
+-------
+Release date: October 10, 2024
+
+* Fixed bugs and introduced enhancements for AI Quick Actions.
+
 2.12.0
 -------
 Release date: October 1, 2024
@@ -146,7 +152,7 @@ Release date: March 20, 2024
 Release date: February 7, 2024
 
 * Releasing v1 of the Anomaly Detection Operator! The Anomaly Detection Operator is a no-code Anomaly or Outlier Detection solution through the OCI Data Science Platform. It uses dozens of models from Oracle’s own proprietary research and the best of open source. See the ``Anomaly Detection`` Section of the ``AI Operators`` tab for full details (:doc:`link <./user_guide/operators/anomaly_detection_operator/index>`).
-* Releasing a new version of the Forecast Operator. This release has faster explainability, improved support for reading from databases, upgrades to the automatic reporting, improved parallelization across all models, and an ability to save models for deferred inference. See the ``Forecast`` Section of the ``AI Operators`` tab for full details (:doc:`link <./user_guide/operators/forecasting_operator/index>`).
+* Releasing a new version of the Forecast Operator. This release has faster explainability, improved support for reading from databases, upgrades to the automatic reporting, improved parallelization across all models, and an ability to save models for deferred inference. See the ``Forecast`` Section of the ``AI Operators`` tab for full details (:doc:`link <./user_guide/operators/forecast_operator/index>`).
 * Change to the default signer such that it now defaults to ``resource_prinicpal`` on any OCI Data Science resource (for example, jobs, notebooks, model deployments, dataflow).
 
 2.10.0
