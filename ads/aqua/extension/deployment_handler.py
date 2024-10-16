@@ -55,6 +55,34 @@ class AquaDeploymentHandler(AquaAPIhandler):
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
     @handle_exceptions
+    def delete(self,model_deployment_id):
+        return self.finish(AquaDeploymentApp().delete(model_deployment_id))
+
+    @handle_exceptions
+    def put(self,*args,**kwargs):
+        try:
+            input_data = self.get_json_body()
+        except Exception as ex:
+            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT) from ex
+        if not input_data:
+            raise HTTPError(400, Errors.NO_INPUT_DATA)
+
+        # required input parameters
+        model_deployment_id = input_data.get("model_deployment_id")
+        if not model_deployment_id:
+            raise HTTPError(
+                400, Errors.MISSING_REQUIRED_PARAMETER.format("model_deployment_id")
+            )
+        url_parse = urlparse(self.request.path)
+        paths = url_parse.path.strip("/")
+        if paths.startswith("aqua/deployments/activate"):
+            return self.finish(AquaDeploymentApp().activate(model_deployment_id))
+        elif paths.startswith("aqua/deployments/deactivate"):
+            return self.finish(AquaDeploymentApp().deactivate(model_deployment_id))
+        else:
+            raise HTTPError(400, f"The request {self.request.path} is invalid.")
+
+    @handle_exceptions
     def post(self, *args, **kwargs):
         """
         Handles post request for the deployment APIs
