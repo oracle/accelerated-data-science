@@ -10,11 +10,11 @@ from typing import Dict, List, Optional, Set, Union
 import oci
 from cachetools import TTLCache
 from huggingface_hub import snapshot_download
-from oci.data_science.models import JobRun, Model
+from oci.data_science.models import JobRun, Model, UpdateModelDetails, Metadata
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
-from ads.aqua.common.enums import InferenceContainerTypeFamily, Tags
+from ads.aqua.common.enums import InferenceContainerTypeFamily, Tags, FineTuningContainerTypeFamily
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     LifecycleStatus,
@@ -75,7 +75,7 @@ from ads.config import (
     TENANCY_OCID,
 )
 from ads.model import DataScienceModel
-from ads.model.model_metadata import ModelCustomMetadata, ModelCustomMetadataItem
+from ads.model.model_metadata import ModelCustomMetadata, ModelCustomMetadataItem, MetadataCustomCategory
 from ads.telemetry import telemetry
 
 
@@ -331,6 +331,72 @@ class AquaModelApp(AquaApp):
             return ds_model.delete()
         else:
             raise AquaRuntimeError(f"Failed to delete model:{model_id}. Only registered models can be deleted.")
+
+    @telemetry(entry_point="plugin=model&action=delete", name="aqua")
+    def edit_registered_model(self,id,inference_container,enable_finetuning,task):
+        """Edits the default config of unverified registered model.
+
+        Parameters
+        ----------
+        id: str
+            The model OCID.
+        inference_container: str.
+            The inference container family name
+        enable_finetuning: str
+            Flag to enable or disable finetuning over the model. Defaults to None
+
+        Returns
+        -------
+        Model:
+            The instance of oci.data_science.models.Model.
+
+        """
+        ds_model=DataScienceModel.from_id(id)
+        if ds_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM,None):
+            if ds_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG,None):
+                raise AquaRuntimeError(f"Failed to edit model:{id}. Only registered unverified models can be edited.")
+            else:
+                custom_metadata_list=ds_model.custom_metadata_list
+                freeform_tags=ds_model.freeform_tags
+                if inference_container:
+                    custom_metadata_list.add(key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
+                                             value=inference_container,
+                                             category=MetadataCustomCategory.OTHER,
+                                             description="Deployment container mapping for SMC",
+                                             replace=True
+                                             )
+                if enable_finetuning is not None:
+                    if enable_finetuning.lower()=="true":
+                        custom_metadata_list.add(key=ModelCustomMetadataFields.FINETUNE_CONTAINER,
+                                                 value=FineTuningContainerTypeFamily.AQUA_FINETUNING_CONTAINER_FAMILY,
+                                                 category=MetadataCustomCategory.OTHER,
+                                                 description="Fine-tuning container mapping for SMC",
+                                                 replace=True
+                                                 )
+                        freeform_tags.update({Tags.READY_TO_FINE_TUNE:"true"})
+                    elif enable_finetuning.lower()=="false":
+                        try:
+                            custom_metadata_list.remove(ModelCustomMetadataFields.FINETUNE_CONTAINER)
+                            freeform_tags.pop(Tags.READY_TO_FINE_TUNE)
+                        except Exception as ex:
+                            raise AquaRuntimeError(f"The given model already doesn't support finetuning: {ex}")
+
+                custom_metadata_list.remove("modelDescription")
+                if task:
+                    freeform_tags.update({"task":task})
+
+                updated_custom_metadata_list = [
+                    Metadata(**metadata)
+                    for metadata in custom_metadata_list.to_dict()["data"]
+                ]
+                update_model_details = UpdateModelDetails(
+                    custom_metadata_list=updated_custom_metadata_list,
+                    freeform_tags=freeform_tags
+                )
+                return self.ds_client.update_model(id,update_model_details).data
+        else:
+            raise AquaRuntimeError(f"Failed to edit model:{id}. Only registered unverified models can be deleted.")
+
 
     def _fetch_metric_from_metadata(
         self,
