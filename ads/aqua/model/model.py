@@ -323,6 +323,15 @@ class AquaModelApp(AquaApp):
 
         return model_details
 
+    @telemetry(entry_point="plugin=model&action=delete", name="aqua")
+    def delete_registered_model(self,model_id):
+        ds_model=DataScienceModel.from_id(model_id)
+        is_registered_model=ds_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM,None)
+        if is_registered_model:
+            return ds_model.delete()
+        else:
+            raise AquaRuntimeError(f"Failed to delete model:{model_id}. Only registered models can be deleted.")
+
     def _fetch_metric_from_metadata(
         self,
         custom_metadata_list: ModelCustomMetadata,

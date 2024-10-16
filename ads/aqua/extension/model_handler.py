@@ -73,6 +73,8 @@ class AquaModelHandler(AquaAPIhandler):
         paths = url_parse.path.strip("/")
         if paths.startswith("aqua/model/cache"):
             return self.finish(AquaModelApp().clear_model_list_cache())
+        elif id:
+            return self.finish(AquaModelApp().delete_registered_model(id))
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
