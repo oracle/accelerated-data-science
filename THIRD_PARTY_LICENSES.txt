@@ -157,6 +157,18 @@ langchain
 * Source code: https://github.com/langchain-ai/langchain
 * Project home: https://www.langchain.com/
 
+langchain-community
+* Copyright (c) 2023 LangChain, Inc.
+* License: MIT license
+* Source code: https://github.com/langchain-ai/langchain/tree/master/libs/community
+* Project home: https://github.com/langchain-ai/langchain/tree/master/libs/community
+
+langchain-openai
+* Copyright (c) 2023 LangChain, Inc.
+* License: MIT license
+* Source code: https://github.com/langchain-ai/langchain/tree/master/libs/partners/openai
+* Project home: https://github.com/langchain-ai/langchain/tree/master/libs/partners/openai
+
 lightgbm
 * Copyright (c) 2023 Microsoft Corporation
 * License: MIT license

@@ -2,6 +2,7 @@ type: anomaly
 version: v1
 conda_type: service
 name: Anomaly Detection Operator
+conda: anomaly_p310_cpu_x86_64_v1
 gpu: no
 keywords:
   - Anomaly Detection

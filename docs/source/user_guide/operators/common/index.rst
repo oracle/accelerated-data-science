@@ -1,6 +1,6 @@
-===============
-Getting Started
-===============
+====================
+More About Operators
+====================
 
 Welcome to the world of operators! Getting started with operators is a breeze, and this section will guide you through the process step by step. Whether you're a seasoned data scientist or a newcomer, you'll find that harnessing the power of operators is both accessible and rewarding.
 

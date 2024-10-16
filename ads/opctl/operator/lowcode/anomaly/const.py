@@ -15,11 +15,16 @@ from merlion.models.forecast import prophet
 class SupportedModels(str, metaclass=ExtendedEnumMeta):
     """Supported anomaly models."""
 
-    AutoMLX = "automlx"
     AutoTS = "autots"
     Auto = "auto"
     MerilonAD = "merlion_ad"
-    # TODS = "tods"
+    IQR = "iqr"
+    LOF = "lof"
+    ZSCORE = "zscore"
+    ROLLING_ZSCORE = "rolling_zscore"
+    MAD = "mad"
+    EE = "ee"
+    ISOLATIONFOREST = "isolationforest"
 
 class NonTimeADSupportedModels(str, metaclass=ExtendedEnumMeta):
     """Supported non time-based anomaly detection models."""
