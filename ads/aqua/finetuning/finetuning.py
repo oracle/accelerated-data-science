@@ -532,9 +532,9 @@ class AquaFineTuningApp(AquaApp):
         early_stopping_threshold: float = 0.0
     ) -> str:
         """Builds the oci launch cmd for fine tuning container runtime."""
-        oci_launch_cmd = f"--training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size}"
+        oci_launch_cmd = f"--training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} "
         if early_stopping_patience:
-            oci_launch_cmd += f" --early_stopping_patience {early_stopping_patience} --early_stopping_threshold {early_stopping_threshold}"
+            oci_launch_cmd += f"--early_stopping_patience {early_stopping_patience} --early_stopping_threshold {early_stopping_threshold} "
         for key, value in asdict(parameters).items():
             if value is not None:
                 if key == "batch_size":
