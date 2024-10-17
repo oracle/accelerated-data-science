@@ -7,6 +7,7 @@ import importlib
 
 import numpy as np
 import pandas as pd
+from merlion.post_process.threshold import AggregateAlarms
 from merlion.utils import TimeSeries
 
 from ads.common.decorator.runtime_dependency import runtime_dependency
@@ -83,7 +84,16 @@ class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
             data = df.set_index(date_column)
             data = TimeSeries.from_pd(data)
             for model_name, (model_config, model) in model_config_map.items():
-                model_config = model_config(**self.spec.model_kwargs)
+                model_config = model_config(
+                    **{
+                        **self.spec.model_kwargs,
+                        "threshold": AggregateAlarms(
+                            alm_threshold=model_kwargs.get("alm_threshold")
+                            if model_kwargs.get("alm_threshold")
+                            else None
+                        ),
+                    }
+                )
                 if hasattr(model_config, "target_seq_index"):
                     model_config.target_seq_index = df.columns.get_loc(
                         self.spec.target_column
