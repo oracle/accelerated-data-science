@@ -5,15 +5,17 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ads.common.decorator.runtime_dependency import runtime_dependency
+from ads.opctl import logger
 from ads.opctl.operator.lowcode.anomaly.const import OutputColumns
+
+from ..const import SupportedModels
 from .anomaly_dataset import AnomalyOutput
 from .base_model import AnomalyOperatorBaseModel
-from ..const import SupportedModels
-from ads.opctl import logger
 
 
 class AutoTSOperatorModel(AnomalyOperatorBaseModel):
     """Class representing AutoTS Anomaly Detection operator model."""
+
     model_mapping = {
         "isolationforest": "IsolationForest",
         "lof": "LOF",
@@ -22,30 +24,43 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
         "rolling_zscore": "rolling_zscore",
         "mad": "mad",
         "minmax": "minmax",
-        "iqr": "IQR"
+        "iqr": "IQR",
     }
 
     @runtime_dependency(
         module="autots",
         err_msg=(
-                "Please run `pip3 install autots` to "
-                "install the required dependencies for AutoTS."
+            "Please run `pip3 install autots` to "
+            "install the required dependencies for AutoTS."
         ),
     )
     def _build_model(self) -> AnomalyOutput:
         from autots.evaluator.anomaly_detector import AnomalyDetector
 
-        method = SupportedModels.ISOLATIONFOREST if self.spec.model == SupportedModels.AutoTS else self.spec.model
-        model_params = {"method": self.model_mapping[method],
-                        "transform_dict": self.spec.model_kwargs.get("transform_dict", {}),
-                        "output": self.spec.model_kwargs.get("output", "univariate"), "method_params": {}}
+        method = (
+            SupportedModels.ISOLATIONFOREST
+            if self.spec.model == SupportedModels.AutoTS
+            else self.spec.model
+        )
+        model_params = {
+            "method": self.model_mapping[method],
+            "transform_dict": self.spec.model_kwargs.get("transform_dict", {}),
+            "output": self.spec.model_kwargs.get("output", "univariate"),
+            "method_params": {},
+        }
         # Supported methods with contamination param
-        if method in [SupportedModels.ISOLATIONFOREST, SupportedModels.LOF, SupportedModels.EE]:
-            model_params["method_params"][
-                "contamination"] = self.spec.contamination if self.spec.contamination else 0.01
-        else:
-            if self.spec.contamination:
-                raise ValueError(f"The contamination parameter is not supported for the selected model \"{method}\"")
+        if method in [
+            SupportedModels.ISOLATIONFOREST,
+            SupportedModels.LOF,
+            SupportedModels.EE,
+        ]:
+            model_params["method_params"]["contamination"] = (
+                self.spec.contamination if self.spec.contamination else 0.01
+            )
+        elif self.spec.contamination:
+            raise ValueError(
+                f'The contamination parameter is not supported for the selected model "{method}"'
+            )
         logger.info(f"model params: {model_params}")
 
         model = AnomalyDetector(**model_params)

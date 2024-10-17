@@ -21,6 +21,23 @@ class SupportedModels(str, metaclass=ExtendedEnumMeta):
     EE = "ee"
     ISOLATIONFOREST = "isolationforest"
 
+    # point anomaly
+    DAGMM = "dagmm"
+    DEEP_POINT_ANOMALY_DETECTOR = "deep_point_anomaly_detector"
+    LSTM_ED = "lstm_ed"
+    SPECTRAL_RESIDUAL = "spectral_residual"
+    VAE = "vae"
+
+    # forecast_based
+    ARIMA = "arima"
+    ETS = "ets"
+    PROPHET = "prophet"
+    SARIMA = "sarima"
+
+    # changepoint
+    BOCPD = "bocpd"
+
+
 class NonTimeADSupportedModels(str, metaclass=ExtendedEnumMeta):
     """Supported non time-based anomaly detection models."""
 
@@ -29,7 +46,7 @@ class NonTimeADSupportedModels(str, metaclass=ExtendedEnumMeta):
     RandomCutForest = "randomcutforest"
     # TODO : Add DBScan
     # DBScan = "dbscan"
-    
+
 
 class TODSSubModels(str, metaclass=ExtendedEnumMeta):
     """Supported TODS sub models."""
@@ -58,6 +75,54 @@ TODS_MODEL_MAP = {
     TODSSubModels.IsolationForest: "IsolationForestSKI",
     TODSSubModels.LSTMODetector: "LSTMODetectorSKI",
     TODSSubModels.KNN: "KNNSKI",
+}
+
+
+class MerlionADModels(str, metaclass=ExtendedEnumMeta):
+    """Supported Merlion AD sub models."""
+
+    # point anomaly
+    DAGMM = "dagmm"
+    DEEP_POINT_ANOMALY_DETECTOR = "deep_point_anomaly_detector"
+    LSTM_ED = "lstm_ed"
+    SPECTRAL_RESIDUAL = "spectral_residual"
+    VAE = "vae"
+
+    # forecast_based
+    ARIMA = "arima"
+    ETS = "ets"
+    PROPHET = "prophet"
+    SARIMA = "sarima"
+
+    # changepoint
+    BOCPD = "bocpd"
+
+
+MERLIONAD_IMPORT_MODEL_MAP = {
+    MerlionADModels.DAGMM: ".dagmm",
+    MerlionADModels.DEEP_POINT_ANOMALY_DETECTOR: ".deep_point_anomaly_detector",
+    MerlionADModels.LSTM_ED: ".lstm_ed",
+    MerlionADModels.SPECTRAL_RESIDUAL: ".spectral_residual",
+    MerlionADModels.VAE: ".vae",
+    MerlionADModels.ARIMA: ".forecast_based.arima",
+    MerlionADModels.ETS: ".forecast_based.ets",
+    MerlionADModels.PROPHET: ".forecast_based.prophet",
+    MerlionADModels.SARIMA: ".forecast_based.sarima",
+    MerlionADModels.BOCPD: ".change_point.bocpd",
+}
+
+
+MERLIONAD_MODEL_MAP = {
+    MerlionADModels.DAGMM: "DAGMM",
+    MerlionADModels.DEEP_POINT_ANOMALY_DETECTOR: "DeepPointAnomalyDetector",
+    MerlionADModels.LSTM_ED: "LSTMED",
+    MerlionADModels.SPECTRAL_RESIDUAL: "SpectralResidual",
+    MerlionADModels.VAE: "VAE",
+    MerlionADModels.ARIMA: "ArimaDetector",
+    MerlionADModels.ETS: "ETSDetector",
+    MerlionADModels.PROPHET: "ProphetDetector",
+    MerlionADModels.SARIMA: "SarimaDetector",
+    MerlionADModels.BOCPD: "BOCPD",
 }
 
 
