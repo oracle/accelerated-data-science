@@ -51,7 +51,16 @@ class AnomalyOperatorModelFactory:
         SupportedModels.ROLLING_ZSCORE: AutoTSOperatorModel,
         SupportedModels.EE: AutoTSOperatorModel,
         SupportedModels.MAD: AutoTSOperatorModel,
-        SupportedModels.MerilonAD: AnomalyMerlionOperatorModel,
+        SupportedModels.DAGMM: AnomalyMerlionOperatorModel,
+        SupportedModels.DEEP_POINT_ANOMALY_DETECTOR: AnomalyMerlionOperatorModel,
+        SupportedModels.LSTM_ED: AnomalyMerlionOperatorModel,
+        SupportedModels.SPECTRAL_RESIDUAL: AnomalyMerlionOperatorModel,
+        SupportedModels.VAE: AnomalyMerlionOperatorModel,
+        SupportedModels.ARIMA: AnomalyMerlionOperatorModel,
+        SupportedModels.ETS: AnomalyMerlionOperatorModel,
+        SupportedModels.PROPHET: AnomalyMerlionOperatorModel,
+        SupportedModels.SARIMA: AnomalyMerlionOperatorModel,
+        SupportedModels.BOCPD: AnomalyMerlionOperatorModel,
     }
 
     _NonTime_MAP = {

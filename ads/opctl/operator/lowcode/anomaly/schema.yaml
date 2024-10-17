@@ -370,7 +370,16 @@ spec:
         - rolling_zscore
         - mad
         - ee
-        - merlion_ad
+        - dagmm
+        - deep_point_anomaly_detector
+        - lstm_ed
+        - spectral_residual
+        - vae
+        - arima
+        - ets
+        - sarima
+        - bocpd
+        - prophet
       meta:
         description: "The model to be used for anomaly detection"
 

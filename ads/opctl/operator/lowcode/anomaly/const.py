@@ -5,11 +5,9 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import random
+
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.opctl.operator.lowcode.common.const import DataColumns
-from merlion.models.anomaly import autoencoder, deep_point_anomaly_detector, isolation_forest, spectral_residual, windstats, windstats_monthly
-from merlion.models.anomaly.change_point import bocpd
-from merlion.models.forecast import prophet
 
 
 class SupportedModels(str, metaclass=ExtendedEnumMeta):
@@ -17,7 +15,6 @@ class SupportedModels(str, metaclass=ExtendedEnumMeta):
 
     AutoTS = "autots"
     Auto = "auto"
-    MerilonAD = "merlion_ad"
     IQR = "iqr"
     LOF = "lof"
     ZSCORE = "zscore"
@@ -25,6 +22,23 @@ class SupportedModels(str, metaclass=ExtendedEnumMeta):
     MAD = "mad"
     EE = "ee"
     ISOLATIONFOREST = "isolationforest"
+
+    # point anomaly
+    DAGMM = "dagmm"
+    DEEP_POINT_ANOMALY_DETECTOR = "deep_point_anomaly_detector"
+    LSTM_ED = "lstm_ed"
+    SPECTRAL_RESIDUAL = "spectral_residual"
+    VAE = "vae"
+
+    # forecast_based
+    ARIMA = "arima"
+    ETS = "ets"
+    PROPHET = "prophet"
+    SARIMA = "sarima"
+
+    # changepoint
+    BOCPD = "bocpd"
+
 
 class NonTimeADSupportedModels(str, metaclass=ExtendedEnumMeta):
     """Supported non time-based anomaly detection models."""
@@ -34,7 +48,7 @@ class NonTimeADSupportedModels(str, metaclass=ExtendedEnumMeta):
     RandomCutForest = "randomcutforest"
     # TODO : Add DBScan
     # DBScan = "dbscan"
-    
+
 
 class TODSSubModels(str, metaclass=ExtendedEnumMeta):
     """Supported TODS sub models."""
@@ -66,81 +80,51 @@ TODS_MODEL_MAP = {
 }
 
 
-class MerlionADSubmodels(str, metaclass=ExtendedEnumMeta):
+class MerlionADModels(str, metaclass=ExtendedEnumMeta):
     """Supported Merlion AD sub models."""
 
     # point anomaly
-    AUTOENCODER = "autoencoder"
     DAGMM = "dagmm"
-    DBL = "dbl"
     DEEP_POINT_ANOMALY_DETECTOR = "deep_point_anomaly_detector"
-    ISOLATION_FOREST = "isolation_forest"
-    LOF = "lof"
     LSTM_ED = "lstm_ed"
-    # RANDOM_CUT_FOREST = "random_cut_forest"
     SPECTRAL_RESIDUAL = "spectral_residual"
-    STAT_RESIDUAL = "stat_residual"
     VAE = "vae"
-    WINDSTATS = "windstats"
-    WINDSTATS_MONTHLY = "windstats_monthly"
-    ZMS = "zms"
 
     # forecast_based
     ARIMA = "arima"
     ETS = "ets"
-    MSES = "mses"
     PROPHET = "prophet"
     SARIMA = "sarima"
 
-    #changepoint
+    # changepoint
     BOCPD = "bocpd"
 
 
 MERLIONAD_IMPORT_MODEL_MAP = {
-    MerlionADSubmodels.AUTOENCODER: ".autoendcoder",
-    MerlionADSubmodels.DAGMM: ".dagmm",
-    MerlionADSubmodels.DBL: ".dbl",
-    MerlionADSubmodels.DEEP_POINT_ANOMALY_DETECTOR: ".deep_point_anomaly_detector",
-    MerlionADSubmodels.ISOLATION_FOREST: ".isolation_forest",
-    MerlionADSubmodels.LOF: ".lof",
-    MerlionADSubmodels.LSTM_ED: ".lstm_ed",
-    # MerlionADSubmodels.RANDOM_CUT_FOREST: ".random_cut_forest",
-    MerlionADSubmodels.SPECTRAL_RESIDUAL: ".spectral_residual",
-    MerlionADSubmodels.STAT_RESIDUAL: ".stat_residual",
-    MerlionADSubmodels.VAE: ".vae",
-    MerlionADSubmodels.WINDSTATS: ".windstats",
-    MerlionADSubmodels.WINDSTATS_MONTHLY: ".windstats_monthly",
-    MerlionADSubmodels.ZMS: ".zms",
-    MerlionADSubmodels.ARIMA: ".forecast_based.arima",
-    MerlionADSubmodels.ETS: ".forecast_based.ets",
-    MerlionADSubmodels.MSES: ".forecast_based.mses",
-    MerlionADSubmodels.PROPHET: ".forecast_based.prophet",
-    MerlionADSubmodels.SARIMA: ".forecast_based.sarima",
-    MerlionADSubmodels.BOCPD: ".change_point.bocpd",
+    MerlionADModels.DAGMM: ".dagmm",
+    MerlionADModels.DEEP_POINT_ANOMALY_DETECTOR: ".deep_point_anomaly_detector",
+    MerlionADModels.LSTM_ED: ".lstm_ed",
+    MerlionADModels.SPECTRAL_RESIDUAL: ".spectral_residual",
+    MerlionADModels.VAE: ".vae",
+    MerlionADModels.ARIMA: ".forecast_based.arima",
+    MerlionADModels.ETS: ".forecast_based.ets",
+    MerlionADModels.PROPHET: ".forecast_based.prophet",
+    MerlionADModels.SARIMA: ".forecast_based.sarima",
+    MerlionADModels.BOCPD: ".change_point.bocpd",
 }
 
 
 MERLIONAD_MODEL_MAP = {
-    MerlionADSubmodels.AUTOENCODER: "AutoEncoder",
-    MerlionADSubmodels.DAGMM: "DAGMM",
-    MerlionADSubmodels.DBL: "DynamicBaseline",
-    MerlionADSubmodels.DEEP_POINT_ANOMALY_DETECTOR: "DeepPointAnomalyDetector",
-    MerlionADSubmodels.ISOLATION_FOREST: "IsolationForest",
-    MerlionADSubmodels.LOF: "LOF",
-    MerlionADSubmodels.LSTM_ED: "LSTMED",
-    # MerlionADSubmodels.RANDOM_CUT_FOREST: "RandomCutForest",
-    MerlionADSubmodels.SPECTRAL_RESIDUAL: "SpectralResidual",
-    MerlionADSubmodels.STAT_RESIDUAL: "StatThreshold",
-    MerlionADSubmodels.VAE: "VAE",
-    MerlionADSubmodels.WINDSTATS: "WindStats",
-    MerlionADSubmodels.WINDSTATS_MONTHLY: "MonthlyWindStats",
-    MerlionADSubmodels.ZMS: "ZMS",
-    MerlionADSubmodels.ARIMA: "ArimaDetector",
-    MerlionADSubmodels.ETS: "ETSDetector",
-    MerlionADSubmodels.MSES: "MSESDetector",
-    MerlionADSubmodels.PROPHET: "ProphetDetector",
-    MerlionADSubmodels.SARIMA: "SarimaDetector",
-    MerlionADSubmodels.BOCPD: "BOCPD",
+    MerlionADModels.DAGMM: "DAGMM",
+    MerlionADModels.DEEP_POINT_ANOMALY_DETECTOR: "DeepPointAnomalyDetector",
+    MerlionADModels.LSTM_ED: "LSTMED",
+    MerlionADModels.SPECTRAL_RESIDUAL: "SpectralResidual",
+    MerlionADModels.VAE: "VAE",
+    MerlionADModels.ARIMA: "ArimaDetector",
+    MerlionADModels.ETS: "ETSDetector",
+    MerlionADModels.PROPHET: "ProphetDetector",
+    MerlionADModels.SARIMA: "SarimaDetector",
+    MerlionADModels.BOCPD: "BOCPD",
 }
 
 
@@ -182,6 +166,5 @@ class OutputColumns(str, metaclass=ExtendedEnumMeta):
     Series = DataColumns.Series
 
 
-MERLION_DEFAULT_MODEL = "prophet"
 TODS_DEFAULT_MODEL = "ocsvm"
 SUBSAMPLE_THRESHOLD = 1000
