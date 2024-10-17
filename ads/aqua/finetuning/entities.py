@@ -100,3 +100,5 @@ class CreateFineTuningDetails(DataClassSerializable):
     log_id: Optional[str] = None
     log_group_id: Optional[str] = None
     force_overwrite: Optional[bool] = False
+    early_stopping_patience: Optional[int] = None
+    early_stopping_threshold: Optional[float] = 0.0
