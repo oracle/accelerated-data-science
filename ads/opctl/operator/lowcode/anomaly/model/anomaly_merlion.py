@@ -15,6 +15,7 @@ from ads.opctl.operator.lowcode.anomaly.const import (
     MERLIONAD_IMPORT_MODEL_MAP,
     MERLIONAD_MODEL_MAP,
     OutputColumns,
+    SupportedModels,
 )
 
 from .anomaly_dataset import AnomalyOutput
@@ -84,16 +85,19 @@ class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
             data = df.set_index(date_column)
             data = TimeSeries.from_pd(data)
             for model_name, (model_config, model) in model_config_map.items():
-                model_config = model_config(
-                    **{
-                        **self.spec.model_kwargs,
-                        "threshold": AggregateAlarms(
-                            alm_threshold=model_kwargs.get("alm_threshold")
-                            if model_kwargs.get("alm_threshold")
-                            else None
-                        ),
-                    }
-                )
+                if self.spec.model == SupportedModels.BOCPD:
+                    model_config = model_config(**self.spec.model_kwargs)
+                else:
+                    model_config = model_config(
+                        **{
+                            **self.spec.model_kwargs,
+                            "threshold": AggregateAlarms(
+                                alm_threshold=model_kwargs.get("alm_threshold")
+                                if model_kwargs.get("alm_threshold")
+                                else None
+                            ),
+                        }
+                    )
                 if hasattr(model_config, "target_seq_index"):
                     model_config.target_seq_index = df.columns.get_loc(
                         self.spec.target_column
