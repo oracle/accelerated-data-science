@@ -35,6 +35,7 @@ from ads.aqua.common.enums import (
     InferenceContainerParamType,
     InferenceContainerType,
     RqsAdditionalDetails,
+    TextEmbeddingInferenceContainerParams,
 )
 from ads.aqua.common.errors import (
     AquaFileNotFoundError,
@@ -51,6 +52,7 @@ from ads.aqua.constants import (
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     SERVICE_MANAGED_CONTAINER_URI_SCHEME,
     SUPPORTED_FILE_FORMATS,
+    TEI_CONTAINER_DEFAULT_HOST,
     TGI_INFERENCE_RESTRICTED_PARAMS,
     UNKNOWN,
     UNKNOWN_JSON_STR,
@@ -63,7 +65,12 @@ from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import copy_file, get_console_link, upload_to_os
-from ads.config import AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, TENANCY_OCID
+from ads.config import (
+    AQUA_MODEL_DEPLOYMENT_FOLDER,
+    AQUA_SERVICE_MODELS_BUCKET,
+    CONDA_BUCKET_NS,
+    TENANCY_OCID,
+)
 from ads.model import DataScienceModel, ModelVersionSet
 
 logger = logging.getLogger("ads.aqua")
@@ -1079,3 +1086,27 @@ def list_hf_models(query: str) -> List[str]:
         return [model.id for model in models if model.disabled is None]
     except HfHubHTTPError as err:
         raise format_hf_custom_error_message(err) from err
+
+
+def generate_tei_cmd_vars(os_path: str) -> List[str]:
+    """This utility functions generates CMD params for Text Embedding Inference container. Only the
+    essential parameters for OCI model deployment are added, defaults are used for the rest.
+    Parameters
+    ----------
+    os_path: str
+        OCI bucket path where the model artifacts are uploaded - oci://bucket@namespace/prefix
+
+    Returns
+    -------
+        List of command line arguments
+    """
+
+    cmd_prefix = "--"
+    cmd_vars = [
+        cmd_prefix + TextEmbeddingInferenceContainerParams.MODEL_ID,
+        f"{AQUA_MODEL_DEPLOYMENT_FOLDER}{ObjectStorageDetails.from_path(os_path.rstrip('/')).filepath}/",
+        cmd_prefix + TextEmbeddingInferenceContainerParams.PORT,
+        TEI_CONTAINER_DEFAULT_HOST,
+    ]
+
+    return cmd_vars

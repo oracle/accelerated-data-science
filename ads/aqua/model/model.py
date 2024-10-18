@@ -14,13 +14,14 @@ from oci.data_science.models import JobRun, Model
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
-from ads.aqua.common.enums import Tags
+from ads.aqua.common.enums import InferenceContainerTypeFamily, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     LifecycleStatus,
     _build_resource_identifier,
     copy_model_config,
     create_word_icon,
+    generate_tei_cmd_vars,
     get_artifact_path,
     get_hf_model_info,
     list_os_files_with_extension,
@@ -67,7 +68,9 @@ from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link
 from ads.config import (
+    AQUA_DEPLOYMENT_CONTAINER_CMD_VAR,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
+    AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
     AQUA_EVALUATION_CONTAINER_METADATA_NAME,
     AQUA_FINETUNING_CONTAINER_METADATA_NAME,
     COMPARTMENT_OCID,
@@ -629,6 +632,7 @@ class AquaModelApp(AquaApp):
         validation_result: ModelValidationResult,
         compartment_id: Optional[str],
         project_id: Optional[str],
+        inference_container_uri: Optional[str],
     ) -> DataScienceModel:
         """Create model by reference from the object storage path
 
@@ -640,6 +644,7 @@ class AquaModelApp(AquaApp):
             verified_model (DataScienceModel): If set, then copies all the tags and custom metadata information from the service verified model
             compartment_id (Optional[str]): Compartment Id of the compartment where the model has to be created
             project_id (Optional[str]): Project id of the project where the model has to be created
+            inference_container_uri (Optional[str]): Inference container uri for BYOC
 
         Returns:
             DataScienceModel: Returns Datascience model instance.
@@ -685,6 +690,36 @@ class AquaModelApp(AquaApp):
                 raise AquaRuntimeError(
                     f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container."
                 )
+            metadata.add(
+                key=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
+                value=inference_container,
+                description=f"Inference container mapping for {model_name}",
+                category="Other",
+            )
+            if (
+                inference_container
+                == InferenceContainerTypeFamily.AQUA_TEI_CONTAINER_FAMILY
+            ):
+                if not inference_container_uri:
+                    logger.warn(
+                        f"Proceeding with model registration without the inference container URI for "
+                        f"{inference_container}. You can still add this configuration during model deployment."
+                    )
+                else:
+                    metadata.add(
+                        key=AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
+                        value=inference_container_uri,
+                        description=f"Inference container URI for {model_name}",
+                        category="Other",
+                    )
+
+                cmd_vars = generate_tei_cmd_vars(os_path)
+                metadata.add(
+                    key=AQUA_DEPLOYMENT_CONTAINER_CMD_VAR,
+                    value=",".join(cmd_vars),
+                    description=f"Inference container cmd vars for {model_name}",
+                    category="Other",
+                )
             if finetuning_container:
                 tags[Tags.READY_TO_FINE_TUNE] = "true"
                 metadata.add(
@@ -706,12 +741,6 @@ class AquaModelApp(AquaApp):
                     category="Other",
                 )
 
-            metadata.add(
-                key=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
-                value=inference_container,
-                description=f"Inference container mapping for {model_name}",
-                category="Other",
-            )
             metadata.add(
                 key=AQUA_EVALUATION_CONTAINER_METADATA_NAME,
                 value="odsc-llm-evaluate",
@@ -1012,7 +1041,10 @@ class AquaModelApp(AquaApp):
                                 AQUA_MODEL_TYPE_CUSTOM
                             )
             elif model_format == ModelFormat.GGUF and len(gguf_model_files) > 0:
-                if import_model_details.finetuning_container and not safetensors_model_files:
+                if (
+                    import_model_details.finetuning_container
+                    and not safetensors_model_files
+                ):
                     raise AquaValueError(
                         "Fine-tuning is currently not supported with GGUF model format."
                     )
@@ -1193,6 +1225,7 @@ class AquaModelApp(AquaApp):
             validation_result=validation_result,
             compartment_id=import_model_details.compartment_id,
             project_id=import_model_details.project_id,
+            inference_container_uri=import_model_details.inference_container_uri,
         )
         # registered model will always have inference and evaluation container, but
         # fine-tuning container may be not set

@@ -46,6 +46,7 @@ from ads.common.utils import get_log_links
 from ads.config import (
     AQUA_CONFIG_FOLDER,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
+    AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
     AQUA_MODEL_DEPLOYMENT_CONFIG,
     AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS,
     COMPARTMENT_OCID,
@@ -106,6 +107,7 @@ class AquaDeploymentApp(AquaApp):
         memory_in_gbs: Optional[float] = None,
         ocpus: Optional[float] = None,
         model_file: Optional[str] = None,
+        container_image_uri: Optional[None] = None,
         cmd_var: List[str] = None,
     ) -> "AquaDeployment":
         """
@@ -153,6 +155,9 @@ class AquaDeploymentApp(AquaApp):
             The ocpu count for the shape selected.
         model_file: str
             The file used for model deployment.
+        container_image_uri: str
+            The image of model deployment container runtime, ignored for service managed containers.
+            Required parameter for BYOC based deployments if this parameter was not set during model registration.
         cmd_var: List[str]
             The cmd of model deployment container runtime.
         Returns
@@ -198,9 +203,11 @@ class AquaDeploymentApp(AquaApp):
                     f"from custom metadata for the model {config_source_id}"
                 ) from err
 
-        # set up env vars
+        # set up env and cmd var
         if not env_var:
             env_var = {}
+        if not cmd_var:
+            cmd_var = {}
 
         try:
             model_path_prefix = aqua_model.custom_metadata_list.get(
@@ -236,11 +243,37 @@ class AquaDeploymentApp(AquaApp):
             model=aqua_model, container_family=container_family
         )
 
-        # fetch image name from config
-        container_image = get_container_image(container_type=container_type_key)
+        # todo: revisit this when TEI is added to SMC list. Currently, container_image_uri is ignored if container
+        #   family is SMC.
+        if container_type_key == InferenceContainerTypeFamily.AQUA_TEI_CONTAINER_FAMILY:
+            if not container_image_uri:
+                try:
+                    container_image_uri = aqua_model.custom_metadata_list.get(
+                        AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME
+                    ).value
+                except ValueError as err:
+                    raise AquaValueError(
+                        f"{AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME} key is not available in the custom metadata "
+                        f"field. Either re-register the model with custom container URI, or set container_image_uri "
+                        f"parameter when creating this deployment."
+                    ) from err
+
+            try:
+                cmd_var_string = aqua_model.custom_metadata_list.get(
+                    AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME
+                ).value
+                cmd_var.append(cmd_var_string.split(","))
+            except ValueError as err:
+                raise AquaValueError(
+                    f"{AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME} key is not available in the custom metadata "
+                    f"field. Please check if the model was registered with {container_type_key} inference container."
+                ) from err
+        else:
+            # fetch image name from config
+            container_image_uri = get_container_image(container_type=container_type_key)
 
         logging.info(
-            f"Aqua Image used for deploying {aqua_model.id} : {container_image}"
+            f"Aqua Image used for deploying {aqua_model.id} : {container_image_uri}"
         )
 
         model_formats_str = aqua_model.freeform_tags.get(
@@ -310,7 +343,7 @@ class AquaDeploymentApp(AquaApp):
                 # AQUA_LLAMA_CPP_CONTAINER_FAMILY container uses uvicorn that required model/server params
                 # to be set as env vars
                 raise AquaValueError(
-                    f"Currently, parameters cannot be overridden for the container: {container_image}. Please proceed "
+                    f"Currently, parameters cannot be overridden for the container: {container_image_uri}. Please proceed "
                     f"with deployment without parameter overrides."
                 )
 
@@ -364,7 +397,7 @@ class AquaDeploymentApp(AquaApp):
         # configure model deployment runtime
         container_runtime = (
             ModelDeploymentContainerRuntime()
-            .with_image(container_image)
+            .with_image(container_image_uri)
             .with_server_port(server_port)
             .with_health_check_port(health_check_port)
             .with_env(env_var)
