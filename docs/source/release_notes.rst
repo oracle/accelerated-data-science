@@ -4,7 +4,7 @@ Release Notes
 
 2.12.2
 -------
-Release date: October 16, 2024
+Release date: October 18, 2024
 
 * Introduced enhancements for AI Quick Actions.
 
