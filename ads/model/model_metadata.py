@@ -1769,6 +1769,31 @@ class CustomerNotificationType(str, metaclass=ExtendedEnumMeta):
     ON_FAILURE = "ON_FAILURE"
     ON_SUCCESS = "ON_SUCCESS"
 
+    _value_map = {
+        "NONE": NONE,
+        "ALL": ALL,
+        "ON_FAILURE": ON_FAILURE,
+        "ON_SUCCESS": ON_SUCCESS,
+    }
+
+    @classmethod
+    def create(cls, key):
+        if key in cls._value_map:
+            return cls._value_map[key]
+        raise ValueError(f"Invalid CustomerNotificationType: {key}")
+
+    @classmethod
+    def from_string(cls, value):
+        for member in cls:
+            if member.value == value:
+                return member
+        raise ValueError(f"Invalid CustomerNotificationType: {value}")
+
+    @property
+    def value(self):
+        return str(self)
+
+
 
 class ModelBackupSetting:
     """
@@ -1913,7 +1938,7 @@ class ModelRetentionSetting:
         return self.to_yaml()
     
 
-class SettingStatus(str, ExtendedEnumMeta):
+class SettingStatus(str, metaclass=ExtendedEnumMeta):
     """Enum to represent the status of retention settings."""
     PENDING = "PENDING"
     SUCCEEDED = "SUCCEEDED"

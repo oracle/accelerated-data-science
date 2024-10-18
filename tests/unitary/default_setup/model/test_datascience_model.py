@@ -35,7 +35,7 @@ from ads.model.model_metadata import (
     ModelCustomMetadataItem,
     MetadataCustomCategory,
     ModelBackupSetting,
-    ModelRetentionSetting
+    ModelRetentionSetting,
 )
 from ads.model.service.oci_datascience_model import (
     ModelProvenanceNotFoundError,
