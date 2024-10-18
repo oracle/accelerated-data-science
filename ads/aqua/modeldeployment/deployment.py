@@ -45,6 +45,7 @@ from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
 from ads.config import (
     AQUA_CONFIG_FOLDER,
+    AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
     AQUA_MODEL_DEPLOYMENT_CONFIG,
@@ -207,7 +208,7 @@ class AquaDeploymentApp(AquaApp):
         if not env_var:
             env_var = {}
         if not cmd_var:
-            cmd_var = {}
+            cmd_var = []
 
         try:
             model_path_prefix = aqua_model.custom_metadata_list.get(
@@ -260,12 +261,12 @@ class AquaDeploymentApp(AquaApp):
 
             try:
                 cmd_var_string = aqua_model.custom_metadata_list.get(
-                    AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME
+                    AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME
                 ).value
                 cmd_var.append(cmd_var_string.split(","))
             except ValueError as err:
                 raise AquaValueError(
-                    f"{AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME} key is not available in the custom metadata "
+                    f"{AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME} key is not available in the custom metadata "
                     f"field. Please check if the model was registered with {container_type_key} inference container."
                 ) from err
         else:

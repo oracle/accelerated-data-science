@@ -68,7 +68,7 @@ from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link
 from ads.config import (
-    AQUA_DEPLOYMENT_CONTAINER_CMD_VAR,
+    AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
     AQUA_EVALUATION_CONTAINER_METADATA_NAME,
@@ -715,7 +715,7 @@ class AquaModelApp(AquaApp):
 
                 cmd_vars = generate_tei_cmd_vars(os_path)
                 metadata.add(
-                    key=AQUA_DEPLOYMENT_CONTAINER_CMD_VAR,
+                    key=AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
                     value=",".join(cmd_vars),
                     description=f"Inference container cmd vars for {model_name}",
                     category="Other",
