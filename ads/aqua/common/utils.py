@@ -1088,7 +1088,7 @@ def list_hf_models(query: str) -> List[str]:
         raise format_hf_custom_error_message(err) from err
 
 
-def generate_tei_cmd_vars(os_path: str) -> List[str]:
+def generate_tei_cmd_var(os_path: str) -> List[str]:
     """This utility functions generates CMD params for Text Embedding Inference container. Only the
     essential parameters for OCI model deployment are added, defaults are used for the rest.
     Parameters
@@ -1098,15 +1098,16 @@ def generate_tei_cmd_vars(os_path: str) -> List[str]:
 
     Returns
     -------
-        List of command line arguments
+        cmd_var:
+            List of command line arguments
     """
 
     cmd_prefix = "--"
-    cmd_vars = [
+    cmd_var = [
         cmd_prefix + TextEmbeddingInferenceContainerParams.MODEL_ID,
         f"{AQUA_MODEL_DEPLOYMENT_FOLDER}{ObjectStorageDetails.from_path(os_path.rstrip('/')).filepath}/",
         cmd_prefix + TextEmbeddingInferenceContainerParams.PORT,
         TEI_CONTAINER_DEFAULT_HOST,
     ]
 
-    return cmd_vars
+    return cmd_var

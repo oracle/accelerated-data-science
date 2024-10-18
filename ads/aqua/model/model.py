@@ -21,7 +21,7 @@ from ads.aqua.common.utils import (
     _build_resource_identifier,
     copy_model_config,
     create_word_icon,
-    generate_tei_cmd_vars,
+    generate_tei_cmd_var,
     get_artifact_path,
     get_hf_model_info,
     list_os_files_with_extension,
@@ -713,7 +713,7 @@ class AquaModelApp(AquaApp):
                         category="Other",
                     )
 
-                cmd_vars = generate_tei_cmd_vars(os_path)
+                cmd_vars = generate_tei_cmd_var(os_path)
                 metadata.add(
                     key=AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
                     value=",".join(cmd_vars),

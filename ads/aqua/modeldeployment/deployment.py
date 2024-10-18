@@ -263,7 +263,7 @@ class AquaDeploymentApp(AquaApp):
                 cmd_var_string = aqua_model.custom_metadata_list.get(
                     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME
                 ).value
-                cmd_var.append(cmd_var_string.split(","))
+                cmd_var.extend(cmd_var_string.split(","))
             except ValueError as err:
                 raise AquaValueError(
                     f"{AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME} key is not available in the custom metadata "
