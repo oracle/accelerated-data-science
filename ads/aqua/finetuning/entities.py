@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from dataclasses import dataclass, field
@@ -14,9 +13,9 @@ class AquaFineTuningParams(DataClassSerializable):
     epochs: int
     learning_rate: Optional[float] = None
     sample_packing: Optional[bool] = "auto"
-    batch_size: Optional[
-        int
-    ] = None  # make it batch_size for user, but internally this is micro_batch_size
+    batch_size: Optional[int] = (
+        None  # make it batch_size for user, but internally this is micro_batch_size
+    )
     sequence_len: Optional[int] = None
     pad_to_sequence_len: Optional[bool] = None
     lora_r: Optional[int] = None
@@ -24,6 +23,8 @@ class AquaFineTuningParams(DataClassSerializable):
     lora_dropout: Optional[float] = None
     lora_target_linear: Optional[bool] = None
     lora_target_modules: Optional[List] = None
+    early_stopping_patience: Optional[int] = None
+    early_stopping_threshold: Optional[float] = None
 
 
 @dataclass(repr=False)
@@ -100,5 +101,3 @@ class CreateFineTuningDetails(DataClassSerializable):
     log_id: Optional[str] = None
     log_group_id: Optional[str] = None
     force_overwrite: Optional[bool] = False
-    early_stopping_patience: Optional[int] = None
-    early_stopping_threshold: Optional[float] = 0.0
