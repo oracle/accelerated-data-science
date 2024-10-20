@@ -8,14 +8,17 @@ from urllib.parse import urlparse
 from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
-from ads.aqua.common.enums import InferenceContainerTypeFamily
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
-from ads.aqua.common.utils import get_hf_model_info, list_hf_models
+from ads.aqua.common.utils import (
+    get_container_config,
+    get_hf_model_info,
+    list_hf_models,
+)
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import AquaModelSummary, HFModelSummary
-from ads.aqua.ui import ModelFormat
+from ads.aqua.ui import AquaContainerConfig, ModelFormat
 
 
 class AquaModelHandler(AquaAPIhandler):
@@ -75,7 +78,7 @@ class AquaModelHandler(AquaAPIhandler):
         if paths.startswith("aqua/model/cache"):
             return self.finish(AquaModelApp().clear_model_list_cache())
         elif id:
-            return self.finish(AquaModelApp().delete_registered_model(id))
+            return self.finish(AquaModelApp().delete_model(id))
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
@@ -141,7 +144,7 @@ class AquaModelHandler(AquaAPIhandler):
         )
 
     @handle_exceptions
-    def put(self,id):
+    def put(self, id):
         try:
             input_data = self.get_json_body()
         except Exception as ex:
@@ -150,17 +153,26 @@ class AquaModelHandler(AquaAPIhandler):
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)
 
-        inference_container=input_data.get('inference_container')
-        if inference_container is not None and inference_container not in [
-            InferenceContainerTypeFamily.AQUA_TGI_CONTAINER_FAMILY,
-            InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY,
-            InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
-        ]:
-            raise HTTPError(400,Errors.INVALID_VALUE_OF_PARAMETER.format("inference_container"))
-        enable_finetuning=input_data.get('enable_finetuning')
-        task=input_data.get('task')
-        return self.finish(AquaModelApp().edit_registered_model(id,inference_container,enable_finetuning,task))
+        inference_container = input_data.get("inference_container")
+        containers = list(
+            AquaContainerConfig.from_container_index_json(
+                config=get_container_config(), enable_spec=True
+            ).inference.values()
+        )
+        family_values = [item.family for item in containers]
 
+        if inference_container is not None and inference_container not in family_values:
+            raise HTTPError(
+                400, Errors.INVALID_VALUE_OF_PARAMETER.format("inference_container")
+            )
+
+        enable_finetuning = input_data.get("enable_finetuning")
+        task = input_data.get("task")
+        return self.finish(
+            AquaModelApp().edit_registered_model(
+                id, inference_container, enable_finetuning, task
+            )
+        )
 
 
 class AquaModelLicenseHandler(AquaAPIhandler):

@@ -55,29 +55,28 @@ class AquaDeploymentHandler(AquaAPIhandler):
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
     @handle_exceptions
-    def delete(self,model_deployment_id):
+    def delete(self, model_deployment_id):
         return self.finish(AquaDeploymentApp().delete(model_deployment_id))
 
     @handle_exceptions
-    def put(self,*args,**kwargs):
-        try:
-            input_data = self.get_json_body()
-        except Exception as ex:
-            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT) from ex
-        if not input_data:
-            raise HTTPError(400, Errors.NO_INPUT_DATA)
-
-        # required input parameters
-        model_deployment_id = input_data.get("model_deployment_id")
-        if not model_deployment_id:
-            raise HTTPError(
-                400, Errors.MISSING_REQUIRED_PARAMETER.format("model_deployment_id")
-            )
+    def put(self, *args, **kwargs):
+        """
+        Handles put request for the activating and deactivating OCI datascience model deployments
+        Raises
+        ------
+        HTTPError
+            Raises HTTPError if inputs are missing or are invalid
+        """
         url_parse = urlparse(self.request.path)
-        paths = url_parse.path.strip("/")
-        if paths.startswith("aqua/deployments/activate"):
+        paths = url_parse.path.strip("/").split("/")
+        if len(paths) != 4 or paths[0] != "aqua" or paths[1] != "deployments":
+            raise HTTPError(400, f"The request {self.request.path} is invalid.")
+
+        model_deployment_id = paths[2]
+        action = paths[3]
+        if action == "activate":
             return self.finish(AquaDeploymentApp().activate(model_deployment_id))
-        elif paths.startswith("aqua/deployments/deactivate"):
+        elif action == "deactivate":
             return self.finish(AquaDeploymentApp().deactivate(model_deployment_id))
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
