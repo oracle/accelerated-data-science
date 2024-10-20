@@ -404,7 +404,7 @@ class AquaModelApp(AquaApp):
 
                 custom_metadata_list.remove("modelDescription")
                 if task:
-                    freeform_tags.update({"task": task})
+                    freeform_tags.update({Tags.TASK: task})
 
                 updated_custom_metadata_list = [
                     Metadata(**metadata)

@@ -291,5 +291,7 @@ __handlers__ = [
     ("deployments/?([^/]*)/params", AquaDeploymentParamsHandler),
     ("deployments/config/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)", AquaDeploymentHandler),
+    ("deployments/?([^/]*)/activate", AquaDeploymentHandler),
+    ("deployments/?([^/]*)/deactivate", AquaDeploymentHandler),
     ("inference", AquaDeploymentInferenceHandler),
 ]
