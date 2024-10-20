@@ -357,6 +357,8 @@ class AquaModelApp(AquaApp):
             The inference container family name
         enable_finetuning: str
             Flag to enable or disable finetuning over the model. Defaults to None
+        task:
+            The usecase type of the model. e.g , text-generation , text_embedding etc.
 
         Returns
         -------
