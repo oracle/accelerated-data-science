@@ -5,6 +5,7 @@
 
 import os
 
+import numpy as np
 import pandas as pd
 
 from ads.opctl import logger
@@ -27,6 +28,8 @@ def _build_metrics_df(y_true, y_pred, column_name):
     )
 
     metrics = {}
+    np.nan_to_num(y_true, copy=False)
+    np.nan_to_num(y_pred, copy=False)
     metrics[SupportedMetrics.RECALL] = recall_score(y_true, y_pred)
     metrics[SupportedMetrics.PRECISION] = precision_score(y_true, y_pred)
     metrics[SupportedMetrics.ACCURACY] = accuracy_score(y_true, y_pred)
