@@ -36,6 +36,10 @@ from ads.model.model_metadata import (
     ModelCustomMetadataItem,
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
+    ModelBackupSetting,
+    ModelRetentionSetting,
+    ModelRetentionOperationDetails,
+    ModelBackupOperationDetails,
 )
 from ads.model.service.oci_datascience_model import (
     ModelProvenanceNotFoundError,
@@ -120,6 +124,19 @@ class DataScienceModel(Builder):
         Model version id
     model_file_description: dict
         Contains object path details for models created by reference.
+    backup_setting: ModelBackupSetting
+        The value to assign to the backup_setting property of this CreateModelDetails.
+    retention_setting: ModelRetentionSetting
+        The value to assign to the retention_setting property of this CreateModelDetails.
+    retention_operation_details: ModelRetentionOperationDetails
+        The value to assign to the retention_operation_details property for the Model.
+    backup_operation_details: ModelBackupOperationDetails
+        The value to assign to the backup_operation_details property for the Model.
+
+
+
+
+
 
     Methods
     -------
@@ -178,7 +195,6 @@ class DataScienceModel(Builder):
         Sets path details for models created by reference. Input can be either a dict, string or json file and
         the schema is dictated by model_file_description_schema.json
 
-
     Examples
     --------
     >>> ds_model = (DataScienceModel()
@@ -217,7 +233,12 @@ class DataScienceModel(Builder):
     CONST_MODEL_VERSION_ID = "versionId"
     CONST_TIME_CREATED = "timeCreated"
     CONST_LIFECYCLE_STATE = "lifecycleState"
+    CONST_LIFECYCLE_DETAILS = "lifecycleDetails"
     CONST_MODEL_FILE_DESCRIPTION = "modelDescription"
+    CONST_BACKUP_SETTING = "backupSetting"
+    CONST_RETENTION_SETTING = "retentionSetting"
+    CONST_BACKUP_OPERATION_DETAILS = "backupOperationDetails"
+    CONST_RETENTION_OPERATION_DETAILS = "retentionOperationDetails"
 
     attribute_map = {
         CONST_ID: "id",
@@ -239,7 +260,12 @@ class DataScienceModel(Builder):
         CONST_MODEL_VERSION_ID: "version_id",
         CONST_TIME_CREATED: "time_created",
         CONST_LIFECYCLE_STATE: "lifecycle_state",
+        CONST_LIFECYCLE_DETAILS: "lifecycle_details",
         CONST_MODEL_FILE_DESCRIPTION: "model_description",
+        CONST_BACKUP_SETTING: "backup_setting",
+        CONST_RETENTION_SETTING: "retention_setting",
+        CONST_BACKUP_OPERATION_DETAILS: "backup_operation_details",
+        CONST_RETENTION_OPERATION_DETAILS: "retention_operation_details",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -307,6 +333,28 @@ class DataScienceModel(Builder):
         if self.dsc_model:
             return self.dsc_model.status
         return None
+
+    @property
+    def lifecycle_details(self) -> str:
+        """
+        Gets the lifecycle_details of this DataScienceModel.
+        Details about the lifecycle state of the model.
+
+        :return: The lifecycle_details of this DataScienceModel.
+        :rtype: str
+        """
+        return self.get_spec(self.CONST_LIFECYCLE_DETAILS)
+
+    @lifecycle_details.setter
+    def lifecycle_details(self, lifecycle_details: str) -> "DataScienceModel":
+        """
+        Sets the lifecycle_details of this DataScienceModel.
+        Details about the lifecycle state of the model.
+
+        :param lifecycle_details: The lifecycle_details of this DataScienceModel.
+        :type: str
+        """
+        return self.set_spec(self.CONST_LIFECYCLE_DETAILS, lifecycle_details)
 
     @property
     def kind(self) -> str:
@@ -685,6 +733,85 @@ class DataScienceModel(Builder):
 
         return self.set_spec(self.CONST_MODEL_FILE_DESCRIPTION, json_data)
 
+    @property
+    def retention_setting(self) -> ModelRetentionSetting:
+        """
+        Gets the retention_setting of this model.
+
+        :return: The retention_setting of this model.
+        :rtype: RetentionSetting
+        """
+        return self.get_spec(self.CONST_RETENTION_SETTING)
+
+    def with_retention_setting(
+        self, retention_setting: Union[Dict, ModelRetentionSetting]
+    ) -> "DataScienceModel":
+        """
+        Sets the retention setting details for the model.
+
+        Parameters
+        ----------
+        retention_setting : Union[Dict, RetentionSetting]
+            The retention setting details for the model. Can be provided as either a dictionary or
+            an instance of the `RetentionSetting` class.
+
+        Returns
+        -------
+        DataScienceModel
+            The `DataScienceModel` instance (self) for method chaining.
+        """
+        return self.set_spec(self.CONST_RETENTION_SETTING, retention_setting)
+
+    @property
+    def backup_setting(self) -> ModelBackupSetting:
+        """
+        Gets the backup_setting of this model.
+
+        :return: The backup_setting of this model.
+        :rtype: BackupSetting
+        """
+        return self.get_spec(self.CONST_BACKUP_SETTING)
+
+    def with_backup_setting(
+        self, backup_setting: Union[Dict, ModelBackupSetting]
+    ) -> "DataScienceModel":
+        """
+        Sets the model's backup setting details.
+
+        Parameters
+        ----------
+        backup_setting : Union[Dict, BackupSetting]
+            The backup setting details for the model. This can be passed as either a dictionary or
+            an instance of the `BackupSetting` class.
+
+        Returns
+        -------
+        DataScienceModel
+           The `DataScienceModel` instance (self) for method chaining.
+        """
+
+        return self.set_spec(self.CONST_BACKUP_SETTING, backup_setting)
+
+    @property
+    def retention_operation_details(self) -> ModelRetentionOperationDetails:
+        """
+        Gets the retention_operation_details of this Model using the spec constant.
+
+        :return: The retention_operation_details of this Model.
+        :rtype: ModelRetentionOperationDetails
+        """
+        return self.get_spec(self.CONST_RETENTION_OPERATION_DETAILS)
+
+    @property
+    def backup_operation_details(self) -> "ModelBackupOperationDetails":
+        """
+        Gets the backup_operation_details of this Model using the spec constant.
+
+        :return: The backup_operation_details of this Model.
+        :rtype: ModelBackupOperationDetails
+        """
+        return self.get_spec(self.CONST_BACKUP_OPERATION_DETAILS)
+
     def create(self, **kwargs) -> "DataScienceModel":
         """Creates datascience model.
 
@@ -906,6 +1033,49 @@ class DataScienceModel(Builder):
         # delete if local copy directory was created
         if self.local_copy_dir:
             shutil.rmtree(self.local_copy_dir, ignore_errors=True)
+
+    def restore_model(
+        self,
+        model_id: str,
+        restore_model_for_hours_specified: Optional[int] = None,
+    ):
+        """
+        Restore archived model artifact.
+
+        Parameters
+        ----------
+        model_id : str
+            The `OCID` of the model to be restored.
+            restore_model_for_hours_specified : Optional[int]
+            Duration in hours for which the archived model is available for access.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            If the model ID is invalid or if any parameters are incorrect.
+        """
+        # Validate model_id
+        if not model_id or not isinstance(model_id, str):
+            raise ValueError("model_id must be a non-empty string.")
+
+        # Optional: Validate restore_model_for_hours_specified
+        if restore_model_for_hours_specified is not None:
+            if (
+                not isinstance(restore_model_for_hours_specified, int)
+                or restore_model_for_hours_specified <= 0
+            ):
+                raise ValueError(
+                    "restore_model_for_hours_specified must be a positive integer."
+                )
+
+        self.dsc_model.restore_archived_model_artifact(
+            model_id=model_id,
+            restore_model_for_hours_specified=restore_model_for_hours_specified,
+        )
 
     def download_artifact(
         self,
@@ -1162,6 +1332,8 @@ class DataScienceModel(Builder):
         self.with_provenance_metadata(self.provenance_metadata)
         self.with_input_schema(self.input_schema)
         self.with_output_schema(self.output_schema)
+        self.with_backup_setting(self.backup_setting)
+        self.with_retention_setting(self.retention_setting)
 
     def _to_oci_dsc_model(self, **kwargs):
         """Creates an `OCIDataScienceModel` instance from the  `DataScienceModel`.
@@ -1197,6 +1369,8 @@ class DataScienceModel(Builder):
                 dsc_spec[dsc_attr] = value
 
         dsc_spec.update(**kwargs)
+        print("Model Dsc spec")
+        print(dsc_spec)
         return OCIDataScienceModel(**dsc_spec)
 
     def _update_from_oci_dsc_model(
@@ -1219,10 +1393,15 @@ class DataScienceModel(Builder):
             self.CONST_OUTPUT_SCHEMA: [Schema.from_json, json.loads],
             self.CONST_CUSTOM_METADATA: ModelCustomMetadata._from_oci_metadata,
             self.CONST_DEFINED_METADATA: ModelTaxonomyMetadata._from_oci_metadata,
+            self.CONST_BACKUP_SETTING: ModelBackupSetting.to_dict,
+            self.CONST_RETENTION_SETTING: ModelRetentionSetting.to_dict,
         }
 
         # Update the main properties
+
         self.dsc_model = dsc_model
+        print("Model Details from here")
+        print(dsc_model)
         for infra_attr, dsc_attr in self.attribute_map.items():
             value = utils.get_value(dsc_model, dsc_attr)
             if value:
