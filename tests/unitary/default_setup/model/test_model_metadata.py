@@ -1154,7 +1154,10 @@ class TestModelRetentionSetting:
 
     def test_to_json(self):
         """Test that to_json serializes the settings to a JSON string."""
-        setting = ModelRetentionSetting(archive_after_days=30, delete_after_days=60, customer_notification_type=CustomerNotificationType.EMAIL)
+        setting = ModelRetentionSetting(
+            archive_after_days=30,
+            delete_after_days=60,
+            customer_notification_type=CustomerNotificationType.ALL)
         expected_json = json.dumps({
             "archive_after_days": 30,
             "delete_after_days": 60,
@@ -1266,7 +1269,7 @@ class TestModelRetentionOperationDetails:
     def test_from_json(self):
         """Test that from_json correctly deserializes the details from a JSON string."""
         json_str = json.dumps({
-            "archive_state": "SUCCESS",
+            "archive_state": "SUCCEEDED",
             "archive_state_details": "Archived successfully",
             "delete_state": "PENDING",
             "delete_state_details": "Deletion pending",

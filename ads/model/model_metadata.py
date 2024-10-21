@@ -1789,10 +1789,13 @@ class CustomerNotificationType(str, metaclass=ExtendedEnumMeta):
                 return member
         raise ValueError(f"Invalid CustomerNotificationType: {value}")
 
+    @classmethod
+    def is_valid(cls, value):
+        return value in (cls.NONE, cls.ALL, cls.ON_FAILURE, cls.ON_SUCCESS)
+
     @property
     def value(self):
         return str(self)
-
 
 
 class ModelBackupSetting:
@@ -1815,27 +1818,38 @@ class ModelBackupSetting:
         Validates the backup settings details.
     """
 
-    def __init__(self, is_backup_enabled: Optional[bool] = None, backup_region: Optional[str] = None,
-                 customer_notification_type: Optional[CustomerNotificationType] = None):
-        self.is_backup_enabled = is_backup_enabled if is_backup_enabled is not None else False
+    def __init__(
+        self,
+        is_backup_enabled: Optional[bool] = None,
+        backup_region: Optional[str] = None,
+        customer_notification_type: Optional[CustomerNotificationType] = None,
+    ):
+        self.is_backup_enabled = (
+            is_backup_enabled if is_backup_enabled is not None else False
+        )
         self.backup_region = backup_region
-        self.customer_notification_type = customer_notification_type or CustomerNotificationType.NONE
+        self.customer_notification_type = (
+            customer_notification_type or CustomerNotificationType.NONE
+        )
 
     def to_dict(self) -> Dict:
         """Serializes the backup settings into a dictionary."""
         return {
             "is_backup_enabled": self.is_backup_enabled,
             "backup_region": self.backup_region,
-            "customer_notification_type": self.customer_notification_type.value
+            "customer_notification_type": self.customer_notification_type,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'ModelBackupSetting':
+    def from_dict(cls, data: Dict) -> "ModelBackupSetting":
         """Constructs backup settings from a dictionary."""
         return cls(
             is_backup_enabled=data.get("is_backup_enabled"),
             backup_region=data.get("backup_region"),
-            customer_notification_type = CustomerNotificationType(data.get("customer_notification_type")) or None
+            customer_notification_type=CustomerNotificationType(
+                data.get("customer_notification_type")
+            )
+            or None,
         )
 
     def to_json(self) -> str:
@@ -1843,9 +1857,13 @@ class ModelBackupSetting:
         return json.dumps(self.to_dict())
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'ModelBackupSetting':
-        """Constructs backup settings from a JSON string."""
-        data = json.loads(json_str)
+    def from_json(cls, json_str) -> "ModelBackupSetting":
+        """Constructs backup settings from a JSON string or dictionary."""
+        if isinstance(json_str, str):
+            data = json.loads(json_str)
+        else:
+            data = json_str  # Assume it's already a dictionary or appropriate type
+
         return cls.from_dict(data)
 
     def to_yaml(self) -> str:
@@ -1858,14 +1876,14 @@ class ModelBackupSetting:
             return False
         if self.backup_region and not isinstance(self.backup_region, str):
             return False
-        if not isinstance(self.customer_notification_type, CustomerNotificationType):
+        if not isinstance(self.customer_notification_type, str) \
+                or not CustomerNotificationType.is_valid(self.customer_notification_type):
             return False
         return True
 
     def __repr__(self):
         return self.to_yaml()
 
-    
 
 class ModelRetentionSetting:
     """
@@ -1887,27 +1905,36 @@ class ModelRetentionSetting:
         Validates the retention settings details.
     """
 
-    def __init__(self, archive_after_days: Optional[int] = None, delete_after_days: Optional[int] = None,
-                 customer_notification_type: Optional[CustomerNotificationType] = None):
+    def __init__(
+        self,
+        archive_after_days: Optional[int] = None,
+        delete_after_days: Optional[int] = None,
+        customer_notification_type: Optional[CustomerNotificationType] = None,
+    ):
         self.archive_after_days = archive_after_days
         self.delete_after_days = delete_after_days
-        self.customer_notification_type = customer_notification_type or CustomerNotificationType.NONE
+        self.customer_notification_type = (
+            customer_notification_type or CustomerNotificationType.NONE
+        )
 
     def to_dict(self) -> Dict:
         """Serializes the retention settings into a dictionary."""
         return {
             "archive_after_days": self.archive_after_days,
             "delete_after_days": self.delete_after_days,
-            "customer_notification_type": self.customer_notification_type.value
+            "customer_notification_type": self.customer_notification_type,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'ModelRetentionSetting':
+    def from_dict(cls, data: Dict) -> "ModelRetentionSetting":
         """Constructs retention settings from a dictionary."""
         return cls(
             archive_after_days=data.get("archive_after_days"),
             delete_after_days=data.get("delete_after_days"),
-            customer_notification_type = CustomerNotificationType(data.get("customer_notification_type")) or None
+            customer_notification_type=CustomerNotificationType(
+                data.get("customer_notification_type")
+            )
+            or None,
         )
 
     def to_json(self) -> str:
@@ -1915,9 +1942,12 @@ class ModelRetentionSetting:
         return json.dumps(self.to_dict())
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'ModelRetentionSetting':
+    def from_json(cls, json_str) -> "ModelRetentionSetting":
         """Constructs retention settings from a JSON string."""
-        data = json.loads(json_str)
+        if isinstance(json_str, str):
+            data = json.loads(json_str)
+        else:
+            data = json_str
         return cls.from_dict(data)
 
     def to_yaml(self) -> str:
@@ -1926,23 +1956,35 @@ class ModelRetentionSetting:
 
     def validate(self) -> bool:
         """Validates the retention settings details. Returns True if valid, False otherwise."""
-        if self.archive_after_days is not None and (not isinstance(self.archive_after_days, int) or self.archive_after_days < 0):
+        if self.archive_after_days is not None and (
+            not isinstance(self.archive_after_days, int) or self.archive_after_days < 0
+        ):
             return False
-        if self.delete_after_days is not None and (not isinstance(self.delete_after_days, int) or self.delete_after_days < 0):
+        if self.delete_after_days is not None and (
+            not isinstance(self.delete_after_days, int) or self.delete_after_days < 0
+        ):
             return False
-        if not isinstance(self.customer_notification_type, CustomerNotificationType):
+        if not isinstance(self.customer_notification_type, str) or not \
+                CustomerNotificationType.is_valid(self.customer_notification_type):
             return False
         return True
 
     def __repr__(self):
         return self.to_yaml()
-    
+
 
 class SettingStatus(str, metaclass=ExtendedEnumMeta):
     """Enum to represent the status of retention settings."""
+
     PENDING = "PENDING"
     SUCCEEDED = "SUCCEEDED"
     FAILED = "FAILED"
+
+    @classmethod
+    def is_valid(cls, state: str) -> bool:
+        """Validates the given state against allowed SettingStatus values."""
+        return state in (cls.PENDING, cls.SUCCEEDED, cls.FAILED)
+
 
 class ModelRetentionOperationDetails:
     """
@@ -1964,13 +2006,15 @@ class ModelRetentionOperationDetails:
         Validates the retention operation details.
     """
 
-    def __init__(self,
-                 archive_state: Optional[SettingStatus] = None,
-                 archive_state_details: Optional[str] = None,
-                 delete_state: Optional[SettingStatus] = None,
-                 delete_state_details: Optional[str] = None,
-                 time_archival_scheduled: Optional[int] = None,
-                 time_deletion_scheduled: Optional[int] = None):
+    def __init__(
+        self,
+        archive_state: Optional[SettingStatus] = None,
+        archive_state_details: Optional[str] = None,
+        delete_state: Optional[SettingStatus] = None,
+        delete_state_details: Optional[str] = None,
+        time_archival_scheduled: Optional[int] = None,
+        time_deletion_scheduled: Optional[int] = None,
+    ):
         self.archive_state = archive_state
         self.archive_state_details = archive_state_details
         self.delete_state = delete_state
@@ -1981,24 +2025,24 @@ class ModelRetentionOperationDetails:
     def to_dict(self) -> Dict:
         """Serializes the retention operation details into a dictionary."""
         return {
-            "archive_state": self.archive_state.value or None,
+            "archive_state": self.archive_state or None,
             "archive_state_details": self.archive_state_details,
-            "delete_state": self.delete_state.value or None,
+            "delete_state": self.delete_state or None,
             "delete_state_details": self.delete_state_details,
             "time_archival_scheduled": self.time_archival_scheduled,
-            "time_deletion_scheduled": self.time_deletion_scheduled
+            "time_deletion_scheduled": self.time_deletion_scheduled,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'ModelRetentionOperationDetails':
+    def from_dict(cls, data: Dict) -> "ModelRetentionOperationDetails":
         """Constructs retention operation details from a dictionary."""
         return cls(
-            archive_state = SettingStatus(data.get("archive_state")) or None,
+            archive_state=SettingStatus(data.get("archive_state")) or None,
             archive_state_details=data.get("archive_state_details"),
-            delete_state = SettingStatus(data.get("delete_state")) or None,
+            delete_state=SettingStatus(data.get("delete_state")) or None,
             delete_state_details=data.get("delete_state_details"),
             time_archival_scheduled=data.get("time_archival_scheduled"),
-            time_deletion_scheduled=data.get("time_deletion_scheduled")
+            time_deletion_scheduled=data.get("time_deletion_scheduled"),
         )
 
     def to_json(self) -> str:
@@ -2006,7 +2050,7 @@ class ModelRetentionOperationDetails:
         return json.dumps(self.to_dict())
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'ModelRetentionOperationDetails':
+    def from_json(cls, json_str: str) -> "ModelRetentionOperationDetails":
         """Constructs retention operation details from a JSON string."""
         data = json.loads(json_str)
         return cls.from_dict(data)
@@ -2017,17 +2061,20 @@ class ModelRetentionOperationDetails:
 
     def validate(self) -> bool:
         """Validates the retention operation details."""
-        return all([
-            self.archive_state is None or isinstance(self.archive_state, SettingStatus),
-            self.delete_state is None or isinstance(self.delete_state, SettingStatus),
-            self.time_archival_scheduled is None or isinstance(self.time_archival_scheduled, int),
-            self.time_deletion_scheduled is None or isinstance(self.time_deletion_scheduled, int),
-        ])
-
+        return all(
+            [
+                self.archive_state is None or SettingStatus.is_valid(self.archive_state),
+                self.delete_state is None or SettingStatus.is_valid(self.delete_state),
+                self.time_archival_scheduled is None
+                or isinstance(self.time_archival_scheduled, int),
+                self.time_deletion_scheduled is None
+                or isinstance(self.time_deletion_scheduled, int),
+            ]
+        )
 
     def __repr__(self):
         return self.to_yaml()
-    
+
 
 class ModelBackupOperationDetails:
     """
@@ -2049,29 +2096,31 @@ class ModelBackupOperationDetails:
         Validates the backup operation details.
     """
 
-    def __init__(self,
-                 backup_state: Optional[SettingStatus] = None,
-                 backup_state_details: Optional[str] = None,
-                 time_last_backed_up: Optional[int] = None):
-        self.backup_state = backup_state 
+    def __init__(
+        self,
+        backup_state: Optional[SettingStatus] = None,
+        backup_state_details: Optional[str] = None,
+        time_last_backed_up: Optional[int] = None,
+    ):
+        self.backup_state = backup_state
         self.backup_state_details = backup_state_details
         self.time_last_backed_up = time_last_backed_up
 
     def to_dict(self) -> Dict:
         """Serializes the backup operation details into a dictionary."""
         return {
-            "backup_state": self.backup_state.value or None,
+            "backup_state": self.backup_state or None,
             "backup_state_details": self.backup_state_details,
-            "time_last_backed_up": self.time_last_backed_up
+            "time_last_backed_up": self.time_last_backed_up,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'ModelBackupOperationDetails':
+    def from_dict(cls, data: Dict) -> "ModelBackupOperationDetails":
         """Constructs backup operation details from a dictionary."""
         return cls(
             backup_state=SettingStatus(data.get("backup_state")) or None,
             backup_state_details=data.get("backup_state_details"),
-            time_last_backed_up=data.get("time_last_backed_up")
+            time_last_backed_up=data.get("time_last_backed_up"),
         )
 
     def to_json(self) -> str:
@@ -2079,7 +2128,7 @@ class ModelBackupOperationDetails:
         return json.dumps(self.to_dict())
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'ModelBackupOperationDetails':
+    def from_json(cls, json_str: str) -> "ModelBackupOperationDetails":
         """Constructs backup operation details from a JSON string."""
         data = json.loads(json_str)
         return cls.from_dict(data)
@@ -2090,9 +2139,11 @@ class ModelBackupOperationDetails:
 
     def validate(self) -> bool:
         """Validates the backup operation details."""
-        if self.backup_state is not None and not isinstance(self.backup_state, SettingStatus):
+        if self.backup_state is not None and not SettingStatus.is_valid(self.backup_state):
             return False
-        if self.time_last_backed_up is not None and not isinstance(self.time_last_backed_up, int):
+        if self.time_last_backed_up is not None and not isinstance(
+            self.time_last_backed_up, int
+        ):
             return False
         return True
 

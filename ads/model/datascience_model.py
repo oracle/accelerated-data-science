@@ -39,7 +39,7 @@ from ads.model.model_metadata import (
     ModelBackupSetting,
     ModelRetentionSetting,
     ModelRetentionOperationDetails,
-    ModelBackupOperationDetails
+    ModelBackupOperationDetails,
 )
 from ads.model.service.oci_datascience_model import (
     ModelProvenanceNotFoundError,
@@ -135,7 +135,7 @@ class DataScienceModel(Builder):
 
 
 
-    
+
 
 
     Methods
@@ -265,7 +265,7 @@ class DataScienceModel(Builder):
         CONST_BACKUP_SETTING: "backup_setting",
         CONST_RETENTION_SETTING: "retention_setting",
         CONST_BACKUP_OPERATION_DETAILS: "backup_operation_details",
-        CONST_RETENTION_OPERATION_DETAILS: "retention_operation_details"
+        CONST_RETENTION_OPERATION_DETAILS: "retention_operation_details",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -333,7 +333,7 @@ class DataScienceModel(Builder):
         if self.dsc_model:
             return self.dsc_model.status
         return None
-    
+
     @property
     def lifecycle_details(self) -> str:
         """
@@ -355,7 +355,6 @@ class DataScienceModel(Builder):
         :type: str
         """
         return self.set_spec(self.CONST_LIFECYCLE_DETAILS, lifecycle_details)
-
 
     @property
     def kind(self) -> str:
@@ -743,15 +742,17 @@ class DataScienceModel(Builder):
         :rtype: RetentionSetting
         """
         return self.get_spec(self.CONST_RETENTION_SETTING)
-    
-    def with_retention_setting(self, retention_setting: Union[Dict, ModelRetentionSetting]) -> "DataScienceModel":
+
+    def with_retention_setting(
+        self, retention_setting: Union[Dict, ModelRetentionSetting]
+    ) -> "DataScienceModel":
         """
         Sets the retention setting details for the model.
 
         Parameters
         ----------
         retention_setting : Union[Dict, RetentionSetting]
-            The retention setting details for the model. Can be provided as either a dictionary or 
+            The retention setting details for the model. Can be provided as either a dictionary or
             an instance of the `RetentionSetting` class.
 
         Returns
@@ -759,13 +760,7 @@ class DataScienceModel(Builder):
         DataScienceModel
             The `DataScienceModel` instance (self) for method chaining.
         """
-        if retention_setting and isinstance(retention_setting, dict):
-            retention_setting = ModelRetentionSetting.from_dict(retention_setting)
-
         return self.set_spec(self.CONST_RETENTION_SETTING, retention_setting)
-
-
-
 
     @property
     def backup_setting(self) -> ModelBackupSetting:
@@ -776,8 +771,10 @@ class DataScienceModel(Builder):
         :rtype: BackupSetting
         """
         return self.get_spec(self.CONST_BACKUP_SETTING)
-    
-    def with_backup_setting(self, backup_setting: Union[Dict, ModelBackupSetting]) -> "DataScienceModel":
+
+    def with_backup_setting(
+        self, backup_setting: Union[Dict, ModelBackupSetting]
+    ) -> "DataScienceModel":
         """
         Sets the model's backup setting details.
 
@@ -792,12 +789,9 @@ class DataScienceModel(Builder):
         DataScienceModel
            The `DataScienceModel` instance (self) for method chaining.
         """
-        if backup_setting and isinstance(backup_setting, dict):
-            backup_setting = ModelBackupSetting.from_dict(backup_setting)
 
         return self.set_spec(self.CONST_BACKUP_SETTING, backup_setting)
 
-    
     @property
     def retention_operation_details(self) -> ModelRetentionOperationDetails:
         """
@@ -807,7 +801,7 @@ class DataScienceModel(Builder):
         :rtype: ModelRetentionOperationDetails
         """
         return self.get_spec(self.CONST_RETENTION_OPERATION_DETAILS)
-    
+
     @property
     def backup_operation_details(self) -> "ModelBackupOperationDetails":
         """
@@ -1033,8 +1027,6 @@ class DataScienceModel(Builder):
         artifact_uploader.upload()
 
         self._remove_file_description_artifact()
-    
-    
 
     def _remove_file_description_artifact(self):
         """Removes temporary model file description artifact for model by reference."""
@@ -1042,11 +1034,10 @@ class DataScienceModel(Builder):
         if self.local_copy_dir:
             shutil.rmtree(self.local_copy_dir, ignore_errors=True)
 
-    
     def restore_model(
-    self,
-    model_id: str,
-    restore_model_for_hours_specified: Optional[int] = None,
+        self,
+        model_id: str,
+        restore_model_for_hours_specified: Optional[int] = None,
     ):
         """
         Restore archived model artifact.
@@ -1073,13 +1064,18 @@ class DataScienceModel(Builder):
 
         # Optional: Validate restore_model_for_hours_specified
         if restore_model_for_hours_specified is not None:
-            if not isinstance(restore_model_for_hours_specified, int) or restore_model_for_hours_specified <= 0:
-                raise ValueError("restore_model_for_hours_specified must be a positive integer.")
+            if (
+                not isinstance(restore_model_for_hours_specified, int)
+                or restore_model_for_hours_specified <= 0
+            ):
+                raise ValueError(
+                    "restore_model_for_hours_specified must be a positive integer."
+                )
 
         self.dsc_model.restore_archived_model_artifact(
-        model_id=model_id,
-        restore_model_for_hours_specified=restore_model_for_hours_specified)
-
+            model_id=model_id,
+            restore_model_for_hours_specified=restore_model_for_hours_specified,
+        )
 
     def download_artifact(
         self,
@@ -1357,8 +1353,6 @@ class DataScienceModel(Builder):
             self.CONST_CUSTOM_METADATA: "_to_oci_metadata",
             self.CONST_DEFINED_METADATA: "_to_oci_metadata",
             self.CONST_PROVENANCE_METADATA: "_to_oci_metadata",
-            self.CONST_BACKUP_SETTING: "to_json",
-            self.CONST_RETENTION_SETTING: "to_json"
         }
         dsc_spec = {}
         for infra_attr, dsc_attr in self.attribute_map.items():
@@ -1375,6 +1369,8 @@ class DataScienceModel(Builder):
                 dsc_spec[dsc_attr] = value
 
         dsc_spec.update(**kwargs)
+        print("Model Dsc spec")
+        print(dsc_spec)
         return OCIDataScienceModel(**dsc_spec)
 
     def _update_from_oci_dsc_model(
@@ -1397,12 +1393,15 @@ class DataScienceModel(Builder):
             self.CONST_OUTPUT_SCHEMA: [Schema.from_json, json.loads],
             self.CONST_CUSTOM_METADATA: ModelCustomMetadata._from_oci_metadata,
             self.CONST_DEFINED_METADATA: ModelTaxonomyMetadata._from_oci_metadata,
-            self.CONST_BACKUP_SETTING: ModelBackupSetting.from_json,
-            self.CONST_RETENTION_SETTING: ModelRetentionSetting.from_json,
+            self.CONST_BACKUP_SETTING: ModelBackupSetting.to_dict,
+            self.CONST_RETENTION_SETTING: ModelRetentionSetting.to_dict,
         }
 
         # Update the main properties
+
         self.dsc_model = dsc_model
+        print("Model Details from here")
+        print(dsc_model)
         for infra_attr, dsc_attr in self.attribute_map.items():
             value = utils.get_value(dsc_model, dsc_attr)
             if value:

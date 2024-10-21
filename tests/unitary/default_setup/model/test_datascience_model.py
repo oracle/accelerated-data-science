@@ -161,14 +161,14 @@ DSC_MODEL_PAYLOAD = {
         "artifact_dir": "test_script_dir",
     },
     "backupSetting": {
-        "isBackupEnabled": True,
-        "backupRegion": "us-phoenix-1",
-        "customerNotificationType": "ALL"
+        "is_backup_enabled": True,
+        "backup_region": "us-phoenix-1",
+        "customer_notification_type": "ALL"
     },
     "retentionSetting": {
-        "archiveAfterDays": 30,
-        "deleteAfterDays": 90,
-        "customerNotificationType": "ALL"
+        "archive_after_days": 30,
+        "delete_after_days": 90,
+        "customer_notification_type": "ALL"
     },
     "artifact": "ocid1.datasciencemodel.oc1.iad.<unique_ocid>.zip",
 }
@@ -718,14 +718,14 @@ class TestDataScienceModel:
                 ]
             },
             "backupSetting": {
-                "isBackupEnabled": True,
-                "backupRegion": "us-phoenix-1",
-                "customerNotificationType": "ALL",
+                "is_backup_enabled": True,
+                "backup_region": "us-phoenix-1",
+                "customer_notification_type": "ALL",
             },
             "retentionSetting": {
-                "archiveAfterDays": 30,
-                "deleteAfterDays": 90,
-                "customerNotificationType": "ALL",
+                "archive_after_days": 30,
+                "delete_after_days": 90,
+                "customer_notification_type": "ALL",
             },
             "provenanceMetadata": {
                 "git_branch": "master",
