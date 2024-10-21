@@ -279,6 +279,40 @@ class OCIDataScienceModel(
         return {}
 
     @check_for_model_id(
+        msg="Model needs to be restored before the archived artifact content can be accessed."
+    )
+    def restore_archived_model_artifact(
+            self, model_id: str, restore_model_for_hours_specified: Optional[int] = None
+    ) -> None:
+        """Restores the archived model artifact.
+
+        Parameters
+        ----------
+        model_id : str
+            The unique identifier of the model to restore.
+        restore_model_for_hours_specified : Optional[int]
+            The duration (in hours) for which the model should be restored.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ModelArtifactNotFoundError
+            If model artifact not found.
+        """
+        try:
+            # Call the underlying client method to restore the model artifact
+            return self.client.restore_archived_model_artifact(
+                model_id=model_id,
+                restore_model_for_hours_specified=restore_model_for_hours_specified,
+            ).data.content
+        except ServiceError as ex:
+            if ex.status == 404:
+                raise ModelArtifactNotFoundError()
+
+    @check_for_model_id(
         msg="Model needs to be saved to the Model Catalog before the artifact content can be read."
     )
     def get_model_artifact_content(self) -> BytesIO:
