@@ -419,7 +419,7 @@ class AquaModelApp(AquaApp):
                 return AquaApp().update_model(id, update_model_details).data
         else:
             raise AquaRuntimeError(
-                f"Failed to edit model:{id}. Only registered unverified models can be deleted."
+                f"Failed to edit model:{id}. Only registered unverified models can be edited."
             )
 
     def _fetch_metric_from_metadata(

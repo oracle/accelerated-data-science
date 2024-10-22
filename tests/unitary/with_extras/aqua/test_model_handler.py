@@ -94,10 +94,10 @@ class ModelHandlerTestCase(TestCase):
             mock_urlparse.assert_called()
             mock_delete.assert_called()
 
-    @patch.object(AquaContainerConfig,"from_container_index_json")
-    @patch.object(AquaModelApp,"edit_registered_model")
-    def test_put(self,mock_edit,mock_container_index):
-        mock_edit.return_value={"state":"EDITED"}
+    @patch.object(AquaContainerConfig, "from_container_index_json")
+    @patch.object(AquaModelApp, "edit_registered_model")
+    def test_put(self, mock_edit, mock_container_index):
+        mock_edit.return_value = {"state": "EDITED"}
         mock_inference = MagicMock()
         mock_inference.values.return_value = [
             MagicMock(family="odsc-vllm-serving"),
@@ -113,10 +113,12 @@ class ModelHandlerTestCase(TestCase):
                 inference_container="odsc-tgi-serving",
             )
         )
-        with patch("ads.aqua.extension.base_handler.AquaAPIhandler.finish") as mock_finish:
+        with patch(
+            "ads.aqua.extension.base_handler.AquaAPIhandler.finish"
+        ) as mock_finish:
             mock_finish.side_effect = lambda x: x
             result = self.model_handler.put(id="ocid1.datasciencemodel.oc1.iad.xxx")
-            print(f"result: ",result)
+            print(f"result: ", result)
             assert result["state"] is "EDITED"
             mock_edit.assert_called()
 
