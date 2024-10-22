@@ -562,8 +562,8 @@ class AquaFineTuningApp(AquaApp):
 
         config = self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG)
         if not config:
-            logger.info(
-                f"default fine-tuning config will be used for model: {model_id}"
+            logger.debug(
+                f"Fine-tuning config for custom model: {model_id} is not available."
             )
         return config
 
