@@ -574,11 +574,7 @@ class AquaDeploymentApp(AquaApp):
         """
         config = self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG)
         if not config:
-            logger.info(f"Fetching default deployment config for model: {model_id}")
-            config = load_config(
-                AQUA_CONFIG_FOLDER,
-                config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS,
-            )
+            logger.info(f"default deployment config will be used for model: {model_id}")
         return config
 
     def get_deployment_default_params(

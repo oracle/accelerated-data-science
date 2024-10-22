@@ -572,25 +572,13 @@ class AquaUIApp(AquaApp):
         """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         instance_shape = kwargs.pop("instance_shape", None)
+        limit_name = kwargs.pop("limit_name",None)
 
         if not instance_shape:
             raise AquaValueError("instance_shape argument is required.")
 
         limits_client = oc.OCIClientFactory(**default_signer()).limits
 
-        artifact_path = AQUA_CONFIG_FOLDER
-        config = load_config(
-            artifact_path,
-            config_file_name=AQUA_RESOURCE_LIMIT_NAMES_CONFIG,
-        )
-
-        if instance_shape not in config:
-            logger.error(
-                f"{instance_shape} does not have mapping details in {AQUA_RESOURCE_LIMIT_NAMES_CONFIG}"
-            )
-            return {}
-
-        limit_name = config[instance_shape]
         try:
             res = limits_client.get_resource_availability(
                 DATA_SCIENCE_SERVICE_NAME, limit_name, compartment_id, **kwargs

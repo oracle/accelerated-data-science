@@ -563,8 +563,7 @@ class AquaFineTuningApp(AquaApp):
 
         config = self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG)
         if not config:
-            logger.info(f"Fetching default fine-tuning config for model: {model_id}")
-            config = get_finetuning_config_defaults()
+            logger.info(f"default fine-tuning config will be used for model: {model_id}")
         return config
 
     @telemetry(

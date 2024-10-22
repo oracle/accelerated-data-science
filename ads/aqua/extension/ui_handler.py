@@ -180,10 +180,11 @@ class AquaUIHandler(AquaAPIhandler):
         with the given limit."""
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
         instance_shape = self.get_argument("instance_shape")
+        limit_name = self.get_argument("limit_name")
 
         return self.finish(
             AquaUIApp().get_shape_availability(
-                compartment_id=compartment_id, instance_shape=instance_shape, **kwargs
+                compartment_id=compartment_id, instance_shape=instance_shape, limit_name=limit_name, **kwargs
             )
         )
 
