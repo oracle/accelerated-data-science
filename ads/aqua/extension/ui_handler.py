@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -10,8 +9,8 @@ from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.enums import Tags
-from ads.aqua.extension.errors import Errors
 from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.aqua.extension.errors import Errors
 from ads.aqua.extension.utils import validate_function_parameters
 from ads.aqua.model.entities import ImportModelDetails
 from ads.aqua.ui import AquaUIApp
@@ -184,7 +183,10 @@ class AquaUIHandler(AquaAPIhandler):
 
         return self.finish(
             AquaUIApp().get_shape_availability(
-                compartment_id=compartment_id, instance_shape=instance_shape, limit_name=limit_name, **kwargs
+                compartment_id=compartment_id,
+                instance_shape=instance_shape,
+                limit_name=limit_name,
+                **kwargs,
             )
         )
 

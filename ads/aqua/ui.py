@@ -17,14 +17,12 @@ from ads.aqua.app import AquaApp
 from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaResourceAccessError, AquaValueError
-from ads.aqua.common.utils import get_container_config, load_config, sanitize_response
+from ads.aqua.common.utils import get_container_config, sanitize_response
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
 from ads.config import (
-    AQUA_CONFIG_FOLDER,
-    AQUA_RESOURCE_LIMIT_NAMES_CONFIG,
     COMPARTMENT_OCID,
     DATA_SCIENCE_SERVICE_NAME,
     TENANCY_OCID,
@@ -572,7 +570,7 @@ class AquaUIApp(AquaApp):
         """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         instance_shape = kwargs.pop("instance_shape", None)
-        limit_name = kwargs.pop("limit_name",None)
+        limit_name = kwargs.pop("limit_name", None)
 
         if not instance_shape:
             raise AquaValueError("instance_shape argument is required.")
