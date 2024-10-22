@@ -19,8 +19,8 @@ from ads.aqua.extension.model_handler import (
     AquaModelLicenseHandler,
 )
 from ads.aqua.model import AquaModelApp
-from ads.aqua.model.constants import ModelTask
 from ads.aqua.model.entities import AquaModel, AquaModelSummary, HFModelSummary
+from ads.aqua.ui import AquaContainerConfig
 
 
 class ModelHandlerTestCase(TestCase):
@@ -78,6 +78,49 @@ class ModelHandlerTestCase(TestCase):
             assert result["cache_deleted"] is True
             mock_urlparse.assert_called()
             mock_clear_model_list_cache.assert_called()
+
+    @patch("ads.aqua.extension.model_handler.urlparse")
+    @patch.object(AquaModelApp, "delete_model")
+    def test_delete_with_id(self, mock_delete, mock_urlparse):
+        request_path = MagicMock(path="aqua/model/ocid1.datasciencemodel.oc1.iad.xxx")
+        mock_urlparse.return_value = request_path
+        mock_delete.return_value = {"state": "DELETED"}
+        with patch(
+            "ads.aqua.extension.base_handler.AquaAPIhandler.finish"
+        ) as mock_finish:
+            mock_finish.side_effect = lambda x: x
+            result = self.model_handler.delete(id="ocid1.datasciencemodel.oc1.iad.xxx")
+            assert result["state"] is "DELETED"
+            mock_urlparse.assert_called()
+            mock_delete.assert_called()
+
+    @patch.object(AquaContainerConfig, "from_container_index_json")
+    @patch.object(AquaModelApp, "edit_registered_model")
+    def test_put(self, mock_edit, mock_container_index):
+        mock_edit.return_value = {"state": "EDITED"}
+        mock_inference = MagicMock()
+        mock_inference.values.return_value = [
+            MagicMock(family="odsc-vllm-serving"),
+            MagicMock(family="odsc-tgi-serving"),
+            MagicMock(family="odsc-vllm-serving"),
+        ]
+
+        mock_container_index.return_value = MagicMock(inference=mock_inference)
+        self.model_handler.get_json_body = MagicMock(
+            return_value=dict(
+                task="text_generation",
+                enable_finetuning="true",
+                inference_container="odsc-tgi-serving",
+            )
+        )
+        with patch(
+            "ads.aqua.extension.base_handler.AquaAPIhandler.finish"
+        ) as mock_finish:
+            mock_finish.side_effect = lambda x: x
+            result = self.model_handler.put(id="ocid1.datasciencemodel.oc1.iad.xxx")
+            print(f"result: ", result)
+            assert result["state"] is "EDITED"
+            mock_edit.assert_called()
 
     @patch.object(AquaModelApp, "list")
     def test_list(self, mock_list):
