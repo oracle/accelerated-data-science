@@ -10,11 +10,15 @@ from typing import Dict, List, Optional, Set, Union
 import oci
 from cachetools import TTLCache
 from huggingface_hub import snapshot_download
-from oci.data_science.models import JobRun, Model
+from oci.data_science.models import JobRun, Metadata, Model, UpdateModelDetails
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
-from ads.aqua.common.enums import InferenceContainerTypeFamily, Tags
+from ads.aqua.common.enums import (
+    FineTuningContainerTypeFamily,
+    InferenceContainerTypeFamily,
+    Tags,
+)
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     LifecycleStatus,
@@ -75,7 +79,11 @@ from ads.config import (
     TENANCY_OCID,
 )
 from ads.model import DataScienceModel
-from ads.model.model_metadata import ModelCustomMetadata, ModelCustomMetadataItem
+from ads.model.model_metadata import (
+    MetadataCustomCategory,
+    ModelCustomMetadata,
+    ModelCustomMetadataItem,
+)
 from ads.telemetry import telemetry
 
 
@@ -322,6 +330,97 @@ class AquaModelApp(AquaApp):
             )
 
         return model_details
+
+    @telemetry(entry_point="plugin=model&action=delete", name="aqua")
+    def delete_model(self, model_id):
+        ds_model = DataScienceModel.from_id(model_id)
+        is_registered_model = ds_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None)
+        is_fine_tuned_model = ds_model.freeform_tags.get(
+            Tags.AQUA_FINE_TUNED_MODEL_TAG, None
+        )
+        if is_registered_model or is_fine_tuned_model:
+            return ds_model.delete()
+        else:
+            raise AquaRuntimeError(
+                f"Failed to delete model:{model_id}. Only registered models or finetuned model can be deleted."
+            )
+
+    @telemetry(entry_point="plugin=model&action=delete", name="aqua")
+    def edit_registered_model(self, id, inference_container, enable_finetuning, task):
+        """Edits the default config of unverified registered model.
+
+        Parameters
+        ----------
+        id: str
+            The model OCID.
+        inference_container: str.
+            The inference container family name
+        enable_finetuning: str
+            Flag to enable or disable finetuning over the model. Defaults to None
+        task:
+            The usecase type of the model. e.g , text-generation , text_embedding etc.
+
+        Returns
+        -------
+        Model:
+            The instance of oci.data_science.models.Model.
+
+        """
+        ds_model = DataScienceModel.from_id(id)
+        if ds_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None):
+            if ds_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, None):
+                raise AquaRuntimeError(
+                    f"Failed to edit model:{id}. Only registered unverified models can be edited."
+                )
+            else:
+                custom_metadata_list = ds_model.custom_metadata_list
+                freeform_tags = ds_model.freeform_tags
+                if inference_container:
+                    custom_metadata_list.add(
+                        key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
+                        value=inference_container,
+                        category=MetadataCustomCategory.OTHER,
+                        description="Deployment container mapping for SMC",
+                        replace=True,
+                    )
+                if enable_finetuning is not None:
+                    if enable_finetuning.lower() == "true":
+                        custom_metadata_list.add(
+                            key=ModelCustomMetadataFields.FINETUNE_CONTAINER,
+                            value=FineTuningContainerTypeFamily.AQUA_FINETUNING_CONTAINER_FAMILY,
+                            category=MetadataCustomCategory.OTHER,
+                            description="Fine-tuning container mapping for SMC",
+                            replace=True,
+                        )
+                        freeform_tags.update({Tags.READY_TO_FINE_TUNE: "true"})
+                    elif enable_finetuning.lower() == "false":
+                        try:
+                            custom_metadata_list.remove(
+                                ModelCustomMetadataFields.FINETUNE_CONTAINER
+                            )
+                            freeform_tags.pop(Tags.READY_TO_FINE_TUNE)
+                        except Exception as ex:
+                            raise AquaRuntimeError(
+                                f"The given model already doesn't support finetuning: {ex}"
+                            )
+
+                custom_metadata_list.remove("modelDescription")
+                if task:
+                    freeform_tags.update({Tags.TASK: task})
+
+                updated_custom_metadata_list = [
+                    Metadata(**metadata)
+                    for metadata in custom_metadata_list.to_dict()["data"]
+                ]
+                update_model_details = UpdateModelDetails(
+                    custom_metadata_list=updated_custom_metadata_list,
+                    freeform_tags=freeform_tags,
+                )
+                return AquaApp().update_model(id, update_model_details).data
+        else:
+            raise AquaRuntimeError(
+                f"Failed to edit model:{id}. Only registered unverified models can be edited."
+            )
 
     def _fetch_metric_from_metadata(
         self,
@@ -935,14 +1034,15 @@ class AquaModelApp(AquaApp):
         # gguf extension exist.
         if {ModelFormat.SAFETENSORS, ModelFormat.GGUF}.issubset(set(model_formats)):
             if (
-                import_model_details.inference_container.lower() == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
+                import_model_details.inference_container.lower()
+                == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
             ):
                 self._validate_gguf_format(
                     import_model_details=import_model_details,
                     verified_model=verified_model,
                     gguf_model_files=gguf_model_files,
                     validation_result=validation_result,
-                    model_name=model_name
+                    model_name=model_name,
                 )
             else:
                 self._validate_safetensor_format(
@@ -950,7 +1050,7 @@ class AquaModelApp(AquaApp):
                     verified_model=verified_model,
                     validation_result=validation_result,
                     hf_download_config_present=hf_download_config_present,
-                    model_name=model_name
+                    model_name=model_name,
                 )
         elif ModelFormat.SAFETENSORS in model_formats:
             self._validate_safetensor_format(
@@ -958,7 +1058,7 @@ class AquaModelApp(AquaApp):
                 verified_model=verified_model,
                 validation_result=validation_result,
                 hf_download_config_present=hf_download_config_present,
-                model_name=model_name
+                model_name=model_name,
             )
         elif ModelFormat.GGUF in model_formats:
             self._validate_gguf_format(
@@ -966,7 +1066,7 @@ class AquaModelApp(AquaApp):
                 verified_model=verified_model,
                 gguf_model_files=gguf_model_files,
                 validation_result=validation_result,
-                model_name=model_name
+                model_name=model_name,
             )
 
         return validation_result
@@ -977,7 +1077,7 @@ class AquaModelApp(AquaApp):
         verified_model: DataScienceModel = None,
         validation_result: ModelValidationResult = None,
         hf_download_config_present: bool = None,
-        model_name: str = None
+        model_name: str = None,
     ):
         if import_model_details.download_from_hf:
             # validates config.json exists for safetensors model from hugginface
@@ -1004,20 +1104,13 @@ class AquaModelApp(AquaApp):
                 ) from ex
             else:
                 try:
-                    metadata_model_type = (
-                        verified_model.custom_metadata_list.get(
-                            AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE
-                        ).value
-                    )
+                    metadata_model_type = verified_model.custom_metadata_list.get(
+                        AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE
+                    ).value
                     if metadata_model_type:
-                        if (
-                            AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE
-                            in model_config
-                        ):
+                        if AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE in model_config:
                             if (
-                                model_config[
-                                    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE
-                                ]
+                                model_config[AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE]
                                 != metadata_model_type
                             ):
                                 raise AquaRuntimeError(
@@ -1035,9 +1128,7 @@ class AquaModelApp(AquaApp):
                 except Exception:
                     pass
                 if verified_model:
-                    validation_result.telemetry_model_name = (
-                        verified_model.display_name
-                    )
+                    validation_result.telemetry_model_name = verified_model.display_name
                 elif (
                     model_config is not None
                     and AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME in model_config
@@ -1049,9 +1140,7 @@ class AquaModelApp(AquaApp):
                 ):
                     validation_result.telemetry_model_name = f"{AQUA_MODEL_TYPE_CUSTOM}_{model_config[AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE]}"
                 else:
-                    validation_result.telemetry_model_name = (
-                        AQUA_MODEL_TYPE_CUSTOM
-                    )
+                    validation_result.telemetry_model_name = AQUA_MODEL_TYPE_CUSTOM
 
     @staticmethod
     def _validate_gguf_format(
