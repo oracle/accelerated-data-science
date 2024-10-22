@@ -21,7 +21,6 @@ from ads.aqua.common.utils import (
     get_container_image,
     upload_local_to_os,
 )
-from ads.aqua.config.config import get_finetuning_config_defaults
 from ads.aqua.constants import (
     DEFAULT_FT_BATCH_SIZE,
     DEFAULT_FT_BLOCK_STORAGE_SIZE,
@@ -563,8 +562,9 @@ class AquaFineTuningApp(AquaApp):
 
         config = self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG)
         if not config:
-            logger.info(f"Fetching default fine-tuning config for model: {model_id}")
-            config = get_finetuning_config_defaults()
+            logger.debug(
+                f"Fine-tuning config for custom model: {model_id} is not available."
+            )
         return config
 
     @telemetry(
