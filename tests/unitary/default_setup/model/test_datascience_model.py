@@ -26,7 +26,7 @@ from ads.model.datascience_model import (
     ModelArtifactSizeError,
     BucketNotVersionedError,
     ModelFileDescriptionError,
-    InvalidArtifactType,
+    InvalidArtifactType, ModelRetentionSetting, ModelBackupSetting,
 )
 from ads.model.model_metadata import (
     ModelCustomMetadata,
@@ -34,8 +34,6 @@ from ads.model.model_metadata import (
     ModelTaxonomyMetadata,
     ModelCustomMetadataItem,
     MetadataCustomCategory,
-    ModelBackupSetting,
-    ModelRetentionSetting,
 )
 from ads.model.service.oci_datascience_model import (
     ModelProvenanceNotFoundError,

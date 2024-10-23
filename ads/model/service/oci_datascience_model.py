@@ -302,15 +302,9 @@ class OCIDataScienceModel(
         ModelArtifactNotFoundError
             If model artifact not found.
         """
-        try:
-            # Call the underlying client method to restore the model artifact
-            return self.client.restore_archived_model_artifact(
-                model_id=model_id,
-                restore_model_for_hours_specified=restore_model_for_hours_specified,
-            ).data.content
-        except ServiceError as ex:
-            if ex.status == 404:
-                raise ModelArtifactNotFoundError()
+        return self.client.restore_archived_model_artifact(
+            model_id=model_id,
+            restore_model_for_hours_specified=restore_model_for_hours_specified).headers["opc-work-request-id"]
 
     @check_for_model_id(
         msg="Model needs to be saved to the Model Catalog before the artifact content can be read."

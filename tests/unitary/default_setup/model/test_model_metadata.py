@@ -31,14 +31,10 @@ from ads.model.model_metadata import (
     ModelTaxonomyMetadata,
     ModelTaxonomyMetadataItem,
     MetadataTaxonomyKeys,
-    UseCaseType,
-    ModelBackupSetting,
-    ModelBackupOperationDetails,
-    ModelRetentionSetting,
-    ModelRetentionOperationDetails,
-    CustomerNotificationType,
-    SettingStatus
+    UseCaseType
 )
+from ads.model.datascience_model import ModelRetentionSetting, CustomerNotificationType, SettingStatus, \
+    ModelBackupSetting, ModelRetentionOperationDetails, ModelBackupOperationDetails
 from oci.data_science.models import Metadata as OciMetadataItem
 
 try:

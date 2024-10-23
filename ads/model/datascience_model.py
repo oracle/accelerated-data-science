@@ -14,9 +14,11 @@ from copy import deepcopy
 from typing import Dict, List, Optional, Union, Tuple
 
 import pandas
+import yaml
 from jsonschema import ValidationError, validate
 
 from ads.common import utils
+from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import (
     COMPARTMENT_OCID,
@@ -35,12 +37,7 @@ from ads.model.model_metadata import (
     ModelCustomMetadata,
     ModelCustomMetadataItem,
     ModelProvenanceMetadata,
-    ModelTaxonomyMetadata,
-    ModelBackupSetting,
-    ModelRetentionSetting,
-    ModelRetentionOperationDetails,
-    ModelBackupOperationDetails,
-)
+    ModelTaxonomyMetadata, )
 from ads.model.service.oci_datascience_model import (
     ModelProvenanceNotFoundError,
     OCIDataScienceModel,
@@ -48,7 +45,6 @@ from ads.model.service.oci_datascience_model import (
 from ads.common import oci_client as oc
 
 logger = logging.getLogger(__name__)
-
 
 _MAX_ARTIFACT_SIZE_IN_BYTES = 2147483648  # 2GB
 MODEL_BY_REFERENCE_VERSION = "1.0"
@@ -67,8 +63,8 @@ class ModelArtifactSizeError(Exception):  # pragma: no cover
 
 class BucketNotVersionedError(Exception):  # pragma: no cover
     def __init__(
-        self,
-        msg="Model artifact bucket is not versioned. Enable versioning on the bucket to proceed with model creation by reference.",
+            self,
+            msg="Model artifact bucket is not versioned. Enable versioning on the bucket to proceed with model creation by reference.",
     ):
         super().__init__(msg)
 
@@ -80,6 +76,374 @@ class ModelFileDescriptionError(Exception):  # pragma: no cover
 
 class InvalidArtifactType(Exception):  # pragma: no cover
     pass
+
+
+class CustomerNotificationType(str, metaclass=ExtendedEnumMeta):
+    NONE = "NONE"
+    ALL = "ALL"
+    ON_FAILURE = "ON_FAILURE"
+    ON_SUCCESS = "ON_SUCCESS"
+
+    @classmethod
+    def is_valid(cls, value):
+        return value in (cls.NONE, cls.ALL, cls.ON_FAILURE, cls.ON_SUCCESS)
+
+    @property
+    def value(self):
+        return str(self)
+
+
+class SettingStatus(str, metaclass=ExtendedEnumMeta):
+    """Enum to represent the status of retention settings."""
+
+    PENDING = "PENDING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+
+    @classmethod
+    def is_valid(cls, state: str) -> bool:
+        """Validates the given state against allowed SettingStatus values."""
+        return state in (cls.PENDING, cls.SUCCEEDED, cls.FAILED)
+
+
+class ModelBackupSetting:
+    """
+    Class that represents Model Backup Setting Details Metadata.
+
+    Methods
+    -------
+    to_dict(self) -> Dict:
+        Serializes the backup settings into a dictionary.
+    from_dict(cls, data: Dict) -> 'ModelBackupSetting':
+        Constructs backup settings from a dictionary.
+    to_json(self) -> str:
+        Serializes the backup settings into a JSON string.
+    from_json(cls, json_str: str) -> 'ModelBackupSetting':
+        Constructs backup settings from a JSON string.
+    to_yaml(self) -> str:
+        Serializes the backup settings into a YAML string.
+    validate(self) -> bool:
+        Validates the backup settings details.
+    """
+
+    def __init__(
+            self,
+            is_backup_enabled: Optional[bool] = None,
+            backup_region: Optional[str] = None,
+            customer_notification_type: Optional[CustomerNotificationType] = None,
+    ):
+        self.is_backup_enabled = (
+            is_backup_enabled if is_backup_enabled is not None else False
+        )
+        self.backup_region = backup_region
+        self.customer_notification_type = (
+                customer_notification_type or CustomerNotificationType.NONE
+        )
+
+    def to_dict(self) -> Dict:
+        """Serializes the backup settings into a dictionary."""
+        return {
+            "is_backup_enabled": self.is_backup_enabled,
+            "backup_region": self.backup_region,
+            "customer_notification_type": self.customer_notification_type,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> "ModelBackupSetting":
+        """Constructs backup settings from a dictionary."""
+        return cls(
+            is_backup_enabled=data.get("is_backup_enabled"),
+            backup_region=data.get("backup_region"),
+            customer_notification_type=CustomerNotificationType(
+                data.get("customer_notification_type")
+            )
+                                       or None,
+        )
+
+    def to_json(self) -> str:
+        """Serializes the backup settings into a JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str) -> "ModelBackupSetting":
+        """Constructs backup settings from a JSON string or dictionary."""
+        if isinstance(json_str, str):
+            data = json.loads(json_str)
+        else:
+            data = json_str
+
+        return cls.from_dict(data)
+
+    def to_yaml(self) -> str:
+        """Serializes the backup settings into a YAML string."""
+        return yaml.dump(self.to_dict())
+
+    def validate(self) -> bool:
+        """Validates the backup settings details. Returns True if valid, False otherwise."""
+        if not isinstance(self.is_backup_enabled, bool):
+            return False
+        if self.backup_region and not isinstance(self.backup_region, str):
+            return False
+        if not isinstance(self.customer_notification_type, str) \
+                or not CustomerNotificationType.is_valid(self.customer_notification_type):
+            return False
+        return True
+
+    def __repr__(self):
+        return self.to_yaml()
+
+
+class ModelRetentionSetting:
+    """
+    Class that represents Model Retention Setting Details Metadata.
+
+    Methods
+    -------
+    to_dict(self) -> Dict:
+        Serializes the retention settings into a dictionary.
+    from_dict(cls, data: Dict) -> 'ModelRetentionSetting':
+        Constructs retention settings from a dictionary.
+    to_json(self) -> str:
+        Serializes the retention settings into a JSON string.
+    from_json(cls, json_str: str) -> 'ModelRetentionSetting':
+        Constructs retention settings from a JSON string.
+    to_yaml(self) -> str:
+        Serializes the retention settings into a YAML string.
+    validate(self) -> bool:
+        Validates the retention settings details.
+    """
+
+    def __init__(
+            self,
+            archive_after_days: Optional[int] = None,
+            delete_after_days: Optional[int] = None,
+            customer_notification_type: Optional[CustomerNotificationType] = None,
+    ):
+        self.archive_after_days = archive_after_days
+        self.delete_after_days = delete_after_days
+        self.customer_notification_type = (
+                customer_notification_type or CustomerNotificationType.NONE
+        )
+
+    def to_dict(self) -> Dict:
+        """Serializes the retention settings into a dictionary."""
+        return {
+            "archive_after_days": self.archive_after_days,
+            "delete_after_days": self.delete_after_days,
+            "customer_notification_type": self.customer_notification_type,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> "ModelRetentionSetting":
+        """Constructs retention settings from a dictionary."""
+        return cls(
+            archive_after_days=data.get("archive_after_days"),
+            delete_after_days=data.get("delete_after_days"),
+            customer_notification_type=CustomerNotificationType(
+                data.get("customer_notification_type")
+            )
+                                       or None,
+        )
+
+    def to_json(self) -> str:
+        """Serializes the retention settings into a JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str) -> "ModelRetentionSetting":
+        """Constructs retention settings from a JSON string."""
+        if isinstance(json_str, str):
+            data = json.loads(json_str)
+        else:
+            data = json_str
+        return cls.from_dict(data)
+
+    def to_yaml(self) -> str:
+        """Serializes the retention settings into a YAML string."""
+        return yaml.dump(self.to_dict())
+
+    def validate(self) -> bool:
+        """Validates the retention settings details. Returns True if valid, False otherwise."""
+        if self.archive_after_days is not None and (
+                not isinstance(self.archive_after_days, int) or self.archive_after_days < 0
+        ):
+            return False
+        if self.delete_after_days is not None and (
+                not isinstance(self.delete_after_days, int) or self.delete_after_days < 0
+        ):
+            return False
+        if not isinstance(self.customer_notification_type, str) or not \
+                CustomerNotificationType.is_valid(self.customer_notification_type):
+            return False
+        return True
+
+    def __repr__(self):
+        return self.to_yaml()
+
+
+class ModelRetentionOperationDetails:
+    """
+    Class that represents Model Retention Operation Details Metadata.
+
+    Methods
+    -------
+    to_dict(self) -> Dict:
+        Serializes the retention operation details into a dictionary.
+    from_dict(cls, data: Dict) -> 'ModelRetentionOperationDetails':
+        Constructs retention operation details from a dictionary.
+    to_json(self) -> str:
+        Serializes the retention operation details into a JSON string.
+    from_json(cls, json_str: str) -> 'ModelRetentionOperationDetails':
+        Constructs retention operation details from a JSON string.
+    to_yaml(self) -> str:
+        Serializes the retention operation details into a YAML string.
+    validate(self) -> bool:
+        Validates the retention operation details.
+    """
+
+    def __init__(
+            self,
+            archive_state: Optional[SettingStatus] = None,
+            archive_state_details: Optional[str] = None,
+            delete_state: Optional[SettingStatus] = None,
+            delete_state_details: Optional[str] = None,
+            time_archival_scheduled: Optional[int] = None,
+            time_deletion_scheduled: Optional[int] = None,
+    ):
+        self.archive_state = archive_state
+        self.archive_state_details = archive_state_details
+        self.delete_state = delete_state
+        self.delete_state_details = delete_state_details
+        self.time_archival_scheduled = time_archival_scheduled
+        self.time_deletion_scheduled = time_deletion_scheduled
+
+    def to_dict(self) -> Dict:
+        """Serializes the retention operation details into a dictionary."""
+        return {
+            "archive_state": self.archive_state or None,
+            "archive_state_details": self.archive_state_details,
+            "delete_state": self.delete_state or None,
+            "delete_state_details": self.delete_state_details,
+            "time_archival_scheduled": self.time_archival_scheduled,
+            "time_deletion_scheduled": self.time_deletion_scheduled,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> "ModelRetentionOperationDetails":
+        """Constructs retention operation details from a dictionary."""
+        return cls(
+            archive_state=SettingStatus(data.get("archive_state")) or None,
+            archive_state_details=data.get("archive_state_details"),
+            delete_state=SettingStatus(data.get("delete_state")) or None,
+            delete_state_details=data.get("delete_state_details"),
+            time_archival_scheduled=data.get("time_archival_scheduled"),
+            time_deletion_scheduled=data.get("time_deletion_scheduled"),
+        )
+
+    def to_json(self) -> str:
+        """Serializes the retention operation details into a JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "ModelRetentionOperationDetails":
+        """Constructs retention operation details from a JSON string."""
+        data = json.loads(json_str)
+        return cls.from_dict(data)
+
+    def to_yaml(self) -> str:
+        """Serializes the retention operation details into a YAML string."""
+        return yaml.dump(self.to_dict())
+
+    def validate(self) -> bool:
+        """Validates the retention operation details."""
+        return all(
+            [
+                self.archive_state is None or SettingStatus.is_valid(self.archive_state),
+                self.delete_state is None or SettingStatus.is_valid(self.delete_state),
+                self.time_archival_scheduled is None
+                or isinstance(self.time_archival_scheduled, int),
+                self.time_deletion_scheduled is None
+                or isinstance(self.time_deletion_scheduled, int),
+            ]
+        )
+
+    def __repr__(self):
+        return self.to_yaml()
+
+
+class ModelBackupOperationDetails:
+    """
+    Class that represents Model Backup Operation Details Metadata.
+
+    Methods
+    -------
+    to_dict(self) -> Dict:
+        Serializes the backup operation details into a dictionary.
+    from_dict(cls, data: Dict) -> 'ModelBackupOperationDetails':
+        Constructs backup operation details from a dictionary.
+    to_json(self) -> str:
+        Serializes the backup operation details into a JSON string.
+    from_json(cls, json_str: str) -> 'ModelBackupOperationDetails':
+        Constructs backup operation details from a JSON string.
+    to_yaml(self) -> str:
+        Serializes the backup operation details into a YAML string.
+    validate(self) -> bool:
+        Validates the backup operation details.
+    """
+
+    def __init__(
+            self,
+            backup_state: Optional[SettingStatus] = None,
+            backup_state_details: Optional[str] = None,
+            time_last_backed_up: Optional[int] = None,
+    ):
+        self.backup_state = backup_state
+        self.backup_state_details = backup_state_details
+        self.time_last_backed_up = time_last_backed_up
+
+    def to_dict(self) -> Dict:
+        """Serializes the backup operation details into a dictionary."""
+        return {
+            "backup_state": self.backup_state or None,
+            "backup_state_details": self.backup_state_details,
+            "time_last_backed_up": self.time_last_backed_up,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> "ModelBackupOperationDetails":
+        """Constructs backup operation details from a dictionary."""
+        return cls(
+            backup_state=SettingStatus(data.get("backup_state")) or None,
+            backup_state_details=data.get("backup_state_details"),
+            time_last_backed_up=data.get("time_last_backed_up"),
+        )
+
+    def to_json(self) -> str:
+        """Serializes the backup operation details into a JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "ModelBackupOperationDetails":
+        """Constructs backup operation details from a JSON string."""
+        data = json.loads(json_str)
+        return cls.from_dict(data)
+
+    def to_yaml(self) -> str:
+        """Serializes the backup operation details into a YAML string."""
+        return yaml.dump(self.to_dict())
+
+    def validate(self) -> bool:
+        """Validates the backup operation details."""
+        if self.backup_state is not None and not SettingStatus.is_valid(self.backup_state):
+            return False
+        if self.time_last_backed_up is not None and not isinstance(
+                self.time_last_backed_up, int
+        ):
+            return False
+        return True
+
+    def __repr__(self):
+        return self.to_yaml()
 
 
 class DataScienceModel(Builder):
@@ -132,11 +496,6 @@ class DataScienceModel(Builder):
         The value to assign to the retention_operation_details property for the Model.
     backup_operation_details: ModelBackupOperationDetails
         The value to assign to the backup_operation_details property for the Model.
-
-
-
-
-
 
     Methods
     -------
@@ -464,7 +823,7 @@ class DataScienceModel(Builder):
         return self.get_spec(self.CONST_DEFINED_TAG)
 
     def with_defined_tags(
-        self, **kwargs: Dict[str, Dict[str, object]]
+            self, **kwargs: Dict[str, Dict[str, object]]
     ) -> "DataScienceModel":
         """Sets defined tags.
 
@@ -545,7 +904,7 @@ class DataScienceModel(Builder):
         return self.get_spec(self.CONST_DEFINED_METADATA)
 
     def with_defined_metadata_list(
-        self, metadata: Union[ModelTaxonomyMetadata, Dict]
+            self, metadata: Union[ModelTaxonomyMetadata, Dict]
     ) -> "DataScienceModel":
         """Sets model taxonomy (defined) metadata.
 
@@ -569,7 +928,7 @@ class DataScienceModel(Builder):
         return self.get_spec(self.CONST_CUSTOM_METADATA)
 
     def with_custom_metadata_list(
-        self, metadata: Union[ModelCustomMetadata, Dict]
+            self, metadata: Union[ModelCustomMetadata, Dict]
     ) -> "DataScienceModel":
         """Sets model custom metadata.
 
@@ -593,7 +952,7 @@ class DataScienceModel(Builder):
         return self.get_spec(self.CONST_PROVENANCE_METADATA)
 
     def with_provenance_metadata(
-        self, metadata: Union[ModelProvenanceMetadata, Dict]
+            self, metadata: Union[ModelProvenanceMetadata, Dict]
     ) -> "DataScienceModel":
         """Sets model provenance metadata.
 
@@ -686,7 +1045,7 @@ class DataScienceModel(Builder):
         return self.get_spec(self.CONST_MODEL_FILE_DESCRIPTION)
 
     def with_model_file_description(
-        self, json_dict: dict = None, json_string: str = None, json_uri: str = None
+            self, json_dict: dict = None, json_string: str = None, json_uri: str = None
     ):
         """Sets the json file description for model passed by reference
         Parameters
@@ -744,7 +1103,7 @@ class DataScienceModel(Builder):
         return self.get_spec(self.CONST_RETENTION_SETTING)
 
     def with_retention_setting(
-        self, retention_setting: Union[Dict, ModelRetentionSetting]
+            self, retention_setting: Union[Dict, ModelRetentionSetting]
     ) -> "DataScienceModel":
         """
         Sets the retention setting details for the model.
@@ -773,7 +1132,7 @@ class DataScienceModel(Builder):
         return self.get_spec(self.CONST_BACKUP_SETTING)
 
     def with_backup_setting(
-        self, backup_setting: Union[Dict, ModelBackupSetting]
+            self, backup_setting: Union[Dict, ModelBackupSetting]
     ) -> "DataScienceModel":
         """
         Sets the model's backup setting details.
@@ -924,15 +1283,15 @@ class DataScienceModel(Builder):
         return self
 
     def upload_artifact(
-        self,
-        bucket_uri: Optional[str] = None,
-        auth: Optional[Dict] = None,
-        region: Optional[str] = None,
-        overwrite_existing_artifact: Optional[bool] = True,
-        remove_existing_artifact: Optional[bool] = True,
-        timeout: Optional[int] = None,
-        parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
-        model_by_reference: Optional[bool] = False,
+            self,
+            bucket_uri: Optional[str] = None,
+            auth: Optional[Dict] = None,
+            region: Optional[str] = None,
+            overwrite_existing_artifact: Optional[bool] = True,
+            remove_existing_artifact: Optional[bool] = True,
+            timeout: Optional[int] = None,
+            parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
+            model_by_reference: Optional[bool] = False,
     ) -> None:
         """Uploads model artifacts to the model catalog.
 
@@ -1002,7 +1361,7 @@ class DataScienceModel(Builder):
                 bucket_uri = self.artifact
 
         if not model_by_reference and (
-            bucket_uri or utils.folder_size(self.artifact) > _MAX_ARTIFACT_SIZE_IN_BYTES
+                bucket_uri or utils.folder_size(self.artifact) > _MAX_ARTIFACT_SIZE_IN_BYTES
         ):
             if not bucket_uri:
                 raise ModelArtifactSizeError(
@@ -1034,10 +1393,11 @@ class DataScienceModel(Builder):
         if self.local_copy_dir:
             shutil.rmtree(self.local_copy_dir, ignore_errors=True)
 
+    @classmethod
     def restore_model(
-        self,
-        model_id: str,
-        restore_model_for_hours_specified: Optional[int] = None,
+            cls,
+            model_id: str,
+            restore_model_for_hours_specified: Optional[int] = None,
     ):
         """
         Restore archived model artifact.
@@ -1046,7 +1406,7 @@ class DataScienceModel(Builder):
         ----------
         model_id : str
             The `OCID` of the model to be restored.
-            restore_model_for_hours_specified : Optional[int]
+        restore_model_for_hours_specified : Optional[int]
             Duration in hours for which the archived model is available for access.
 
         Returns
@@ -1065,28 +1425,28 @@ class DataScienceModel(Builder):
         # Optional: Validate restore_model_for_hours_specified
         if restore_model_for_hours_specified is not None:
             if (
-                not isinstance(restore_model_for_hours_specified, int)
-                or restore_model_for_hours_specified <= 0
+                    not isinstance(restore_model_for_hours_specified, int)
+                    or restore_model_for_hours_specified <= 0
             ):
                 raise ValueError(
                     "restore_model_for_hours_specified must be a positive integer."
                 )
 
-        self.dsc_model.restore_archived_model_artifact(
+        cls.dsc_model.restore_archived_model_artifact(
             model_id=model_id,
             restore_model_for_hours_specified=restore_model_for_hours_specified,
         )
 
     def download_artifact(
-        self,
-        target_dir: str,
-        auth: Optional[Dict] = None,
-        force_overwrite: Optional[bool] = False,
-        bucket_uri: Optional[str] = None,
-        region: Optional[str] = None,
-        overwrite_existing_artifact: Optional[bool] = True,
-        remove_existing_artifact: Optional[bool] = True,
-        timeout: Optional[int] = None,
+            self,
+            target_dir: str,
+            auth: Optional[Dict] = None,
+            force_overwrite: Optional[bool] = False,
+            bucket_uri: Optional[str] = None,
+            region: Optional[str] = None,
+            overwrite_existing_artifact: Optional[bool] = True,
+            remove_existing_artifact: Optional[bool] = True,
+            timeout: Optional[int] = None,
     ):
         """Downloads model artifacts from the model catalog.
 
@@ -1161,9 +1521,9 @@ class DataScienceModel(Builder):
                 )
 
         if (
-            artifact_size > _MAX_ARTIFACT_SIZE_IN_BYTES
-            or bucket_uri
-            or model_by_reference
+                artifact_size > _MAX_ARTIFACT_SIZE_IN_BYTES
+                or bucket_uri
+                or model_by_reference
         ):
             artifact_downloader = LargeArtifactDownloader(
                 dsc_model=self.dsc_model,
@@ -1222,8 +1582,8 @@ class DataScienceModel(Builder):
         return self.sync()
 
     def delete(
-        self,
-        delete_associated_model_deployment: Optional[bool] = False,
+            self,
+            delete_associated_model_deployment: Optional[bool] = False,
     ) -> "DataScienceModel":
         """Removes model from the model catalog.
 
@@ -1242,7 +1602,7 @@ class DataScienceModel(Builder):
 
     @classmethod
     def list(
-        cls, compartment_id: str = None, project_id: str = None, **kwargs
+            cls, compartment_id: str = None, project_id: str = None, **kwargs
     ) -> List["DataScienceModel"]:
         """Lists datascience models in a given compartment.
 
@@ -1269,7 +1629,7 @@ class DataScienceModel(Builder):
 
     @classmethod
     def list_df(
-        cls, compartment_id: str = None, project_id: str = None, **kwargs
+            cls, compartment_id: str = None, project_id: str = None, **kwargs
     ) -> "pandas.DataFrame":
         """Lists datascience models in a given compartment.
 
@@ -1289,7 +1649,7 @@ class DataScienceModel(Builder):
         """
         records = []
         for model in OCIDataScienceModel.list_resource(
-            compartment_id, project_id=project_id, **kwargs
+                compartment_id, project_id=project_id, **kwargs
         ):
             records.append(
                 {
@@ -1369,12 +1729,10 @@ class DataScienceModel(Builder):
                 dsc_spec[dsc_attr] = value
 
         dsc_spec.update(**kwargs)
-        print("Model Dsc spec")
-        print(dsc_spec)
         return OCIDataScienceModel(**dsc_spec)
 
     def _update_from_oci_dsc_model(
-        self, dsc_model: OCIDataScienceModel
+            self, dsc_model: OCIDataScienceModel
     ) -> "DataScienceModel":
         """Update the properties from an OCIDataScienceModel object.
 
@@ -1398,10 +1756,7 @@ class DataScienceModel(Builder):
         }
 
         # Update the main properties
-
         self.dsc_model = dsc_model
-        print("Model Details from here")
-        print(dsc_model)
         for infra_attr, dsc_attr in self.attribute_map.items():
             value = utils.get_value(dsc_model, dsc_attr)
             if value:
@@ -1648,12 +2003,12 @@ class DataScienceModel(Builder):
         return bucket_uri[0] if len(bucket_uri) == 1 else bucket_uri, artifact_size
 
     def add_artifact(
-        self,
-        uri: Optional[str] = None,
-        namespace: Optional[str] = None,
-        bucket: Optional[str] = None,
-        prefix: Optional[str] = None,
-        files: Optional[List[str]] = None,
+            self,
+            uri: Optional[str] = None,
+            namespace: Optional[str] = None,
+            bucket: Optional[str] = None,
+            prefix: Optional[str] = None,
+            files: Optional[List[str]] = None,
     ):
         """
         Adds information about objects in a specified bucket to the model description JSON.
@@ -1802,11 +2157,11 @@ class DataScienceModel(Builder):
         self.set_spec(self.CONST_MODEL_FILE_DESCRIPTION, tmp_model_file_description)
 
     def remove_artifact(
-        self,
-        uri: Optional[str] = None,
-        namespace: Optional[str] = None,
-        bucket: Optional[str] = None,
-        prefix: Optional[str] = None,
+            self,
+            uri: Optional[str] = None,
+            namespace: Optional[str] = None,
+            bucket: Optional[str] = None,
+            prefix: Optional[str] = None,
     ):
         """
         Removes information about objects in a specified bucket or using a specified URI from the model description JSON.
@@ -1853,9 +2208,9 @@ class DataScienceModel(Builder):
         def findModelIdx():
             for idx, model in enumerate(self.model_file_description["models"]):
                 if (
-                    model["namespace"],
-                    model["bucketName"],
-                    (model["prefix"] if ("prefix" in model) else None),
+                        model["namespace"],
+                        model["bucketName"],
+                        (model["prefix"] if ("prefix" in model) else None),
                 ) == (namespace, bucket, "" if not prefix else prefix):
                     return idx
             return -1
