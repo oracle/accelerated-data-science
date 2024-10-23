@@ -179,7 +179,8 @@ anomaly  = [
   "oracledb",
   "report-creator==1.0.9",
   "rrcf==0.4.4",
-  "scikit-learn"
+  "scikit-learn",
+  "salesforce-merlion[all]==2.0.4"
 ]
 recommender = [
   "oracle_ads[opctl]",
