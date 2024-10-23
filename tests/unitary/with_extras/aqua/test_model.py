@@ -64,7 +64,7 @@ def mock_get_container_config():
         yield mock_config
 
 
-@pytest.fixture(autouse=True, scope="class")
+@pytest.fixture(autouse=True, scope="function")
 def mock_get_hf_model_info():
     with patch.object(HfApi, "model_info") as mock_get_hf_model_info:
         test_hf_model_info = ModelInfo(
@@ -933,7 +933,7 @@ class TestAquaModel:
         app.list = MagicMock(return_value=[])
 
         if download_from_hf:
-            with pytest.raises(AquaValueError):
+            with pytest.raises(AquaRuntimeError):
                 mock_get_hf_model_info.return_value.siblings = []
                 with tempfile.TemporaryDirectory() as tmpdir:
                     model: AquaModel = app.register(
@@ -1037,7 +1037,11 @@ class TestAquaModel:
         DataScienceModel.sync = MagicMock()
         OCIDataScienceModel.create = MagicMock()
 
-        mock_list_objects.return_value = MagicMock(objects=[])
+        artifact_path = "service_models/model-name/commit-id/artifact"
+        obj1 = MagicMock(etag="12345-1234-1234-1234-123456789", size=150)
+        obj1.name = f"{artifact_path}/config.json"
+        objects = [obj1]
+        mock_list_objects.return_value = MagicMock(objects=objects)
         ds_model = DataScienceModel()
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
         model_name = "oracle/aqua-1t-mega-model"

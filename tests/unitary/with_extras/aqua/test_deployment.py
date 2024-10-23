@@ -259,6 +259,7 @@ class TestDataset:
             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
             "PARAMS": "--served-model-name odsc-llm --seed 42",
         },
+        "cmd": [],
         "console_link": "https://cloud.oracle.com/data-science/model-deployments/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>?region=region-name",
         "lifecycle_details": "",
         "shape_info": {
@@ -318,6 +319,13 @@ class TestDataset:
         "ocpus": None,
         "memory_in_gbs": None,
     }
+
+    aqua_deployment_tei_byoc_embeddings_cmd = [
+        "--model-id",
+        "/opt/ds/model/deployed_model/service_models/model-name/artifact/",
+        "--port",
+        "8080",
+    ]
 
 
 class TestAquaDeployment(unittest.TestCase):
@@ -719,6 +727,7 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result["shape_info"] = (
             TestDataset.aqua_deployment_tei_byoc_embeddings_shape_info
         )
+        expected_result["cmd"] = TestDataset.aqua_deployment_tei_byoc_embeddings_cmd
         expected_result["environment_variables"] = (
             TestDataset.aqua_deployment_tei_byoc_embeddings_env_vars
         )
