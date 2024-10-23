@@ -1393,19 +1393,16 @@ class DataScienceModel(Builder):
         if self.local_copy_dir:
             shutil.rmtree(self.local_copy_dir, ignore_errors=True)
 
-    @classmethod
     def restore_model(
-            cls,
-            model_id: str,
+            self,
             restore_model_for_hours_specified: Optional[int] = None,
-    ):
+    ) -> None:
         """
         Restore archived model artifact.
 
         Parameters
         ----------
-        model_id : str
-            The `OCID` of the model to be restored.
+
         restore_model_for_hours_specified : Optional[int]
             Duration in hours for which the archived model is available for access.
 
@@ -1419,8 +1416,11 @@ class DataScienceModel(Builder):
             If the model ID is invalid or if any parameters are incorrect.
         """
         # Validate model_id
-        if not model_id or not isinstance(model_id, str):
-            raise ValueError("model_id must be a non-empty string.")
+        if not self.id:
+            logger.warn(
+                "Model needs to be saved to the model catalog before it can be restored."
+            )
+            return
 
         # Optional: Validate restore_model_for_hours_specified
         if restore_model_for_hours_specified is not None:
@@ -1432,8 +1432,8 @@ class DataScienceModel(Builder):
                     "restore_model_for_hours_specified must be a positive integer."
                 )
 
-        cls.dsc_model.restore_archived_model_artifact(
-            model_id=model_id,
+        self.dsc_model.restore_archived_model_artifact(
+            model_id=self.id,
             restore_model_for_hours_specified=restore_model_for_hours_specified,
         )
 
