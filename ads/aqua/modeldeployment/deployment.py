@@ -184,6 +184,7 @@ class AquaDeploymentApp(AquaApp):
                 tags[tag] = aqua_model.freeform_tags[tag]
 
         tags.update({Tags.AQUA_MODEL_NAME_TAG: aqua_model.display_name})
+        tags.update({Tags.TASK: aqua_model.freeform_tags.get(Tags.TASK, None)})
 
         # Set up info to get deployment config
         config_source_id = model_id
