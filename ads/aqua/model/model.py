@@ -720,6 +720,7 @@ class AquaModelApp(AquaApp):
                     description=f"Inference container cmd vars for {model_name}",
                     category="Other",
                 )
+
             if finetuning_container:
                 tags[Tags.READY_TO_FINE_TUNE] = "true"
                 metadata.add(
@@ -1232,9 +1233,12 @@ class AquaModelApp(AquaApp):
         inference_container = ds_model.custom_metadata_list.get(
             ModelCustomMetadataFields.DEPLOYMENT_CONTAINER
         ).value
-        evaluation_container = ds_model.custom_metadata_list.get(
-            ModelCustomMetadataFields.EVALUATION_CONTAINER,
-        ).value
+        try:
+            evaluation_container = ds_model.custom_metadata_list.get(
+                ModelCustomMetadataFields.EVALUATION_CONTAINER,
+            ).value
+        except Exception:
+            evaluation_container = None
         try:
             finetuning_container = ds_model.custom_metadata_list.get(
                 ModelCustomMetadataFields.FINETUNE_CONTAINER,

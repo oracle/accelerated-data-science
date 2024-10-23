@@ -24,6 +24,7 @@ from ads.aqua.common.utils import (
     get_resource_name,
     get_restricted_params_by_container,
     load_config,
+    validate_cmd_var,
 )
 from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_FILE,
@@ -263,12 +264,15 @@ class AquaDeploymentApp(AquaApp):
                 cmd_var_string = aqua_model.custom_metadata_list.get(
                     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME
                 ).value
-                cmd_var.extend(cmd_var_string.split(","))
             except ValueError as err:
                 raise AquaValueError(
                     f"{AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME} key is not available in the custom metadata "
                     f"field. Please check if the model was registered with {container_type_key} inference container."
                 ) from err
+            default_cmd_var = cmd_var_string.split(",")
+            if default_cmd_var:
+                cmd_var = validate_cmd_var(default_cmd_var, cmd_var)
+            logging.info(f"CMD used for deploying {aqua_model.id} :{cmd_var}")
         else:
             # fetch image name from config
             container_image_uri = get_container_image(container_type=container_type_key)

@@ -1013,6 +1013,83 @@ class TestAquaModel:
             assert model.ready_to_finetune is True
 
     @pytest.mark.parametrize(
+        "download_from_hf",
+        [True, False],
+    )
+    @patch.object(AquaModelApp, "_find_matching_aqua_model")
+    @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
+    @patch("ads.aqua.common.utils.load_config", return_value={})
+    @patch("huggingface_hub.snapshot_download")
+    @patch("subprocess.check_call")
+    def test_import_tei_model_byoc(
+        self,
+        mock_subprocess,
+        mock_snapshot_download,
+        mock_load_config,
+        mock_list_objects,
+        mock__find_matching_aqua_model,
+        download_from_hf,
+        mock_get_hf_model_info,
+    ):
+        ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
+        ads.common.oci_datascience.OCIDataScienceMixin.init_client = MagicMock()
+        DataScienceModel.upload_artifact = MagicMock()
+        DataScienceModel.sync = MagicMock()
+        OCIDataScienceModel.create = MagicMock()
+
+        mock_list_objects.return_value = MagicMock(objects=[])
+        ds_model = DataScienceModel()
+        os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
+        model_name = "oracle/aqua-1t-mega-model"
+        ds_freeform_tags = {
+            "OCI_AQUA": "ACTIVE",
+            "license": "aqua-license",
+            "organization": "oracle",
+            "task": "text_embedding",
+        }
+        ds_model = (
+            ds_model.with_compartment_id("test_model_compartment_id")
+            .with_project_id("test_project_id")
+            .with_display_name(model_name)
+            .with_description("test_description")
+            .with_model_version_set_id("test_model_version_set_id")
+            .with_freeform_tags(**ds_freeform_tags)
+            .with_version_id("ocid1.version.id")
+        )
+        custom_metadata_list = ModelCustomMetadata()
+        custom_metadata_list.add(
+            **{"key": "deployment-container", "value": "odsc-tei-serving"}
+        )
+        ds_model.with_custom_metadata_list(custom_metadata_list)
+        ds_model.set_spec(ds_model.CONST_MODEL_FILE_DESCRIPTION, {})
+        DataScienceModel.from_id = MagicMock(return_value=ds_model)
+        mock__find_matching_aqua_model.return_value = None
+        reload(ads.aqua.model.model)
+        app = AquaModelApp()
+
+        if download_from_hf:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                model: AquaModel = app.register(
+                    model=model_name,
+                    os_path=os_path,
+                    local_dir=str(tmpdir),
+                    download_from_hf=True,
+                    inference_container="odsc-tei-serving",
+                    inference_container_uri="region.ocir.io/your_tenancy/your_image",
+                )
+        else:
+            model: AquaModel = app.register(
+                model="ocid1.datasciencemodel.xxx.xxxx.",
+                os_path=os_path,
+                download_from_hf=False,
+                inference_container="odsc-tei-serving",
+                inference_container_uri="region.ocir.io/your_tenancy/your_image",
+            )
+        assert model.inference_container == "odsc-tei-serving"
+        assert model.ready_to_deploy is True
+        assert model.ready_to_finetune is False
+
+    @pytest.mark.parametrize(
         "data, expected_output",
         [
             (
@@ -1046,6 +1123,15 @@ class TestAquaModel:
                     "model_file": "test_model_file",
                 },
                 "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --model_file test_model_file",
+            ),
+            (
+                {
+                    "os_path": "oci://aqua-bkt@aqua-ns/path",
+                    "model": "oracle/oracle-1it",
+                    "inference_container": "odsc-tei-serving",
+                    "inference_container_uri": "<region>.ocir.io/<your_tenancy>/<your_image>",
+                },
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --inference_container odsc-tei-serving --inference_container_uri <region>.ocir.io/<your_tenancy>/<your_image>",
             ),
         ],
     )

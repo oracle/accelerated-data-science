@@ -1111,3 +1111,47 @@ def generate_tei_cmd_var(os_path: str) -> List[str]:
     ]
 
     return cmd_var
+
+
+def parse_cmd_var(cmd_list: List[str]) -> dict:
+    """Helper functions that parses a list into a key-value dictionary. The list contains keys separated by the prefix
+    '--' and the value of the key is the subsequent element.
+    """
+    it = iter(cmd_list)
+    return {
+        key: next(it, None) if not key.startswith("--") else next(it, None)
+        for key in it
+        if key.startswith("--")
+    }
+
+
+def validate_cmd_var(cmd_var: List[str], overrides: List[str]) -> List[str]:
+    """This function accepts two lists of parameters and combines them. If the second list shares the common parameter
+    names/keys, then it raises an error.
+    Parameters
+    ----------
+    cmd_var: List[str]
+        Default list of parameters
+    overrides: List[str]
+        List of parameters to override
+    Returns
+    -------
+        List[str] of combined parameters
+    """
+    cmd_var = [str(x) for x in cmd_var]
+    if not overrides:
+        return cmd_var
+    overrides = [str(x) for x in overrides]
+
+    cmd_dict = parse_cmd_var(cmd_var)
+    overrides_dict = parse_cmd_var(overrides)
+
+    # check for conflicts
+    common_keys = set(cmd_dict.keys()) & set(overrides_dict.keys())
+    if common_keys:
+        raise AquaValueError(
+            f"The following keys cannot be overridden: {', '.join(common_keys)}"
+        )
+
+    combined_cmd_var = cmd_var + overrides
+    return combined_cmd_var
