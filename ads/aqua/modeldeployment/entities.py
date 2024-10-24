@@ -3,7 +3,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Union, Optional
 
 from oci.data_science.models import (
     ModelDeployment,
