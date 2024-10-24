@@ -57,6 +57,8 @@ class ModelDeploymentInfrastructure(Builder):
         The web concurrency of model deployment
     subnet_id: str
         The subnet id of model deployment
+    private_endpoint_id: str
+        The private endpoint id of model deployment
 
     Methods
     -------
@@ -84,6 +86,8 @@ class ModelDeploymentInfrastructure(Builder):
         Sets the web concurrency of model deployment
     with_subnet_id(subnet_id)
         Sets the subnet id of model deployment
+    with_private_endpoint_id(private_endpoint)
+        Sets the private endpoint id of model deployment
 
     Example
     -------
@@ -100,6 +104,7 @@ class ModelDeploymentInfrastructure(Builder):
     ...        .with_bandwidth_mbps(10)
     ...        .with_web_concurrency(10)
     ...        .with_subnet_id(<subnet_id>)
+    ...        .with_private_endpoint_id(<private_endpoint_id>)
     ...        .with_access_log(
     ...            log_group_id=<log_group_id>,
     ...            log_id=<log_id>
@@ -143,6 +148,7 @@ class ModelDeploymentInfrastructure(Builder):
     CONST_WEB_CONCURRENCY = "webConcurrency"
     CONST_STREAM_CONFIG_DETAILS = "streamConfigurationDetails"
     CONST_SUBNET_ID = "subnetId"
+    CONST_PRIVATE_ENDPOINT_ID = "privateEndpointId"
 
     attribute_map = {
         CONST_PROJECT_ID: "project_id",
@@ -159,6 +165,7 @@ class ModelDeploymentInfrastructure(Builder):
         CONST_LOG_GROUP_ID: "log_group_id",
         CONST_WEB_CONCURRENCY: "web_concurrency",
         CONST_SUBNET_ID: "subnet_id",
+        CONST_PRIVATE_ENDPOINT_ID: "private_endpoint_id",
     }
 
     shape_config_details_attribute_map = {
@@ -186,6 +193,7 @@ class ModelDeploymentInfrastructure(Builder):
         CONST_SHAPE_NAME: f"{MODEL_CONFIG_DETAILS_PATH}.instance_configuration.instance_shape_name",
         CONST_SHAPE_CONFIG_DETAILS: f"{MODEL_CONFIG_DETAILS_PATH}.instance_configuration.model_deployment_instance_shape_config_details",
         CONST_SUBNET_ID: f"{MODEL_CONFIG_DETAILS_PATH}.instance_configuration.subnet_id",
+        CONST_PRIVATE_ENDPOINT_ID: f"{MODEL_CONFIG_DETAILS_PATH}.instance_configuration.private_endpoint_id",
         CONST_REPLICA: f"{MODEL_CONFIG_DETAILS_PATH}.scaling_policy.instance_count",
         CONST_BANDWIDTH_MBPS: f"{MODEL_CONFIG_DETAILS_PATH}.bandwidth_mbps",
         CONST_ACCESS_LOG: "category_log_details.access",
@@ -612,6 +620,32 @@ class ModelDeploymentInfrastructure(Builder):
             The model deployment subnet id.
         """
         return self.get_spec(self.CONST_SUBNET_ID, None)
+
+    def with_private_endpoint_id(self, private_endpoint_id: str) -> "ModelDeploymentInfrastructure":
+        """Sets the private endpoint id of model deployment.
+
+        Parameters
+        ----------
+        private_endpoint_id : str
+            The private endpoint id of model deployment.
+
+        Returns
+        -------
+        ModelDeploymentInfrastructure
+            The ModelDeploymentInfrastructure instance (self).
+        """
+        return self.set_spec(self.CONST_PRIVATE_ENDPOINT_ID, private_endpoint_id)
+
+    @property
+    def private_endpoint_id(self) -> str:
+        """The model deployment private endpoint id.
+
+        Returns
+        -------
+        str
+            The model deployment private endpoint id.
+        """
+        return self.get_spec(self.CONST_PRIVATE_ENDPOINT_ID, None)
 
     def init(self, **kwargs) -> "ModelDeploymentInfrastructure":
         """Initializes a starter specification for the ModelDeploymentInfrastructure.
