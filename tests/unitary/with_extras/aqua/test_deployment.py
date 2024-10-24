@@ -39,7 +39,6 @@ class TestDataset:
     MODEL_DEPLOYMENT_ID = "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>"
     MODEL_DEPLOYMENT_URL = "https://modeldeployment.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>"
     MODEL_ID = "ocid1.datasciencemodeldeployment.oc1.<region>.<MODEL_OCID>"
-    PRIVATE_ENDPOINT_ID = "ocid1.datascienceprivateendpoint.oc1.<region>.<PRIVATE_ENDPOINT_OCID>"
     DEPLOYMENT_IMAGE_NAME = "dsmc://image-name:1.0.0.0"
     DEPLOYMENT_SHAPE_NAME = "VM.GPU.A10.1"
     DEPLOYMENT_SHAPE_NAME_CPU = "VM.Standard.A1.Flex"
@@ -96,7 +95,6 @@ class TestDataset:
                             "instance_configuration": oci.data_science.models.InstanceConfiguration(
                                 **{
                                     "instance_shape_name": DEPLOYMENT_SHAPE_NAME,
-                                    "private_endpoint_id": PRIVATE_ENDPOINT_ID,
                                     "model_deployment_instance_shape_config_details": null,
                                 }
                             ),
@@ -151,7 +149,6 @@ class TestDataset:
                             "instance_configuration": oci.data_science.models.InstanceConfiguration(
                                 **{
                                     "instance_shape_name": DEPLOYMENT_SHAPE_NAME_CPU,
-                                    "private_endpoint_id": PRIVATE_ENDPOINT_ID,
                                     "model_deployment_instance_shape_config_details": oci.data_science.models.ModelDeploymentInstanceShapeConfigDetails(
                                         **{
                                             "ocpus": 10,
@@ -184,7 +181,6 @@ class TestDataset:
         "created_on": "2024-01-01T00:00:00.000000+00:00",
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
-        "private_endpoint_id": PRIVATE_ENDPOINT_ID,
         "environment_variables": {
             "BASE_MODEL": "service_models/model-name/artifact",
             "MODEL_DEPLOY_ENABLE_STREAMING": "true",
