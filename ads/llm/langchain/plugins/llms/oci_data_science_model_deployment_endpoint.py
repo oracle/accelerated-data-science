@@ -260,7 +260,7 @@ class BaseOCIModelDeployment(Serializable):
                 if hasattr(response, "status_code")
                 else response.status
             )
-            if status_code == 401 and self._refresh_signer():
+            if status_code in [401, 404] and self._refresh_signer():
                 raise TokenExpiredError() from http_err
 
             raise ServerError(
