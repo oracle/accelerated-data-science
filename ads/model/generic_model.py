@@ -1422,9 +1422,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         )
         model.update_summary_status(
             detail=PREPARE_STATUS_POPULATE_METADATA_DETAIL,
-            status=(
-                ModelState.AVAILABLE.value if reload else ModelState.NOTAPPLICABLE.value
-            ),
+            status=ModelState.AVAILABLE.value
+            if reload
+            else ModelState.NOTAPPLICABLE.value,
         )
 
         return model
@@ -1706,11 +1706,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         )
         result_model.update_summary_status(
             detail=SAVE_STATUS_INTROSPECT_TEST_DETAIL,
-            status=(
-                ModelState.AVAILABLE.value
-                if not result_model.ignore_conda_error
-                else ModelState.NOTAVAILABLE.value
-            ),
+            status=ModelState.AVAILABLE.value
+            if not result_model.ignore_conda_error
+            else ModelState.NOTAVAILABLE.value,
         )
         return result_model
 

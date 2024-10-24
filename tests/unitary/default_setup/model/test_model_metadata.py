@@ -1338,12 +1338,12 @@ class TestModelBackupOperationDetails:
         details = ModelBackupOperationDetails(
             backup_state=SettingStatus.SUCCEEDED,
             backup_state_details="Backup completed successfully",
-            time_last_backed_up=1633046400
+            time_last_backup=1633046400
         )
         expected_dict = {
             "backup_state": "SUCCEEDED",
             "backup_state_details": "Backup completed successfully",
-            "time_last_backed_up": 1633046400
+            "time_last_backup": 1633046400
         }
         assert details.to_dict() == expected_dict
 
@@ -1352,24 +1352,24 @@ class TestModelBackupOperationDetails:
         data = {
             "backup_state": "SUCCEEDED",
             "backup_state_details": "Backup completed successfully",
-            "time_last_backed_up": 1633046400
+            "time_last_backup": 1633046400
         }
         details = ModelBackupOperationDetails.from_dict(data)
         assert details.backup_state == SettingStatus.SUCCEEDED
         assert details.backup_state_details == "Backup completed successfully"
-        assert details.time_last_backed_up == 1633046400
+        assert details.time_last_backup == 1633046400
 
     def test_to_json(self):
         """Test that to_json serializes the details to a JSON string."""
         details = ModelBackupOperationDetails(
             backup_state=SettingStatus.SUCCEEDED,
             backup_state_details="Backup completed successfully",
-            time_last_backed_up=1633046400
+            time_last_backup=1633046400
         )
         expected_json = json.dumps({
             "backup_state": "SUCCEEDED",
             "backup_state_details": "Backup completed successfully",
-            "time_last_backed_up": 1633046400
+            "time_last_backup": 1633046400
         })
         assert details.to_json() == expected_json
 
@@ -1378,24 +1378,24 @@ class TestModelBackupOperationDetails:
         json_str = json.dumps({
             "backup_state": "SUCCEEDED",
             "backup_state_details": "Backup completed successfully",
-            "time_last_backed_up": 1633046400
+            "time_last_backup": 1633046400
         })
         details = ModelBackupOperationDetails.from_json(json_str)
         assert details.backup_state == SettingStatus.SUCCEEDED
         assert details.backup_state_details == "Backup completed successfully"
-        assert details.time_last_backed_up == 1633046400
+        assert details.time_last_backup == 1633046400
 
     def test_to_yaml(self):
         """Test that to_yaml serializes the details to a YAML string."""
         details = ModelBackupOperationDetails(
             backup_state=SettingStatus.SUCCEEDED,
             backup_state_details="Backup completed successfully",
-            time_last_backed_up=1633046400
+            time_last_backup=1633046400
         )
         expected_yaml = yaml.dump({
             "backup_state": "SUCCEEDED",
             "backup_state_details": "Backup completed successfully",
-            "time_last_backed_up": 1633046400
+            "time_last_backup": 1633046400
         })
         assert details.to_yaml() == expected_yaml
 
@@ -1403,7 +1403,7 @@ class TestModelBackupOperationDetails:
         """Test that validate method returns True for valid backup operation details."""
         details = ModelBackupOperationDetails(
             backup_state=SettingStatus.SUCCEEDED,
-            time_last_backed_up=1633046400
+            time_last_backup=1633046400
         )
         assert details.validate() is True
 
@@ -1411,7 +1411,7 @@ class TestModelBackupOperationDetails:
         """Test that validate method returns False for an invalid backup state."""
         details = ModelBackupOperationDetails(
             backup_state="INVALID_STATE",
-            time_last_backed_up=1633046400
+            time_last_backup=1633046400
         )
         assert details.validate() is False
 
@@ -1419,7 +1419,7 @@ class TestModelBackupOperationDetails:
         """Test that validate method returns False for an invalid time value."""
         details = ModelBackupOperationDetails(
             backup_state=SettingStatus.SUCCEEDED,
-            time_last_backed_up="invalid_time"  # Invalid time
+            time_last_backup="invalid_time"  # Invalid time
         )
         assert details.validate() is False
 

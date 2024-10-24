@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
 # Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -11,19 +10,22 @@ import os
 import shutil
 import tempfile
 from copy import deepcopy
-from typing import Dict, List, Optional, Union, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import pandas
 import yaml
 from jsonschema import ValidationError, validate
 
+from ads.common import oci_client as oc
 from ads.common import utils
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import (
+    AQUA_SERVICE_MODELS_BUCKET as SERVICE_MODELS_BUCKET,
+)
+from ads.config import (
     COMPARTMENT_OCID,
     PROJECT_OCID,
-    AQUA_SERVICE_MODELS_BUCKET as SERVICE_MODELS_BUCKET,
 )
 from ads.feature_engineering.schema import Schema
 from ads.jobs.builders.base import Builder
@@ -37,12 +39,12 @@ from ads.model.model_metadata import (
     ModelCustomMetadata,
     ModelCustomMetadataItem,
     ModelProvenanceMetadata,
-    ModelTaxonomyMetadata, )
+    ModelTaxonomyMetadata,
+)
 from ads.model.service.oci_datascience_model import (
     ModelProvenanceNotFoundError,
     OCIDataScienceModel,
 )
-from ads.common import oci_client as oc
 
 logger = logging.getLogger(__name__)
 
@@ -84,14 +86,6 @@ class CustomerNotificationType(str, metaclass=ExtendedEnumMeta):
     ON_FAILURE = "ON_FAILURE"
     ON_SUCCESS = "ON_SUCCESS"
 
-    @classmethod
-    def is_valid(cls, value):
-        return value in (cls.NONE, cls.ALL, cls.ON_FAILURE, cls.ON_SUCCESS)
-
-    @property
-    def value(self):
-        return str(self)
-
 
 class SettingStatus(str, metaclass=ExtendedEnumMeta):
     """Enum to represent the status of retention settings."""
@@ -99,11 +93,6 @@ class SettingStatus(str, metaclass=ExtendedEnumMeta):
     PENDING = "PENDING"
     SUCCEEDED = "SUCCEEDED"
     FAILED = "FAILED"
-
-    @classmethod
-    def is_valid(cls, state: str) -> bool:
-        """Validates the given state against allowed SettingStatus values."""
-        return state in (cls.PENDING, cls.SUCCEEDED, cls.FAILED)
 
 
 class ModelBackupSetting:
@@ -167,10 +156,7 @@ class ModelBackupSetting:
     @classmethod
     def from_json(cls, json_str) -> "ModelBackupSetting":
         """Constructs backup settings from a JSON string or dictionary."""
-        if isinstance(json_str, str):
-            data = json.loads(json_str)
-        else:
-            data = json_str
+        data = json.loads(json_str) if isinstance(json_str, str) else json_str
 
         return cls.from_dict(data)
 
@@ -180,14 +166,12 @@ class ModelBackupSetting:
 
     def validate(self) -> bool:
         """Validates the backup settings details. Returns True if valid, False otherwise."""
-        if not isinstance(self.is_backup_enabled, bool):
-            return False
-        if self.backup_region and not isinstance(self.backup_region, str):
-            return False
-        if not isinstance(self.customer_notification_type, str) \
-                or not CustomerNotificationType.is_valid(self.customer_notification_type):
-            return False
-        return True
+        return all([
+            isinstance(self.is_backup_enabled, bool),
+            not self.backup_region or isinstance(self.backup_region, str),
+            isinstance(self.customer_notification_type, str) and self.customer_notification_type in
+            CustomerNotificationType.values()
+        ])
 
     def __repr__(self):
         return self.to_yaml()
@@ -252,10 +236,7 @@ class ModelRetentionSetting:
     @classmethod
     def from_json(cls, json_str) -> "ModelRetentionSetting":
         """Constructs retention settings from a JSON string."""
-        if isinstance(json_str, str):
-            data = json.loads(json_str)
-        else:
-            data = json_str
+        data = json.loads(json_str) if isinstance(json_str, str) else json_str
         return cls.from_dict(data)
 
     def to_yaml(self) -> str:
@@ -264,18 +245,13 @@ class ModelRetentionSetting:
 
     def validate(self) -> bool:
         """Validates the retention settings details. Returns True if valid, False otherwise."""
-        if self.archive_after_days is not None and (
-                not isinstance(self.archive_after_days, int) or self.archive_after_days < 0
-        ):
-            return False
-        if self.delete_after_days is not None and (
-                not isinstance(self.delete_after_days, int) or self.delete_after_days < 0
-        ):
-            return False
-        if not isinstance(self.customer_notification_type, str) or not \
-                CustomerNotificationType.is_valid(self.customer_notification_type):
-            return False
-        return True
+        return all([
+            self.archive_after_days is None or (
+                    isinstance(self.archive_after_days, int) and self.archive_after_days >= 0),
+            self.delete_after_days is None or (isinstance(self.delete_after_days, int) and self.delete_after_days >= 0),
+            isinstance(self.customer_notification_type, str) and self.customer_notification_type in
+            CustomerNotificationType.values()
+        ])
 
     def __repr__(self):
         return self.to_yaml()
@@ -358,8 +334,8 @@ class ModelRetentionOperationDetails:
         """Validates the retention operation details."""
         return all(
             [
-                self.archive_state is None or SettingStatus.is_valid(self.archive_state),
-                self.delete_state is None or SettingStatus.is_valid(self.delete_state),
+                self.archive_state is None or self.archive_state in SettingStatus.values(),
+                self.delete_state is None or self.delete_state in SettingStatus.values(),
                 self.time_archival_scheduled is None
                 or isinstance(self.time_archival_scheduled, int),
                 self.time_deletion_scheduled is None
@@ -395,18 +371,18 @@ class ModelBackupOperationDetails:
             self,
             backup_state: Optional[SettingStatus] = None,
             backup_state_details: Optional[str] = None,
-            time_last_backed_up: Optional[int] = None,
+            time_last_backup: Optional[int] = None,
     ):
         self.backup_state = backup_state
         self.backup_state_details = backup_state_details
-        self.time_last_backed_up = time_last_backed_up
+        self.time_last_backup = time_last_backup
 
     def to_dict(self) -> Dict:
         """Serializes the backup operation details into a dictionary."""
         return {
             "backup_state": self.backup_state or None,
             "backup_state_details": self.backup_state_details,
-            "time_last_backed_up": self.time_last_backed_up,
+            "time_last_backup": self.time_last_backup,
         }
 
     @classmethod
@@ -415,7 +391,7 @@ class ModelBackupOperationDetails:
         return cls(
             backup_state=SettingStatus(data.get("backup_state")) or None,
             backup_state_details=data.get("backup_state_details"),
-            time_last_backed_up=data.get("time_last_backed_up"),
+            time_last_backup=data.get("time_last_backup"),
         )
 
     def to_json(self) -> str:
@@ -434,13 +410,10 @@ class ModelBackupOperationDetails:
 
     def validate(self) -> bool:
         """Validates the backup operation details."""
-        if self.backup_state is not None and not SettingStatus.is_valid(self.backup_state):
-            return False
-        if self.time_last_backed_up is not None and not isinstance(
-                self.time_last_backed_up, int
-        ):
-            return False
-        return True
+        return not (
+                (self.backup_state is not None and not self.backup_state in SettingStatus.values()) or
+                (self.time_last_backup is not None and not isinstance(self.time_last_backup, int))
+        )
 
     def __repr__(self):
         return self.to_yaml()
@@ -1068,7 +1041,7 @@ class DataScienceModel(Builder):
         elif json_string:
             json_data = json.loads(json_string)
         elif json_uri:
-            with open(json_uri, "r") as json_file:
+            with open(json_uri) as json_file:
                 json_data = json.load(json_file)
         else:
             raise ValueError("Must provide either a valid json string or URI location.")
@@ -1423,17 +1396,11 @@ class DataScienceModel(Builder):
             return
 
         # Optional: Validate restore_model_for_hours_specified
-        if restore_model_for_hours_specified is not None:
-            if (
-                    not isinstance(restore_model_for_hours_specified, int)
-                    or restore_model_for_hours_specified <= 0
-            ):
-                raise ValueError(
-                    "restore_model_for_hours_specified must be a positive integer."
-                )
+        if restore_model_for_hours_specified is not None and (
+                not isinstance(restore_model_for_hours_specified, int) or restore_model_for_hours_specified <= 0):
+            raise ValueError("restore_model_for_hours_specified must be a positive integer.")
 
         self.dsc_model.restore_archived_model_artifact(
-            model_id=self.id,
             restore_model_for_hours_specified=restore_model_for_hours_specified,
         )
 
@@ -1692,8 +1659,8 @@ class DataScienceModel(Builder):
         self.with_provenance_metadata(self.provenance_metadata)
         self.with_input_schema(self.input_schema)
         self.with_output_schema(self.output_schema)
-        self.with_backup_setting(self.backup_setting)
-        self.with_retention_setting(self.retention_setting)
+        # self.with_backup_setting(self.backup_setting)
+        # self.with_retention_setting(self.retention_setting)
 
     def _to_oci_dsc_model(self, **kwargs):
         """Creates an `OCIDataScienceModel` instance from the  `DataScienceModel`.
@@ -1753,6 +1720,8 @@ class DataScienceModel(Builder):
             self.CONST_DEFINED_METADATA: ModelTaxonomyMetadata._from_oci_metadata,
             self.CONST_BACKUP_SETTING: ModelBackupSetting.to_dict,
             self.CONST_RETENTION_SETTING: ModelRetentionSetting.to_dict,
+            self.CONST_BACKUP_OPERATION_DETAILS: ModelBackupOperationDetails.to_dict,
+            self.CONST_RETENTION_OPERATION_DETAILS: ModelRetentionOperationDetails.to_dict
         }
 
         # Update the main properties

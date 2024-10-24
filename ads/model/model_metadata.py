@@ -31,6 +31,7 @@ try:
 except:
     from yaml import Dumper as dumper
 
+
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ADS")
 
@@ -255,9 +256,9 @@ class ModelMetadataItem(ABC):
         return json.dumps(self.to_dict())
 
     def to_json_file(
-            self,
-            file_path: str,
-            storage_options: dict = None,
+        self,
+        file_path: str,
+        storage_options: dict = None,
     ) -> None:
         """Saves the metadata item value to a local file or object storage.
 
@@ -312,9 +313,9 @@ class ModelMetadataItem(ABC):
             storage_options = factory.default_storage_options or {"config": {}}
 
         with fsspec.open(
-                file_path,
-                mode="w",
-                **(storage_options),
+            file_path,
+            mode="w",
+            **(storage_options),
         ) as f:
             f.write(json.dumps(self.value))
 
@@ -399,9 +400,9 @@ class ModelTaxonomyMetadataItem(ModelMetadataItem):
     _FIELDS = ["key", "value"]
 
     def __init__(
-            self,
-            key: str,
-            value: str = None,
+        self,
+        key: str,
+        value: str = None,
     ):
         self.key = key
         self.value = value
@@ -499,17 +500,17 @@ class ModelTaxonomyMetadataItem(ModelMetadataItem):
             If invalid Framework provided.
         """
         if (
-                self.key.lower() == MetadataTaxonomyKeys.USE_CASE_TYPE.lower()
-                and self.value
-                and (not isinstance(self.value, str) or self.value not in UseCaseType)
+            self.key.lower() == MetadataTaxonomyKeys.USE_CASE_TYPE.lower()
+            and self.value
+            and (not isinstance(self.value, str) or self.value not in UseCaseType)
         ):
             raise ValueError(
                 f"Invalid value of `UseCaseType`. Choose from {UseCaseType.values()}."
             )
         if (
-                self.key.lower() == MetadataTaxonomyKeys.FRAMEWORK.lower()
-                and self.value
-                and (not isinstance(self.value, str) or self.value not in Framework)
+            self.key.lower() == MetadataTaxonomyKeys.FRAMEWORK.lower()
+            and self.value
+            and (not isinstance(self.value, str) or self.value not in Framework)
         ):
             raise ValueError(
                 f"Invalid value of `Framework`. Choose from {Framework.values()}."
@@ -556,11 +557,11 @@ class ModelCustomMetadataItem(ModelTaxonomyMetadataItem):
     _FIELDS = ["key", "value", "description", "category"]
 
     def __init__(
-            self,
-            key: str,
-            value: str = None,
-            description: str = None,
-            category: str = None,
+        self,
+        key: str,
+        value: str = None,
+        description: str = None,
+        category: str = None,
     ):
         super().__init__(key=key, value=value)
         self.description = description
@@ -688,8 +689,8 @@ class ModelCustomMetadataItem(ModelTaxonomyMetadataItem):
                 raise MetadataValueTooLong(self.key, len(value))
 
         if (
-                self.description
-                and len(self.description) > METADATA_DESCRIPTION_LENGTH_LIMIT
+            self.description
+            and len(self.description) > METADATA_DESCRIPTION_LENGTH_LIMIT
         ):
             raise MetadataDescriptionTooLong(self.key, len(self.description))
 
@@ -729,7 +730,7 @@ class ModelMetadata(ABC):
         self._items = set()
 
     def get(
-            self, key: str, value: Optional[Any] = _sentinel
+        self, key: str, value: Optional[Any] = _sentinel
     ) -> Union[ModelMetadataItem, Any]:
         """Returns the model metadata item by provided key.
 
@@ -890,9 +891,9 @@ class ModelMetadata(ABC):
         return [item._to_oci_metadata() for item in self._items]
 
     def to_json_file(
-            self,
-            file_path: str,
-            storage_options: dict = None,
+        self,
+        file_path: str,
+        storage_options: dict = None,
     ) -> None:
         """Saves the metadata to a local file or object storage.
 
@@ -947,9 +948,9 @@ class ModelMetadata(ABC):
             storage_options = factory.default_storage_options or {"config": {}}
 
         with fsspec.open(
-                file_path,
-                mode="w",
-                **(storage_options),
+            file_path,
+            mode="w",
+            **(storage_options),
         ) as f:
             f.write(self.to_json())
 
@@ -1081,12 +1082,12 @@ class ModelCustomMetadata(ModelMetadata):
         self._items = set()
 
     def add(
-            self,
-            key: str,
-            value: str,
-            description: str = "",
-            category: str = MetadataCustomCategory.OTHER,
-            replace: bool = False,
+        self,
+        key: str,
+        value: str,
+        description: str = "",
+        category: str = MetadataCustomCategory.OTHER,
+        replace: bool = False,
     ) -> None:
         """Adds a new model metadata item. Overrides the existing one if replace flag is True.
 
@@ -1395,10 +1396,10 @@ class ModelCustomMetadata(ModelMetadata):
             In case of the wrong input data format.
         """
         if (
-                not data
-                or not isinstance(data, Dict)
-                or not "data" in data
-                or not isinstance(data["data"], List)
+            not data
+            or not isinstance(data, Dict)
+            or not "data" in data
+            or not isinstance(data["data"], List)
         ):
             raise ValueError(
                 "An error occurred when attempting to deserialize the model custom metadata from a dictionary. "
@@ -1547,10 +1548,10 @@ class ModelTaxonomyMetadata(ModelMetadata):
             In case of the wrong input data format.
         """
         if (
-                not data
-                or not isinstance(data, Dict)
-                or not "data" in data
-                or not isinstance(data["data"], List)
+            not data
+            or not isinstance(data, Dict)
+            or not "data" in data
+            or not isinstance(data["data"], List)
         ):
             raise ValueError(
                 "An error occurred when attempting to deserialize the model taxonomy metadata from a dictionary. "
@@ -1585,10 +1586,10 @@ class ModelProvenanceMetadata(DataClassSerializable):
 
     @classmethod
     def fetch_training_code_details(
-            cls,
-            training_script_path: str = None,
-            training_id: str = None,
-            artifact_dir: str = None,
+        cls,
+        training_script_path: str = None,
+        training_id: str = None,
+        artifact_dir: str = None,
     ):
         """Fetches the training code details: repo, git_branch, git_commit, repository_url, training_script_path and training_id.
 
@@ -1671,15 +1672,15 @@ class ModelProvenanceMetadata(DataClassSerializable):
         if self.repo is not None and not ignore:
             path_abs = os.path.abspath(path)
             if (
-                    os.path.commonpath([path_abs, self.repo.working_dir])
-                    == self.repo.working_dir
+                os.path.commonpath([path_abs, self.repo.working_dir])
+                == self.repo.working_dir
             ):
                 path_relpath = os.path.relpath(path_abs, self.repo.working_dir)
                 if self.repo.is_dirty(path=path_relpath) or any(
-                        [
-                            os.path.commonpath([path_relpath, untracked]) == path_relpath
-                            for untracked in self.repo.untracked_files
-                        ]
+                    [
+                        os.path.commonpath([path_relpath, untracked]) == path_relpath
+                        for untracked in self.repo.untracked_files
+                    ]
                 ):
                     raise ChangesNotCommitted(path_abs)
 
@@ -1702,7 +1703,7 @@ class ModelProvenanceMetadata(DataClassSerializable):
 
     @classmethod
     def _from_oci_metadata(
-            cls, model_provenance: oci.data_science.models.ModelProvenance
+        cls, model_provenance: oci.data_science.models.ModelProvenance
     ) -> "ModelProvenanceMetadata":
         """Creates a new model provenance metadata item from the `oci.data_science.models.ModelProvenance` object.
 

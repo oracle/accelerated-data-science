@@ -1,24 +1,14 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
 # Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
-import time
 from functools import wraps
 from io import BytesIO
 from typing import Callable, Dict, List, Optional
 
 import oci.data_science
-from ads.common import utils
-from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.oci_datascience import OCIDataScienceMixin
-from ads.common.oci_mixin import OCIWorkRequestMixin
-from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import extract_region
-from ads.common.work_request import DataScienceWorkRequest
-from ads.model.deployment import ModelDeployment
 from oci.data_science.models import (
     ArtifactExportDetailsObjectStorage,
     ArtifactImportDetailsObjectStorage,
@@ -26,9 +16,16 @@ from oci.data_science.models import (
     ExportModelArtifactDetails,
     ImportModelArtifactDetails,
     UpdateModelDetails,
-    WorkRequest,
 )
 from oci.exceptions import ServiceError
+
+from ads.common.object_storage_details import ObjectStorageDetails
+from ads.common.oci_datascience import OCIDataScienceMixin
+from ads.common.oci_mixin import OCIWorkRequestMixin
+from ads.common.oci_resource import SEARCH_TYPE, OCIResource
+from ads.common.utils import extract_region
+from ads.common.work_request import DataScienceWorkRequest
+from ads.model.deployment import ModelDeployment
 
 logger = logging.getLogger(__name__)
 
@@ -282,7 +279,7 @@ class OCIDataScienceModel(
         msg="Model needs to be restored before the archived artifact content can be accessed."
     )
     def restore_archived_model_artifact(
-            self, model_id: str, restore_model_for_hours_specified: Optional[int] = None
+            self, restore_model_for_hours_specified: Optional[int] = None
     ) -> None:
         """Restores the archived model artifact.
 
@@ -303,7 +300,7 @@ class OCIDataScienceModel(
             If model artifact not found.
         """
         return self.client.restore_archived_model_artifact(
-            model_id=model_id,
+            model_id=self.id,
             restore_model_for_hours_specified=restore_model_for_hours_specified).headers["opc-work-request-id"]
 
     @check_for_model_id(
