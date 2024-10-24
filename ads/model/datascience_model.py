@@ -411,7 +411,7 @@ class ModelBackupOperationDetails:
     def validate(self) -> bool:
         """Validates the backup operation details."""
         return not (
-                (self.backup_state is not None and not self.backup_state in SettingStatus.values()) or
+                (self.backup_state is not None and self.backup_state not in SettingStatus.values()) or
                 (self.time_last_backup is not None and not isinstance(self.time_last_backup, int))
         )
 
@@ -1536,15 +1536,16 @@ class DataScienceModel(Builder):
         self.dsc_model = self._to_oci_dsc_model(**kwargs).update()
 
         logger.debug(f"Updating a model provenance metadata {self.provenance_metadata}")
-        try:
-            self.dsc_model.get_model_provenance()
-            self.dsc_model.update_model_provenance(
-                self.provenance_metadata._to_oci_metadata()
-            )
-        except ModelProvenanceNotFoundError:
-            self.dsc_model.create_model_provenance(
-                self.provenance_metadata._to_oci_metadata()
-            )
+        if self.provenance_metadata:
+            try:
+                self.dsc_model.get_model_provenance()
+                self.dsc_model.update_model_provenance(
+                    self.provenance_metadata._to_oci_metadata()
+                )
+            except ModelProvenanceNotFoundError:
+                self.dsc_model.create_model_provenance(
+                    self.provenance_metadata._to_oci_metadata()
+                )
 
         return self.sync()
 
@@ -2036,7 +2037,7 @@ class DataScienceModel(Builder):
                 "Both 'prefix' and 'files' cannot be provided. Please provide only one."
             )
 
-        if self.model_file_description == None:
+        if self.model_file_description is None:
             self.empty_json = {
                 "version": "1.0",
                 "type": "modelOSSReferenceDescription",
@@ -2086,7 +2087,7 @@ class DataScienceModel(Builder):
 
         # Fetch object details and put it into the objects variable
         objectStorageList = []
-        if files == None:
+        if files is None:
             objectStorageList = list_obj_versions_unpaginated()
         else:
             for fileName in files:
@@ -2174,7 +2175,7 @@ class DataScienceModel(Builder):
         if (not namespace) or (not bucket):
             raise ValueError("Both 'namespace' and 'bucket' must be provided.")
 
-        def findModelIdx():
+        def find_model_idx():
             for idx, model in enumerate(self.model_file_description["models"]):
                 if (
                         model["namespace"],
@@ -2184,10 +2185,10 @@ class DataScienceModel(Builder):
                     return idx
             return -1
 
-        if self.model_file_description == None:
+        if self.model_file_description is None:
             return
 
-        modelSearchIdx = findModelIdx()
+        modelSearchIdx = find_model_idx()
         if modelSearchIdx == -1:
             return
         else:
