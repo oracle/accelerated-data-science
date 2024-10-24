@@ -576,15 +576,13 @@ def get_container_image(
         A dict of allowed configs.
     """
 
+    container_image = UNKNOWN
     config = config_file_name or get_container_config()
     config_file_name = service_config_path()
 
     if container_type not in config:
-        raise AquaValueError(
-            f"{config_file_name} does not have config details for model: {container_type}"
-        )
+        return UNKNOWN
 
-    container_image = None
     mapping = config[container_type]
     versions = [obj["version"] for obj in mapping]
     # assumes numbered versions, update if `latest` is used
@@ -1149,7 +1147,7 @@ def validate_cmd_var(cmd_var: List[str], overrides: List[str]) -> List[str]:
     common_keys = set(cmd_dict.keys()) & set(overrides_dict.keys())
     if common_keys:
         raise AquaValueError(
-            f"The following keys cannot be overridden: {', '.join(common_keys)}"
+            f"The following CMD input cannot be overridden for model deployment: {', '.join(common_keys)}"
         )
 
     combined_cmd_var = cmd_var + overrides

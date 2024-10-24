@@ -246,41 +246,41 @@ class AquaDeploymentApp(AquaApp):
             model=aqua_model, container_family=container_family
         )
 
-        # todo: revisit this when TEI is added to SMC list. Currently, container_image_uri is ignored if container
-        #   family is SMC.
-        if container_type_key == InferenceContainerTypeFamily.AQUA_TEI_CONTAINER_FAMILY:
-            if not container_image_uri:
-                try:
-                    container_image_uri = aqua_model.custom_metadata_list.get(
-                        AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME
-                    ).value
-                except ValueError as err:
-                    raise AquaValueError(
-                        f"{AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME} key is not available in the custom metadata "
-                        f"field. Either re-register the model with custom container URI, or set container_image_uri "
-                        f"parameter when creating this deployment."
-                    ) from err
-
+        container_image_uri = container_image_uri or get_container_image(
+            container_type=container_type_key
+        )
+        if not container_image_uri:
             try:
-                cmd_var_string = aqua_model.custom_metadata_list.get(
-                    AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME
+                container_image_uri = aqua_model.custom_metadata_list.get(
+                    AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME
                 ).value
             except ValueError as err:
                 raise AquaValueError(
-                    f"{AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME} key is not available in the custom metadata "
-                    f"field. Please check if the model was registered with {container_type_key} inference container."
+                    f"{AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME} key is not available in the custom metadata "
+                    f"field. Either re-register the model with custom container URI, or set container_image_uri "
+                    f"parameter when creating this deployment."
                 ) from err
+        logging.info(
+            f"Aqua Image used for deploying {aqua_model.id} : {container_image_uri}"
+        )
+
+        try:
+            cmd_var_string = aqua_model.custom_metadata_list.get(
+                AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME
+            ).value
             default_cmd_var = cmd_var_string.split(",")
             if default_cmd_var:
                 cmd_var = validate_cmd_var(default_cmd_var, cmd_var)
             logging.info(f"CMD used for deploying {aqua_model.id} :{cmd_var}")
-        else:
-            # fetch image name from config
-            container_image_uri = get_container_image(container_type=container_type_key)
-
-        logging.info(
-            f"Aqua Image used for deploying {aqua_model.id} : {container_image_uri}"
-        )
+        except ValueError:
+            logging.debug(
+                f"CMD will be ignored for this deployment as {AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME} "
+                f"key is not available in the custom metadata field for this model."
+            )
+        except Exception as e:
+            logging.error(
+                f"There was an issue processing CMD arguments. Error: {str(e)}"
+            )
 
         model_formats_str = aqua_model.freeform_tags.get(
             Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS.value

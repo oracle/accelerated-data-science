@@ -716,7 +716,7 @@ class TestAquaDeployment(unittest.TestCase):
         mock_create.assert_called_with(
             model_id=TestDataset.MODEL_ID, compartment_id=None, project_id=None
         )
-        mock_get_container_image.assert_not_called()
+        mock_get_container_image.assert_called()
         mock_deploy.assert_called()
 
         expected_attributes = set(AquaDeployment.__annotations__.keys())
