@@ -1652,6 +1652,7 @@ class ModelDeployment(Builder):
             if not hasattr(
                 oci.data_science.models.InstanceConfiguration, "private_endpoint_id"
             ):
+                # TODO: add oci version with private endpoint support.
                 raise EnvironmentError(
                     "Private endpoint is not supported in the current OCI SDK installed."
                 )

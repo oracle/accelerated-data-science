@@ -50,7 +50,7 @@ class AquaDeployment(DataClassSerializable):
     private_endpoint_id: str = None
     console_link: str = None
     lifecycle_details: str = None
-    shape_info: field(default_factory=ShapeInfo) = None
+    shape_info: Optional[ShapeInfo] = None
     tags: dict = None
     environment_variables: dict = None
 
@@ -99,9 +99,7 @@ class AquaDeployment(DataClassSerializable):
         freeform_tags = oci_model_deployment.freeform_tags or UNKNOWN_DICT
         aqua_service_model_tag = freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, None)
         aqua_model_name = freeform_tags.get(Tags.AQUA_MODEL_NAME_TAG, UNKNOWN)
-        private_endpoint_id = (
-            getattr(oci_model_deployment.model_deployment_configuration_details.model_configuration_details.instance_configuration, "private_endpoint_id", UNKNOWN)
-        )
+        private_endpoint_id = getattr(instance_configuration, "private_endpoint_id", UNKNOWN)
 
         return AquaDeployment(
             id=oci_model_deployment.id,
