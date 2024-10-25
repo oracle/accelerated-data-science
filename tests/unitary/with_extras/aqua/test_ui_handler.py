@@ -21,6 +21,7 @@ from ads.aqua.extension.ui_handler import AquaUIHandler
 class TestDataset:
     USER_COMPARTMENT_ID = "ocid1.compartment.oc1..<USER_COMPARTMENT_OCID>"
     USER_PROJECT_ID = "ocid1.datascienceproject.oc1.iad.<USER_PROJECT_OCID>"
+    PRIVATE_ENDPOINT_RESOURCE_TYPE = "MODEL_DEPLOYMENT"
     DEPLOYMENT_SHAPE_NAME = "VM.GPU.A10.1"
 
 
@@ -147,6 +148,16 @@ class TestAquaUIHandler(unittest.TestCase):
         self.ui_handler.get()
         mock_list_subnets.assert_called_with(
             compartment_id=TestDataset.USER_COMPARTMENT_ID, vcn_id="mock-vcn-id"
+        )
+
+    @patch("ads.aqua.ui.AquaUIApp.list_private_endpoints")
+    def test_list_private_endpoints(self, mock_list_private_endpoints):
+        """Test the get method to fetch list of private endpoints."""
+        self.ui_handler.request.path = "aqua/privateendpoints"
+        self.ui_handler.get()
+        mock_list_private_endpoints.assert_called_with(
+            compartment_id=TestDataset.USER_COMPARTMENT_ID,
+            resource_type=TestDataset.PRIVATE_ENDPOINT_RESOURCE_TYPE
         )
 
     @patch("ads.aqua.ui.AquaUIApp.get_shape_availability")
