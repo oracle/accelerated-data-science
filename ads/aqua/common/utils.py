@@ -1101,9 +1101,9 @@ def generate_tei_cmd_var(os_path: str) -> List[str]:
 
     cmd_prefix = "--"
     cmd_var = [
-        cmd_prefix + TextEmbeddingInferenceContainerParams.MODEL_ID,
+        f"{cmd_prefix}{TextEmbeddingInferenceContainerParams.MODEL_ID}",
         f"{AQUA_MODEL_DEPLOYMENT_FOLDER}{ObjectStorageDetails.from_path(os_path.rstrip('/')).filepath}/",
-        cmd_prefix + TextEmbeddingInferenceContainerParams.PORT,
+        f"{cmd_prefix}{TextEmbeddingInferenceContainerParams.PORT}",
         TEI_CONTAINER_DEFAULT_HOST,
     ]
 

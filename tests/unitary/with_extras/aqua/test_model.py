@@ -24,6 +24,7 @@ from ads.aqua.model.entities import (
     AquaModel,
     ModelValidationResult,
 )
+from ads.aqua.common.utils import get_hf_model_info
 import ads.common
 import ads.common.oci_client
 import ads.config
@@ -49,7 +50,7 @@ def mock_auth():
         yield mock_default_signer
 
 
-@pytest.fixture(autouse=True, scope="class")
+@pytest.fixture(autouse=True, scope="function")
 def mock_get_container_config():
     with patch("ads.aqua.ui.get_container_config") as mock_config:
         with open(
@@ -266,6 +267,7 @@ class TestAquaModel:
         self.create_signer_patch.stop()
         self.validate_config_patch.stop()
         self.create_client_patch.stop()
+        get_hf_model_info.cache_clear()
 
     @classmethod
     def setup_class(cls):
@@ -933,7 +935,7 @@ class TestAquaModel:
         app.list = MagicMock(return_value=[])
 
         if download_from_hf:
-            with pytest.raises(AquaRuntimeError):
+            with pytest.raises(AquaValueError):
                 mock_get_hf_model_info.return_value.siblings = []
                 with tempfile.TemporaryDirectory() as tmpdir:
                     model: AquaModel = app.register(
@@ -1012,7 +1014,6 @@ class TestAquaModel:
             assert model.ready_to_deploy is True
             assert model.ready_to_finetune is True
 
-    @pytest.mark.skip(reason="Skipping this test to check for unit test failure in GA")
     @pytest.mark.parametrize(
         "download_from_hf",
         [True, False],
