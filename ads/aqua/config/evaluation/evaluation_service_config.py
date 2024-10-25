@@ -224,6 +224,7 @@ class UIConfig(Serializable):
 
     class Config:
         extra = "ignore"
+        protected_namespaces = ()
 
 
 class EvaluationServiceConfig(Serializable):

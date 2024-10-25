@@ -16,8 +16,10 @@ Here is an example anomaly.yaml with every parameter specified:
             name: Date
         input_data:
             url: data.csv
-        model: auto
+        model: isolationforest
+        contamination: 0.005
         target_column: target
+        target_category_columns: ['series']
 
 
 * **Kind**: The yaml file always starts with ``kind: operator``. There are many other kinds of yaml files that can be run by ``ads opctl``, so we need to specify this is an operator.
@@ -39,7 +41,8 @@ Here is an example anomaly.yaml with every parameter specified:
     * **output_directory**: (optional) This dictionary contains the details for where to put the output artifacts. The directory need not exist, but must be accessible by the Operator during runtime.
         * **url**: Insert the uri for the dataset if it's on object storage or Data Lake using the URI pattern ``oci://<bucket>@<namespace>/subfolder/``.
         * **kwargs**: Insert any other args for pandas to load the data (``format``, ``options``, etc.) See full list in ``YAML Schema`` section.
-    * **model**: (optional) The name of the model framework you want to use. Defaults to "auto". Other options are: ``autots``, and ``auto``.
+    * **model**: (optional) The name of the model framework you want to use. Defaults to "auto". Other options are: iqr, lof, zscore, rolling_zscore, isolationforest, mad, ee, autots and auto.
+    * **contamination**: The proportion of outliers in the data set. The contamination should be in the range (0, 0.5]. This parameter is supported only by specific methods, i.e. isolationforest, lof and ee. If used with other models, this parameter will be ignored.
     * **model_kwargs**: (optional) This kwargs dict passes straight through to the model framework. If you want to take direct control of the modeling, this is the best way.
     * **test_data**: (optional) This dictionary contains the details for how to read the test data. Test data should contain every datetime value of the input_data, (optionally) all of the series from target_category_columns, and a column titles "anomaly" with either a 1 (non-anomalous) or 0 (anomalous).
         * **url**: Insert the uri for the dataset if it's on object storage or Data Lake using the URI pattern ``oci://<bucket>@<namespace>/path/to/data.csv``.

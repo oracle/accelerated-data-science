@@ -364,15 +364,31 @@ spec:
         - oneclasssvm
         - isolationforest
         - randomcutforest
+        - iqr
+        - lof
+        - zscore
+        - rolling_zscore
+        - mad
+        - ee
+        - dagmm
+        - deep_point_anomaly_detector
+        - lstm_ed
+        - spectral_residual
+        - vae
+        - arima
+        - ets
+        - sarima
+        - bocpd
+        - prophet
       meta:
         description: "The model to be used for anomaly detection"
 
     contamination:
       required: false
-      default: 0.1
+      default: 0.01
       type: float
       meta:
-        description: "Fraction of training dataset corresponding to anomalies (between 0.0 and 0.5)"
+        description: "The proportion of outliers in the data set. The contamination should be in the range (0, 0.5]"
 
     model_kwargs:
       type: dict
