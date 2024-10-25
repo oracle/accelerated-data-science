@@ -3,7 +3,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from dataclasses import dataclass, field
-from typing import Union
+from typing import List, Union
 
 from oci.data_science.models import (
     ModelDeployment,
@@ -52,6 +52,7 @@ class AquaDeployment(DataClassSerializable):
     shape_info: field(default_factory=ShapeInfo) = None
     tags: dict = None
     environment_variables: dict = None
+    cmd: List[str] = None
 
     @classmethod
     def from_oci_model_deployment(
@@ -80,6 +81,7 @@ class AquaDeployment(DataClassSerializable):
         )
         instance_count = oci_model_deployment.model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
         environment_variables = oci_model_deployment.model_deployment_configuration_details.environment_configuration_details.environment_variables
+        cmd = oci_model_deployment.model_deployment_configuration_details.environment_configuration_details.cmd
         shape_info = ShapeInfo(
             instance_shape=instance_configuration.instance_shape_name,
             instance_count=instance_count,
@@ -120,6 +122,7 @@ class AquaDeployment(DataClassSerializable):
             ),
             tags=freeform_tags,
             environment_variables=environment_variables,
+            cmd=cmd,
         )
 
 
