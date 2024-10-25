@@ -109,6 +109,7 @@ class AquaDeploymentApp(AquaApp):
         memory_in_gbs: Optional[float] = None,
         ocpus: Optional[float] = None,
         model_file: Optional[str] = None,
+        private_endpoint_id: Optional[str] = None,
         container_image_uri: Optional[None] = None,
         cmd_var: List[str] = None,
     ) -> "AquaDeployment":
@@ -157,6 +158,8 @@ class AquaDeploymentApp(AquaApp):
             The ocpu count for the shape selected.
         model_file: str
             The file used for model deployment.
+        private_endpoint_id: str
+            The private endpoint id of model deployment.
         container_image_uri: str
             The image of model deployment container runtime, ignored for service managed containers.
             Required parameter for BYOC based deployments if this parameter was not set during model registration.
@@ -386,6 +389,7 @@ class AquaDeploymentApp(AquaApp):
             .with_bandwidth_mbps(bandwidth_mbps)
             .with_replica(instance_count)
             .with_web_concurrency(web_concurrency)
+            .with_private_endpoint_id(private_endpoint_id)
             .with_access_log(
                 log_group_id=log_group_id,
                 log_id=access_log_id,
