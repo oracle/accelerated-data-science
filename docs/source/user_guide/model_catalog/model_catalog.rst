@@ -1394,6 +1394,10 @@ These are the metadata attributes:
 *  ``schema_output``: Output schema. However, this field can't be updated.
 *  ``time_created``: The date and time that the model artifacts were stored in the model catalog.
 *  ``user_name``: User name of the account that created the entry.
+*  ``backup_setting``:  The backup setting property of the model
+*  ``retention_setting``: The retention setting property of the model
+*  ``retention_operation_details``: The retention operation details of the model
+*  ``backup_operation_details``: The back up operation details of the model
 
 The ``provenance_metadata`` attribute returns a `ModelProvenance <https://oracle-cloud-infrastructure-python-sdk.readthedocs.io/en/latest/api/data_science/models/oci.data_science.models.ModelProvenance.html#oci.data_science.models.ModelProvenance>`__ object. This object has the attributes to access the metadata.
 
@@ -1545,3 +1549,8 @@ In the next example, the model that was stored in the model catalog as part of t
 .. code-block:: python3
 
     mc.delete_model(mc_model.id)
+
+Restore Archived Model
+**********************
+
+The ``.restore_model()`` method of Model catalog restores the model for a specified number of hours. Restored models can be downloaded for 1-240 hours, defaulting to 24 hours.

@@ -26,7 +26,7 @@ from ads.model.datascience_model import (
     ModelArtifactSizeError,
     BucketNotVersionedError,
     ModelFileDescriptionError,
-    InvalidArtifactType,
+    InvalidArtifactType, ModelRetentionSetting, ModelBackupSetting,
 )
 from ads.model.model_metadata import (
     ModelCustomMetadata,
@@ -44,7 +44,7 @@ from oci.object_storage.models.object_version_summary import ObjectVersionSummar
 from ads.config import AQUA_SERVICE_MODELS_BUCKET as SERVICE_MODELS_BUCKET
 
 MODEL_OCID = "ocid1.datasciencemodel.oc1.iad.<unique_ocid>"
-
+ 
 OCI_MODEL_PAYLOAD = {
     "id": MODEL_OCID,
     "compartment_id": "ocid1.compartment.oc1..<unique_ocid>",
@@ -72,6 +72,16 @@ OCI_MODEL_PAYLOAD = {
         {"key": "Hyperparameters"},
         {"key": "ArtifactTestResults"},
     ],
+    "backup_setting": {
+        "is_backup_enabled": True,
+        "backup_region": "us-phoenix-1",
+        "customer_notification_type": "ALL"
+    },
+    "retention_setting": {
+        "archive_after_days": 30,
+        "delete_after_days": 90,
+        "customer_notification_type": "ALL"
+    },
     "input_schema": '{"schema": [{"dtype": "int64", "feature_type": "Integer", "name": 0, "domain": {"values": "", "stats": {}, "constraints": []}, "required": true, "description": "0", "order": 0}], "version": "1.1"}',
     "output_schema": '{"schema": [{"dtype": "int64", "feature_type": "Integer", "name": 0, "domain": {"values": "", "stats": {}, "constraints": []}, "required": true, "description": "0", "order": 0}], "version": "1.1"}',
 }
@@ -147,6 +157,16 @@ DSC_MODEL_PAYLOAD = {
         "training_script_path": None,
         "training_id": None,
         "artifact_dir": "test_script_dir",
+    },
+    "backupSetting": {
+        "is_backup_enabled": True,
+        "backup_region": "us-phoenix-1",
+        "customer_notification_type": "ALL"
+    },
+    "retentionSetting": {
+        "archive_after_days": 30,
+        "delete_after_days": 90,
+        "customer_notification_type": "ALL"
     },
     "artifact": "ocid1.datasciencemodel.oc1.iad.<unique_ocid>.zip",
 }
@@ -307,6 +327,8 @@ class TestDataScienceModel:
             .with_defined_metadata_list(self.payload["definedMetadataList"])
             .with_provenance_metadata(self.payload["provenanceMetadata"])
             .with_artifact(self.payload["artifact"])
+            .with_backup_setting(self.payload['backupSetting'])
+            .with_retention_setting(self.payload['retentionSetting'])
         )
         assert self.prepare_dict(dsc_model.to_dict()["spec"]) == self.prepare_dict(
             self.payload
@@ -334,6 +356,8 @@ class TestDataScienceModel:
                 ModelProvenanceMetadata.from_dict(self.payload["provenanceMetadata"])
             )
             .with_artifact(self.payload["artifact"])
+            .with_backup_setting(ModelBackupSetting.from_dict(self.payload['backupSetting']))
+            .with_retention_setting(ModelRetentionSetting.from_dict(self.payload['retentionSetting']))
         )
         assert self.prepare_dict(dsc_model.to_dict()["spec"]) == self.prepare_dict(
             self.payload
@@ -617,6 +641,16 @@ class TestDataScienceModel:
                 {"key": "Hyperparameters", "value": "new test"},
                 {"key": "ArtifactTestResults", "value": "new test"},
             ],
+            "backup_setting": {
+                "is_backup_enabled": True,
+                "backup_region": "us-phoenix-1",
+                "customer_notification_type": "ALL",
+            },
+            "retention_setting": {
+                "archive_after_days": 30,
+                "delete_after_days": 90,
+                "customer_notification_type": "ALL",
+            },
             "input_schema": '{"schema": [{"dtype": "int64", "feature_type": "Integer", "name": 1, "domain": {"values": "", "stats": {}, "constraints": []}, "required": true, "description": "0", "order": 0}], "version": "1.1"}',
             "output_schema": '{"schema": [{"dtype": "int64", "feature_type": "Integer", "name": 1, "domain": {"values": "", "stats": {}, "constraints": []}, "required": true, "description": "0", "order": 0}], "version": "1.1"}',
         }
@@ -680,6 +714,16 @@ class TestDataScienceModel:
                     {"key": "Hyperparameters", "value": "new test"},
                     {"key": "ArtifactTestResults", "value": "new test"},
                 ]
+            },
+            "backupSetting": {
+                "is_backup_enabled": True,
+                "backup_region": "us-phoenix-1",
+                "customer_notification_type": "ALL",
+            },
+            "retentionSetting": {
+                "archive_after_days": 30,
+                "delete_after_days": 90,
+                "customer_notification_type": "ALL",
             },
             "provenanceMetadata": {
                 "git_branch": "master",
