@@ -1537,15 +1537,16 @@ class DataScienceModel(Builder):
         self.dsc_model = self._to_oci_dsc_model(**kwargs).update()
 
         logger.debug(f"Updating a model provenance metadata {self.provenance_metadata}")
-        try:
-            self.dsc_model.get_model_provenance()
-            self.dsc_model.update_model_provenance(
-                self.provenance_metadata._to_oci_metadata()
-            )
-        except ModelProvenanceNotFoundError:
-            self.dsc_model.create_model_provenance(
-                self.provenance_metadata._to_oci_metadata()
-            )
+        if self.provenance_metadata:
+            try:
+                self.dsc_model.get_model_provenance()
+                self.dsc_model.update_model_provenance(
+                    self.provenance_metadata._to_oci_metadata()
+                )
+            except ModelProvenanceNotFoundError:
+                self.dsc_model.create_model_provenance(
+                    self.provenance_metadata._to_oci_metadata()
+                )
 
         return self.sync()
 
