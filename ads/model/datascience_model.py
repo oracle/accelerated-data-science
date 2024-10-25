@@ -21,11 +21,9 @@ from ads.common import utils
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import (
-    AQUA_SERVICE_MODELS_BUCKET as SERVICE_MODELS_BUCKET,
-)
-from ads.config import (
     COMPARTMENT_OCID,
     PROJECT_OCID,
+    AQUA_SERVICE_MODELS_BUCKET as SERVICE_MODELS_BUCKET,
 )
 from ads.feature_engineering.schema import Schema
 from ads.jobs.builders.base import Builder
@@ -48,6 +46,7 @@ from ads.model.service.oci_datascience_model import (
 
 logger = logging.getLogger(__name__)
 
+
 _MAX_ARTIFACT_SIZE_IN_BYTES = 2147483648  # 2GB
 MODEL_BY_REFERENCE_VERSION = "1.0"
 MODEL_BY_REFERENCE_JSON_FILE_NAME = "model_description.json"
@@ -65,8 +64,8 @@ class ModelArtifactSizeError(Exception):  # pragma: no cover
 
 class BucketNotVersionedError(Exception):  # pragma: no cover
     def __init__(
-            self,
-            msg="Model artifact bucket is not versioned. Enable versioning on the bucket to proceed with model creation by reference.",
+        self,
+        msg="Model artifact bucket is not versioned. Enable versioning on the bucket to proceed with model creation by reference.",
     ):
         super().__init__(msg)
 
@@ -527,6 +526,7 @@ class DataScienceModel(Builder):
         Sets path details for models created by reference. Input can be either a dict, string or json file and
         the schema is dictated by model_file_description_schema.json
 
+
     Examples
     --------
     >>> ds_model = (DataScienceModel()
@@ -796,7 +796,7 @@ class DataScienceModel(Builder):
         return self.get_spec(self.CONST_DEFINED_TAG)
 
     def with_defined_tags(
-            self, **kwargs: Dict[str, Dict[str, object]]
+        self, **kwargs: Dict[str, Dict[str, object]]
     ) -> "DataScienceModel":
         """Sets defined tags.
 
@@ -877,7 +877,7 @@ class DataScienceModel(Builder):
         return self.get_spec(self.CONST_DEFINED_METADATA)
 
     def with_defined_metadata_list(
-            self, metadata: Union[ModelTaxonomyMetadata, Dict]
+        self, metadata: Union[ModelTaxonomyMetadata, Dict]
     ) -> "DataScienceModel":
         """Sets model taxonomy (defined) metadata.
 
@@ -901,7 +901,7 @@ class DataScienceModel(Builder):
         return self.get_spec(self.CONST_CUSTOM_METADATA)
 
     def with_custom_metadata_list(
-            self, metadata: Union[ModelCustomMetadata, Dict]
+        self, metadata: Union[ModelCustomMetadata, Dict]
     ) -> "DataScienceModel":
         """Sets model custom metadata.
 
@@ -925,7 +925,7 @@ class DataScienceModel(Builder):
         return self.get_spec(self.CONST_PROVENANCE_METADATA)
 
     def with_provenance_metadata(
-            self, metadata: Union[ModelProvenanceMetadata, Dict]
+        self, metadata: Union[ModelProvenanceMetadata, Dict]
     ) -> "DataScienceModel":
         """Sets model provenance metadata.
 
@@ -1018,7 +1018,7 @@ class DataScienceModel(Builder):
         return self.get_spec(self.CONST_MODEL_FILE_DESCRIPTION)
 
     def with_model_file_description(
-            self, json_dict: dict = None, json_string: str = None, json_uri: str = None
+        self, json_dict: dict = None, json_string: str = None, json_uri: str = None
     ):
         """Sets the json file description for model passed by reference
         Parameters
@@ -1041,7 +1041,7 @@ class DataScienceModel(Builder):
         elif json_string:
             json_data = json.loads(json_string)
         elif json_uri:
-            with open(json_uri) as json_file:
+            with open(json_uri, "r") as json_file:
                 json_data = json.load(json_file)
         else:
             raise ValueError("Must provide either a valid json string or URI location.")
@@ -1256,15 +1256,15 @@ class DataScienceModel(Builder):
         return self
 
     def upload_artifact(
-            self,
-            bucket_uri: Optional[str] = None,
-            auth: Optional[Dict] = None,
-            region: Optional[str] = None,
-            overwrite_existing_artifact: Optional[bool] = True,
-            remove_existing_artifact: Optional[bool] = True,
-            timeout: Optional[int] = None,
-            parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
-            model_by_reference: Optional[bool] = False,
+        self,
+        bucket_uri: Optional[str] = None,
+        auth: Optional[Dict] = None,
+        region: Optional[str] = None,
+        overwrite_existing_artifact: Optional[bool] = True,
+        remove_existing_artifact: Optional[bool] = True,
+        timeout: Optional[int] = None,
+        parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
+        model_by_reference: Optional[bool] = False,
     ) -> None:
         """Uploads model artifacts to the model catalog.
 
@@ -1334,7 +1334,7 @@ class DataScienceModel(Builder):
                 bucket_uri = self.artifact
 
         if not model_by_reference and (
-                bucket_uri or utils.folder_size(self.artifact) > _MAX_ARTIFACT_SIZE_IN_BYTES
+            bucket_uri or utils.folder_size(self.artifact) > _MAX_ARTIFACT_SIZE_IN_BYTES
         ):
             if not bucket_uri:
                 raise ModelArtifactSizeError(
@@ -1405,15 +1405,15 @@ class DataScienceModel(Builder):
         )
 
     def download_artifact(
-            self,
-            target_dir: str,
-            auth: Optional[Dict] = None,
-            force_overwrite: Optional[bool] = False,
-            bucket_uri: Optional[str] = None,
-            region: Optional[str] = None,
-            overwrite_existing_artifact: Optional[bool] = True,
-            remove_existing_artifact: Optional[bool] = True,
-            timeout: Optional[int] = None,
+        self,
+        target_dir: str,
+        auth: Optional[Dict] = None,
+        force_overwrite: Optional[bool] = False,
+        bucket_uri: Optional[str] = None,
+        region: Optional[str] = None,
+        overwrite_existing_artifact: Optional[bool] = True,
+        remove_existing_artifact: Optional[bool] = True,
+        timeout: Optional[int] = None,
     ):
         """Downloads model artifacts from the model catalog.
 
@@ -1488,9 +1488,9 @@ class DataScienceModel(Builder):
                 )
 
         if (
-                artifact_size > _MAX_ARTIFACT_SIZE_IN_BYTES
-                or bucket_uri
-                or model_by_reference
+            artifact_size > _MAX_ARTIFACT_SIZE_IN_BYTES
+            or bucket_uri
+            or model_by_reference
         ):
             artifact_downloader = LargeArtifactDownloader(
                 dsc_model=self.dsc_model,
@@ -1536,22 +1536,21 @@ class DataScienceModel(Builder):
         self.dsc_model = self._to_oci_dsc_model(**kwargs).update()
 
         logger.debug(f"Updating a model provenance metadata {self.provenance_metadata}")
-        if self.provenance_metadata:
-            try:
-                self.dsc_model.get_model_provenance()
-                self.dsc_model.update_model_provenance(
-                    self.provenance_metadata._to_oci_metadata()
-                )
-            except ModelProvenanceNotFoundError:
-                self.dsc_model.create_model_provenance(
-                    self.provenance_metadata._to_oci_metadata()
-                )
+        try:
+            self.dsc_model.get_model_provenance()
+            self.dsc_model.update_model_provenance(
+                self.provenance_metadata._to_oci_metadata()
+            )
+        except ModelProvenanceNotFoundError:
+            self.dsc_model.create_model_provenance(
+                self.provenance_metadata._to_oci_metadata()
+            )
 
         return self.sync()
 
     def delete(
-            self,
-            delete_associated_model_deployment: Optional[bool] = False,
+        self,
+        delete_associated_model_deployment: Optional[bool] = False,
     ) -> "DataScienceModel":
         """Removes model from the model catalog.
 
@@ -1570,7 +1569,7 @@ class DataScienceModel(Builder):
 
     @classmethod
     def list(
-            cls, compartment_id: str = None, project_id: str = None, **kwargs
+        cls, compartment_id: str = None, project_id: str = None, **kwargs
     ) -> List["DataScienceModel"]:
         """Lists datascience models in a given compartment.
 
@@ -1597,7 +1596,7 @@ class DataScienceModel(Builder):
 
     @classmethod
     def list_df(
-            cls, compartment_id: str = None, project_id: str = None, **kwargs
+        cls, compartment_id: str = None, project_id: str = None, **kwargs
     ) -> "pandas.DataFrame":
         """Lists datascience models in a given compartment.
 
@@ -1617,7 +1616,7 @@ class DataScienceModel(Builder):
         """
         records = []
         for model in OCIDataScienceModel.list_resource(
-                compartment_id, project_id=project_id, **kwargs
+            compartment_id, project_id=project_id, **kwargs
         ):
             records.append(
                 {
@@ -1660,8 +1659,6 @@ class DataScienceModel(Builder):
         self.with_provenance_metadata(self.provenance_metadata)
         self.with_input_schema(self.input_schema)
         self.with_output_schema(self.output_schema)
-        # self.with_backup_setting(self.backup_setting)
-        # self.with_retention_setting(self.retention_setting)
 
     def _to_oci_dsc_model(self, **kwargs):
         """Creates an `OCIDataScienceModel` instance from the  `DataScienceModel`.
@@ -1700,7 +1697,7 @@ class DataScienceModel(Builder):
         return OCIDataScienceModel(**dsc_spec)
 
     def _update_from_oci_dsc_model(
-            self, dsc_model: OCIDataScienceModel
+        self, dsc_model: OCIDataScienceModel
     ) -> "DataScienceModel":
         """Update the properties from an OCIDataScienceModel object.
 
@@ -1973,12 +1970,12 @@ class DataScienceModel(Builder):
         return bucket_uri[0] if len(bucket_uri) == 1 else bucket_uri, artifact_size
 
     def add_artifact(
-            self,
-            uri: Optional[str] = None,
-            namespace: Optional[str] = None,
-            bucket: Optional[str] = None,
-            prefix: Optional[str] = None,
-            files: Optional[List[str]] = None,
+        self,
+        uri: Optional[str] = None,
+        namespace: Optional[str] = None,
+        bucket: Optional[str] = None,
+        prefix: Optional[str] = None,
+        files: Optional[List[str]] = None,
     ):
         """
         Adds information about objects in a specified bucket to the model description JSON.
@@ -2127,11 +2124,11 @@ class DataScienceModel(Builder):
         self.set_spec(self.CONST_MODEL_FILE_DESCRIPTION, tmp_model_file_description)
 
     def remove_artifact(
-            self,
-            uri: Optional[str] = None,
-            namespace: Optional[str] = None,
-            bucket: Optional[str] = None,
-            prefix: Optional[str] = None,
+        self,
+        uri: Optional[str] = None,
+        namespace: Optional[str] = None,
+        bucket: Optional[str] = None,
+        prefix: Optional[str] = None,
     ):
         """
         Removes information about objects in a specified bucket or using a specified URI from the model description JSON.
