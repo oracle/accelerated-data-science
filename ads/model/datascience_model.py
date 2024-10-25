@@ -2176,9 +2176,9 @@ class DataScienceModel(Builder):
         def find_model_idx():
             for idx, model in enumerate(self.model_file_description["models"]):
                 if (
-                        model["namespace"],
-                        model["bucketName"],
-                        (model["prefix"] if ("prefix" in model) else None),
+                    model["namespace"],
+                    model["bucketName"],
+                    (model["prefix"] if ("prefix" in model) else None),
                 ) == (namespace, bucket, "" if not prefix else prefix):
                     return idx
             return -1
