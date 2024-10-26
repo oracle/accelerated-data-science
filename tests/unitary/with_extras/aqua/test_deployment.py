@@ -188,6 +188,7 @@ class TestDataset:
             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
             "PARAMS": "--served-model-name odsc-llm --seed 42",
         },
+        "cmd": [],
         "console_link": "https://cloud.oracle.com/data-science/model-deployments/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>?region=region-name",
         "lifecycle_details": "",
         "shape_info": {
