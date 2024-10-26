@@ -287,6 +287,7 @@ class ImportModelDetails(CLIBuilderMixin):
     compartment_id: Optional[str] = None
     project_id: Optional[str] = None
     model_file: Optional[str] = None
+    inference_container_uri: Optional[str] = None
 
     def __post_init__(self):
         self._command = "model register"
