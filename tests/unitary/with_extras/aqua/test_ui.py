@@ -398,6 +398,48 @@ class TestAquaUI(unittest.TestCase):
             )
         assert len(results) == len(subnets)
 
+    def test_list_private_endpoints(self):
+        """Test to list the private endpoints in the specified compartment."""
+        private_endpoints_list_json = os.path.join(
+            self.curr_dir, f"test_data/ui/private_endpoints_list.json"
+        )
+        with open(private_endpoints_list_json, "r") as _file:
+            private_endpoints = json.load(_file)
+
+        self.app.ds_client.list_data_science_private_endpoints = MagicMock(
+            return_value=oci.response.Response(
+                status=200,
+                request=MagicMock(),
+                headers=MagicMock(),
+                data=[
+                    oci.data_science.models.DataSciencePrivateEndpointSummary(**pe)
+                    for pe in private_endpoints
+                ],
+            )
+        )
+
+        results = self.app.list_private_endpoints()
+        expected_attributes = {
+            "compartmentId",
+            "definedTags",
+            "displayName",
+            "freeformTags",
+            "systemTags",
+            "id",
+            "lifecycleState",
+            "dataScienceResourceType",
+            "createdBy",
+            "subnetId",
+            "fqdn",
+            "timeCreated",
+            "timeUpdated",
+        }
+        for result in results:
+            self.assertTrue(
+                expected_attributes.issuperset(set(result)), "Attributes mismatch"
+            )
+        assert len(results) == len(private_endpoints)
+
     @patch.object(oci.limits.limits_client.LimitsClient, "get_resource_availability")
     def test_get_shape_availability(self, mock_get_resource_availability):
         """Test whether the function returns the number of available resources associated with the given shape."""

@@ -9,6 +9,7 @@ from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.enums import Tags
+from ads.aqua.constants import PRIVATE_ENDPOINT_TYPE
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.extension.utils import validate_function_parameters
@@ -71,6 +72,8 @@ class AquaUIHandler(AquaAPIhandler):
             return self.list_vcn()
         elif paths.startswith("aqua/subnets"):
             return self.list_subnets()
+        elif paths.startswith("aqua/privateendpoints"):
+            return self.list_private_endpoints()
         elif paths.startswith("aqua/shapes/limit"):
             return self.get_shape_availability()
         elif paths.startswith("aqua/bucket/versioning"):
@@ -174,6 +177,18 @@ class AquaUIHandler(AquaAPIhandler):
             )
         )
 
+    def list_private_endpoints(self, **kwargs):
+        """Lists the private endpoints in the specified compartment."""
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
+        resource_type = self.get_argument(
+            "resource_type", default=PRIVATE_ENDPOINT_TYPE
+        )
+        return self.finish(
+            AquaUIApp().list_private_endpoints(
+                compartment_id=compartment_id, resource_type=resource_type, **kwargs
+            )
+        )
+
     def get_shape_availability(self, **kwargs):
         """For a given compartmentId, resource limit name, and scope, returns the number of available resources associated
         with the given limit."""
@@ -247,6 +262,7 @@ __handlers__ = [
     ("job/shapes/?([^/]*)", AquaUIHandler),
     ("vcn/?([^/]*)", AquaUIHandler),
     ("subnets/?([^/]*)", AquaUIHandler),
+    ("privateendpoints/?([^/]*)", AquaUIHandler),
     ("shapes/limit/?([^/]*)", AquaUIHandler),
     ("bucket/versioning/?([^/]*)", AquaUIHandler),
     ("containers/?([^/]*)", AquaUIHandler),
