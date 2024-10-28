@@ -22,6 +22,7 @@ class TestDataset:
     USER_COMPARTMENT_ID = "ocid1.compartment.oc1..<USER_COMPARTMENT_OCID>"
     USER_PROJECT_ID = "ocid1.datascienceproject.oc1.iad.<USER_PROJECT_OCID>"
     DEPLOYMENT_SHAPE_NAME = "VM.GPU.A10.1"
+    LIMIT_NAME="ds-gpu-a10-count"
 
 
 class TestAquaUIHandler(unittest.TestCase):
@@ -153,7 +154,7 @@ class TestAquaUIHandler(unittest.TestCase):
     def test_get_shape_availability(self, mock_get_shape_availability):
         """Test get shape availability."""
         self.ui_handler.request.path = "aqua/shapes/limit"
-        args = {"instance_shape": TestDataset.DEPLOYMENT_SHAPE_NAME}
+        args = {"instance_shape": TestDataset.DEPLOYMENT_SHAPE_NAME,"limit_name":TestDataset.LIMIT_NAME}
         self.ui_handler.get_argument = MagicMock(
             side_effect=lambda arg, default=None: args.get(arg, default)
         )
@@ -161,6 +162,7 @@ class TestAquaUIHandler(unittest.TestCase):
         mock_get_shape_availability.assert_called_with(
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
             instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
+            limit_name=TestDataset.LIMIT_NAME
         )
 
     @patch("ads.aqua.ui.AquaUIApp.is_bucket_versioned")
