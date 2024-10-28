@@ -96,13 +96,12 @@ Chat models takes `chat messages <https://python.langchain.com/docs/concepts/#me
 
     llm = ChatOCIModelDeploymentVLLM(
         model="odsc-llm",
-        endpoint= f"https://modeldeployment.oci.customer-oci.com/<OCID>/predict",
+        endpoint=f"<oci_model_deployment_url>>/predict",
         # Optionally you can specify additional keyword arguments for the model.
         max_tokens=32,
     )
 
     messages = [
-        SystemMessage(content="You're a helpful assistant providing concise answers."),
         HumanMessage(content="Who's the first president of United States?"),
     ]
 
