@@ -103,6 +103,7 @@ class AquaDeploymentApp(AquaApp):
         memory_in_gbs: Optional[float] = None,
         ocpus: Optional[float] = None,
         model_file: Optional[str] = None,
+        private_endpoint_id: Optional[str] = None,
     ) -> "AquaDeployment":
         """
         Creates a new Aqua deployment
@@ -149,6 +150,9 @@ class AquaDeploymentApp(AquaApp):
             The ocpu count for the shape selected.
         model_file: str
             The file used for model deployment.
+        private_endpoint_id: str
+            The private endpoint id of model deployment.
+
         Returns
         -------
         AquaDeployment
@@ -171,6 +175,7 @@ class AquaDeploymentApp(AquaApp):
                 tags[tag] = aqua_model.freeform_tags[tag]
 
         tags.update({Tags.AQUA_MODEL_NAME_TAG: aqua_model.display_name})
+        tags.update({Tags.TASK: aqua_model.freeform_tags.get(Tags.TASK, None)})
 
         # Set up info to get deployment config
         config_source_id = model_id
@@ -341,6 +346,7 @@ class AquaDeploymentApp(AquaApp):
             .with_bandwidth_mbps(bandwidth_mbps)
             .with_replica(instance_count)
             .with_web_concurrency(web_concurrency)
+            .with_private_endpoint_id(private_endpoint_id)
             .with_access_log(
                 log_group_id=log_group_id,
                 log_id=access_log_id,

@@ -36,7 +36,7 @@ class RandomCutForestOperatorModel(AnomalyOperatorBaseModel):
         # Set tree parameters
         num_trees = model_kwargs.get("num_trees", 200)
         shingle_size = model_kwargs.get("shingle_size", None)
-        anomaly_threshold = model_kwargs.get("anamoly_threshold", 95)
+        anomaly_threshold = model_kwargs.get("anomaly_threshold", 95)
 
         for target, df in self.datasets.full_data_dict.items():
             try:
