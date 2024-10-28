@@ -24,6 +24,7 @@ from ads.aqua.model.entities import (
     AquaModel,
     ModelValidationResult,
 )
+from ads.aqua.common.utils import get_hf_model_info
 import ads.common
 import ads.common.oci_client
 import ads.config
@@ -64,7 +65,7 @@ def mock_get_container_config():
         yield mock_config
 
 
-@pytest.fixture(autouse=True, scope="class")
+@pytest.fixture(autouse=True, scope="function")
 def mock_get_hf_model_info():
     with patch.object(HfApi, "model_info") as mock_get_hf_model_info:
         test_hf_model_info = ModelInfo(
@@ -266,6 +267,7 @@ class TestAquaModel:
         self.create_signer_patch.stop()
         self.validate_config_patch.stop()
         self.create_client_patch.stop()
+        get_hf_model_info.cache_clear()
 
     @classmethod
     def setup_class(cls):
@@ -1011,6 +1013,87 @@ class TestAquaModel:
             assert model.ready_to_import is False
             assert model.ready_to_deploy is True
             assert model.ready_to_finetune is True
+
+    @pytest.mark.parametrize(
+        "download_from_hf",
+        [True, False],
+    )
+    @patch.object(AquaModelApp, "_find_matching_aqua_model")
+    @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
+    @patch("ads.aqua.common.utils.load_config", return_value={})
+    @patch("huggingface_hub.snapshot_download")
+    @patch("subprocess.check_call")
+    def test_import_tei_model_byoc(
+        self,
+        mock_subprocess,
+        mock_snapshot_download,
+        mock_load_config,
+        mock_list_objects,
+        mock__find_matching_aqua_model,
+        download_from_hf,
+        mock_get_hf_model_info,
+    ):
+        ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
+        ads.common.oci_datascience.OCIDataScienceMixin.init_client = MagicMock()
+        DataScienceModel.upload_artifact = MagicMock()
+        DataScienceModel.sync = MagicMock()
+        OCIDataScienceModel.create = MagicMock()
+
+        artifact_path = "service_models/model-name/commit-id/artifact"
+        obj1 = MagicMock(etag="12345-1234-1234-1234-123456789", size=150)
+        obj1.name = f"{artifact_path}/config.json"
+        objects = [obj1]
+        mock_list_objects.return_value = MagicMock(objects=objects)
+        ds_model = DataScienceModel()
+        os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
+        model_name = "oracle/aqua-1t-mega-model"
+        ds_freeform_tags = {
+            "OCI_AQUA": "ACTIVE",
+            "license": "aqua-license",
+            "organization": "oracle",
+            "task": "text_embedding",
+        }
+        ds_model = (
+            ds_model.with_compartment_id("test_model_compartment_id")
+            .with_project_id("test_project_id")
+            .with_display_name(model_name)
+            .with_description("test_description")
+            .with_model_version_set_id("test_model_version_set_id")
+            .with_freeform_tags(**ds_freeform_tags)
+            .with_version_id("ocid1.version.id")
+        )
+        custom_metadata_list = ModelCustomMetadata()
+        custom_metadata_list.add(
+            **{"key": "deployment-container", "value": "odsc-tei-serving"}
+        )
+        ds_model.with_custom_metadata_list(custom_metadata_list)
+        ds_model.set_spec(ds_model.CONST_MODEL_FILE_DESCRIPTION, {})
+        DataScienceModel.from_id = MagicMock(return_value=ds_model)
+        mock__find_matching_aqua_model.return_value = None
+        reload(ads.aqua.model.model)
+        app = AquaModelApp()
+
+        if download_from_hf:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                model: AquaModel = app.register(
+                    model=model_name,
+                    os_path=os_path,
+                    local_dir=str(tmpdir),
+                    download_from_hf=True,
+                    inference_container="odsc-tei-serving",
+                    inference_container_uri="region.ocir.io/your_tenancy/your_image",
+                )
+        else:
+            model: AquaModel = app.register(
+                model="ocid1.datasciencemodel.xxx.xxxx.",
+                os_path=os_path,
+                download_from_hf=False,
+                inference_container="odsc-tei-serving",
+                inference_container_uri="region.ocir.io/your_tenancy/your_image",
+            )
+        assert model.inference_container == "odsc-tei-serving"
+        assert model.ready_to_deploy is True
+        assert model.ready_to_finetune is False
 
     @pytest.mark.parametrize(
         "data, expected_output",
