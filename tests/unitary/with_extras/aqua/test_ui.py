@@ -28,7 +28,7 @@ class TestDataset:
     TENANCY_OCID = "ocid1.tenancy.oc1..<OCID>"
     VCN_ID = "ocid1.vcn.oc1.iad.<OCID>"
     DEPLOYMENT_SHAPE_NAMES = ["VM.GPU.A10.1", "BM.GPU4.8", "VM.GPU.A10.2"]
-    LIMIT_NAMES=["ds-gpu-a10-count","ds-gpu4-count","ds-gpu-a10-count"]
+    LIMIT_NAMES = ["ds-gpu-a10-count", "ds-gpu4-count", "ds-gpu-a10-count"]
 
 
 class TestAquaUI(unittest.TestCase):
@@ -414,7 +414,7 @@ class TestAquaUI(unittest.TestCase):
         )
         result = self.app.get_shape_availability(
             instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAMES[0],
-            limit_name=TestDataset.LIMIT_NAMES[0]
+            limit_name=TestDataset.LIMIT_NAMES[0],
         )
 
         expected_attributes = {"available_count"}
@@ -430,7 +430,7 @@ class TestAquaUI(unittest.TestCase):
         ):
             self.app.get_shape_availability(
                 instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAMES[1],
-                limit_name=TestDataset.LIMIT_NAMES[1]
+                limit_name=TestDataset.LIMIT_NAMES[1],
             )
 
         with pytest.raises(
@@ -441,9 +441,9 @@ class TestAquaUI(unittest.TestCase):
 
         result = self.app.get_shape_availability(
             instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAMES[2],
-            limit_name=TestDataset.LIMIT_NAMES[2]
+            limit_name=TestDataset.LIMIT_NAMES[2],
         )
-        assert result == {'available_count': 2}
+        assert result == {"available_count": 2}
 
     @parameterized.expand([True, False])
     @patch("ads.common.object_storage_details.ObjectStorageDetails.from_path")
