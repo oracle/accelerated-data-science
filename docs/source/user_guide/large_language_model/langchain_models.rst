@@ -1,7 +1,7 @@
 LangChain Integration
 *********************
 
-.. versionadded:: 2.11.19
+.. versionadded:: 2.12.0
 
 .. admonition:: LangChain Community
   :class: note
