@@ -11,15 +11,15 @@ from typing import Any, AsyncGenerator, Dict, Generator
 from unittest import mock
 
 import pytest
+
+
+if sys.version_info < (3, 9):
+    pytest.skip(allow_module_level=True)
+
 from langchain_core.messages import AIMessage, AIMessageChunk
 from requests.exceptions import HTTPError
 
 from ads.llm import ChatOCIModelDeploymentVLLM, ChatOCIModelDeploymentTGI
-
-
-pytestmark = pytest.mark.skipif(
-    sys.version_info < (3, 9), reason="Requires Python 3.9 or higher"
-)
 
 
 CONST_MODEL_NAME = "odsc-vllm"
@@ -71,10 +71,6 @@ CONST_ASYNC_STREAM_TEMPLATE = (
 CONST_ASYNC_STREAM_RESPONSE = (
     CONST_ASYNC_STREAM_TEMPLATE.replace("<DELTA>", delta).encode()
     for delta in CONST_STREAM_DELTAS
-)
-
-pytestmark = pytest.mark.skipif(
-    sys.version_info < (3, 9), reason="Requires Python 3.9 or higher"
 )
 
 
