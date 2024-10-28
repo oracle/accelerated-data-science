@@ -1,0 +1,32 @@
+[
+  {
+    "compartment_id": "ocid1.compartment.oc1..<OCID>",
+    "defined_tags": {},
+    "display_name": "datascienceprivateendpoint20241024145113",
+    "freeform_tags": {},
+    "system_tags": {},
+    "id": "ocid1.datascienceprivateendpointint.oc1.iad.<OCID>",
+    "lifecycle_state": "ACTIVE",
+    "data_science_resource_type": "MODEL_DEPLOYMENT",
+    "created_by": "ocid1.datasciencenotebooksessionint.oc1.iad.<OCID>",
+    "subnet_id": "ocid1.subnet.oc1.iad.<OCID>",
+    "fqdn": "<OCID>.md2-pe.modeldeployment-int.us-ashburn-1.oci.oc-test.com",
+    "time_created": "2024-10-24T14:51:13.883000Z",
+    "time_updated": "2024-10-24T14:51:13.883000Z"
+  },
+  {
+    "compartment_id": "ocid1.compartment.oc1..<OCID>",
+    "defined_tags": {},
+    "display_name": "datascienceprivateendpoint20241023220645",
+    "freeform_tags": {},
+    "system_tags": {},
+    "id": "ocid1.datascienceprivateendpointint.oc1.iad.<OCID>",
+    "lifecycle_state": "ACTIVE",
+    "data_science_resource_type": "MODEL_DEPLOYMENT",
+    "created_by": "ocid1.datasciencenotebooksessionint.oc1.iad.<OCID>",
+    "subnet_id": "ocid1.subnet.oc1.iad.<OCID>",
+    "fqdn": "<OCID>.md2-pe.modeldeployment-int.us-ashburn-1.oci.oc-test.com",
+    "time_created": "2024-10-23T22:06:45.224000Z",
+    "time_updated": "2024-10-23T22:06:45.224000Z"
+  }
+]
