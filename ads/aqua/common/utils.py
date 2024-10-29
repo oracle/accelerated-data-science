@@ -1114,12 +1114,16 @@ def parse_cmd_var(cmd_list: List[str]) -> dict:
     """Helper functions that parses a list into a key-value dictionary. The list contains keys separated by the prefix
     '--' and the value of the key is the subsequent element.
     """
-    it = iter(cmd_list)
-    return {
-        key: next(it, None) if not key.startswith("--") else next(it, None)
-        for key in it
-        if key.startswith("--")
-    }
+    parsed_cmd = {}
+
+    for i, cmd in enumerate(cmd_list):
+        if cmd.startswith("--"):
+            if i + 1 < len(cmd_list) and not cmd_list[i + 1].startswith("--"):
+                parsed_cmd[cmd] = cmd_list[i + 1]
+                i += 1
+            else:
+                parsed_cmd[cmd] = None
+    return parsed_cmd
 
 
 def validate_cmd_var(cmd_var: List[str], overrides: List[str]) -> List[str]:
