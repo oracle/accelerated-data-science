@@ -2,6 +2,16 @@
 Release Notes
 =============
 
+2.12.3
+-------
+Release date: October 29, 2024
+
+* Added support for private endpoint for Model Deployment.
+* Removed tag validation for filtering AI Quick Actions models.
+* Added support for BYOC deployment for embedding models via Text Embedding Inference for AI Quick Actions.
+* Fixed bugs for GGUF model registration for AI Quick Actions.
+* Updates for LLM integration for LangChain and documentation for LLM apps/agents deployment.
+
 2.12.2
 -------
 Release date: October 18, 2024
