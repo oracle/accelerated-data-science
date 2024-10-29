@@ -467,6 +467,7 @@ class TestAquaModel:
             "task": f'{ds_model.freeform_tags["task"]}',
             "time_created": f"{ds_model.time_created}",
             "inference_container": "odsc-vllm-serving",
+            "inference_container_uri": None,
             "finetuning_container": "odsc-llm-fine-tuning",
             "evaluation_container": "odsc-llm-evaluate",
         }
@@ -645,6 +646,7 @@ class TestAquaModel:
             "time_created": f"{ds_model.time_created}",
             "validation": {"type": "Automatic split", "value": "test_val_set_size"},
             "inference_container": "odsc-vllm-serving",
+            "inference_container_uri": None,
             "finetuning_container": "odsc-llm-fine-tuning",
             "evaluation_container": "odsc-llm-evaluate",
         }

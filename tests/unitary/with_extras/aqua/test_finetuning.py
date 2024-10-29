@@ -26,7 +26,6 @@ from ads.jobs.ads_job import Job
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import ModelCustomMetadata
 from ads.aqua.common.errors import AquaValueError
-from ads.aqua.config.config import get_finetuning_config_defaults
 
 
 class FineTuningTestCase(TestCase):
@@ -245,10 +244,6 @@ class FineTuningTestCase(TestCase):
         self.app.get_config = MagicMock(return_value=config)
         result = self.app.get_finetuning_config(model_id="test-model-id")
         assert result == config
-
-        self.app.get_config = MagicMock(return_value=None)
-        result = self.app.get_finetuning_config(model_id="test-model-id")
-        assert result == get_finetuning_config_defaults()
 
     def test_get_finetuning_default_params(self):
         """Test for fetching finetuning config params for a given model."""

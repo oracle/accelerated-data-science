@@ -3,23 +3,24 @@
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+"""Chat model for OCI data science model deployment endpoint."""
 
-
+import importlib
 import json
 import logging
 from operator import itemgetter
 from typing import (
     Any,
     AsyncIterator,
+    Callable,
     Dict,
     Iterator,
     List,
     Literal,
     Optional,
+    Sequence,
     Type,
     Union,
-    Sequence,
-    Callable,
 )
 
 from langchain_core.callbacks import (
@@ -33,21 +34,16 @@ from langchain_core.language_models.chat_models import (
     generate_from_stream,
 )
 from langchain_core.messages import AIMessageChunk, BaseMessage, BaseMessageChunk
-from langchain_core.tools import BaseTool
 from langchain_core.output_parsers import (
     JsonOutputParser,
     PydanticOutputParser,
 )
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_core.runnables import Runnable, RunnableMap, RunnablePassthrough
+from langchain_core.tools import BaseTool
 from langchain_core.utils.function_calling import convert_to_openai_tool
-from langchain_openai.chat_models.base import (
-    _convert_delta_to_message_chunk,
-    _convert_message_to_dict,
-    _convert_dict_to_message,
-)
+from pydantic import BaseModel, Field, model_validator
 
-from pydantic import BaseModel, Field
 from ads.llm.langchain.plugins.llms.oci_data_science_model_deployment_endpoint import (
     DEFAULT_MODEL_NAME,
     BaseOCIModelDeployment,
@@ -63,15 +59,40 @@ def _is_pydantic_class(obj: Any) -> bool:
 class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
     """OCI Data Science Model Deployment chat model integration.
 
-    To use, you must provide the model HTTP endpoint from your deployed
-    chat model, e.g. https://modeldeployment.<region>.oci.customer-oci.com/<md_ocid>/predict.
+    Setup:
+        Install ``oracle-ads`` and ``langchain-openai``.
 
-    To authenticate, `oracle-ads` has been used to automatically load
-    credentials: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/cli/authentication.html
+        .. code-block:: bash
 
-    Make sure to have the required policies to access the OCI Data
-    Science Model Deployment endpoint. See:
-    https://docs.oracle.com/en-us/iaas/data-science/using/model-dep-policies-auth.htm#model_dep_policies_auth__predict-endpoint
+            pip install -U oracle-ads langchain-openai
+
+        Use `ads.set_auth()` to configure authentication.
+        For example, to use OCI resource_principal for authentication:
+
+        .. code-block:: python
+
+            import ads
+            ads.set_auth("resource_principal")
+
+        For more details on authentication, see:
+        https://accelerated-data-science.readthedocs.io/en/latest/user_guide/cli/authentication.html
+
+        Make sure to have the required policies to access the OCI Data
+        Science Model Deployment endpoint. See:
+        https://docs.oracle.com/en-us/iaas/data-science/using/model-dep-policies-auth.htm
+
+
+    Key init args - completion params:
+        endpoint: str
+            The OCI model deployment endpoint.
+        temperature: float
+            Sampling temperature.
+        max_tokens: Optional[int]
+            Max number of tokens to generate.
+
+    Key init args — client params:
+        auth: dict
+            ADS auth dictionary for OCI authentication.
 
     Instantiate:
         .. code-block:: python
@@ -79,7 +100,7 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
             from langchain_community.chat_models import ChatOCIModelDeployment
 
             chat = ChatOCIModelDeployment(
-                endpoint="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<ocid>/predict",
+                endpoint="https://modeldeployment.<region>.oci.customer-oci.com/<ocid>/predict",
                 model="odsc-llm",
                 streaming=True,
                 max_retries=3,
@@ -94,7 +115,7 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
         .. code-block:: python
 
             messages = [
-                ("system", "You are a helpful translator. Translate the user sentence to French."),
+                ("system", "Translate the user sentence to French."),
                 ("human", "Hello World!"),
             ]
             chat.invoke(messages)
@@ -102,7 +123,19 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
         .. code-block:: python
 
             AIMessage(
-                content='Bonjour le monde!',response_metadata={'token_usage': {'prompt_tokens': 40, 'total_tokens': 50, 'completion_tokens': 10},'model_name': 'odsc-llm','system_fingerprint': '','finish_reason': 'stop'},id='run-cbed62da-e1b3-4abd-9df3-ec89d69ca012-0')
+                content='Bonjour le monde!',
+                response_metadata={
+                    'token_usage': {
+                        'prompt_tokens': 40,
+                        'total_tokens': 50,
+                        'completion_tokens': 10
+                    },
+                    'model_name': 'odsc-llm',
+                    'system_fingerprint': '',
+                    'finish_reason': 'stop'
+                },
+                id='run-cbed62da-e1b3-4abd-9df3-ec89d69ca012-0'
+            )
 
     Streaming:
         .. code-block:: python
@@ -112,18 +145,18 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
 
         .. code-block:: python
 
-            content='' id='run-23df02c6-c43f-42de-87c6-8ad382e125c3'
-            content='\n' id='run-23df02c6-c43f-42de-87c6-8ad382e125c3'
-            content='B' id='run-23df02c6-c43f-42de-87c6-8ad382e125c3'
-            content='on' id='run-23df02c6-c43f-42de-87c6-8ad382e125c3'
-            content='j' id='run-23df02c6-c43f-42de-87c6-8ad382e125c3'
-            content='our' id='run-23df02c6-c43f-42de-87c6-8ad382e125c3'
-            content=' le' id='run-23df02c6-c43f-42de-87c6-8ad382e125c3'
-            content=' monde' id='run-23df02c6-c43f-42de-87c6-8ad382e125c3'
-            content='!' id='run-23df02c6-c43f-42de-87c6-8ad382e125c3'
-            content='' response_metadata={'finish_reason': 'stop'} id='run-23df02c6-c43f-42de-87c6-8ad382e125c3'
+            content='' id='run-02c6-c43f-42de'
+            content='\n' id='run-02c6-c43f-42de'
+            content='B' id='run-02c6-c43f-42de'
+            content='on' id='run-02c6-c43f-42de'
+            content='j' id='run-02c6-c43f-42de'
+            content='our' id='run-02c6-c43f-42de'
+            content=' le' id='run-02c6-c43f-42de'
+            content=' monde' id='run-02c6-c43f-42de'
+            content='!' id='run-02c6-c43f-42de'
+            content='' response_metadata={'finish_reason': 'stop'} id='run-02c6-c43f-42de'
 
-    Asyc:
+    Async:
         .. code-block:: python
 
             await chat.ainvoke(messages)
@@ -133,7 +166,11 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
 
         .. code-block:: python
 
-            AIMessage(content='Bonjour le monde!', response_metadata={'finish_reason': 'stop'}, id='run-8657a105-96b7-4bb6-b98e-b69ca420e5d1-0')
+            AIMessage(
+                content='Bonjour le monde!',
+                response_metadata={'finish_reason': 'stop'},
+                id='run-8657a105-96b7-4bb6-b98e-b69ca420e5d1-0'
+            )
 
     Structured output:
         .. code-block:: python
@@ -147,19 +184,22 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
 
             structured_llm = chat.with_structured_output(Joke, method="json_mode")
             structured_llm.invoke(
-                "Tell me a joke about cats, respond in JSON with `setup` and `punchline` keys"
+                "Tell me a joke about cats, "
+                "respond in JSON with `setup` and `punchline` keys"
             )
 
         .. code-block:: python
 
-            Joke(setup='Why did the cat get stuck in the tree?',punchline='Because it was chasing its tail!')
+            Joke(
+                setup='Why did the cat get stuck in the tree?',
+                punchline='Because it was chasing its tail!'
+            )
 
         See ``ChatOCIModelDeployment.with_structured_output()`` for more.
 
     Customized Usage:
-
-    You can inherit from base class and overwrite the `_process_response`, `_process_stream_response`,
-    `_construct_json_body` for satisfying customized needed.
+        You can inherit from base class and overwrite the `_process_response`,
+        `_process_stream_response`, `_construct_json_body` for customized usage.
 
         .. code-block:: python
 
@@ -180,11 +220,30 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
                     }
 
             chat = MyChatModel(
-                endpoint=f"https://modeldeployment.us-ashburn-1.oci.customer-oci.com/{ocid}/predict",
+                endpoint=f"https://modeldeployment.<region>.oci.customer-oci.com/{ocid}/predict",
                 model="odsc-llm",
             }
 
             chat.invoke("tell me a joke")
+
+    Response metadata
+        .. code-block:: python
+
+            ai_msg = chat.invoke(messages)
+            ai_msg.response_metadata
+
+        .. code-block:: python
+
+            {
+                'token_usage': {
+                    'prompt_tokens': 40,
+                    'total_tokens': 50,
+                    'completion_tokens': 10
+                },
+                'model_name': 'odsc-llm',
+                'system_fingerprint': '',
+                'finish_reason': 'stop'
+            }
 
     """  # noqa: E501
 
@@ -197,6 +256,17 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
     stop: Optional[List[str]] = None
     """Stop words to use when generating. Model output is cut off
     at the first occurrence of any of these substrings."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_openai(cls, values: Any) -> Any:
+        """Checks if langchain_openai is installed."""
+        if not importlib.util.find_spec("langchain_openai"):
+            raise ImportError(
+                "Could not import langchain_openai package. "
+                "Please install it with `pip install langchain_openai`."
+            )
+        return values
 
     @property
     def _llm_type(self) -> str:
@@ -552,6 +622,8 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
                 converted messages and additional parameters.
 
         """
+        from langchain_openai.chat_models.base import _convert_message_to_dict
+
         return {
             "messages": [_convert_message_to_dict(m) for m in messages],
             **params,
@@ -578,6 +650,8 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
             ValueError: If the response JSON is not well-formed or does not
                 contain the expected structure.
         """
+        from langchain_openai.chat_models.base import _convert_delta_to_message_chunk
+
         try:
             choice = response_json["choices"][0]
             if not isinstance(choice, dict):
@@ -616,6 +690,8 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
             contain the expected structure.
 
         """
+        from langchain_openai.chat_models.base import _convert_dict_to_message
+
         generations = []
         try:
             choices = response_json["choices"]
@@ -760,8 +836,9 @@ class ChatOCIModelDeploymentVLLM(ChatOCIModelDeployment):
     tool_choice: Optional[str] = None
     """Whether to use tool calling.
     Defaults to None, tool calling is disabled.
-    Tool calling requires model support and vLLM to be configured with `--tool-call-parser`.
-    Set this to `auto` for the model to determine whether to make tool calls automatically.
+    Tool calling requires model support and the vLLM to be configured 
+    with `--tool-call-parser`.
+    Set this to `auto` for the model to make tool calls automatically.
     Set this to `required` to force the model to always call one or more tools.
     """
 

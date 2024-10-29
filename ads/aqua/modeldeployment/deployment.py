@@ -24,7 +24,6 @@ from ads.aqua.common.utils import (
     get_params_list,
     get_resource_name,
     get_restricted_params_by_container,
-    load_config,
     validate_cmd_var,
 )
 from ads.aqua.constants import (
@@ -46,12 +45,10 @@ from ads.aqua.ui import ModelFormat
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
 from ads.config import (
-    AQUA_CONFIG_FOLDER,
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
     AQUA_MODEL_DEPLOYMENT_CONFIG,
-    AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS,
     COMPARTMENT_OCID,
 )
 from ads.model.datascience_model import DataScienceModel
@@ -624,10 +621,8 @@ class AquaDeploymentApp(AquaApp):
         """
         config = self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG)
         if not config:
-            logger.info(f"Fetching default deployment config for model: {model_id}")
-            config = load_config(
-                AQUA_CONFIG_FOLDER,
-                config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS,
+            logger.debug(
+                f"Deployment config for custom model: {model_id} is not available."
             )
         return config
 

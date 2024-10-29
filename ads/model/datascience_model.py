@@ -11,12 +11,15 @@ import os
 import shutil
 import tempfile
 from copy import deepcopy
-from typing import Dict, List, Optional, Union, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import pandas
+import yaml
 from jsonschema import ValidationError, validate
 
+from ads.common import oci_client as oc
 from ads.common import utils
+from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import (
     COMPARTMENT_OCID,
@@ -41,7 +44,6 @@ from ads.model.service.oci_datascience_model import (
     ModelProvenanceNotFoundError,
     OCIDataScienceModel,
 )
-from ads.common import oci_client as oc
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +78,345 @@ class ModelFileDescriptionError(Exception):  # pragma: no cover
 
 class InvalidArtifactType(Exception):  # pragma: no cover
     pass
+
+
+class CustomerNotificationType(str, metaclass=ExtendedEnumMeta):
+    NONE = "NONE"
+    ALL = "ALL"
+    ON_FAILURE = "ON_FAILURE"
+    ON_SUCCESS = "ON_SUCCESS"
+
+
+class SettingStatus(str, metaclass=ExtendedEnumMeta):
+    """Enum to represent the status of retention settings."""
+
+    PENDING = "PENDING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+
+
+class ModelBackupSetting:
+    """
+    Class that represents Model Backup Setting Details Metadata.
+
+    Methods
+    -------
+    to_dict(self) -> Dict:
+        Serializes the backup settings into a dictionary.
+    from_dict(cls, data: Dict) -> 'ModelBackupSetting':
+        Constructs backup settings from a dictionary.
+    to_json(self) -> str:
+        Serializes the backup settings into a JSON string.
+    from_json(cls, json_str: str) -> 'ModelBackupSetting':
+        Constructs backup settings from a JSON string.
+    to_yaml(self) -> str:
+        Serializes the backup settings into a YAML string.
+    validate(self) -> bool:
+        Validates the backup settings details.
+    """
+
+    def __init__(
+            self,
+            is_backup_enabled: Optional[bool] = None,
+            backup_region: Optional[str] = None,
+            customer_notification_type: Optional[CustomerNotificationType] = None,
+    ):
+        self.is_backup_enabled = (
+            is_backup_enabled if is_backup_enabled is not None else False
+        )
+        self.backup_region = backup_region
+        self.customer_notification_type = (
+                customer_notification_type or CustomerNotificationType.NONE
+        )
+
+    def to_dict(self) -> Dict:
+        """Serializes the backup settings into a dictionary."""
+        return {
+            "is_backup_enabled": self.is_backup_enabled,
+            "backup_region": self.backup_region,
+            "customer_notification_type": self.customer_notification_type,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> "ModelBackupSetting":
+        """Constructs backup settings from a dictionary."""
+        return cls(
+            is_backup_enabled=data.get("is_backup_enabled"),
+            backup_region=data.get("backup_region"),
+            customer_notification_type=CustomerNotificationType(
+                data.get("customer_notification_type")
+            )
+                                       or None,
+        )
+
+    def to_json(self) -> str:
+        """Serializes the backup settings into a JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str) -> "ModelBackupSetting":
+        """Constructs backup settings from a JSON string or dictionary."""
+        data = json.loads(json_str) if isinstance(json_str, str) else json_str
+
+        return cls.from_dict(data)
+
+    def to_yaml(self) -> str:
+        """Serializes the backup settings into a YAML string."""
+        return yaml.dump(self.to_dict())
+
+    def validate(self) -> bool:
+        """Validates the backup settings details. Returns True if valid, False otherwise."""
+        return all([
+            isinstance(self.is_backup_enabled, bool),
+            not self.backup_region or isinstance(self.backup_region, str),
+            isinstance(self.customer_notification_type, str) and self.customer_notification_type in
+            CustomerNotificationType.values()
+        ])
+
+    def __repr__(self):
+        return self.to_yaml()
+
+
+class ModelRetentionSetting:
+    """
+    Class that represents Model Retention Setting Details Metadata.
+
+    Methods
+    -------
+    to_dict(self) -> Dict:
+        Serializes the retention settings into a dictionary.
+    from_dict(cls, data: Dict) -> 'ModelRetentionSetting':
+        Constructs retention settings from a dictionary.
+    to_json(self) -> str:
+        Serializes the retention settings into a JSON string.
+    from_json(cls, json_str: str) -> 'ModelRetentionSetting':
+        Constructs retention settings from a JSON string.
+    to_yaml(self) -> str:
+        Serializes the retention settings into a YAML string.
+    validate(self) -> bool:
+        Validates the retention settings details.
+    """
+
+    def __init__(
+            self,
+            archive_after_days: Optional[int] = None,
+            delete_after_days: Optional[int] = None,
+            customer_notification_type: Optional[CustomerNotificationType] = None,
+    ):
+        self.archive_after_days = archive_after_days
+        self.delete_after_days = delete_after_days
+        self.customer_notification_type = (
+                customer_notification_type or CustomerNotificationType.NONE
+        )
+
+    def to_dict(self) -> Dict:
+        """Serializes the retention settings into a dictionary."""
+        return {
+            "archive_after_days": self.archive_after_days,
+            "delete_after_days": self.delete_after_days,
+            "customer_notification_type": self.customer_notification_type,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> "ModelRetentionSetting":
+        """Constructs retention settings from a dictionary."""
+        return cls(
+            archive_after_days=data.get("archive_after_days"),
+            delete_after_days=data.get("delete_after_days"),
+            customer_notification_type=CustomerNotificationType(
+                data.get("customer_notification_type")
+            )
+                                       or None,
+        )
+
+    def to_json(self) -> str:
+        """Serializes the retention settings into a JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str) -> "ModelRetentionSetting":
+        """Constructs retention settings from a JSON string."""
+        data = json.loads(json_str) if isinstance(json_str, str) else json_str
+        return cls.from_dict(data)
+
+    def to_yaml(self) -> str:
+        """Serializes the retention settings into a YAML string."""
+        return yaml.dump(self.to_dict())
+
+    def validate(self) -> bool:
+        """Validates the retention settings details. Returns True if valid, False otherwise."""
+        return all([
+            self.archive_after_days is None or (
+                    isinstance(self.archive_after_days, int) and self.archive_after_days >= 0),
+            self.delete_after_days is None or (isinstance(self.delete_after_days, int) and self.delete_after_days >= 0),
+            isinstance(self.customer_notification_type, str) and self.customer_notification_type in
+            CustomerNotificationType.values()
+        ])
+
+    def __repr__(self):
+        return self.to_yaml()
+
+
+class ModelRetentionOperationDetails:
+    """
+    Class that represents Model Retention Operation Details Metadata.
+
+    Methods
+    -------
+    to_dict(self) -> Dict:
+        Serializes the retention operation details into a dictionary.
+    from_dict(cls, data: Dict) -> 'ModelRetentionOperationDetails':
+        Constructs retention operation details from a dictionary.
+    to_json(self) -> str:
+        Serializes the retention operation details into a JSON string.
+    from_json(cls, json_str: str) -> 'ModelRetentionOperationDetails':
+        Constructs retention operation details from a JSON string.
+    to_yaml(self) -> str:
+        Serializes the retention operation details into a YAML string.
+    validate(self) -> bool:
+        Validates the retention operation details.
+    """
+
+    def __init__(
+            self,
+            archive_state: Optional[SettingStatus] = None,
+            archive_state_details: Optional[str] = None,
+            delete_state: Optional[SettingStatus] = None,
+            delete_state_details: Optional[str] = None,
+            time_archival_scheduled: Optional[int] = None,
+            time_deletion_scheduled: Optional[int] = None,
+    ):
+        self.archive_state = archive_state
+        self.archive_state_details = archive_state_details
+        self.delete_state = delete_state
+        self.delete_state_details = delete_state_details
+        self.time_archival_scheduled = time_archival_scheduled
+        self.time_deletion_scheduled = time_deletion_scheduled
+
+    def to_dict(self) -> Dict:
+        """Serializes the retention operation details into a dictionary."""
+        return {
+            "archive_state": self.archive_state or None,
+            "archive_state_details": self.archive_state_details,
+            "delete_state": self.delete_state or None,
+            "delete_state_details": self.delete_state_details,
+            "time_archival_scheduled": self.time_archival_scheduled,
+            "time_deletion_scheduled": self.time_deletion_scheduled,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> "ModelRetentionOperationDetails":
+        """Constructs retention operation details from a dictionary."""
+        return cls(
+            archive_state=SettingStatus(data.get("archive_state")) or None,
+            archive_state_details=data.get("archive_state_details"),
+            delete_state=SettingStatus(data.get("delete_state")) or None,
+            delete_state_details=data.get("delete_state_details"),
+            time_archival_scheduled=data.get("time_archival_scheduled"),
+            time_deletion_scheduled=data.get("time_deletion_scheduled"),
+        )
+
+    def to_json(self) -> str:
+        """Serializes the retention operation details into a JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "ModelRetentionOperationDetails":
+        """Constructs retention operation details from a JSON string."""
+        data = json.loads(json_str)
+        return cls.from_dict(data)
+
+    def to_yaml(self) -> str:
+        """Serializes the retention operation details into a YAML string."""
+        return yaml.dump(self.to_dict())
+
+    def validate(self) -> bool:
+        """Validates the retention operation details."""
+        return all(
+            [
+                self.archive_state is None or self.archive_state in SettingStatus.values(),
+                self.delete_state is None or self.delete_state in SettingStatus.values(),
+                self.time_archival_scheduled is None
+                or isinstance(self.time_archival_scheduled, int),
+                self.time_deletion_scheduled is None
+                or isinstance(self.time_deletion_scheduled, int),
+            ]
+        )
+
+    def __repr__(self):
+        return self.to_yaml()
+
+
+class ModelBackupOperationDetails:
+    """
+    Class that represents Model Backup Operation Details Metadata.
+
+    Methods
+    -------
+    to_dict(self) -> Dict:
+        Serializes the backup operation details into a dictionary.
+    from_dict(cls, data: Dict) -> 'ModelBackupOperationDetails':
+        Constructs backup operation details from a dictionary.
+    to_json(self) -> str:
+        Serializes the backup operation details into a JSON string.
+    from_json(cls, json_str: str) -> 'ModelBackupOperationDetails':
+        Constructs backup operation details from a JSON string.
+    to_yaml(self) -> str:
+        Serializes the backup operation details into a YAML string.
+    validate(self) -> bool:
+        Validates the backup operation details.
+    """
+
+    def __init__(
+            self,
+            backup_state: Optional[SettingStatus] = None,
+            backup_state_details: Optional[str] = None,
+            time_last_backup: Optional[int] = None,
+    ):
+        self.backup_state = backup_state
+        self.backup_state_details = backup_state_details
+        self.time_last_backup = time_last_backup
+
+    def to_dict(self) -> Dict:
+        """Serializes the backup operation details into a dictionary."""
+        return {
+            "backup_state": self.backup_state or None,
+            "backup_state_details": self.backup_state_details,
+            "time_last_backup": self.time_last_backup,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> "ModelBackupOperationDetails":
+        """Constructs backup operation details from a dictionary."""
+        return cls(
+            backup_state=SettingStatus(data.get("backup_state")) or None,
+            backup_state_details=data.get("backup_state_details"),
+            time_last_backup=data.get("time_last_backup"),
+        )
+
+    def to_json(self) -> str:
+        """Serializes the backup operation details into a JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "ModelBackupOperationDetails":
+        """Constructs backup operation details from a JSON string."""
+        data = json.loads(json_str)
+        return cls.from_dict(data)
+
+    def to_yaml(self) -> str:
+        """Serializes the backup operation details into a YAML string."""
+        return yaml.dump(self.to_dict())
+
+    def validate(self) -> bool:
+        """Validates the backup operation details."""
+        return not (
+                (self.backup_state is not None and self.backup_state not in SettingStatus.values()) or
+                (self.time_last_backup is not None and not isinstance(self.time_last_backup, int))
+        )
+
+    def __repr__(self):
+        return self.to_yaml()
 
 
 class DataScienceModel(Builder):
@@ -120,6 +461,14 @@ class DataScienceModel(Builder):
         Model version id
     model_file_description: dict
         Contains object path details for models created by reference.
+    backup_setting: ModelBackupSetting
+        The value to assign to the backup_setting property of this CreateModelDetails.
+    retention_setting: ModelRetentionSetting
+        The value to assign to the retention_setting property of this CreateModelDetails.
+    retention_operation_details: ModelRetentionOperationDetails
+        The value to assign to the retention_operation_details property for the Model.
+    backup_operation_details: ModelBackupOperationDetails
+        The value to assign to the backup_operation_details property for the Model.
 
     Methods
     -------
@@ -217,7 +566,12 @@ class DataScienceModel(Builder):
     CONST_MODEL_VERSION_ID = "versionId"
     CONST_TIME_CREATED = "timeCreated"
     CONST_LIFECYCLE_STATE = "lifecycleState"
+    CONST_LIFECYCLE_DETAILS = "lifecycleDetails"
     CONST_MODEL_FILE_DESCRIPTION = "modelDescription"
+    CONST_BACKUP_SETTING = "backupSetting"
+    CONST_RETENTION_SETTING = "retentionSetting"
+    CONST_BACKUP_OPERATION_DETAILS = "backupOperationDetails"
+    CONST_RETENTION_OPERATION_DETAILS = "retentionOperationDetails"
 
     attribute_map = {
         CONST_ID: "id",
@@ -239,7 +593,12 @@ class DataScienceModel(Builder):
         CONST_MODEL_VERSION_ID: "version_id",
         CONST_TIME_CREATED: "time_created",
         CONST_LIFECYCLE_STATE: "lifecycle_state",
+        CONST_LIFECYCLE_DETAILS: "lifecycle_details",
         CONST_MODEL_FILE_DESCRIPTION: "model_description",
+        CONST_BACKUP_SETTING: "backup_setting",
+        CONST_RETENTION_SETTING: "retention_setting",
+        CONST_BACKUP_OPERATION_DETAILS: "backup_operation_details",
+        CONST_RETENTION_OPERATION_DETAILS: "retention_operation_details",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -307,6 +666,28 @@ class DataScienceModel(Builder):
         if self.dsc_model:
             return self.dsc_model.status
         return None
+
+    @property
+    def lifecycle_details(self) -> str:
+        """
+        Gets the lifecycle_details of this DataScienceModel.
+        Details about the lifecycle state of the model.
+
+        :return: The lifecycle_details of this DataScienceModel.
+        :rtype: str
+        """
+        return self.get_spec(self.CONST_LIFECYCLE_DETAILS)
+
+    @lifecycle_details.setter
+    def lifecycle_details(self, lifecycle_details: str) -> "DataScienceModel":
+        """
+        Sets the lifecycle_details of this DataScienceModel.
+        Details about the lifecycle state of the model.
+
+        :param lifecycle_details: The lifecycle_details of this DataScienceModel.
+        :type: str
+        """
+        return self.set_spec(self.CONST_LIFECYCLE_DETAILS, lifecycle_details)
 
     @property
     def kind(self) -> str:
@@ -685,6 +1066,85 @@ class DataScienceModel(Builder):
 
         return self.set_spec(self.CONST_MODEL_FILE_DESCRIPTION, json_data)
 
+    @property
+    def retention_setting(self) -> ModelRetentionSetting:
+        """
+        Gets the retention_setting of this model.
+
+        :return: The retention_setting of this model.
+        :rtype: RetentionSetting
+        """
+        return self.get_spec(self.CONST_RETENTION_SETTING)
+
+    def with_retention_setting(
+            self, retention_setting: Union[Dict, ModelRetentionSetting]
+    ) -> "DataScienceModel":
+        """
+        Sets the retention setting details for the model.
+
+        Parameters
+        ----------
+        retention_setting : Union[Dict, RetentionSetting]
+            The retention setting details for the model. Can be provided as either a dictionary or
+            an instance of the `RetentionSetting` class.
+
+        Returns
+        -------
+        DataScienceModel
+            The `DataScienceModel` instance (self) for method chaining.
+        """
+        return self.set_spec(self.CONST_RETENTION_SETTING, retention_setting)
+
+    @property
+    def backup_setting(self) -> ModelBackupSetting:
+        """
+        Gets the backup_setting of this model.
+
+        :return: The backup_setting of this model.
+        :rtype: BackupSetting
+        """
+        return self.get_spec(self.CONST_BACKUP_SETTING)
+
+    def with_backup_setting(
+            self, backup_setting: Union[Dict, ModelBackupSetting]
+    ) -> "DataScienceModel":
+        """
+        Sets the model's backup setting details.
+
+        Parameters
+        ----------
+        backup_setting : Union[Dict, BackupSetting]
+            The backup setting details for the model. This can be passed as either a dictionary or
+            an instance of the `BackupSetting` class.
+
+        Returns
+        -------
+        DataScienceModel
+           The `DataScienceModel` instance (self) for method chaining.
+        """
+
+        return self.set_spec(self.CONST_BACKUP_SETTING, backup_setting)
+
+    @property
+    def retention_operation_details(self) -> ModelRetentionOperationDetails:
+        """
+        Gets the retention_operation_details of this Model using the spec constant.
+
+        :return: The retention_operation_details of this Model.
+        :rtype: ModelRetentionOperationDetails
+        """
+        return self.get_spec(self.CONST_RETENTION_OPERATION_DETAILS)
+
+    @property
+    def backup_operation_details(self) -> "ModelBackupOperationDetails":
+        """
+        Gets the backup_operation_details of this Model using the spec constant.
+
+        :return: The backup_operation_details of this Model.
+        :rtype: ModelBackupOperationDetails
+        """
+        return self.get_spec(self.CONST_BACKUP_OPERATION_DETAILS)
+
     def create(self, **kwargs) -> "DataScienceModel":
         """Creates datascience model.
 
@@ -907,6 +1367,44 @@ class DataScienceModel(Builder):
         if self.local_copy_dir:
             shutil.rmtree(self.local_copy_dir, ignore_errors=True)
 
+    def restore_model(
+            self,
+            restore_model_for_hours_specified: Optional[int] = None,
+    ) -> None:
+        """
+        Restore archived model artifact.
+
+        Parameters
+        ----------
+
+        restore_model_for_hours_specified : Optional[int]
+            Duration in hours for which the archived model is available for access.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            If the model ID is invalid or if any parameters are incorrect.
+        """
+        # Validate model_id
+        if not self.id:
+            logger.warn(
+                "Model needs to be saved to the model catalog before it can be restored."
+            )
+            return
+
+        # Optional: Validate restore_model_for_hours_specified
+        if restore_model_for_hours_specified is not None and (
+                not isinstance(restore_model_for_hours_specified, int) or restore_model_for_hours_specified <= 0):
+            raise ValueError("restore_model_for_hours_specified must be a positive integer.")
+
+        self.dsc_model.restore_archived_model_artifact(
+            restore_model_for_hours_specified=restore_model_for_hours_specified,
+        )
+
     def download_artifact(
         self,
         target_dir: str,
@@ -1039,15 +1537,16 @@ class DataScienceModel(Builder):
         self.dsc_model = self._to_oci_dsc_model(**kwargs).update()
 
         logger.debug(f"Updating a model provenance metadata {self.provenance_metadata}")
-        try:
-            self.dsc_model.get_model_provenance()
-            self.dsc_model.update_model_provenance(
-                self.provenance_metadata._to_oci_metadata()
-            )
-        except ModelProvenanceNotFoundError:
-            self.dsc_model.create_model_provenance(
-                self.provenance_metadata._to_oci_metadata()
-            )
+        if self.provenance_metadata:
+            try:
+                self.dsc_model.get_model_provenance()
+                self.dsc_model.update_model_provenance(
+                    self.provenance_metadata._to_oci_metadata()
+                )
+            except ModelProvenanceNotFoundError:
+                self.dsc_model.create_model_provenance(
+                    self.provenance_metadata._to_oci_metadata()
+                )
 
         return self.sync()
 
@@ -1219,6 +1718,10 @@ class DataScienceModel(Builder):
             self.CONST_OUTPUT_SCHEMA: [Schema.from_json, json.loads],
             self.CONST_CUSTOM_METADATA: ModelCustomMetadata._from_oci_metadata,
             self.CONST_DEFINED_METADATA: ModelTaxonomyMetadata._from_oci_metadata,
+            self.CONST_BACKUP_SETTING: ModelBackupSetting.to_dict,
+            self.CONST_RETENTION_SETTING: ModelRetentionSetting.to_dict,
+            self.CONST_BACKUP_OPERATION_DETAILS: ModelBackupOperationDetails.to_dict,
+            self.CONST_RETENTION_OPERATION_DETAILS: ModelRetentionOperationDetails.to_dict
         }
 
         # Update the main properties
@@ -1533,7 +2036,7 @@ class DataScienceModel(Builder):
                 "Both 'prefix' and 'files' cannot be provided. Please provide only one."
             )
 
-        if self.model_file_description == None:
+        if self.model_file_description is None:
             self.empty_json = {
                 "version": "1.0",
                 "type": "modelOSSReferenceDescription",
@@ -1583,7 +2086,7 @@ class DataScienceModel(Builder):
 
         # Fetch object details and put it into the objects variable
         objectStorageList = []
-        if files == None:
+        if files is None:
             objectStorageList = list_obj_versions_unpaginated()
         else:
             for fileName in files:
@@ -1671,7 +2174,7 @@ class DataScienceModel(Builder):
         if (not namespace) or (not bucket):
             raise ValueError("Both 'namespace' and 'bucket' must be provided.")
 
-        def findModelIdx():
+        def find_model_idx():
             for idx, model in enumerate(self.model_file_description["models"]):
                 if (
                     model["namespace"],
@@ -1681,10 +2184,10 @@ class DataScienceModel(Builder):
                     return idx
             return -1
 
-        if self.model_file_description == None:
+        if self.model_file_description is None:
             return
 
-        modelSearchIdx = findModelIdx()
+        modelSearchIdx = find_model_idx()
         if modelSearchIdx == -1:
             return
         else:
