@@ -26,6 +26,7 @@ from ads.aqua.common.utils import (
     copy_model_config,
     create_word_icon,
     get_artifact_path,
+    get_container_config,
     get_hf_model_info,
     list_os_files_with_extension,
     load_config,
@@ -717,6 +718,16 @@ class AquaModelApp(AquaApp):
                     "cache_deleted": True,
                 }
         return res
+
+    @staticmethod
+    def list_valid_inference_containers():
+        containers = list(
+            AquaContainerConfig.from_container_index_json(
+                config=get_container_config(), enable_spec=True
+            ).inference.values()
+        )
+        family_values = [item.family for item in containers]
+        return family_values
 
     def _create_model_catalog_entry(
         self,

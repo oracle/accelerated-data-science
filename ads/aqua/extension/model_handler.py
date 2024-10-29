@@ -10,7 +10,6 @@ from tornado.web import HTTPError
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
-    get_container_config,
     get_hf_model_info,
     list_hf_models,
 )
@@ -18,7 +17,7 @@ from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import AquaModelSummary, HFModelSummary
-from ads.aqua.ui import AquaContainerConfig, ModelFormat
+from ads.aqua.ui import ModelFormat
 
 
 class AquaModelHandler(AquaAPIhandler):
@@ -154,14 +153,11 @@ class AquaModelHandler(AquaAPIhandler):
             raise HTTPError(400, Errors.NO_INPUT_DATA)
 
         inference_container = input_data.get("inference_container")
-        containers = list(
-            AquaContainerConfig.from_container_index_json(
-                config=get_container_config(), enable_spec=True
-            ).inference.values()
-        )
-        family_values = [item.family for item in containers]
-
-        if inference_container is not None and inference_container not in family_values:
+        inference_containers = AquaModelApp.list_valid_inference_containers()
+        if (
+            inference_container is not None
+            and inference_container not in inference_containers
+        ):
             raise HTTPError(
                 400, Errors.INVALID_VALUE_OF_PARAMETER.format("inference_container")
             )

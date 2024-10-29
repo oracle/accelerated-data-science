@@ -20,7 +20,6 @@ from ads.aqua.extension.model_handler import (
 )
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import AquaModel, AquaModelSummary, HFModelSummary
-from ads.aqua.ui import AquaContainerConfig
 
 
 class ModelHandlerTestCase(TestCase):
@@ -94,18 +93,15 @@ class ModelHandlerTestCase(TestCase):
             mock_urlparse.assert_called()
             mock_delete.assert_called()
 
-    @patch.object(AquaContainerConfig, "from_container_index_json")
+    @patch.object(AquaModelApp, "list_valid_inference_containers")
     @patch.object(AquaModelApp, "edit_registered_model")
-    def test_put(self, mock_edit, mock_container_index):
+    def test_put(self, mock_edit, mock_inference_container_list):
         mock_edit.return_value = {"state": "EDITED"}
-        mock_inference = MagicMock()
-        mock_inference.values.return_value = [
-            MagicMock(family="odsc-vllm-serving"),
-            MagicMock(family="odsc-tgi-serving"),
-            MagicMock(family="odsc-vllm-serving"),
+        mock_inference_container_list.return_value = [
+            "odsc-vllm-serving",
+            "odsc-tgi-serving",
+            "odsc-llama-cpp-serving",
         ]
-
-        mock_container_index.return_value = MagicMock(inference=mock_inference)
         self.model_handler.get_json_body = MagicMock(
             return_value=dict(
                 task="text_generation",
@@ -118,9 +114,9 @@ class ModelHandlerTestCase(TestCase):
         ) as mock_finish:
             mock_finish.side_effect = lambda x: x
             result = self.model_handler.put(id="ocid1.datasciencemodel.oc1.iad.xxx")
-            print(f"result: ", result)
             assert result["state"] is "EDITED"
-            mock_edit.assert_called()
+            mock_edit.assert_called_once()
+            mock_inference_container_list.assert_called_once()
 
     @patch.object(AquaModelApp, "list")
     def test_list(self, mock_list):
