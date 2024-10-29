@@ -96,7 +96,7 @@ class ModelHandlerTestCase(TestCase):
     @patch.object(AquaModelApp, "list_valid_inference_containers")
     @patch.object(AquaModelApp, "edit_registered_model")
     def test_put(self, mock_edit, mock_inference_container_list):
-        mock_edit.return_value = {"state": "EDITED"}
+        mock_edit.return_value = None
         mock_inference_container_list.return_value = [
             "odsc-vllm-serving",
             "odsc-tgi-serving",
@@ -114,7 +114,7 @@ class ModelHandlerTestCase(TestCase):
         ) as mock_finish:
             mock_finish.side_effect = lambda x: x
             result = self.model_handler.put(id="ocid1.datasciencemodel.oc1.iad.xxx")
-            assert result["state"] is "EDITED"
+            assert result is None
             mock_edit.assert_called_once()
             mock_inference_container_list.assert_called_once()
 
