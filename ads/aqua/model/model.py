@@ -735,6 +735,7 @@ class AquaModelApp(AquaApp):
         model_name: str,
         inference_container: str,
         finetuning_container: str,
+        task: Optional[str],
         verified_model: DataScienceModel,
         validation_result: ModelValidationResult,
         compartment_id: Optional[str],
@@ -790,6 +791,7 @@ class AquaModelApp(AquaApp):
                     json_dict=verified_model.model_file_description
                 )
         else:
+            tags.update({Tags.TASK: task})
             metadata = ModelCustomMetadata()
             if not inference_container:
                 raise AquaRuntimeError(
@@ -1336,6 +1338,7 @@ class AquaModelApp(AquaApp):
             model_name=model_name,
             inference_container=import_model_details.inference_container,
             finetuning_container=import_model_details.finetuning_container,
+            task=import_model_details.task,
             verified_model=verified_model,
             validation_result=validation_result,
             compartment_id=import_model_details.compartment_id,

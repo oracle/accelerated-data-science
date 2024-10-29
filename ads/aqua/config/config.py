@@ -29,3 +29,11 @@ def get_evaluation_service_config(
         .get(ContainerSpec.CONTAINER_SPEC, {})
         .get(container, {})
     )
+
+def get_valid_tasks():
+    return [
+        "text_generation",
+        "code_synthesis",
+        "image_text_to_text",
+        "feature_extraction",
+    ]

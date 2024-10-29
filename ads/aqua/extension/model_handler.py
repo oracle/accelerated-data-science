@@ -13,6 +13,7 @@ from ads.aqua.common.utils import (
     get_hf_model_info,
     list_hf_models,
 )
+from ads.aqua.config.config import get_valid_tasks
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.model import AquaModelApp
@@ -119,6 +120,9 @@ class AquaModelHandler(AquaAPIhandler):
         os_path = input_data.get("os_path")
         if not os_path:
             raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("os_path"))
+        task = input_data.get("task")
+        if task not in get_valid_tasks():
+            raise HTTPError(400, Errors.INVALID_VALUE_OF_PARAMETER.format("task"))
 
         inference_container = input_data.get("inference_container")
         finetuning_container = input_data.get("finetuning_container")
@@ -128,7 +132,6 @@ class AquaModelHandler(AquaAPIhandler):
         download_from_hf = (
             str(input_data.get("download_from_hf", "false")).lower() == "true"
         )
-
         return self.finish(
             AquaModelApp().register(
                 model=model,
@@ -139,6 +142,7 @@ class AquaModelHandler(AquaAPIhandler):
                 compartment_id=compartment_id,
                 project_id=project_id,
                 model_file=model_file,
+                task=task,
             )
         )
 
@@ -164,6 +168,8 @@ class AquaModelHandler(AquaAPIhandler):
 
         enable_finetuning = input_data.get("enable_finetuning")
         task = input_data.get("task")
+        if task not in get_valid_tasks():
+            raise HTTPError(400, Errors.INVALID_VALUE_OF_PARAMETER.format("task"))
         return self.finish(
             AquaModelApp().edit_registered_model(
                 id, inference_container, enable_finetuning, task
