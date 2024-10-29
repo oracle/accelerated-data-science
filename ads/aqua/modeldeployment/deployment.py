@@ -3,6 +3,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
+import shlex
 from typing import Dict, List, Optional, Union
 
 from ads.aqua.app import AquaApp, logger
@@ -23,6 +24,7 @@ from ads.aqua.common.utils import (
     get_params_list,
     get_resource_name,
     get_restricted_params_by_container,
+    validate_cmd_var,
 )
 from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_FILE,
@@ -43,7 +45,9 @@ from ads.aqua.ui import ModelFormat
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
 from ads.config import (
+    AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
+    AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
     AQUA_MODEL_DEPLOYMENT_CONFIG,
     COMPARTMENT_OCID,
 )
@@ -104,6 +108,8 @@ class AquaDeploymentApp(AquaApp):
         ocpus: Optional[float] = None,
         model_file: Optional[str] = None,
         private_endpoint_id: Optional[str] = None,
+        container_image_uri: Optional[None] = None,
+        cmd_var: List[str] = None,
     ) -> "AquaDeployment":
         """
         Creates a new Aqua deployment
@@ -152,7 +158,11 @@ class AquaDeploymentApp(AquaApp):
             The file used for model deployment.
         private_endpoint_id: str
             The private endpoint id of model deployment.
-
+        container_image_uri: str
+            The image of model deployment container runtime, ignored for service managed containers.
+            Required parameter for BYOC based deployments if this parameter was not set during model registration.
+        cmd_var: List[str]
+            The cmd of model deployment container runtime.
         Returns
         -------
         AquaDeployment
@@ -197,9 +207,11 @@ class AquaDeploymentApp(AquaApp):
                     f"from custom metadata for the model {config_source_id}"
                 ) from err
 
-        # set up env vars
+        # set up env and cmd var
         if not env_var:
             env_var = {}
+        if not cmd_var:
+            cmd_var = []
 
         try:
             model_path_prefix = aqua_model.custom_metadata_list.get(
@@ -235,12 +247,41 @@ class AquaDeploymentApp(AquaApp):
             model=aqua_model, container_family=container_family
         )
 
-        # fetch image name from config
-        container_image = get_container_image(container_type=container_type_key)
-
-        logging.info(
-            f"Aqua Image used for deploying {aqua_model.id} : {container_image}"
+        container_image_uri = container_image_uri or get_container_image(
+            container_type=container_type_key
         )
+        if not container_image_uri:
+            try:
+                container_image_uri = aqua_model.custom_metadata_list.get(
+                    AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME
+                ).value
+            except ValueError as err:
+                raise AquaValueError(
+                    f"{AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME} key is not available in the custom metadata "
+                    f"field. Either re-register the model with custom container URI, or set container_image_uri "
+                    f"parameter when creating this deployment."
+                ) from err
+        logging.info(
+            f"Aqua Image used for deploying {aqua_model.id} : {container_image_uri}"
+        )
+
+        try:
+            cmd_var_string = aqua_model.custom_metadata_list.get(
+                AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME
+            ).value
+            default_cmd_var = shlex.split(cmd_var_string)
+            if default_cmd_var:
+                cmd_var = validate_cmd_var(default_cmd_var, cmd_var)
+            logging.info(f"CMD used for deploying {aqua_model.id} :{cmd_var}")
+        except ValueError:
+            logging.debug(
+                f"CMD will be ignored for this deployment as {AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME} "
+                f"key is not available in the custom metadata field for this model."
+            )
+        except Exception as e:
+            logging.error(
+                f"There was an issue processing CMD arguments. Error: {str(e)}"
+            )
 
         model_formats_str = aqua_model.freeform_tags.get(
             Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS.value
@@ -309,7 +350,7 @@ class AquaDeploymentApp(AquaApp):
                 # AQUA_LLAMA_CPP_CONTAINER_FAMILY container uses uvicorn that required model/server params
                 # to be set as env vars
                 raise AquaValueError(
-                    f"Currently, parameters cannot be overridden for the container: {container_image}. Please proceed "
+                    f"Currently, parameters cannot be overridden for the container: {container_image_uri}. Please proceed "
                     f"with deployment without parameter overrides."
                 )
 
@@ -364,7 +405,7 @@ class AquaDeploymentApp(AquaApp):
         # configure model deployment runtime
         container_runtime = (
             ModelDeploymentContainerRuntime()
-            .with_image(container_image)
+            .with_image(container_image_uri)
             .with_server_port(server_port)
             .with_health_check_port(health_check_port)
             .with_env(env_var)
@@ -374,6 +415,8 @@ class AquaDeploymentApp(AquaApp):
             .with_overwrite_existing_artifact(True)
             .with_remove_existing_artifact(True)
         )
+        if cmd_var:
+            container_runtime.with_cmd(cmd_var)
 
         # configure model deployment and deploy model on container runtime
         deployment = (

@@ -21,6 +21,7 @@ from ads.aqua.common.utils import (
     _build_resource_identifier,
     copy_model_config,
     create_word_icon,
+    generate_tei_cmd_var,
     get_artifact_path,
     get_hf_model_info,
     list_os_files_with_extension,
@@ -67,7 +68,9 @@ from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link
 from ads.config import (
+    AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
+    AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
     AQUA_EVALUATION_CONTAINER_METADATA_NAME,
     AQUA_FINETUNING_CONTAINER_METADATA_NAME,
     COMPARTMENT_OCID,
@@ -229,6 +232,12 @@ class AquaModelApp(AquaApp):
             ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
             ModelCustomMetadataItem(key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER),
         ).value
+        inference_container_uri = ds_model.custom_metadata_list.get(
+            ModelCustomMetadataFields.DEPLOYMENT_CONTAINER_URI,
+            ModelCustomMetadataItem(
+                key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER_URI
+            ),
+        ).value
         evaluation_container = ds_model.custom_metadata_list.get(
             ModelCustomMetadataFields.EVALUATION_CONTAINER,
             ModelCustomMetadataItem(key=ModelCustomMetadataFields.EVALUATION_CONTAINER),
@@ -247,6 +256,7 @@ class AquaModelApp(AquaApp):
             project_id=ds_model.project_id,
             model_card=model_card,
             inference_container=inference_container,
+            inference_container_uri=inference_container_uri,
             finetuning_container=finetuning_container,
             evaluation_container=evaluation_container,
             artifact_location=artifact_location,
@@ -629,6 +639,7 @@ class AquaModelApp(AquaApp):
         validation_result: ModelValidationResult,
         compartment_id: Optional[str],
         project_id: Optional[str],
+        inference_container_uri: Optional[str],
     ) -> DataScienceModel:
         """Create model by reference from the object storage path
 
@@ -640,6 +651,7 @@ class AquaModelApp(AquaApp):
             verified_model (DataScienceModel): If set, then copies all the tags and custom metadata information from the service verified model
             compartment_id (Optional[str]): Compartment Id of the compartment where the model has to be created
             project_id (Optional[str]): Project id of the project where the model has to be created
+            inference_container_uri (Optional[str]): Inference container uri for BYOC
 
         Returns:
             DataScienceModel: Returns Datascience model instance.
@@ -685,6 +697,40 @@ class AquaModelApp(AquaApp):
                 raise AquaRuntimeError(
                     f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container."
                 )
+            metadata.add(
+                key=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
+                value=inference_container,
+                description=f"Inference container mapping for {model_name}",
+                category="Other",
+            )
+            if inference_container_uri:
+                metadata.add(
+                    key=AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
+                    value=inference_container_uri,
+                    description=f"Inference container URI for {model_name}",
+                    category="Other",
+                )
+
+            inference_containers = (
+                AquaContainerConfig.from_container_index_json().inference
+            )
+            smc_container_set = {
+                container.family for container in inference_containers.values()
+            }
+            # only add cmd vars if inference container is not an SMC
+            if (
+                inference_container not in smc_container_set
+                and inference_container
+                == InferenceContainerTypeFamily.AQUA_TEI_CONTAINER_FAMILY
+            ):
+                cmd_vars = generate_tei_cmd_var(os_path)
+                metadata.add(
+                    key=AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
+                    value=" ".join(cmd_vars),
+                    description=f"Inference container cmd vars for {model_name}",
+                    category="Other",
+                )
+
             if finetuning_container:
                 tags[Tags.READY_TO_FINE_TUNE] = "true"
                 metadata.add(
@@ -706,12 +752,6 @@ class AquaModelApp(AquaApp):
                     category="Other",
                 )
 
-            metadata.add(
-                key=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
-                value=inference_container,
-                description=f"Inference container mapping for {model_name}",
-                category="Other",
-            )
             metadata.add(
                 key=AQUA_EVALUATION_CONTAINER_METADATA_NAME,
                 value="odsc-llm-evaluate",
@@ -935,14 +975,15 @@ class AquaModelApp(AquaApp):
         # gguf extension exist.
         if {ModelFormat.SAFETENSORS, ModelFormat.GGUF}.issubset(set(model_formats)):
             if (
-                import_model_details.inference_container.lower() == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
+                import_model_details.inference_container.lower()
+                == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
             ):
                 self._validate_gguf_format(
                     import_model_details=import_model_details,
                     verified_model=verified_model,
                     gguf_model_files=gguf_model_files,
                     validation_result=validation_result,
-                    model_name=model_name
+                    model_name=model_name,
                 )
             else:
                 self._validate_safetensor_format(
@@ -950,7 +991,7 @@ class AquaModelApp(AquaApp):
                     verified_model=verified_model,
                     validation_result=validation_result,
                     hf_download_config_present=hf_download_config_present,
-                    model_name=model_name
+                    model_name=model_name,
                 )
         elif ModelFormat.SAFETENSORS in model_formats:
             self._validate_safetensor_format(
@@ -958,7 +999,7 @@ class AquaModelApp(AquaApp):
                 verified_model=verified_model,
                 validation_result=validation_result,
                 hf_download_config_present=hf_download_config_present,
-                model_name=model_name
+                model_name=model_name,
             )
         elif ModelFormat.GGUF in model_formats:
             self._validate_gguf_format(
@@ -966,7 +1007,7 @@ class AquaModelApp(AquaApp):
                 verified_model=verified_model,
                 gguf_model_files=gguf_model_files,
                 validation_result=validation_result,
-                model_name=model_name
+                model_name=model_name,
             )
 
         return validation_result
@@ -977,7 +1018,7 @@ class AquaModelApp(AquaApp):
         verified_model: DataScienceModel = None,
         validation_result: ModelValidationResult = None,
         hf_download_config_present: bool = None,
-        model_name: str = None
+        model_name: str = None,
     ):
         if import_model_details.download_from_hf:
             # validates config.json exists for safetensors model from hugginface
@@ -1004,20 +1045,13 @@ class AquaModelApp(AquaApp):
                 ) from ex
             else:
                 try:
-                    metadata_model_type = (
-                        verified_model.custom_metadata_list.get(
-                            AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE
-                        ).value
-                    )
+                    metadata_model_type = verified_model.custom_metadata_list.get(
+                        AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE
+                    ).value
                     if metadata_model_type:
-                        if (
-                            AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE
-                            in model_config
-                        ):
+                        if AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE in model_config:
                             if (
-                                model_config[
-                                    AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE
-                                ]
+                                model_config[AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE]
                                 != metadata_model_type
                             ):
                                 raise AquaRuntimeError(
@@ -1035,9 +1069,7 @@ class AquaModelApp(AquaApp):
                 except Exception:
                     pass
                 if verified_model:
-                    validation_result.telemetry_model_name = (
-                        verified_model.display_name
-                    )
+                    validation_result.telemetry_model_name = verified_model.display_name
                 elif (
                     model_config is not None
                     and AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME in model_config
@@ -1049,9 +1081,7 @@ class AquaModelApp(AquaApp):
                 ):
                     validation_result.telemetry_model_name = f"{AQUA_MODEL_TYPE_CUSTOM}_{model_config[AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE]}"
                 else:
-                    validation_result.telemetry_model_name = (
-                        AQUA_MODEL_TYPE_CUSTOM
-                    )
+                    validation_result.telemetry_model_name = AQUA_MODEL_TYPE_CUSTOM
 
     @staticmethod
     def _validate_gguf_format(
@@ -1240,21 +1270,28 @@ class AquaModelApp(AquaApp):
             validation_result=validation_result,
             compartment_id=import_model_details.compartment_id,
             project_id=import_model_details.project_id,
+            inference_container_uri=import_model_details.inference_container_uri,
         )
         # registered model will always have inference and evaluation container, but
         # fine-tuning container may be not set
         inference_container = ds_model.custom_metadata_list.get(
-            ModelCustomMetadataFields.DEPLOYMENT_CONTAINER
+            ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
+            ModelCustomMetadataItem(key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER),
+        ).value
+        inference_container_uri = ds_model.custom_metadata_list.get(
+            ModelCustomMetadataFields.DEPLOYMENT_CONTAINER_URI,
+            ModelCustomMetadataItem(
+                key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER_URI
+            ),
         ).value
         evaluation_container = ds_model.custom_metadata_list.get(
             ModelCustomMetadataFields.EVALUATION_CONTAINER,
+            ModelCustomMetadataItem(key=ModelCustomMetadataFields.EVALUATION_CONTAINER),
         ).value
-        try:
-            finetuning_container = ds_model.custom_metadata_list.get(
-                ModelCustomMetadataFields.FINETUNE_CONTAINER,
-            ).value
-        except Exception:
-            finetuning_container = None
+        finetuning_container: str = ds_model.custom_metadata_list.get(
+            ModelCustomMetadataFields.FINETUNE_CONTAINER,
+            ModelCustomMetadataItem(key=ModelCustomMetadataFields.FINETUNE_CONTAINER),
+        ).value
 
         aqua_model_attributes = dict(
             **self._process_model(ds_model, self.region),
@@ -1266,6 +1303,7 @@ class AquaModelApp(AquaApp):
                 )
             ),
             inference_container=inference_container,
+            inference_container_uri=inference_container_uri,
             finetuning_container=finetuning_container,
             evaluation_container=evaluation_container,
             artifact_location=artifact_path,
