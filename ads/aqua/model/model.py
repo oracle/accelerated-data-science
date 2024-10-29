@@ -33,7 +33,6 @@ from ads.aqua.common.utils import (
     read_file,
     upload_folder,
 )
-from ads.aqua.config.config import get_valid_tasks
 from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_CONFIG,
     AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME,
@@ -408,13 +407,7 @@ class AquaModelApp(AquaApp):
 
                 custom_metadata_list.remove("modelDescription")
                 if task:
-                    if task in get_valid_tasks():
-                        freeform_tags.update({Tags.TASK: task})
-                    else:
-                        raise AquaValueError(
-                            f"Failed to edit model with the given task parameter. Acceptable values are: {get_valid_tasks()}"
-                        )
-
+                    freeform_tags.update({Tags.TASK: task})
                 updated_custom_metadata_list = [
                     Metadata(**metadata)
                     for metadata in custom_metadata_list.to_dict()["data"]

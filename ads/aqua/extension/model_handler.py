@@ -13,7 +13,6 @@ from ads.aqua.common.utils import (
     get_hf_model_info,
     list_hf_models,
 )
-from ads.aqua.config.config import get_valid_tasks
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.model import AquaModelApp
@@ -165,8 +164,6 @@ class AquaModelHandler(AquaAPIhandler):
 
         enable_finetuning = input_data.get("enable_finetuning")
         task = input_data.get("task")
-        if task not in get_valid_tasks():
-            raise HTTPError(400, Errors.INVALID_VALUE_OF_PARAMETER.format("task"))
         self.finish(
             AquaModelApp().edit_registered_model(
                 id, inference_container, enable_finetuning, task

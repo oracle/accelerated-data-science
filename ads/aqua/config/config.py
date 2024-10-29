@@ -30,10 +30,3 @@ def get_evaluation_service_config(
         .get(container, {})
     )
 
-def get_valid_tasks():
-    return [
-        "text_generation",
-        "code_synthesis",
-        "image_text_to_text",
-        "feature_extraction",
-    ]
