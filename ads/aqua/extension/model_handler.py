@@ -170,7 +170,7 @@ class AquaModelHandler(AquaAPIhandler):
         task = input_data.get("task")
         if task not in get_valid_tasks():
             raise HTTPError(400, Errors.INVALID_VALUE_OF_PARAMETER.format("task"))
-        return self.finish(
+        self.finish(
             AquaModelApp().edit_registered_model(
                 id, inference_container, enable_finetuning, task
             )
