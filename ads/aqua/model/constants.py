@@ -17,6 +17,7 @@ class ModelCustomMetadataFields(str, metaclass=ExtendedEnumMeta):
     DEPLOYMENT_CONTAINER = "deployment-container"
     EVALUATION_CONTAINER = "evaluation-container"
     FINETUNE_CONTAINER = "finetune-container"
+    DEPLOYMENT_CONTAINER_URI = "deployment-container-uri"
 
 
 class ModelTask(str, metaclass=ExtendedEnumMeta):

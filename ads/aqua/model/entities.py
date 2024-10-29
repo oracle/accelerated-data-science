@@ -98,6 +98,7 @@ class AquaModel(AquaModelSummary, DataClassSerializable):
 
     model_card: str = None
     inference_container: str = None
+    inference_container_uri: str = None
     finetuning_container: str = None
     evaluation_container: str = None
     artifact_location: str = None

@@ -232,6 +232,12 @@ class AquaModelApp(AquaApp):
             ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
             ModelCustomMetadataItem(key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER),
         ).value
+        inference_container_uri = ds_model.custom_metadata_list.get(
+            ModelCustomMetadataFields.DEPLOYMENT_CONTAINER_URI,
+            ModelCustomMetadataItem(
+                key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER_URI
+            ),
+        ).value
         evaluation_container = ds_model.custom_metadata_list.get(
             ModelCustomMetadataFields.EVALUATION_CONTAINER,
             ModelCustomMetadataItem(key=ModelCustomMetadataFields.EVALUATION_CONTAINER),
@@ -250,6 +256,7 @@ class AquaModelApp(AquaApp):
             project_id=ds_model.project_id,
             model_card=model_card,
             inference_container=inference_container,
+            inference_container_uri=inference_container_uri,
             finetuning_container=finetuning_container,
             evaluation_container=evaluation_container,
             artifact_location=artifact_location,
@@ -696,23 +703,26 @@ class AquaModelApp(AquaApp):
                 description=f"Inference container mapping for {model_name}",
                 category="Other",
             )
+            if inference_container_uri:
+                metadata.add(
+                    key=AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
+                    value=inference_container_uri,
+                    description=f"Inference container URI for {model_name}",
+                    category="Other",
+                )
+
+            inference_containers = (
+                AquaContainerConfig.from_container_index_json().inference
+            )
+            smc_container_set = {
+                container.family for container in inference_containers.values()
+            }
+            # only add cmd vars if inference container is not an SMC
             if (
-                inference_container
+                inference_container not in smc_container_set
+                and inference_container
                 == InferenceContainerTypeFamily.AQUA_TEI_CONTAINER_FAMILY
             ):
-                if not inference_container_uri:
-                    logger.warn(
-                        f"Proceeding with model registration without the inference container URI for "
-                        f"{inference_container}. You can still add this configuration during model deployment."
-                    )
-                else:
-                    metadata.add(
-                        key=AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
-                        value=inference_container_uri,
-                        description=f"Inference container URI for {model_name}",
-                        category="Other",
-                    )
-
                 cmd_vars = generate_tei_cmd_var(os_path)
                 metadata.add(
                     key=AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
@@ -1231,20 +1241,23 @@ class AquaModelApp(AquaApp):
         # registered model will always have inference and evaluation container, but
         # fine-tuning container may be not set
         inference_container = ds_model.custom_metadata_list.get(
-            ModelCustomMetadataFields.DEPLOYMENT_CONTAINER
+            ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
+            ModelCustomMetadataItem(key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER),
         ).value
-        try:
-            evaluation_container = ds_model.custom_metadata_list.get(
-                ModelCustomMetadataFields.EVALUATION_CONTAINER,
-            ).value
-        except Exception:
-            evaluation_container = None
-        try:
-            finetuning_container = ds_model.custom_metadata_list.get(
-                ModelCustomMetadataFields.FINETUNE_CONTAINER,
-            ).value
-        except Exception:
-            finetuning_container = None
+        inference_container_uri = ds_model.custom_metadata_list.get(
+            ModelCustomMetadataFields.DEPLOYMENT_CONTAINER_URI,
+            ModelCustomMetadataItem(
+                key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER_URI
+            ),
+        ).value
+        evaluation_container = ds_model.custom_metadata_list.get(
+            ModelCustomMetadataFields.EVALUATION_CONTAINER,
+            ModelCustomMetadataItem(key=ModelCustomMetadataFields.EVALUATION_CONTAINER),
+        ).value
+        finetuning_container: str = ds_model.custom_metadata_list.get(
+            ModelCustomMetadataFields.FINETUNE_CONTAINER,
+            ModelCustomMetadataItem(key=ModelCustomMetadataFields.FINETUNE_CONTAINER),
+        ).value
 
         aqua_model_attributes = dict(
             **self._process_model(ds_model, self.region),
@@ -1256,6 +1269,7 @@ class AquaModelApp(AquaApp):
                 )
             ),
             inference_container=inference_container,
+            inference_container_uri=inference_container_uri,
             finetuning_container=finetuning_container,
             evaluation_container=evaluation_container,
             artifact_location=artifact_path,
