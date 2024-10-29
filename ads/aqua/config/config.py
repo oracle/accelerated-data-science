@@ -29,4 +29,3 @@ def get_evaluation_service_config(
         .get(ContainerSpec.CONTAINER_SPEC, {})
         .get(container, {})
     )
-
