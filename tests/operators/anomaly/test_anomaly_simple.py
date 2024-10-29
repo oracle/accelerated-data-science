@@ -3,21 +3,44 @@
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from ads.opctl.operator.lowcode.anomaly.const import NonTimeADSupportedModels
-import yaml
+import os
 import subprocess
+import tempfile
+from copy import deepcopy
+from datetime import datetime
+from time import sleep
+
+import numpy as np
 import pandas as pd
 import pytest
-from time import sleep
-from copy import deepcopy
-import tempfile
-import os
-import numpy as np
-from datetime import datetime
+import yaml
+
 from ads.opctl.operator.cmd import run
+from ads.opctl.operator.lowcode.anomaly.const import (
+    NonTimeADSupportedModels,
+    SupportedModels,
+)
 
-
-MODELS = ["autots"]  # "automlx",
+MODELS = [
+    "autots",
+    "iqr",
+    "lof",
+    "zscore",
+    "rolling_zscore",
+    "mad",
+    "ee",
+    "isolationforest",
+    "dagmm",
+    "deep_point_anomaly_detector",
+    "lstm_ed",
+    "spectral_residual",
+    "vae",
+    "arima",
+    "ets",
+    "prophet",
+    "sarima",
+    "bocpd",
+]
 
 # Mandatory YAML parameters
 TEMPLATE_YAML = {
@@ -52,7 +75,26 @@ for m in MODELS:
     for d in DATASETS:
         parameters_short.append((m, d))
 
-MODELS = ["autots", "oneclasssvm", "isolationforest", "randomcutforest"]
+# "autoencoder",  "stat_residual",  "mses",, "dbl",
+#  "windstats", "windstats_monthly", "zms",
+
+MODELS = [
+    "autots",
+    "oneclasssvm",
+    "isolationforest",
+    "randomcutforest",
+    "dagmm",
+    "deep_point_anomaly_detector",
+    "lstm_ed",
+    "spectral_residual",
+    "vae",
+    "arima",
+    "ets",
+    "prophet",
+    "sarima",
+    "bocpd",
+]
+
 
 @pytest.mark.parametrize("model", ["autots"])
 def test_artificial_big(model):
@@ -125,6 +167,10 @@ def test_artificial_small(model):
         np.concatenate([d1, d2, outliers], axis=0), columns=["val_1", "val_2"]
     )
     d = d.reset_index().rename({"index": "ds"}, axis=1)
+    if model not in NonTimeADSupportedModels.values():
+        d["ds"] = pd.date_range(
+            datetime.today(), periods=d.shape[0], freq="1D"
+        ).strftime("%Y-%m-%d")
     with tempfile.TemporaryDirectory() as tmpdirname:
         anomaly_yaml_filename = f"{tmpdirname}/anomaly.yaml"
         input_data = f"{tmpdirname}/data.csv"
@@ -139,6 +185,7 @@ def test_artificial_small(model):
         yaml_i["spec"]["contamination"] = 0.3
         if model in NonTimeADSupportedModels.values():
             del yaml_i["spec"]["datetime_column"]
+        yaml_i["spec"]["target_column"] = "val_1"
 
         # run(yaml_i, debug=False)
 
@@ -172,6 +219,9 @@ def test_validation(model):
     )
     if model not in NonTimeADSupportedModels.values():
         d = d.reset_index().rename({"index": "ds"}, axis=1)
+        d["ds"] = pd.date_range(
+            datetime.today(), periods=d.shape[0], freq="1D"
+        ).strftime("%Y-%m-%d")
         anomaly_col["ds"] = d["ds"]
     v = d.copy()
     v["anomaly"] = anomaly_col["anomaly"]
@@ -218,11 +268,14 @@ def test_load_datasets(model, data_dict):
         yaml_i = deepcopy(TEMPLATE_YAML)
         yaml_i["spec"]["model"] = model
         yaml_i["spec"]["input_data"]["url"] = data_dict["url"]
-        if model in NonTimeADSupportedModels.values():
+        if model in set(NonTimeADSupportedModels.values()) - set(
+            SupportedModels.values()
+        ):
             del yaml_i["spec"]["datetime_column"]
         else:
             yaml_i["spec"]["datetime_column"]["name"] = data_dict["dt_col"]
         yaml_i["spec"]["output_directory"]["url"] = output_dirname
+        yaml_i["spec"]["target_column"] = data_dict["target"]
 
         # run(yaml_i, backend="operator.local", debug=False)
 

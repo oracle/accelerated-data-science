@@ -1071,7 +1071,6 @@ def list_hf_models(query: str) -> List[str]:
     try:
         models = HfApi().list_models(
             model_name=query,
-            task="text-generation",
             sort="downloads",
             direction=-1,
             limit=20,

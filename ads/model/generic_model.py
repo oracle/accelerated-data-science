@@ -2262,6 +2262,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         description: Optional[str] = None,
         deployment_instance_shape: Optional[str] = None,
         deployment_instance_subnet_id: Optional[str] = None,
+        deployment_instance_private_endpoint_id: Optional[str] = None,
         deployment_instance_count: Optional[int] = None,
         deployment_bandwidth_mbps: Optional[int] = None,
         deployment_log_group_id: Optional[str] = None,
@@ -2312,6 +2313,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The shape of the instance used for deployment.
         deployment_instance_subnet_id: (str, optional). Default to None.
             The subnet id of the instance used for deployment.
+        deployment_instance_private_endpoint_id: (str, optional). Default to None.
+            The private endpoint id of instance used for deployment.
         deployment_instance_count: (int, optional). Defaults to 1.
             The number of instance used for deployment.
         deployment_bandwidth_mbps: (int, optional). Defaults to 10.
@@ -2432,6 +2435,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             or self.properties.deployment_image,
             deployment_instance_subnet_id=existing_infrastructure.subnet_id
             or self.properties.deployment_instance_subnet_id,
+            deployment_instance_private_endpoint_id=existing_infrastructure.private_endpoint_id
+            or self.properties.deployment_instance_private_endpoint_id,
         ).to_dict()
 
         property_dict.update(override_properties)
@@ -2465,6 +2470,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             .with_shape_name(self.properties.deployment_instance_shape)
             .with_replica(self.properties.deployment_instance_count)
             .with_subnet_id(self.properties.deployment_instance_subnet_id)
+            .with_private_endpoint_id(self.properties.deployment_instance_private_endpoint_id)
         )
 
         web_concurrency = (
@@ -2611,6 +2617,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         deployment_description: Optional[str] = None,
         deployment_instance_shape: Optional[str] = None,
         deployment_instance_subnet_id: Optional[str] = None,
+        deployment_instance_private_endpoint_id: Optional[str] = None,
         deployment_instance_count: Optional[int] = None,
         deployment_bandwidth_mbps: Optional[int] = None,
         deployment_log_group_id: Optional[str] = None,
@@ -2701,6 +2708,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The shape of the instance used for deployment.
         deployment_instance_subnet_id: (str, optional). Default to None.
             The subnet id of the instance used for deployment.
+        deployment_instance_private_endpoint_id: (str, optional). Default to None.
+            The private endpoint id of instance used for deployment.
         deployment_instance_count: (int, optional). Defaults to 1.
             The number of instance used for deployment.
         deployment_bandwidth_mbps: (int, optional). Defaults to 10.
@@ -2846,6 +2855,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             description=deployment_description,
             deployment_instance_shape=self.properties.deployment_instance_shape,
             deployment_instance_subnet_id=self.properties.deployment_instance_subnet_id,
+            deployment_instance_private_endpoint_id=self.properties.deployment_instance_private_endpoint_id,
             deployment_instance_count=self.properties.deployment_instance_count,
             deployment_bandwidth_mbps=self.properties.deployment_bandwidth_mbps,
             deployment_log_group_id=self.properties.deployment_log_group_id,

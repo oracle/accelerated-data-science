@@ -8,10 +8,8 @@ from ads.opctl.operator.lowcode.anomaly.utils import select_auto_model
 from ..const import NonTimeADSupportedModels, SupportedModels
 from ..operator_config import AnomalyOperatorConfig
 from .anomaly_dataset import AnomalyDatasets
-from .automlx import AutoMLXOperatorModel
+from .anomaly_merlion import AnomalyMerlionOperatorModel
 from .autots import AutoTSOperatorModel
-
-# from .tods import TODSOperatorModel
 from .base_model import AnomalyOperatorBaseModel
 from .isolationforest import IsolationForestOperatorModel
 from .oneclasssvm import OneClassSVMOperatorModel
@@ -45,9 +43,24 @@ class AnomalyOperatorModelFactory:
     """
 
     _MAP = {
-        SupportedModels.AutoMLX: AutoMLXOperatorModel,
-        # SupportedModels.TODS: TODSOperatorModel,
         SupportedModels.AutoTS: AutoTSOperatorModel,
+        SupportedModels.IQR: AutoTSOperatorModel,
+        SupportedModels.LOF: AutoTSOperatorModel,
+        SupportedModels.ISOLATIONFOREST: AutoTSOperatorModel,
+        SupportedModels.ZSCORE: AutoTSOperatorModel,
+        SupportedModels.ROLLING_ZSCORE: AutoTSOperatorModel,
+        SupportedModels.EE: AutoTSOperatorModel,
+        SupportedModels.MAD: AutoTSOperatorModel,
+        SupportedModels.DAGMM: AnomalyMerlionOperatorModel,
+        SupportedModels.DEEP_POINT_ANOMALY_DETECTOR: AnomalyMerlionOperatorModel,
+        SupportedModels.LSTM_ED: AnomalyMerlionOperatorModel,
+        SupportedModels.SPECTRAL_RESIDUAL: AnomalyMerlionOperatorModel,
+        SupportedModels.VAE: AnomalyMerlionOperatorModel,
+        SupportedModels.ARIMA: AnomalyMerlionOperatorModel,
+        SupportedModels.ETS: AnomalyMerlionOperatorModel,
+        SupportedModels.PROPHET: AnomalyMerlionOperatorModel,
+        SupportedModels.SARIMA: AnomalyMerlionOperatorModel,
+        SupportedModels.BOCPD: AnomalyMerlionOperatorModel,
     }
 
     _NonTime_MAP = {

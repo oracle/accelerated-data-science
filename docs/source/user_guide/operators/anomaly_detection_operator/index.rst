@@ -27,7 +27,7 @@ If you have additional variables that you think might be related, then you shoul
 
 **Auto Model Selection**
 
-Operators users don't need to know anything about the underlying models in order to use them. By default we set ``model: auto``. However, some users want more control over the modeling parameters. These users can set the ``model`` parameter to either ``autots`` or ``automlx`` and then pass parameters directly into ``model_kwargs``. See :doc:`Advanced Examples <./advanced_use_cases>`
+Operators users don't need to know anything about the underlying models in order to use them. By default we set ``model: auto``. However, some users want more control over the modeling parameters. These users can set the ``model`` parameter to ``isolationforest``, ``lof``, ``ee``, ``zscore``, ``rolling_zscore``, ``mad``, ``mixmax``, ``iqr`` or ``autots`` and then pass parameters directly into ``model_kwargs``. See :doc:`Advanced Examples <./advanced_use_cases>`
 
 **Anomaly Detection Documentation**
 

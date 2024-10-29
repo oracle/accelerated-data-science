@@ -18,6 +18,7 @@ from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaResourceAccessError, AquaValueError
 from ads.aqua.common.utils import get_container_config, load_config, sanitize_response
+from ads.aqua.constants import PRIVATE_ENDPOINT_TYPE
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -548,6 +549,34 @@ class AquaUIApp(AquaApp):
         res = vcn_client.list_subnets(compartment_id=compartment_id, vcn_id=vcn_id).data
 
         return sanitize_response(oci_client=vcn_client, response=res)
+
+    @telemetry(entry_point="plugin=ui&action=list_private_endpoints", name="aqua")
+    def list_private_endpoints(self, **kwargs) -> list:
+        """Lists the private endpoints in the specified compartment.
+        Data seicne private endpoints have two types: `NOTEBOOK_SESSION` and `MODEL_DEPLOYMENT`.
+        This api will by default list `MODEL_DEPLOYMENT` type as needed by AQUA model deployment.
+
+        Parameters
+        ----------
+        **kwargs
+            Addtional arguments, such as `compartment_id`,
+            for `list_data_science_private_endpoints <https://docs.oracle.com/en-us/iaas/tools/python/latest/api/data_science/client/oci.data_science.DataScienceClient.html#oci.data_science.DataScienceClient.list_data_science_private_endpoints>`_
+
+        Returns
+        -------
+            json representation of `oci.data_science.models.DataSciencePrivateEndpointSummary`.
+        """
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        resource_type = kwargs.pop("resource_type", PRIVATE_ENDPOINT_TYPE)
+        logger.info(
+            f"Loading private endpoints from compartment: {compartment_id}"
+        )
+
+        res = self.ds_client.list_data_science_private_endpoints(
+            compartment_id=compartment_id, data_science_resource_type=resource_type
+        ).data
+
+        return sanitize_response(oci_client=self.ds_client, response=res)
 
     @telemetry(entry_point="plugin=ui&action=get_shape_availability", name="aqua")
     def get_shape_availability(self, **kwargs):
