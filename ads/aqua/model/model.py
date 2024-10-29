@@ -767,6 +767,7 @@ class AquaModelApp(AquaApp):
             }
         )
         tags.update({Tags.BASE_MODEL_CUSTOM: "true"})
+
         if validation_result and validation_result.model_formats:
             tags.update(
                 {
@@ -779,6 +780,7 @@ class AquaModelApp(AquaApp):
 
         # Remove `ready_to_import` tag that might get copied from service model.
         tags.pop(Tags.READY_TO_IMPORT, None)
+
         if verified_model:
             # Verified model is a model in the service catalog that either has no artifacts but contains all the necessary metadata for deploying and fine tuning.
             # If set, then we copy all the model metadata.

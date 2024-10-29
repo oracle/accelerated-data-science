@@ -129,6 +129,7 @@ class AquaModelHandler(AquaAPIhandler):
         download_from_hf = (
             str(input_data.get("download_from_hf", "false")).lower() == "true"
         )
+
         return self.finish(
             AquaModelApp().register(
                 model=model,
