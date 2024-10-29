@@ -33,7 +33,6 @@ from ads.aqua.common.utils import (
     read_file,
     upload_folder,
 )
-from ads.aqua.config.config import get_valid_tasks
 from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_CONFIG,
     AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME,
@@ -768,7 +767,6 @@ class AquaModelApp(AquaApp):
             }
         )
         tags.update({Tags.BASE_MODEL_CUSTOM: "true"})
-        logger.info(f"tags: {tags}")
         if validation_result and validation_result.model_formats:
             tags.update(
                 {
@@ -781,7 +779,6 @@ class AquaModelApp(AquaApp):
 
         # Remove `ready_to_import` tag that might get copied from service model.
         tags.pop(Tags.READY_TO_IMPORT, None)
-        logger.info(f"tags: {tags}")
         if verified_model:
             # Verified model is a model in the service catalog that either has no artifacts but contains all the necessary metadata for deploying and fine tuning.
             # If set, then we copy all the model metadata.
@@ -863,7 +860,6 @@ class AquaModelApp(AquaApp):
             category="Other",
             replace=True,
         )
-        logger.info(f"tags: {tags}")
         model = (
             model.with_custom_metadata_list(metadata)
             .with_compartment_id(compartment_id or COMPARTMENT_OCID)
@@ -1332,7 +1328,6 @@ class AquaModelApp(AquaApp):
         else:
             artifact_path = import_model_details.os_path.rstrip("/")
 
-        logger.info(f"task: {import_model_details.task}")
         # Create Model catalog entry with pass by reference
         ds_model = self._create_model_catalog_entry(
             os_path=artifact_path,
