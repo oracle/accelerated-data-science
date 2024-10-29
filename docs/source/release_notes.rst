@@ -10,7 +10,7 @@ Release date: October 29, 2024
 * Removed tag validation for filtering AI Quick Actions models.
 * Added support for BYOC deployment for embedding models via Text Embedding Inference for AI Quick Actions.
 * Fixed bugs for GGUF model registration for AI Quick Actions.
-* Updates for LLM integration and documentation for LLM apps/agents deployment.
+* Updates for LLM integration for LangChain and documentation for LLM apps/agents deployment.
 
 2.12.2
 -------
