@@ -726,7 +726,7 @@ class AquaModelApp(AquaApp):
                 cmd_vars = generate_tei_cmd_var(os_path)
                 metadata.add(
                     key=AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
-                    value=",".join(cmd_vars),
+                    value=" ".join(cmd_vars),
                     description=f"Inference container cmd vars for {model_name}",
                     category="Other",
                 )

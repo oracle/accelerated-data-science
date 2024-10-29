@@ -3,6 +3,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
+import shlex
 from typing import Dict, List, Optional, Union
 
 from ads.aqua.app import AquaApp, logger
@@ -271,7 +272,7 @@ class AquaDeploymentApp(AquaApp):
             cmd_var_string = aqua_model.custom_metadata_list.get(
                 AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME
             ).value
-            default_cmd_var = cmd_var_string.split(",")
+            default_cmd_var = shlex.split(cmd_var_string)
             if default_cmd_var:
                 cmd_var = validate_cmd_var(default_cmd_var, cmd_var)
             logging.info(f"CMD used for deploying {aqua_model.id} :{cmd_var}")
