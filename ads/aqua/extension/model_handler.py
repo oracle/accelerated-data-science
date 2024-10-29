@@ -120,9 +120,6 @@ class AquaModelHandler(AquaAPIhandler):
         os_path = input_data.get("os_path")
         if not os_path:
             raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("os_path"))
-        task = input_data.get("task")
-        if task not in get_valid_tasks():
-            raise HTTPError(400, Errors.INVALID_VALUE_OF_PARAMETER.format("task"))
 
         inference_container = input_data.get("inference_container")
         finetuning_container = input_data.get("finetuning_container")
@@ -142,7 +139,6 @@ class AquaModelHandler(AquaAPIhandler):
                 compartment_id=compartment_id,
                 project_id=project_id,
                 model_file=model_file,
-                task=task,
             )
         )
 

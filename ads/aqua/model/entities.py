@@ -284,7 +284,6 @@ class ImportModelDetails(CLIBuilderMixin):
     local_dir: Optional[str] = None
     inference_container: Optional[str] = None
     finetuning_container: Optional[str] = None
-    task: Optional[str] = None
     compartment_id: Optional[str] = None
     project_id: Optional[str] = None
     model_file: Optional[str] = None

@@ -33,6 +33,7 @@ from ads.aqua.common.utils import (
     read_file,
     upload_folder,
 )
+from ads.aqua.config.config import get_valid_tasks
 from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_CONFIG,
     AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME,
@@ -735,7 +736,6 @@ class AquaModelApp(AquaApp):
         model_name: str,
         inference_container: str,
         finetuning_container: str,
-        task: Optional[str],
         verified_model: DataScienceModel,
         validation_result: ModelValidationResult,
         compartment_id: Optional[str],
@@ -768,7 +768,7 @@ class AquaModelApp(AquaApp):
             }
         )
         tags.update({Tags.BASE_MODEL_CUSTOM: "true"})
-
+        logger.info(f"tags: {tags}")
         if validation_result and validation_result.model_formats:
             tags.update(
                 {
@@ -781,7 +781,7 @@ class AquaModelApp(AquaApp):
 
         # Remove `ready_to_import` tag that might get copied from service model.
         tags.pop(Tags.READY_TO_IMPORT, None)
-
+        logger.info(f"tags: {tags}")
         if verified_model:
             # Verified model is a model in the service catalog that either has no artifacts but contains all the necessary metadata for deploying and fine tuning.
             # If set, then we copy all the model metadata.
@@ -791,7 +791,6 @@ class AquaModelApp(AquaApp):
                     json_dict=verified_model.model_file_description
                 )
         else:
-            tags.update({Tags.TASK: task})
             metadata = ModelCustomMetadata()
             if not inference_container:
                 raise AquaRuntimeError(
@@ -864,6 +863,7 @@ class AquaModelApp(AquaApp):
             category="Other",
             replace=True,
         )
+        logger.info(f"tags: {tags}")
         model = (
             model.with_custom_metadata_list(metadata)
             .with_compartment_id(compartment_id or COMPARTMENT_OCID)
@@ -1332,13 +1332,13 @@ class AquaModelApp(AquaApp):
         else:
             artifact_path = import_model_details.os_path.rstrip("/")
 
+        logger.info(f"task: {import_model_details.task}")
         # Create Model catalog entry with pass by reference
         ds_model = self._create_model_catalog_entry(
             os_path=artifact_path,
             model_name=model_name,
             inference_container=import_model_details.inference_container,
             finetuning_container=import_model_details.finetuning_container,
-            task=import_model_details.task,
             verified_model=verified_model,
             validation_result=validation_result,
             compartment_id=import_model_details.compartment_id,
