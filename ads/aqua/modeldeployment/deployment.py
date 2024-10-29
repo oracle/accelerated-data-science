@@ -23,7 +23,6 @@ from ads.aqua.common.utils import (
     get_params_list,
     get_resource_name,
     get_restricted_params_by_container,
-    load_config,
 )
 from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_FILE,
@@ -44,11 +43,8 @@ from ads.aqua.ui import ModelFormat
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
 from ads.config import (
-    AQUA_CONFIG_FOLDER,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
-    AQUA_DEPLOYMENT_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
     AQUA_MODEL_DEPLOYMENT_CONFIG,
-    AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS,
     COMPARTMENT_OCID,
 )
 from ads.model.datascience_model import DataScienceModel
@@ -87,26 +83,27 @@ class AquaDeploymentApp(AquaApp):
 
     @telemetry(entry_point="plugin=deployment&action=create", name="aqua")
     def create(
-            self,
-            model_id: str,
-            instance_shape: str,
-            display_name: str,
-            instance_count: int = None,
-            log_group_id: str = None,
-            access_log_id: str = None,
-            predict_log_id: str = None,
-            compartment_id: str = None,
-            project_id: str = None,
-            description: str = None,
-            bandwidth_mbps: int = None,
-            web_concurrency: int = None,
-            server_port: int = None,
-            health_check_port: int = None,
-            env_var: Dict = None,
-            container_family: str = None,
-            memory_in_gbs: Optional[float] = None,
-            ocpus: Optional[float] = None,
-            model_file: Optional[str] = None,
+        self,
+        model_id: str,
+        instance_shape: str,
+        display_name: str,
+        instance_count: int = None,
+        log_group_id: str = None,
+        access_log_id: str = None,
+        predict_log_id: str = None,
+        compartment_id: str = None,
+        project_id: str = None,
+        description: str = None,
+        bandwidth_mbps: int = None,
+        web_concurrency: int = None,
+        server_port: int = None,
+        health_check_port: int = None,
+        env_var: Dict = None,
+        container_family: str = None,
+        memory_in_gbs: Optional[float] = None,
+        ocpus: Optional[float] = None,
+        model_file: Optional[str] = None,
+        private_endpoint_id: Optional[str] = None,
     ) -> "AquaDeployment":
         """
         Creates a new Aqua deployment
@@ -153,6 +150,9 @@ class AquaDeploymentApp(AquaApp):
             The ocpu count for the shape selected.
         model_file: str
             The file used for model deployment.
+        private_endpoint_id: str
+            The private endpoint id of model deployment.
+
         Returns
         -------
         AquaDeployment
@@ -175,6 +175,7 @@ class AquaDeploymentApp(AquaApp):
                 tags[tag] = aqua_model.freeform_tags[tag]
 
         tags.update({Tags.AQUA_MODEL_NAME_TAG: aqua_model.display_name})
+        tags.update({Tags.TASK: aqua_model.freeform_tags.get(Tags.TASK, None)})
 
         # Set up info to get deployment config
         config_source_id = model_id
@@ -231,8 +232,7 @@ class AquaDeploymentApp(AquaApp):
             env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
 
         container_type_key = self._get_container_type_key(
-            model=aqua_model,
-            container_family=container_family
+            model=aqua_model, container_family=container_family
         )
 
         # fetch image name from config
@@ -248,7 +248,11 @@ class AquaDeploymentApp(AquaApp):
         model_format = model_formats_str.split(",")
 
         # Figure out a better way to handle this in future release
-        if ModelFormat.GGUF.value in model_format and container_type_key.lower() == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY:
+        if (
+            ModelFormat.GGUF.value in model_format
+            and container_type_key.lower()
+            == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
+        ):
             if model_file is not None:
                 logger.info(
                     f"Overriding {model_file} as model_file for model {aqua_model.id}."
@@ -299,8 +303,8 @@ class AquaDeploymentApp(AquaApp):
         if user_params:
             # todo: remove this check in the future version, logic to be moved to container_index
             if (
-                    container_type_key.lower()
-                    == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
+                container_type_key.lower()
+                == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
             ):
                 # AQUA_LLAMA_CPP_CONTAINER_FAMILY container uses uvicorn that required model/server params
                 # to be set as env vars
@@ -342,6 +346,7 @@ class AquaDeploymentApp(AquaApp):
             .with_bandwidth_mbps(bandwidth_mbps)
             .with_replica(instance_count)
             .with_web_concurrency(web_concurrency)
+            .with_private_endpoint_id(private_endpoint_id)
             .with_access_log(
                 log_group_id=log_group_id,
                 log_id=access_log_id,
@@ -422,9 +427,8 @@ class AquaDeploymentApp(AquaApp):
                     f"for model {model.id}. For unverified Aqua models, {AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} should be"
                     f"set and value can be one of {', '.join(InferenceContainerTypeFamily.values())}."
                 ) from err
-            
+
         return container_type_key
-        
 
     @telemetry(entry_point="plugin=deployment&action=list", name="aqua")
     def list(self, **kwargs) -> List["AquaDeployment"]:
@@ -453,8 +457,8 @@ class AquaDeploymentApp(AquaApp):
         for model_deployment in model_deployments:
             oci_aqua = (
                 (
-                        Tags.AQUA_TAG in model_deployment.freeform_tags
-                        or Tags.AQUA_TAG.lower() in model_deployment.freeform_tags
+                    Tags.AQUA_TAG in model_deployment.freeform_tags
+                    or Tags.AQUA_TAG.lower() in model_deployment.freeform_tags
                 )
                 if model_deployment.freeform_tags
                 else False
@@ -520,8 +524,8 @@ class AquaDeploymentApp(AquaApp):
 
         oci_aqua = (
             (
-                    Tags.AQUA_TAG in model_deployment.freeform_tags
-                    or Tags.AQUA_TAG.lower() in model_deployment.freeform_tags
+                Tags.AQUA_TAG in model_deployment.freeform_tags
+                or Tags.AQUA_TAG.lower() in model_deployment.freeform_tags
             )
             if model_deployment.freeform_tags
             else False
@@ -538,8 +542,8 @@ class AquaDeploymentApp(AquaApp):
         log_group_name = ""
 
         logs = (
-                model_deployment.category_log_details.access
-                or model_deployment.category_log_details.predict
+            model_deployment.category_log_details.access
+            or model_deployment.category_log_details.predict
         )
         if logs:
             log_id = logs.log_id
@@ -586,17 +590,15 @@ class AquaDeploymentApp(AquaApp):
         """
         config = self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG)
         if not config:
-            logger.info(f"Fetching default deployment config for model: {model_id}")
-            config = load_config(
-                AQUA_CONFIG_FOLDER,
-                config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS,
+            logger.debug(
+                f"Deployment config for custom model: {model_id} is not available."
             )
         return config
 
     def get_deployment_default_params(
-            self,
-            model_id: str,
-            instance_shape: str,
+        self,
+        model_id: str,
+        instance_shape: str,
     ) -> List[str]:
         """Gets the default params set in the deployment configs for the given model and instance shape.
 
@@ -628,8 +630,8 @@ class AquaDeploymentApp(AquaApp):
             )
 
         if (
-                container_type_key
-                and container_type_key in InferenceContainerTypeFamily.values()
+            container_type_key
+            and container_type_key in InferenceContainerTypeFamily.values()
         ):
             deployment_config = self.get_deployment_config(model_id)
             config_params = (
@@ -652,10 +654,10 @@ class AquaDeploymentApp(AquaApp):
         return default_params
 
     def validate_deployment_params(
-            self,
-            model_id: str,
-            params: List[str] = None,
-            container_family: str = None,
+        self,
+        model_id: str,
+        params: List[str] = None,
+        container_family: str = None,
     ) -> Dict:
         """Validate if the deployment parameters passed by the user can be overridden. Parameter values are not
         validated, only param keys are validated.
@@ -678,8 +680,7 @@ class AquaDeploymentApp(AquaApp):
         if params:
             model = DataScienceModel.from_id(model_id)
             container_type_key = self._get_container_type_key(
-                model=model,
-                container_family=container_family
+                model=model, container_family=container_family
             )
 
             container_config = get_container_config()
@@ -701,9 +702,9 @@ class AquaDeploymentApp(AquaApp):
 
     @staticmethod
     def _find_restricted_params(
-            default_params: Union[str, List[str]],
-            user_params: Union[str, List[str]],
-            container_family: str,
+        default_params: Union[str, List[str]],
+        user_params: Union[str, List[str]],
+        container_family: str,
     ) -> List[str]:
         """Returns a list of restricted params that user chooses to override when creating an Aqua deployment.
         The default parameters coming from the container index json file cannot be overridden.

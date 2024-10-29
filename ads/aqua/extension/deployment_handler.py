@@ -129,6 +129,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
         ocpus = input_data.get("ocpus")
         memory_in_gbs = input_data.get("memory_in_gbs")
         model_file = input_data.get("model_file")
+        private_endpoint_id = input_data.get("private_endpoint_id")
 
         self.finish(
             AquaDeploymentApp().create(
@@ -151,6 +152,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
                 ocpus=ocpus,
                 memory_in_gbs=memory_in_gbs,
                 model_file=model_file,
+                private_endpoint_id=private_endpoint_id,
             )
         )
 

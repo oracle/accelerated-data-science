@@ -1648,6 +1648,19 @@ class ModelDeployment(Builder):
                 infrastructure.CONST_SUBNET_ID
             ] = infrastructure.subnet_id
 
+        if infrastructure.private_endpoint_id:
+            if not hasattr(
+                oci.data_science.models.InstanceConfiguration, "private_endpoint_id"
+            ):
+                # TODO: add oci version with private endpoint support.
+                raise EnvironmentError(
+                    "Private endpoint is not supported in the current OCI SDK installed."
+                )
+
+            instance_configuration[
+                infrastructure.CONST_PRIVATE_ENDPOINT_ID
+            ] = infrastructure.private_endpoint_id
+
         scaling_policy = {
             infrastructure.CONST_POLICY_TYPE: "FIXED_SIZE",
             infrastructure.CONST_INSTANCE_COUNT: infrastructure.replica

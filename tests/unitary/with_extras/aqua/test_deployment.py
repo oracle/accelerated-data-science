@@ -181,6 +181,7 @@ class TestDataset:
         "created_on": "2024-01-01T00:00:00.000000+00:00",
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
+        "private_endpoint_id": "",
         "environment_variables": {
             "BASE_MODEL": "service_models/model-name/artifact",
             "MODEL_DEPLOY_ENABLE_STREAMING": "true",
@@ -335,8 +336,7 @@ class TestAquaDeployment(unittest.TestCase):
 
             self.app.get(model_deployment_id=TestDataset.MODEL_DEPLOYMENT_ID)
 
-    @patch("ads.aqua.modeldeployment.deployment.load_config")
-    def test_get_deployment_config(self, mock_load_config):
+    def test_get_deployment_config(self):
         """Test for fetching config details for a given deployment."""
 
         config_json = os.path.join(
@@ -350,9 +350,8 @@ class TestAquaDeployment(unittest.TestCase):
         assert result == config
 
         self.app.get_config = MagicMock(return_value=None)
-        mock_load_config.return_value = config
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
-        assert result == config
+        assert result == None
 
     @patch("ads.aqua.modeldeployment.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")

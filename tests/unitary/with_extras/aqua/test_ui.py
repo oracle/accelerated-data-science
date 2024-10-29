@@ -20,7 +20,6 @@ import ads.config
 from ads.aqua.common.errors import AquaValueError
 from ads.aqua.common.utils import load_config
 from ads.aqua.ui import AquaUIApp
-from ads.config import AQUA_CONFIG_FOLDER, AQUA_RESOURCE_LIMIT_NAMES_CONFIG
 
 
 class TestDataset:
@@ -28,7 +27,8 @@ class TestDataset:
     USER_COMPARTMENT_ID = "ocid1.compartment.oc1..<USER_COMPARTMENT_OCID>"
     TENANCY_OCID = "ocid1.tenancy.oc1..<OCID>"
     VCN_ID = "ocid1.vcn.oc1.iad.<OCID>"
-    DEPLOYMENT_SHAPE_NAMES = ["VM.GPU.A10.1", "BM.GPU4.8", "VM.Standard.2.16"]
+    DEPLOYMENT_SHAPE_NAMES = ["VM.GPU.A10.1", "BM.GPU4.8", "VM.GPU.A10.2"]
+    LIMIT_NAMES = ["ds-gpu-a10-count", "ds-gpu4-count", "ds-gpu-a10-count"]
 
 
 class TestAquaUI(unittest.TestCase):
@@ -333,7 +333,7 @@ class TestAquaUI(unittest.TestCase):
         mock_list_vcns.return_value.data = [oci.core.models.Vcn(**vcn) for vcn in vcns]
         results = self.app.list_vcn()
 
-        mock_list_vcns.called_once()
+        mock_list_vcns.assert_called_once()
         expected_attributes = {
             "cidrBlock",
             "cidrBlocks",
@@ -370,7 +370,7 @@ class TestAquaUI(unittest.TestCase):
         ]
         results = self.app.list_subnets(vcn_id=TestDataset.VCN_ID)
 
-        mock_list_subnets.called_once()
+        mock_list_subnets.assert_called_once()
         expected_attributes = {
             "cidrBlock",
             "compartmentId",
@@ -398,6 +398,48 @@ class TestAquaUI(unittest.TestCase):
             )
         assert len(results) == len(subnets)
 
+    def test_list_private_endpoints(self):
+        """Test to list the private endpoints in the specified compartment."""
+        private_endpoints_list_json = os.path.join(
+            self.curr_dir, f"test_data/ui/private_endpoints_list.json"
+        )
+        with open(private_endpoints_list_json, "r") as _file:
+            private_endpoints = json.load(_file)
+
+        self.app.ds_client.list_data_science_private_endpoints = MagicMock(
+            return_value=oci.response.Response(
+                status=200,
+                request=MagicMock(),
+                headers=MagicMock(),
+                data=[
+                    oci.data_science.models.DataSciencePrivateEndpointSummary(**pe)
+                    for pe in private_endpoints
+                ],
+            )
+        )
+
+        results = self.app.list_private_endpoints()
+        expected_attributes = {
+            "compartmentId",
+            "definedTags",
+            "displayName",
+            "freeformTags",
+            "systemTags",
+            "id",
+            "lifecycleState",
+            "dataScienceResourceType",
+            "createdBy",
+            "subnetId",
+            "fqdn",
+            "timeCreated",
+            "timeUpdated",
+        }
+        for result in results:
+            self.assertTrue(
+                expected_attributes.issuperset(set(result)), "Attributes mismatch"
+            )
+        assert len(results) == len(private_endpoints)
+
     @patch.object(oci.limits.limits_client.LimitsClient, "get_resource_availability")
     def test_get_shape_availability(self, mock_get_resource_availability):
         """Test whether the function returns the number of available resources associated with the given shape."""
@@ -409,20 +451,14 @@ class TestAquaUI(unittest.TestCase):
         with open(resource_availability_json, "r") as _file:
             resource_availability = json.load(_file)
 
-        artifact_path = AQUA_CONFIG_FOLDER
-        config = load_config(
-            artifact_path,
-            config_file_name=AQUA_RESOURCE_LIMIT_NAMES_CONFIG,
-        )
-
         mock_get_resource_availability.return_value.data = (
             oci.limits.models.ResourceAvailability(**resource_availability)
         )
         result = self.app.get_shape_availability(
-            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAMES[0]
+            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAMES[0],
+            limit_name=TestDataset.LIMIT_NAMES[0],
         )
 
-        mock_get_resource_availability.called_once()
         expected_attributes = {"available_count"}
         self.assertTrue(
             expected_attributes.issuperset(set(result)), "Attributes mismatch"
@@ -432,10 +468,11 @@ class TestAquaUI(unittest.TestCase):
         with pytest.raises(
             AquaValueError,
             match=f"Inadequate resource is available to create the {TestDataset.DEPLOYMENT_SHAPE_NAMES[1]} resource. The number of available "
-            f"resource associated with the limit name {config[TestDataset.DEPLOYMENT_SHAPE_NAMES[1]]} is {resource_availability['available']}.",
+            f"resource associated with the limit name {TestDataset.LIMIT_NAMES[1]} is {resource_availability['available']}.",
         ):
             self.app.get_shape_availability(
-                instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAMES[1]
+                instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAMES[1],
+                limit_name=TestDataset.LIMIT_NAMES[1],
             )
 
         with pytest.raises(
@@ -445,9 +482,10 @@ class TestAquaUI(unittest.TestCase):
             self.app.get_shape_availability(instance_shape="")
 
         result = self.app.get_shape_availability(
-            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAMES[2]
+            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAMES[2],
+            limit_name=TestDataset.LIMIT_NAMES[2],
         )
-        assert result == {}
+        assert result == {"available_count": 2}
 
     @parameterized.expand([True, False])
     @patch("ads.common.object_storage_details.ObjectStorageDetails.from_path")
