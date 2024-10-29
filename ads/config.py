@@ -57,12 +57,6 @@ AQUA_MODEL_FINETUNING_CONFIG = os.environ.get(
 AQUA_CONTAINER_INDEX_CONFIG = os.environ.get(
     "AQUA_CONTAINER_INDEX_CONFIG", "container_index.json"
 )
-AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS = os.environ.get(
-    "AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS", "deployment_config_defaults.json"
-)
-AQUA_RESOURCE_LIMIT_NAMES_CONFIG = os.environ.get(
-    "AQUA_RESOURCE_LIMIT_NAMES_CONFIG", "resource_limit_names.json"
-)
 AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME = "deployment-container"
 AQUA_FINETUNING_CONTAINER_METADATA_NAME = "finetune-container"
 AQUA_EVALUATION_CONTAINER_METADATA_NAME = "evaluation-container"

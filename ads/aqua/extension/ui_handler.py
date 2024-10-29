@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -11,8 +10,8 @@ from tornado.web import HTTPError
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.enums import Tags
 from ads.aqua.constants import PRIVATE_ENDPOINT_TYPE
-from ads.aqua.extension.errors import Errors
 from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.aqua.extension.errors import Errors
 from ads.aqua.extension.utils import validate_function_parameters
 from ads.aqua.model.entities import ImportModelDetails
 from ads.aqua.ui import AquaUIApp
@@ -181,7 +180,9 @@ class AquaUIHandler(AquaAPIhandler):
     def list_private_endpoints(self, **kwargs):
         """Lists the private endpoints in the specified compartment."""
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
-        resource_type = self.get_argument("resource_type", default=PRIVATE_ENDPOINT_TYPE)
+        resource_type = self.get_argument(
+            "resource_type", default=PRIVATE_ENDPOINT_TYPE
+        )
         return self.finish(
             AquaUIApp().list_private_endpoints(
                 compartment_id=compartment_id, resource_type=resource_type, **kwargs
@@ -193,10 +194,14 @@ class AquaUIHandler(AquaAPIhandler):
         with the given limit."""
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
         instance_shape = self.get_argument("instance_shape")
+        limit_name = self.get_argument("limit_name")
 
         return self.finish(
             AquaUIApp().get_shape_availability(
-                compartment_id=compartment_id, instance_shape=instance_shape, **kwargs
+                compartment_id=compartment_id,
+                instance_shape=instance_shape,
+                limit_name=limit_name,
+                **kwargs,
             )
         )
 
