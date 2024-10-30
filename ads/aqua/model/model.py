@@ -408,7 +408,6 @@ class AquaModelApp(AquaApp):
                 custom_metadata_list.remove("modelDescription")
                 if task:
                     freeform_tags.update({Tags.TASK: task})
-
                 updated_custom_metadata_list = [
                     Metadata(**metadata)
                     for metadata in custom_metadata_list.to_dict()["data"]
@@ -417,7 +416,7 @@ class AquaModelApp(AquaApp):
                     custom_metadata_list=updated_custom_metadata_list,
                     freeform_tags=freeform_tags,
                 )
-                return AquaApp().update_model(id, update_model_details).data
+                AquaApp().update_model(id, update_model_details)
         else:
             raise AquaRuntimeError(
                 f"Failed to edit model:{id}. Only registered unverified models can be edited."

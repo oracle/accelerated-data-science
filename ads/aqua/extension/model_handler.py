@@ -164,7 +164,7 @@ class AquaModelHandler(AquaAPIhandler):
 
         enable_finetuning = input_data.get("enable_finetuning")
         task = input_data.get("task")
-        return self.finish(
+        self.finish(
             AquaModelApp().edit_registered_model(
                 id, inference_container, enable_finetuning, task
             )
