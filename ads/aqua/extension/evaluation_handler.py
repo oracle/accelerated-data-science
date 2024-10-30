@@ -12,7 +12,6 @@ from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.evaluation.entities import CreateAquaEvaluationDetails
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
-from ads.aqua.extension.utils import validate_function_parameters
 from ads.config import COMPARTMENT_OCID
 
 
@@ -46,10 +45,6 @@ class AquaEvaluationHandler(AquaAPIhandler):
 
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)
-
-        validate_function_parameters(
-            data_class=CreateAquaEvaluationDetails, input_data=input_data
-        )
 
         self.finish(
             # TODO: decide what other kwargs will be needed for create aqua evaluation.

@@ -9,7 +9,6 @@ import copy
 import json
 import os
 import unittest
-from dataclasses import asdict
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import oci
@@ -419,14 +418,13 @@ class TestAquaEvaluation(unittest.TestCase):
         """Checks each field is not empty."""
 
         attributes = response_type.__annotations__.keys()
-        rdict = asdict(response)
+        rdict = response.to_dict()
 
         for attr in attributes:
             if attr == "lifecycle_details":  # can be empty when jobrun is succeed
                 continue
             assert rdict.get(attr), f"{attr} is empty"
 
-    @patch("ads.aqua.evaluation.evaluation.get_evaluation_service_config")
     @patch.object(Job, "run")
     @patch("ads.jobs.ads_job.Job.name", new_callable=PropertyMock)
     @patch("ads.jobs.ads_job.Job.id", new_callable=PropertyMock)
@@ -445,7 +443,6 @@ class TestAquaEvaluation(unittest.TestCase):
         mock_job_id,
         mock_job_name,
         mock_job_run,
-        mock_get_evaluation_service_config,
     ):
         foundation_model = MagicMock()
         foundation_model.display_name = "test_foundation_model"
@@ -475,8 +472,6 @@ class TestAquaEvaluation(unittest.TestCase):
         evaluation_job_run.lifecycle_state = "IN_PROGRESS"
         mock_job_run.return_value = evaluation_job_run
 
-        mock_get_evaluation_service_config.return_value = EvaluationServiceConfig()
-
         self.app.ds_client.update_model = MagicMock()
         self.app.ds_client.update_model_provenance = MagicMock()
 
@@ -494,7 +489,7 @@ class TestAquaEvaluation(unittest.TestCase):
         )
         aqua_evaluation_summary = self.app.create(**create_aqua_evaluation_details)
 
-        assert asdict(aqua_evaluation_summary) == {
+        assert aqua_evaluation_summary.to_dict() == {
             "console_url": f"https://cloud.oracle.com/data-science/models/{evaluation_model.id}?region={self.app.region}",
             "experiment": {
                 "id": f"{experiment.id}",
