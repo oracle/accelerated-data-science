@@ -718,6 +718,27 @@ class AquaModelApp(AquaApp):
                 }
         return res
 
+    def clear_model_details_cache(self,model_id):
+        """
+        Allows user to clear model details cache item
+        Returns
+        -------
+            dict with the key used, and True if cache has the key that needs to be deleted.
+        """
+        res={}
+        logger.info("Clearing _service_model_details_cache")
+        with self._cache_lock:
+            if model_id in self._service_model_details_cache:
+                self._service_model_details_cache.pop(key=model_id)
+                res={
+                    "key":{
+                        "model_id":model_id
+                    },
+                    "cache_deleted":True
+                }
+
+        return res
+
     @staticmethod
     def list_valid_inference_containers():
         containers = list(

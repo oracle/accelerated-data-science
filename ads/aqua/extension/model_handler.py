@@ -169,6 +169,7 @@ class AquaModelHandler(AquaAPIhandler):
                 id, inference_container, enable_finetuning, task
             )
         )
+        AquaModelApp().clear_model_details_cache(model_id=id)
 
 
 class AquaModelLicenseHandler(AquaAPIhandler):
