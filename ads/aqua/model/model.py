@@ -726,7 +726,7 @@ class AquaModelApp(AquaApp):
             dict with the key used, and True if cache has the key that needs to be deleted.
         """
         res = {}
-        logger.info("Clearing _service_model_details_cache")
+        logger.info(f"Clearing _service_model_details_cache for {model_id}")
         with self._cache_lock:
             if model_id in self._service_model_details_cache:
                 self._service_model_details_cache.pop(key=model_id)
