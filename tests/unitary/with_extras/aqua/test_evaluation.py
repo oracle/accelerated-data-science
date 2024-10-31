@@ -506,17 +506,9 @@ class TestAquaEvaluation(unittest.TestCase):
             "lifecycle_state": f"{evaluation_job_run.lifecycle_state}",
             "name": f"{evaluation_model.display_name}",
             "parameters": {
-                "model": "odsc-llm",
                 "dataset_path": "",
-                "frequency_penalty": 0.0,
-                "max_tokens": "",
-                "presence_penalty": 0.0,
                 "report_path": "",
                 "shape": "",
-                "stop": [],
-                "temperature": "",
-                "top_k": "",
-                "top_p": "",
             },
             "source": {
                 "id": "ocid1.datasciencemodel.oc1.iad.<OCID>",

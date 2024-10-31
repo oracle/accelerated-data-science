@@ -95,23 +95,13 @@ class AquaEvalReport(Serializable):
     class Config:
         extra = "ignore"
 
-class ModelParams(Serializable):
-    max_tokens: str = ""
-    top_p: str = ""
-    top_k: str = ""
-    temperature: str = ""
-    presence_penalty: Optional[float] = 0.0
-    frequency_penalty: Optional[float] = 0.0
-    stop: Optional[Union[str, List[str]]] = Field(default_factory=list)
-    model: Optional[str] = "odsc-llm"
-
-    class Config:
-        extra = "allow"
-
-class AquaEvalParams(ModelParams):
+class AquaEvalParams(Serializable):
     shape: str = ""
     dataset_path: str = ""
     report_path: str = ""
+
+    class Config:
+        extra = "allow"
 
 class AquaEvalMetric(Serializable):
     key: str
