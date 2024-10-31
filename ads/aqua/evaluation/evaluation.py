@@ -158,10 +158,11 @@ class AquaEvaluationApp(AquaApp):
             try:
                 create_aqua_evaluation_details = CreateAquaEvaluationDetails(**kwargs)
             except Exception as ex:
+                custom_errors = {
+                    ".".join(map(str, e["loc"])): e["msg"] for e in json.loads(ex.json())
+                }
                 raise AquaValueError(
-                    "Invalid create evaluation parameters. "
-                    "Allowable parameters are: "
-                    f"{', '.join([field for field in CreateAquaEvaluationDetails.model_fields])}."
+                    f"Invalid create evaluation parameters. Error details: {custom_errors}."
                 ) from ex
 
         if not is_valid_ocid(create_aqua_evaluation_details.evaluation_source_id):
