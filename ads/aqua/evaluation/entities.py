@@ -9,19 +9,18 @@ aqua.evaluation.entities
 This module contains dataclasses for aqua evaluation.
 """
 
-from dataclasses import dataclass, field
-from typing import List, Optional, Union
+from pydantic import Field
+from typing import Any, Dict, List, Optional, Union
 
 from ads.aqua.data import AquaResourceIdentifier
-from ads.common.serializer import DataClassSerializable
+from ads.aqua.config.utils.serializer import Serializable
 
 
-@dataclass(repr=False)
-class CreateAquaEvaluationDetails(DataClassSerializable):
-    """Dataclass to create aqua model evaluation.
+class CreateAquaEvaluationDetails(Serializable):
+    """Class for creating aqua model evaluation.
 
-    Fields
-    ------
+    Properties
+    ----------
     evaluation_source_id: str
         The evaluation source id. Must be either model or model deployment ocid.
     evaluation_name: str
@@ -83,69 +82,64 @@ class CreateAquaEvaluationDetails(DataClassSerializable):
     ocpus: Optional[float] = None
     log_group_id: Optional[str] = None
     log_id: Optional[str] = None
-    metrics: Optional[List] = None
+    metrics: Optional[List[str]] = None
     force_overwrite: Optional[bool] = False
 
+    class Config:
+        extra = "ignore"
 
-@dataclass(repr=False)
-class AquaEvalReport(DataClassSerializable):
+class AquaEvalReport(Serializable):
     evaluation_id: str = ""
     content: str = ""
 
+    class Config:
+        extra = "ignore"
 
-@dataclass(repr=False)
-class ModelParams(DataClassSerializable):
-    max_tokens: str = ""
-    top_p: str = ""
-    top_k: str = ""
-    temperature: str = ""
-    presence_penalty: Optional[float] = 0.0
-    frequency_penalty: Optional[float] = 0.0
-    stop: Optional[Union[str, List[str]]] = field(default_factory=list)
-    model: Optional[str] = "odsc-llm"
-
-
-@dataclass(repr=False)
-class AquaEvalParams(ModelParams, DataClassSerializable):
+class AquaEvalParams(Serializable):
     shape: str = ""
     dataset_path: str = ""
     report_path: str = ""
 
+    class Config:
+        extra = "allow"
 
-@dataclass(repr=False)
-class AquaEvalMetric(DataClassSerializable):
+class AquaEvalMetric(Serializable):
     key: str
     name: str
     description: str = ""
 
+    class Config:
+        extra = "ignore"
 
-@dataclass(repr=False)
-class AquaEvalMetricSummary(DataClassSerializable):
+class AquaEvalMetricSummary(Serializable):
     metric: str = ""
     score: str = ""
     grade: str = ""
 
+    class Config:
+        extra = "ignore"
 
-@dataclass(repr=False)
-class AquaEvalMetrics(DataClassSerializable):
+class AquaEvalMetrics(Serializable):
     id: str
     report: str
-    metric_results: List[AquaEvalMetric] = field(default_factory=list)
-    metric_summary_result: List[AquaEvalMetricSummary] = field(default_factory=list)
+    metric_results: List[AquaEvalMetric] = Field(default_factory=list)
+    metric_summary_result: List[AquaEvalMetricSummary] = Field(default_factory=list)
 
+    class Config:
+        extra = "ignore"
 
-@dataclass(repr=False)
-class AquaEvaluationCommands(DataClassSerializable):
+class AquaEvaluationCommands(Serializable):
     evaluation_id: str
     evaluation_target_id: str
-    input_data: dict
-    metrics: list
+    input_data: Dict[str, Any]
+    metrics: List[str]
     output_dir: str
-    params: dict
+    params: Dict[str, Any]
 
+    class Config:
+        extra = "ignore"
 
-@dataclass(repr=False)
-class AquaEvaluationSummary(DataClassSerializable):
+class AquaEvaluationSummary(Serializable):
     """Represents a summary of Aqua evalution."""
 
     id: str
@@ -154,17 +148,18 @@ class AquaEvaluationSummary(DataClassSerializable):
     lifecycle_state: str
     lifecycle_details: str
     time_created: str
-    tags: dict
-    experiment: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-    source: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-    job: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-    parameters: AquaEvalParams = field(default_factory=AquaEvalParams)
+    tags: Dict[str, Any]
+    experiment: AquaResourceIdentifier = Field(default_factory=AquaResourceIdentifier)
+    source: AquaResourceIdentifier = Field(default_factory=AquaResourceIdentifier)
+    job: AquaResourceIdentifier = Field(default_factory=AquaResourceIdentifier)
+    parameters: AquaEvalParams = Field(default_factory=AquaEvalParams)
 
+    class Config:
+        extra = "ignore"
 
-@dataclass(repr=False)
-class AquaEvaluationDetail(AquaEvaluationSummary, DataClassSerializable):
+class AquaEvaluationDetail(AquaEvaluationSummary):
     """Represents a details of Aqua evalution."""
 
-    log_group: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-    log: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
-    introspection: dict = field(default_factory=dict)
+    log_group: AquaResourceIdentifier = Field(default_factory=AquaResourceIdentifier)
+    log: AquaResourceIdentifier = Field(default_factory=AquaResourceIdentifier)
+    introspection: dict = Field(default_factory=dict)
