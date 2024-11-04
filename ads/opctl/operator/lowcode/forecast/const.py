@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ads.common.extended_enum import ExtendedEnumMeta
@@ -17,7 +16,7 @@ class SupportedModels(str, metaclass=ExtendedEnumMeta):
     LGBForecast = "lgbforecast"
     AutoMLX = "automlx"
     AutoTS = "autots"
-    Auto = "auto"
+    # Auto = "auto"
 
 
 class SpeedAccuracyMode(str, metaclass=ExtendedEnumMeta):
@@ -28,7 +27,7 @@ class SpeedAccuracyMode(str, metaclass=ExtendedEnumMeta):
     HIGH_ACCURACY = "HIGH_ACCURACY"
     BALANCED = "BALANCED"
     FAST_APPROXIMATE = "FAST_APPROXIMATE"
-    ratio = dict()
+    ratio = {}
     ratio[HIGH_ACCURACY] = 1  # 100 % data used for generating explanations
     ratio[BALANCED] = 0.5  # 50 % data used for generating explanations
     ratio[FAST_APPROXIMATE] = 0  # constant
