@@ -374,12 +374,12 @@ spec:
     model:
       type: string
       required: false
-      default: auto-select
+      default: prophet
       allowed:
         - prophet
         - arima
         - neuralprophet
-        - lgbforecast
+        # - lgbforecast
         - automlx
         - autots
         - auto-select
