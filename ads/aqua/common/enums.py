@@ -52,6 +52,7 @@ class InferenceContainerTypeFamily(str, metaclass=ExtendedEnumMeta):
     AQUA_VLLM_CONTAINER_FAMILY = "odsc-vllm-serving"
     AQUA_TGI_CONTAINER_FAMILY = "odsc-tgi-serving"
     AQUA_LLAMA_CPP_CONTAINER_FAMILY = "odsc-llama-cpp-serving"
+    AQUA_TEI_CONTAINER_FAMILY = "odsc-tei-serving"
 
 
 class InferenceContainerParamType(str, metaclass=ExtendedEnumMeta):
@@ -80,3 +81,11 @@ class RqsAdditionalDetails(str, metaclass=ExtendedEnumMeta):
     MODEL_VERSION_SET_NAME = "modelVersionSetName"
     PROJECT_ID = "projectId"
     VERSION_LABEL = "versionLabel"
+
+
+class TextEmbeddingInferenceContainerParams(str, metaclass=ExtendedEnumMeta):
+    """Contains a subset of params that are required for enabling model deployment in OCI Data Science. More options
+    are available at https://huggingface.co/docs/text-embeddings-inference/en/cli_arguments"""
+
+    MODEL_ID = "model-id"
+    PORT = "port"

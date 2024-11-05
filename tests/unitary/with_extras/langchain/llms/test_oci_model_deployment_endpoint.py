@@ -7,14 +7,17 @@
 """Test OCI Data Science Model Deployment Endpoint."""
 
 import sys
+from typing import Any, AsyncGenerator, Dict, Generator
 from unittest import mock
+
 import pytest
+
+if sys.version_info < (3, 9):
+    pytest.skip(allow_module_level=True)
+
+
 from requests.exceptions import HTTPError
 from ads.llm import OCIModelDeploymentTGI, OCIModelDeploymentVLLM
-
-pytestmark = pytest.mark.skipif(
-    sys.version_info < (3, 9), reason="Requires Python 3.9 or higher"
-)
 
 
 CONST_MODEL_NAME = "odsc-vllm"
@@ -51,34 +54,36 @@ CONST_ASYNC_STREAM_RESPONSE = (
 )
 
 
-def mocked_requests_post(self, **kwargs):
+class MockResponse:
+    """Represents a mocked response."""
+
+    def __init__(self, json_data: Dict, status_code: int = 200) -> None:
+        self.json_data = json_data
+        self.status_code = status_code
+
+    def raise_for_status(self) -> None:
+        """Mocked raise for status."""
+        if 400 <= self.status_code < 600:
+            raise HTTPError()
+
+    def json(self) -> Dict:
+        """Returns mocked json data."""
+        return self.json_data
+
+    def iter_lines(self, chunk_size: int = 4096) -> Generator[bytes, None, None]:
+        """Returns a generator of mocked streaming response."""
+        return CONST_STREAM_RESPONSE
+
+    @property
+    def text(self) -> str:
+        """Returns the mocked text representation."""
+        return ""
+
+
+def mocked_requests_post(url: str, **kwargs: Any) -> MockResponse:
     """Method to mock post requests"""
 
-    class MockResponse:
-        """Represents a mocked response."""
-
-        def __init__(self, json_data, status_code=200):
-            self.json_data = json_data
-            self.status_code = status_code
-
-        def raise_for_status(self):
-            """Mocked raise for status."""
-            if 400 <= self.status_code < 600:
-                raise HTTPError("", response=self)
-
-        def json(self):
-            """Returns mocked json data."""
-            return self.json_data
-
-        def iter_lines(self, chunk_size=4096):
-            """Returns a generator of mocked streaming response."""
-            return CONST_STREAM_RESPONSE
-
-        @property
-        def text(self):
-            return ""
-
-    payload = kwargs.get("json")
+    payload: dict = kwargs.get("json", {})
     if "inputs" in payload:
         prompt = payload.get("inputs")
         is_tgi = True
@@ -97,7 +102,9 @@ def mocked_requests_post(self, **kwargs):
     )
 
 
-async def mocked_async_streaming_response(*args, **kwargs):
+async def mocked_async_streaming_response(
+    *args: Any, **kwargs: Any
+) -> AsyncGenerator[bytes, None]:
     """Returns mocked response for async streaming."""
     for item in CONST_ASYNC_STREAM_RESPONSE:
         yield item
@@ -106,7 +113,7 @@ async def mocked_async_streaming_response(*args, **kwargs):
 @pytest.mark.requires("ads")
 @mock.patch("ads.common.auth.default_signer", return_value=dict(signer=None))
 @mock.patch("requests.post", side_effect=mocked_requests_post)
-def test_invoke_vllm(mock_post, mock_auth) -> None:
+def test_invoke_vllm(*args: Any) -> None:
     """Tests invoking vLLM endpoint."""
     llm = OCIModelDeploymentVLLM(endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME)
     output = llm.invoke(CONST_PROMPT)
@@ -116,7 +123,7 @@ def test_invoke_vllm(mock_post, mock_auth) -> None:
 @pytest.mark.requires("ads")
 @mock.patch("ads.common.auth.default_signer", return_value=dict(signer=None))
 @mock.patch("requests.post", side_effect=mocked_requests_post)
-def test_stream_tgi(mock_post, mock_auth) -> None:
+def test_stream_tgi(*args: Any) -> None:
     """Tests streaming with TGI endpoint using OpenAI spec."""
     llm = OCIModelDeploymentTGI(
         endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME, streaming=True
@@ -133,7 +140,7 @@ def test_stream_tgi(mock_post, mock_auth) -> None:
 @pytest.mark.requires("ads")
 @mock.patch("ads.common.auth.default_signer", return_value=dict(signer=None))
 @mock.patch("requests.post", side_effect=mocked_requests_post)
-def test_generate_tgi(mock_post, mock_auth) -> None:
+def test_generate_tgi(*args: Any) -> None:
     """Tests invoking TGI endpoint using TGI generate spec."""
     llm = OCIModelDeploymentTGI(
         endpoint=CONST_ENDPOINT, api="/generate", model=CONST_MODEL_NAME
@@ -151,7 +158,7 @@ def test_generate_tgi(mock_post, mock_auth) -> None:
     "langchain_community.utilities.requests.Requests.apost",
     mock.MagicMock(),
 )
-async def test_stream_async(mock_auth):
+async def test_stream_async(*args: Any) -> None:
     """Tests async streaming."""
     llm = OCIModelDeploymentTGI(
         endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME, streaming=True
@@ -161,6 +168,5 @@ async def test_stream_async(mock_auth):
         "_aiter_sse",
         mock.MagicMock(return_value=mocked_async_streaming_response()),
     ):
-
         chunks = [chunk async for chunk in llm.astream(CONST_PROMPT)]
     assert "".join(chunks).strip() == CONST_COMPLETION
