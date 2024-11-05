@@ -103,6 +103,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
         memory_in_gbs = input_data.get("memory_in_gbs")
         model_file = input_data.get("model_file")
         private_endpoint_id = input_data.get("private_endpoint_id")
+        container_image_uri = input_data.get("container_image_uri")
+        cmd_var = input_data.get("cmd_var")
 
         self.finish(
             AquaDeploymentApp().create(
@@ -126,6 +128,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
                 memory_in_gbs=memory_in_gbs,
                 model_file=model_file,
                 private_endpoint_id=private_endpoint_id,
+                container_image_uri=container_image_uri,
+                cmd_var=cmd_var,
             )
         )
 
