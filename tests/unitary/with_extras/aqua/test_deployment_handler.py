@@ -130,6 +130,8 @@ class TestAquaDeploymentHandler(unittest.TestCase):
             ocpus=None,
             model_file=None,
             private_endpoint_id=None,
+            container_image_uri=None,
+            cmd_var=None,
         )
 
 

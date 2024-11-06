@@ -10,6 +10,7 @@ import pytest
 from huggingface_hub.hf_api import HfApi, ModelInfo
 from huggingface_hub.utils import GatedRepoError
 from notebook.base.handlers import IPythonHandler
+from parameterized import parameterized
 
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import get_hf_model_info
@@ -90,9 +91,25 @@ class ModelHandlerTestCase(TestCase):
                 compartment_id=None, project_id=None, model_type=None
             )
 
+    @parameterized.expand(
+        [
+            (None, None, False, None),
+            ("odsc-llm-fine-tuning", None, False, None),
+            (None, "test.gguf", True, None),
+            (None, None, True, "iad.ocir.io/<namespace>/<image>:<tag>"),
+        ],
+    )
     @patch("notebook.base.handlers.APIHandler.finish")
     @patch("ads.aqua.model.AquaModelApp.register")
-    def test_register(self, mock_register, mock_finish):
+    def test_register(
+        self,
+        finetuning_container,
+        model_file,
+        download_from_hf,
+        inference_container_uri,
+        mock_register,
+        mock_finish,
+    ):
         mock_register.return_value = AquaModel(
             id="test_id",
             inference_container="odsc-tgi-serving",
@@ -105,6 +122,10 @@ class ModelHandlerTestCase(TestCase):
                 model="test_model_name",
                 os_path="test_os_path",
                 inference_container="odsc-tgi-serving",
+                finetuning_container=finetuning_container,
+                model_file=model_file,
+                download_from_hf=download_from_hf,
+                inference_container_uri=inference_container_uri,
             )
         )
         result = self.model_handler.post()
@@ -112,11 +133,12 @@ class ModelHandlerTestCase(TestCase):
             model="test_model_name",
             os_path="test_os_path",
             inference_container="odsc-tgi-serving",
-            finetuning_container=None,
+            finetuning_container=finetuning_container,
             compartment_id=None,
             project_id=None,
-            model_file=None,
-            download_from_hf=False,
+            model_file=model_file,
+            download_from_hf=download_from_hf,
+            inference_container_uri=inference_container_uri,
         )
         assert result["id"] == "test_id"
         assert result["inference_container"] == "odsc-tgi-serving"
