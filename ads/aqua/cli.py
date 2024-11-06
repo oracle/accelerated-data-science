@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -16,6 +15,7 @@ from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.model import AquaModelApp
 from ads.aqua.modeldeployment import AquaDeploymentApp
+from ads.aqua.tool.tool import AquaToolApp
 from ads.common.utils import LOG_LEVELS
 from ads.config import NB_SESSION_OCID
 
@@ -32,6 +32,7 @@ class AquaCommand:
     fine_tuning = AquaFineTuningApp
     deployment = AquaDeploymentApp
     evaluation = AquaEvaluationApp
+    tool = AquaToolApp
 
     def __init__(
         self,

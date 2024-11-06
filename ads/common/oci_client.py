@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
 # Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -9,20 +8,21 @@ import logging
 import oci.artifacts
 from oci.ai_language import AIServiceLanguageClient
 from oci.artifacts import ArtifactsClient
+from oci.core import VirtualNetworkClient
 from oci.data_catalog import DataCatalogClient
 from oci.data_flow import DataFlowClient
 from oci.data_labeling_service import DataLabelingManagementClient
 from oci.data_labeling_service_dataplane import DataLabelingClient
 from oci.data_science import DataScienceClient
+from oci.functions import FunctionsInvokeClient, FunctionsManagementClient
 from oci.identity import IdentityClient
+from oci.limits import LimitsClient
+from oci.logging import LoggingManagementClient
 from oci.marketplace import MarketplaceClient
 from oci.object_storage import ObjectStorageClient
 from oci.resource_search import ResourceSearchClient
 from oci.secrets import SecretsClient
 from oci.vault import VaultsClient
-from oci.logging import LoggingManagementClient
-from oci.core import VirtualNetworkClient
-from oci.limits import LimitsClient
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +79,8 @@ class OCIClientFactory:
             "limits": LimitsClient,
             "marketplace": MarketplaceClient,
             "artifacts": ArtifactsClient,
+            "functions_invoke": FunctionsInvokeClient,
+            "functions_management": FunctionsManagementClient,
         }
 
         assert (
@@ -173,3 +175,11 @@ class OCIClientFactory:
     @property
     def artifacts(self) -> oci.artifacts.ArtifactsClient:
         return self.create_client("artifacts")
+
+    @property
+    def oracle_function_management(self) -> oci.functions.FunctionsManagementClient:
+        return self.create_client("functions_management")
+
+    @property
+    def oracle_function_invoke(self) -> oci.functions.FunctionsInvokeClient:
+        return self.create_client("functions_invoke")

@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
 # Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-"""Contains Mixins for integrating OCI data models
-"""
+"""Contains Mixins for integrating OCI data models"""
+
 import inspect
 import json
 import logging
@@ -309,7 +308,7 @@ class OCISerializableMixin(OCIClientMixin):
         except ImportError:
             return string
         except ValueError:
-            raise Exception("Failed to parse `{0}` into a date object".format(string))
+            raise Exception(f"Failed to parse `{string}` into a date object")
 
     @staticmethod
     def __deserialize_datetime(string):
@@ -332,9 +331,7 @@ class OCISerializableMixin(OCIClientMixin):
             except ImportError:
                 return string
             except ValueError:
-                raise Exception(
-                    "Failed to parse `{0}` into a datetime object".format(string)
-                )
+                raise Exception(f"Failed to parse `{string}` into a datetime object")
         except ImportError:
             return string
 
@@ -532,6 +529,12 @@ class OCIModelMixin(OCISerializableMixin):
         for attr in oci_model().swagger_types.keys():
             if hasattr(oci_instance, attr):
                 kwargs[attr] = getattr(oci_instance, attr)
+
+        kwargs["freeform_tags"] = {
+            **(kwargs.get("freeform_tags") or {}),
+            **(kwargs.pop("config") or {}),
+        }
+
         instance = cls.create_instance(**kwargs)
         if hasattr(oci_instance, "attribute_map"):
             instance._oci_attributes = oci_instance.attribute_map
@@ -616,7 +619,7 @@ class OCIModelMixin(OCISerializableMixin):
     def name(self) -> str:
         """Gets the name of the object."""
         if hasattr(self, "display_name"):
-            return getattr(self, "display_name")
+            return self.display_name
         return ""
 
     @name.setter
@@ -628,7 +631,7 @@ class OCIModelMixin(OCISerializableMixin):
         value : str
             The name of the object.
         """
-        setattr(self, "display_name", value)
+        self.display_name = value
 
     def load_properties_from_env(self):
         """Loads properties from the environment"""
@@ -817,7 +820,7 @@ class OCIModelMixin(OCISerializableMixin):
         str
             Status of the object.
         """
-        if not self.lifecycle_state or not self.lifecycle_state in LIFECYCLE_STOP_STATE:
+        if not self.lifecycle_state or self.lifecycle_state not in LIFECYCLE_STOP_STATE:
             self.sync()
         return self.lifecycle_state
 
@@ -867,7 +870,7 @@ class OCIWorkRequestMixin:
         """
         result = None
         if hasattr(self.client, "get_work_request") and callable(
-            getattr(self.client, "get_work_request")
+            self.client.get_work_request
         ):
             try:
                 wait_period_kwargs = {}

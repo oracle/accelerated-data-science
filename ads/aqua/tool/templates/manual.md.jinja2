@@ -1,0 +1,25 @@
+# Tool Manual: {{ tool_name }}
+
+**OCID**: `{{ tool_ocid }}`
+
+**Created Date**: `{{ time_created }}`
+
+---
+
+## OpenAPI Specification
+
+```json
+{{ tool_openapi_spec }}
+```
+
+## CLI Invoking
+
+```bash
+ads aqua tool invoke {{ tool_ocid }} '{{tool_payload_example}}'
+```
+
+## Monitoring Logs
+
+```bash
+ads aqua tool watch {{ tool_ocid }}
+```

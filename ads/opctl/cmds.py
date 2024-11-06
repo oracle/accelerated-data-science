@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
 # Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -11,9 +10,6 @@ from typing import Dict, List, Union
 import click
 import fsspec
 import yaml
-from ads.opctl.backend.marketplace.local_marketplace import (
-    LocalMarketplaceOperatorBackend,
-)
 
 import ads
 from ads.common.auth import AuthContext, AuthType
@@ -23,12 +19,16 @@ from ads.opctl.backend.ads_dataflow import DataFlowBackend
 from ads.opctl.backend.ads_ml_job import MLJobBackend, MLJobDistributedBackend
 from ads.opctl.backend.ads_ml_pipeline import PipelineBackend
 from ads.opctl.backend.ads_model_deployment import ModelDeploymentBackend
+from ads.opctl.backend.ads_oracle_function import OracleFunctionBackend
 from ads.opctl.backend.local import (
     LocalBackend,
     LocalBackendDistributed,
     LocalModelDeploymentBackend,
     LocalOperatorBackend,
     LocalPipelineBackend,
+)
+from ads.opctl.backend.marketplace.local_marketplace import (
+    LocalMarketplaceOperatorBackend,
 )
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
@@ -70,6 +70,7 @@ class DataScienceResource(str, metaclass=ExtendedEnumMeta):
     PIPELINE = "datasciencepipeline"
     MODEL_DEPLOYMENT = "datasciencemodeldeployment"
     MODEL = "datasciencemodel"
+    FUNCTION = "fnfunc"
 
 
 class DataScienceResourceRun(str, metaclass=ExtendedEnumMeta):
@@ -77,6 +78,7 @@ class DataScienceResourceRun(str, metaclass=ExtendedEnumMeta):
     DATAFLOW_RUN = "dataflowrun"
     PIPELINE_RUN = "datasciencepipelinerun"
     MODEL_DEPLOYMENT = "datasciencemodeldeployment"
+    FUNCTION = "fnfunc"
 
 
 DATA_SCIENCE_RESOURCE_BACKEND_MAP = {
@@ -88,6 +90,7 @@ DATA_SCIENCE_RESOURCE_BACKEND_MAP = {
     DataScienceResourceRun.PIPELINE_RUN: "pipeline",
     DataScienceResourceRun.MODEL_DEPLOYMENT: "deployment",
     DataScienceResource.MODEL: "deployment",
+    DataScienceResource.FUNCTION: "fnfunc",
 }
 
 DATA_SCIENCE_RESOURCE_RUN_BACKEND_MAP = {
@@ -95,6 +98,7 @@ DATA_SCIENCE_RESOURCE_RUN_BACKEND_MAP = {
     DataScienceResourceRun.DATAFLOW_RUN: "dataflow",
     DataScienceResourceRun.PIPELINE_RUN: "pipeline",
     DataScienceResourceRun.MODEL_DEPLOYMENT: "deployment",
+    DataScienceResourceRun.FUNCTION: "fnfunc",
 }
 
 
@@ -106,6 +110,7 @@ class _BackendFactory:
         BACKEND_NAME.MODEL_DEPLOYMENT.value: ModelDeploymentBackend,
         BACKEND_NAME.OPERATOR_LOCAL.value: LocalOperatorBackend,
         BACKEND_NAME.MARKETPLACE.value: LocalMarketplaceOperatorBackend,
+        BACKEND_NAME.FUNCTION.value: OracleFunctionBackend,
     }
 
     LOCAL_BACKENDS_MAP = {
@@ -228,7 +233,7 @@ def run(config: Dict, **kwargs) -> Dict:
 
         if mode == BACKEND_NAME.LOCAL.value:
             print(
-                "\u26A0 Docker Image: "
+                "\u26a0 Docker Image: "
                 + ini.get("main", "registry")
                 + ":"
                 + ini.get("main", "tag")
@@ -592,7 +597,7 @@ def configure() -> None:
 
     print("==== Setting configuration for Data Science Jobs ====")
     if click.confirm(
-        f"Do you want to set up or update Data Science Jobs configuration?",
+        "Do you want to set up or update Data Science Jobs configuration?",
         default=True,
     ):
         required_fields = [
@@ -622,7 +627,7 @@ def configure() -> None:
 
     print("==== Setting configuration for OCI Data Flow ====")
     if click.confirm(
-        f"Do you want to set up or update OCI Data Flow configuration?", default=True
+        "Do you want to set up or update OCI Data Flow configuration?", default=True
     ):
         required_fields = [
             ("compartment_id", ""),
@@ -652,7 +657,7 @@ def configure() -> None:
 
     print("==== Setting configuration for OCI ML Pipeline ====")
     if click.confirm(
-        f"Do you want to set up or update OCI ML Pipeline configuration?", default=True
+        "Do you want to set up or update OCI ML Pipeline configuration?", default=True
     ):
         required_fields = [
             ("compartment_id", ""),
@@ -674,7 +679,7 @@ def configure() -> None:
 
     print("==== Setting configuration for Data Science Model Deployment ====")
     if click.confirm(
-        f"Do you want to set up or update Data Science Model Deployment configuration?",
+        "Do you want to set up or update Data Science Model Deployment configuration?",
         default=True,
     ):
         required_fields = [
@@ -704,7 +709,7 @@ def configure() -> None:
 
     print("==== Setting configuration for local backend ====")
     if click.confirm(
-        f"Do you want to set up or update local backend configuration?", default=True
+        "Do you want to set up or update local backend configuration?", default=True
     ):
         required_fields = [
             ("max_parallel_containers", str(min(os.cpu_count(), 4))),
