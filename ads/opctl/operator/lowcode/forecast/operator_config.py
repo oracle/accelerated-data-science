@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -9,12 +8,16 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 from ads.common.serializer import DataClassSerializable
+from ads.opctl.operator.common.operator_config import (
+    InputData,
+    OperatorConfig,
+    OutputDirectory,
+)
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
-from ads.opctl.operator.common.operator_config import OperatorConfig, OutputDirectory, InputData
-
-from .const import SupportedMetrics, SpeedAccuracyMode
-from .const import SupportedModels
 from ads.opctl.operator.lowcode.common.utils import find_output_dirname
+
+from .const import SpeedAccuracyMode, SupportedMetrics, SupportedModels
+
 
 @dataclass(repr=True)
 class TestData(InputData):
@@ -90,13 +93,17 @@ class ForecastOperatorSpec(DataClassSerializable):
 
     def __post_init__(self):
         """Adjusts the specification details."""
-        self.output_directory = self.output_directory or OutputDirectory(url=find_output_dirname(self.output_directory))
+        self.output_directory = self.output_directory or OutputDirectory(
+            url=find_output_dirname(self.output_directory)
+        )
         self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE.lower()
-        self.model = self.model or SupportedModels.Auto
+        self.model = self.model or SupportedModels.Prophet
         self.confidence_interval_width = self.confidence_interval_width or 0.80
         self.report_filename = self.report_filename or "report.html"
         self.preprocessing = (
-            self.preprocessing if self.preprocessing is not None else DataPreprocessor(enabled=True)
+            self.preprocessing
+            if self.preprocessing is not None
+            else DataPreprocessor(enabled=True)
         )
         # For Report Generation. When user doesn't specify defaults to True
         self.generate_report = (
@@ -138,7 +145,7 @@ class ForecastOperatorSpec(DataClassSerializable):
         )
         self.target_column = self.target_column or "Sales"
         self.errors_dict_filename = "errors.json"
-        self.model_kwargs = self.model_kwargs or dict()
+        self.model_kwargs = self.model_kwargs or {}
 
 
 @dataclass(repr=True)
