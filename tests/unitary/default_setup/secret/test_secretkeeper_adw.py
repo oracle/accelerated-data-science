@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ads.secrets import ADBSecretKeeper
@@ -33,6 +33,24 @@ def key_encoding():
         secret_dict,
         encoded,
         wallet_location,
+    )
+
+
+@pytest.fixture
+def key_encoding_dsn():
+    user_name = "myuser"
+    password = "this-is-not-the-secret"
+    dsn = "my long dsn string....................."
+    secret_dict = {
+        "user_name": user_name,
+        "password": password,
+        "dsn": dsn,
+    }
+    encoded = b64encode(json.dumps(secret_dict).encode("utf-8")).decode("utf-8")
+    return (
+        (user_name, password, dsn),
+        secret_dict,
+        encoded,
     )
 
 
@@ -133,9 +151,9 @@ def test_encode(mock_client, mock_signer, key_encoding):
 
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
-def test_adw_save(mock_client, mock_signer, key_encoding, tmpdir):
+def test_adw_tls_save(mock_client, mock_signer, key_encoding_dsn, tmpdir):
     adwsecretkeeper = ADBSecretKeeper(
-        *key_encoding[0],
+        **key_encoding_dsn[1],
         vault_id="ocid.vault",
         key_id="ocid.key",
         compartment_id="dummy",
@@ -211,6 +229,7 @@ def test_adw_context(mock_client, mock_signer, key_encoding):
             assert adwsecretkeeper == {
                 **key_encoding[1],
                 "wallet_location": "/this/is/mywallet.zip",
+                "dsn": None,
             }
             assert os.environ.get("user_name") == key_encoding[0][0]
             assert os.environ.get("password") == key_encoding[0][1]
@@ -221,11 +240,42 @@ def test_adw_context(mock_client, mock_signer, key_encoding):
             "password": None,
             "service_name": None,
             "wallet_location": None,
+            "dsn": None,
         }
         assert os.environ.get("user_name") is None
         assert os.environ.get("password") is None
         assert os.environ.get("service_name") is None
         assert os.environ.get("wallet_location") is None
+
+
+@patch("ads.common.auth.default_signer")
+@patch("ads.common.oci_client.OCIClientFactory")
+def test_adw_context_tls(mock_client, mock_signer, key_encoding_dsn):
+    with mock.patch(
+        "ads.vault.Vault.get_secret", return_value=key_encoding_dsn[2]
+    ) as mocked_getsecret:
+        with ADBSecretKeeper.load_secret(
+            source="ocid.secret.id",
+            export_env=True,
+        ) as adwsecretkeeper:
+            assert adwsecretkeeper == {
+                **key_encoding_dsn[1],
+                "service_name": None,
+                "wallet_location": None,
+            }
+            assert os.environ.get("user_name") == key_encoding_dsn[0][0]
+            assert os.environ.get("password") == key_encoding_dsn[0][1]
+            assert os.environ.get("dsn") == key_encoding_dsn[0][2]
+        assert adwsecretkeeper == {
+            "user_name": None,
+            "password": None,
+            "service_name": None,
+            "wallet_location": None,
+            "dsn": None,
+        }
+        assert os.environ.get("user_name") is None
+        assert os.environ.get("password") is None
+        assert os.environ.get("dsn") is None
 
 
 @patch("ads.common.auth.default_signer")
@@ -240,13 +290,14 @@ def test_adw_keeper_no_wallet(mock_client, mock_signer, key_encoding):
             assert adwsecretkeeper == {
                 **key_encoding[1],
                 "wallet_location": None,
+                "dsn": None,
             }
 
 
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
 def test_adw_keeper_with_repository(mock_client, mock_signer, key_encoding, tmpdir):
-    expected = {**key_encoding[1], "wallet_location": key_encoding[3]}
+    expected = {**key_encoding[1], "wallet_location": key_encoding[3], "dsn": None}
     os.makedirs(os.path.join(tmpdir, "testdb"))
     with open(os.path.join(tmpdir, "testdb", "config.json"), "w") as conffile:
         json.dump(expected, conffile)
@@ -270,6 +321,7 @@ def test_adw_context_namespace(mock_client, mock_signer, key_encoding):
             assert adwsecretkeeper == {
                 **key_encoding[1],
                 "wallet_location": "/this/is/mywallet.zip",
+                "dsn": None,
             }
             assert os.environ.get("myapp.user_name") == key_encoding[0][0]
             assert os.environ.get("myapp.password") == key_encoding[0][1]
@@ -280,6 +332,7 @@ def test_adw_context_namespace(mock_client, mock_signer, key_encoding):
             "password": None,
             "service_name": None,
             "wallet_location": None,
+            "dsn": None,
         }
         assert os.environ.get("myapp.user_name") is None
         assert os.environ.get("myapp.password") is None
@@ -300,6 +353,7 @@ def test_adw_context_noexport(mock_client, mock_signer, key_encoding):
             assert adwsecretkeeper == {
                 **key_encoding[1],
                 "wallet_location": "/this/is/mywallet.zip",
+                "dsn": None,
             }
 
             assert os.environ.get("user_name") is None
@@ -312,6 +366,7 @@ def test_adw_context_noexport(mock_client, mock_signer, key_encoding):
             "password": None,
             "service_name": None,
             "wallet_location": None,
+            "dsn": None,
         }
 
 
@@ -413,6 +468,7 @@ def test_adw_with_wallet_storage_decode(
             "password": key_encoding_with_wallet.credentials.password,
             "service_name": key_encoding_with_wallet.credentials.service_name,
             "wallet_location": f"{os.path.join(wallet_dir,'wallet.zip')}",
+            "dsn": None,
         }
 
         # with open(key_encoding_with_wallet[3], "rb") as orgfile:
@@ -449,6 +505,7 @@ def test_adw_with_wallet_storage_context_manager(
                 "password": key_encoding_with_wallet.credentials.password,
                 "service_name": key_encoding_with_wallet.credentials.service_name,
                 "wallet_location": f"{os.path.join(wallet_dir,'wallet.zip')}",
+                "dsn": None,
             }
             assert (
                 os.environ.get("user_name")
@@ -472,6 +529,7 @@ def test_adw_with_wallet_storage_context_manager(
             "password": None,
             "service_name": None,
             "wallet_location": None,
+            "dsn": None,
         }
         assert os.environ.get("user_name") is None
         assert os.environ.get("password") is None
@@ -508,6 +566,7 @@ def test_adw_with_wallet_storage_context_manager_namespace(
                 "password": key_encoding_with_wallet.credentials.password,
                 "service_name": key_encoding_with_wallet.credentials.service_name,
                 "wallet_location": f"{os.path.join(wallet_dir,'wallet.zip')}",
+                "dsn": None,
             }
             assert (
                 os.environ.get("myapp.user_name")
@@ -531,6 +590,7 @@ def test_adw_with_wallet_storage_context_manager_namespace(
             "password": None,
             "service_name": None,
             "wallet_location": None,
+            "dsn": None,
         }
         assert os.environ.get("myapp.user_name") is None
         assert os.environ.get("myapp.password") is None
@@ -565,6 +625,7 @@ def test_adw_with_wallet_storage_context_manager_noexport(
                 "password": key_encoding_with_wallet.credentials.password,
                 "service_name": key_encoding_with_wallet.credentials.service_name,
                 "wallet_location": f"{os.path.join(wallet_dir,'wallet.zip')}",
+                "dsn": None,
             }
             assert os.environ.get("user_name") is None
             assert os.environ.get("password") is None
@@ -576,6 +637,7 @@ def test_adw_with_wallet_storage_context_manager_noexport(
             "password": None,
             "service_name": None,
             "wallet_location": None,
+            "dsn": None,
         }
 
 
@@ -730,6 +792,7 @@ def test_adw_with_wallet_storage_load_from_file(
                 "password": key_encoding_with_wallet.credentials.password,
                 "service_name": key_encoding_with_wallet.credentials.service_name,
                 "wallet_location": f"{os.path.join(wallet_dir,'wallet.zip')}",
+                "dsn": None,
             }
             assert (
                 os.environ.get("user_name")
@@ -753,6 +816,7 @@ def test_adw_with_wallet_storage_load_from_file(
             "password": None,
             "service_name": None,
             "wallet_location": None,
+            "dsn": None,
         }
         assert os.environ.get("user_name") is None
         assert os.environ.get("password") is None
@@ -786,6 +850,7 @@ def test_adw_with_wallet_storage_load_from_file(
                 "password": key_encoding_with_wallet.credentials.password,
                 "service_name": key_encoding_with_wallet.credentials.service_name,
                 "wallet_location": f"{os.path.join(wallet_dir,'wallet.zip')}",
+                "dsn": None,
             }
             assert (
                 os.environ.get("user_name")
@@ -809,6 +874,7 @@ def test_adw_with_wallet_storage_load_from_file(
             "password": None,
             "service_name": None,
             "wallet_location": None,
+            "dsn": None,
         }
         assert os.environ.get("user_name") is None
         assert os.environ.get("password") is None

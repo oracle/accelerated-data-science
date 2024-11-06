@@ -7,7 +7,6 @@ import os
 import re
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import asdict, fields
 from datetime import datetime, timedelta
 from pathlib import Path
 from threading import Lock
@@ -46,7 +45,6 @@ from ads.aqua.common.utils import (
     upload_local_to_os,
 )
 from ads.aqua.config.config import get_evaluation_service_config
-from ads.aqua.config.evaluation.evaluation_service_config import EvaluationServiceConfig
 from ads.aqua.constants import (
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     EVALUATION_REPORT,
@@ -75,7 +73,6 @@ from ads.aqua.evaluation.entities import (
     AquaEvaluationSummary,
     AquaResourceIdentifier,
     CreateAquaEvaluationDetails,
-    ModelParams,
 )
 from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
 from ads.aqua.ui import AquaContainerConfig
@@ -161,10 +158,11 @@ class AquaEvaluationApp(AquaApp):
             try:
                 create_aqua_evaluation_details = CreateAquaEvaluationDetails(**kwargs)
             except Exception as ex:
+                custom_errors = {
+                    ".".join(map(str, e["loc"])): e["msg"] for e in json.loads(ex.json())
+                }
                 raise AquaValueError(
-                    "Invalid create evaluation parameters. "
-                    "Allowable parameters are: "
-                    f"{', '.join([field.name for field in fields(CreateAquaEvaluationDetails)])}."
+                    f"Invalid create evaluation parameters. Error details: {custom_errors}."
                 ) from ex
 
         if not is_valid_ocid(create_aqua_evaluation_details.evaluation_source_id):
@@ -175,15 +173,7 @@ class AquaEvaluationApp(AquaApp):
 
         # The model to evaluate
         evaluation_source = None
-        # The evaluation service config
-        evaluation_config: EvaluationServiceConfig = get_evaluation_service_config()
-        # The evaluation inference configuration. The inference configuration will be extracted
-        # based on the inferencing container family.
         eval_inference_configuration: Dict = {}
-        # The evaluation inference model sampling params. The system parameters that will not be
-        # visible for user, but will be applied implicitly for evaluation. The service model params
-        # will be extracted based on the container family and version.
-        eval_inference_service_model_params: Dict = {}
 
         if (
             DataScienceResource.MODEL_DEPLOYMENT
@@ -200,29 +190,14 @@ class AquaEvaluationApp(AquaApp):
                     runtime = ModelDeploymentContainerRuntime.from_dict(
                         evaluation_source.runtime.to_dict()
                     )
-                    container_config = AquaContainerConfig.from_container_index_json(
+                    inference_config = AquaContainerConfig.from_container_index_json(
                         enable_spec=True
-                    )
-                    for (
-                        inference_container_family,
-                        inference_container_info,
-                    ) in container_config.inference.items():
-                        if (
-                            inference_container_info.name
-                            == runtime.image[: runtime.image.rfind(":")]
-                        ):
+                    ).inference
+                    for container in inference_config.values():
+                        if container.name == runtime.image[: runtime.image.rfind(":")]:
                             eval_inference_configuration = (
-                                evaluation_config.get_merged_inference_params(
-                                    inference_container_family
-                                ).to_dict()
+                                container.spec.evaluation_configuration
                             )
-                            eval_inference_service_model_params = (
-                                evaluation_config.get_merged_inference_model_params(
-                                    inference_container_family,
-                                    inference_container_info.version,
-                                )
-                            )
-
             except Exception:
                 logger.debug(
                     f"Could not load inference config details for the evaluation source id: "
@@ -277,19 +252,12 @@ class AquaEvaluationApp(AquaApp):
             )
             evaluation_dataset_path = dst_uri
 
-        evaluation_model_parameters = None
-        try:
-            evaluation_model_parameters = AquaEvalParams(
-                shape=create_aqua_evaluation_details.shape_name,
-                dataset_path=evaluation_dataset_path,
-                report_path=create_aqua_evaluation_details.report_path,
-                **create_aqua_evaluation_details.model_parameters,
-            )
-        except Exception as ex:
-            raise AquaValueError(
-                "Invalid model parameters. Model parameters should "
-                f"be a dictionary with keys: {', '.join(list(ModelParams.__annotations__.keys()))}."
-            ) from ex
+        evaluation_model_parameters = AquaEvalParams(
+            shape=create_aqua_evaluation_details.shape_name,
+            dataset_path=evaluation_dataset_path,
+            report_path=create_aqua_evaluation_details.report_path,
+            **create_aqua_evaluation_details.model_parameters,
+        )
 
         target_compartment = (
             create_aqua_evaluation_details.compartment_id or COMPARTMENT_OCID
@@ -370,7 +338,7 @@ class AquaEvaluationApp(AquaApp):
         evaluation_model_taxonomy_metadata = ModelTaxonomyMetadata()
         evaluation_model_taxonomy_metadata[
             MetadataTaxonomyKeys.HYPERPARAMETERS
-        ].value = {"model_params": dict(asdict(evaluation_model_parameters))}
+        ].value = {"model_params": evaluation_model_parameters.to_dict()}
 
         evaluation_model = (
             DataScienceModel()
@@ -443,7 +411,6 @@ class AquaEvaluationApp(AquaApp):
                 dataset_path=evaluation_dataset_path,
                 report_path=create_aqua_evaluation_details.report_path,
                 model_parameters={
-                    **eval_inference_service_model_params,
                     **create_aqua_evaluation_details.model_parameters,
                 },
                 metrics=create_aqua_evaluation_details.metrics,
@@ -580,16 +547,14 @@ class AquaEvaluationApp(AquaApp):
                 **{
                     "AIP_SMC_EVALUATION_ARGUMENTS": json.dumps(
                         {
-                            **asdict(
-                                self._build_launch_cmd(
-                                    evaluation_id=evaluation_id,
-                                    evaluation_source_id=evaluation_source_id,
-                                    dataset_path=dataset_path,
-                                    report_path=report_path,
-                                    model_parameters=model_parameters,
-                                    metrics=metrics,
-                                ),
-                            ),
+                            **self._build_launch_cmd(
+                                evaluation_id=evaluation_id,
+                                evaluation_source_id=evaluation_source_id,
+                                dataset_path=dataset_path,
+                                report_path=report_path,
+                                model_parameters=model_parameters,
+                                metrics=metrics,
+                            ).to_dict(),
                             **(inference_configuration or {}),
                         },
                     ),
@@ -662,9 +627,9 @@ class AquaEvaluationApp(AquaApp):
                 "format": Path(dataset_path).suffix,
                 "url": dataset_path,
             },
-            metrics=metrics,
+            metrics=metrics or [],
             output_dir=report_path,
-            params=model_parameters,
+            params=model_parameters or {},
         )
 
     @telemetry(entry_point="plugin=evaluation&action=get", name="aqua")
