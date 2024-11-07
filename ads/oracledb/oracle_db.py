@@ -342,5 +342,5 @@ def get_adw_connection(vault_secret_id: str) -> "oracledb.Connection":
     password = creds.pop("password", None)
     if not user or not password:
         raise ValueError(f"The user or password is missing in {secret}")
-    logging.getLogger().debug(f"Downloaded secrets from: {secret}")
+    logging.getLogger().debug("Downloaded secrets successfully.")
     return oracledb.connect(user=user, password=password, **creds)
