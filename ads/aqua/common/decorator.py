@@ -69,6 +69,12 @@ def handle_exceptions(func):
                 reason=error.message,
                 service_payload=error.args[0] if error.args else None,
                 exc_info=sys.exc_info(),
+                aqua_api_details=dict(
+                    # __qualname__ gives information of class and name of api
+                    aqua_api_name=func.__qualname__,
+                    oci_api_name=error.operation_name,
+                    service_endpoint=error.request_endpoint
+                )
             )
         except (
             ClientError,
