@@ -10,11 +10,15 @@ from typing import Dict, List, Optional, Set, Union
 import oci
 from cachetools import TTLCache
 from huggingface_hub import snapshot_download
-from oci.data_science.models import JobRun, Model
+from oci.data_science.models import JobRun, Metadata, Model, UpdateModelDetails
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
-from ads.aqua.common.enums import InferenceContainerTypeFamily, Tags
+from ads.aqua.common.enums import (
+    FineTuningContainerTypeFamily,
+    InferenceContainerTypeFamily,
+    Tags,
+)
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     LifecycleStatus,
@@ -23,6 +27,7 @@ from ads.aqua.common.utils import (
     create_word_icon,
     generate_tei_cmd_var,
     get_artifact_path,
+    get_container_config,
     get_hf_model_info,
     list_os_files_with_extension,
     load_config,
@@ -78,7 +83,11 @@ from ads.config import (
     TENANCY_OCID,
 )
 from ads.model import DataScienceModel
-from ads.model.model_metadata import ModelCustomMetadata, ModelCustomMetadataItem
+from ads.model.model_metadata import (
+    MetadataCustomCategory,
+    ModelCustomMetadata,
+    ModelCustomMetadataItem,
+)
 from ads.telemetry import telemetry
 
 
@@ -332,6 +341,96 @@ class AquaModelApp(AquaApp):
             )
 
         return model_details
+
+    @telemetry(entry_point="plugin=model&action=delete", name="aqua")
+    def delete_model(self, model_id):
+        ds_model = DataScienceModel.from_id(model_id)
+        is_registered_model = ds_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None)
+        is_fine_tuned_model = ds_model.freeform_tags.get(
+            Tags.AQUA_FINE_TUNED_MODEL_TAG, None
+        )
+        if is_registered_model or is_fine_tuned_model:
+            return ds_model.delete()
+        else:
+            raise AquaRuntimeError(
+                f"Failed to delete model:{model_id}. Only registered models or finetuned model can be deleted."
+            )
+
+    @telemetry(entry_point="plugin=model&action=delete", name="aqua")
+    def edit_registered_model(self, id, inference_container, enable_finetuning, task):
+        """Edits the default config of unverified registered model.
+
+        Parameters
+        ----------
+        id: str
+            The model OCID.
+        inference_container: str.
+            The inference container family name
+        enable_finetuning: str
+            Flag to enable or disable finetuning over the model. Defaults to None
+        task:
+            The usecase type of the model. e.g , text-generation , text_embedding etc.
+
+        Returns
+        -------
+        Model:
+            The instance of oci.data_science.models.Model.
+
+        """
+        ds_model = DataScienceModel.from_id(id)
+        if ds_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None):
+            if ds_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, None):
+                raise AquaRuntimeError(
+                    f"Failed to edit model:{id}. Only registered unverified models can be edited."
+                )
+            else:
+                custom_metadata_list = ds_model.custom_metadata_list
+                freeform_tags = ds_model.freeform_tags
+                if inference_container:
+                    custom_metadata_list.add(
+                        key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
+                        value=inference_container,
+                        category=MetadataCustomCategory.OTHER,
+                        description="Deployment container mapping for SMC",
+                        replace=True,
+                    )
+                if enable_finetuning is not None:
+                    if enable_finetuning.lower() == "true":
+                        custom_metadata_list.add(
+                            key=ModelCustomMetadataFields.FINETUNE_CONTAINER,
+                            value=FineTuningContainerTypeFamily.AQUA_FINETUNING_CONTAINER_FAMILY,
+                            category=MetadataCustomCategory.OTHER,
+                            description="Fine-tuning container mapping for SMC",
+                            replace=True,
+                        )
+                        freeform_tags.update({Tags.READY_TO_FINE_TUNE: "true"})
+                    elif enable_finetuning.lower() == "false":
+                        try:
+                            custom_metadata_list.remove(
+                                ModelCustomMetadataFields.FINETUNE_CONTAINER
+                            )
+                            freeform_tags.pop(Tags.READY_TO_FINE_TUNE)
+                        except Exception as ex:
+                            raise AquaRuntimeError(
+                                f"The given model already doesn't support finetuning: {ex}"
+                            )
+
+                custom_metadata_list.remove("modelDescription")
+                if task:
+                    freeform_tags.update({Tags.TASK: task})
+                updated_custom_metadata_list = [
+                    Metadata(**metadata)
+                    for metadata in custom_metadata_list.to_dict()["data"]
+                ]
+                update_model_details = UpdateModelDetails(
+                    custom_metadata_list=updated_custom_metadata_list,
+                    freeform_tags=freeform_tags,
+                )
+                AquaApp().update_model(id, update_model_details)
+        else:
+            raise AquaRuntimeError(
+                f"Failed to edit model:{id}. Only registered unverified models can be edited."
+            )
 
     def _fetch_metric_from_metadata(
         self,
@@ -628,6 +727,32 @@ class AquaModelApp(AquaApp):
                     "cache_deleted": True,
                 }
         return res
+
+    def clear_model_details_cache(self, model_id):
+        """
+        Allows user to clear model details cache item
+        Returns
+        -------
+            dict with the key used, and True if cache has the key that needs to be deleted.
+        """
+        res = {}
+        logger.info(f"Clearing _service_model_details_cache for {model_id}")
+        with self._cache_lock:
+            if model_id in self._service_model_details_cache:
+                self._service_model_details_cache.pop(key=model_id)
+                res = {"key": {"model_id": model_id}, "cache_deleted": True}
+
+        return res
+
+    @staticmethod
+    def list_valid_inference_containers():
+        containers = list(
+            AquaContainerConfig.from_container_index_json(
+                config=get_container_config(), enable_spec=True
+            ).inference.values()
+        )
+        family_values = [item.family for item in containers]
+        return family_values
 
     def _create_model_catalog_entry(
         self,
