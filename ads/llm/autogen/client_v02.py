@@ -88,13 +88,17 @@ class LangChainModelClient(ModelClient):
     def __init__(self, config: dict, **kwargs) -> None:
         super().__init__()
         logger.info("LangChain model client config: %s", str(config))
-        # Make a copy of the config since we are popping the keys
+        # Make a copy of the config since we are popping some keys
         config = copy.deepcopy(config)
+        # model_client_cls will always be LangChainModelClient
         self.client_class = config.pop("model_client_cls")
 
-        self.function_call_params = config.pop("function_call_params", {})
+        # model_name is used in constructing the response.
+        self.model_name = config.get("model", "")
 
-        self.model_name = config.get("model")
+        # If the config specified function_call_params,
+        # Pop the params and use them only for tool calling.
+        self.function_call_params = config.pop("function_call_params", {})
 
         # Import the LangChain class
         if "langchain_cls" not in config:
@@ -104,8 +108,13 @@ class LangChainModelClient(ModelClient):
         langchain_module = importlib.import_module(module_name)
         langchain_cls = getattr(langchain_module, cls_name)
 
+        # If the config specified client_params,
+        # Only use the client_params to initialize the LangChain model.
+        # Otherwise, use the config
+        self.client_params = config.get("client_params", config)
+
         # Initialize the LangChain client
-        self.model = langchain_cls(**config)
+        self.model = langchain_cls(**self.client_params)
 
     def create(self, params) -> ModelClient.ModelClientResponseProtocol:
         """Creates a LLM completion for a given config.
