@@ -366,7 +366,7 @@ class DatasetFactory:
             display(
                 HTML(
                     list_df.style.set_table_attributes("class=table")
-                    .hide_index()
+                    .hide()
                     .to_html()
                 )
             )
