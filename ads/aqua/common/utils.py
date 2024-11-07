@@ -5,6 +5,7 @@
 
 import asyncio
 import base64
+import concurrent.futures
 import json
 import logging
 import os
@@ -615,6 +616,12 @@ def fetch_service_compartment() -> Union[str, None]:
             file_path=config_file_name,
             config_file_name=CONTAINER_INDEX,
         )
+    except concurrent.futures.TimeoutError:
+        logger.debug(
+            "If you are using custom networking in your notebook session, "
+            "please check if the subnet has service gateway configured."
+        )
+        return
     except Exception as e:
         logger.debug(
             f"Config file {config_file_name}/{CONTAINER_INDEX} to fetch service compartment OCID "
