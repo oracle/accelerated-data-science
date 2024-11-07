@@ -336,7 +336,7 @@ def get_adw_connection(vault_secret_id: str) -> "oracledb.Connection":
 
     secret = vault_secret_id
 
-    logging.getLogger().debug(f"The secret id is: {secret}")
+    logging.getLogger().debug("A secret id was used to retrieve credentials.")
     creds = ADBSecretKeeper.load_secret(secret).to_dict()
     user = creds.pop("user_name", None)
     password = creds.pop("password", None)
