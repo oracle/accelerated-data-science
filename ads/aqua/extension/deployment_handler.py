@@ -55,6 +55,33 @@ class AquaDeploymentHandler(AquaAPIhandler):
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
     @handle_exceptions
+    def delete(self, model_deployment_id):
+        return self.finish(AquaDeploymentApp().delete(model_deployment_id))
+
+    @handle_exceptions
+    def put(self, *args, **kwargs):
+        """
+        Handles put request for the activating and deactivating OCI datascience model deployments
+        Raises
+        ------
+        HTTPError
+            Raises HTTPError if inputs are missing or are invalid
+        """
+        url_parse = urlparse(self.request.path)
+        paths = url_parse.path.strip("/").split("/")
+        if len(paths) != 4 or paths[0] != "aqua" or paths[1] != "deployments":
+            raise HTTPError(400, f"The request {self.request.path} is invalid.")
+
+        model_deployment_id = paths[2]
+        action = paths[3]
+        if action == "activate":
+            return self.finish(AquaDeploymentApp().activate(model_deployment_id))
+        elif action == "deactivate":
+            return self.finish(AquaDeploymentApp().deactivate(model_deployment_id))
+        else:
+            raise HTTPError(400, f"The request {self.request.path} is invalid.")
+
+    @handle_exceptions
     def post(self, *args, **kwargs):
         """
         Handles post request for the deployment APIs
@@ -103,6 +130,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
         memory_in_gbs = input_data.get("memory_in_gbs")
         model_file = input_data.get("model_file")
         private_endpoint_id = input_data.get("private_endpoint_id")
+        container_image_uri = input_data.get("container_image_uri")
+        cmd_var = input_data.get("cmd_var")
 
         self.finish(
             AquaDeploymentApp().create(
@@ -126,6 +155,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
                 memory_in_gbs=memory_in_gbs,
                 model_file=model_file,
                 private_endpoint_id=private_endpoint_id,
+                container_image_uri=container_image_uri,
+                cmd_var=cmd_var,
             )
         )
 
@@ -266,5 +297,7 @@ __handlers__ = [
     ("deployments/?([^/]*)/params", AquaDeploymentParamsHandler),
     ("deployments/config/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)", AquaDeploymentHandler),
+    ("deployments/?([^/]*)/activate", AquaDeploymentHandler),
+    ("deployments/?([^/]*)/deactivate", AquaDeploymentHandler),
     ("inference", AquaDeploymentInferenceHandler),
 ]

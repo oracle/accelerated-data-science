@@ -2,6 +2,14 @@
 Release Notes
 =============
 
+2.12.4
+-------
+Release date: November 7, 2024
+
+* Upgraded automlx to 24.4.0.
+* Added support to input DSN in ADW secret to allow for TLS connections.
+* Introduced enhancements for AI Quick Actions to support BYOC deployment of embedding models, and additional APIs to update user created models and deployments.
+
 2.12.3
 -------
 Release date: October 29, 2024
