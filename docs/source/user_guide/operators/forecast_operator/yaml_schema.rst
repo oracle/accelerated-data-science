@@ -51,7 +51,7 @@ Below is an example of a ``forecast.yaml`` file with every parameter specified:
         * **format**: (Optional) Specify the format for output data (e.g., ``csv``, ``json``, ``excel``).
         * **options**: (Optional) Include any additional arguments, such as connection parameters for storage.
 
-    * **model**: (Optional) The name of the model framework to use. Defaults to ``auto-select``. Available options include ``arima``, ``lgbforecaster``, ``prophet``, ``neuralprophet``, ``autots``, and ``auto-select``.
+    * **model**: (Optional) The name of the model framework to use. Defaults to ``auto-select``. Available options include ``arima``, ``prophet``, ``neuralprophet``, ``autots``, and ``auto-select``.
 
     * **model_kwargs**: (Optional) A dictionary of arguments to pass directly to the model framework, allowing for detailed control over modeling.
 

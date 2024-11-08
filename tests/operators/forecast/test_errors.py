@@ -141,8 +141,7 @@ MODELS = [
     "prophet",
     "neuralprophet",
     "autots",
-    "lgbforecast",
-    # "auto",
+    # "lgbforecast",
 ]
 
 TEMPLATE_YAML = {
@@ -687,7 +686,7 @@ def test_arima_automlx_errors(operator_setup, model):
                 in error_content["13"]["error"]
             ), "Error message mismatch"
 
-    if model not in ["autots", "automlx", "lgbforecast"]:
+    if model not in ["autots", "automlx"]:  # , "lgbforecast"
         global_fn = f"{tmpdirname}/results/global_explanation.csv"
         assert os.path.exists(
             global_fn
