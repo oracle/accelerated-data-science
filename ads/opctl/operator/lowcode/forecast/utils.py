@@ -19,10 +19,9 @@ from sklearn.metrics import (
     mean_absolute_percentage_error,
     mean_squared_error,
 )
-try:
-    from scipy.stats import linregress
-except:
-    from sklearn.metrics import r2_score
+
+from scipy.stats import linregress
+from sklearn.metrics import r2_score
 
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.dataset.label_encoder import DataFrameLabelEncoder
