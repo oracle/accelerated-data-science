@@ -2,6 +2,12 @@
 Release Notes
 =============
 
+2.12.5
+-------
+Release date: November 10, 2024
+
+* Fixed bugs in the AI Quick Actions Evaluation.
+
 2.12.4
 -------
 Release date: November 7, 2024
@@ -131,7 +137,7 @@ Release date: April 24, 2024
 Release date: April 18, 2024
 
 * Fixed the bug in ``ADSDataset.show_in_notebook()``.
-* Updated langchain version. 
+* Updated langchain version.
 
 
 2.11.6
