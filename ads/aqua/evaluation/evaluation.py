@@ -1305,7 +1305,7 @@ class AquaEvaluationApp(AquaApp):
             "id": model_id,
             "name": model.display_name,
             "console_url": console_url,
-            "time_created": model.time_created,
+            "time_created": str(model.time_created),
             "tags": tags,
             "experiment": self._build_resource_identifier(
                 id=experiment_id,
