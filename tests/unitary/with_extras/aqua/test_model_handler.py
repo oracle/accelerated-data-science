@@ -132,10 +132,10 @@ class ModelHandlerTestCase(TestCase):
 
     @parameterized.expand(
         [
-            (None, None, False, None),
-            ("odsc-llm-fine-tuning", None, False, None),
-            (None, "test.gguf", True, None),
-            (None, None, True, "iad.ocir.io/<namespace>/<image>:<tag>"),
+            (None, None, False, None, None, None),
+            ("odsc-llm-fine-tuning", None, False, None, None, ["test.json"]),
+            (None, "test.gguf", True, None, ["*.json"], None),
+            (None, None, True, "iad.ocir.io/<namespace>/<image>:<tag>", ["*.json"], ["test.json"]),
         ],
     )
     @patch("notebook.base.handlers.APIHandler.finish")
@@ -146,6 +146,8 @@ class ModelHandlerTestCase(TestCase):
         model_file,
         download_from_hf,
         inference_container_uri,
+        allow_patterns,
+        ignore_patterns,
         mock_register,
         mock_finish,
     ):
@@ -165,6 +167,8 @@ class ModelHandlerTestCase(TestCase):
                 model_file=model_file,
                 download_from_hf=download_from_hf,
                 inference_container_uri=inference_container_uri,
+                allow_patterns=allow_patterns,
+                ignore_patterns=ignore_patterns
             )
         )
         result = self.model_handler.post()
@@ -178,6 +182,8 @@ class ModelHandlerTestCase(TestCase):
             model_file=model_file,
             download_from_hf=download_from_hf,
             inference_container_uri=inference_container_uri,
+            allow_patterns=allow_patterns,
+            ignore_patterns=ignore_patterns
         )
         assert result["id"] == "test_id"
         assert result["inference_container"] == "odsc-tgi-serving"
