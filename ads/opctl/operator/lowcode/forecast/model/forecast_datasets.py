@@ -97,7 +97,8 @@ class AdditionalData(AbstractData):
         )
         self.additional_regressors = []
 
-    def _ingest_data(self):
+    def _ingest_data(self, spec):
+        _spec = spec
         self.additional_regressors = list(self.data.columns)
         if not self.additional_regressors:
             logger.warn(
