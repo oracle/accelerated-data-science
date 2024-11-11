@@ -3,6 +3,7 @@
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import logging
 import os
 import tempfile
 import time
@@ -12,6 +13,7 @@ from typing import Tuple
 import fsspec
 import numpy as np
 import pandas as pd
+import report_creator as rc
 from sklearn import linear_model
 
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -32,6 +34,8 @@ from ads.opctl.operator.lowcode.common.utils import (
 from ..const import NonTimeADSupportedModels, SupportedModels
 from ..operator_config import AnomalyOperatorConfig, AnomalyOperatorSpec
 from .anomaly_dataset import AnomalyDatasets, AnomalyOutput, TestData
+
+logging.getLogger("report_creator").setLevel(logging.WARNING)
 
 
 class AnomalyOperatorBaseModel(ABC):
@@ -59,8 +63,8 @@ class AnomalyOperatorBaseModel(ABC):
     def generate_report(self):
         """Generates the report."""
         import matplotlib.pyplot as plt
-        plt.rcParams.update({'figure.max_open_warning': 0})
-        import report_creator as rc
+
+        plt.rcParams.update({"figure.max_open_warning": 0})
 
         start_time = time.time()
         # fallback using sklearn oneclasssvm when the sub model _build_model fails
@@ -84,7 +88,13 @@ class AnomalyOperatorBaseModel(ABC):
                 anomaly_output, test_data, elapsed_time
             )
         table_blocks = [
-            rc.DataTable(df.head(SUBSAMPLE_THRESHOLD) if self.spec.subsample_report_data and len(df) > SUBSAMPLE_THRESHOLD else df, label=col, index=True)
+            rc.DataTable(
+                df.head(SUBSAMPLE_THRESHOLD)
+                if self.spec.subsample_report_data and len(df) > SUBSAMPLE_THRESHOLD
+                else df,
+                label=col,
+                index=True,
+            )
             for col, df in self.datasets.full_data_dict.items()
         ]
         data_table = rc.Select(blocks=table_blocks)
@@ -144,7 +154,9 @@ class AnomalyOperatorBaseModel(ABC):
             else:
                 figure_blocks = None
 
-            blocks.append(rc.Group(*figure_blocks, label=target)) if figure_blocks else None
+            blocks.append(
+                rc.Group(*figure_blocks, label=target)
+            ) if figure_blocks else None
         plots = rc.Select(blocks)
 
         report_sections = []
@@ -154,7 +166,9 @@ class AnomalyOperatorBaseModel(ABC):
         yaml_appendix = rc.Yaml(self.config.to_dict())
         summary = rc.Block(
             rc.Group(
-                rc.Text(f"You selected the **`{self.spec.model}`** model.\n{model_description.text}\n"),
+                rc.Text(
+                    f"You selected the **`{self.spec.model}`** model.\n{model_description.text}\n"
+                ),
                 rc.Text(
                     "Based on your dataset, you could have also selected "
                     f"any of the models: `{'`, `'.join(SupportedModels.keys() if self.spec.datetime_column else NonTimeADSupportedModels.keys())}`."
@@ -285,8 +299,6 @@ class AnomalyOperatorBaseModel(ABC):
         test_metrics: pd.DataFrame,
     ):
         """Saves resulting reports to the given folder."""
-        import report_creator as rc
-
         unique_output_dir = self.spec.output_directory.url
 
         if ObjectStorageDetails.is_oci_path(unique_output_dir):
