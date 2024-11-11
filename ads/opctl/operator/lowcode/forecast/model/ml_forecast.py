@@ -193,7 +193,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
         import report_creator as rc
         from utilsforecast.plotting import plot_series
 
-        logging.getLogger("report_creator").setLevel(logging.WARNING)
+        logging.getLogger("root").setLevel(logging.WARNING)
 
         # Section 1: Forecast Overview
         sec1_text = rc.Block(

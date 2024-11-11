@@ -243,7 +243,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         import report_creator as rc
         from prophet.plot import add_changepoints_to_plot
 
-        logging.getLogger("report_creator").setLevel(logging.WARNING)
+        logging.getLogger("root").setLevel(logging.WARNING)
 
         series_ids = self.models.keys()
         all_sections = []

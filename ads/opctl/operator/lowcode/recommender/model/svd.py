@@ -16,7 +16,7 @@ from ..operator_config import RecommenderOperatorConfig
 from .factory import RecommenderOperatorBaseModel
 from .recommender_dataset import RecommenderDatasets
 
-logging.getLogger("report_creator").setLevel(logging.WARNING)
+logging.getLogger("root").setLevel(logging.WARNING)
 
 
 class SVDOperatorModel(RecommenderOperatorBaseModel):

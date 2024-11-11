@@ -20,7 +20,7 @@ from ..operator_config import ForecastOperatorConfig
 from .base_model import ForecastOperatorBaseModel
 from .forecast_datasets import ForecastDatasets, ForecastOutput
 
-logging.getLogger("report_creator").setLevel(logging.WARNING)
+logging.getLogger("root").setLevel(logging.WARNING)
 
 
 class ArimaOperatorModel(ForecastOperatorBaseModel):

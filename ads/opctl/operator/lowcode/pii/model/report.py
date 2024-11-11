@@ -46,7 +46,7 @@ except ImportError as e:
         f"`pip install {OptionalDependency.PII}`."
     ) from e
 
-logging.getLogger("report_creator").setLevel(logging.WARNING)
+logging.getLogger("root").setLevel(logging.WARNING)
 
 
 @dataclass(repr=True)

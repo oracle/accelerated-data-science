@@ -24,7 +24,7 @@ from ..operator_config import ForecastOperatorConfig
 from .base_model import ForecastOperatorBaseModel
 from .forecast_datasets import ForecastDatasets, ForecastOutput
 
-logging.getLogger("report_creator").setLevel(logging.WARNING)
+logging.getLogger("root").setLevel(logging.WARNING)
 AUTOMLX_N_ALGOS_TUNED = 4
 AUTOMLX_DEFAULT_SCORE_METRIC = "neg_sym_mean_abs_percent_error"
 
