@@ -202,7 +202,7 @@ class ADSDataset(PandasDataset):
                     self.sampled_df.head(5)
                     .style.set_table_styles(utils.get_dataframe_styles())
                     .set_table_attributes("class=table")
-                    .hide_index()
+                    .hide()
                     .to_html()
                 )
             )
@@ -261,7 +261,7 @@ class ADSDataset(PandasDataset):
                         utils.horizontal_scrollable_div(
                             self.style.set_table_styles(utils.get_dataframe_styles())
                             .set_table_attributes("class=table")
-                            .hide_index()
+                            .hide()
                             .to_html()
                         )
                     )

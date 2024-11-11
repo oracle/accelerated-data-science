@@ -2,6 +2,20 @@
 Release Notes
 =============
 
+2.12.5
+-------
+Release date: November 10, 2024
+
+* Fixed bugs in the AI Quick Actions Evaluation.
+
+2.12.4
+-------
+Release date: November 7, 2024
+
+* Upgraded automlx to 24.4.0.
+* Added support to input DSN in ADW secret to allow for TLS connections.
+* Introduced enhancements for AI Quick Actions to support BYOC deployment of embedding models, and additional APIs to update user created models and deployments.
+
 2.12.3
 -------
 Release date: October 29, 2024
@@ -123,7 +137,7 @@ Release date: April 24, 2024
 Release date: April 18, 2024
 
 * Fixed the bug in ``ADSDataset.show_in_notebook()``.
-* Updated langchain version. 
+* Updated langchain version.
 
 
 2.11.6

@@ -532,6 +532,18 @@ class AquaDeploymentApp(AquaApp):
 
         return results
 
+    @telemetry(entry_point="plugin=deployment&action=delete", name="aqua")
+    def delete(self,model_deployment_id:str):
+        return self.ds_client.delete_model_deployment(model_deployment_id=model_deployment_id).data
+
+    @telemetry(entry_point="plugin=deployment&action=deactivate",name="aqua")
+    def deactivate(self,model_deployment_id:str):
+        return self.ds_client.deactivate_model_deployment(model_deployment_id=model_deployment_id).data
+
+    @telemetry(entry_point="plugin=deployment&action=activate",name="aqua")
+    def activate(self,model_deployment_id:str):
+        return self.ds_client.activate_model_deployment(model_deployment_id=model_deployment_id).data
+
     @telemetry(entry_point="plugin=deployment&action=get", name="aqua")
     def get(self, model_deployment_id: str, **kwargs) -> "AquaDeploymentDetail":
         """Gets the information of Aqua model deployment.

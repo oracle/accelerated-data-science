@@ -10,6 +10,7 @@ import pytest
 from huggingface_hub.hf_api import HfApi, ModelInfo
 from huggingface_hub.utils import GatedRepoError
 from notebook.base.handlers import IPythonHandler
+from parameterized import parameterized
 
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import get_hf_model_info
@@ -19,7 +20,6 @@ from ads.aqua.extension.model_handler import (
     AquaModelLicenseHandler,
 )
 from ads.aqua.model import AquaModelApp
-from ads.aqua.model.constants import ModelTask
 from ads.aqua.model.entities import AquaModel, AquaModelSummary, HFModelSummary
 
 
@@ -79,6 +79,46 @@ class ModelHandlerTestCase(TestCase):
             mock_urlparse.assert_called()
             mock_clear_model_list_cache.assert_called()
 
+    @patch("ads.aqua.extension.model_handler.urlparse")
+    @patch.object(AquaModelApp, "delete_model")
+    def test_delete_with_id(self, mock_delete, mock_urlparse):
+        request_path = MagicMock(path="aqua/model/ocid1.datasciencemodel.oc1.iad.xxx")
+        mock_urlparse.return_value = request_path
+        mock_delete.return_value = {"state": "DELETED"}
+        with patch(
+            "ads.aqua.extension.base_handler.AquaAPIhandler.finish"
+        ) as mock_finish:
+            mock_finish.side_effect = lambda x: x
+            result = self.model_handler.delete(id="ocid1.datasciencemodel.oc1.iad.xxx")
+            assert result["state"] is "DELETED"
+            mock_urlparse.assert_called()
+            mock_delete.assert_called()
+
+    @patch.object(AquaModelApp, "list_valid_inference_containers")
+    @patch.object(AquaModelApp, "edit_registered_model")
+    def test_put(self, mock_edit, mock_inference_container_list):
+        mock_edit.return_value = None
+        mock_inference_container_list.return_value = [
+            "odsc-vllm-serving",
+            "odsc-tgi-serving",
+            "odsc-llama-cpp-serving",
+        ]
+        self.model_handler.get_json_body = MagicMock(
+            return_value=dict(
+                task="text_generation",
+                enable_finetuning="true",
+                inference_container="odsc-tgi-serving",
+            )
+        )
+        with patch(
+            "ads.aqua.extension.base_handler.AquaAPIhandler.finish"
+        ) as mock_finish:
+            mock_finish.side_effect = lambda x: x
+            result = self.model_handler.put(id="ocid1.datasciencemodel.oc1.iad.xxx")
+            assert result is None
+            mock_edit.assert_called_once()
+            mock_inference_container_list.assert_called_once()
+
     @patch.object(AquaModelApp, "list")
     def test_list(self, mock_list):
         with patch(
@@ -90,9 +130,25 @@ class ModelHandlerTestCase(TestCase):
                 compartment_id=None, project_id=None, model_type=None
             )
 
+    @parameterized.expand(
+        [
+            (None, None, False, None),
+            ("odsc-llm-fine-tuning", None, False, None),
+            (None, "test.gguf", True, None),
+            (None, None, True, "iad.ocir.io/<namespace>/<image>:<tag>"),
+        ],
+    )
     @patch("notebook.base.handlers.APIHandler.finish")
     @patch("ads.aqua.model.AquaModelApp.register")
-    def test_register(self, mock_register, mock_finish):
+    def test_register(
+        self,
+        finetuning_container,
+        model_file,
+        download_from_hf,
+        inference_container_uri,
+        mock_register,
+        mock_finish,
+    ):
         mock_register.return_value = AquaModel(
             id="test_id",
             inference_container="odsc-tgi-serving",
@@ -105,6 +161,10 @@ class ModelHandlerTestCase(TestCase):
                 model="test_model_name",
                 os_path="test_os_path",
                 inference_container="odsc-tgi-serving",
+                finetuning_container=finetuning_container,
+                model_file=model_file,
+                download_from_hf=download_from_hf,
+                inference_container_uri=inference_container_uri,
             )
         )
         result = self.model_handler.post()
@@ -112,11 +172,12 @@ class ModelHandlerTestCase(TestCase):
             model="test_model_name",
             os_path="test_os_path",
             inference_container="odsc-tgi-serving",
-            finetuning_container=None,
+            finetuning_container=finetuning_container,
             compartment_id=None,
             project_id=None,
-            model_file=None,
-            download_from_hf=False,
+            model_file=model_file,
+            download_from_hf=download_from_hf,
+            inference_container_uri=inference_container_uri,
         )
         assert result["id"] == "test_id"
         assert result["inference_container"] == "odsc-tgi-serving"
