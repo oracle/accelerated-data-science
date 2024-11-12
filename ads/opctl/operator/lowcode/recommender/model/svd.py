@@ -98,3 +98,9 @@ class SVDOperatorModel(RecommenderOperatorBaseModel):
         title = rc.Heading("Recommendations for new users", level=2)
         other_sections = [title, rc.DataTable(new_recommendations)]
         return (model_description, other_sections)
+
+    def _evaluation_metrics(self):
+        pass
+
+    def _test_data_evaluate_metrics(self):
+        pass
