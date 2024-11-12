@@ -1287,7 +1287,11 @@ class AquaModelApp(AquaApp):
         os_path (str): The OS path where the model files are located.
         local_dir (str): The local temp dir to store the huggingface model.
         allow_patterns (list): Model files matching at least one pattern are downloaded.
+            Example: ["*.json"] will download all .json files. ["folder/*"] will download all files under `folder`.
+            Patterns are Standard Wildcards (globbing patterns) and rules can be found here: https://docs.python.org/3/library/fnmatch.html
         ignore_patterns (list): Model files matching any of the patterns are not downloaded.
+            Example: ["*.json"] will ignore all .json files. ["folder/*"] will ignore all files under `folder`.
+            Patterns are Standard Wildcards (globbing patterns) and rules can be found here: https://docs.python.org/3/library/fnmatch.html
 
         Returns
         -------
@@ -1329,6 +1333,12 @@ class AquaModelApp(AquaApp):
                 os_path (str): Object storage destination URI to store the downloaded model. Format: oci://bucket-name@namespace/prefix
                 inference_container (str): selects service defaults
                 finetuning_container (str): selects service defaults
+                allow_patterns (list): Model files matching at least one pattern are downloaded.
+                    Example: ["*.json"] will download all .json files. ["folder/*"] will download all files under `folder`.
+                    Patterns are Standard Wildcards (globbing patterns) and rules can be found here: https://docs.python.org/3/library/fnmatch.html
+                ignore_patterns (list): Model files matching any of the patterns are not downloaded.
+                    Example: ["*.json"] will ignore all .json files. ["folder/*"] will ignore all files under `folder`.
+                    Patterns are Standard Wildcards (globbing patterns) and rules can be found here: https://docs.python.org/3/library/fnmatch.html
 
         Returns:
             AquaModel:
