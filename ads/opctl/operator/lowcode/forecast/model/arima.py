@@ -1,23 +1,26 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import logging
+import traceback
+
 import pandas as pd
-import numpy as np
 import pmdarima as pm
+import report_creator as rc
 from joblib import Parallel, delayed
 
 from ads.opctl import logger
-
-from ads.opctl.operator.lowcode.forecast.utils import _label_encode_dataframe
 from ads.opctl.operator.lowcode.common.utils import seconds_to_datetime
-from .base_model import ForecastOperatorBaseModel
-from ..operator_config import ForecastOperatorConfig
-import traceback
-from .forecast_datasets import ForecastDatasets, ForecastOutput
+from ads.opctl.operator.lowcode.forecast.utils import _label_encode_dataframe
+
 from ..const import ForecastOutputColumns, SupportedModels
+from ..operator_config import ForecastOperatorConfig
+from .base_model import ForecastOperatorBaseModel
+from .forecast_datasets import ForecastDatasets, ForecastOutput
+
+logging.getLogger("report_creator").setLevel(logging.WARNING)
 
 
 class ArimaOperatorModel(ForecastOperatorBaseModel):
@@ -39,7 +42,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             )
         model_kwargs = self.spec.model_kwargs
         model_kwargs["alpha"] = 1 - self.spec.confidence_interval_width
-        if "error_action" not in model_kwargs.keys():
+        if "error_action" not in model_kwargs:
             model_kwargs["error_action"] = "ignore"
         return model_kwargs
 
@@ -129,13 +132,14 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             self.errors_dict[s_id] = {
                 "model_name": self.spec.model,
                 "error": str(e),
-                "error_trace": traceback.format_exc()}
+                "error_trace": traceback.format_exc(),
+            }
             logger.warn(f"Encountered Error: {e}. Skipping.")
             logger.warn(traceback.format_exc())
 
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.datasets.get_data_by_series()
-        self.models = dict()
+        self.models = {}
         self.additional_regressors = self.datasets.get_additional_data_column_names()
         model_kwargs = self.set_kwargs()
         self.forecast_output = ForecastOutput(
@@ -154,8 +158,6 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
     def _generate_report(self):
         """The method that needs to be implemented on the particular model level."""
-        import report_creator as rc
-
         all_sections = []
         if len(self.models) > 0:
             sec5_text = rc.Heading("ARIMA Model Parameters", level=2)

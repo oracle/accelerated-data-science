@@ -121,23 +121,26 @@ class ModelEvaluator:
             from .model.factory import ForecastOperatorModelFactory
             metrics[model] = {}
             for i in range(len(cut_offs)):
-                backtest_historical_data = train_sets[i]
-                backtest_additional_data = additional_data[i]
-                backtest_test_data = test_sets[i]
-                backtest_operator_config = self.create_operator_config(operator_config, i, model,
-                                                                       backtest_historical_data,
-                                                                       backtest_additional_data,
-                                                                       backtest_test_data)
-                datasets = ForecastDatasets(backtest_operator_config)
-                ForecastOperatorModelFactory.get_model(
-                    backtest_operator_config, datasets
-                ).generate_report()
-                test_metrics_filename = backtest_operator_config.spec.test_metrics_filename
-                metrics_df = pd.read_csv(
-                    f"{backtest_operator_config.spec.output_directory.url}/{test_metrics_filename}")
-                metrics_df["average_across_series"] = metrics_df.drop('metrics', axis=1).mean(axis=1)
-                metrics_average_dict = dict(zip(metrics_df['metrics'].str.lower(), metrics_df['average_across_series']))
-                metrics[model][i] = metrics_average_dict[operator_config.spec.metric]
+                try:
+                    backtest_historical_data = train_sets[i]
+                    backtest_additional_data = additional_data[i]
+                    backtest_test_data = test_sets[i]
+                    backtest_operator_config = self.create_operator_config(operator_config, i, model,
+                                                                           backtest_historical_data,
+                                                                           backtest_additional_data,
+                                                                           backtest_test_data)
+                    datasets = ForecastDatasets(backtest_operator_config)
+                    ForecastOperatorModelFactory.get_model(
+                        backtest_operator_config, datasets
+                    ).generate_report()
+                    test_metrics_filename = backtest_operator_config.spec.test_metrics_filename
+                    metrics_df = pd.read_csv(
+                        f"{backtest_operator_config.spec.output_directory.url}/{test_metrics_filename}")
+                    metrics_df["average_across_series"] = metrics_df.drop('metrics', axis=1).mean(axis=1)
+                    metrics_average_dict = dict(zip(metrics_df['metrics'].str.lower(), metrics_df['average_across_series']))
+                    metrics[model][i] = metrics_average_dict[operator_config.spec.metric]
+                except:
+                    logger.warn(f"Failed to calculate metrics for {model} and {i} backtest")
         return metrics
 
     def find_best_model(self, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig):
@@ -147,10 +150,12 @@ class ModelEvaluator:
             model = SupportedModels.Prophet
             logger.error(f"Running {model} model as auto-select failed with the following error: {e.message}")
             return model
-        avg_backtests_metrics = {key: sum(value.values()) / len(value.values()) for key, value in metrics.items()}
-        best_model = min(avg_backtests_metrics, key=avg_backtests_metrics.get)
+        nonempty_metrics = {model: metric for model, metric in metrics.items() if metric != {}}
+        avg_backtests_metric = {model: sum(value.values()) / len(value.values())
+                                for model, value in nonempty_metrics.items()}
+        best_model = min(avg_backtests_metric, key=avg_backtests_metric.get)
         logger.info(f"Among models {self.models}, {best_model} model shows better performance during backtesting.")
-        backtest_stats = pd.DataFrame(metrics).rename_axis('backtest')
+        backtest_stats = pd.DataFrame(nonempty_metrics).rename_axis('backtest')
         backtest_stats.reset_index(inplace=True)
         output_dir = operator_config.spec.output_directory.url
         backtest_report_name = "backtest_stats.csv"

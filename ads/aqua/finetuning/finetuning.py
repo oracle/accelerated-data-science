@@ -31,7 +31,10 @@ from ads.aqua.constants import (
     UNKNOWN_DICT,
 )
 from ads.aqua.data import AquaResourceIdentifier
-from ads.aqua.finetuning.constants import *
+from ads.aqua.finetuning.constants import (
+    ENV_AQUA_FINE_TUNING_CONTAINER,
+    FineTuneCustomMetadata,
+)
 from ads.aqua.finetuning.entities import *
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -310,6 +313,15 @@ class AquaFineTuningApp(AquaApp):
         except Exception:
             pass
 
+        if not is_custom_container and ENV_AQUA_FINE_TUNING_CONTAINER in os.environ:
+            ft_container = os.environ[ENV_AQUA_FINE_TUNING_CONTAINER]
+            logger.info(
+                "Using container set by environment variable %s=%s",
+                ENV_AQUA_FINE_TUNING_CONTAINER,
+                ft_container,
+            )
+            is_custom_container = True
+
         ft_parameters.batch_size = ft_parameters.batch_size or (
             ft_config.get("shape", UNKNOWN_DICT)
             .get(create_fine_tuning_details.shape_name, UNKNOWN_DICT)
@@ -559,7 +571,6 @@ class AquaFineTuningApp(AquaApp):
         Dict:
             A dict of allowed finetuning configs.
         """
-
         config = self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG)
         if not config:
             logger.debug(
