@@ -1,33 +1,23 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import time
 import pandas as pd
-from pandas.api.types import is_datetime64_any_dtype, is_string_dtype, is_numeric_dtype
 
-from ..operator_config import ForecastOperatorConfig
 from ads.opctl import logger
-from ..const import ForecastOutputColumns, PROPHET_INTERNAL_DATE_COL
-from ads.common.object_storage_details import ObjectStorageDetails
+from ads.opctl.operator.lowcode.common.data import AbstractData
+from ads.opctl.operator.lowcode.common.errors import (
+    DataMismatchError,
+    InvalidParameterError,
+)
 from ads.opctl.operator.lowcode.common.utils import (
     get_frequency_in_seconds,
     get_frequency_of_datetime,
 )
-from ads.opctl.operator.lowcode.common.data import AbstractData
-from ads.opctl.operator.lowcode.forecast.utils import (
-    default_signer,
-)
-from ads.opctl.operator.lowcode.common.errors import (
-    InputDataError,
-    InvalidParameterError,
-    PermissionsError,
-    DataMismatchError,
-)
-from ..const import SupportedModels
-from abc import ABC, abstractmethod
+
+from ..const import ForecastOutputColumns, SupportedModels
+from ..operator_config import ForecastOperatorConfig
 
 
 class HistoricalData(AbstractData):
@@ -51,13 +41,12 @@ class HistoricalData(AbstractData):
         self.freq_in_secs = get_frequency_in_seconds(
             self.data.index.get_level_values(0)
         )
-        if spec.model == SupportedModels.AutoMLX:
-            if abs(self.freq_in_secs) < 3600:
-                message = (
-                    "{} requires data with a frequency of at least one hour. Please try using a different model,"
-                    " or select the 'auto' option.".format(SupportedModels.AutoMLX)
-                )
-                raise InvalidParameterError(message)
+        if spec.model == SupportedModels.AutoMLX and abs(self.freq_in_secs) < 3600:
+            message = (
+                f"{SupportedModels.AutoMLX} requires data with a frequency of at least one hour. Please try using a different model,"
+                " or select the 'auto' option."
+            )
+            raise InvalidParameterError(message)
 
 
 class AdditionalData(AbstractData):
@@ -77,11 +66,11 @@ class AdditionalData(AbstractData):
         else:
             self.name = "additional_data"
             self.data = None
-            self._data_dict = dict()
+            self._data_dict = {}
             self.create_horizon(spec, historical_data)
 
     def create_horizon(self, spec, historical_data):
-        logger.debug(f"No additional data provided. Constructing horizon.")
+        logger.debug("No additional data provided. Constructing horizon.")
         future_dates = pd.Series(
             pd.date_range(
                 start=historical_data.get_max_time(),
@@ -109,6 +98,7 @@ class AdditionalData(AbstractData):
         self.additional_regressors = []
 
     def _ingest_data(self, spec):
+        _spec = spec
         self.additional_regressors = list(self.data.columns)
         if not self.additional_regressors:
             logger.warn(
@@ -146,12 +136,11 @@ class ForecastDatasets:
         self.historical_data = HistoricalData(spec)
         self.additional_data = AdditionalData(spec, self.historical_data)
 
-        if spec.generate_explanations:
-            if spec.additional_data is None:
-                logger.warn(
-                    f"Unable to generate explanations as there is no additional data passed in. Either set generate_explanations to False, or pass in additional data."
-                )
-                spec.generate_explanations = False
+        if spec.generate_explanations and spec.additional_data is None:
+            logger.warn(
+                "Unable to generate explanations as there is no additional data passed in. Either set generate_explanations to False, or pass in additional data."
+            )
+            spec.generate_explanations = False
 
     def get_all_data_long(self, include_horizon=True):
         how = "outer" if include_horizon else "left"
@@ -182,7 +171,7 @@ class ForecastDatasets:
         )
 
     def get_data_by_series(self, include_horizon=True):
-        total_dict = dict()
+        total_dict = {}
         hist_data = self.historical_data.get_dict_by_series()
         add_data = self.additional_data.get_dict_by_series()
         how = "outer" if include_horizon else "left"
@@ -200,10 +189,10 @@ class ForecastDatasets:
         all_data = self.get_data_by_series(include_horizon=include_horizon)
         try:
             return all_data[s_id]
-        except:
+        except Exception as e:
             raise InvalidParameterError(
                 f"Unable to retrieve series id: {s_id} from data. Available series ids are: {self.list_series_ids()}"
-            )
+            ) from e
 
     def get_horizon_at_series(self, s_id):
         return self.get_data_at_series(s_id)[-self._horizon :]
@@ -234,7 +223,7 @@ class ForecastDatasets:
         if sorted:
             try:
                 series_ids.sort()
-            except:
+            except Exception:
                 pass
         return series_ids
 
@@ -269,7 +258,7 @@ class ForecastOutput:
         target_column: str the name of the original target column
         dt_column: the name of the original datetime column
         """
-        self.series_id_map = dict()
+        self.series_id_map = {}
         self._set_ci_column_names(confidence_interval_width)
         self.horizon = horizon
         self.target_column_name = target_column
@@ -281,7 +270,7 @@ class ForecastOutput:
         forecast: pd.DataFrame,
         overwrite: bool = False,
     ):
-        if not overwrite and series_id in self.series_id_map.keys():
+        if not overwrite and series_id in self.series_id_map:
             raise ValueError(
                 f"Attempting to update ForecastOutput for series_id {series_id} when this already exists. Set overwrite to True."
             )
@@ -321,15 +310,15 @@ class ForecastOutput:
         """
         try:
             output_i = self.series_id_map[series_id]
-        except KeyError:
+        except KeyError as e:
             raise ValueError(
                 f"Attempting to update output for series: {series_id}, however no series output has been initialized."
-            )
+            ) from e
 
         if (output_i.shape[0] - self.horizon) == len(fit_val):
-            output_i["fitted_value"].iloc[
-                : -self.horizon
-            ] = fit_val  # Note: may need to do len(output_i) - (len(fit_val) + horizon) : -horizon
+            output_i["fitted_value"].iloc[: -self.horizon] = (
+                fit_val  # Note: may need to do len(output_i) - (len(fit_val) + horizon) : -horizon
+            )
         elif (output_i.shape[0] - self.horizon) > len(fit_val):
             logger.debug(
                 f"Fitted Values were only generated on a subset ({len(fit_val)}/{(output_i.shape[0] - self.horizon)}) of the data for Series: {series_id}."
@@ -378,7 +367,7 @@ class ForecastOutput:
     def get_forecast(self, series_id):
         try:
             return self.series_id_map[series_id]
-        except KeyError as ke:
+        except KeyError:
             logger.debug(
                 f"No Forecast found for series_id: {series_id}. Returning empty DataFrame."
             )
@@ -389,7 +378,7 @@ class ForecastOutput:
         if sorted:
             try:
                 series_ids.sort()
-            except:
+            except Exception:
                 pass
         return series_ids
 
