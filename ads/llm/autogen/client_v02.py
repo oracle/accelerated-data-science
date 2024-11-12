@@ -2,37 +2,131 @@
 # Copyright (c) 2016, 2024, Oracle and/or its affiliates.  All rights reserved.
 # This software is dual-licensed to you under the Universal Permissive License (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl or Apache License 2.0 as shown at http://www.apache.org/licenses/LICENSE-2.0. You may choose either license.
 
-"""This module contains the LangChain LLM client for AutoGen
-# References:
-# https://microsoft.github.io/autogen/0.2/docs/notebooks/agentchat_huggingface_langchain/
-# https://github.com/microsoft/autogen/blob/0.2/notebook/agentchat_custom_model.ipynb
+"""This module contains the custom LLM client for AutoGen v0.2 to use LangChain chat models.
+https://microsoft.github.io/autogen/0.2/blog/2024/01/26/Custom-Models/
+
+To use the custom client:
+1. Prepare the LLM config, including the parameters for initializing the LangChain client.
+2. Register the custom LLM
+
+The LLM config should config the following keys:
+* model_client_cls: Required by AutoGen to identify the custom client. It should be "LangChainModelClient"
+* langchain_cls: LangChain class including the full import path.
+* model: Name of the model to be used by AutoGen
+* client_params: A dictionary containing the parameters to initialize the LangChain chat model.
+
+Although the `LangChainModelClient` is designed to be generic and can potentially support any LangChain chat model,
+the invocation depends on the server API spec and it may not be compatible with some implementations.
+
+Following is an example config for OCI Generative AI service:
+{
+    "model_client_cls": "LangChainModelClient",
+    "langchain_cls": "langchain_community.chat_models.oci_generative_ai.ChatOCIGenAI",
+    "model": "cohere.command-r-plus",
+    # client_params will be used to initialize the LangChain ChatOCIGenAI class.
+    "client_params": {
+        "model_id": "cohere.command-r-plus",
+        "compartment_id": COMPARTMENT_OCID,
+        "model_kwargs": {"temperature": 0, "max_tokens": 2048},
+        # Update the authentication method as needed
+        "auth_type": "SECURITY_TOKEN",
+        "auth_profile": "DEFAULT",
+        # You may need to specify `service_endpoint` if the service is in a different region.
+    },
+}
+
+Following is an example config for OCI Data Science Model Deployment:
+{
+    "model_client_cls": "LangChainModelClient",
+    "langchain_cls": "ads.llm.ChatOCIModelDeploymentVLLM",
+    "model": "odsc-llm",
+    "endpoint": "https://MODEL_DEPLOYMENT_URL/predict",
+    "model_kwargs": {"temperature": 0.1, "max_tokens": 2048},
+    # function_call_params will only be added to the API call when function/tools are added.
+    "function_call_params": {
+        "tool_choice": "auto",
+        "chat_template": ChatTemplates.mistral(),
+    },
+}
+
+Note that if `client_params` is not specified in the config, all arguments from the config except
+`model_client_cls` and `langchain_cls`, and `function_call_params`, will be used to initialize
+the LangChain chat model.
+
+The `function_call_params` will only be used for function/tool calling when tools are specified.
+
+To register the custom client:
+
+from ads.llm.autogen.client_v02 import LangChainModelClient, register_custom_client
+register_custom_client(LangChainModelClient)
+
+Once registered with ADS, the custom LLM class will be auto-registered for all new agents.
+There is no need to call `register_model_client()` on each agent.
+
+References:
+https://microsoft.github.io/autogen/0.2/docs/notebooks/agentchat_huggingface_langchain/
+https://github.com/microsoft/autogen/blob/0.2/notebook/agentchat_custom_model.ipynb
+
 """
 import copy
 import importlib
 import json
 import logging
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 from types import SimpleNamespace
 
 from autogen import ModelClient
-from autogen.oai.client import OpenAIWrapper
+from autogen.oai.client import OpenAIWrapper, PlaceHolderClient
 from langchain_core.messages import AIMessage
 
 
 logger = logging.getLogger(__name__)
 
+# custom_clients is a dictionary mapping the name of the class to the actual class
+custom_clients = {}
+
+# There is a bug in GroupChat when using custom client:
+# https://github.com/microsoft/autogen/issues/2956
+# Here we will be patching the OpenAIWrapper to fix the issue.
+# With this patch, you only need to register the client once with ADS.
+# For example:
+#
+# from ads.llm.autogen.client_v02 import LangChainModelClient, register_custom_client
+# register_custom_client(LangChainModelClient)
+#
+# This patch will auto-register the custom LLM to all new agents.
+# So there is no need to call `register_model_client()` on each agent.
+OpenAIWrapper._original_register_default_client = OpenAIWrapper._register_default_client
+
+
+def _new_register_default_client(
+    self: OpenAIWrapper, config: Dict[str, Any], openai_config: Dict[str, Any]
+) -> None:
+    """This is a patched version of the _register_default_client() method
+    to automatically register custom client for agents.
+    """
+    model_client_cls_name = config.get("model_client_cls")
+    if model_client_cls_name in custom_clients:
+        self._clients.append(PlaceHolderClient(config))
+        self.register_model_client(custom_clients[model_client_cls_name])
+    else:
+        self._original_register_default_client(
+            config=config, openai_config=openai_config
+        )
+
+
+# Patch the _register_default_client() method
+OpenAIWrapper._register_default_client = _new_register_default_client
+
 
 def register_custom_client(client_class):
-    """Registers custom client with AutoGen."""
-    if not hasattr(OpenAIWrapper, "custom_clients"):
-        raise AttributeError(
-            "The AutoGen version you install does not support auto custom client registration."
-        )
-    if client_class not in OpenAIWrapper.custom_clients:
-        OpenAIWrapper.custom_clients.append(client_class)
+    """Registers custom client for AutoGen."""
+    if client_class.__name__ not in custom_clients:
+        custom_clients[client_class.__name__] = client_class
 
 
 def _convert_to_langchain_tool(tool):
+    """Converts the OpenAI tool spec to LangChain tool spec."""
     if tool["type"] == "function":
         tool = tool["function"]
         required = tool["parameters"]["required"]
@@ -49,6 +143,7 @@ def _convert_to_langchain_tool(tool):
 
 
 def _convert_to_openai_tool_call(tool_call):
+    """Converts the LangChain tool call in AI message to OpenAI tool call."""
     return {
         "id": tool_call.get("id"),
         "function": {
