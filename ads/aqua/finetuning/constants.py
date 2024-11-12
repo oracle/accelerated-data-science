@@ -15,3 +15,6 @@ class FineTuneCustomMetadata(str, metaclass=ExtendedEnumMeta):
     SERVICE_MODEL_ARTIFACT_LOCATION = "artifact_location"
     SERVICE_MODEL_DEPLOYMENT_CONTAINER = "deployment-container"
     SERVICE_MODEL_FINE_TUNE_CONTAINER = "finetune-container"
+
+
+ENV_AQUA_FINE_TUNING_CONTAINER = "AQUA_FINE_TUNING_CONTAINER"
