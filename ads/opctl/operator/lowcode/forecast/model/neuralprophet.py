@@ -1,45 +1,35 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import logging
+import traceback
+
 import numpy as np
 import optuna
 import pandas as pd
-from joblib import Parallel, delayed
 from torch import Tensor
-from torchmetrics.regression import (
-    MeanAbsoluteError,
-    MeanAbsolutePercentageError,
-    MeanSquaredError,
-    R2Score,
-    SymmetricMeanAbsolutePercentageError,
-)
 
 from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
     runtime_dependency,
 )
 from ads.opctl import logger
-
-from ..const import DEFAULT_TRIALS, ForecastOutputColumns, SupportedModels
-from ads.opctl.operator.lowcode.forecast.utils import (
-    load_pkl,
-    write_pkl,
-    _select_plot_list,
-    _label_encode_dataframe,
-)
 from ads.opctl.operator.lowcode.common.utils import (
     disable_print,
     enable_print,
-    seconds_to_datetime,
 )
-from .base_model import ForecastOperatorBaseModel
-from ..operator_config import ForecastOperatorConfig
-from .forecast_datasets import ForecastDatasets, ForecastOutput
-import traceback
+from ads.opctl.operator.lowcode.forecast.utils import (
+    _select_plot_list,
+    load_pkl,
+    write_pkl,
+)
 
+from ..const import DEFAULT_TRIALS, SupportedModels
+from ..operator_config import ForecastOperatorConfig
+from .base_model import ForecastOperatorBaseModel
+from .forecast_datasets import ForecastDatasets, ForecastOutput
 
 # def _get_np_metrics_dict(selected_metric):
 #     metric_translation = {
@@ -62,7 +52,7 @@ import traceback
     object="NeuralProphet",
     install_from=OptionalDependency.FORECAST,
 )
-def _fit_model(data, params, additional_regressors, select_metric):
+def _fit_model(data, params, additional_regressors):
     from neuralprophet import NeuralProphet, set_log_level
 
     if logger.level > 10:
@@ -70,13 +60,12 @@ def _fit_model(data, params, additional_regressors, select_metric):
         disable_print()
 
     m = NeuralProphet(**params)
-    # m.metrics = _get_np_metrics_dict(select_metric)
     for add_reg in additional_regressors:
         m = m.add_future_regressor(name=add_reg)
     m.fit(df=data)
-    accepted_regressors_config = m.config_regressors or dict()
+    accepted_regressors_config = m.config_regressors or {}
     if hasattr(accepted_regressors_config, "regressors"):
-        accepted_regressors_config = accepted_regressors_config.regressors or dict()
+        accepted_regressors_config = accepted_regressors_config.regressors or {}
 
     enable_print()
     return m, list(accepted_regressors_config.keys())
@@ -97,11 +86,12 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             self.loaded_trainers = load_pkl(
                 self.spec.previous_output_dir + "/trainer.pkl"
             )
-        except:
-            logger.debug("model.pkl/trainer.pkl is not present")
+        except Exception as e:
+            logger.debug(f"model.pkl/trainer.pkl is not present. Error message: {e}")
 
     def set_kwargs(self):
         # Extract the Confidence Interval Width and convert to prophet's equivalent - interval_width
+        model_kwargs = self.spec.model_kwargs
         if self.spec.confidence_interval_width is None:
             quantiles = model_kwargs.get("quantiles", [0.05, 0.95])
             self.spec.confidence_interval_width = float(quantiles[1]) - float(
@@ -110,8 +100,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         else:
             boundaries = round((1 - self.spec.confidence_interval_width) / 2, 2)
             quantiles = [boundaries, self.spec.confidence_interval_width + boundaries]
-
-        model_kwargs = self.spec.model_kwargs
         model_kwargs["quantiles"] = quantiles
         return model_kwargs
 
@@ -124,12 +112,10 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
             if self.loaded_models is not None and s_id in self.loaded_models:
                 model = self.loaded_models[s_id]
-                accepted_regressors_config = (
-                    model.config_regressors.regressors or dict()
-                )
+                accepted_regressors_config = model.config_regressors.regressors or {}
                 if hasattr(accepted_regressors_config, "regressors"):
                     accepted_regressors_config = (
-                        accepted_regressors_config.regressors or dict()
+                        accepted_regressors_config.regressors or {}
                     )
                 self.accepted_regressors[s_id] = list(accepted_regressors_config.keys())
                 if self.loaded_trainers is not None and s_id in self.loaded_trainers:
@@ -143,8 +129,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                     data=data_i,
                     params=model_kwargs,
                     additional_regressors=self.additional_regressors,
-                    select_metric=None,
-                    # select_metric=self.spec.metric,
                 )
 
             logger.debug(
@@ -205,7 +189,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 "config_normalization": model.config_normalization,
                 "config_missing": model.config_missing,
                 "config_model": model.config_model,
-                "config_normalization": model.config_normalization,
                 "data_freq": model.data_freq,
                 "fitted": model.fitted,
                 "data_params": model.data_params,
@@ -220,19 +203,19 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             self.errors_dict[s_id] = {
                 "model_name": self.spec.model,
                 "error": str(e),
-                "error_trace": traceback.format_exc()
+                "error_trace": traceback.format_exc(),
             }
             logger.warn(traceback.format_exc())
             raise e
 
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.datasets.get_data_by_series()
-        self.models = dict()
-        self.trainers = dict()
-        self.outputs = dict()
-        self.errors_dict = dict()
-        self.explanations_info = dict()
-        self.accepted_regressors = dict()
+        self.models = {}
+        self.trainers = {}
+        self.outputs = {}
+        self.errors_dict = {}
+        self.explanations_info = {}
+        self.accepted_regressors = {}
         self.additional_regressors = self.datasets.get_additional_data_column_names()
         model_kwargs = self.set_kwargs()
         self.forecast_output = ForecastOutput(
@@ -282,7 +265,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                     data=df_train,
                     params=params,
                     additional_regressors=self.additional_regressors,
-                    select_metric=self.spec.metric,
                 )
                 df_test = df_test[["y", "ds"] + accepted_regressors]
 
@@ -325,6 +307,8 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
     def _generate_report(self):
         import report_creator as rc
+
+        logging.getLogger("root").setLevel(logging.WARNING)
 
         series_ids = self.models.keys()
         all_sections = []
@@ -371,7 +355,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
             sec5_text = rc.Heading("Neural Prophet Model Parameters", level=2)
             model_states = []
-            for i, (s_id, m) in enumerate(self.models.items()):
+            for s_id, m in self.models.items():
                 model_states.append(
                     pd.Series(
                         m.state_dict(),
@@ -449,7 +433,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         )
 
     def explain_model(self):
-        self.local_explanation = dict()
+        self.local_explanation = {}
         global_expl = []
         rename_cols = {
             f"future_regressor_{col}": col

@@ -1,29 +1,30 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
-import traceback
-
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import logging
+import traceback
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+import report_creator as rc
+
 from ads.common.decorator.runtime_dependency import runtime_dependency
+from ads.opctl import logger
+from ads.opctl.operator.lowcode.common.utils import (
+    seconds_to_datetime,
+)
 from ads.opctl.operator.lowcode.forecast.const import (
     AUTOMLX_METRIC_MAP,
     ForecastOutputColumns,
     SupportedModels,
 )
-from ads.opctl import logger
-
-from .base_model import ForecastOperatorBaseModel
-from ..operator_config import ForecastOperatorConfig
-from .forecast_datasets import ForecastDatasets, ForecastOutput
-from ads.opctl.operator.lowcode.common.utils import (
-    seconds_to_datetime,
-    datetime_to_seconds,
-)
 from ads.opctl.operator.lowcode.forecast.utils import _label_encode_dataframe
 
+from ..operator_config import ForecastOperatorConfig
+from .base_model import ForecastOperatorBaseModel
+from .forecast_datasets import ForecastDatasets, ForecastOutput
+
+logging.getLogger("root").setLevel(logging.WARNING)
 AUTOMLX_N_ALGOS_TUNED = 4
 AUTOMLX_DEFAULT_SCORE_METRIC = "neg_sym_mean_abs_percent_error"
 
@@ -47,12 +48,13 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         )
         model_kwargs_cleaned.pop("task", None)
         time_budget = model_kwargs_cleaned.pop("time_budget", -1)
-        model_kwargs_cleaned[
-            "preprocessing"
-        ] = self.spec.preprocessing.enabled or model_kwargs_cleaned.get("preprocessing", True)
+        model_kwargs_cleaned["preprocessing"] = (
+            self.spec.preprocessing.enabled
+            or model_kwargs_cleaned.get("preprocessing", True)
+        )
         return model_kwargs_cleaned, time_budget
 
-    def preprocess(self, data, series_id=None):  # TODO: re-use self.le for explanations
+    def preprocess(self, data):  # TODO: re-use self.le for explanations
         _, df_encoded = _label_encode_dataframe(
             data,
             no_encode={self.spec.datetime_column.name, self.original_target_column},
@@ -74,11 +76,12 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         ),
     )
     def _build_model(self) -> pd.DataFrame:
-        from automlx import init
         import logging
 
+        import automlx
+
         try:
-            init(
+            automlx.init(
                 engine="ray",
                 engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}},
                 loglevel=logging.CRITICAL,
@@ -88,7 +91,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
         full_data_dict = self.datasets.get_data_by_series()
 
-        self.models = dict()
+        self.models = {}
         horizon = self.spec.horizon
         self.spec.confidence_interval_width = self.spec.confidence_interval_width or 0.8
         self.forecast_output = ForecastOutput(
@@ -101,7 +104,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         # Clean up kwargs for pass through
         model_kwargs_cleaned, time_budget = self.set_kwargs()
 
-        for i, (s_id, df) in enumerate(full_data_dict.items()):
+        for s_id, df in full_data_dict.items():
             try:
                 logger.debug(f"Running automlx on series {s_id}")
                 model_kwargs = model_kwargs_cleaned.copy()
@@ -170,7 +173,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 self.errors_dict[s_id] = {
                     "model_name": self.spec.model,
                     "error": str(e),
-                    "error_trace": traceback.format_exc()
+                    "error_trace": traceback.format_exc(),
                 }
                 logger.warn(f"Encountered Error: {e}. Skipping.")
                 logger.warn(traceback.format_exc())
@@ -197,15 +200,12 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             - ds_forecast_col (pd.Series): The pd.Series object representing the forecasted column.
             - ci_col_names (List[str]): A list of column names for the confidence interval in the report.
         """
-        import report_creator as rc
-
-        """The method that needs to be implemented on the particular model level."""
-        selected_models = dict()
+        selected_models = {}
         models = self.models
         other_sections = []
 
         if len(self.models) > 0:
-            for i, (s_id, m) in enumerate(models.items()):
+            for s_id, m in models.items():
                 selected_models[s_id] = {
                     "series_id": s_id,
                     "selected_model": m.selected_model_,
@@ -352,7 +352,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         """
         data_temp = pd.DataFrame(
             data,
-            columns=[col for col in self.dataset_cols],
+            columns=list(self.dataset_cols),
         )
 
         return self.models.get(self.series_id).forecast(
