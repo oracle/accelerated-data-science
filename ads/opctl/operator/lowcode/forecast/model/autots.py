@@ -1,24 +1,26 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
+import logging
 import traceback
+
 import pandas as pd
-import numpy as np
+import report_creator as rc
 import yaml
 
-from ads.opctl import logger
-from ads.opctl.operator.lowcode.common.utils import seconds_to_datetime
-from .base_model import ForecastOperatorBaseModel
-from ..operator_config import ForecastOperatorConfig
 from ads.common.decorator.runtime_dependency import runtime_dependency
-from .forecast_datasets import ForecastDatasets, ForecastOutput
-from ..const import ForecastOutputColumns, SupportedModels
+from ads.opctl import logger
 from ads.opctl.operator.lowcode.forecast.utils import _select_plot_list
 
+from ..const import ForecastOutputColumns, SupportedModels
+from ..operator_config import ForecastOperatorConfig
+from .base_model import ForecastOperatorBaseModel
+from .forecast_datasets import ForecastDatasets, ForecastOutput
+
+logging.getLogger("report_creator").setLevel(logging.WARNING)
 AUTOTS_MAX_GENERATION = 10
 AUTOTS_MODELS_TO_VALIDATE = 0.15
 
@@ -43,10 +45,9 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         """
 
         # Import necessary libraries
-        from autots import AutoTS, create_regressor
+        from autots import AutoTS
 
         self.outputs = None
-        models = dict()
         # Get the name of the datetime column
         self.forecast_output = ForecastOutput(
             confidence_interval_width=self.spec.confidence_interval_width,
@@ -208,7 +209,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 self.errors_dict[s_id] = {
                     "model_name": self.spec.model,
                     "error": str(e),
-                    "error_trace": traceback.format_exc()
+                    "error_trace": traceback.format_exc(),
                 }
             logger.warn(f"Encountered Error: {e}. Skipping.")
             logger.warn(traceback.format_exc())
@@ -231,7 +232,6 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             - ds_forecast_col (pd.Index): A pandas Index containing the forecast column values.
             - ci_col_names (list): A list of column names for confidence intervals.
         """
-        import report_creator as rc
 
         all_sections = []
         if self.models:
@@ -258,18 +258,16 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                     yaml.dump(list(self.models.best_model.T.to_dict().values())[0]),
                 )
 
-            except KeyError as ke:
-                logger.warn(
-                    f"Issue generating Model Parameters Table Section. Skipping"
-                )
+            except KeyError:
+                logger.warn("Issue generating Model Parameters Table Section. Skipping")
                 sec2 = rc.Text("Error generating model parameters.")
 
             section_2 = rc.Block(sec2_text, sec2)
 
-            all_sections = [sec_1_plots, section_2]
+            all_sections = [section_1, section_2]
 
         if self.spec.generate_explanations:
-            logger.warn(f"Explanations not yet supported for the AutoTS Module")
+            logger.warn("Explanations not yet supported for the AutoTS Module")
 
         # Model Description
         model_description = rc.Text(
@@ -305,7 +303,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             ).T
             df = pd.concat([mapes, scores])
         except Exception as e:
-            logger.debug(f"Failed to generate training metrics")
+            logger.debug("Failed to generate training metrics")
             logger.debug(f"Received Error Statement: {e}")
 
         return df
