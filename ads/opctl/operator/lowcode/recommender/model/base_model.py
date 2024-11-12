@@ -29,7 +29,7 @@ from ..operator_config import RecommenderOperatorConfig
 from .factory import SupportedModels
 from .recommender_dataset import RecommenderDatasets
 
-logging.getLogger("root").setLevel(logging.WARNING)
+logging.getLogger("report_creator").setLevel(logging.WARNING)
 
 
 class RecommenderOperatorBaseModel(ABC):

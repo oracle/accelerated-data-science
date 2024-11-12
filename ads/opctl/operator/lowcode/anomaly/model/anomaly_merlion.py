@@ -23,7 +23,7 @@ from ads.opctl.operator.lowcode.anomaly.const import (
 from .anomaly_dataset import AnomalyOutput
 from .base_model import AnomalyOperatorBaseModel
 
-logging.getLogger("root").setLevel(logging.WARNING)
+logging.getLogger("report_creator").setLevel(logging.WARNING)
 
 
 class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):

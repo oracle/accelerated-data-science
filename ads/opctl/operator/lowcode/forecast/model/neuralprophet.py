@@ -308,7 +308,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
     def _generate_report(self):
         import report_creator as rc
 
-        logging.getLogger("root").setLevel(logging.WARNING)
+        logging.getLogger("report_creator").setLevel(logging.WARNING)
 
         series_ids = self.models.keys()
         all_sections = []

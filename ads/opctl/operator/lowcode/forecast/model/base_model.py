@@ -51,7 +51,7 @@ from ..const import (
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 from .forecast_datasets import ForecastDatasets
 
-logging.getLogger("root").setLevel(logging.WARNING)
+logging.getLogger("report_creator").setLevel(logging.WARNING)
 
 
 class ForecastOperatorBaseModel(ABC):

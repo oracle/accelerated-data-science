@@ -24,7 +24,7 @@ from ..operator_config import ForecastOperatorConfig
 from .base_model import ForecastOperatorBaseModel
 from .forecast_datasets import ForecastDatasets, ForecastOutput
 
-logging.getLogger("root").setLevel(logging.WARNING)
+logging.getLogger("report_creator").setLevel(logging.WARNING)
 AUTOMLX_N_ALGOS_TUNED = 4
 AUTOMLX_DEFAULT_SCORE_METRIC = "neg_sym_mean_abs_percent_error"
 
@@ -78,10 +78,10 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     def _build_model(self) -> pd.DataFrame:
         import logging
 
-        import automlx
+        from automlx import Pipeline, init
 
         try:
-            automlx.init(
+            init(
                 engine="ray",
                 engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}},
                 loglevel=logging.CRITICAL,
@@ -123,7 +123,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 if self.loaded_models is not None and s_id in self.loaded_models:
                     model = self.loaded_models[s_id]
                 else:
-                    model = automlx.Pipeline(
+                    model = Pipeline(
                         task="forecasting",
                         **model_kwargs,
                     )

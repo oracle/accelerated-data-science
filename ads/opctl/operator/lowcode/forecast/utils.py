@@ -32,7 +32,7 @@ from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import (
 
 from .const import RENDER_LIMIT, SupportedMetrics
 
-logging.getLogger("root").setLevel(logging.WARNING)
+logging.getLogger("report_creator").setLevel(logging.WARNING)
 
 
 def _label_encode_dataframe(df, no_encode: Set = None):

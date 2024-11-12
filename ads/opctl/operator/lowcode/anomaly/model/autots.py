@@ -15,7 +15,7 @@ from ..const import SupportedModels
 from .anomaly_dataset import AnomalyOutput
 from .base_model import AnomalyOperatorBaseModel
 
-logging.getLogger("root").setLevel(logging.WARNING)
+logging.getLogger("report_creator").setLevel(logging.WARNING)
 
 
 class AutoTSOperatorModel(AnomalyOperatorBaseModel):
