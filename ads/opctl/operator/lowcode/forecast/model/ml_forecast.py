@@ -2,7 +2,6 @@
 
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import logging
 import traceback
 
 import pandas as pd
@@ -192,8 +191,6 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
         """
         import report_creator as rc
         from utilsforecast.plotting import plot_series
-
-        logging.getLogger("root").setLevel(logging.WARNING)
 
         # Section 1: Forecast Overview
         sec1_text = rc.Block(

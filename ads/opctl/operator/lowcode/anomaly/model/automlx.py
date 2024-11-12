@@ -1,21 +1,16 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*--
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import logging
-
 import pandas as pd
-import report_creator as rc
 
 from ads.common.decorator.runtime_dependency import runtime_dependency
-from ads.opctl import logger
-from ads.opctl.operator.lowcode.anomaly.const import OutputColumns
-
 from .anomaly_dataset import AnomalyOutput
-from .base_model import AnomalyOperatorBaseModel
 
-logging.getLogger("root").setLevel(logging.WARNING)
+from .base_model import AnomalyOperatorBaseModel
+from ads.opctl.operator.lowcode.anomaly.const import OutputColumns
 
 
 class AutoMLXOperatorModel(AnomalyOperatorBaseModel):
@@ -30,17 +25,16 @@ class AutoMLXOperatorModel(AnomalyOperatorBaseModel):
         ),
     )
     def _build_model(self) -> pd.DataFrame:
+        from automlx import init
         import logging
 
-        import automlx
-
         try:
-            automlx.init(
+            init(
                 engine="ray",
                 engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}},
                 loglevel=logging.CRITICAL,
             )
-        except Exception:
+        except Exception as e:
             logger.info("Ray already initialized")
         date_column = self.spec.datetime_column.name
         anomaly_output = AnomalyOutput(date_column=date_column)
@@ -79,6 +73,8 @@ class AutoMLXOperatorModel(AnomalyOperatorBaseModel):
         return anomaly_output
 
     def _generate_report(self):
+        import report_creator as rc
+
         """The method that needs to be implemented on the particular model level."""
         other_sections = [
             rc.Heading("Selected Models Overview", level=2),

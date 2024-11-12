@@ -1,41 +1,41 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*--
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import logging
 import os
-from typing import Set
+import sys
+from typing import List
 
-import cloudpickle
 import fsspec
 import numpy as np
 import pandas as pd
-import report_creator as rc
+import cloudpickle
+import plotly.express as px
 from plotly import graph_objects as go
-from scipy.stats import linregress
 from sklearn.metrics import (
     explained_variance_score,
     mean_absolute_percentage_error,
     mean_squared_error,
-    r2_score,
 )
+
+from scipy.stats import linregress
+from sklearn.metrics import r2_score
 
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.dataset.label_encoder import DataFrameLabelEncoder
 from ads.opctl import logger
+
+from .const import SupportedMetrics, SupportedModels, RENDER_LIMIT
+from .errors import ForecastInputDataError, ForecastSchemaYamlError
+from .operator_config import ForecastOperatorSpec, ForecastOperatorConfig
+from ads.opctl.operator.lowcode.common.utils import merge_category_columns
 from ads.opctl.operator.lowcode.forecast.const import ForecastOutputColumns
-from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import (
-    ForecastOutput,
-    TestData,
-)
-
-from .const import RENDER_LIMIT, SupportedMetrics
-
-logging.getLogger("root").setLevel(logging.WARNING)
+import report_creator as rc
 
 
-def _label_encode_dataframe(df, no_encode: Set = None):
+def _label_encode_dataframe(df, no_encode=set()):
     df_to_encode = df[list(set(df.columns) - no_encode)]
     le = DataFrameLabelEncoder().fit(df_to_encode)
     return le, le.transform(df)
@@ -54,14 +54,15 @@ def smape(actual, predicted) -> float:
     denominator[zero_mask] = 1
 
     numerator = np.abs(actual - predicted)
+    default_output = np.ones_like(numerator) * np.inf
 
     abs_error = np.divide(numerator, denominator)
     return round(np.mean(abs_error) * 100, 2)
 
 
 def _build_metrics_per_horizon(
-    test_data: TestData,
-    output: ForecastOutput,
+    test_data: "TestData",
+    output: "ForecastOutput",
 ) -> pd.DataFrame:
     """
     Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE for each horizon
@@ -171,7 +172,7 @@ def _build_metrics_per_horizon(
 
 
 def load_pkl(filepath):
-    storage_options = {}
+    storage_options = dict()
     if ObjectStorageDetails.is_oci_path(filepath):
         storage_options = default_signer()
 
@@ -193,13 +194,13 @@ def write_pkl(obj, filename, output_dir, storage_options):
 def _build_metrics_df(y_true, y_pred, series_id):
     if len(y_true) == 0 or len(y_pred) == 0:
         return pd.DataFrame()
-    metrics = {}
+    metrics = dict()
     metrics["sMAPE"] = smape(actual=y_true, predicted=y_pred)
     metrics["MAPE"] = mean_absolute_percentage_error(y_true=y_true, y_pred=y_pred)
     metrics["RMSE"] = np.sqrt(mean_squared_error(y_true=y_true, y_pred=y_pred))
     try:
         metrics["r2"] = linregress(y_true, y_pred).rvalue ** 2
-    except Exception:
+    except:
         metrics["r2"] = r2_score(y_true=y_true, y_pred=y_pred)
     metrics["Explained Variance"] = explained_variance_score(
         y_true=y_true, y_pred=y_pred
@@ -207,13 +208,16 @@ def _build_metrics_df(y_true, y_pred, series_id):
     return pd.DataFrame.from_dict(metrics, orient="index", columns=[series_id])
 
 
-def evaluate_train_metrics(output):
+def evaluate_train_metrics(output, metrics_col_name=None):
     """
     Training metrics
 
     Parameters:
     output: ForecastOutputs
 
+    metrics_col_name: str
+            Only passed in if the series column was created artifically.
+            When passed in, replaces s_id as the column name in the metrics table
     """
     total_metrics = pd.DataFrame()
     for s_id in output.list_series_ids():
@@ -258,21 +262,20 @@ def _select_plot_list(fn, series_ids):
 def _add_unit(num, unit):
     return f"{num} {unit}"
 
-
 def get_auto_select_plot(backtest_results):
     fig = go.Figure()
     columns = backtest_results.columns.tolist()
     back_test_column = "backtest"
     columns.remove(back_test_column)
-    for column in columns:
+    for i, column in enumerate(columns):
+        color = 0 #int(i * 255 / len(columns))
         fig.add_trace(
             go.Scatter(
-                x=backtest_results[back_test_column],
-                y=backtest_results[column],
-                mode="lines",
-                name=column,
-            )
-        )
+            x=backtest_results[back_test_column],
+            y=backtest_results[column],
+            mode="lines",
+            name=column,
+        ))
 
     return rc.Widget(fig)
 
@@ -379,7 +382,6 @@ def get_forecast_plots(
         return fig
 
     return _select_plot_list(plot_forecast_plotly, forecast_output.list_series_ids())
-
 
 def convert_target(target: str, target_col: str):
     """

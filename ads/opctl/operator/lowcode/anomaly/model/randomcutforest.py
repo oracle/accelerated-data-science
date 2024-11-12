@@ -3,11 +3,8 @@
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import logging
-
 import numpy as np
 import pandas as pd
-import report_creator as rc
 
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.opctl import logger
@@ -15,8 +12,6 @@ from ads.opctl.operator.lowcode.anomaly.const import OutputColumns
 
 from .anomaly_dataset import AnomalyOutput
 from .base_model import AnomalyOperatorBaseModel
-
-logging.getLogger("root").setLevel(logging.WARNING)
 
 
 class RandomCutForestOperatorModel(AnomalyOperatorBaseModel):
@@ -32,7 +27,7 @@ class RandomCutForestOperatorModel(AnomalyOperatorBaseModel):
         ),
     )
     def _build_model(self) -> AnomalyOutput:
-        import rrcf
+        from rrcf import RCTree
 
         model_kwargs = self.spec.model_kwargs
 
@@ -101,6 +96,7 @@ class RandomCutForestOperatorModel(AnomalyOperatorBaseModel):
 
     def _generate_report(self):
         """Generates the report."""
+        import report_creator as rc
 
         other_sections = [
             rc.Heading("Selected Models Overview", level=2),

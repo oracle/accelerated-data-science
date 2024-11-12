@@ -1,11 +1,8 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*--
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
-import logging
-
-import report_creator as rc
 
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.opctl import logger
@@ -14,8 +11,6 @@ from ads.opctl.operator.lowcode.anomaly.const import OutputColumns
 from ..const import SupportedModels
 from .anomaly_dataset import AnomalyOutput
 from .base_model import AnomalyOperatorBaseModel
-
-logging.getLogger("root").setLevel(logging.WARNING)
 
 
 class AutoTSOperatorModel(AnomalyOperatorBaseModel):
@@ -96,6 +91,8 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
         return anomaly_output
 
     def _generate_report(self):
+        import report_creator as rc
+
         """The method that needs to be implemented on the particular model level."""
         other_sections = [
             rc.Heading("Selected Models Overview", level=2),

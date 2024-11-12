@@ -1,10 +1,10 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*--
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-import logging
 import os
 import random
 import tempfile
@@ -40,13 +40,11 @@ from ads.opctl.operator.lowcode.pii.utils import compute_rate
 
 try:
     import report_creator as rc
-except ImportError as e:
+except ImportError:
     raise ModuleNotFoundError(
         f"`report-creator` module was not found. Please run "
         f"`pip install {OptionalDependency.PII}`."
-    ) from e
-
-logging.getLogger("root").setLevel(logging.WARNING)
+    )
 
 
 @dataclass(repr=True)
@@ -141,13 +139,13 @@ def make_model_card(model_name="", readme_path=""):
         fig = go.Figure(
             data=[
                 go.Table(
-                    header={"Columns": df.columns},
-                    cells={"Metrics": df.Metrics, "Values": df.Values},
+                    header=dict(values=list(df.columns)),
+                    cells=dict(values=[df.Metrics, df.Values]),
                 )
             ]
         )
         eval_res_tb = rc.Widget(data=fig, caption="Evaluation Results")
-    except Exception:
+    except:
         eval_res_tb = rc.Text("-")
         logger.warning(
             "The given readme.md doesn't have correct template for Evaluation Results."
@@ -323,9 +321,7 @@ class PIIOperatorReport:
         self.report_sections = [title_text, report_description, time_proceed, structure]
         return self
 
-    def save_report(
-        self, report_sections=None, report_uri=None, storage_options: Dict = None
-    ):
+    def save_report(self, report_sections=None, report_uri=None, storage_options={}):
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
             disable_print()

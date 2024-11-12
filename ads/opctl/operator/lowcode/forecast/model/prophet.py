@@ -1,23 +1,17 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*--
 
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import logging
-import traceback
-
-import matplotlib as mpl
 import numpy as np
 import optuna
 import pandas as pd
+import logging
 from joblib import Parallel, delayed
-
+from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.opctl import logger
-from ads.opctl.operator.lowcode.common.utils import set_log_level
 from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorConfig
-from ads.opctl.operator.lowcode.forecast.utils import (
-    _select_plot_list,
-)
 
 from ..const import (
     DEFAULT_TRIALS,
@@ -25,14 +19,23 @@ from ..const import (
     ForecastOutputColumns,
     SupportedModels,
 )
+from ads.opctl.operator.lowcode.forecast.utils import (
+    _select_plot_list,
+    _label_encode_dataframe,
+)
+from ads.opctl.operator.lowcode.common.utils import set_log_level
 from .base_model import ForecastOperatorBaseModel
+from ..operator_config import ForecastOperatorConfig
 from .forecast_datasets import ForecastDatasets, ForecastOutput
+import traceback
+import matplotlib as mpl
+
 
 try:
     set_log_level("prophet", logger.level)
     set_log_level("cmdstanpy", logger.level)
     mpl.rcParams["figure.max_open_warning"] = 100
-except Exception:
+except:
     pass
 
 
@@ -70,6 +73,9 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
     def _train_model(self, i, series_id, df, model_kwargs):
         try:
+            from prophet import Prophet
+            from prophet.diagnostics import cross_validation, performance_metrics
+
             self.forecast_output.init_series_output(
                 series_id=series_id, data_at_series=df
             )
@@ -124,15 +130,15 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             self.errors_dict[series_id] = {
                 "model_name": self.spec.model,
                 "error": str(e),
-                "error_trace": traceback.format_exc(),
+                "error_trace": traceback.format_exc()
             }
             logger.warn(f"Encountered Error: {e}. Skipping.")
             logger.warn(traceback.format_exc())
 
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.datasets.get_data_by_series()
-        self.models = {}
-        self.outputs = {}
+        self.models = dict()
+        self.outputs = dict()
         self.additional_regressors = self.datasets.get_additional_data_column_names()
         model_kwargs = self.set_kwargs()
         self.forecast_output = ForecastOutput(
@@ -243,8 +249,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         import report_creator as rc
         from prophet.plot import add_changepoints_to_plot
 
-        logging.getLogger("root").setLevel(logging.WARNING)
-
         series_ids = self.models.keys()
         all_sections = []
         if len(series_ids) > 0:
@@ -347,6 +351,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 # Append the global explanation text and section to the "all_sections" list
                 all_sections = all_sections + [
                     global_explanation_section,
+                    local_explanation_text,
                     local_explanation_section,
                 ]
             except Exception as e:

@@ -1,21 +1,17 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*--
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import logging
-
 import numpy as np
 import pandas as pd
-import report_creator as rc
 
 from ads.common.decorator.runtime_dependency import runtime_dependency
-from ads.opctl.operator.lowcode.anomaly.const import OutputColumns
 
-from .anomaly_dataset import AnomalyOutput
 from .base_model import AnomalyOperatorBaseModel
-
-logging.getLogger("root").setLevel(logging.WARNING)
+from .anomaly_dataset import AnomalyOutput
+from ads.opctl.operator.lowcode.anomaly.const import OutputColumns
 
 
 class IsolationForestOperatorModel(AnomalyOperatorBaseModel):
@@ -40,9 +36,13 @@ class IsolationForestOperatorModel(AnomalyOperatorBaseModel):
         for target, df in self.datasets.full_data_dict.items():
             model = IsolationForest(**model_kwargs)
             model.fit(df)
-            y_pred = np.vectorize(self.outlier_map.get)(model.predict(df))
+            y_pred = np.vectorize(self.outlier_map.get)(
+                model.predict(df)
+            )
 
-            scores = model.score_samples(df)
+            scores = model.score_samples(
+                df
+            )
 
             index_col = df.columns[0]
 
@@ -59,6 +59,7 @@ class IsolationForestOperatorModel(AnomalyOperatorBaseModel):
 
     def _generate_report(self):
         """Generates the report."""
+        import report_creator as rc
 
         other_sections = [
             rc.Heading("Selected Models Overview", level=2),
