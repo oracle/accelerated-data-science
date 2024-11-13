@@ -195,6 +195,10 @@ class LangChainModelClient(ModelClient):
         # Pop the params and use them only for tool calling.
         self.function_call_params = config.pop("function_call_params", {})
 
+        # If the config specified invoke_params,
+        # Pop the params and use them only for invoking.
+        self.invoke_params = config.pop("invoke_params", {})
+
         # Import the LangChain class
         if "langchain_cls" not in config:
             raise ValueError("Missing langchain_cls in LangChain Model Client config.")
@@ -230,7 +234,7 @@ class LangChainModelClient(ModelClient):
         num_of_responses = params.get("n", 1)
         messages = params.pop("messages", [])
 
-        invoke_params = {}
+        invoke_params = copy.deepcopy(self.invoke_params)
 
         tools = params.get("tools")
         if tools:
