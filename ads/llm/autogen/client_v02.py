@@ -129,7 +129,7 @@ def _convert_to_langchain_tool(tool):
     """Converts the OpenAI tool spec to LangChain tool spec."""
     if tool["type"] == "function":
         tool = tool["function"]
-        required = tool["parameters"]["required"]
+        required = tool["parameters"].get("required", [])
         properties = copy.deepcopy(tool["parameters"]["properties"])
         for key in properties.keys():
             val = properties[key]
