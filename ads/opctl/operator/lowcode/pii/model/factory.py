@@ -41,8 +41,9 @@ class SpacyDetector(PiiBaseDetector):
     @runtime_dependency(module="scrubadub", install_from=OptionalDependency.PII)
     @runtime_dependency(module="scrubadub_spacy", install_from=OptionalDependency.PII)
     def construct(cls, entity, model, **kwargs):
-        import scrubadub
+        from scrubadub.filth import Filth
         from scrubadub_spacy.detectors.spacy import SpacyEntityDetector
+
         spacy_entity_detector = SpacyEntityDetector(
             named_entities=[entity],
             name=f"spacy_{uuid.uuid4()}",
@@ -51,7 +52,7 @@ class SpacyDetector(PiiBaseDetector):
         if entity.upper() not in cls.DEFAULT_SPACY_NAMED_ENTITIES:
             filth_cls = type(
                 construct_filth_cls_name(entity),
-                (scrubadub.filth.Filth,),
+                (Filth,),
                 {"type": entity.upper()},
             )
             spacy_entity_detector.filth_cls_map[entity.upper()] = filth_cls
