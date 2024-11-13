@@ -1,39 +1,43 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import logging
 import os
 import tempfile
 import time
 from abc import ABC, abstractmethod
-from typing import Tuple, Dict
+from typing import Dict, Tuple
 
 import fsspec
 import pandas as pd
 import report_creator as rc
+from plotly import graph_objects as go
 
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
-from ads.opctl.operator.lowcode.common.utils import default_signer
 from ads.opctl.operator.lowcode.common.utils import (
-    human_time_friendly,
-    enable_print,
+    default_signer,
     disable_print,
+    enable_print,
+    human_time_friendly,
     write_data,
 )
+
+from ..operator_config import RecommenderOperatorConfig
 from .factory import SupportedModels
 from .recommender_dataset import RecommenderDatasets
-from ..operator_config import RecommenderOperatorConfig
-from plotly import graph_objects as go
-import matplotlib.pyplot as plt
+
+logging.getLogger("report_creator").setLevel(logging.WARNING)
 
 
 class RecommenderOperatorBaseModel(ABC):
     """The base class for the recommender detection operator models."""
 
-    def __init__(self, config: RecommenderOperatorConfig, datasets: RecommenderDatasets):
+    def __init__(
+        self, config: RecommenderOperatorConfig, datasets: RecommenderDatasets
+    ):
         self.config = config
         self.spec = self.config.spec
         self.datasets = datasets
@@ -71,7 +75,7 @@ class RecommenderOperatorBaseModel(ABC):
                     rc.Metric(
                         heading="Num items",
                         value=len(self.datasets.items),
-                    )
+                    ),
                 ),
             )
 
@@ -83,62 +87,67 @@ class RecommenderOperatorBaseModel(ABC):
         user_rating_counts = self.datasets.interactions[user_col].value_counts()
         fig_user = go.Figure(data=[go.Histogram(x=user_rating_counts, nbinsx=100)])
         fig_user.update_layout(
-            title=f'Distribution of the number of interactions by {user_col}',
-            xaxis_title=f'Number of {interaction_col}',
-            yaxis_title=f'Number of {user_col}',
-            bargap=0.2
+            title=f"Distribution of the number of interactions by {user_col}",
+            xaxis_title=f"Number of {interaction_col}",
+            yaxis_title=f"Number of {user_col}",
+            bargap=0.2,
         )
         item_title = rc.Heading("Item Statistics", level=2)
         item_rating_counts = self.datasets.interactions[item_col].value_counts()
         fig_item = go.Figure(data=[go.Histogram(x=item_rating_counts, nbinsx=100)])
         fig_item.update_layout(
-            title=f'Distribution of the number of interactions by {item_col}',
-            xaxis_title=f'Number of {interaction_col}',
-            yaxis_title=f'Number of {item_col}',
-            bargap=0.2
+            title=f"Distribution of the number of interactions by {item_col}",
+            xaxis_title=f"Number of {interaction_col}",
+            yaxis_title=f"Number of {item_col}",
+            bargap=0.2,
         )
         result_heatmap_title = rc.Heading("Sample Recommendations", level=2)
         sample_items = result_df[item_col].head(100).index
         filtered_df = result_df[result_df[item_col].isin(sample_items)]
-        data = filtered_df.pivot(index=user_col, columns=item_col, values=interaction_col)
-        fig = go.Figure(data=go.Heatmap(
-            z=data.values,
-            x=data.columns,
-            y=data.index,
-            colorscale='Viridis'
-        ))
+        data = filtered_df.pivot(
+            index=user_col, columns=item_col, values=interaction_col
+        )
+        fig = go.Figure(
+            data=go.Heatmap(
+                z=data.values, x=data.columns, y=data.index, colorscale="Viridis"
+            )
+        )
         fig.update_layout(
-            title='Recommendation heatmap of User-Item Interactions (sample)',
+            title="Recommendation heatmap of User-Item Interactions (sample)",
             width=1500,
             height=800,
             xaxis_title=item_col,
             yaxis_title=user_col,
-            coloraxis_colorbar=dict(title=interaction_col)
+            coloraxis_colorbar={"title": interaction_col},
         )
-        plots = [user_title, rc.Widget(fig_user),
-                 item_title, rc.Widget(fig_item),
-                 result_heatmap_title, rc.Widget(fig)]
+        plots = [
+            user_title,
+            rc.Widget(fig_user),
+            item_title,
+            rc.Widget(fig_item),
+            result_heatmap_title,
+            rc.Widget(fig),
+        ]
 
         test_metrics_sections = [rc.DataTable(pd.DataFrame(metrics, index=[0]))]
         yaml_appendix_title = rc.Heading("Reference: YAML File", level=2)
         yaml_appendix = rc.Yaml(self.config.to_dict())
         report_sections = (
-                [summary]
-                + plots
-                + test_metrics_sections
-                + other_sections
-                + [yaml_appendix_title, yaml_appendix]
+            [summary]
+            + plots
+            + test_metrics_sections
+            + other_sections
+            + [yaml_appendix_title, yaml_appendix]
         )
 
         # save the report and result CSV
-        self._save_report(
-            report_sections=report_sections,
-            result_df=result_df
-        )
+        self._save_report(report_sections=report_sections, result_df=result_df)
 
+    @abstractmethod
     def _evaluation_metrics(self):
         pass
 
+    @abstractmethod
     def _test_data_evaluate_metrics(self):
         pass
 
@@ -150,7 +159,7 @@ class RecommenderOperatorBaseModel(ABC):
         if ObjectStorageDetails.is_oci_path(unique_output_dir):
             storage_options = default_signer()
         else:
-            storage_options = dict()
+            storage_options = {}
 
             # report-creator html report
             if self.spec.generate_report:
@@ -161,19 +170,23 @@ class RecommenderOperatorBaseModel(ABC):
                         report.save(rc.Block(*report_sections), report_local_path)
                     enable_print()
 
-                    report_path = os.path.join(unique_output_dir, self.spec.report_filename)
+                    report_path = os.path.join(
+                        unique_output_dir, self.spec.report_filename
+                    )
                     with open(report_local_path) as f1:
                         with fsspec.open(
-                                report_path,
-                                "w",
-                                **storage_options,
+                            report_path,
+                            "w",
+                            **storage_options,
                         ) as f2:
                             f2.write(f1.read())
 
         # recommender csv report
         write_data(
             data=result_df,
-            filename=os.path.join(unique_output_dir, self.spec.recommendations_filename),
+            filename=os.path.join(
+                unique_output_dir, self.spec.recommendations_filename
+            ),
             format="csv",
             storage_options=storage_options,
         )

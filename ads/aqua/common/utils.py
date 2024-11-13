@@ -788,13 +788,14 @@ def get_ocid_substring(ocid: str, key_len: int) -> str:
     return ocid[-key_len:] if ocid and len(ocid) > key_len else ""
 
 
-def upload_folder(os_path: str, local_dir: str, model_name: str) -> str:
+def upload_folder(os_path: str, local_dir: str, model_name: str, exclude_pattern: str = None) -> str:
     """Upload the local folder to the object storage
 
     Args:
         os_path (str): object storage URI with prefix. This is the path to upload
         local_dir (str): Local directory where the object is downloaded
         model_name (str): Name of the huggingface model
+        exclude_pattern (optional, str): The matching pattern of files to be excluded from uploading.
     Retuns:
         str: Object name inside the bucket
     """
@@ -804,6 +805,8 @@ def upload_folder(os_path: str, local_dir: str, model_name: str) -> str:
     auth_state = AuthState()
     object_path = os_details.filepath.rstrip("/") + "/" + model_name + "/"
     command = f"oci os object bulk-upload --src-dir {local_dir} --prefix {object_path} -bn {os_details.bucket} -ns {os_details.namespace} --auth {auth_state.oci_iam_type} --profile {auth_state.oci_key_profile} --no-overwrite"
+    if exclude_pattern:
+        command += f" --exclude {exclude_pattern}"
     try:
         logger.info(f"Running: {command}")
         subprocess.check_call(shlex.split(command))

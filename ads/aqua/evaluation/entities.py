@@ -9,11 +9,12 @@ aqua.evaluation.entities
 This module contains dataclasses for aqua evaluation.
 """
 
-from pydantic import Field
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
-from ads.aqua.data import AquaResourceIdentifier
+from pydantic import Field
+
 from ads.aqua.config.utils.serializer import Serializable
+from ads.aqua.data import AquaResourceIdentifier
 
 
 class CreateAquaEvaluationDetails(Serializable):
@@ -87,6 +88,8 @@ class CreateAquaEvaluationDetails(Serializable):
 
     class Config:
         extra = "ignore"
+        protected_namespaces = ()
+
 
 class AquaEvalReport(Serializable):
     evaluation_id: str = ""
@@ -94,6 +97,7 @@ class AquaEvalReport(Serializable):
 
     class Config:
         extra = "ignore"
+
 
 class AquaEvalParams(Serializable):
     shape: str = ""
@@ -103,6 +107,7 @@ class AquaEvalParams(Serializable):
     class Config:
         extra = "allow"
 
+
 class AquaEvalMetric(Serializable):
     key: str
     name: str
@@ -110,6 +115,7 @@ class AquaEvalMetric(Serializable):
 
     class Config:
         extra = "ignore"
+
 
 class AquaEvalMetricSummary(Serializable):
     metric: str = ""
@@ -119,6 +125,7 @@ class AquaEvalMetricSummary(Serializable):
     class Config:
         extra = "ignore"
 
+
 class AquaEvalMetrics(Serializable):
     id: str
     report: str
@@ -127,6 +134,7 @@ class AquaEvalMetrics(Serializable):
 
     class Config:
         extra = "ignore"
+
 
 class AquaEvaluationCommands(Serializable):
     evaluation_id: str
@@ -138,6 +146,7 @@ class AquaEvaluationCommands(Serializable):
 
     class Config:
         extra = "ignore"
+
 
 class AquaEvaluationSummary(Serializable):
     """Represents a summary of Aqua evalution."""
@@ -156,6 +165,7 @@ class AquaEvaluationSummary(Serializable):
 
     class Config:
         extra = "ignore"
+
 
 class AquaEvaluationDetail(AquaEvaluationSummary):
     """Represents a details of Aqua evalution."""
