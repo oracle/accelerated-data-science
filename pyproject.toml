@@ -212,7 +212,7 @@ aqua = ["jupyter_server"]
 # Revisit this section continuously and update to recent version of libraries. focus on pyt3.9/3.10 versions.
 testsuite = [
   "arff",
-  "autogen-agentchat~=0.2,
+  "autogen-agentchat~=0.2",
   "category_encoders==2.6.3",  # set version to avoid backtracking
   "cohere==4.53",  # set version to avoid backtracking
   "faiss-cpu",
