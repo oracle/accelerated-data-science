@@ -4,6 +4,7 @@
 import sys
 from unittest import TestCase, mock
 
+import pytest
 
 if sys.version_info < (3, 9):
     pytest.skip(allow_module_level=True)
