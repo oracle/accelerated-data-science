@@ -64,7 +64,7 @@ Following is an example LLM config for LLM deployed with AI Quick Action on OCI 
         "model": "Mistral-7B",
         # client_params will be used to initialize the LangChain ChatOCIModelDeploymentVLLM class.
         "client_params": {
-            "model": "odsc-llm"
+            "model": "odsc-llm",
             "endpoint": "<ODSC_ENDPOINT>",
             "model_kwargs": {
                 "temperature": 0,
