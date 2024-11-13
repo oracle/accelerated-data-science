@@ -2,6 +2,14 @@
 Release Notes
 =============
 
+2.12.6
+-------
+Release date: November 12, 2024
+
+* Support using environment variable to override AI Quick Actions Fine Tuning container image.
+* Adding metadata in telemetry error logging for AI Quick Actions.
+
+
 2.12.5
 -------
 Release date: November 10, 2024
