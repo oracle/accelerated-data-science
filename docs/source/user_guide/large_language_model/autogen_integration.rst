@@ -8,7 +8,7 @@ ADS provides custom LLM clients for `AutoGen <https://microsoft.github.io/autoge
 
   The LangChain integration requires ``python>=3.9``, ``langchain-community>=0.3`` and ``langchain-openai``.
 
-  .. code-block::
+  .. code-block:: bash
 
     pip install "langchain-community>0.3" langchain-openai
 
@@ -94,7 +94,10 @@ Following is an example LLM config for the OCI Generative AI service:
         "client_params": {
             "model_id": "cohere.command-r-plus",
             "compartment_id": COMPARTMENT_OCID,
-            "model_kwargs": {"temperature": 0, "max_tokens": 4000},
+            "model_kwargs": {
+                "temperature": 0,
+                "max_tokens": 4000
+            },
             "service_endpoint": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com"
             "auth_type": "SECURITY_TOKEN",
             "auth_profile": "DEFAULT",
