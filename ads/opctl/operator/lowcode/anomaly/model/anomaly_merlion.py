@@ -4,9 +4,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import importlib
+import logging
 
 import numpy as np
 import pandas as pd
+import report_creator as rc
 from merlion.post_process.threshold import AggregateAlarms
 from merlion.utils import TimeSeries
 
@@ -20,6 +22,8 @@ from ads.opctl.operator.lowcode.anomaly.const import (
 
 from .anomaly_dataset import AnomalyOutput
 from .base_model import AnomalyOperatorBaseModel
+
+logging.getLogger("report_creator").setLevel(logging.WARNING)
 
 
 class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
@@ -84,7 +88,7 @@ class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
         for target, df in self.datasets.full_data_dict.items():
             data = df.set_index(date_column)
             data = TimeSeries.from_pd(data)
-            for model_name, (model_config, model) in model_config_map.items():
+            for _, (model_config, model) in model_config_map.items():
                 if self.spec.model == SupportedModels.BOCPD:
                     model_config = model_config(**self.spec.model_kwargs)
                 else:
@@ -115,7 +119,7 @@ class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
                     y_pred = (y_pred.to_pd().reset_index()["anom_score"] > 0).astype(
                         int
                     )
-                except Exception as e:
+                except Exception:
                     y_pred = (
                         scores["anom_score"]
                         > np.percentile(
@@ -135,15 +139,12 @@ class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
                         OutputColumns.SCORE_COL: scores["anom_score"],
                     }
                 ).reset_index(drop=True)
-                # model_objects[model_name].append(model)
 
                 anomaly_output.add_output(target, anomaly, score)
         return anomaly_output
 
     def _generate_report(self):
         """Genreates a report for the model."""
-        import report_creator as rc
-
         other_sections = [
             rc.Heading("Selected Models Overview", level=2),
             rc.Text(

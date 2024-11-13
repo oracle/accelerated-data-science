@@ -78,10 +78,12 @@ class AquaWSMsgHandler:
                 logger.warning(reply["message"])
         # telemetry may not be present if there is an error while initializing
         if hasattr(self, "telemetry"):
+            aqua_api_details = kwargs.get("aqua_api_details", {})
             self.telemetry.record_event_async(
                 category="aqua/error",
                 action=str(status_code),
                 value=reason,
+                **aqua_api_details
             )
         response = AquaWsError(
             status=status_code,

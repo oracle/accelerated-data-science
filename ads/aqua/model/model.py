@@ -40,6 +40,7 @@ from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE,
     AQUA_MODEL_ARTIFACT_FILE,
     AQUA_MODEL_TYPE_CUSTOM,
+    HF_METADATA_FOLDER,
     LICENSE_TXT,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     README,
@@ -1274,6 +1275,8 @@ class AquaModelApp(AquaApp):
         model_name: str,
         os_path: str,
         local_dir: str = None,
+        allow_patterns: List[str] = None,
+        ignore_patterns: List[str] = None,
     ) -> str:
         """This helper function downloads the model artifact from Hugging Face to a local folder, then uploads
         to object storage location.
@@ -1283,6 +1286,12 @@ class AquaModelApp(AquaApp):
         model_name (str): The huggingface model name.
         os_path (str): The OS path where the model files are located.
         local_dir (str): The local temp dir to store the huggingface model.
+        allow_patterns (list): Model files matching at least one pattern are downloaded.
+            Example: ["*.json"] will download all .json files. ["folder/*"] will download all files under `folder`.
+            Patterns are Standard Wildcards (globbing patterns) and rules can be found here: https://docs.python.org/3/library/fnmatch.html
+        ignore_patterns (list): Model files matching any of the patterns are not downloaded.
+            Example: ["*.json"] will ignore all .json files. ["folder/*"] will ignore all files under `folder`.
+            Patterns are Standard Wildcards (globbing patterns) and rules can be found here: https://docs.python.org/3/library/fnmatch.html
 
         Returns
         -------
@@ -1293,30 +1302,19 @@ class AquaModelApp(AquaApp):
         if not local_dir:
             local_dir = os.path.join(os.path.expanduser("~"), "cached-model")
         local_dir = os.path.join(local_dir, model_name)
-        retry = 10
-        i = 0
-        huggingface_download_err_message = None
-        while i < retry:
-            try:
-                # Download to cache folder. The while loop retries when there is a network failure
-                snapshot_download(repo_id=model_name)
-            except Exception as e:
-                huggingface_download_err_message = str(e)
-                i += 1
-            else:
-                break
-        if i == retry:
-            raise Exception(
-                f"Could not download the model {model_name} from https://huggingface.co with message {huggingface_download_err_message}"
-            )
         os.makedirs(local_dir, exist_ok=True)
-        # Copy the model from the cache to destination
-        snapshot_download(repo_id=model_name, local_dir=local_dir)
-        # Upload to object storage
+        snapshot_download(
+            repo_id=model_name,
+            local_dir=local_dir,
+            allow_patterns=allow_patterns,
+            ignore_patterns=ignore_patterns,
+        )
+        # Upload to object storage and skip .cache/huggingface/ folder
         model_artifact_path = upload_folder(
             os_path=os_path,
             local_dir=local_dir,
             model_name=model_name,
+            exclude_pattern=f"{HF_METADATA_FOLDER}*"
         )
 
         return model_artifact_path
@@ -1335,6 +1333,12 @@ class AquaModelApp(AquaApp):
                 os_path (str): Object storage destination URI to store the downloaded model. Format: oci://bucket-name@namespace/prefix
                 inference_container (str): selects service defaults
                 finetuning_container (str): selects service defaults
+                allow_patterns (list): Model files matching at least one pattern are downloaded.
+                    Example: ["*.json"] will download all .json files. ["folder/*"] will download all files under `folder`.
+                    Patterns are Standard Wildcards (globbing patterns) and rules can be found here: https://docs.python.org/3/library/fnmatch.html
+                ignore_patterns (list): Model files matching any of the patterns are not downloaded.
+                    Example: ["*.json"] will ignore all .json files. ["folder/*"] will ignore all files under `folder`.
+                    Patterns are Standard Wildcards (globbing patterns) and rules can be found here: https://docs.python.org/3/library/fnmatch.html
 
         Returns:
             AquaModel:
@@ -1381,6 +1385,8 @@ class AquaModelApp(AquaApp):
                 model_name=model_name,
                 os_path=import_model_details.os_path,
                 local_dir=import_model_details.local_dir,
+                allow_patterns=import_model_details.allow_patterns,
+                ignore_patterns=import_model_details.ignore_patterns,
             ).rstrip("/")
         else:
             artifact_path = import_model_details.os_path.rstrip("/")
