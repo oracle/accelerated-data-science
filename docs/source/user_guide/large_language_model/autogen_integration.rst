@@ -93,7 +93,7 @@ Following is an example LLM config for the OCI Generative AI service:
         # client_params will be used to initialize the LangChain ChatOCIGenAI class.
         "client_params": {
             "model_id": "cohere.command-r-plus",
-            "compartment_id": COMPARTMENT_OCID,
+            "compartment_id": "<COMPARTMENT_OCID>",
             "model_kwargs": {
                 "temperature": 0,
                 "max_tokens": 4000
