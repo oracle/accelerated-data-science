@@ -12,6 +12,7 @@ from importlib import reload
 from unittest.mock import MagicMock, patch
 
 import oci
+from ads.aqua.constants import HF_METADATA_FOLDER
 import pytest
 from ads.aqua.ui import ModelFormat
 from parameterized import parameterized
@@ -746,14 +747,18 @@ class TestAquaModel:
                     os_path=os_path,
                     local_dir=str(tmpdir),
                     download_from_hf=True,
+                    allow_patterns=["*.json"],
+                    ignore_patterns=["test.json"]
                 )
                 mock_snapshot_download.assert_called_with(
                     repo_id=model_name,
                     local_dir=f"{str(tmpdir)}/{model_name}",
+                    allow_patterns=["*.json"],
+                    ignore_patterns=["test.json"]
                 )
                 mock_subprocess.assert_called_with(
                     shlex.split(
-                        f"oci os object bulk-upload --src-dir {str(tmpdir)}/{model_name} --prefix prefix/path/{model_name}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT --no-overwrite"
+                        f"oci os object bulk-upload --src-dir {str(tmpdir)}/{model_name} --prefix prefix/path/{model_name}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT --no-overwrite --exclude {HF_METADATA_FOLDER}*"
                     )
                 )
         else:
