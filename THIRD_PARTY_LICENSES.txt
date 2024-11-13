@@ -24,6 +24,12 @@ autots
 * Source code: https://github.com/winedarksea/AutoTS
 * Project home: https://winedarksea.github.io/AutoTS/build/html/index.html
 
+autogen
+* Copyright (c) 2024 Microsoft Corporation.
+* License: MIT License
+* Source code: https://github.com/microsoft/autogen
+* Project home: microsoft.github.io/autogen/
+
 bokeh
 * Copyright Copyright (c) 2012 - 2021, Anaconda, Inc., and Bokeh Contributors
 * License: BSD 3-Clause "New" or "Revised" License
