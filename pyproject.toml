@@ -125,7 +125,7 @@ opctl = [
   "rich",
   "fire",
   "cachetools",
-  "huggingface_hub==0.23.4"
+  "huggingface_hub==0.26.2"
 ]
 optuna = ["optuna==2.9.0", "oracle_ads[viz]"]
 spark = ["pyspark>=3.0.0"]
@@ -212,6 +212,7 @@ aqua = ["jupyter_server"]
 # Revisit this section continuously and update to recent version of libraries. focus on pyt3.9/3.10 versions.
 testsuite = [
   "arff",
+  "autogen-agentchat~=0.2",
   "category_encoders==2.6.3",  # set version to avoid backtracking
   "cohere==4.53",  # set version to avoid backtracking
   "faiss-cpu",

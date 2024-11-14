@@ -129,6 +129,8 @@ class AquaModelHandler(AquaAPIhandler):
             str(input_data.get("download_from_hf", "false")).lower() == "true"
         )
         inference_container_uri = input_data.get("inference_container_uri")
+        allow_patterns = input_data.get("allow_patterns")
+        ignore_patterns = input_data.get("ignore_patterns")
 
         return self.finish(
             AquaModelApp().register(
@@ -141,6 +143,8 @@ class AquaModelHandler(AquaAPIhandler):
                 project_id=project_id,
                 model_file=model_file,
                 inference_container_uri=inference_container_uri,
+                allow_patterns=allow_patterns,
+                ignore_patterns=ignore_patterns,
             )
         )
 
