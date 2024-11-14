@@ -232,7 +232,7 @@ class LangChainModelClient(ModelClient):
         streaming = params.get("stream", False)
         # TODO: num_of_responses
         num_of_responses = params.get("n", 1)
-        messages = params.pop("messages", [])
+        messages = params.get("messages", [])
 
         invoke_params = copy.deepcopy(self.invoke_params)
 
@@ -241,7 +241,6 @@ class LangChainModelClient(ModelClient):
             model = self.model.bind_tools(
                 [_convert_to_langchain_tool(tool) for tool in tools]
             )
-            # invoke_params["tools"] = tools
             invoke_params.update(self.function_call_params)
         else:
             model = self.model
