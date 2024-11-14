@@ -26,7 +26,8 @@ class OperatorValidator(Validator):
 
     def validate(self, obj_dict, **kwargs):
         # Model should be case insensitive
-        obj_dict["spec"]["model"] = str(obj_dict["spec"]["model"]).lower()
+        if "model" in obj_dict["spec"]:
+            obj_dict["spec"]["model"] = str(obj_dict["spec"]["model"]).lower()
         return super().validate(obj_dict, **kwargs)
 
 
