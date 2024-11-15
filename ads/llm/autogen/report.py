@@ -3,6 +3,7 @@
 # This software is dual-licensed to you under the Universal Permissive License (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl or Apache License 2.0 as shown at http://www.apache.org/licenses/LICENSE-2.0. You may choose either license.
 import copy
 import json
+import os
 from datetime import datetime
 from typing import Optional
 
@@ -21,10 +22,6 @@ def start_logging(log_dir: str, session_id: Optional[str] = None):
     return autogen.runtime_logging.start(
         logger=OCIFileLogger(log_dir=log_dir, session_id=session_id)
     )
-
-
-def stop_logging():
-    autogen.runtime_logging.stop()
 
 
 def parse_datetime(s):
@@ -284,6 +281,18 @@ class SessionReport:
             report.save(view, output_file)
 
 
-def create_report(log_file: str):
+def create_report(log_file: str, report_file: str):
     report = SessionReport(log_file=log_file)
-    report.build("report.html")
+    report.build(report_file)
+    return report_file
+
+
+def stop_logging(report_dir: str):
+    autogen.runtime_logging.stop()
+    if not report_dir:
+        return None
+    logger = autogen.runtime_logging.autogen_logger
+    if not isinstance(logger, OCIFileLogger):
+        raise NotImplementedError("The logger does not support report generation.")
+    report_file = os.path.join(report_dir, f"{logger.session_id}.html")
+    return create_report(log_file=logger.log_file, report_file=report_file)
