@@ -3,6 +3,7 @@
 # This software is dual-licensed to you under the Universal Permissive License (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl or Apache License 2.0 as shown at http://www.apache.org/licenses/LICENSE-2.0. You may choose either license.
 import copy
 import json
+import logging
 import os
 from datetime import datetime
 from typing import Optional
@@ -18,10 +19,50 @@ from ads.llm.autogen.oci_logger import (
 )
 
 
-def start_logging(log_dir: str, session_id: Optional[str] = None):
-    return autogen.runtime_logging.start(
-        logger=OCIFileLogger(log_dir=log_dir, session_id=session_id)
-    )
+logger = logging.getLogger(__name__)
+
+
+class AutoGenLoggingException(Exception):
+    pass
+
+
+def start_logging(log_dir: str, session_id: Optional[str] = None) -> str:
+    """Starts a new logging session.
+    Each thread can only have one logging session.
+
+    AutoGen saves the logger as global variable. Only one logger can be active at a time.
+    If you are using other loggers like AgentOps, an exception will be raised.
+
+    Parameters
+    ----------
+    log_dir : str
+        The location to store the logs.
+    session_id : str, optional
+        Session ID for identifying the session, by default None.
+        If the session ID is None, a new UUID4 will be generated.
+        The session ID will be used as the log filename.
+
+    Returns
+    -------
+    str
+        Session ID
+    """
+    autogen_logger = autogen.runtime_logging.autogen_logger
+    if autogen_logger is None:
+        autogen_logger = OCIFileLogger(log_dir=log_dir, session_id=session_id)
+    elif isinstance(autogen_logger, OCIFileLogger):
+        autogen_logger.new_session(log_dir=log_dir, session_id=session_id)
+    elif autogen.runtime_logging.is_logging:
+        raise AutoGenLoggingException(
+            "AutoGen is currently logging with a different logger. "
+            "Only one logger can be active at a time. "
+            "Please call `autogen.runtime_logging.stop()` to stop logging "
+            "before starting a new session."
+        )
+    else:
+        logger.warning("Replacing AutoGen logger with OCIFileLogger...")
+        autogen_logger = OCIFileLogger(log_dir=log_dir, session_id=session_id)
+    return autogen.runtime_logging.start(logger=autogen_logger)
 
 
 def parse_datetime(s):
@@ -29,6 +70,29 @@ def parse_datetime(s):
 
 
 def get_duration(log: dict) -> float:
+    """Gets the duration of an event in seconds from a log record.
+    The log record should contain two keys: `start_time` and `end_time`.
+    Each of the value should be a time in string format of
+    `%Y-%m-%d %H:%M:%S.%f`
+
+    The duration is calculated by parsing two strings, and
+    subtracting the `end_time` from `start_time`.
+
+    If either `start_time` or `end_time` is not presented,
+    0 will be returned.
+
+    Parameters
+    ----------
+    log : dict
+        A log record containing keys: `start_time` and `end_time`
+
+    Returns
+    -------
+    float
+        Duration in seconds.
+    """
+    if "end_time" not in log or "start_time" not in log:
+        return 0
     return (
         parse_datetime(log.get("end_time")) - parse_datetime(log.get("start_time"))
     ).total_seconds()
@@ -283,11 +347,27 @@ class SessionReport:
 
 def create_report(log_file: str, report_file: str):
     report = SessionReport(log_file=log_file)
+    report_file = os.path.abspath(os.path.expanduser(report_file))
     report.build(report_file)
     return report_file
 
 
-def stop_logging(report_dir: str):
+def stop_logging(report_dir: str = None) -> Optional[str]:
+    """Stops the logging session.
+
+    Parameters
+    ----------
+    report_dir : str, optional
+        Directory for saving the session report, by default None.
+        If `report_dir` is None, no report will be created.
+
+    Returns
+    -------
+    str
+        The full filename of the report, if `report_dir` is provided.
+        Otherwise, None.
+
+    """
     autogen.runtime_logging.stop()
     if not report_dir:
         return None

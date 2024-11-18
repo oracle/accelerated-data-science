@@ -6,6 +6,7 @@ import logging
 import os
 import threading
 import uuid
+from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Union
 
@@ -92,36 +93,114 @@ class OCIFileHandler(logging.FileHandler):
         return super().format(record)
 
 
+@dataclass
+class LoggingSession:
+    session_id: str
+    log_dir: str
+    log_file: str
+    thread_id: int
+    pid: int
+    logger: logging.Logger
+
+
 class OCIFileLogger(FileLogger):
+    def __init__(self, log_dir: str, session_id: Optional[str] = None):
+        self.sessions: Dict[int, LoggingSession] = {}
+        self.new_session(log_dir=log_dir, session_id=session_id)
+
+    @property
+    def session(self):
+        """Session for the current thread."""
+        return self.sessions.get(threading.get_ident())
+
+    @property
+    def logger(self):
+        """Logger for the current thread."""
+        session = self.sessions.get(threading.get_ident())
+        return session.logger if session else None
+
+    @property
+    def session_id(self):
+        """Session ID for the current thread."""
+        return self.sessions[threading.get_ident()].session_id
+
+    @property
+    def log_file(self):
+        """Log file for the current session."""
+        return self.sessions[threading.get_ident()].log_file
+
     @property
     def name(self):
-        return "oci_file_logger"
+        return self.session_id or "oci_file_logger"
 
-    def __init__(self, log_dir: str, session_id: Optional[str] = None):
-        self.session_id = session_id or str(uuid.uuid4())
+    def new_session(self, log_dir: str, session_id: Optional[str] = None):
+        """Creates a new logging session.
 
-        self.log_dir = os.path.abspath(os.path.expanduser(log_dir))
-        os.makedirs(self.log_dir, exist_ok=True)
-        self.log_file = os.path.join(self.log_dir, f"{self.session_id}.log")
-        logger.info("Start logging session to file %s", self.log_file)
+        If an active logging session is already started in the thread, the existing session will be used.
 
+        Parameters
+        ----------
+        log_dir : str
+            Directory for saving the log file.
+        session_id : str, optional
+            Session ID, by default None.
+            If the session ID is None, a new UUID4 will be generated.
+            The session ID will be used as the log filename.
+
+        Returns
+        -------
+        str
+            session ID
+        """
+        thread_id = threading.get_ident()
+
+        if thread_id in self.sessions:
+            logger.warning(
+                "An active logging session (ID=%s) is already started in this thread (%s). "
+                "Please stop the active session before starting a new session.",
+                self.session_id,
+                thread_id,
+            )
+            return self.session_id
+
+        session_id = session_id or str(uuid.uuid4())
+        log_dir = os.path.abspath(os.path.expanduser(log_dir))
+        log_file = os.path.join(log_dir, f"{session_id}.log")
+
+        # Test opening the log file
+        os.makedirs(log_dir, exist_ok=True)
         try:
-            with open(self.log_file, "a"):
+            with open(log_file, "a"):
                 pass
         except Exception as e:
             logger.error(f"Failed to write logging file: {e}")
 
-        self.logger = logging.getLogger(session_id)
-        self.logger.setLevel(logging.INFO)
-        file_handler = OCIFileHandler(self.log_file, session_id=self.session_id)
-        self.logger.addHandler(file_handler)
+        # Prepare the logger
+        session_logger = logging.getLogger(session_id)
+        session_logger.setLevel(logging.INFO)
+        file_handler = OCIFileHandler(log_file, session_id=session_id)
+        session_logger.addHandler(file_handler)
+
+        # Create logging session
+        self.sessions[thread_id] = LoggingSession(
+            session_id=session_id,
+            log_dir=log_dir,
+            log_file=log_file,
+            thread_id=thread_id,
+            pid=os.getpid(),
+            logger=session_logger,
+        )
+
+        logger.info("Start logging session %s to file %s", session_id, log_file)
+        return session_id
 
     def start(self) -> str:
-        """Start the logger and return the session_id."""
+        """Start the logging session and return the session_id."""
         self.log_event(source=self, name=Events.SESSION_START)
         return self.session_id
 
     def stop(self) -> None:
+        """Stops the logging session."""
         self.log_event(source=self, name=Events.SESSION_STOP)
         return super().stop()
 
