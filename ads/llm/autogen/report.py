@@ -98,6 +98,15 @@ def get_duration(log: dict) -> float:
     ).total_seconds()
 
 
+def is_json_string(s):
+    """Checks if a string contains valid JSON."""
+    try:
+        json.loads(s)
+    except Exception:
+        return False
+    return True
+
+
 class SessionReport:
     def __init__(self, log_file: str) -> None:
         self.log_file = log_file
@@ -106,6 +115,10 @@ class SessionReport:
         self.logs = self._parse_logs()
         self.event_logs = self.get_event_logs()
         self.invocation_logs = self._parse_invocation_events()
+
+    @staticmethod
+    def format_json_string(s):
+        return f"```json\n{json.dumps(json.loads(s), indent=2)}\n```"
 
     def _parse_logs(self):
         logs = []
@@ -257,13 +270,18 @@ class SessionReport:
             response = json.loads(response)
         except Exception:
             pass
+
+        tool_call_args = log.get("input_args", "")
+        if is_json_string(tool_call_args):
+            tool_call_args = self.format_json_string(tool_call_args)
+
         return rc.Block(
             rc.Group(
                 rc.Block(
                     rc.Metric(
                         heading="Request",
                         value=log.get("tool_name"),
-                        label=log.get("input_args"),
+                        label=tool_call_args,
                     ),
                     rc.Collapse(
                         rc.Json(request),
