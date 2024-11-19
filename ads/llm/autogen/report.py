@@ -1,22 +1,13 @@
 # coding: utf-8
 # Copyright (c) 2016, 2024, Oracle and/or its affiliates.  All rights reserved.
 # This software is dual-licensed to you under the Universal Permissive License (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl or Apache License 2.0 as shown at http://www.apache.org/licenses/LICENSE-2.0. You may choose either license.
-import copy
-import json
 import logging
 import os
-from datetime import datetime
 from typing import Optional
 
 import autogen
 import autogen.runtime_logging
-import plotly.express as px
-import pandas as pd
-import report_creator as rc
-from ads.llm.autogen.oci_logger import (
-    OCIFileLogger,
-    Events,
-)
+from ads.llm.autogen.oci_logger import OCIFileLogger
 
 
 logger = logging.getLogger(__name__)
@@ -26,7 +17,9 @@ class AutoGenLoggingException(Exception):
     pass
 
 
-def start_logging(log_dir: str, session_id: Optional[str] = None) -> str:
+def start_logging(
+    log_dir: str, session_id: Optional[str] = None, auth: Optional[dict] = None
+) -> str:
     """Starts a new logging session.
     Each thread can only have one logging session.
 
@@ -39,8 +32,12 @@ def start_logging(log_dir: str, session_id: Optional[str] = None) -> str:
         The location to store the logs.
     session_id : str, optional
         Session ID for identifying the session, by default None.
-        If the session ID is None, a new UUID4 will be generated.
+        If session_id is None, a new UUID4 will be generated.
         The session ID will be used as the log filename.
+    auth: dict, optional
+        Dictionary containing the OCI authentication config and signer.
+        This is only used if log_dir is on object storage.
+        If auth is None, `ads.common.auth.default_signer()` will be used.
 
     Returns
     -------
@@ -49,9 +46,11 @@ def start_logging(log_dir: str, session_id: Optional[str] = None) -> str:
     """
     autogen_logger = autogen.runtime_logging.autogen_logger
     if autogen_logger is None:
-        autogen_logger = OCIFileLogger(log_dir=log_dir, session_id=session_id)
+        autogen_logger = OCIFileLogger(
+            log_dir=log_dir, session_id=session_id, auth=auth
+        )
     elif isinstance(autogen_logger, OCIFileLogger):
-        autogen_logger.new_session(log_dir=log_dir, session_id=session_id)
+        autogen_logger.new_session(log_dir=log_dir, session_id=session_id, auth=auth)
     elif autogen.runtime_logging.is_logging:
         raise AutoGenLoggingException(
             "AutoGen is currently logging with a different logger. "
@@ -65,312 +64,9 @@ def start_logging(log_dir: str, session_id: Optional[str] = None) -> str:
     return autogen.runtime_logging.start(logger=autogen_logger)
 
 
-def parse_datetime(s):
-    return datetime.strptime(s, "%Y-%m-%d %H:%M:%S.%f")
-
-
-def get_duration(log: dict) -> float:
-    """Gets the duration of an event in seconds from a log record.
-    The log record should contain two keys: `start_time` and `end_time`.
-    Each of the value should be a time in string format of
-    `%Y-%m-%d %H:%M:%S.%f`
-
-    The duration is calculated by parsing two strings, and
-    subtracting the `end_time` from `start_time`.
-
-    If either `start_time` or `end_time` is not presented,
-    0 will be returned.
-
-    Parameters
-    ----------
-    log : dict
-        A log record containing keys: `start_time` and `end_time`
-
-    Returns
-    -------
-    float
-        Duration in seconds.
-    """
-    if "end_time" not in log or "start_time" not in log:
-        return 0
-    return (
-        parse_datetime(log.get("end_time")) - parse_datetime(log.get("start_time"))
-    ).total_seconds()
-
-
-def is_json_string(s):
-    """Checks if a string contains valid JSON."""
-    try:
-        json.loads(s)
-    except Exception:
-        return False
-    return True
-
-
-class SessionReport:
-    def __init__(self, log_file: str) -> None:
-        self.log_file = log_file
-        with open(self.log_file, mode="r", encoding="utf-8") as f:
-            self.log_lines = f.readlines()
-        self.logs = self._parse_logs()
-        self.event_logs = self.get_event_logs()
-        self.invocation_logs = self._parse_invocation_events()
-
-    @staticmethod
-    def format_json_string(s):
-        return f"```json\n{json.dumps(json.loads(s), indent=2)}\n```"
-
-    def _parse_logs(self):
-        logs = []
-        for log in self.log_lines:
-            try:
-                logs.append(json.loads(log))
-            except Exception as e:
-                continue
-        return logs
-
-    def _parse_invocation_events(self):
-        # LLM calls
-        llm_events = self.filter_event_logs(Events.LLM_CALL)
-        llm_call_counter = 1
-        for event in llm_events:
-            event["name"] = f"LLM Call {str(llm_call_counter)}"
-            llm_call_counter += 1
-        # Tool Calls
-        tool_events = self.filter_event_logs(Events.TOOL_CALL)
-        for event in tool_events:
-            event["start_time"] = self.estimate_tool_call_start_time(event)
-            event["name"] = event["tool_name"]
-            event["end_time"] = event["timestamp"]
-
-        events = sorted(llm_events + tool_events, key=lambda x: x.get("start_time"))
-        for event in events:
-            event["duration"] = get_duration(event)
-
-        return events
-
-    def get_event_data(self, event_name: str):
-        for log in self.logs:
-            if log.get(Events.KEY) == event_name:
-                return log
-        return None
-
-    def filter_event_logs(self, event_name):
-        filtered_logs = []
-        for log in self.logs:
-            if log.get(Events.KEY) == event_name:
-                filtered_logs.append(log)
-        return filtered_logs
-
-    def get_event_logs(self):
-        event_logs = []
-        for log in self.logs:
-            if Events.KEY in log:
-                event_logs.append(log)
-        return sorted(
-            event_logs, key=lambda x: x.get("timestamp", x.get("end_time", ""))
-        )
-
-    def estimate_tool_call_start_time(self, tool_call_log):
-        event_index = self.event_logs.index(tool_call_log)
-        while event_index > 0:
-            log = self.event_logs[event_index]
-
-            if log.get("json_state") and (
-                json.loads(log.get("json_state", "")).get("reply_func_name")
-                == "check_termination_and_human_reply"
-            ):
-                return log.get("timestamp")
-            event_index -= 1
-        return None
-
-    def build_timeline_figure(self):
-        df = pd.DataFrame(self.invocation_logs)
-        fig = px.timeline(
-            df,
-            x_start="start_time",
-            x_end="end_time",
-            y="name",
-            color="duration",
-            color_continuous_scale="rdylgn_r",
-        )
-        fig.update_layout(showlegend=False)
-        fig.update_yaxes(autorange="reversed")
-        return fig
-
-    def format_messages(self, messages):
-        text = ""
-        for message in messages:
-            text += f"**{message.get('role')}**:\n{message.get('content')}\n\n"
-        return text
-
-    def build_llm_chat(self, llm_log):
-        request = llm_log.get("request", {})
-        source_name = llm_log.get("source_name")
-
-        header = f"{source_name} invoking {request.get('model')}"
-
-        description = f"*{llm_log.get('start_time')}*"
-
-        request_value = f"{str(len(request.get('messages')))} messages"
-        tools = request.get("tools")
-        if tools:
-            request_value += f", {str(len(tools))} tools"
-
-        response = llm_log.get("response")
-        response_message = response.get("choices")[0].get("message")
-        response_text = response_message.get("content", "")
-        tool_calls = response_message.get("tool_calls")
-        if tool_calls:
-            response_text += f"\n\n**Tool Calls**:"
-            for tool_call in tool_calls:
-                func = tool_call.get("function")
-                response_text += f"\n\n`{func.get('name')}(**{func.get('arguments')})`"
-        response_time = get_duration(llm_log)
-
-        return rc.Block(
-            rc.Text(
-                description,
-                label=header,
-            ),
-            rc.Group(
-                rc.Block(
-                    rc.Metric(
-                        heading="Request",
-                        value=request_value,
-                        label=self.format_messages(request.get("messages")),
-                    ),
-                    rc.Collapse(
-                        rc.Json(request),
-                        label="JSON",
-                    ),
-                ),
-                rc.Block(
-                    rc.Metric(
-                        heading="Response",
-                        value=response_time,
-                        unit="s",
-                        label=response_text,
-                    ),
-                    rc.Collapse(
-                        rc.Json(response),
-                        label="JSON",
-                    ),
-                ),
-                # label=request_header,
-            ),
-        )
-
-    def build_tool_call(self, log: dict):
-        source_name = log.get("source_name")
-        header = f"{source_name} invoking {log.get('tool_name')}"
-        request = copy.deepcopy(log)
-        response = request.pop("returns", {})
-        try:
-            response = json.loads(response)
-        except Exception:
-            pass
-
-        tool_call_args = log.get("input_args", "")
-        if is_json_string(tool_call_args):
-            tool_call_args = self.format_json_string(tool_call_args)
-
-        return rc.Block(
-            rc.Group(
-                rc.Block(
-                    rc.Metric(
-                        heading="Request",
-                        value=log.get("tool_name"),
-                        label=tool_call_args,
-                    ),
-                    rc.Collapse(
-                        rc.Json(request),
-                        label="JSON",
-                    ),
-                ),
-                rc.Block(
-                    rc.Metric(
-                        heading="Response",
-                        value=get_duration(log),
-                        unit="s",
-                        label=str(response),
-                    ),
-                    rc.Collapse(
-                        rc.Json(response),
-                        label="JSON",
-                    ),
-                ),
-                label=header,
-            ),
-        )
-
-    def build_invocations(self, logs):
-        blocks = []
-        for log in logs:
-            event_name = log.get(Events.KEY)
-            if event_name == Events.LLM_CALL:
-                blocks.append(self.build_llm_chat(log))
-            elif event_name == Events.TOOL_CALL:
-                blocks.append(self.build_tool_call(log))
-        return blocks
-
-    def build(self, output_file: str):
-        start_event = self.get_event_data(Events.SESSION_START)
-        start_time = start_event.get("timestamp")
-        session_id = start_event.get("session_id")
-
-        event_logs = self.get_event_logs()
-        new_agent_logs = self.filter_event_logs(Events.NEW_AGENT)
-        llm_call_logs = self.filter_event_logs(Events.LLM_CALL)
-        tool_call_logs = self.filter_event_logs(Events.TOOL_CALL)
-
-        with rc.ReportCreator(
-            title=f"AutoGen Session: {session_id}",
-            description=f"Started at {start_time}",
-            footer="Created with ❤️ by Oracle ADS",
-        ) as report:
-
-            view = rc.Block(
-                rc.Group(
-                    rc.Metric(
-                        heading="Agents",
-                        value=len(new_agent_logs),
-                    ),
-                    rc.Metric(
-                        heading="Events",
-                        value=len(event_logs),
-                    ),
-                    rc.Metric(
-                        heading="LLM Calls",
-                        value=len(llm_call_logs),
-                    ),
-                    rc.Metric(
-                        heading="Tool Calls",
-                        value=len(tool_call_logs),
-                    ),
-                ),
-                rc.Select(
-                    blocks=[
-                        rc.Widget(self.build_timeline_figure(), label="Timeline"),
-                        rc.Block(
-                            *self.build_invocations(self.invocation_logs),
-                            label="Invocations",
-                        ),
-                    ],
-                ),
-            )
-
-            report.save(view, output_file)
-
-
-def create_report(log_file: str, report_file: str):
-    report = SessionReport(log_file=log_file)
-    report_file = os.path.abspath(os.path.expanduser(report_file))
-    report.build(report_file)
-    return report_file
-
-
-def stop_logging(report_dir: str = None) -> Optional[str]:
+def stop_logging(
+    report_dir: str = None, return_par_uri: bool = False, **kwargs
+) -> Optional[str]:
     """Stops the logging session.
 
     Parameters
@@ -378,6 +74,10 @@ def stop_logging(report_dir: str = None) -> Optional[str]:
     report_dir : str, optional
         Directory for saving the session report, by default None.
         If `report_dir` is None, no report will be created.
+    return_par_uri: bool, optional
+        For report_dir on OCI object storage only,
+        whether to create and return a pre-authenticated uri for the report.
+        Defaults to False.
 
     Returns
     -------
@@ -387,10 +87,18 @@ def stop_logging(report_dir: str = None) -> Optional[str]:
 
     """
     autogen.runtime_logging.stop()
-    if not report_dir:
-        return None
     logger = autogen.runtime_logging.autogen_logger
+
+    if not report_dir:
+        if isinstance(logger, OCIFileLogger):
+            return logger.session
+        else:
+            return None
+
     if not isinstance(logger, OCIFileLogger):
         raise NotImplementedError("The logger does not support report generation.")
     report_file = os.path.join(report_dir, f"{logger.session_id}.html")
-    return create_report(log_file=logger.log_file, report_file=report_file)
+    logger.session.create_report(
+        report_file=report_file, return_par_uri=return_par_uri, **kwargs
+    )
+    return logger.session
