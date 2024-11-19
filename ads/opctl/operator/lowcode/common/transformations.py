@@ -3,10 +3,10 @@
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import re
 from abc import ABC
 
 import pandas as pd
-import re
 
 from ads.opctl import logger
 from ads.opctl.operator.lowcode.common.const import DataColumns
