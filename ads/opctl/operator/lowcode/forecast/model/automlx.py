@@ -2,6 +2,7 @@
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import logging
+import os
 import traceback
 
 import numpy as np
@@ -80,10 +81,17 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
         from automlx import Pipeline, init
 
+        cpu_count = os.cpu_count()
         try:
+            if cpu_count < 4:
+                engine = "local"
+                engine_opts = None
+            else:
+                engine = "ray"
+                engine_opts = ({"ray_setup": {"_temp_dir": "/tmp/ray-temp"}},)
             init(
-                engine="ray",
-                engine_opts={"ray_setup": {"_temp_dir": "/tmp/ray-temp"}},
+                engine=engine,
+                engine_opts=engine_opts,
                 loglevel=logging.CRITICAL,
             )
         except Exception as e:
