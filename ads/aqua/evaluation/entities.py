@@ -83,7 +83,7 @@ class CreateAquaEvaluationDetails(Serializable):
     ocpus: Optional[float] = None
     log_group_id: Optional[str] = None
     log_id: Optional[str] = None
-    metrics: Optional[List[str]] = None
+    metrics: Optional[List] = None
     force_overwrite: Optional[bool] = False
 
     class Config:
@@ -140,7 +140,7 @@ class AquaEvaluationCommands(Serializable):
     evaluation_id: str
     evaluation_target_id: str
     input_data: Dict[str, Any]
-    metrics: List[str]
+    metrics: List
     output_dir: str
     params: Dict[str, Any]
 
