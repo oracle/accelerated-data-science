@@ -13,6 +13,8 @@ from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlparse
 
+import autogen
+import autogen.runtime_logging
 import fsspec
 from autogen import Agent, ConversableAgent
 from autogen.logger.file_logger import (
@@ -229,7 +231,7 @@ class SessionLogger(FileLogger):
         """
         thread_id = threading.get_ident()
 
-        if thread_id in self.sessions:
+        if autogen.runtime_logging.is_logging and thread_id in self.sessions:
             logger.warning(
                 "An active logging session (ID=%s) is already started in this thread (%s). "
                 "Please stop the active session before starting a new session.",

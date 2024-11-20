@@ -32,8 +32,10 @@ def start_logging(
         The location to store the logs.
     session_id : str, optional
         Session ID for identifying the session, by default None.
-        If session_id is None, a new UUID4 will be generated.
         The session ID will be used as the log filename.
+        If session_id is None, a new UUID4 will be generated.
+        To resume a session, use a previously generated session_id.
+        
     auth: dict, optional
         Dictionary containing the OCI authentication config and signer.
         This is only used if log_dir is on object storage.
