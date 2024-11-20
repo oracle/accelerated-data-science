@@ -7,7 +7,7 @@ from typing import Optional
 
 import autogen
 import autogen.runtime_logging
-from ads.llm.autogen.oci_logger import OCIFileLogger
+from ads.llm.autogen.session_logger import SessionLogger
 
 
 logger = logging.getLogger(__name__)
@@ -46,10 +46,10 @@ def start_logging(
     """
     autogen_logger = autogen.runtime_logging.autogen_logger
     if autogen_logger is None:
-        autogen_logger = OCIFileLogger(
+        autogen_logger = SessionLogger(
             log_dir=log_dir, session_id=session_id, auth=auth
         )
-    elif isinstance(autogen_logger, OCIFileLogger):
+    elif isinstance(autogen_logger, SessionLogger):
         autogen_logger.new_session(log_dir=log_dir, session_id=session_id, auth=auth)
     elif autogen.runtime_logging.is_logging:
         raise AutoGenLoggingException(
@@ -60,7 +60,7 @@ def start_logging(
         )
     else:
         logger.warning("Replacing AutoGen logger with OCIFileLogger...")
-        autogen_logger = OCIFileLogger(log_dir=log_dir, session_id=session_id)
+        autogen_logger = SessionLogger(log_dir=log_dir, session_id=session_id)
     return autogen.runtime_logging.start(logger=autogen_logger)
 
 
@@ -90,12 +90,12 @@ def stop_logging(
     logger = autogen.runtime_logging.autogen_logger
 
     if not report_dir:
-        if isinstance(logger, OCIFileLogger):
+        if isinstance(logger, SessionLogger):
             return logger.session
         else:
             return None
 
-    if not isinstance(logger, OCIFileLogger):
+    if not isinstance(logger, SessionLogger):
         raise NotImplementedError("The logger does not support report generation.")
     report_file = os.path.join(report_dir, f"{logger.session_id}.html")
     logger.session.create_report(
