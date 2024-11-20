@@ -13,8 +13,6 @@ from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlparse
 
-import autogen
-import autogen.runtime_logging
 import fsspec
 from autogen import Agent, ConversableAgent
 from autogen.logger.file_logger import (
@@ -82,11 +80,17 @@ class LoggingSession:
     report_file: Optional[str] = None
     par_uri: Optional[str] = None
 
-    def __repr__(self) -> str:
+    @property
+    def report(self) -> str:
         if self.par_uri:
             return self.par_uri
         elif self.report_file:
             return self.report_file
+        return None
+
+    def __repr__(self) -> str:
+        if self.report:
+            return self.report
         return self.log_file
 
     def create_par_uri(self, oci_file: str, **kwargs) -> str:
@@ -156,8 +160,12 @@ class SessionLogger(FileLogger):
     def __init__(
         self,
         log_dir: str,
+        report_dir: Optional[str] = None,
         session_id: Optional[str] = None,
         auth: Optional[dict] = None,
+        log_for_all_threads: str = False,
+        report_par_uri: bool = False,
+        par_kwargs: Optional[dict] = None,
     ):
         """Initialize a file logger for new session.
 
@@ -172,30 +180,36 @@ class SessionLogger(FileLogger):
         auth: dict, optional
             Dictionary containing the OCI authentication config and signer.
             If auth is None, `ads.common.auth.default_signer()` will be used.
+        log_for_all_threads:
+            Indicate if the logger should handle logging for all threads.
+            Defaults to False, the logger will only log for the current thread.
         """
-        self.sessions: Dict[int, LoggingSession] = {}
-        self.new_session(log_dir=log_dir, session_id=session_id, auth=auth)
+        self.report_dir = report_dir
+        self.report_par_uri = report_par_uri
+        self.par_kwargs = par_kwargs
+        self.log_for_all_threads = log_for_all_threads
 
-    @property
-    def session(self) -> Optional[LoggingSession]:
-        """Session for the current thread."""
-        return self.sessions.get(threading.get_ident())
+        self.session = self.new_session(
+            log_dir=log_dir, session_id=session_id, auth=auth
+        )
 
     @property
     def logger(self) -> Optional[str]:
-        """Logger for the current thread."""
-        session = self.sessions.get(threading.get_ident())
-        return session.logger if session else None
+        """Logger for the thread."""
+        thread_id = threading.get_ident()
+        if not self.log_for_all_threads and thread_id != self.session.thread_id:
+            return None
+        return self.session.logger
 
     @property
     def session_id(self) -> Optional[str]:
-        """Session ID for the current thread."""
-        return self.sessions[threading.get_ident()].session_id
+        """Session ID for the current session."""
+        return self.session.session_id
 
     @property
     def log_file(self) -> Optional[str]:
         """Log file path for the current session."""
-        return self.sessions[threading.get_ident()].log_file
+        return self.session.log_file
 
     @property
     def name(self) -> Optional[str]:
@@ -206,7 +220,7 @@ class SessionLogger(FileLogger):
         log_dir: str,
         session_id: Optional[str] = None,
         auth: Optional[dict] = None,
-    ) -> str:
+    ) -> LoggingSession:
         """Creates a new logging session.
 
         If an active logging session is already started in the thread, the existing session will be used.
@@ -226,19 +240,10 @@ class SessionLogger(FileLogger):
 
         Returns
         -------
-        str
-            session ID
+        LoggingSession
+            The new logging session
         """
         thread_id = threading.get_ident()
-
-        if autogen.runtime_logging.is_logging and thread_id in self.sessions:
-            logger.warning(
-                "An active logging session (ID=%s) is already started in this thread (%s). "
-                "Please stop the active session before starting a new session.",
-                self.session_id,
-                thread_id,
-            )
-            return self.session_id
 
         session_id = session_id or str(uuid.uuid4())
         log_file = os.path.join(log_dir, f"{session_id}.log")
@@ -250,7 +255,7 @@ class SessionLogger(FileLogger):
         session_logger.addHandler(file_handler)
 
         # Create logging session
-        self.sessions[thread_id] = LoggingSession(
+        session = LoggingSession(
             session_id=session_id,
             log_dir=log_dir,
             log_file=log_file,
@@ -261,7 +266,22 @@ class SessionLogger(FileLogger):
         )
 
         logger.info("Start logging session %s to file %s", session_id, log_file)
-        return session_id
+        return session
+
+    def generate_report(
+        self,
+        report_dir: Optional[str] = None,
+        report_par_uri: Optional[bool] = None,
+        **kwargs,
+    ) -> str:
+        report_dir = report_dir or self.report_dir
+        report_par_uri = report_par_uri if report_par_uri is not None else self.report_par_uri
+        kwargs = kwargs or self.par_kwargs or {}
+        
+        report_file = os.path.join(self.report_dir, f"{self.session_id}.html")
+        return self.session.create_report(
+            report_file=report_file, return_par_uri=self.report_par_uri, **kwargs
+        )
 
     def start(self) -> str:
         """Start the logging session and return the session_id."""
@@ -271,7 +291,9 @@ class SessionLogger(FileLogger):
     def stop(self) -> None:
         """Stops the logging session."""
         self.log_event(source=self, name=Events.SESSION_STOP)
-        return super().stop()
+        super().stop()
+        if self.report_dir:
+            return self.generate_report()
 
     def log_chat_completion(
         self,
@@ -288,6 +310,9 @@ class SessionLogger(FileLogger):
         """
         Log a chat completion.
         """
+        if not self.logger:
+            return
+
         thread_id = threading.get_ident()
         source_name = None
         if isinstance(source, str):
@@ -323,6 +348,9 @@ class SessionLogger(FileLogger):
         """
         Log a registered function(can be a tool) use from an agent or a string source.
         """
+        if not self.logger:
+            return
+
         thread_id = threading.get_ident()
 
         try:
@@ -353,6 +381,9 @@ class SessionLogger(FileLogger):
         """
         Log a new agent instance.
         """
+        if not self.logger:
+            return
+
         thread_id = threading.get_ident()
 
         try:
@@ -380,3 +411,21 @@ class SessionLogger(FileLogger):
             self.logger.info(log_data)
         except Exception as e:
             self.logger.error(f"[file_logger] Failed to log new agent: {e}")
+
+    def log_event(self, *args, **kwargs) -> None:
+        if not self.logger:
+            return
+        return super().log_event(*args, **kwargs)
+
+    def log_new_wrapper(self, *args, **kwargs) -> None:
+        if not self.logger:
+            return
+        return super().log_new_wrapper(*args, **kwargs)
+
+    def log_new_client(self, *args, **kwargs) -> None:
+        if not self.logger:
+            return
+        return super().log_new_wrapper(*args, **kwargs)
+
+    def __repr__(self) -> str:
+        return self.session.__repr__()

@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 class SessionReport:
-    def __init__(self, log_file: str, auth: Optional[dict] = default_signer()) -> None:
+    def __init__(self, log_file: str, auth: Optional[dict] = None) -> None:
+        auth = auth or default_signer()
         self.log_file = log_file
         if self.log_file.startswith("oci://"):
             with fsspec.open(self.log_file, mode="r", **auth) as f:

@@ -5,8 +5,7 @@ import logging
 import os
 from typing import Optional
 
-import autogen
-import autogen.runtime_logging
+from ads.llm.autogen import runtime_logging
 from ads.llm.autogen.session_logger import SessionLogger
 
 
@@ -18,7 +17,12 @@ class AutoGenLoggingException(Exception):
 
 
 def start_logging(
-    log_dir: str, session_id: Optional[str] = None, auth: Optional[dict] = None
+    log_dir: str,
+    report_dir: Optional[str] = None,
+    session_id: Optional[str] = None,
+    auth: Optional[dict] = None,
+    report_par_uri=False,
+    **kwargs,
 ) -> str:
     """Starts a new logging session.
     Each thread can only have one logging session.
@@ -35,7 +39,7 @@ def start_logging(
         The session ID will be used as the log filename.
         If session_id is None, a new UUID4 will be generated.
         To resume a session, use a previously generated session_id.
-        
+
     auth: dict, optional
         Dictionary containing the OCI authentication config and signer.
         This is only used if log_dir is on object storage.
@@ -46,61 +50,17 @@ def start_logging(
     str
         Session ID
     """
-    autogen_logger = autogen.runtime_logging.autogen_logger
-    if autogen_logger is None:
-        autogen_logger = SessionLogger(
-            log_dir=log_dir, session_id=session_id, auth=auth
-        )
-    elif isinstance(autogen_logger, SessionLogger):
-        autogen_logger.new_session(log_dir=log_dir, session_id=session_id, auth=auth)
-    elif autogen.runtime_logging.is_logging:
-        raise AutoGenLoggingException(
-            "AutoGen is currently logging with a different logger. "
-            "Only one logger can be active at a time. "
-            "Please call `autogen.runtime_logging.stop()` to stop logging "
-            "before starting a new session."
-        )
-    else:
-        logger.warning("Replacing AutoGen logger with OCIFileLogger...")
-        autogen_logger = SessionLogger(log_dir=log_dir, session_id=session_id)
-    return autogen.runtime_logging.start(logger=autogen_logger)
-
-
-def stop_logging(
-    report_dir: str = None, return_par_uri: bool = False, **kwargs
-) -> Optional[str]:
-    """Stops the logging session.
-
-    Parameters
-    ----------
-    report_dir : str, optional
-        Directory for saving the session report, by default None.
-        If `report_dir` is None, no report will be created.
-    return_par_uri: bool, optional
-        For report_dir on OCI object storage only,
-        whether to create and return a pre-authenticated uri for the report.
-        Defaults to False.
-
-    Returns
-    -------
-    str
-        The full filename of the report, if `report_dir` is provided.
-        Otherwise, None.
-
-    """
-    autogen.runtime_logging.stop()
-    logger = autogen.runtime_logging.autogen_logger
-
-    if not report_dir:
-        if isinstance(logger, SessionLogger):
-            return logger.session
-        else:
-            return None
-
-    if not isinstance(logger, SessionLogger):
-        raise NotImplementedError("The logger does not support report generation.")
-    report_file = os.path.join(report_dir, f"{logger.session_id}.html")
-    logger.session.create_report(
-        report_file=report_file, return_par_uri=return_par_uri, **kwargs
+    autogen_logger = SessionLogger(
+        log_dir=log_dir,
+        report_dir=report_dir,
+        session_id=session_id,
+        auth=auth,
+        report_par_uri=report_par_uri,
+        par_kwargs=kwargs,
     )
-    return logger.session
+    return runtime_logging.start(logger=autogen_logger)
+
+
+def stop_logging():
+    """Stops the logging session."""
+    return runtime_logging.stop()
