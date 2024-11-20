@@ -159,7 +159,8 @@ class AquaEvaluationApp(AquaApp):
                 create_aqua_evaluation_details = CreateAquaEvaluationDetails(**kwargs)
             except Exception as ex:
                 custom_errors = {
-                    ".".join(map(str, e["loc"])): e["msg"] for e in json.loads(ex.json())
+                    ".".join(map(str, e["loc"])): e["msg"]
+                    for e in json.loads(ex.json())
                 }
                 raise AquaValueError(
                     f"Invalid create evaluation parameters. Error details: {custom_errors}."
@@ -619,11 +620,6 @@ class AquaEvaluationApp(AquaApp):
             evaluation_id=evaluation_id,
             evaluation_target_id=evaluation_source_id,
             input_data={
-                "columns": {
-                    "prompt": "prompt",
-                    "completion": "completion",
-                    "category": "category",
-                },
                 "format": Path(dataset_path).suffix,
                 "url": dataset_path,
             },
