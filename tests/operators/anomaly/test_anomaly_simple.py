@@ -100,7 +100,7 @@ MODELS = [
 def test_artificial_big(model):
     all_data = []
     TARGET_COLUMN = "sensor"
-    TARGET_CATEGORY_COLUMN = "Meter ID"
+    TARGET_CATEGORY_COLUMN = "Meter_ID"
     DATETIME_COLUMN = "Date"
     yr_in_30_min = pd.date_range(
         "2014-01-15 00:00:00", "2015-01-15 00:00:00", freq="30min"

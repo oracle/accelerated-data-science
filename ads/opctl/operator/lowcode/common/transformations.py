@@ -104,7 +104,7 @@ class Transformations(ABC):
     def _set_series_id_column(self, df):
         self._target_category_columns_map = {}
         if not self.target_category_columns:
-            df[DataColumns.Series] = "Series_1"
+            df[DataColumns.Series] = "Series 1"
             self.has_artificial_series = True
         else:
             df[DataColumns.Series] = merge_category_columns(
