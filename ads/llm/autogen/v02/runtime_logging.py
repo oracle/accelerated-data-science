@@ -56,7 +56,10 @@ class LoggerManager(BaseLogger):
 
     def __repr__(self) -> str:
         return "\n\n".join(
-            [f"{str(logger)}\n{logger.__repr__()}" for logger in self.loggers]
+            [
+                f"{str(logger.__class__)}:\n{logger.__repr__()}"
+                for logger in self.loggers
+            ]
         )
 
 
