@@ -481,12 +481,12 @@ class ForecastOperatorBaseModel(ABC):
             metrics_col_name = (
                 self.original_target_column
                 if self.datasets.has_artificial_series()
-                else "Series 1"
+                else "Series_1"
             )
             if metrics_df is not None:
                 write_data(
                     data=metrics_df.reset_index().rename(
-                        {"index": "metrics", "Series 1": metrics_col_name}, axis=1
+                        {"index": "metrics", "Series_1": metrics_col_name}, axis=1
                     ),
                     filename=os.path.join(
                         unique_output_dir, self.spec.metrics_filename
@@ -505,7 +505,7 @@ class ForecastOperatorBaseModel(ABC):
                 if test_metrics_df is not None:
                     write_data(
                         data=test_metrics_df.reset_index().rename(
-                            {"index": "metrics", "Series 1": metrics_col_name}, axis=1
+                            {"index": "metrics", "Series_1": metrics_col_name}, axis=1
                         ),
                         filename=os.path.join(
                             unique_output_dir, self.spec.test_metrics_filename
