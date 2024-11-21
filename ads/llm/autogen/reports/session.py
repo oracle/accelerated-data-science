@@ -286,7 +286,7 @@ class SessionReport:
                             *self.build_invocations(self.invocation_logs),
                             label="Invocations",
                         ),
-                        self.build_chats(),
+                        # self.build_chats(),
                     ],
                 ),
             )
