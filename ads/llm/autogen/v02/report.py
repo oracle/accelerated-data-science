@@ -5,8 +5,8 @@ import logging
 import os
 from typing import Optional
 
-from ads.llm.autogen import runtime_logging
-from ads.llm.autogen.session_logger import SessionLogger
+from ads.llm.autogen.v02 import runtime_logging
+from ads.llm.autogen.v02.session_logger import SessionLogger
 
 
 logger = logging.getLogger(__name__)

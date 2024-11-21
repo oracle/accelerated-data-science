@@ -31,9 +31,9 @@ from oci.object_storage.models import (
 )
 
 from ads.common.auth import default_signer
-from ads.llm.autogen.constants import Events
+from ads.llm.autogen.v02.constants import Events
 from ads.llm.autogen.reports.session import SessionReport
-from ads.llm.autogen.log_handlers.oci_file_handler import OCIFileHandler
+from ads.llm.autogen.v02.log_handlers.oci_file_handler import OCIFileHandler
 
 
 logger = logging.getLogger(__name__)

@@ -55,7 +55,9 @@ class LoggerManager(BaseLogger):
         return self.call_loggers("log_function_use", *args, **kwargs)
 
     def __repr__(self) -> str:
-        return "\n".join([logger.__repr__() for logger in self.loggers])
+        return "\n\n".join(
+            [f"{str(logger)}\n{logger.__repr__()}" for logger in self.loggers]
+        )
 
 
 def start(

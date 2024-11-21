@@ -12,7 +12,7 @@ import plotly.express as px
 import pandas as pd
 import report_creator as rc
 from ads.common.auth import default_signer
-from ads.llm.autogen.constants import Events
+from ads.llm.autogen.v02.constants import Events
 from ads.llm.autogen.reports.utils import get_duration, is_json_string
 
 
@@ -21,9 +21,9 @@ logger = logging.getLogger(__name__)
 
 class SessionReport:
     def __init__(self, log_file: str, auth: Optional[dict] = None) -> None:
-        auth = auth or default_signer()
         self.log_file = log_file
         if self.log_file.startswith("oci://"):
+            auth = auth or default_signer()
             with fsspec.open(self.log_file, mode="r", **auth) as f:
                 self.log_lines = f.readlines()
         else:
@@ -231,6 +231,19 @@ class SessionReport:
                 blocks.append(self.build_tool_call(log))
         return blocks
 
+    def build_chats(self):
+        return rc.Block(
+            rc.Group(
+                rc.Block(),
+                rc.Markdown("# A\nsaying something"),
+            ),
+            rc.Group(
+                rc.Markdown("# A\nsaying something"),
+                rc.Block(),
+            ),
+            label="Chats",
+        )
+
     def build(self, output_file: str):
         start_event = self.get_event_data(Events.SESSION_START)
         start_time = start_event.get("timestamp")
@@ -273,6 +286,7 @@ class SessionReport:
                             *self.build_invocations(self.invocation_logs),
                             label="Invocations",
                         ),
+                        self.build_chats(),
                     ],
                 ),
             )
