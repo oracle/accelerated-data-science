@@ -5,12 +5,14 @@
 import copy
 import json
 import logging
-from typing import Optional
+import os
+from typing import Optional, List
 
 import fsspec
 import plotly.express as px
 import pandas as pd
 import report_creator as rc
+from jinja2 import Environment, FileSystemLoader
 from ads.common.auth import default_signer
 from ads.llm.autogen.v02.constants import Events
 from ads.llm.autogen.reports.utils import get_duration, is_json_string
@@ -36,6 +38,15 @@ class SessionReport:
     @staticmethod
     def format_json_string(s):
         return f"```json\n{json.dumps(json.loads(s), indent=2)}\n```"
+
+    @staticmethod
+    def _apply_template(template_path, **kwargs):
+        template_dir = os.path.join(os.path.dirname(__file__), "templates")
+        environment = Environment(
+            loader=FileSystemLoader(template_dir), autoescape=True
+        )
+        template = environment.get_template(template_path)
+        return template.render(**kwargs)
 
     def _parse_logs(self):
         logs = []
@@ -72,7 +83,7 @@ class SessionReport:
                 return log
         return None
 
-    def filter_event_logs(self, event_name):
+    def filter_event_logs(self, event_name) -> List[dict]:
         filtered_logs = []
         for log in self.logs:
             if log.get(Events.KEY) == event_name:
@@ -232,15 +243,47 @@ class SessionReport:
         return blocks
 
     def build_chats(self):
+        logs = self.filter_event_logs("received_message")
+        if not logs:
+            return rc.Text("No messages received in this session.")
+        states: List[dict] = [json.loads(log.get("json_state", "{}")) for log in logs]
+        for i, state in enumerate(states):
+            state.update(logs[i])
+        # The agent sending the first message will be placed on the right.
+        # All other agents will be placed on the left
+        host = states[0].get("sender")
+        blocks = []
+        for log in states:
+            sender = log.get("sender")
+            message = log.get("message")
+            # Content
+            if isinstance(message, dict) and "content" in message:
+                content = message.get("content")
+                if is_json_string(content):
+                    log["json_content"] = json.dumps(json.loads(content), indent=2)
+                log["content"] = content
+            else:
+                log["content"] = message
+            # Tool call
+            if isinstance(message, dict) and "tool_calls" in message:
+                tool_calls = message.get("tool_calls")
+                if tool_calls:
+                    tool_call_signatures = []
+                    for tool_call in tool_calls:
+                        func = tool_call.get("function")
+                        if not func:
+                            continue
+                        tool_call_signatures.append(
+                            f'{func.get("name")}(**{func.get("arguments", "{}")})'
+                        )
+                    log["tool_calls"] = tool_call_signatures
+            if sender == host:
+                html = self._apply_template("chat_box_rt.html", **log)
+            else:
+                html = self._apply_template("chat_box_lt.html", **log)
+            blocks.append(rc.Html(html))
         return rc.Block(
-            rc.Group(
-                rc.Block(),
-                rc.Markdown("# A\nsaying something"),
-            ),
-            rc.Group(
-                rc.Markdown("# A\nsaying something"),
-                rc.Block(),
-            ),
+            *blocks,
             label="Chats",
         )
 
@@ -286,7 +329,7 @@ class SessionReport:
                             *self.build_invocations(self.invocation_logs),
                             label="Invocations",
                         ),
-                        # self.build_chats(),
+                        self.build_chats(),
                     ],
                 ),
             )

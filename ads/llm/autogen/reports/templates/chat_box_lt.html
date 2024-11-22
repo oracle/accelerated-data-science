@@ -1,0 +1,17 @@
+<div style="padding-right: 20%;">
+    <div class="metric" style="padding-left: 25px; margin-right: auto; margin-left: 0; width: fit-content;">
+        <h4>{{ sender }}</h4>
+        {% if json_content %}
+        <pre><code style="background-color: white">{{ json_content }}</code></pre>
+        {% else%}
+        <p>{{ content }}</p>
+        {% endif %}
+        {% if tool_calls %}
+        {% for tool_call in tool_calls %}
+        <pre><code style="background-color: white">{{ tool_call }}</code></pre>
+        {% endfor %}
+        {% endif %}
+
+        <p><small><i>{{ timestamp }}</i></small></p>
+    </div>
+</div>
