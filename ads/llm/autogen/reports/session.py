@@ -36,7 +36,7 @@ class SessionReport:
         self.invocation_logs = self._parse_invocation_events()
 
     @staticmethod
-    def format_json_string(s):
+    def format_json_string(s) -> str:
         return f"```json\n{json.dumps(json.loads(s), indent=2)}\n```"
 
     @staticmethod
@@ -62,7 +62,22 @@ class SessionReport:
             )
         return html
 
-    def _parse_logs(self):
+    @staticmethod
+    def _preview_message(message: str, max_length=30) -> str:
+        # Return the entire string if it is less than the max_length
+        if len(message) <= max_length:
+            return message
+        # Go backward until we find the first whitespace
+        idx = 30
+        while not message[idx].isspace() and idx > 0:
+            idx -= 1
+        # If we found a whitespace
+        if idx > 0:
+            return message[:idx] + "..."
+        # If we didn't find a whitespace
+        return message[:30] + "..."
+
+    def _parse_logs(self) -> List[dict]:
         logs = []
         for log in self.log_lines:
             try:
@@ -146,7 +161,7 @@ class SessionReport:
             text += f"**{message.get('role')}**:\n{message.get('content')}\n\n"
         return text
 
-    def build_llm_chat(self, llm_log):
+    def build_llm_call(self, llm_log):
         request = llm_log.get("request", {})
         source_name = llm_log.get("source_name")
 
@@ -246,12 +261,12 @@ class SessionReport:
             ),
         )
 
-    def build_invocations_tab(self):
+    def build_invocations_tab(self) -> rc.Block:
         blocks = []
         for log in self.invocation_logs:
             event_name = log.get(Events.KEY)
             if event_name == Events.LLM_CALL:
-                blocks.append(self.build_llm_chat(log))
+                blocks.append(self.build_llm_call(log))
             elif event_name == Events.TOOL_CALL:
                 blocks.append(self.build_tool_call(log))
         return rc.Block(
@@ -259,7 +274,7 @@ class SessionReport:
             label="Invocations",
         )
 
-    def build_chat_tab(self):
+    def build_chat_tab(self) -> rc.Block:
         logs = self.filter_event_logs("received_message")
         if not logs:
             return rc.Text("No messages received in this session.")
@@ -304,6 +319,26 @@ class SessionReport:
             label="Chats",
         )
 
+    def build_logs_tab(self) -> rc.Block:
+        blocks = []
+        for log_line in self.log_lines:
+            if is_json_string(log_line):
+                log = json.loads(log_line)
+                label = log.get(
+                    "event_name", self._preview_message(log.get("message", ""))
+                )
+                blocks.append(rc.Collapse(rc.Json(log), label=label))
+            else:
+                log = log_line
+                blocks.append(
+                    rc.Collapse(rc.Text(log), label=self._preview_message(log_line))
+                )
+
+        return rc.Block(
+            *blocks,
+            label="Logs",
+        )
+
     def build(self, output_file: str):
         start_event = self.get_event_data(Events.SESSION_START)
         start_time = start_event.get("timestamp")
@@ -344,6 +379,7 @@ class SessionReport:
                         self.build_timeline_tab(),
                         self.build_invocations_tab(),
                         self.build_chat_tab(),
+                        self.build_logs_tab(),
                     ],
                 ),
             )
