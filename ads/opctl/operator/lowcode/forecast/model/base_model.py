@@ -47,8 +47,6 @@ from ..const import (
     SpeedAccuracyMode,
     SupportedMetrics,
     SupportedModels,
-    SpeedAccuracyMode,
-    AUTO_SELECT,
     BACKTEST_REPORT_NAME
 )
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec

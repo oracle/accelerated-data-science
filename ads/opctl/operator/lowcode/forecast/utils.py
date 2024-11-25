@@ -266,7 +266,6 @@ def get_auto_select_plot(backtest_results):
     metric_column = "metric"
     models = [x for x in back_test_csv_columns if x not in [back_test_column, metric_column]]
     for i, column in enumerate(models):
-        color = 0 #int(i * 255 / len(columns))
         fig.add_trace(
             go.Scatter(
                 x=backtest_results[back_test_column],
