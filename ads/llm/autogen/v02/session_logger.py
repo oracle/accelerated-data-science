@@ -1,6 +1,7 @@
 # coding: utf-8
 # Copyright (c) 2016, 2024, Oracle and/or its affiliates.  All rights reserved.
 # This software is dual-licensed to you under the Universal Permissive License (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl or Apache License 2.0 as shown at http://www.apache.org/licenses/LICENSE-2.0. You may choose either license.
+import importlib
 import json
 import logging
 import os
@@ -13,7 +14,9 @@ from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlparse
 
+import autogen
 import fsspec
+import oci
 from autogen import Agent, ConversableAgent
 from autogen.logger.file_logger import (
     ChatCompletion,
@@ -23,13 +26,13 @@ from autogen.logger.file_logger import (
     safe_serialize,
     to_dict,
 )
-
 from oci.object_storage import ObjectStorageClient
 from oci.object_storage.models import (
     CreatePreauthenticatedRequestDetails,
     PreauthenticatedRequest,
 )
 
+import ads
 from ads.common.auth import default_signer
 from ads.llm.autogen.v02.constants import Events
 from ads.llm.autogen.reports.session import SessionReport
@@ -131,7 +134,25 @@ class LoggingSession:
         ).data
         return response.full_path
 
-    def create_report(self, report_file: str, return_par_uri: bool = False, **kwargs):
+    def create_report(
+        self, report_file: str, return_par_uri: bool = False, **kwargs
+    ) -> str:
+        """Creates a report in HTML format.
+
+        Parameters
+        ----------
+        report_file : str
+            The file path to save the report.
+        return_par_uri : bool, optional
+            If the report is saved in object storage,
+            whether to create a pre-authenticated link for the report, by default False.
+            This will be ignored if the report is not saved in object storage.
+
+        Returns
+        -------
+        str
+            The full path or pre-authenticated link of the report.
+        """
         auth = self.auth or default_signer()
         report = SessionReport(log_file=self.log_file, auth=auth)
         if report_file.startswith("oci://"):
@@ -212,7 +233,8 @@ class SessionLogger(FileLogger):
         return self.session.log_file
 
     @property
-    def name(self) -> Optional[str]:
+    def name(self) -> str:
+        """Name of the logger."""
         return self.session_id or "oci_file_logger"
 
     def new_session(
@@ -274,10 +296,29 @@ class SessionLogger(FileLogger):
         report_par_uri: Optional[bool] = None,
         **kwargs,
     ) -> str:
+        """Generates a report for the session.
+
+        Parameters
+        ----------
+        report_dir : str, optional
+            Directory for saving the report, by default None
+        report_par_uri : bool, optional
+            Whether to create a pre-authenticated link for the report, by default None.
+            If the `report_par_uri` is not set, the value of `self.report_par_uri` will be used.
+
+        Returns
+        -------
+        str
+            The link to the report.
+            If the `report_dir` is local, the local file path will be returned.
+            If a pre-authenticated link is created, the link will be returned.
+        """
         report_dir = report_dir or self.report_dir
-        report_par_uri = report_par_uri if report_par_uri is not None else self.report_par_uri
+        report_par_uri = (
+            report_par_uri if report_par_uri is not None else self.report_par_uri
+        )
         kwargs = kwargs or self.par_kwargs or {}
-        
+
         report_file = os.path.join(self.report_dir, f"{self.session_id}.html")
         return self.session.create_report(
             report_file=report_file, return_par_uri=self.report_par_uri, **kwargs
@@ -285,7 +326,26 @@ class SessionLogger(FileLogger):
 
     def start(self) -> str:
         """Start the logging session and return the session_id."""
-        self.log_event(source=self, name=Events.SESSION_START)
+        envs = {
+            "oracle-ads": ads.__version__,
+            "oci": oci.__version__,
+            "autogen": autogen.__version__,
+        }
+        libraries = [
+            "langchain",
+            "langchain-core",
+            "langchain-community",
+            "langchain-openai",
+            "openai",
+        ]
+        for library in libraries:
+            try:
+                imported_library = importlib.import_module(library)
+                version = imported_library.__version__
+                envs[library] = version
+            except Exception:
+                pass
+        self.log_event(source=self, name=Events.SESSION_START, environment=envs)
         return self.session_id
 
     def stop(self) -> None:
