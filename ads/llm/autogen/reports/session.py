@@ -142,6 +142,8 @@ class SessionReport:
         return None
 
     def build_timeline_tab(self):
+        if not self.invocation_logs:
+            return rc.Text("No LLM or Tool Calls.", label="Timeline")
         df = pd.DataFrame(self.invocation_logs)
         fig = px.timeline(
             df,
