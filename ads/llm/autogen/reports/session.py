@@ -40,13 +40,27 @@ class SessionReport:
         return f"```json\n{json.dumps(json.loads(s), indent=2)}\n```"
 
     @staticmethod
-    def _apply_template(template_path, **kwargs):
+    def _apply_template(template_path, **kwargs) -> str:
         template_dir = os.path.join(os.path.dirname(__file__), "templates")
         environment = Environment(
             loader=FileSystemLoader(template_dir), autoescape=True
         )
         template = environment.get_template(template_path)
-        return template.render(**kwargs)
+        try:
+            html = template.render(**kwargs)
+        except Exception:
+            logger.error(
+                "Unable to render template %s with data:\n%s",
+                template_path,
+                str(kwargs),
+            )
+            return SessionReport._apply_template(
+                template_path=template_path,
+                sender=kwargs.get("sender", "N/A"),
+                content="TEMPLATE RENDER ERROR",
+                timestamp=kwargs.get("timestamp", ""),
+            )
+        return html
 
     def _parse_logs(self):
         logs = []
@@ -112,7 +126,7 @@ class SessionReport:
             event_index -= 1
         return None
 
-    def build_timeline_figure(self):
+    def build_timeline_tab(self):
         df = pd.DataFrame(self.invocation_logs)
         fig = px.timeline(
             df,
@@ -124,7 +138,7 @@ class SessionReport:
         )
         fig.update_layout(showlegend=False)
         fig.update_yaxes(autorange="reversed")
-        return fig
+        return rc.Widget(fig, label="Timeline")
 
     def format_messages(self, messages):
         text = ""
@@ -232,17 +246,20 @@ class SessionReport:
             ),
         )
 
-    def build_invocations(self, logs):
+    def build_invocations_tab(self):
         blocks = []
-        for log in logs:
+        for log in self.invocation_logs:
             event_name = log.get(Events.KEY)
             if event_name == Events.LLM_CALL:
                 blocks.append(self.build_llm_chat(log))
             elif event_name == Events.TOOL_CALL:
                 blocks.append(self.build_tool_call(log))
-        return blocks
+        return rc.Block(
+            *blocks,
+            label="Invocations",
+        )
 
-    def build_chats(self):
+    def build_chat_tab(self):
         logs = self.filter_event_logs("received_message")
         if not logs:
             return rc.Text("No messages received in this session.")
@@ -324,12 +341,9 @@ class SessionReport:
                 ),
                 rc.Select(
                     blocks=[
-                        rc.Widget(self.build_timeline_figure(), label="Timeline"),
-                        rc.Block(
-                            *self.build_invocations(self.invocation_logs),
-                            label="Invocations",
-                        ),
-                        self.build_chats(),
+                        self.build_timeline_tab(),
+                        self.build_invocations_tab(),
+                        self.build_chat_tab(),
                     ],
                 ),
             )
