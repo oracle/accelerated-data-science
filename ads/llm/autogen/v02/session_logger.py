@@ -170,6 +170,7 @@ class LoggingSession:
                     return par_uri
         else:
             report_file = os.path.abspath(os.path.expanduser(report_file))
+            os.makedirs(os.path.dirname(report_file), exist_ok=True)
             report.build(report_file)
         self.report_file = report_file
         return report_file
