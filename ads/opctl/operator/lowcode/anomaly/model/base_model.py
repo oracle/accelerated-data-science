@@ -166,9 +166,8 @@ class AnomalyOperatorBaseModel(ABC):
         yaml_appendix = rc.Yaml(self.config.to_dict())
         summary = rc.Block(
             rc.Group(
-                rc.Text(
-                    f"You selected the **`{self.spec.model}`** model.\n{model_description.text}\n"
-                ),
+                rc.Text(f"You selected the **`{self.spec.model}`** model.\n"),
+                model_description,
                 rc.Text(
                     "Based on your dataset, you could have also selected "
                     f"any of the models: `{'`, `'.join(SupportedModels.keys() if self.spec.datetime_column else NonTimeADSupportedModels.keys())}`."
