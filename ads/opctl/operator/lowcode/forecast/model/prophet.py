@@ -142,6 +142,9 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             dt_column=self.spec.datetime_column.name,
         )
 
+        # if os.environ["OCI__IS_SPARK"]:
+        #     pass
+        # else:
         Parallel(n_jobs=-1, require="sharedmem")(
             delayed(ProphetOperatorModel._train_model)(
                 self, i, series_id, df, model_kwargs.copy()
