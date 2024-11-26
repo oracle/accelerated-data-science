@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -18,7 +17,6 @@ import yaml
 from cerberus import Validator
 
 from ads.opctl import logger, utils
-from ads.opctl.operator import __operators__
 
 CONTAINER_NETWORK = "CONTAINER_NETWORK"
 
@@ -26,7 +24,11 @@ CONTAINER_NETWORK = "CONTAINER_NETWORK"
 class OperatorValidator(Validator):
     """The custom validator class."""
 
-    pass
+    def validate(self, obj_dict, **kwargs):
+        # Model should be case insensitive
+        if "model" in obj_dict["spec"]:
+            obj_dict["spec"]["model"] = str(obj_dict["spec"]["model"]).lower()
+        return super().validate(obj_dict, **kwargs)
 
 
 def create_output_folder(name):
@@ -34,7 +36,7 @@ def create_output_folder(name):
     protocol = fsspec.utils.get_protocol(output_folder)
     storage_options = {}
     if protocol != "file":
-        storage_options = auth or default_signer()
+        storage_options = default_signer()
 
     fs = fsspec.filesystem(protocol, **storage_options)
     name_suffix = 1
