@@ -496,6 +496,7 @@ class OCIDataScienceModel(
             logger.error(f"WorkRequest: `{work_request_id}` failed. Fetching Work Request Error Logs.")
             get_work_request_errors_response = self.client.list_work_request_errors(work_request_id)
             logger.error(get_work_request_errors_response.data)
+            raise Exception(get_work_request_errors_response.data)
 
     @check_for_model_id(
         msg="Model needs to be saved to the Model Catalog before it can be updated."
