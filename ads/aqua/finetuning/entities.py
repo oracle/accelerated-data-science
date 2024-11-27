@@ -26,7 +26,7 @@ class AquaFineTuningParams(DataClassSerializable):
     early_stopping_patience: Optional[int] = None
     early_stopping_threshold: Optional[float] = None
     load_best_model_at_end: Optional[bool] = None
-    metric_for_best_model: Optional[bool] = None
+    metric_for_best_model: Optional[str] = None
 
 
 @dataclass(repr=False)
