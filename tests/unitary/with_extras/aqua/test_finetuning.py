@@ -302,6 +302,14 @@ class FineTuningTestCase(TestCase):
                 },
                 False,
             ),
+            (
+                {
+                    "epochs": 2,
+                    "load_best_model_at_end": True,
+                    "metric_for_best_model": "accuracy",
+                },
+                True,
+            ),
         ]
     )
     def test_validate_finetuning_params(self, params, is_valid):

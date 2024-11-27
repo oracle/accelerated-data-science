@@ -25,6 +25,8 @@ class AquaFineTuningParams(DataClassSerializable):
     lora_target_modules: Optional[List] = None
     early_stopping_patience: Optional[int] = None
     early_stopping_threshold: Optional[float] = None
+    load_best_model_at_end: Optional[bool] = None
+    metric_for_best_model: Optional[bool] = None
 
 
 @dataclass(repr=False)
