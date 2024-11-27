@@ -2,6 +2,11 @@
 Release Notes
 =============
 
+2.12.8
+-------
+Release date: November 27, 2024
+* Fixed bugs in the AI Quick Actions Model Deployment for models registered via Object Storage.
+
 2.12.7
 -------
 Release date: November 20, 2024
