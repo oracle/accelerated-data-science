@@ -481,12 +481,12 @@ class AquaUIApp(AquaApp):
 
     @telemetry(entry_point="plugin=ui&action=list_job_shapes", name="aqua")
     def list_job_shapes(self, **kwargs) -> list:
-        """Lists all availiable job shapes for the specified compartment.
+        """Lists all available job shapes for the specified compartment.
 
         Parameters
         ----------
         **kwargs
-            Addtional arguments, such as `compartment_id`,
+            Additional arguments, such as `compartment_id`,
             for `list_job_shapes <https://docs.oracle.com/en-us/iaas/tools/python/2.122.0/api/data_science/client/oci.data_science.DataScienceClient.html#oci.data_science.DataScienceClient.list_job_shapes>`_
 
         Returns
@@ -496,6 +496,28 @@ class AquaUIApp(AquaApp):
         logger.info(f"Loading job shape summary from compartment: {compartment_id}")
 
         res = self.ds_client.list_job_shapes(
+            compartment_id=compartment_id, **kwargs
+        ).data
+        return sanitize_response(oci_client=self.ds_client, response=res)
+
+    @telemetry(entry_point="plugin=ui&action=list_model_deployment_shapes", name="aqua")
+    def list_model_deployment_shapes(self, **kwargs) -> list:
+        """Lists all available shapes for model deployment in the specified compartment.
+
+        Parameters
+        ----------
+        **kwargs
+            Additional arguments, such as `compartment_id`,
+            for `list_model_deployment_shapes <https://docs.oracle.com/en-us/iaas/api/#/en/data-science/20190101/ModelDeploymentShapeSummary/ListModelDeploymentShapes>`_
+
+        Returns
+        -------
+            str has json representation of `oci.data_science.models.ModelDeploymentShapeSummary`."""
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        logger.info(
+            f"Loading model deployment shape summary from compartment: {compartment_id}"
+        )
+        res = self.ds_client.list_model_deployment_shapes(
             compartment_id=compartment_id, **kwargs
         ).data
         return sanitize_response(oci_client=self.ds_client, response=res)
