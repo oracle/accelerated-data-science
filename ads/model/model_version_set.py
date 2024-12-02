@@ -454,7 +454,7 @@ class ModelVersionSet(Builder):
         return "modelVersionSet"
 
     @classmethod
-    def list(cls, compartment_id: str = None, **kwargs) -> List["ModelVersionSet"]:
+    def list(cls, compartment_id: str = None, category: Optional[str] = "USER", **kwargs) -> List["ModelVersionSet"]:
         """
         List model version sets in a given compartment.
 
@@ -473,7 +473,7 @@ class ModelVersionSet(Builder):
         return [
             cls.from_dsc_model_version_set(model_version_set)
             for model_version_set in DataScienceModelVersionSet.list_resource(
-                compartment_id, **kwargs
+                compartment_id, category, **kwargs
             )
         ]
 
