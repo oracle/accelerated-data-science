@@ -72,6 +72,8 @@ import copy
 import importlib
 import json
 import logging
+from dataclasses import asdict, dataclass
+from types import SimpleNamespace
 from typing import Any, Dict, List, Union
 from types import SimpleNamespace
 
@@ -177,6 +179,13 @@ class Message(AIMessage):
         return self.tool_calls
 
 
+@dataclass
+class Usage:
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+
+
 class LangChainModelClient(ModelClient):
     """Represents a model client wrapping a LangChain chat model."""
 
@@ -248,6 +257,7 @@ class LangChainModelClient(ModelClient):
         response = SimpleNamespace()
         response.choices = []
         response.model = self.model_name
+        response.usage = Usage()
 
         if streaming and messages:
             # If streaming is enabled and has messages, then iterate over the chunks of the response.
@@ -278,4 +288,4 @@ class LangChainModelClient(ModelClient):
     @staticmethod
     def get_usage(response: ModelClient.ModelClientResponseProtocol) -> Dict:
         """Return usage summary of the response using RESPONSE_USAGE_KEYS."""
-        return {}
+        return asdict(response.usage)
