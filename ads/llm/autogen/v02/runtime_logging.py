@@ -76,13 +76,18 @@ def start(
     # Check if a logger is already configured
     autogen_logger = autogen.runtime_logging.autogen_logger
     if not autogen_logger:
+        # No logger is configured
         logger_manager = LoggerManager()
     elif not isinstance(autogen_logger, LoggerManager):
+        # Logger is configured but it is not via ADS
         module_logger.warning(
             "AutoGen is already configured with %s", str(autogen_logger)
         )
         logger_manager = LoggerManager()
         logger_manager.add_logger(autogen_logger)
+    else:
+        # Logger is already configured with ADS
+        logger_manager = autogen_logger
 
     # Add AutoGen logger
     if logger:
