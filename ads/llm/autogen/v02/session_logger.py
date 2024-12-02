@@ -486,7 +486,7 @@ class SessionLogger(FileLogger):
     def log_new_client(self, *args, **kwargs) -> None:
         if not self.logger:
             return
-        return super().log_new_wrapper(*args, **kwargs)
+        return super().log_new_client(*args, **kwargs)
 
     def __repr__(self) -> str:
         return self.session.__repr__()
