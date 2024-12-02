@@ -56,6 +56,9 @@ class ModelNotSavedError(Exception):  # pragma: no cover
 class ModelWithActiveDeploymentError(Exception):  # pragma: no cover
     pass
 
+class ModelMetadataArtifactNotFoundError(Exception):  # pragma: no cover
+    pass
+
 
 def check_for_model_id(msg: str = MODEL_NEEDS_TO_BE_SAVED):
     """The decorator helping to check if the ID attribute sepcified for a datascience model.
@@ -87,6 +90,12 @@ def check_for_model_id(msg: str = MODEL_NEEDS_TO_BE_SAVED):
         return wrapper
 
     return decorator
+
+
+def convert_response_to_dict(headers:dict,status:int):
+    response_dict: dict = headers
+    response_dict['status'] = str(status)
+    return response_dict
 
 
 class OCIDataScienceModel(
@@ -184,7 +193,7 @@ class OCIDataScienceModel(
         msg="Model needs to be saved to the Model Catalog before the provenance metadata can be created."
     )
     def create_model_provenance(
-        self, model_provenance: oci.data_science.models.ModelProvenance
+            self, model_provenance: oci.data_science.models.ModelProvenance
     ) -> oci.data_science.models.ModelProvenance:
         """Creates model provenance metadata.
 
@@ -204,7 +213,7 @@ class OCIDataScienceModel(
         msg="Model needs to be saved to the Model Catalog before the provenance metadata can be updated."
     )
     def update_model_provenance(
-        self, model_provenance: oci.data_science.models.ModelProvenance
+            self, model_provenance: oci.data_science.models.ModelProvenance
     ) -> oci.data_science.models.ModelProvenance:
         """Updates model provenance metadata.
 
@@ -596,3 +605,331 @@ class OCIDataScienceModel(
                 ):
                     return True
         return False
+
+    def create_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> dict:
+        """Creates model custom metadata artifact for specified model.
+
+        Parameters
+        ----------
+        model_ocid: str
+            The `OCID`__ of the model.
+            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
+
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+
+        artifact_path: str
+            The model custom metadata artifact path to be upload.
+        Returns
+        -------
+        Dict
+            The model custom metadata artifact creation info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'ETag': '77156317-8bb9-4c4a-882b-0d85f8140d93',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Length': '4029958',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        with open(artifact_path, 'rb') as f:
+            contents = f.read()
+            print(contents)
+
+        response = self.client.create_model_custom_metadatum_artifact(model_ocid, metadata_key_name, contents,
+                                                           content_disposition='form'
+                                                                               '-data; name="file"; filename="readme.*"')
+        response_data = convert_response_to_dict(response.headers,response.status)
+        return response_data
+
+    def create_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> dict:
+        """Creates model defined metadata artifact for specified model.
+
+        Parameters
+        ----------
+        model_ocid: str
+            The `OCID`__ of the model.
+            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
+
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+
+        artifact_path: str
+            The model custom metadata artifact path to be upload.
+        Returns
+        -------
+        The model defined metadata artifact creation info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'ETag': '77156317-8bb9-4c4a-882b-0d85f8140d93',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Length': '4029958',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        with open(artifact_path, 'rb') as f:
+            contents = f.read()
+        response = self.client.create_model_defined_metadatum_artifact(model_ocid, metadata_key_name, contents,
+                                                            content_disposition='form-data; name="file"; filename="readme.*"')
+        response_data = convert_response_to_dict(response.headers,response.status)
+        return response_data
+
+    def update_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> dict:
+        """Update model defined metadata artifact for specified model.
+
+        Parameters
+        ----------
+        model_ocid: str
+            The `OCID`__ of the model.
+            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
+
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+
+        artifact_path: str
+            The model defined metadata artifact path to be upload.
+        Returns
+        -------
+        Dict
+            The model defined metadata artifact update info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'ETag': '77156317-8bb9-4c4a-882b-0d85f8140d93',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Length': '4029958',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        with open(artifact_path, 'rb') as f:
+            contents = f.read()
+        response =  self.client.update_model_defined_metadatum_artifact(model_ocid, metadata_key_name, contents,
+                                                            content_disposition='form-data; name="file"; filename="readme.*"')
+        response_data = convert_response_to_dict(response.headers, response.status)
+        return response_data
+
+
+    def update_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> dict:
+        """Update model custom metadata artifact for specified model.
+
+        Parameters
+        ----------
+        model_ocid: str
+            The `OCID`__ of the model.
+            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
+
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+
+        artifact_path: str
+            The model custom metadata artifact path to be upload.
+        Returns
+        -------
+        Dict
+            The model custom metadata artifact update info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'ETag': '77156317-8bb9-4c4a-882b-0d85f8140d93',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Length': '4029958',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        with open(artifact_path, 'rb') as f:
+            contents = f.read()
+        response =  self.client.update_model_custom_metadatum_artifact(model_ocid, metadata_key_name, contents,
+                                                           content_disposition='form'
+                                                                               '-data; name="file"; filename="readme.*"')
+        response_data = convert_response_to_dict(response.headers, response.status)
+        return response_data
+
+    def get_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> BytesIO:
+        """Downloads model custom metadata artifact content for specified model metadata key.
+
+        Parameters
+        ----------
+        model_ocid: str
+            The `OCID`__ of the model.
+            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
+
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+        Returns
+        -------
+        BytesIO
+               custom metadata artifact content
+
+        """
+        try:
+            return self.client.get_model_custom_metadatum_artifact_content(model_ocid, metadata_key_name).data.content
+        except ServiceError as ex:
+            if ex.status == 404:
+                raise ModelMetadataArtifactNotFoundError()
+
+
+    def get_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> BytesIO:
+        """Downloads model defined metadata artifact content for specified model metadata key.
+
+        Parameters
+        ----------
+        model_ocid: str
+            The `OCID`__ of the model.
+            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
+
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+        Returns
+        -------
+        BytesIO
+                Defined metadata artifact content
+
+        """
+        try:
+            return self.client.get_model_defined_metadatum_artifact_content(model_ocid, metadata_key_name).data.content
+        except ServiceError as ex:
+            if ex.status == 404:
+                raise ModelMetadataArtifactNotFoundError()
+
+
+    def head_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> dict:
+        """Gets custom metadata artifact metadata for specified model metadata key.
+
+        Parameters
+        ----------
+        model_ocid: str
+            The `OCID`__ of the model.
+            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
+
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+        Returns
+        -------
+        Dict
+            The model custom metadata artifact head call info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'ETag': '77156317-8bb9-4c4a-882b-0d85f8140d93',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Length': '4029958',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        response = self.client.head_model_custom_metadatum_artifact(model_ocid, metadata_key_name)
+        response_data = convert_response_to_dict(response.headers, response.status)
+        return response_data
+
+    def head_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> dict:
+        """Gets defined metadata artifact metadata for specified model metadata key.
+
+        Parameters
+        ----------
+        model_ocid: str
+            The `OCID`__ of the model.
+            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
+
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+        Returns
+        -------
+        Dict
+            The model defined metadata artifact head call info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'ETag': '77156317-8bb9-4c4a-882b-0d85f8140d93',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Length': '4029958',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        response = self.client.head_model_defined_metadatum_artifact(model_ocid, metadata_key_name)
+        response_data = convert_response_to_dict(response.headers, response.status)
+        return response_data
+
+    def delete_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> dict:
+        """Deletes model custom metadata artifact for specified model metadata key.
+
+        Parameters
+        ----------
+        model_ocid: str
+            The `OCID`__ of the model.
+            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
+
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+        Returns
+        -------
+        Dict
+            The model custom metadata artifact delete call info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'X-Content-Type-Options': 'nosniff',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        response = self.client.delete_model_custom_metadatum_artifact(model_ocid, metadata_key_name)
+        response_data = convert_response_to_dict(response.headers, response.status)
+        return response_data
+
+    def delete_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> dict:
+        """Deletes model defined metadata artifact for specified model metadata key.
+
+        Parameters
+        ----------
+        model_ocid: str
+            The `OCID`__ of the model.
+            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
+
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+        Returns
+        -------
+        Dict
+            The model defined metadata artifact delete call info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'X-Content-Type-Options': 'nosniff',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        response = self.client.delete_model_defined_metadatum_artifact(model_ocid, metadata_key_name)
+        response_data = convert_response_to_dict(response.headers, response.status)
+        return response_data
