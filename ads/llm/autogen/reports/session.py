@@ -181,7 +181,7 @@ class SessionReport:
         response_text = response_message.get("content", "")
         tool_calls = response_message.get("tool_calls")
         if tool_calls:
-            response_text += f"\n\n**Tool Calls**:"
+            response_text += "\n\n**Tool Calls**:"
             for tool_call in tool_calls:
                 func = tool_call.get("function")
                 response_text += f"\n\n`{func.get('name')}(**{func.get('arguments')})`"

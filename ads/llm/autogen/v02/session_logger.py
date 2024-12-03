@@ -1,4 +1,3 @@
-# coding: utf-8
 # Copyright (c) 2016, 2024, Oracle and/or its affiliates.  All rights reserved.
 # This software is dual-licensed to you under the Universal Permissive License (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl or Apache License 2.0 as shown at http://www.apache.org/licenses/LICENSE-2.0. You may choose either license.
 import importlib
@@ -7,9 +6,10 @@ import logging
 import os
 import tempfile
 import threading
+import traceback
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlparse
@@ -34,10 +34,9 @@ from oci.object_storage.models import (
 
 import ads
 from ads.common.auth import default_signer
-from ads.llm.autogen.v02.constants import Events
 from ads.llm.autogen.reports.session import SessionReport
+from ads.llm.autogen.v02.constants import Events
 from ads.llm.autogen.v02.log_handlers.oci_file_handler import OCIFileHandler
-
 
 logger = logging.getLogger(__name__)
 
@@ -268,7 +267,7 @@ class SessionLogger(FileLogger):
         """
         thread_id = threading.get_ident()
 
-        session_id = session_id or str(uuid.uuid4())
+        session_id = str(session_id or uuid.uuid4())
         log_file = os.path.join(log_dir, f"{session_id}.log")
 
         # Prepare the logger
@@ -354,7 +353,15 @@ class SessionLogger(FileLogger):
         self.log_event(source=self, name=Events.SESSION_STOP)
         super().stop()
         if self.report_dir:
-            return self.generate_report()
+            try:
+                return self.generate_report()
+            except Exception as e:
+                logger.error(
+                    "Failed to create session report for AutoGen session %s\n%s",
+                    self.session_id,
+                    str(e),
+                )
+                logger.debug(traceback.format_exc())
 
     def log_chat_completion(
         self,
