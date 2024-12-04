@@ -68,6 +68,8 @@ class AquaUIHandler(AquaAPIhandler):
             return self.list_buckets()
         elif paths.startswith("aqua/job/shapes"):
             return self.list_job_shapes()
+        elif paths.startswith("aqua/modeldeployment/shapes"):
+            return self.list_model_deployment_shapes()
         elif paths.startswith("aqua/vcn"):
             return self.list_vcn()
         elif paths.startswith("aqua/subnets"):
@@ -158,6 +160,15 @@ class AquaUIHandler(AquaAPIhandler):
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
         return self.finish(
             AquaUIApp().list_job_shapes(compartment_id=compartment_id, **kwargs)
+        )
+
+    def list_model_deployment_shapes(self, **kwargs):
+        """Lists model deployment shapes available in the specified compartment."""
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
+        return self.finish(
+            AquaUIApp().list_model_deployment_shapes(
+                compartment_id=compartment_id, **kwargs
+            )
         )
 
     def list_vcn(self, **kwargs):
@@ -255,8 +266,9 @@ class AquaCLIHandler(AquaAPIhandler):
 __handlers__ = [
     ("logging/?([^/]*)", AquaUIHandler),
     ("compartments/?([^/]*)", AquaUIHandler),
-    # TODO: change url to evaluation/experiements/?([^/]*)
+    # TODO: change url to evaluation/experiments/?([^/]*)
     ("experiment/?([^/]*)", AquaUIHandler),
+    ("modeldeployment/?([^/]*)", AquaUIHandler),
     ("versionsets/?([^/]*)", AquaUIHandler),
     ("buckets/?([^/]*)", AquaUIHandler),
     ("job/shapes/?([^/]*)", AquaUIHandler),

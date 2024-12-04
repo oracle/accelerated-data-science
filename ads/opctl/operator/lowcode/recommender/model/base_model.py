@@ -61,8 +61,9 @@ class RecommenderOperatorBaseModel(ABC):
             header_section = rc.Block(
                 rc.Heading("Recommender Report", level=1),
                 rc.Text(
-                    f"The recommendations was generated using {SupportedModels.SVD.upper()}. {model_description}"
+                    f"The recommendations was generated using {SupportedModels.SVD.upper()}."
                 ),
+                model_description,
                 rc.Group(
                     rc.Metric(
                         heading="Recommendations was generated in ",

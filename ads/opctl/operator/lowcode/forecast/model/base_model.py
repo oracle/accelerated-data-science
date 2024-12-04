@@ -149,8 +149,9 @@ class ForecastOperatorBaseModel(ABC):
                 header_section = rc.Block(
                     rc.Heading("Forecast Report", level=1),
                     rc.Text(
-                        f"You selected the {self.spec.model} model.\n{model_description}\nBased on your dataset, you could have also selected any of the models: {SupportedModels.keys()}."
+                        f"You selected the {self.spec.model} model.\nBased on your dataset, you could have also selected any of the models: {SupportedModels.keys()}."
                     ),
+                    model_description,
                     rc.Group(
                         rc.Metric(
                             heading="Analysis was completed in ",
