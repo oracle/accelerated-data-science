@@ -177,7 +177,7 @@ class SessionReport:
 
         response = llm_log.get("response")
         response_message = response.get("choices")[0].get("message")
-        response_text = response_message.get("content", "")
+        response_text = response_message.get("content") or ""
         tool_calls = response_message.get("tool_calls")
         if tool_calls:
             response_text += "\n\n**Tool Calls**:"

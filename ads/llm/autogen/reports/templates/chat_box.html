@@ -1,0 +1,13 @@
+<h4>{{ sender }}</h4>
+<p><small><i>to {{ source_name }}</i></small></p>
+{% if json_content %}
+<pre><code style="background-color: white">{{ json_content }}</code></pre>
+{% else%}
+<p>{{ content }}</p>
+{% endif %}
+{% if tool_calls %}
+{% for tool_call in tool_calls %}
+<pre><code style="background-color: white">{{ tool_call }}</code></pre>
+{% endfor %}
+{% endif %}
+<p><small><i>{{ timestamp }}</i></small></p>

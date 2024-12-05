@@ -1,16 +1,6 @@
 <div style="padding-left: 20%;">
-    <div class="metric" style="padding-right: 25px; margin-right: 0; margin-left: auto; width: fit-content;">
-        <h4 style="text-align: right;">{{ sender }}</h4>
-        {% if json_content %}
-        <pre><code style="background-color: white">{{ json_content }}</code></pre>
-        {% else%}
-        <p style="text-align: right;">{{ content }}</p>
-        {% endif %}
-        {% if tool_calls %}
-        {% for tool_call in tool_calls %}
-        <pre><code style="background-color: white">{{ tool_call }}</code></pre>
-        {% endfor %}
-        {% endif %}
-        <p style="text-align: right;"><small><i>{{ timestamp }}</i></small></p>
+    <div class="metric"
+        style="padding-right: 25px; margin-right: 0; margin-left: auto; width: fit-content;text-align: right;">
+        {% include "chat_box.html" %}
     </div>
 </div>
