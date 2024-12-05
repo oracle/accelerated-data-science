@@ -106,6 +106,15 @@ def start(
         return session_id
 
 
-def stop():
+def stop() -> BaseLogger:
+    """Stops all AutoGen loggers."""
     autogen.runtime_logging.stop()
     return autogen.runtime_logging.autogen_logger
+
+
+def get_loggers() -> List[BaseLogger]:
+    """Gets a list of existing AutoGen loggers."""
+    autogen_logger = autogen.runtime_logging.autogen_logger
+    if isinstance(autogen_logger, LoggerManager):
+        return autogen_logger.loggers
+    return [autogen_logger]
