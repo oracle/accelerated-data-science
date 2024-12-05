@@ -1,6 +1,7 @@
-# Copyright (c) 2016, 2024, Oracle and/or its affiliates.  All rights reserved.
+# Copyright (c) 2024, Oracle and/or its affiliates.  All rights reserved.
 # This software is dual-licensed to you under the Universal Permissive License (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl or Apache License 2.0 as shown at http://www.apache.org/licenses/LICENSE-2.0. You may choose either license.
 import importlib
+import inspect
 import json
 import logging
 import os
@@ -11,7 +12,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 import autogen
@@ -24,7 +25,6 @@ from autogen.logger.file_logger import (
     FileLogger,
     get_current_ts,
     safe_serialize,
-    to_dict,
 )
 from oci.object_storage import ObjectStorageClient
 from oci.object_storage.models import (
@@ -66,6 +66,41 @@ def serialize_response(response) -> dict:
         "response": str(response),
     }
     return data
+
+
+def serialize(
+    obj: Union[int, float, str, bool, Dict[Any, Any], List[Any], Tuple[Any, ...], Any],
+    exclude: Tuple[str, ...] = (),
+    no_recursive: Tuple[Any, ...] = (),
+) -> Any:
+    try:
+        if isinstance(obj, (int, float, str, bool)):
+            return obj
+        elif callable(obj):
+            return inspect.getsource(obj).strip()
+        elif isinstance(obj, dict):
+            return {
+                str(k): (
+                    serialize(str(v))
+                    if isinstance(v, no_recursive)
+                    else serialize(v, exclude, no_recursive)
+                )
+                for k, v in obj.items()
+                if k not in exclude
+            }
+        elif isinstance(obj, (list, tuple)):
+            return [
+                (
+                    serialize(str(v))
+                    if isinstance(v, no_recursive)
+                    else serialize(v, exclude, no_recursive)
+                )
+                for v in obj
+            ]
+        else:
+            return str(obj)
+    except Exception:
+        return str(obj)
 
 
 @dataclass
@@ -395,7 +430,7 @@ class SessionLogger(FileLogger):
                     "invocation_id": str(invocation_id),
                     "client_id": client_id,
                     "wrapper_id": wrapper_id,
-                    "request": to_dict(request),
+                    "request": serialize(request),
                     "response": serialize_response(response),
                     "is_cached": is_cached,
                     "cost": cost,
@@ -464,7 +499,7 @@ class SessionLogger(FileLogger):
                         if hasattr(agent, "name") and agent.name is not None
                         else ""
                     ),
-                    "wrapper_id": to_dict(
+                    "wrapper_id": serialize(
                         agent.client.wrapper_id
                         if hasattr(agent, "client") and agent.client is not None
                         else ""
@@ -472,7 +507,7 @@ class SessionLogger(FileLogger):
                     "session_id": self.session_id,
                     "current_time": get_current_ts(),
                     "agent_type": type(agent).__name__,
-                    "args": to_dict(init_args),
+                    "args": serialize(init_args),
                     "thread_id": thread_id,
                 }
             )
