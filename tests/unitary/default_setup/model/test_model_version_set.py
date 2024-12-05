@@ -322,7 +322,7 @@ class TestModelVersionSet:
             test_result = mvs.list(compartment_id="test_compartment_id")
             for i, item in enumerate(test_result):
                 assert item.to_dict() == expected_result[i].to_dict()
-            mock_list_resource.assert_called_with("test_compartment_id")
+            mock_list_resource.assert_called_with("test_compartment_id", category="USER")
 
     @patch.object(DataScienceModel, "list")
     def test_models(self, mock_list_models):

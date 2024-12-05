@@ -1573,7 +1573,7 @@ class DataScienceModel(Builder):
 
     @classmethod
     def list(
-            cls, compartment_id: str = None, project_id: str = None,category: str = "USER", **kwargs
+            cls, compartment_id: str = None, project_id: str = None, category: str = "USER", **kwargs
     ) -> List["DataScienceModel"]:
         """Lists datascience models in a given compartment.
 
@@ -1584,7 +1584,7 @@ class DataScienceModel(Builder):
         project_id: (str, optional). Defaults to `None`.
             The project OCID.
         category: (str, optional). Defaults to `USER`.
-            The category of Model.
+            The category of Model. Allowed values are: "USER", "SERVICE"
         kwargs
             Additional keyword arguments for filtering models.
 
