@@ -454,7 +454,7 @@ class ModelVersionSet(Builder):
         return "modelVersionSet"
 
     @classmethod
-    def list(cls, compartment_id: str = None, category: Optional[str] = "USER", **kwargs) -> List["ModelVersionSet"]:
+    def list(cls, compartment_id: str = None, category: str = "USER", **kwargs) -> List["ModelVersionSet"]:
         """
         List model version sets in a given compartment.
 
@@ -462,6 +462,8 @@ class ModelVersionSet(Builder):
         ----------
         compartment_id: str
             The OCID of compartment.
+        category: (str, optional). Defaults to `USER`.
+            The category of Model. Allowed values are: "USER", "SERVICE"
         kwargs
             Additional keyword arguments for filtering model version sets.
 
@@ -473,7 +475,7 @@ class ModelVersionSet(Builder):
         return [
             cls.from_dsc_model_version_set(model_version_set)
             for model_version_set in DataScienceModelVersionSet.list_resource(
-                compartment_id, category, **kwargs
+                compartment_id, category=category, **kwargs
             )
         ]
 
