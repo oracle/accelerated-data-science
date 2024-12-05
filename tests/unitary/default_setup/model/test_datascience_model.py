@@ -817,6 +817,24 @@ class TestDataScienceModel:
                     )
                     mock_upload.assert_called()
 
+    @patch.object(OCIDataScienceModel, 'register_model_artifact_reference')
+    def test_register_model_artifact_reference(self, mock_register_model_artifact_reference):
+
+        # Sample input for the test
+        bucket_uri_list = [
+            "oci://bucket1@namespace1/prefix1/",
+            "oci://bucket2@namespace2/prefix2/"
+        ]
+
+        # Call the function with the test data
+        self.mock_dsc_model.register_model_artifact_reference(bucket_uri_list=bucket_uri_list)
+
+        # Assert that the mocked `register_model_artifact_reference` method was called once
+        # and with the expected arguments
+        mock_register_model_artifact_reference.assert_called_once_with(
+            bucket_uri_list=bucket_uri_list
+        )
+
     def test_download_artifact(self):
         """Tests downloading artifacts from the model catalog."""
         # Artifact size greater than 2GB

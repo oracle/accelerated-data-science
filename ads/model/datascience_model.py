@@ -1405,6 +1405,26 @@ class DataScienceModel(Builder):
             restore_model_for_hours_specified=restore_model_for_hours_specified,
         )
 
+    def register_model_artifact_reference(self,bucket_uri_list: List[str]) -> None:
+        """
+        Registers model artifact references against a model.
+        Can be used for any model for which model-artifact doesn't exist yet. Requires to provide List of Object
+        Storage buckets_uri(s) which contain the artifacts.
+
+        Parameters
+        ----------
+        bucket_uri_list: List[str]
+            The list of OCI Object Storage URIs where model artifacts are present.
+            Example: [`oci://<bucket_name>@<namespace>/prefix/`, `oci://<bucket_name>@<namespace>/prefix/`].
+
+        Returns
+        -------
+        None
+        """
+        self.dsc_model.register_model_artifact_reference(
+            bucket_uri_list=bucket_uri_list
+        )
+
     def download_artifact(
         self,
         target_dir: str,
