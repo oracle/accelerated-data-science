@@ -1,5 +1,4 @@
-# coding: utf-8
-# Copyright (c) 2016, 2024, Oracle and/or its affiliates.  All rights reserved.
+# Copyright (c) 2024, Oracle and/or its affiliates.  All rights reserved.
 # This software is dual-licensed to you under the Universal Permissive License (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl or Apache License 2.0 as shown at http://www.apache.org/licenses/LICENSE-2.0. You may choose either license.
 
 """This module contains the custom LLM client for AutoGen v0.2 to use LangChain chat models.
@@ -75,12 +74,10 @@ import logging
 from dataclasses import asdict, dataclass
 from types import SimpleNamespace
 from typing import Any, Dict, List, Union
-from types import SimpleNamespace
 
 from autogen import ModelClient
 from autogen.oai.client import OpenAIWrapper, PlaceHolderClient
 from langchain_core.messages import AIMessage
-
 
 logger = logging.getLogger(__name__)
 
@@ -211,8 +208,8 @@ class LangChainModelClient(ModelClient):
         # Import the LangChain class
         if "langchain_cls" not in config:
             raise ValueError("Missing langchain_cls in LangChain Model Client config.")
-        module_cls = config.pop("langchain_cls")
-        module_name, cls_name = str(module_cls).rsplit(".", 1)
+        self.langchain_cls = config.pop("langchain_cls")
+        module_name, cls_name = str(self.langchain_cls).rsplit(".", 1)
         langchain_module = importlib.import_module(module_name)
         langchain_cls = getattr(langchain_module, cls_name)
 
@@ -241,7 +238,14 @@ class LangChainModelClient(ModelClient):
         streaming = params.get("stream", False)
         # TODO: num_of_responses
         num_of_responses = params.get("n", 1)
-        messages = params.get("messages", [])
+
+        messages = copy.deepcopy(params.get("messages", []))
+
+        # OCI Gen AI does not allow empty message.
+        if str(self.langchain_cls).endswith("oci_generative_ai.ChatOCIGenAI"):
+            for message in messages:
+                if len(message.get("content", "")) == 0:
+                    message["content"] = " "
 
         invoke_params = copy.deepcopy(self.invoke_params)
 
