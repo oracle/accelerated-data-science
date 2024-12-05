@@ -276,6 +276,10 @@ class SessionReport:
         )
 
     def build_chat_tab(self) -> rc.Block:
+        # Identify the GroupChatManagers
+        # We will ignore the messages from GroupChatManager as they are just broadcasting.
+        logs = self.filter_event_logs("new_agent")
+        managers = [log.get("agent_name") for log in logs if log.get("is_manager")]
         logs = self.filter_event_logs("received_message")
         if not logs:
             return rc.Text("No messages received in this session.")
@@ -288,6 +292,8 @@ class SessionReport:
         blocks = []
         for log in states:
             sender = log.get("sender")
+            if sender in managers:
+                continue
             message = log.get("message")
             # Content
             if isinstance(message, dict) and "content" in message:

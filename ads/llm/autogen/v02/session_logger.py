@@ -18,7 +18,7 @@ from urllib.parse import urlparse
 import autogen
 import fsspec
 import oci
-from autogen import Agent, ConversableAgent
+from autogen import Agent, ConversableAgent, GroupChatManager
 from autogen.logger.file_logger import (
     ChatCompletion,
     F,
@@ -509,6 +509,7 @@ class SessionLogger(FileLogger):
                     "agent_type": type(agent).__name__,
                     "args": serialize(init_args),
                     "thread_id": thread_id,
+                    "is_manager": isinstance(agent, GroupChatManager),
                 }
             )
             self.logger.info(log_data)
