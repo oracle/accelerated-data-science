@@ -1,22 +1,21 @@
-# coding: utf-8
-# Copyright (c) 2016, 2024, Oracle and/or its affiliates.  All rights reserved.
+# Copyright (c) 2024, Oracle and/or its affiliates.  All rights reserved.
 # This software is dual-licensed to you under the Universal Permissive License (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl or Apache License 2.0 as shown at http://www.apache.org/licenses/LICENSE-2.0. You may choose either license.
 """Module for building session report."""
 import copy
 import json
 import logging
 import os
-from typing import Optional, List
+from typing import List, Optional
 
 import fsspec
-import plotly.express as px
 import pandas as pd
+import plotly.express as px
 import report_creator as rc
 from jinja2 import Environment, FileSystemLoader
-from ads.common.auth import default_signer
-from ads.llm.autogen.v02.constants import Events
-from ads.llm.autogen.reports.utils import get_duration, is_json_string
 
+from ads.common.auth import default_signer
+from ads.llm.autogen.reports.utils import get_duration, is_json_string
+from ads.llm.autogen.v02.constants import Events
 
 logger = logging.getLogger(__name__)
 
