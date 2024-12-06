@@ -1,5 +1,6 @@
-<h4>{{ sender }}</h4>
-<p><small><i>to {{ source_name }}</i></small></p>
+<p><strong>{{ sender }}</strong><br /><small><i>to {{ source_name }}</i></small></p>
+<p><small><i>{{ timestamp }}</i></small></p>
+<hr />
 {% if json_content %}
 <pre><code style="background-color: white">{{ json_content }}</code></pre>
 {% else%}
@@ -10,4 +11,3 @@
 <pre><code style="background-color: white">{{ tool_call }}</code></pre>
 {% endfor %}
 {% endif %}
-<p><small><i>{{ timestamp }}</i></small></p>
