@@ -14,7 +14,7 @@ import report_creator as rc
 from jinja2 import Environment, FileSystemLoader
 
 from ads.common.auth import default_signer
-from ads.llm.autogen.reports.utils import get_duration, is_json_string
+from ads.llm.autogen.reports.utils import escape_html, get_duration, is_json_string
 from ads.llm.autogen.v02.constants import Events
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class SessionReport:
             with fsspec.open(self.log_file, mode="r", **auth) as f:
                 self.log_lines = f.readlines()
         else:
-            with open(self.log_file, mode="r", encoding="utf-8") as f:
+            with open(self.log_file, encoding="utf-8") as f:
                 self.log_lines = f.readlines()
         self.logs = self._parse_logs()
         self.event_logs = self.get_event_logs()
@@ -215,7 +215,6 @@ class SessionReport:
                         label="JSON",
                     ),
                 ),
-                # label=request_header,
             ),
         )
 
@@ -334,7 +333,7 @@ class SessionReport:
                 label = log.get(
                     "event_name", self._preview_message(log.get("message", ""))
                 )
-                blocks.append(rc.Collapse(rc.Json(log), label=label))
+                blocks.append(rc.Collapse(rc.Json(escape_html(log)), label=label))
             else:
                 log = log_line
                 blocks.append(

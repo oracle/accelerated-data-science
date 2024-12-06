@@ -1,5 +1,6 @@
 # Copyright (c) 2024, Oracle and/or its affiliates.  All rights reserved.
 # This software is dual-licensed to you under the Universal Permissive License (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl or Apache License 2.0 as shown at http://www.apache.org/licenses/LICENSE-2.0. You may choose either license.
+import html
 import json
 from datetime import datetime
 
@@ -44,3 +45,13 @@ def is_json_string(s):
     except Exception:
         return False
     return True
+
+
+def escape_html(obj):
+    if isinstance(obj, dict):
+        return {k: escape_html(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [escape_html(v) for v in obj]
+    elif isinstance(obj, str):
+        return html.escape(obj)
+    return html.escape(str(obj))
