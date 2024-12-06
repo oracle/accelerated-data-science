@@ -76,6 +76,16 @@ class SessionReport:
         # If we didn't find a whitespace
         return message[:30] + "..."
 
+    @staticmethod
+    def _llm_call_header(log):
+        request = log.get("request", {})
+        source_name = log.get("source_name")
+
+        header = f"{source_name} invoking {request.get('model')}"
+        if log.get("is_cached"):
+            header += "(Cached)"
+        return header
+
     def _parse_logs(self) -> List[dict]:
         logs = []
         for log in self.log_lines:
@@ -90,17 +100,20 @@ class SessionReport:
         llm_events = self.filter_event_logs(Events.LLM_CALL)
         llm_call_counter = 1
         for event in llm_events:
-            event["name"] = f"LLM Call {str(llm_call_counter)}"
+            event["header"] = self._llm_call_header(event)
             llm_call_counter += 1
         # Tool Calls
         tool_events = self.filter_event_logs(Events.TOOL_CALL)
         for event in tool_events:
             event["start_time"] = self.estimate_tool_call_start_time(event)
-            event["name"] = event["tool_name"]
+            event["header"] = (
+                f"{event.get('source_name', '')} invoking {event.get('tool_name', '')}"
+            )
             event["end_time"] = event["timestamp"]
 
         events = sorted(llm_events + tool_events, key=lambda x: x.get("start_time"))
-        for event in events:
+        for i, event in enumerate(events):
+            event["header"] = f'{str(i + 1)} {event["header"]}'
             event["duration"] = get_duration(event)
 
         return events
@@ -148,9 +161,11 @@ class SessionReport:
             df,
             x_start="start_time",
             x_end="end_time",
-            y="name",
+            y="header",
+            labels={"header": "Invocation"},
             color="duration",
             color_continuous_scale="rdylgn_r",
+            height=max(len(df.index) * 50, 500),
         )
         fig.update_layout(showlegend=False)
         fig.update_yaxes(autorange="reversed")
@@ -164,11 +179,11 @@ class SessionReport:
 
     def build_llm_call(self, llm_log):
         request = llm_log.get("request", {})
-        source_name = llm_log.get("source_name")
-
-        header = f"{source_name} invoking {request.get('model')}"
+        header = llm_log.get("header", "")
 
         description = f"*{llm_log.get('start_time')}*"
+        if llm_log.get("is_cached"):
+            description += ", **CACHED**"
 
         request_value = f"{str(len(request.get('messages')))} messages"
         tools = request.get("tools")
@@ -219,8 +234,7 @@ class SessionReport:
         )
 
     def build_tool_call(self, log: dict):
-        source_name = log.get("source_name")
-        header = f"{source_name} invoking {log.get('tool_name')}"
+        header = log.get("header", "")
         request = copy.deepcopy(log)
         response = request.pop("returns", {})
         try:
