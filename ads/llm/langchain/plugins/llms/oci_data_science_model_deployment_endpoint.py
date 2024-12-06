@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -24,6 +23,7 @@ from typing import (
 
 import aiohttp
 import requests
+from langchain_community.utilities.requests import Requests
 from langchain_core.callbacks import (
     AsyncCallbackManagerForLLMRun,
     CallbackManagerForLLMRun,
@@ -34,14 +34,13 @@ from langchain_core.outputs import Generation, GenerationChunk, LLMResult
 from langchain_core.utils import get_from_dict_or_env
 from pydantic import Field, model_validator
 
-from langchain_community.utilities.requests import Requests
-
 logger = logging.getLogger(__name__)
 
 
 DEFAULT_TIME_OUT = 300
 DEFAULT_CONTENT_TYPE_JSON = "application/json"
 DEFAULT_MODEL_NAME = "odsc-llm"
+DEFAULT_INFERENCE_ENDPOINT = "/v1/completions"
 
 
 class TokenExpiredError(Exception):
@@ -86,6 +85,9 @@ class BaseOCIModelDeployment(Serializable):
     max_retries: int = 3
     """Maximum number of retries to make when generating."""
 
+    headers: Optional[Dict[str, Any]] = {"route": DEFAULT_INFERENCE_ENDPOINT}
+    """The headers to be added to the Model Deployment request."""
+
     @model_validator(mode="before")
     @classmethod
     def validate_environment(cls, values: Dict) -> Dict:
@@ -101,7 +103,7 @@ class BaseOCIModelDeployment(Serializable):
                 "Please install it with `pip install oracle_ads`."
             ) from ex
 
-        if not values.get("auth", None):
+        if not values.get("auth"):
             values["auth"] = ads.common.auth.default_signer()
 
         values["endpoint"] = get_from_dict_or_env(
@@ -125,12 +127,12 @@ class BaseOCIModelDeployment(Serializable):
         Returns:
             Dict: A dictionary containing the appropriate headers for the request.
         """
+        headers = self.headers
         if is_async:
             signer = self.auth["signer"]
             _req = requests.Request("POST", self.endpoint, json=body)
             req = _req.prepare()
             req = signer(req)
-            headers = {}
             for key, value in req.headers.items():
                 headers[key] = value
 
@@ -140,7 +142,7 @@ class BaseOCIModelDeployment(Serializable):
                 )
             return headers
 
-        return (
+        headers.update(
             {
                 "Content-Type": DEFAULT_CONTENT_TYPE_JSON,
                 "enable-streaming": "true",
@@ -151,6 +153,8 @@ class BaseOCIModelDeployment(Serializable):
                 "Content-Type": DEFAULT_CONTENT_TYPE_JSON,
             }
         )
+
+        return headers
 
     def completion_with_retry(
         self, run_manager: Optional[CallbackManagerForLLMRun] = None, **kwargs: Any
@@ -357,7 +361,7 @@ class BaseOCIModelDeployment(Serializable):
             self.auth["signer"].refresh_security_token()
             return True
         return False
-    
+
     @classmethod
     def is_lc_serializable(cls) -> bool:
         """Return whether this model can be serialized by LangChain."""
@@ -388,6 +392,10 @@ class OCIModelDeploymentLLM(BaseLLM, BaseOCIModelDeployment):
                 model="odsc-llm",
                 streaming=True,
                 model_kwargs={"frequency_penalty": 1.0},
+                headers={
+                    "route": "/v1/completions",
+                    # other request headers ...
+                }
             )
             llm.invoke("tell me a joke.")
 
@@ -712,9 +720,9 @@ class OCIModelDeploymentLLM(BaseLLM, BaseOCIModelDeployment):
     def _generate_info(self, choice: dict) -> Any:
         """Extracts generation info from the response."""
         gen_info = {}
-        finish_reason = choice.get("finish_reason", None)
-        logprobs = choice.get("logprobs", None)
-        index = choice.get("index", None)
+        finish_reason = choice.get("finish_reason")
+        logprobs = choice.get("logprobs")
+        index = choice.get("index")
         if finish_reason:
             gen_info.update({"finish_reason": finish_reason})
         if logprobs is not None:
