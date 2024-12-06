@@ -10,6 +10,9 @@ import sys
 from typing import Any, AsyncGenerator, Dict, Generator
 from unittest import mock
 
+from ads.llm.langchain.plugins.llms.oci_data_science_model_deployment_endpoint import (
+    DEFAULT_INFERENCE_ENDPOINT,
+)
 import pytest
 
 if sys.version_info < (3, 9):
@@ -118,6 +121,7 @@ def test_invoke_vllm(*args: Any) -> None:
     llm = OCIModelDeploymentVLLM(endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME)
     output = llm.invoke(CONST_PROMPT)
     assert output == CONST_COMPLETION
+    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT}
 
 
 @pytest.mark.requires("ads")
@@ -135,6 +139,7 @@ def test_stream_tgi(*args: Any) -> None:
         count += 1
     assert count == 4
     assert output.strip() == CONST_COMPLETION
+    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT}
 
 
 @pytest.mark.requires("ads")
@@ -147,6 +152,7 @@ def test_generate_tgi(*args: Any) -> None:
     )
     output = llm.invoke(CONST_PROMPT)
     assert output == CONST_COMPLETION
+    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT}
 
 
 @pytest.mark.asyncio
@@ -170,3 +176,4 @@ async def test_stream_async(*args: Any) -> None:
     ):
         chunks = [chunk async for chunk in llm.astream(CONST_PROMPT)]
     assert "".join(chunks).strip() == CONST_COMPLETION
+    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT}

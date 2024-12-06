@@ -10,6 +10,9 @@ import sys
 from typing import Any, AsyncGenerator, Dict, Generator
 from unittest import mock
 
+from ads.llm.langchain.plugins.chat_models.oci_data_science import (
+    DEFAULT_INFERENCE_ENDPOINT_CHAT,
+)
 import pytest
 
 
@@ -126,6 +129,7 @@ def test_invoke_vllm(*args: Any) -> None:
     output = llm.invoke(CONST_PROMPT)
     assert isinstance(output, AIMessage)
     assert output.content == CONST_COMPLETION
+    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT_CHAT}
 
 
 @pytest.mark.requires("ads")
@@ -138,6 +142,7 @@ def test_invoke_tgi(*args: Any) -> None:
     output = llm.invoke(CONST_PROMPT)
     assert isinstance(output, AIMessage)
     assert output.content == CONST_COMPLETION
+    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT_CHAT}
 
 
 @pytest.mark.requires("ads")
@@ -162,6 +167,7 @@ def test_stream_vllm(*args: Any) -> None:
     assert output is not None
     if output is not None:
         assert str(output.content).strip() == CONST_COMPLETION
+    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT_CHAT}
 
 
 async def mocked_async_streaming_response(
@@ -194,3 +200,4 @@ async def test_stream_async(*args: Any) -> None:
     ):
         chunks = [str(chunk.content) async for chunk in llm.astream(CONST_PROMPT)]
     assert "".join(chunks).strip() == CONST_COMPLETION
+    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT_CHAT}
