@@ -10,9 +10,6 @@ import sys
 from typing import Any, AsyncGenerator, Dict, Generator
 from unittest import mock
 
-from ads.llm.langchain.plugins.chat_models.oci_data_science import (
-    DEFAULT_INFERENCE_ENDPOINT_CHAT,
-)
 import pytest
 
 
@@ -29,6 +26,7 @@ CONST_MODEL_NAME = "odsc-vllm"
 CONST_ENDPOINT = "https://oci.endpoint/ocid/predict"
 CONST_PROMPT = "This is a prompt."
 CONST_COMPLETION = "This is a completion."
+CONST_ENDPOINT = "/v1/chat/completions"
 CONST_COMPLETION_RESPONSE = {
     "id": "chat-123456789",
     "object": "chat.completion",
@@ -126,7 +124,7 @@ def mocked_requests_post(url: str, **kwargs: Any) -> MockResponse:
 def test_invoke_vllm(*args: Any) -> None:
     """Tests invoking vLLM endpoint."""
     llm = ChatOCIModelDeploymentVLLM(endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME)
-    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT_CHAT}
+    assert llm.headers == {"route": CONST_ENDPOINT}
     output = llm.invoke(CONST_PROMPT)
     assert isinstance(output, AIMessage)
     assert output.content == CONST_COMPLETION
@@ -139,7 +137,7 @@ def test_invoke_vllm(*args: Any) -> None:
 def test_invoke_tgi(*args: Any) -> None:
     """Tests invoking TGI endpoint using OpenAI Spec."""
     llm = ChatOCIModelDeploymentTGI(endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME)
-    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT_CHAT}
+    assert llm.headers == {"route": CONST_ENDPOINT}
     output = llm.invoke(CONST_PROMPT)
     assert isinstance(output, AIMessage)
     assert output.content == CONST_COMPLETION
@@ -154,7 +152,7 @@ def test_stream_vllm(*args: Any) -> None:
     llm = ChatOCIModelDeploymentVLLM(
         endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME, streaming=True
     )
-    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT_CHAT}
+    assert llm.headers == {"route": CONST_ENDPOINT}
     output = None
     count = 0
     for chunk in llm.stream(CONST_PROMPT):
@@ -193,7 +191,7 @@ async def test_stream_async(*args: Any) -> None:
     llm = ChatOCIModelDeploymentVLLM(
         endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME, streaming=True
     )
-    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT_CHAT}
+    assert llm.headers == {"route": CONST_ENDPOINT}
     with mock.patch.object(
         llm,
         "_aiter_sse",
