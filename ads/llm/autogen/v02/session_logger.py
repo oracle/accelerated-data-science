@@ -56,7 +56,7 @@ def serialize_response(response) -> dict:
         # Convert simpleNamespace to dict
         return json.loads(json.dumps(response, default=vars))
     elif hasattr(response, "dict") and callable(response.dict):
-        return response.dict()
+        return json.loads(json.dumps(response.dict(), default=str))
     data = {
         "model": response.model,
         "choices": [
