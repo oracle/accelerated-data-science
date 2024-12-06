@@ -10,9 +10,6 @@ import sys
 from typing import Any, AsyncGenerator, Dict, Generator
 from unittest import mock
 
-from ads.llm.langchain.plugins.llms.oci_data_science_model_deployment_endpoint import (
-    DEFAULT_INFERENCE_ENDPOINT,
-)
 import pytest
 
 if sys.version_info < (3, 9):
@@ -27,6 +24,7 @@ CONST_MODEL_NAME = "odsc-vllm"
 CONST_ENDPOINT = "https://oci.endpoint/ocid/predict"
 CONST_PROMPT = "This is a prompt."
 CONST_COMPLETION = "This is a completion."
+CONST_ENDPOINT = "/v1/completions"
 CONST_COMPLETION_RESPONSE = {
     "choices": [
         {
@@ -119,7 +117,7 @@ async def mocked_async_streaming_response(
 def test_invoke_vllm(*args: Any) -> None:
     """Tests invoking vLLM endpoint."""
     llm = OCIModelDeploymentVLLM(endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME)
-    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT}
+    assert llm.headers == {"route": CONST_ENDPOINT}
     output = llm.invoke(CONST_PROMPT)
     assert output == CONST_COMPLETION
 
@@ -132,7 +130,7 @@ def test_stream_tgi(*args: Any) -> None:
     llm = OCIModelDeploymentTGI(
         endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME, streaming=True
     )
-    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT}
+    assert llm.headers == {"route": CONST_ENDPOINT}
     output = ""
     count = 0
     for chunk in llm.stream(CONST_PROMPT):
@@ -150,7 +148,7 @@ def test_generate_tgi(*args: Any) -> None:
     llm = OCIModelDeploymentTGI(
         endpoint=CONST_ENDPOINT, api="/generate", model=CONST_MODEL_NAME
     )
-    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT}
+    assert llm.headers == {"route": CONST_ENDPOINT}
     output = llm.invoke(CONST_PROMPT)
     assert output == CONST_COMPLETION
 
@@ -169,7 +167,7 @@ async def test_stream_async(*args: Any) -> None:
     llm = OCIModelDeploymentTGI(
         endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME, streaming=True
     )
-    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT}
+    assert llm.headers == {"route": CONST_ENDPOINT}
     with mock.patch.object(
         llm,
         "_aiter_sse",
