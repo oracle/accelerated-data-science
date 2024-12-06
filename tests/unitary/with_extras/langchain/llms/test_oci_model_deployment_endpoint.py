@@ -119,9 +119,9 @@ async def mocked_async_streaming_response(
 def test_invoke_vllm(*args: Any) -> None:
     """Tests invoking vLLM endpoint."""
     llm = OCIModelDeploymentVLLM(endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME)
+    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT}
     output = llm.invoke(CONST_PROMPT)
     assert output == CONST_COMPLETION
-    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT}
 
 
 @pytest.mark.requires("ads")
@@ -132,6 +132,7 @@ def test_stream_tgi(*args: Any) -> None:
     llm = OCIModelDeploymentTGI(
         endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME, streaming=True
     )
+    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT}
     output = ""
     count = 0
     for chunk in llm.stream(CONST_PROMPT):
@@ -139,7 +140,6 @@ def test_stream_tgi(*args: Any) -> None:
         count += 1
     assert count == 4
     assert output.strip() == CONST_COMPLETION
-    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT}
 
 
 @pytest.mark.requires("ads")
@@ -150,9 +150,9 @@ def test_generate_tgi(*args: Any) -> None:
     llm = OCIModelDeploymentTGI(
         endpoint=CONST_ENDPOINT, api="/generate", model=CONST_MODEL_NAME
     )
+    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT}
     output = llm.invoke(CONST_PROMPT)
     assert output == CONST_COMPLETION
-    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT}
 
 
 @pytest.mark.asyncio
@@ -169,6 +169,7 @@ async def test_stream_async(*args: Any) -> None:
     llm = OCIModelDeploymentTGI(
         endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME, streaming=True
     )
+    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT}
     with mock.patch.object(
         llm,
         "_aiter_sse",
@@ -176,4 +177,3 @@ async def test_stream_async(*args: Any) -> None:
     ):
         chunks = [chunk async for chunk in llm.astream(CONST_PROMPT)]
     assert "".join(chunks).strip() == CONST_COMPLETION
-    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT}

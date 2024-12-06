@@ -126,10 +126,10 @@ def mocked_requests_post(url: str, **kwargs: Any) -> MockResponse:
 def test_invoke_vllm(*args: Any) -> None:
     """Tests invoking vLLM endpoint."""
     llm = ChatOCIModelDeploymentVLLM(endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME)
+    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT_CHAT}
     output = llm.invoke(CONST_PROMPT)
     assert isinstance(output, AIMessage)
     assert output.content == CONST_COMPLETION
-    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT_CHAT}
 
 
 @pytest.mark.requires("ads")
@@ -139,10 +139,10 @@ def test_invoke_vllm(*args: Any) -> None:
 def test_invoke_tgi(*args: Any) -> None:
     """Tests invoking TGI endpoint using OpenAI Spec."""
     llm = ChatOCIModelDeploymentTGI(endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME)
+    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT_CHAT}
     output = llm.invoke(CONST_PROMPT)
     assert isinstance(output, AIMessage)
     assert output.content == CONST_COMPLETION
-    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT_CHAT}
 
 
 @pytest.mark.requires("ads")
@@ -154,6 +154,7 @@ def test_stream_vllm(*args: Any) -> None:
     llm = ChatOCIModelDeploymentVLLM(
         endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME, streaming=True
     )
+    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT_CHAT}
     output = None
     count = 0
     for chunk in llm.stream(CONST_PROMPT):
@@ -167,7 +168,6 @@ def test_stream_vllm(*args: Any) -> None:
     assert output is not None
     if output is not None:
         assert str(output.content).strip() == CONST_COMPLETION
-    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT_CHAT}
 
 
 async def mocked_async_streaming_response(
@@ -193,6 +193,7 @@ async def test_stream_async(*args: Any) -> None:
     llm = ChatOCIModelDeploymentVLLM(
         endpoint=CONST_ENDPOINT, model=CONST_MODEL_NAME, streaming=True
     )
+    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT_CHAT}
     with mock.patch.object(
         llm,
         "_aiter_sse",
@@ -200,4 +201,3 @@ async def test_stream_async(*args: Any) -> None:
     ):
         chunks = [str(chunk.content) async for chunk in llm.astream(CONST_PROMPT)]
     assert "".join(chunks).strip() == CONST_COMPLETION
-    assert llm.headers == {"route": DEFAULT_INFERENCE_ENDPOINT_CHAT}
