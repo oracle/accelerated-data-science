@@ -181,12 +181,15 @@ class SessionReport:
         request = llm_log.get("request", {})
         header = llm_log.get("header", "")
 
-        description = f"*{llm_log.get('start_time')}*"
+        start_date, start_time = llm_log.get("start_time", " ").split(" ", 1)
+        start_time = start_time.split(".", 1)[0]
+
+        description = f" "
         if llm_log.get("is_cached"):
             description += ", **CACHED**"
 
         request_value = f"{str(len(request.get('messages')))} messages"
-        tools = request.get("tools")
+        tools = request.get("tools", [])
         if tools:
             request_value += f", {str(len(tools))} tools"
 
@@ -199,19 +202,43 @@ class SessionReport:
             for tool_call in tool_calls:
                 func = tool_call.get("function")
                 response_text += f"\n\n`{func.get('name')}(**{func.get('arguments')})`"
-        response_time = get_duration(llm_log)
+        duration = get_duration(llm_log)
+
+        metrics = [
+            rc.Metric(heading="Time", value=start_time, label=start_date),
+            rc.Metric(
+                heading="Messages",
+                value=len(request.get("messages", [])),
+            ),
+            rc.Metric(heading="Tools", value=len(tools)),
+            rc.Metric(heading="Duration", value=duration, unit="s"),
+            rc.Metric(
+                heading="Cached",
+                value="Yes" if llm_log.get("is_cached") else "No",
+            ),
+            rc.Metric(heading="Cost", value=llm_log.get("cost")),
+        ]
+
+        usage = response.get("usage")
+        if isinstance(usage, dict):
+            for k, v in usage.items():
+                if not v:
+                    continue
+                metrics.append(
+                    rc.Metric(heading=str(k).replace("_", " ").title(), value=v)
+                )
 
         return rc.Block(
             rc.Text(
-                description,
+                "",
                 label=header,
             ),
+            rc.Block(rc.Group(*metrics)),
             rc.Group(
                 rc.Block(
-                    rc.Metric(
-                        heading="Request",
-                        value=request_value,
-                        label=self.format_messages(request.get("messages")),
+                    rc.Markdown(
+                        "## Request:\n\n"
+                        + self.format_messages(request.get("messages")),
                     ),
                     rc.Collapse(
                         rc.Json(request),
@@ -219,11 +246,8 @@ class SessionReport:
                     ),
                 ),
                 rc.Block(
-                    rc.Metric(
-                        heading="Response",
-                        value=response_time,
-                        unit="s",
-                        label=response_text,
+                    rc.Markdown(
+                        "## Response:\n\n" + response_text,
                     ),
                     rc.Collapse(
                         rc.Json(response),
