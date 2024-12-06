@@ -261,10 +261,11 @@ def _add_unit(num, unit):
 
 def get_auto_select_plot(backtest_results):
     fig = go.Figure()
-    columns = backtest_results.columns.tolist()
+    back_test_csv_columns = backtest_results.columns.tolist()
     back_test_column = "backtest"
-    columns.remove(back_test_column)
-    for column in columns:
+    metric_column = "metric"
+    models = [x for x in back_test_csv_columns if x not in [back_test_column, metric_column]]
+    for i, column in enumerate(models):
         fig.add_trace(
             go.Scatter(
                 x=backtest_results[back_test_column],
