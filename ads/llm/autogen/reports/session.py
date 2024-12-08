@@ -383,15 +383,43 @@ class SessionReport:
             label="Logs",
         )
 
+    def count_agents(self):
+        # AutoGen may have new_agent multiple times
+        # Here we count the number agents by name
+        new_agent_logs = self.filter_event_logs(Events.NEW_AGENT)
+        agents = set()
+        for log in new_agent_logs:
+            agents.add((log.get("agent_name"), log.get("agent_type")))
+        return len(agents)
+
+    def get_chat_managers(self):
+        # AutoGen may have new_agent multiple times
+        # Here we count the number agents by name
+        new_agent_logs = self.filter_event_logs(Events.NEW_AGENT)
+        agents = set()
+        for log in new_agent_logs:
+            if not log.get("is_manager"):
+                continue
+            agents.add((log.get("agent_name"), log.get("agent_type")))
+        return agents
+
     def build(self, output_file: str):
         start_event = self.get_event_data(Events.SESSION_START)
         start_time = start_event.get("timestamp")
         session_id = start_event.get("session_id")
 
         event_logs = self.get_event_logs()
-        new_agent_logs = self.filter_event_logs(Events.NEW_AGENT)
+
         llm_call_logs = self.filter_event_logs(Events.LLM_CALL)
         tool_call_logs = self.filter_event_logs(Events.TOOL_CALL)
+
+        chat_managers = self.get_chat_managers()
+        if not chat_managers:
+            agent_label = ""
+        elif len(chat_managers) == 1:
+            agent_label = "+1 chat manager"
+        else:
+            agent_label = f"+{str(len(chat_managers))} chat managers"
 
         with rc.ReportCreator(
             title=f"AutoGen Session: {session_id}",
@@ -403,7 +431,8 @@ class SessionReport:
                 rc.Group(
                     rc.Metric(
                         heading="Agents",
-                        value=len(new_agent_logs),
+                        value=self.count_agents() - len(chat_managers),
+                        label=agent_label,
                     ),
                     rc.Metric(
                         heading="Events",
