@@ -35,7 +35,11 @@ from ads.aqua.finetuning.constants import (
     ENV_AQUA_FINE_TUNING_CONTAINER,
     FineTuneCustomMetadata,
 )
-from ads.aqua.finetuning.entities import *
+from ads.aqua.finetuning.entities import (
+    AquaFineTuningParams,
+    AquaFineTuningSummary,
+    CreateFineTuningDetails,
+)
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_console_link
@@ -100,14 +104,14 @@ class AquaFineTuningApp(AquaApp):
         if not create_fine_tuning_details:
             try:
                 create_fine_tuning_details = CreateFineTuningDetails(**kwargs)
-            except:
+            except Exception as ex:
                 allowed_create_fine_tuning_details = ", ".join(
                     field.name for field in fields(CreateFineTuningDetails)
                 ).rstrip()
                 raise AquaValueError(
                     "Invalid create fine tuning parameters. Allowable parameters are: "
                     f"{allowed_create_fine_tuning_details}."
-                )
+                ) from ex
 
         source = self.get_source(create_fine_tuning_details.ft_source_id)
 
@@ -148,28 +152,27 @@ class AquaFineTuningApp(AquaApp):
                 "Specify the subnet id via API or environment variable AQUA_JOB_SUBNET_ID."
             )
 
-        if create_fine_tuning_details.replica > DEFAULT_FT_REPLICA:
-            if not (
-                create_fine_tuning_details.log_id
-                and create_fine_tuning_details.log_group_id
-            ):
-                raise AquaValueError(
-                    f"Logging is required for fine tuning if replica is larger than {DEFAULT_FT_REPLICA}."
-                )
+        if create_fine_tuning_details.replica > DEFAULT_FT_REPLICA and not (
+            create_fine_tuning_details.log_id
+            and create_fine_tuning_details.log_group_id
+        ):
+            raise AquaValueError(
+                f"Logging is required for fine tuning if replica is larger than {DEFAULT_FT_REPLICA}."
+            )
 
         ft_parameters = None
         try:
             ft_parameters = AquaFineTuningParams(
                 **create_fine_tuning_details.ft_parameters,
             )
-        except:
+        except Exception as ex:
             allowed_fine_tuning_parameters = ", ".join(
                 field.name for field in fields(AquaFineTuningParams)
             ).rstrip()
             raise AquaValueError(
                 "Invalid fine tuning parameters. Fine tuning parameters should "
                 f"be a dictionary with keys: {allowed_fine_tuning_parameters}."
-            )
+            ) from ex
 
         experiment_model_version_set_id = create_fine_tuning_details.experiment_id
         experiment_model_version_set_name = create_fine_tuning_details.experiment_name
@@ -197,11 +200,11 @@ class AquaFineTuningApp(AquaApp):
                     auth=default_signer(),
                     force_overwrite=create_fine_tuning_details.force_overwrite,
                 )
-            except FileExistsError:
+            except FileExistsError as fe:
                 raise AquaFileExistsError(
                     f"Dataset {dataset_file} already exists in {create_fine_tuning_details.report_path}. "
                     "Please use a new dataset file name, report path or set `force_overwrite` as True."
-                )
+                ) from fe
             logger.debug(
                 f"Uploaded local file {ft_dataset_path} to object storage {dst_uri}."
             )
@@ -222,6 +225,8 @@ class AquaFineTuningApp(AquaApp):
             description=create_fine_tuning_details.experiment_description,
             compartment_id=target_compartment,
             project_id=target_project,
+            freeform_tags=create_fine_tuning_details.freeform_tags,
+            defined_tags=create_fine_tuning_details.defined_tags,
         )
 
         ft_model_custom_metadata = ModelCustomMetadata()
@@ -273,6 +278,10 @@ class AquaFineTuningApp(AquaApp):
             Tags.AQUA_TAG: UNKNOWN,
             Tags.AQUA_FINE_TUNED_MODEL_TAG: f"{source.id}#{source.display_name}",
         }
+        ft_job_freeform_tags = {
+            **ft_job_freeform_tags,
+            **(create_fine_tuning_details.freeform_tags or {}),
+        }
 
         ft_job = Job(name=ft_model.display_name).with_infrastructure(
             DataScienceJob()
@@ -286,6 +295,7 @@ class AquaFineTuningApp(AquaApp):
                 or DEFAULT_FT_BLOCK_STORAGE_SIZE
             )
             .with_freeform_tag(**ft_job_freeform_tags)
+            .with_defined_tag(**(create_fine_tuning_details.defined_tags or {}))
         )
 
         if not subnet_id:
@@ -353,6 +363,7 @@ class AquaFineTuningApp(AquaApp):
         ft_job_run = ft_job.run(
             name=ft_model.display_name,
             freeform_tags=ft_job_freeform_tags,
+            defined_tags=create_fine_tuning_details.defined_tags or {},
             wait=False,
         )
         logger.debug(
@@ -372,22 +383,25 @@ class AquaFineTuningApp(AquaApp):
             for metadata in ft_model_custom_metadata.to_dict()["data"]
         ]
 
-        source_freeform_tags = source.freeform_tags or {}
-        source_freeform_tags.pop(Tags.LICENSE, None)
-        source_freeform_tags.update({Tags.READY_TO_FINE_TUNE: "false"})
-        source_freeform_tags.update({Tags.AQUA_TAG: UNKNOWN})
-        source_freeform_tags.pop(Tags.BASE_MODEL_CUSTOM, None)
+        model_freeform_tags = source.freeform_tags or {}
+        model_freeform_tags.pop(Tags.LICENSE, None)
+        model_freeform_tags.pop(Tags.BASE_MODEL_CUSTOM, None)
+
+        model_freeform_tags = {
+            **model_freeform_tags,
+            Tags.READY_TO_FINE_TUNE: "false",
+            Tags.AQUA_TAG: UNKNOWN,
+            Tags.AQUA_FINE_TUNED_MODEL_TAG: f"{source.id}#{source.display_name}",
+            **(create_fine_tuning_details.freeform_tags or {}),
+        }
+        model_defined_tags = create_fine_tuning_details.defined_tags or {}
 
         self.update_model(
             model_id=ft_model.id,
             update_model_details=UpdateModelDetails(
                 custom_metadata_list=updated_custom_metadata_list,
-                freeform_tags={
-                    Tags.AQUA_FINE_TUNED_MODEL_TAG: (
-                        f"{source.id}#{source.display_name}"
-                    ),
-                    **source_freeform_tags,
-                },
+                freeform_tags=model_freeform_tags,
+                defined_tags=model_defined_tags,
             ),
         )
 
@@ -462,12 +476,16 @@ class AquaFineTuningApp(AquaApp):
                     region=self.region,
                 ),
             ),
-            tags=dict(
-                aqua_finetuning=Tags.AQUA_FINE_TUNING,
-                finetuning_job_id=ft_job.id,
-                finetuning_source=source.id,
-                finetuning_experiment_id=experiment_model_version_set_id,
-            ),
+            tags={
+                **{
+                    "aqua_finetuning": Tags.AQUA_FINE_TUNING,
+                    "finetuning_job_id": ft_job.id,
+                    "finetuning_source": source.id,
+                    "finetuning_experiment_id": experiment_model_version_set_id,
+                },
+                **model_freeform_tags,
+                **model_defined_tags,
+            },
             parameters={
                 key: value
                 for key, value in asdict(ft_parameters).items()
@@ -635,6 +653,6 @@ class AquaFineTuningApp(AquaApp):
             raise AquaValueError(
                 f"Invalid fine tuning parameters. Allowable parameters are: "
                 f"{allowed_fine_tuning_parameters}."
-            )
+            ) from e
 
-        return dict(valid=True)
+        return {"valid": True}
