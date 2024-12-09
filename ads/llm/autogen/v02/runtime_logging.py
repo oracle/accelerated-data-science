@@ -39,10 +39,13 @@ class LoggerManager(BaseLogger):
                 logger.debug(traceback.format_exc())
 
     def start(self) -> str:
+        """Starts all loggers."""
         return self._call_loggers("start")
 
     def stop(self) -> None:
-        return self._call_loggers("stop")
+        self._call_loggers("stop")
+        # Remove the loggers once they are stopped.
+        self.loggers = []
 
     def get_connection(self) -> None | Connection:
         return self._call_loggers("get_connection")
@@ -135,7 +138,9 @@ def start(
 
 
 def stop() -> BaseLogger:
-    """Stops all AutoGen loggers."""
+    """Stops all AutoGen loggers.
+    Once stopped, all loggers will be removed.
+    """
     autogen.runtime_logging.stop()
     return autogen.runtime_logging.autogen_logger
 
