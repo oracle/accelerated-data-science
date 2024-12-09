@@ -248,10 +248,13 @@ class SessionLogger(FileLogger):
         self.session = self.new_session(
             log_dir=log_dir, session_id=session_id, auth=auth
         )
+        self.started = False
 
     @property
     def logger(self) -> Optional[str]:
         """Logger for the thread."""
+        if not self.started:
+            return None
         thread_id = threading.get_ident()
         if not self.log_for_all_threads and thread_id != self.session.thread_id:
             return None
@@ -279,8 +282,6 @@ class SessionLogger(FileLogger):
         auth: Optional[dict] = None,
     ) -> LoggingSession:
         """Creates a new logging session.
-
-        If an active logging session is already started in the thread, the existing session will be used.
 
         Parameters
         ----------
@@ -380,6 +381,7 @@ class SessionLogger(FileLogger):
                 envs[library] = version
             except Exception:
                 pass
+        self.started = True
         self.log_event(source=self, name=Events.SESSION_START, environment=envs)
         return self.session_id
 
@@ -387,6 +389,7 @@ class SessionLogger(FileLogger):
         """Stops the logging session."""
         self.log_event(source=self, name=Events.SESSION_STOP)
         super().stop()
+        self.started = False
         if self.report_dir:
             try:
                 return self.generate_report()
@@ -522,9 +525,9 @@ class SessionLogger(FileLogger):
         return super().log_event(*args, **kwargs)
 
     def log_new_wrapper(self, *args, **kwargs) -> None:
-        if not self.logger:
-            return
-        return super().log_new_wrapper(*args, **kwargs)
+        # Do not log new wrapper.
+        # This is not used at the moment.
+        return
 
     def log_new_client(self, *args, **kwargs) -> None:
         if not self.logger:
