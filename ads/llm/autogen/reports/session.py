@@ -77,7 +77,7 @@ class SessionReport:
         return message[:30] + "..."
 
     @staticmethod
-    def _llm_call_header(log):
+    def _llm_call_header(log: dict):
         request = log.get("request", {})
         source_name = log.get("source_name")
 
@@ -85,6 +85,12 @@ class SessionReport:
         if log.get("is_cached"):
             header += "(Cached)"
         return header
+
+    @staticmethod
+    def _parse_start_time(log: dict):
+        start_date, start_time = log.get("start_time", " ").split(" ", 1)
+        start_time = start_time.split(".", 1)[0]
+        return start_date, start_time
 
     def _parse_logs(self) -> List[dict]:
         logs = []
@@ -177,12 +183,11 @@ class SessionReport:
             text += f"**{message.get('role')}**:\n{message.get('content')}\n\n"
         return text
 
-    def build_llm_call(self, llm_log):
+    def build_llm_call(self, llm_log: dict):
         request = llm_log.get("request", {})
         header = llm_log.get("header", "")
 
-        start_date, start_time = llm_log.get("start_time", " ").split(" ", 1)
-        start_time = start_time.split(".", 1)[0]
+        start_date, start_time = self._parse_start_time(llm_log)
 
         description = f" "
         if llm_log.get("is_cached"):
@@ -229,16 +234,11 @@ class SessionReport:
                 )
 
         return rc.Block(
-            rc.Text(
-                "",
-                label=header,
-            ),
-            rc.Block(rc.Group(*metrics)),
+            rc.Block(rc.Group(*metrics, label=header)),
             rc.Group(
                 rc.Block(
                     rc.Markdown(
-                        "## Request:\n\n"
-                        + self.format_messages(request.get("messages")),
+                        self.format_messages(request.get("messages")), label="Request"
                     ),
                     rc.Collapse(
                         rc.Json(request),
@@ -246,9 +246,7 @@ class SessionReport:
                     ),
                 ),
                 rc.Block(
-                    rc.Markdown(
-                        "## Response:\n\n" + response_text,
-                    ),
+                    rc.Markdown(response_text, label="Response"),
                     rc.Collapse(
                         rc.Json(response),
                         label="JSON",
@@ -261,41 +259,36 @@ class SessionReport:
         header = log.get("header", "")
         request = copy.deepcopy(log)
         response = request.pop("returns", {})
-        try:
-            response = json.loads(response)
-        except Exception:
-            pass
 
+        start_date, start_time = self._parse_start_time(log)
         tool_call_args = log.get("input_args", "")
         if is_json_string(tool_call_args):
             tool_call_args = self.format_json_string(tool_call_args)
 
+        if is_json_string(response):
+            response = self.format_json_string(response)
+
+        duration = get_duration(log)
+
+        metrics = [
+            rc.Metric(heading="Time", value=start_time, label=start_date),
+            rc.Metric(heading="Duration", value=duration, unit="s"),
+        ]
+
         return rc.Block(
+            rc.Block(rc.Group(*metrics, label=header)),
             rc.Group(
                 rc.Block(
-                    rc.Metric(
-                        heading="Request",
-                        value=log.get("tool_name"),
-                        label=tool_call_args,
+                    rc.Markdown(
+                        (log.get("tool_name") or "") + "\n\n" + tool_call_args,
+                        label="Request",
                     ),
                     rc.Collapse(
                         rc.Json(request),
                         label="JSON",
                     ),
                 ),
-                rc.Block(
-                    rc.Metric(
-                        heading="Response",
-                        value=get_duration(log),
-                        unit="s",
-                        label=str(response),
-                    ),
-                    rc.Collapse(
-                        rc.Json(response),
-                        label="JSON",
-                    ),
-                ),
-                label=header,
+                rc.Block(rc.Text("", label="Response"), rc.Markdown(response)),
             ),
         )
 
