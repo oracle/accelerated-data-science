@@ -90,12 +90,14 @@ class ForecastOperatorSpec(DataClassSerializable):
     confidence_interval_width: float = None
     metric: str = None
     tuning: Tuning = field(default_factory=Tuning)
+    what_if_analysis: bool = False
 
     def __post_init__(self):
         """Adjusts the specification details."""
         self.output_directory = self.output_directory or OutputDirectory(
             url=find_output_dirname(self.output_directory)
         )
+        self.generate_model_pickle = True if self.generate_model_pickle or self.what_if_analysis else False
         self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE.lower()
         self.model = self.model or SupportedModels.Prophet
         self.confidence_interval_width = self.confidence_interval_width or 0.80

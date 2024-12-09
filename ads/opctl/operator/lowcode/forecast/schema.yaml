@@ -340,6 +340,13 @@ spec:
       meta:
         description: "Report file generation can be enabled using this flag. Defaults to true."
 
+    what_if_analysis:
+      type: boolean
+      required: false
+      default: false
+      meta:
+        description: "When enabled, the models are saved to the model catalog. Defaults to false."
+
     generate_metrics:
       type: boolean
       required: false

@@ -121,7 +121,7 @@ def load_data(data_spec, storage_options=None, **kwargs):
     return data
 
 
-def write_data(data, filename, format, storage_options, index=False, **kwargs):
+def write_data(data, filename, format, storage_options=None, index=False, **kwargs):
     if not format:
         _, format = os.path.splitext(filename)
         format = format[1:]

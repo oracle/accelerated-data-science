@@ -168,6 +168,7 @@ class ForecastDatasets:
                 self.additional_data.data,
             ],
             axis=1,
+            join='inner'
         )
 
     def get_data_by_series(self, include_horizon=True):

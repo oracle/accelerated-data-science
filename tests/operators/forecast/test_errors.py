@@ -178,9 +178,9 @@ def run_yaml(tmpdirname, yaml_i, output_data_path, test_metrics_check=True):
     subprocess.run(f"ls -a {output_data_path}", shell=True)
 
     if test_metrics_check:
-        test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")
+        test_metrics = pd.read_csv(f"{output_data_path}/test_metrics.csv")
         print(test_metrics)
-    train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
+    train_metrics = pd.read_csv(f"{output_data_path}/metrics.csv")
     print(train_metrics)
 
 
@@ -732,6 +732,38 @@ def test_date_format(operator_setup, model):
         pd.read_csv(f"{tmpdirname}/results/forecast.csv")["Date"]
     )
 
+@pytest.mark.parametrize("model", MODELS)
+def test_what_if_analysis(operator_setup, model):
+    os.environ["TEST_MODE"] = "True"
+    if model == "auto-select":
+        pytest.skip("Skipping what-if scenario for auto-select")
+    tmpdirname = operator_setup
+    historical_data_path, additional_data_path = setup_small_rossman()
+    additional_path = f'{tmpdirname}/additional_data.csv'
+    additional_data = pd.read_csv(additional_data_path)
+    numeric_columns = additional_data.select_dtypes(include=['number', 'object'])
+    non_constant_columns = numeric_columns.columns[(numeric_columns != numeric_columns.iloc[0]).any()]
+    df_non_constant = numeric_columns[non_constant_columns.union(['Store'])]
+    df_non_constant.to_csv(f'{additional_path}', index=False)
+
+    yaml_i, output_data_path = populate_yaml(
+        tmpdirname=tmpdirname,
+        historical_data_path=historical_data_path,
+        additional_data_path=additional_path,
+        output_data_path=f"{tmpdirname}/{model}/results"
+    )
+    yaml_i["spec"]["horizon"] = 10
+    yaml_i["spec"]["model"] = model
+    yaml_i["spec"]["what_if_analysis"] = True
+
+    run_yaml(
+        tmpdirname=tmpdirname,
+        yaml_i=yaml_i,
+        output_data_path=output_data_path,
+        test_metrics_check=False,
+    )
+    report_path = f"{output_data_path}/report.html"
+    assert os.path.exists(report_path), f"Report file not found at {report_path}"
 
 if __name__ == "__main__":
     pass
