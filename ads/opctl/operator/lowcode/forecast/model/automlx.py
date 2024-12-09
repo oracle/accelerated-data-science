@@ -81,22 +81,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
         from automlx import Pipeline, init
 
-        cpu_count = os.cpu_count()
-        try:
-            if cpu_count < 4:
-                engine = "local"
-                engine_opts = None
-            else:
-                engine = "ray"
-                engine_opts = ({"ray_setup": {"_temp_dir": "/tmp/ray-temp"}},)
-            init(
-                engine=engine,
-                engine_opts=engine_opts,
-                loglevel=logging.CRITICAL,
-            )
-        except Exception as e:
-            logger.info(f"Error. Has Ray already been initialized? Skipping. {e}")
-
         full_data_dict = self.datasets.get_data_by_series()
 
         self.models = {}
@@ -111,6 +95,26 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
         # Clean up kwargs for pass through
         model_kwargs_cleaned, time_budget = self.set_kwargs()
+
+        cpu_count = os.cpu_count()
+        try:
+            engine_type = model_kwargs_cleaned.pop(
+                "engine", "local" if cpu_count <= 4 else "ray"
+            )
+            engine_opts = (
+                None
+                if engine_type == "local"
+                else ({"ray_setup": {"_temp_dir": "/tmp/ray-temp"}},)
+            )
+            init(
+                engine=engine_type,
+                engine_opts=engine_opts,
+                loglevel=logging.CRITICAL,
+            )
+        except Exception as e:
+            logger.info(
+                f"Error initializing automlx. Has Ray already been initialized? Skipping. {e}"
+            )
 
         for s_id, df in full_data_dict.items():
             try:
