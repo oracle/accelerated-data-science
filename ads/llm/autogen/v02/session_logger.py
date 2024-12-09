@@ -18,7 +18,7 @@ from urllib.parse import urlparse
 import autogen
 import fsspec
 import oci
-from autogen import Agent, ConversableAgent, GroupChatManager
+from autogen import Agent, ConversableAgent, GroupChatManager, OpenAIWrapper
 from autogen.logger.file_logger import (
     ChatCompletion,
     F,
@@ -529,10 +529,32 @@ class SessionLogger(FileLogger):
         # This is not used at the moment.
         return
 
-    def log_new_client(self, *args, **kwargs) -> None:
+    def log_new_client(
+        self,
+        client,
+        wrapper: OpenAIWrapper,
+        init_args: Dict[str, Any],
+    ) -> None:
         if not self.logger:
             return
-        return super().log_new_client(*args, **kwargs)
+        thread_id = threading.get_ident()
+
+        try:
+            log_data = json.dumps(
+                {
+                    "client_id": id(client),
+                    "wrapper_id": id(wrapper),
+                    "session_id": self.session_id,
+                    "class": type(client).__name__,
+                    # init_args may contain credentials like api_key
+                    # "json_state": json.dumps(init_args),
+                    "timestamp": get_current_ts(),
+                    "thread_id": thread_id,
+                }
+            )
+            self.logger.info(log_data)
+        except Exception as e:
+            self.logger.error(f"[file_logger] Failed to log event {e}")
 
     def __repr__(self) -> str:
         return self.session.__repr__()
