@@ -33,9 +33,9 @@ By default, the integration uses the same authentication method configured with 
     llm = ChatOCIModelDeployment(
         model="odsc-llm",
         endpoint= f"https://modeldeployment.oci.customer-oci.com/<OCID>/predict",
-        # Optionally you can specify additional keyword arguments for the model, e.g. temperature and headers.
+        # Optionally you can specify additional keyword arguments for the model, e.g. temperature and default_headers.
         temperature=0.1,
-        headers={"route": "v1/chat/completions"}, # default header for chat models
+        default_headers={"route": "v1/chat/completions"}, # default route for chat models
     )
 
 Alternatively, you may use specific authentication for the model:
@@ -50,9 +50,9 @@ Alternatively, you may use specific authentication for the model:
         endpoint= f"https://modeldeployment.oci.customer-oci.com/<OCID>/predict",
         # Use security token authentication for the model
         auth=ads.auth.security_token(profile="my_profile"),
-        # Optionally you can specify additional keyword arguments for the model, e.g. temperature and headers.
+        # Optionally you can specify additional keyword arguments for the model, e.g. temperature and default_headers.
         temperature=0.1,
-        headers={"route": "v1/chat/completions"}, # default header for chat models
+        default_headers={"route": "v1/chat/completions"}, # default route for chat models
     )
 
 Completion Models
@@ -69,7 +69,7 @@ Completion models takes a text string and input and returns a string with comple
         endpoint= f"https://modeldeployment.oci.customer-oci.com/<OCID>/predict",
         # Optionally you can specify additional keyword arguments for the model.
         max_tokens=32,
-        headers={"route": "v1/completions"}, # default header for completion models
+        default_headers={"route": "v1/completions"}, # default route for completion models
     )
 
     # Invoke the LLM. The completion will be a string.
@@ -102,7 +102,7 @@ Chat models takes `chat messages <https://python.langchain.com/docs/concepts/#me
         endpoint=f"<oci_model_deployment_url>/predict",
         # Optionally you can specify additional keyword arguments for the model.
         max_tokens=32,
-        headers={"route": "v1/chat/completions"}, # default header for chat models
+        default_headers={"route": "v1/chat/completions"}, # default route for chat models
     )
 
     messages = [
