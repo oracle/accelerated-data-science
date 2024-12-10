@@ -59,7 +59,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
         return self.finish(AquaDeploymentApp().delete(model_deployment_id))
 
     @handle_exceptions
-    def put(self, *args, **kwargs):
+    def put(self, *args, **kwargs):  # noqa: ARG002
         """
         Handles put request for the activating and deactivating OCI datascience model deployments
         Raises
@@ -82,7 +82,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
     @handle_exceptions
-    def post(self, *args, **kwargs):
+    def post(self, *args, **kwargs):  # noqa: ARG002
         """
         Handles post request for the deployment APIs
         Raises
@@ -132,6 +132,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
         private_endpoint_id = input_data.get("private_endpoint_id")
         container_image_uri = input_data.get("container_image_uri")
         cmd_var = input_data.get("cmd_var")
+        freeform_tags = input_data.get("freeform_tags")
+        defined_tags = input_data.get("defined_tags")
 
         self.finish(
             AquaDeploymentApp().create(
@@ -157,6 +159,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
                 private_endpoint_id=private_endpoint_id,
                 container_image_uri=container_image_uri,
                 cmd_var=cmd_var,
+                freeform_tags=freeform_tags,
+                defined_tags=defined_tags,
             )
         )
 
@@ -196,7 +200,7 @@ class AquaDeploymentInferenceHandler(AquaAPIhandler):
             return False
 
     @handle_exceptions
-    def post(self, *args, **kwargs):
+    def post(self, *args, **kwargs):  # noqa: ARG002
         """
         Handles inference request for the Active Model Deployments
         Raises
@@ -262,7 +266,7 @@ class AquaDeploymentParamsHandler(AquaAPIhandler):
         )
 
     @handle_exceptions
-    def post(self, *args, **kwargs):
+    def post(self, *args, **kwargs):  # noqa: ARG002
         """Handles post request for the deployment param handler API.
 
         Raises

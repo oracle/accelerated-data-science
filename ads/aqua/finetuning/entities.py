@@ -80,6 +80,10 @@ class CreateFineTuningDetails(DataClassSerializable):
         The log id for fine tuning job infrastructure.
     force_overwrite: (bool, optional). Defaults to `False`.
         Whether to force overwrite the existing file in object storage.
+    freeform_tags: (dict, optional)
+        Freeform tags for the fine-tuning model
+    defined_tags: (dict, optional)
+        Defined tags for the fine-tuning model
     """
 
     ft_source_id: str
@@ -101,3 +105,5 @@ class CreateFineTuningDetails(DataClassSerializable):
     log_id: Optional[str] = None
     log_group_id: Optional[str] = None
     force_overwrite: Optional[bool] = False
+    freeform_tags: Optional[dict] = None
+    defined_tags: Optional[dict] = None

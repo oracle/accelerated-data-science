@@ -291,6 +291,8 @@ class ImportModelDetails(CLIBuilderMixin):
     inference_container_uri: Optional[str] = None
     allow_patterns: Optional[List[str]] = None
     ignore_patterns: Optional[List[str]] = None
+    freeform_tags: Optional[dict] = None
+    defined_tags: Optional[dict] = None
 
     def __post_init__(self):
         self._command = "model register"
