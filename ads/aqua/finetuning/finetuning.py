@@ -477,12 +477,10 @@ class AquaFineTuningApp(AquaApp):
                 ),
             ),
             tags={
-                **{
-                    "aqua_finetuning": Tags.AQUA_FINE_TUNING,
-                    "finetuning_job_id": ft_job.id,
-                    "finetuning_source": source.id,
-                    "finetuning_experiment_id": experiment_model_version_set_id,
-                },
+                "aqua_finetuning": Tags.AQUA_FINE_TUNING,
+                "finetuning_job_id": ft_job.id,
+                "finetuning_source": source.id,
+                "finetuning_experiment_id": experiment_model_version_set_id,
                 **model_freeform_tags,
                 **model_defined_tags,
             },
