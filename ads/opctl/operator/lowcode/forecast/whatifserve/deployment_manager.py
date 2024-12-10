@@ -12,6 +12,7 @@ import tempfile
 import pandas as pd
 from joblib import dump
 
+from ads.opctl import logger
 from ads.common.model_export_util import prepare_generic_model
 from ads.opctl.operator.lowcode.common.utils import write_data, call_pandas_fsspec
 
@@ -22,7 +23,6 @@ from ..operator_config import ForecastOperatorSpec
 class ModelDeploymentManager:
     def __init__(self, spec: ForecastOperatorSpec, additional_data: AdditionalData, previous_model_version=None):
         self.spec = spec
-        # self.model_path = spec.output_directory.url
         self.model_name = spec.model
         self.horizon = spec.horizon
         self.additional_data = additional_data.get_dict_by_series()
@@ -51,7 +51,7 @@ class ModelDeploymentManager:
             additional_data_uri = "additional_data_uri"
             input_data = {additional_data_uri: temp_file.name}
             prediction_test = predict(input_data, _)
-            print(f"prediction test completed with result :{prediction_test}")
+            logger.info(f"prediction test completed with result :{prediction_test}")
 
     def _copy_score_file(self):
         """
@@ -62,9 +62,9 @@ class ModelDeploymentManager:
             score_file = os.path.join(current_dir, "score.py")
             destination_file = os.path.join(self.path_to_artifact, os.path.basename(score_file))
             shutil.copy2(score_file, destination_file)
-            print(f"score.py copied successfully to {self.path_to_artifact}")
+            logger.info(f"score.py copied successfully to {self.path_to_artifact}")
         except Exception as e:
-            print(f"Error copying file: {e}")
+            logger.warn(f"Error copying file: {e}")
             raise e
 
     def save_to_catalog(self):
@@ -82,7 +82,7 @@ class ModelDeploymentManager:
 
         self._copy_score_file()
         self._satiny_test()
-        
+
         if isinstance(self.model_obj, dict):
             series = self.model_obj.keys()
         else:
@@ -96,7 +96,7 @@ class ModelDeploymentManager:
             catalog_id = catalog_entry.id
 
 
-        print(f"Saved {self.model_name} version-v{self.model_version} to model catalog"
+        logger.info(f"Saved {self.model_name} version-v{self.model_version} to model catalog"
               f" with catalog id : {catalog_id}")
 
         catalog_mapping = {"catalog_id": catalog_id, "series": list(series)}

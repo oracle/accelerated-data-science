@@ -135,21 +135,22 @@ def post_inference(yhat):
 def get_forecast(future_df, series_id, model_object, date_col, target_column, target_cat_col, horizon):
     date_col_name = date_col["name"]
     date_col_format = date_col["format"]
+    future_df[target_cat_col] = future_df[target_cat_col].astype("str")
     future_df[date_col_name] = pd.to_datetime(
         future_df[date_col_name], format=date_col_format
     )
     if isinstance(model_object, AutoTS):
-        full_data_indexed = future_df
+        series_id_col = "Series"
+        full_data_indexed = future_df.rename(columns={target_cat_col: series_id_col})
         additional_regressors = list(
-            set(full_data_indexed.columns) - {target_column, target_cat_col, date_col_name}
+            set(full_data_indexed.columns) - {target_column, series_id_col, date_col_name}
         )
-        future_regressor = full_data_indexed.reset_index().pivot(
+        future_reg = full_data_indexed.reset_index().pivot(
             index=date_col_name,
-            columns=target_cat_col,
+            columns=series_id_col,
             values=additional_regressors,
         )
-        regr_fcst = future_regressor
-        pred_obj = model_object.predict(future_regressor=regr_fcst)
+        pred_obj = model_object.predict(future_regressor=future_reg)
         return pred_obj.forecast[series_id].tolist()
     elif series_id in model_object and isinstance(model_object[series_id], Prophet):
         model = model_object[series_id]
