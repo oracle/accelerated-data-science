@@ -542,6 +542,7 @@ class SessionLogger(FileLogger):
         try:
             log_data = json.dumps(
                 {
+                    Events.KEY: Events.NEW_CLIENT,
                     "client_id": id(client),
                     "wrapper_id": id(wrapper),
                     "session_id": self.session_id,
