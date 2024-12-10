@@ -277,9 +277,6 @@ class AquaFineTuningApp(AquaApp):
         ft_job_freeform_tags = {
             Tags.AQUA_TAG: UNKNOWN,
             Tags.AQUA_FINE_TUNED_MODEL_TAG: f"{source.id}#{source.display_name}",
-        }
-        ft_job_freeform_tags = {
-            **ft_job_freeform_tags,
             **(create_fine_tuning_details.freeform_tags or {}),
         }
 

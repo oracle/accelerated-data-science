@@ -459,9 +459,6 @@ class AquaEvaluationApp(AquaApp):
 
         evaluation_model_freeform_tags = {
             Tags.AQUA_EVALUATION: Tags.AQUA_EVALUATION,
-        }
-        evaluation_model_freeform_tags = {
-            **evaluation_model_freeform_tags,
             **(create_aqua_evaluation_details.freeform_tags or {}),
         }
         evaluation_model_defined_tags = (
