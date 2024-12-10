@@ -33,6 +33,7 @@ class SessionReport:
         self.logs = self._parse_logs()
         self.event_logs = self.get_event_logs()
         self.invocation_logs = self._parse_invocation_events()
+        self.received_message_logs = self._parse_received_messages()
 
     @staticmethod
     def format_json_string(s) -> str:
@@ -124,6 +125,20 @@ class SessionReport:
 
         return events
 
+    def _parse_received_messages(self):
+        logs = self.filter_event_logs("new_agent")
+        managers = self.get_chat_managers()
+        logs = self.filter_event_logs("received_message")
+        if not logs:
+            return []
+        states: List[dict] = [json.loads(log.get("json_state", "{}")) for log in logs]
+        for i, state in enumerate(states):
+            state.update(logs[i])
+        logs = states
+        logs = sorted(logs, key=lambda x: x.get("timestamp", ""))
+        logs = [log for log in logs if log.get("sender") not in managers]
+        return logs
+
     def get_event_data(self, event_name: str):
         for log in self.logs:
             if log.get(Events.KEY) == event_name:
@@ -134,7 +149,7 @@ class SessionReport:
         filtered_logs = []
         for log in self.logs:
             if log.get(Events.KEY) == event_name:
-                filtered_logs.append(log)
+                filtered_logs.append(copy.deepcopy(log))
         return filtered_logs
 
     def get_event_logs(self):
@@ -175,7 +190,9 @@ class SessionReport:
         )
         fig.update_layout(showlegend=False)
         fig.update_yaxes(autorange="reversed")
-        return rc.Widget(fig, label="Timeline")
+        return rc.Block(
+            rc.Widget(fig, label="Timeline"), self.build_flowchart(), label="Timeline"
+        )
 
     def format_messages(self, messages):
         text = ""
@@ -305,25 +322,51 @@ class SessionReport:
             label="Invocations",
         )
 
+    def build_flowchart(self):
+        logs = self.received_message_logs
+        senders = []
+        for log in logs:
+            sender = log.get("sender")
+            senders.append(sender)
+
+        diagram_src = "graph LR\n"
+        prev_sender = None
+        links = []
+        # Conversation Flow
+        for sender in senders:
+            if prev_sender is None:
+                link = f"START([START]) --> {sender}"
+            else:
+                link = f"{prev_sender} --> {sender}"
+            if link not in links:
+                links.append(link)
+            prev_sender = sender
+        links.append(f"{prev_sender} --> END([END])")
+        # Tool Calls
+        logs = self.filter_event_logs(Events.TOOL_CALL)
+        for log in logs:
+            tool = log.get("tool_name")
+            agent = log.get("source_name")
+            if tool and agent:
+                link = f"{agent} <--> {tool}[[{tool}]]"
+            if link not in links:
+                links.append(link)
+
+        diagram_src += "\n".join(links)
+        print(diagram_src)
+        return rc.Diagram(src=diagram_src, label="Flowchart")
+
     def build_chat_tab(self) -> rc.Block:
-        # Identify the GroupChatManagers
-        # We will ignore the messages from GroupChatManager as they are just broadcasting.
-        logs = self.filter_event_logs("new_agent")
-        managers = [log.get("agent_name") for log in logs if log.get("is_manager")]
-        logs = self.filter_event_logs("received_message")
+        logs = copy.deepcopy(self.received_message_logs)
         if not logs:
             return rc.Text("No messages received in this session.")
-        states: List[dict] = [json.loads(log.get("json_state", "{}")) for log in logs]
-        for i, state in enumerate(states):
-            state.update(logs[i])
         # The agent sending the first message will be placed on the right.
         # All other agents will be placed on the left
-        host = states[0].get("sender")
+        host = logs[0].get("sender")
         blocks = []
-        for log in states:
+
+        for log in copy.deepcopy(self.received_message_logs):
             sender = log.get("sender")
-            if sender in managers:
-                continue
             message = log.get("message")
             # Content
             if isinstance(message, dict) and "content" in message:
@@ -351,6 +394,7 @@ class SessionReport:
             else:
                 html = self._apply_template("chat_box_lt.html", **log)
             blocks.append(rc.Html(html))
+
         return rc.Block(
             *blocks,
             label="Chats",
@@ -393,7 +437,7 @@ class SessionReport:
         for log in new_agent_logs:
             if not log.get("is_manager"):
                 continue
-            agents.add((log.get("agent_name"), log.get("agent_type")))
+            agents.add(log.get("agent_name"))
         return agents
 
     def build(self, output_file: str):
