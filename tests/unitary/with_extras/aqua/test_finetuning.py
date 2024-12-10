@@ -90,6 +90,10 @@ class FineTuningTestCase(TestCase):
         ft_source.compartment_id = self.SERVICE_COMPARTMENT_ID
         ft_source.display_name = "test_ft_source_model"
         ft_source.custom_metadata_list = custom_metadata_list
+        ft_source.freeform_tags = {
+            "license": "Some license text",
+            "aqua_custom_base_model": "base_model_info",
+        }
         mock_get_source.return_value = ft_source
 
         mock_mvs_create.return_value = ("test_experiment_id", "test_experiment_name")
@@ -177,6 +181,9 @@ class FineTuningTestCase(TestCase):
                     "finetuning_experiment_id": f"{mock_mvs_create.return_value[0]}",
                     "finetuning_job_id": f"{mock_job_id.return_value}",
                     "finetuning_source": f"{ft_source.id}",
+                    "ready_to_fine_tune": "false",
+                    "OCI_AQUA": "",
+                    "aqua_fine_tuned_model": f"{ft_source.id}#{ft_source.display_name}",
                 },
                 **ft_model_freeform_tags,
                 **ft_model_defined_tags,
