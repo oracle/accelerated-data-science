@@ -98,9 +98,12 @@ class AquaDeployment(DataClassSerializable):
             ),
         )
 
-        freeform_tags = oci_model_deployment.freeform_tags or UNKNOWN_DICT
-        aqua_service_model_tag = freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, None)
-        aqua_model_name = freeform_tags.get(Tags.AQUA_MODEL_NAME_TAG, UNKNOWN)
+        tags = {}
+        tags.update(oci_model_deployment.freeform_tags or UNKNOWN_DICT)
+        tags.update(oci_model_deployment.defined_tags or UNKNOWN_DICT)
+
+        aqua_service_model_tag = tags.get(Tags.AQUA_SERVICE_MODEL_TAG, None)
+        aqua_model_name = tags.get(Tags.AQUA_MODEL_NAME_TAG, UNKNOWN)
         private_endpoint_id = getattr(
             instance_configuration, "private_endpoint_id", UNKNOWN
         )
@@ -125,7 +128,7 @@ class AquaDeployment(DataClassSerializable):
                 ocid=oci_model_deployment.id,
                 region=region,
             ),
-            tags=freeform_tags,
+            tags=tags,
             environment_variables=environment_variables,
             cmd=cmd,
         )

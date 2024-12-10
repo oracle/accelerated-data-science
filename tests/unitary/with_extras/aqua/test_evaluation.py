@@ -475,6 +475,9 @@ class TestAquaEvaluation(unittest.TestCase):
         self.app.ds_client.update_model = MagicMock()
         self.app.ds_client.update_model_provenance = MagicMock()
 
+        eval_model_freeform_tags = {"ftag1": "fvalue1", "ftag2": "fvalue2"}
+        eval_model_defined_tags = {"dtag1": "dvalue1", "dtag2": "dvalue2"}
+
         create_aqua_evaluation_details = dict(
             evaluation_source_id="ocid1.datasciencemodel.oc1.iad.<OCID>",
             evaluation_name="test_evaluation_name",
@@ -486,6 +489,8 @@ class TestAquaEvaluation(unittest.TestCase):
             experiment_name="test_experiment_name",
             memory_in_gbs=1,
             ocpus=1,
+            freeform_tags=eval_model_freeform_tags,
+            defined_tags=eval_model_defined_tags,
         )
         aqua_evaluation_summary = self.app.create(**create_aqua_evaluation_details)
 
@@ -516,10 +521,14 @@ class TestAquaEvaluation(unittest.TestCase):
                 "url": f"https://cloud.oracle.com/data-science/models/ocid1.datasciencemodel.oc1.iad.<OCID>?region={self.app.region}",
             },
             "tags": {
-                "aqua_evaluation": "aqua_evaluation",
-                "evaluation_experiment_id": f"{experiment.id}",
-                "evaluation_job_id": f"{mock_job_id.return_value}",
-                "evaluation_source": "ocid1.datasciencemodel.oc1.iad.<OCID>",
+                **{
+                    "aqua_evaluation": "aqua_evaluation",
+                    "evaluation_experiment_id": f"{experiment.id}",
+                    "evaluation_job_id": f"{mock_job_id.return_value}",
+                    "evaluation_source": "ocid1.datasciencemodel.oc1.iad.<OCID>",
+                },
+                **eval_model_freeform_tags,
+                **eval_model_defined_tags,
             },
             "time_created": f"{oci_dsc_model.time_created}",
         }

@@ -64,6 +64,10 @@ class CreateAquaEvaluationDetails(Serializable):
         The metrics for the evaluation.
     force_overwrite: (bool, optional). Defaults to `False`.
         Whether to force overwrite the existing file in object storage.
+    freeform_tags: (dict, optional)
+        Freeform tags for the evaluation model
+    defined_tags: (dict, optional)
+        Defined tags for the evaluation model
     """
 
     evaluation_source_id: str
@@ -85,6 +89,8 @@ class CreateAquaEvaluationDetails(Serializable):
     log_id: Optional[str] = None
     metrics: Optional[List[Dict[str, Any]]] = None
     force_overwrite: Optional[bool] = False
+    freeform_tags: Optional[dict] = None
+    defined_tags: Optional[dict] = None
 
     class Config:
         extra = "ignore"
