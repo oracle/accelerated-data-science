@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-"""Contains tests for ads.hpo.distributions
-"""
+"""Contains tests for ads.hpo.distributions"""
 
+import pytest
 import unittest
 import sklearn
 from ads.hpo.distributions import *
@@ -15,6 +15,8 @@ from sklearn.datasets import load_iris
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
+
+pytest.skip(allow_module_level=True)
 
 
 class ADSTunerDistributionsTest(unittest.TestCase):

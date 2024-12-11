@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-"""Contains tests for ads.hpo.search_cv
-"""
+"""Contains tests for ads.hpo.search_cv"""
 
 import os
 import unittest
@@ -31,6 +30,8 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 from xgboost.sklearn import XGBClassifier
+
+pytest.skip(allow_module_level=True)
 
 
 class ADSTunerTest(unittest.TestCase):

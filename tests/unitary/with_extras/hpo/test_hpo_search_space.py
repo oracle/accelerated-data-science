@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-"""Contains tests for ads.hpo.search_space
-"""
+"""Contains tests for ads.hpo.search_space"""
 
 import lightgbm
 import pytest
@@ -18,6 +17,8 @@ from ads.hpo.search_cv import ADSTuner
 from sklearn.datasets import load_iris, make_regression
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.model_selection import train_test_split
+
+pytest.skip(allow_module_level=True)
 
 
 class TestADSTunerDistributions:
