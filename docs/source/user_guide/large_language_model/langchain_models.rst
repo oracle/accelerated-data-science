@@ -31,7 +31,7 @@ By default, the integration uses the same authentication method configured with 
     ads.set_auth(auth="resource_principal")
     
     llm = ChatOCIModelDeployment(
-        model="odsc-llm",
+        model="odsc-llm", # default model name if deployed on AQUA
         endpoint= f"https://modeldeployment.oci.customer-oci.com/<OCID>/predict",
         # Optionally you can specify additional keyword arguments for the model, e.g. temperature and default_headers.
         temperature=0.1,
@@ -46,7 +46,7 @@ Alternatively, you may use specific authentication for the model:
     from ads.llm import ChatOCIModelDeployment
 
     llm = ChatOCIModelDeployment(
-        model="odsc-llm",
+        model="odsc-llm", # default model name if deployed on AQUA
         endpoint= f"https://modeldeployment.oci.customer-oci.com/<OCID>/predict",
         # Use security token authentication for the model
         auth=ads.auth.security_token(profile="my_profile"),
@@ -65,7 +65,7 @@ Completion models takes a text string and input and returns a string with comple
     from ads.llm import OCIModelDeploymentLLM
 
     llm = OCIModelDeploymentLLM(
-        model="odsc-llm",
+        model="odsc-llm", # default model name if deployed on AQUA
         endpoint= f"https://modeldeployment.oci.customer-oci.com/<OCID>/predict",
         # Optionally you can specify additional keyword arguments for the model.
         max_tokens=32,
@@ -98,7 +98,7 @@ Chat models takes `chat messages <https://python.langchain.com/docs/concepts/#me
     from ads.llm import ChatOCIModelDeployment
 
     llm = ChatOCIModelDeployment(
-        model="odsc-llm",
+        model="odsc-llm", # default model name if deployed on AQUA
         endpoint=f"<oci_model_deployment_url>/predict",
         # Optionally you can specify additional keyword arguments for the model.
         max_tokens=32,
@@ -137,7 +137,7 @@ The vLLM container support `tool/function calling <https://docs.vllm.ai/en/lates
     from ads.llm import ChatOCIModelDeploymentVLLM, ChatTemplates
 
     llm = ChatOCIModelDeploymentVLLM(
-        model="odsc-llm",
+        model="odsc-llm", # default model name if deployed on AQUA
         endpoint= f"https://modeldeployment.oci.customer-oci.com/<OCID>/predict",
         # Set tool_choice to "auto" to enable tool/function calling.
         tool_choice="auto",
