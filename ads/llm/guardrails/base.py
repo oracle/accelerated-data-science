@@ -11,7 +11,7 @@ import operator
 import importlib.util
 import sys
 
-from typing import Any, List, Dict, Tuple
+from typing import Any, List, Dict, Optional, Tuple, Union
 from langchain.schema.prompt import PromptValue
 from langchain.tools.base import BaseTool, ToolException
 from pydantic import BaseModel, model_validator
@@ -207,7 +207,9 @@ class Guardrail(BaseTool):
             return input.to_string()
         return str(input)
 
-    def _to_args_and_kwargs(self, tool_input: Any) -> Tuple[Tuple, Dict]:
+    def _to_args_and_kwargs(
+        self, tool_input: Union[str, dict], tool_call_id: Optional[str]
+    ) -> tuple[tuple, dict]:
         if isinstance(tool_input, dict):
             return (), tool_input
         else:
