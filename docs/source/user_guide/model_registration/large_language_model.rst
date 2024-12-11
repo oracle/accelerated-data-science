@@ -2,10 +2,15 @@
 Large Language Model
 ====================
 
-.. admonition:: AI Quick Actions
+.. admonition:: Introducing AI Quick Actions
   :class: note
 
   Oracle Data Science now has launched `AI Quick Actions <https://docs.oracle.com/en-us/iaas/data-science/using/ai-quick-actions.htm>`_, which makes it easy for you to browse foundation models, and deploy, fine-tune, and evaluate them inside Data Science notebooks.
+
+.. admonition:: Use AI Quick Actions
+  :class: note
+
+  The following page is obsolete and please use `AI Quick Actions <https://docs.oracle.com/en-us/iaas/data-science/using/ai-quick-actions.htm>`_ instead.
 
 Oracle ADS (Accelerated Data Science) opens the gateway to harnessing the full potential of the Large Language models
 within Oracle Cloud Infrastructure (OCI). `Meta <https://ai.meta.com/resources/models-and-libraries/llama-downloads/>`_'s
