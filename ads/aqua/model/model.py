@@ -980,8 +980,8 @@ class AquaModelApp(AquaApp):
                     file_path=os_path,
                     config_file_name=AQUA_MODEL_ARTIFACT_CONFIG,
                 )
-            except Exception:
-                pass
+            except Exception as ex:
+                logger.warning(str(ex))
             else:
                 model_files.append(AQUA_MODEL_ARTIFACT_CONFIG)
 
@@ -1125,8 +1125,11 @@ class AquaModelApp(AquaApp):
                         Tags.LICENSE: license_value,
                     }
                     validation_result.tags = hf_tags
-                except Exception:
-                    pass
+                except Exception as ex:
+                    logger.debug(
+                        f"An error occurred while getting tag information for model {model_name}. "
+                        f"Error: {str(ex)}"
+                    )
 
         validation_result.model_formats = model_formats
 
@@ -1235,10 +1238,13 @@ class AquaModelApp(AquaApp):
                                 f"Could not find {AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE} attribute in "
                                 f"{AQUA_MODEL_ARTIFACT_CONFIG}. Proceeding with model registration."
                             )
-                except Exception:
+                except Exception as ex:
                     # todo: raise exception if model_type doesn't match. Currently log message and pass since service
                     #   models do not have this metadata.
-                    pass
+                    logger.debug(
+                        f"Error occurred while processing metadata for model {model_name}. "
+                        f"Exception: {str(ex)}"
+                    )
                 validation_result.telemetry_model_name = verified_model.display_name
             elif (
                 model_config is not None
