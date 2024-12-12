@@ -90,7 +90,7 @@ def start(
     autogen_logger : BaseLogger, optional
         An AutoGen logger, which should be a subclass of autogen.logger.base_logger.BaseLogger.
     logger_type : str, optional
-        Logger type of a built-in AutoGen logger (for example, "file"), by default None.
+        Logger type, which can be a built-in AutoGen logger type ("file", or "sqlite"), by default None.
     config : dict, optional
         Configurations for the built-in AutoGen logger, by default None
 
