@@ -20,6 +20,14 @@ from .const import SpeedAccuracyMode, SupportedMetrics, SupportedModels
 
 
 @dataclass(repr=True)
+class WhatIfAnalysis(DataClassSerializable):
+    """Class representing operator specification for whatif-analysis."""
+    model_name: str = None
+    compartment_id: str = None
+    project_id: str = None
+
+
+@dataclass(repr=True)
 class TestData(InputData):
     """Class representing operator specification test data details."""
 
@@ -90,7 +98,7 @@ class ForecastOperatorSpec(DataClassSerializable):
     confidence_interval_width: float = None
     metric: str = None
     tuning: Tuning = field(default_factory=Tuning)
-    what_if_analysis: bool = False
+    what_if_analysis: WhatIfAnalysis = field(default_factory=WhatIfAnalysis)
 
     def __post_init__(self):
         """Adjusts the specification details."""

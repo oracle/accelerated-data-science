@@ -341,9 +341,20 @@ spec:
         description: "Report file generation can be enabled using this flag. Defaults to true."
 
     what_if_analysis:
-      type: boolean
+      type: dict
       required: false
-      default: false
+      schema:
+        model_name:
+          type: string
+          required: true
+        project_id:
+          type: string
+          required: false
+          meta: "If not provided, The project OCID from config.PROJECT_OCID is used"
+        compartment_id:
+          type: string
+          required: false
+          meta: "If not provided, The compartment OCID from config.NB_SESSION_COMPARTMENT_OCID is used."
       meta:
         description: "When enabled, the models are saved to the model catalog. Defaults to false."
 

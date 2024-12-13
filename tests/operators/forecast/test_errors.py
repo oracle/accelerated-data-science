@@ -754,7 +754,7 @@ def test_what_if_analysis(operator_setup, model):
     )
     yaml_i["spec"]["horizon"] = 10
     yaml_i["spec"]["model"] = model
-    yaml_i["spec"]["what_if_analysis"] = True
+    yaml_i["spec"]["what_if_analysis"] = {"model_name": f"model_{model}"}
 
     run_yaml(
         tmpdirname=tmpdirname,

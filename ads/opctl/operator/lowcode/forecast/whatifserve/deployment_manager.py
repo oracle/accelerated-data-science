@@ -27,6 +27,9 @@ class ModelDeploymentManager:
         self.horizon = spec.horizon
         self.additional_data = additional_data.get_dict_by_series()
         self.model_obj = {}
+        self.display_name = spec.what_if_analysis.model_name
+        self.project_id = spec.what_if_analysis.project_id
+        self.compartment_id = spec.what_if_analysis.compartment_id
         self.path_to_artifact = f"{self.spec.output_directory.url}/artifacts/"
         self.pickle_file_path = f"{self.spec.output_directory.url}/model.pkl"
         self.model_version = previous_model_version + 1 if previous_model_version else 1
@@ -48,8 +51,8 @@ class ModelDeploymentManager:
             date_col_format = self.spec.datetime_column.format
             sample_prediction_data[date_col_name] = sample_prediction_data[date_col_name].dt.strftime(date_col_format)
             sample_prediction_data.to_csv(temp_file.name, index=False)
-            additional_data_uri = "additional_data_uri"
-            input_data = {additional_data_uri: temp_file.name}
+            additional_data_uri = "additional_data"
+            input_data = {additional_data_uri: {"url": temp_file.name}}
             prediction_test = predict(input_data, _)
             logger.info(f"prediction test completed with result :{prediction_test}")
 
@@ -91,7 +94,9 @@ class ModelDeploymentManager:
 
         catalog_id = "None"
         if not os.environ.get("TEST_MODE", False):
-            catalog_entry = artifact.save(display_name=f"{self.model_name}-v{self.model_version}",
+            catalog_entry = artifact.save(display_name=self.display_name,
+                                          compartment_id=self.compartment_id,
+                                          project_id=self.project_id,
                                           description=description)
             catalog_id = catalog_entry.id
 

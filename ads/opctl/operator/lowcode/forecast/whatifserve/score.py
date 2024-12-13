@@ -11,11 +11,8 @@ import numpy as np
 from functools import lru_cache
 import logging
 import ads
-from prophet import Prophet
-from neuralprophet import NeuralProphet
-from pmdarima import ARIMA
-from autots import AutoTS
-from automlx._interface.forecaster import AutoForecaster
+from ads.opctl.operator.lowcode.common.utils import load_data
+from ads.opctl.operator.common.operator_config import InputData
 
 ads.set_auth("resource_principal")
 
@@ -28,6 +25,12 @@ logger_feat.setLevel(logging.INFO)
 """
    Inference script. This script is used for prediction by scoring server when schema is known.
 """
+
+AUTOTS = "autots"
+ARIMA = "arima"
+PROPHET = "prophet"
+NEURALPROPHET = "neuralprophet"
+AUTOMLX = "automlx"
 
 
 @lru_cache(maxsize=10)
@@ -132,14 +135,14 @@ def post_inference(yhat):
     return yhat
 
 
-def get_forecast(future_df, series_id, model_object, date_col, target_column, target_cat_col, horizon):
+def get_forecast(future_df, model_name, series_id, model_object, date_col, target_column, target_cat_col, horizon):
     date_col_name = date_col["name"]
     date_col_format = date_col["format"]
     future_df[target_cat_col] = future_df[target_cat_col].astype("str")
     future_df[date_col_name] = pd.to_datetime(
         future_df[date_col_name], format=date_col_format
     )
-    if isinstance(model_object, AutoTS):
+    if model_name == AUTOTS:
         series_id_col = "Series"
         full_data_indexed = future_df.rename(columns={target_cat_col: series_id_col})
         additional_regressors = list(
@@ -152,12 +155,12 @@ def get_forecast(future_df, series_id, model_object, date_col, target_column, ta
         )
         pred_obj = model_object.predict(future_regressor=future_reg)
         return pred_obj.forecast[series_id].tolist()
-    elif series_id in model_object and isinstance(model_object[series_id], Prophet):
+    elif model_name == PROPHET and series_id in model_object:
         model = model_object[series_id]
         processed = future_df.rename(columns={date_col_name: 'ds', target_column: 'y'})
         forecast = model.predict(processed)
         return forecast['yhat'].tolist()
-    elif series_id in model_object and isinstance(model_object[series_id], NeuralProphet):
+    elif model_name == NEURALPROPHET and series_id in model_object:
         model = model_object[series_id]
         model.restore_trainer()
         accepted_regressors = list(model.config_regressors.keys())
@@ -166,7 +169,7 @@ def get_forecast(future_df, series_id, model_object, date_col, target_column, ta
         future["y"] = None
         forecast = model.predict(future)
         return forecast['yhat1'].tolist()
-    elif series_id in model_object and isinstance(model_object[series_id], ARIMA):
+    elif model_name == ARIMA and series_id in model_object:
         model = model_object[series_id]
         future_df = future_df.set_index(date_col_name)
         x_pred = future_df.drop(target_cat_col, axis=1)
@@ -177,7 +180,7 @@ def get_forecast(future_df, series_id, model_object, date_col, target_column, ta
         )
         yhat_clean = pd.DataFrame(yhat, index=yhat.index, columns=["yhat"])
         return yhat_clean['yhat'].tolist()
-    elif series_id in model_object and isinstance(model_object[series_id], AutoForecaster):
+    elif model_name == AUTOMLX and series_id in model_object:
         # automlx model
         model = model_object[series_id]
         x_pred = future_df.drop(target_cat_col, axis=1)
@@ -188,7 +191,7 @@ def get_forecast(future_df, series_id, model_object, date_col, target_column, ta
         )
         return forecast[target_column].tolist()
     else:
-        raise Exception( f"Invalid model object type: {type(model_object).__name__}.")
+        raise Exception(f"Invalid model object type: {type(model_object).__name__}.")
 
 
 def predict(data, model=load_model()) -> dict:
@@ -211,20 +214,26 @@ def predict(data, model=load_model()) -> dict:
     models = model["models"]
     specs = model["spec"]
     horizon = specs["horizon"]
+    model_name = specs["model"]
     date_col = specs["datetime_column"]
     target_column = specs["target_column"]
-    forecasts = {}
-    uri = f"{data['additional_data_uri']}"
     target_category_column = specs["target_category_columns"][0]
-    signer = ads.common.auth.default_signer() if uri.lower().startswith("oci://") else {}
-    additional_data = pd.read_csv(uri, storage_options=signer)
+
+    try:
+        input_data = InputData(**data["additional_data"])
+    except TypeError as e:
+        raise ValueError(f"Validation error: {e}")
+    additional_data = load_data(input_data)
+
     unique_values = additional_data[target_category_column].unique()
+    forecasts = {}
     for key in unique_values:
         try:
             s_id = str(key)
             filtered = additional_data[additional_data[target_category_column] == key]
             future = filtered.tail(horizon)
-            forecast = get_forecast(future, s_id, models, date_col, target_column, target_category_column, horizon)
+            forecast = get_forecast(future, model_name, s_id, models, date_col,
+                                    target_column, target_category_column, horizon)
             forecasts[s_id] = json.dumps(forecast)
         except Exception as e:
             raise RuntimeError(
