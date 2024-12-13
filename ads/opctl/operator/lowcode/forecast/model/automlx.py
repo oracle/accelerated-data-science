@@ -17,6 +17,7 @@ from ads.opctl.operator.lowcode.common.utils import (
 from ads.opctl.operator.lowcode.forecast.const import (
     AUTOMLX_METRIC_MAP,
     ForecastOutputColumns,
+    SpeedAccuracyMode,
     SupportedModels,
 )
 from ads.opctl.operator.lowcode.forecast.utils import _label_encode_dataframe
@@ -239,27 +240,27 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 # If the key is present, call the "explain_model" method
                 self.explain_model()
 
-                # Convert the global explanation data to a DataFrame
-                global_explanation_df = pd.DataFrame(self.global_explanation)
+                global_explanation_section = None
+                if self.spec.explanations_accuracy_mode != SpeedAccuracyMode.AUTOMLX:
+                    # Convert the global explanation data to a DataFrame
+                    global_explanation_df = pd.DataFrame(self.global_explanation)
 
-                self.formatted_global_explanation = (
-                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
-                )
-                self.formatted_global_explanation = (
-                    self.formatted_global_explanation.rename(
+                    self.formatted_global_explanation = (
+                        global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                    )
+                    self.formatted_global_explanation = self.formatted_global_explanation.rename(
                         {self.spec.datetime_column.name: ForecastOutputColumns.DATE},
                         axis=1,
                     )
-                )
 
-                # Create a markdown section for the global explainability
-                global_explanation_section = rc.Block(
-                    rc.Heading("Global Explanation of Models", level=2),
-                    rc.Text(
-                        "The following tables provide the feature attribution for the global explainability."
-                    ),
-                    rc.DataTable(self.formatted_global_explanation, index=True),
-                )
+                    # Create a markdown section for the global explainability
+                    global_explanation_section = rc.Block(
+                        rc.Heading("Global Explanation of Models", level=2),
+                        rc.Text(
+                            "The following tables provide the feature attribution for the global explainability."
+                        ),
+                        rc.DataTable(self.formatted_global_explanation, index=True),
+                    )
 
                 aggregate_local_explanations = pd.DataFrame()
                 for s_id, local_ex_df in self.local_explanation.items():
@@ -284,8 +285,11 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 )
 
                 # Append the global explanation text and section to the "other_sections" list
+                if global_explanation_section:
+                    other_sections.append(global_explanation_section)
+
+                # Append the local explanation text and section to the "other_sections" list
                 other_sections = other_sections + [
-                    global_explanation_section,
                     local_explanation_section,
                 ]
             except Exception as e:
