@@ -451,7 +451,7 @@ class TestDataScienceModel:
     @patch.object(DataScienceModel, "upload_artifact")
     @patch.object(DataScienceModel, "_random_display_name", return_value="random_name")
     @patch.object(DataScienceModel, "_load_default_properties", return_value={})
-    def test_create_success(
+    def  test_create_success(
         self,
         mock__load_default_properties,
         mock__random_display_name,
