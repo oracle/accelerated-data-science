@@ -424,7 +424,7 @@ def create_signer(
             "signer": signer,
             "client_kwargs": client_kwargs,
         }
-        logger.info(f"Using authentication signer type {type(signer)}.")
+        logger.debug(f"Using authentication signer type {type(signer)}.")
         return signer_dict
     else:
         signer_args = dict(
@@ -492,7 +492,7 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
                 **(client_kwargs or {}),
             },
         }
-        logger.info(f"Using authentication signer type {type(signer)}.")
+        logger.debug(f"Using authentication signer type {type(signer)}.")
         return signer_dict
     else:
         signer_args = dict(
@@ -621,7 +621,7 @@ class APIKey(AuthSignerGenerator):
             )
 
         oci.config.validate_config(configuration)
-        logger.info(f"Using 'api_key' authentication.")
+        logger.debug(f"Using 'api_key' authentication.")
         return {
             "config": configuration,
             "signer": oci.signer.Signer(
@@ -684,7 +684,7 @@ class ResourcePrincipal(AuthSignerGenerator):
             "signer": oci.auth.signers.get_resource_principals_signer(),
             "client_kwargs": self.client_kwargs,
         }
-        logger.info(f"Using 'resource_principal' authentication.")
+        logger.debug(f"Using 'resource_principal' authentication.")
         return signer_dict
 
     @staticmethod
@@ -747,7 +747,7 @@ class InstancePrincipal(AuthSignerGenerator):
             ),
             "client_kwargs": self.client_kwargs,
         }
-        logger.info(f"Using 'instance_principal' authentication.")
+        logger.debug(f"Using 'instance_principal' authentication.")
         return signer_dict
 
 
@@ -814,7 +814,7 @@ class SecurityToken(AuthSignerGenerator):
                 oci.config.from_file(self.oci_config_location, self.oci_key_profile)
             )
 
-        logger.info(f"Using 'security_token' authentication.")
+        logger.debug(f"Using 'security_token' authentication.")
 
         for parameter in self.SECURITY_TOKEN_REQUIRED:
             if parameter not in configuration:
@@ -883,7 +883,7 @@ class SecurityToken(AuthSignerGenerator):
                     )
 
         date_time = datetime.fromtimestamp(time_expired).strftime("%Y-%m-%d %H:%M:%S")
-        logger.info(f"Session is valid until {date_time}.")
+        logger.debug(f"Session is valid until {date_time}.")
 
     def _read_security_token_file(self, security_token_file: str) -> str:
         """Reads security token from file.
@@ -1020,10 +1020,10 @@ class OCIAuthContext:
         """
         if self.profile:
             ads.set_auth(auth=AuthType.API_KEY, profile=self.profile)
-            logger.info(f"OCI profile set to {self.profile}")
+            logger.debug(f"OCI profile set to {self.profile}")
         else:
             ads.set_auth(auth=AuthType.RESOURCE_PRINCIPAL)
-            logger.info(f"OCI auth set to resource principal")
+            logger.debug(f"OCI auth set to resource principal")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
