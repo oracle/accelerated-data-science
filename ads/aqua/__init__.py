@@ -5,8 +5,9 @@
 
 
 import os
+from logging import getLogger
 
-from ads import logger, set_auth
+from ads import set_auth
 from ads.aqua.common.utils import fetch_service_compartment
 from ads.config import OCI_RESOURCE_PRINCIPAL_VERSION
 
@@ -18,7 +19,7 @@ def get_logger_level():
     level = os.environ.get(ENV_VAR_LOG_LEVEL, "INFO").upper()
     return level
 
-
+logger = getLogger(__name__)
 logger.setLevel(get_logger_level())
 
 
