@@ -19,7 +19,11 @@ from ads.aqua.common.enums import (
     InferenceContainerTypeFamily,
     Tags,
 )
-from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
+from ads.aqua.common.errors import (
+    AquaFileNotFoundError,
+    AquaRuntimeError,
+    AquaValueError,
+)
 from ads.aqua.common.utils import (
     LifecycleStatus,
     _build_resource_identifier,
@@ -1206,7 +1210,9 @@ class AquaModelApp(AquaApp):
             except Exception as ex:
                 logger.error(
                     f"Exception occurred while loading config file from {import_model_details.os_path}"
-                    f"Exception message: {ex}"
+                )
+                logger.error(
+                    ex.reason if isinstance(ex, AquaFileNotFoundError) else str(ex)
                 )
                 if not import_model_details.ignore_model_artifact_check:
                     raise AquaRuntimeError(
