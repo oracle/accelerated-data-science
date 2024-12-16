@@ -21,7 +21,18 @@ logger = logging.getLogger(__name__)
 
 
 class SessionReport:
+    """Class for building session report from session log file."""
+
     def __init__(self, log_file: str, auth: Optional[dict] = None) -> None:
+        """Initialize the session report with log file.
+
+        Parameters
+        ----------
+        log_file : str
+            Path or URI of the log file.
+        auth : dict, optional
+            Authentication signer/config for OCI, by default None
+        """
         self.log_file = log_file
         if self.log_file.startswith("oci://"):
             auth = auth or default_signer()
@@ -37,10 +48,12 @@ class SessionReport:
 
     @staticmethod
     def format_json_string(s) -> str:
+        """Formats the JSON string in markdown."""
         return f"```json\n{json.dumps(json.loads(s), indent=2)}\n```"
 
     @staticmethod
-    def _apply_template(template_path, **kwargs) -> str:
+    def _render_template(template_path, **kwargs) -> str:
+        """Render Jinja template with kwargs."""
         template_dir = os.path.join(os.path.dirname(__file__), "templates")
         environment = Environment(
             loader=FileSystemLoader(template_dir), autoescape=True
@@ -54,7 +67,7 @@ class SessionReport:
                 template_path,
                 str(kwargs),
             )
-            return SessionReport._apply_template(
+            return SessionReport._render_template(
                 template_path=template_path,
                 sender=kwargs.get("sender", "N/A"),
                 content="TEMPLATE RENDER ERROR",
@@ -64,6 +77,7 @@ class SessionReport:
 
     @staticmethod
     def _preview_message(message: str, max_length=30) -> str:
+        """Shows the beginning part of a string message."""
         # Return the entire string if it is less than the max_length
         if len(message) <= max_length:
             return message
@@ -89,16 +103,21 @@ class SessionReport:
 
     @staticmethod
     def _parse_start_time(log: dict):
+        """Parses a datetime string in the logs into date and time."""
         start_date, start_time = log.get("start_time", " ").split(" ", 1)
         start_time = start_time.split(".", 1)[0]
         return start_date, start_time
 
     def _parse_logs(self) -> List[dict]:
+        """Parses the logs into dictionary."""
         logs = []
-        for log in self.log_lines:
+        for i, log in enumerate(self.log_lines):
             try:
                 logs.append(json.loads(log))
             except Exception as e:
+                logger.debug(
+                    "Error when parsing log record at line %s:\n%s", str(i + 1), str(e)
+                )
                 continue
         return logs
 
@@ -353,7 +372,6 @@ class SessionReport:
                 links.append(link)
 
         diagram_src += "\n".join(links)
-        print(diagram_src)
         return rc.Diagram(src=diagram_src, label="Flowchart")
 
     def build_chat_tab(self) -> rc.Block:
@@ -367,15 +385,17 @@ class SessionReport:
 
         for log in copy.deepcopy(self.received_message_logs):
             sender = log.get("sender")
-            message = log.get("message")
+            message = log.get("message", "")
             # Content
             if isinstance(message, dict) and "content" in message:
-                content = message.get("content")
+                content = message.get("content", "")
                 if is_json_string(content):
                     log["json_content"] = json.dumps(json.loads(content), indent=2)
                 log["content"] = content
             else:
                 log["content"] = message
+            if log["content"] is None:
+                log["content"] = ""
             # Tool call
             if isinstance(message, dict) and "tool_calls" in message:
                 tool_calls = message.get("tool_calls")
@@ -390,9 +410,9 @@ class SessionReport:
                         )
                     log["tool_calls"] = tool_call_signatures
             if sender == host:
-                html = self._apply_template("chat_box_rt.html", **log)
+                html = self._render_template("chat_box_rt.html", **log)
             else:
-                html = self._apply_template("chat_box_lt.html", **log)
+                html = self._render_template("chat_box_lt.html", **log)
             blocks.append(rc.Html(html))
 
         return rc.Block(
