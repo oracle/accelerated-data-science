@@ -649,16 +649,17 @@ class ForecastOperatorBaseModel(ABC):
             storage_options=storage_options,
         )
 
+    def _validate_automlx_explanation_mode(self):
+        if self.spec.model != SupportedModels.AutoMLX and self.spec.explanations_accuracy_mode == SpeedAccuracyMode.AUTOMLX:
+            raise ValueError(
+                "AUTOMLX explanation accuracy mode is only supported for AutoMLX models. "
+                "Please select mode other than AUTOMLX from the available explanations_accuracy_mode options"
+            )
+
     @runtime_dependency(
         module="shap",
         err_msg=(
             "Please run `python3 -m pip install shap` to install the required dependencies for model explanation."
-        ),
-    )
-    @runtime_dependency(
-        module="automlx",
-        err_msg=(
-            "Please run `python3 -m pip install automlx` to install the required dependencies for model explanation."
         ),
     )
     def explain_model(self):
@@ -683,53 +684,13 @@ class ForecastOperatorBaseModel(ABC):
         )
         ratio = SpeedAccuracyMode.ratio[self.spec.explanations_accuracy_mode]
 
+        # validate the automlx mode is use for automlx model
+        self._validate_automlx_explanation_mode()
+
         for s_id, data_i in self.datasets.get_data_by_series(
             include_horizon=False
         ).items():
-            if (
-                self.spec.model == SupportedModels.AutoMLX
-                and self.spec.explanations_accuracy_mode == SpeedAccuracyMode.AUTOMLX
-            ):
-                import automlx
-
-                explainer = automlx.MLExplainer(
-                    self.models[s_id],
-                    self.datasets.additional_data.get_data_for_series(series_id=s_id)
-                    .drop(self.spec.datetime_column.name, axis=1)
-                    .head(-self.spec.horizon)
-                    if self.spec.additional_data
-                    else None,
-                    pd.DataFrame(data_i[self.spec.target_column]),
-                    task="forecasting",
-                )
-
-                explanations = explainer.explain_prediction(
-                    X=self.datasets.additional_data.get_data_for_series(series_id=s_id)
-                    .drop(self.spec.datetime_column.name, axis=1)
-                    .tail(self.spec.horizon)
-                    if self.spec.additional_data
-                    else None,
-                    forecast_timepoints=list(range(self.spec.horizon + 1)),
-                )
-
-                explanations_df = pd.concat(
-                    [exp.to_dataframe() for exp in explanations]
-                )
-                explanations_df["row"] = explanations_df.groupby("Feature").cumcount()
-                explanations_df = explanations_df.pivot(
-                    index="row", columns="Feature", values="Attribution"
-                )
-                explanations_df = explanations_df.reset_index(drop=True)
-                self.local_explanation[s_id] = explanations_df
-            elif (
-                self.spec.explanations_accuracy_mode == SpeedAccuracyMode.AUTOMLX
-                and self.spec.model != SupportedModels.AutoMLX
-            ):
-                raise ValueError(
-                    "AUTOMLX explanation accuracy mode is only supported for AutoMLX models. "
-                    "Please select mode other than AUTOMLX from the available explanations_accuracy_mode options"
-                )
-            elif s_id in self.models:
+            if s_id in self.models:
                 explain_predict_fn = self.get_explain_predict_fn(series_id=s_id)
                 data_trimmed = data_i.tail(
                     max(int(len(data_i) * ratio), 5)
