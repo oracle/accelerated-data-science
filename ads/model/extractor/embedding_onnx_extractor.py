@@ -3,11 +3,35 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 from ads.model.extractor.model_info_extractor import ModelInfoExtractor
+from ads.model.model_metadata import Framework
 
 
 class EmbeddingONNXExtractor(ModelInfoExtractor):
-    def __init__(self, model):
+    """Class that extract model metadata from EmbeddingONNXModel models.
+
+    Attributes
+    ----------
+    model: object
+        The model to extract metadata from.
+
+    Methods
+    -------
+    framework(self) -> str
+        Returns the framework of the model.
+    algorithm(self) -> object
+        Returns the algorithm of the model.
+    version(self) -> str
+        Returns the version of framework of the model.
+    hyperparameter(self) -> dict
+        Returns the hyperparameter of the model.
+    """
+
+    def __init__(self, model=None):
         self.model = model
 
     @property
@@ -19,7 +43,7 @@ class EmbeddingONNXExtractor(ModelInfoExtractor):
         str:
            The framework of the model.
         """
-        pass
+        return Framework.EMBEDDING_ONNX
 
     @property
     def algorithm(self):
@@ -30,9 +54,10 @@ class EmbeddingONNXExtractor(ModelInfoExtractor):
         object:
            The algorithm of the model.
         """
-        pass
+        return "Embedding_ONNX"
 
     @property
+    @runtime_dependency(module="onnxruntime", install_from=OptionalDependency.ONNX)
     def version(self):
         """Extracts the framework version of the model.
 
@@ -41,7 +66,7 @@ class EmbeddingONNXExtractor(ModelInfoExtractor):
         str:
            The framework version of the model.
         """
-        pass
+        return onnxruntime.__version__
 
     @property
     def hyperparameter(self):
@@ -52,4 +77,4 @@ class EmbeddingONNXExtractor(ModelInfoExtractor):
         dict:
            The hyperparameters of the model.
         """
-        pass
+        return None
