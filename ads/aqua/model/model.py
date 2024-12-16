@@ -985,7 +985,14 @@ class AquaModelApp(AquaApp):
                     config_file_name=AQUA_MODEL_ARTIFACT_CONFIG,
                 )
             except Exception as ex:
-                logger.warning(str(ex))
+                message = (
+                    f"The model path {os_path} does not contain the file config.json. "
+                    f"Please check if the path is correct or the model artifacts are available at this location."
+                )
+                logger.warning(
+                    f"{message}\n"
+                    f"Details: {ex.reason if isinstance(ex, AquaFileNotFoundError) else str(ex)}\n"
+                )
             else:
                 model_files.append(AQUA_MODEL_ARTIFACT_CONFIG)
 
@@ -1208,17 +1215,21 @@ class AquaModelApp(AquaApp):
                     config_file_name=AQUA_MODEL_ARTIFACT_CONFIG,
                 )
             except Exception as ex:
-                logger.error(
-                    f"Exception occurred while loading config file from {import_model_details.os_path}"
-                )
-                logger.error(
-                    ex.reason if isinstance(ex, AquaFileNotFoundError) else str(ex)
+                message = (
+                    f"The model path {import_model_details.os_path} does not contain the file config.json. "
+                    f"Please check if the path is correct or the model artifacts are available at this location."
                 )
                 if not import_model_details.ignore_model_artifact_check:
-                    raise AquaRuntimeError(
-                        f"The model path {import_model_details.os_path} does not contain the file config.json. "
-                        f"Please check if the path is correct or the model artifacts are available at this location."
-                    ) from ex
+                    logger.error(
+                        f"{message}\n"
+                        f"Details: {ex.reason if isinstance(ex, AquaFileNotFoundError) else str(ex)}"
+                    )
+                    raise AquaRuntimeError(message) from ex
+                else:
+                    logger.warning(
+                        f"{message}\n"
+                        f"Proceeding with model registration as ignore_model_artifact_check field is set."
+                    )
 
             if verified_model:
                 # model_type validation, log message if metadata field doesn't match.
@@ -1446,7 +1457,6 @@ class AquaModelApp(AquaApp):
             ).rstrip("/")
         else:
             artifact_path = import_model_details.os_path.rstrip("/")
-
         # Create Model catalog entry with pass by reference
         ds_model = self._create_model_catalog_entry(
             os_path=artifact_path,
