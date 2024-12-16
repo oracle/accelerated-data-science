@@ -43,11 +43,11 @@ from ads.opctl.operator.lowcode.forecast.utils import (
 
 from ..const import (
     AUTO_SELECT,
+    BACKTEST_REPORT_NAME,
     SUMMARY_METRICS_HORIZON_LIMIT,
     SpeedAccuracyMode,
     SupportedMetrics,
     SupportedModels,
-    BACKTEST_REPORT_NAME
 )
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 from .forecast_datasets import ForecastDatasets
@@ -259,7 +259,11 @@ class ForecastOperatorBaseModel(ABC):
                 output_dir = self.spec.output_directory.url
                 file_path = f"{output_dir}/{BACKTEST_REPORT_NAME}"
                 if self.spec.model == AUTO_SELECT:
-                    backtest_sections.append(rc.Heading("Auto-Select Backtesting and Performance Metrics", level=2))
+                    backtest_sections.append(
+                        rc.Heading(
+                            "Auto-Select Backtesting and Performance Metrics", level=2
+                        )
+                    )
                     if not os.path.exists(file_path):
                         failure_msg = rc.Text(
                             "auto-select could not be executed. Please check the "
@@ -268,15 +272,23 @@ class ForecastOperatorBaseModel(ABC):
                         backtest_sections.append(failure_msg)
                     else:
                         backtest_stats = pd.read_csv(file_path)
-                        model_metric_map = backtest_stats.drop(columns=['metric', 'backtest'])
-                        average_dict = {k: round(v, 4) for k, v in model_metric_map.mean().to_dict().items()}
+                        model_metric_map = backtest_stats.drop(
+                            columns=["metric", "backtest"]
+                        )
+                        average_dict = {
+                            k: round(v, 4)
+                            for k, v in model_metric_map.mean().to_dict().items()
+                        }
                         best_model = min(average_dict, key=average_dict.get)
                         summary_text = rc.Text(
                             f"Overall, the average {self.spec.metric} scores for the models are {average_dict}, with"
-                            f" {best_model} being identified as the top-performing model during backtesting.")
+                            f" {best_model} being identified as the top-performing model during backtesting."
+                        )
                         backtest_table = rc.DataTable(backtest_stats, index=True)
                         liner_plot = get_auto_select_plot(backtest_stats)
-                        backtest_sections.extend([backtest_table, summary_text, liner_plot])
+                        backtest_sections.extend(
+                            [backtest_table, summary_text, liner_plot]
+                        )
 
                 forecast_plots = []
                 if len(self.forecast_output.list_series_ids()) > 0:
@@ -301,7 +313,14 @@ class ForecastOperatorBaseModel(ABC):
                         forecast_plots = [forecast_text, forecast_sec]
 
                 yaml_appendix_title = rc.Heading("Reference: YAML File", level=2)
-                yaml_appendix = rc.Yaml(self.config.to_dict())
+                config_dict = self.config.to_dict()
+                # pop the data incase it isn't json serializable
+                config_dict["spec"]["historical_data"].pop("data")
+                if config_dict["spec"].get("additional_data"):
+                    config_dict["spec"]["additional_data"].pop("data")
+                if config_dict["spec"].get("test_data"):
+                    config_dict["spec"]["test_data"].pop("data")
+                yaml_appendix = rc.Yaml(config_dict)
                 report_sections = (
                     [summary]
                     + backtest_sections

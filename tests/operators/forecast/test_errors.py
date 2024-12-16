@@ -709,6 +709,116 @@ def test_smape_error():
 
 
 @pytest.mark.parametrize("model", MODELS)
+def test_pandas_historical_input(operator_setup, model):
+    from ads.opctl.operator.lowcode.forecast.__main__ import operate
+    from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import (
+        ForecastDatasets,
+    )
+    from ads.opctl.operator.lowcode.forecast.operator_config import (
+        ForecastOperatorConfig,
+    )
+
+    tmpdirname = operator_setup
+    historical_data_path, additional_data_path = setup_small_rossman()
+    yaml_i, output_data_path = populate_yaml(
+        tmpdirname=tmpdirname,
+        historical_data_path=historical_data_path,
+        additional_data_path=additional_data_path,
+    )
+    yaml_i["spec"]["horizon"] = 10
+    yaml_i["spec"]["model"] = model
+    df = pd.read_csv(historical_data_path)
+    yaml_i["spec"]["historical_data"].pop("url")
+    yaml_i["spec"]["historical_data"]["data"] = df
+    yaml_i["spec"]["historical_data"]["format"] = "pandas"
+
+    operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+    operate(operator_config)
+    assert pd.read_csv(additional_data_path)["Date"].equals(
+        pd.read_csv(f"{tmpdirname}/results/forecast.csv")["Date"]
+    )
+
+
+@pytest.mark.parametrize("model", MODELS)
+def test_pandas_additional_input(operator_setup, model):
+    from ads.opctl.operator.lowcode.forecast.__main__ import operate
+    from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import (
+        ForecastDatasets,
+    )
+    from ads.opctl.operator.lowcode.forecast.operator_config import (
+        ForecastOperatorConfig,
+    )
+
+    tmpdirname = operator_setup
+    historical_data_path, additional_data_path = setup_small_rossman()
+    yaml_i, output_data_path = populate_yaml(
+        tmpdirname=tmpdirname,
+        historical_data_path=historical_data_path,
+        additional_data_path=additional_data_path,
+    )
+    yaml_i["spec"]["horizon"] = 10
+    yaml_i["spec"]["model"] = model
+    df = pd.read_csv(historical_data_path)
+    yaml_i["spec"]["historical_data"].pop("url")
+    yaml_i["spec"]["historical_data"]["data"] = df
+    yaml_i["spec"]["historical_data"]["format"] = "pandas"
+
+    df_add = pd.read_csv(additional_data_path)
+    yaml_i["spec"]["additional_data"].pop("url")
+    yaml_i["spec"]["additional_data"]["data"] = df_add
+    yaml_i["spec"]["additional_data"]["format"] = "pandas"
+
+    operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+    operate(operator_config)
+    assert pd.read_csv(additional_data_path)["Date"].equals(
+        pd.read_csv(f"{tmpdirname}/results/forecast.csv")["Date"]
+    )
+
+
+# def test_spark_additional_input(operator_setup):
+#     from ads.opctl.operator.lowcode.forecast.__main__ import operate
+#     from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import ForecastDatasets
+#     from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorConfig
+#     from pyspark.sql import SparkSession
+#     from pyspark import SparkContext
+
+#     spark = SparkSession.builder.getOrCreate()
+
+#     tmpdirname = operator_setup
+#     historical_data_path, additional_data_path = setup_small_rossman()
+#     yaml_i, output_data_path = populate_yaml(
+#         tmpdirname=tmpdirname,
+#         historical_data_path=historical_data_path,
+#         additional_data_path=additional_data_path,
+#     )
+#     yaml_i["spec"]["horizon"] = 10
+#     yaml_i["spec"]["model"] = "prophet"
+
+#     df = pd.read_csv(historical_data_path)
+#     spark_df = spark.createDataFrame(df)
+
+#     def _run_operator(df):
+#         yaml_i["spec"]["historical_data"].pop("url")
+#         yaml_i["spec"]["historical_data"]["data"] = spark_df
+#         yaml_i["spec"]["historical_data"]["format"] = "spark"
+#         operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+#         operate(operator_config)
+
+#     # df_add = pd.read_csv(additional_data_path)
+#     # spark_df_add = spark.createDataFrame(df_add)
+#     # yaml_i["spec"]["additional_data"].pop("url")
+#     # yaml_i["spec"]["additional_data"]["data"] = spark_df_add
+#     # yaml_i["spec"]["additional_data"]["format"] = "spark"
+
+#     rdd_processed = spark_df.rdd.map(lambda x: _run_operator(x, broadcast_yaml_i))
+#     print(rdd_processed.collect())
+
+#     assert pd.read_csv(additional_data_path)["Date"].equals(
+#         pd.read_csv(f"{tmpdirname}/results/forecast.csv")["Date"]
+#     )
+
+
+@pytest.mark.parametrize("model", MODELS)
 def test_date_format(operator_setup, model):
     tmpdirname = operator_setup
     historical_data_path, additional_data_path = setup_small_rossman()

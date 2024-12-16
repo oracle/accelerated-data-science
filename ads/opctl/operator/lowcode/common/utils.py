@@ -40,6 +40,7 @@ def load_data(data_spec, storage_options=None, **kwargs):
     if data_spec is None:
         raise InvalidParameterError("No details provided for this data source.")
     filename = data_spec.url
+    data = data_spec.data
     format = data_spec.format
     columns = data_spec.columns
     connect_args = data_spec.connect_args
@@ -53,7 +54,10 @@ def load_data(data_spec, storage_options=None, **kwargs):
     if vault_secret_id is not None and connect_args is None:
         connect_args = dict()
 
-    if filename is not None:
+    if data is not None:
+        if format == "spark":
+            data = data.toPandas()
+    elif filename is not None:
         if not format:
             _, format = os.path.splitext(filename)
             format = format[1:]
