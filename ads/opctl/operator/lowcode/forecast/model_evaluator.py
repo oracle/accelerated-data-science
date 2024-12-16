@@ -10,6 +10,7 @@ from pathlib import Path
 
 from ads.opctl import logger
 from ads.opctl.operator.lowcode.common.const import DataColumns
+from ads.opctl.operator.lowcode.forecast.const import BACKTEST_REPORT_NAME
 from .model.forecast_datasets import ForecastDatasets
 from .operator_config import ForecastOperatorConfig
 from ads.opctl.operator.lowcode.forecast.model.factory import SupportedModels
@@ -156,8 +157,8 @@ class ModelEvaluator:
         best_model = min(avg_backtests_metric, key=avg_backtests_metric.get)
         logger.info(f"Among models {self.models}, {best_model} model shows better performance during backtesting.")
         backtest_stats = pd.DataFrame(nonempty_metrics).rename_axis('backtest')
+        backtest_stats["metric"] = operator_config.spec.metric
         backtest_stats.reset_index(inplace=True)
         output_dir = operator_config.spec.output_directory.url
-        backtest_report_name = "backtest_stats.csv"
-        backtest_stats.to_csv(f"{output_dir}/{backtest_report_name}", index=False)
+        backtest_stats.to_csv(f"{output_dir}/{BACKTEST_REPORT_NAME}", index=False)
         return best_model

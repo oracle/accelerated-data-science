@@ -110,6 +110,8 @@ class AquaDeploymentApp(AquaApp):
         private_endpoint_id: Optional[str] = None,
         container_image_uri: Optional[None] = None,
         cmd_var: List[str] = None,
+        freeform_tags: Optional[dict] = None,
+        defined_tags: Optional[dict] = None,
     ) -> "AquaDeployment":
         """
         Creates a new Aqua deployment
@@ -163,6 +165,10 @@ class AquaDeploymentApp(AquaApp):
             Required parameter for BYOC based deployments if this parameter was not set during model registration.
         cmd_var: List[str]
             The cmd of model deployment container runtime.
+        freeform_tags: dict
+            Freeform tags for the model deployment
+        defined_tags: dict
+            Defined tags for the model deployment
         Returns
         -------
         AquaDeployment
@@ -172,7 +178,11 @@ class AquaDeploymentApp(AquaApp):
         # TODO validate if the service model has no artifact and if it requires import step before deployment.
         # Create a model catalog entry in the user compartment
         aqua_model = AquaModelApp().create(
-            model_id=model_id, compartment_id=compartment_id, project_id=project_id
+            model_id=model_id,
+            compartment_id=compartment_id,
+            project_id=project_id,
+            freeform_tags=freeform_tags,
+            defined_tags=defined_tags,
         )
 
         tags = {}
@@ -185,7 +195,7 @@ class AquaDeploymentApp(AquaApp):
                 tags[tag] = aqua_model.freeform_tags[tag]
 
         tags.update({Tags.AQUA_MODEL_NAME_TAG: aqua_model.display_name})
-        tags.update({Tags.TASK: aqua_model.freeform_tags.get(Tags.TASK, None)})
+        tags.update({Tags.TASK: aqua_model.freeform_tags.get(Tags.TASK, UNKNOWN)})
 
         # Set up info to get deployment config
         config_source_id = model_id
@@ -418,12 +428,14 @@ class AquaDeploymentApp(AquaApp):
         if cmd_var:
             container_runtime.with_cmd(cmd_var)
 
+        tags = {**tags, **(freeform_tags or {})}
         # configure model deployment and deploy model on container runtime
         deployment = (
             ModelDeployment()
             .with_display_name(display_name)
             .with_description(description)
             .with_freeform_tags(**tags)
+            .with_defined_tags(**(defined_tags or {}))
             .with_infrastructure(infrastructure)
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
@@ -533,16 +545,22 @@ class AquaDeploymentApp(AquaApp):
         return results
 
     @telemetry(entry_point="plugin=deployment&action=delete", name="aqua")
-    def delete(self,model_deployment_id:str):
-        return self.ds_client.delete_model_deployment(model_deployment_id=model_deployment_id).data
+    def delete(self, model_deployment_id: str):
+        return self.ds_client.delete_model_deployment(
+            model_deployment_id=model_deployment_id
+        ).data
 
-    @telemetry(entry_point="plugin=deployment&action=deactivate",name="aqua")
-    def deactivate(self,model_deployment_id:str):
-        return self.ds_client.deactivate_model_deployment(model_deployment_id=model_deployment_id).data
+    @telemetry(entry_point="plugin=deployment&action=deactivate", name="aqua")
+    def deactivate(self, model_deployment_id: str):
+        return self.ds_client.deactivate_model_deployment(
+            model_deployment_id=model_deployment_id
+        ).data
 
-    @telemetry(entry_point="plugin=deployment&action=activate",name="aqua")
-    def activate(self,model_deployment_id:str):
-        return self.ds_client.activate_model_deployment(model_deployment_id=model_deployment_id).data
+    @telemetry(entry_point="plugin=deployment&action=activate", name="aqua")
+    def activate(self, model_deployment_id: str):
+        return self.ds_client.activate_model_deployment(
+            model_deployment_id=model_deployment_id
+        ).data
 
     @telemetry(entry_point="plugin=deployment&action=get", name="aqua")
     def get(self, model_deployment_id: str, **kwargs) -> "AquaDeploymentDetail":

@@ -21,7 +21,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads" # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.12.6"
+version = "2.12.8"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -71,7 +71,7 @@ dependencies = [
   "psutil>=5.7.2",
   "python_jsonschema_objects>=0.3.13",
   "requests",
-  "scikit-learn>=1.0",
+  "scikit-learn>=1.0,<1.6.0",
   "tabulate>=0.8.9",
   "tqdm>=4.59.0",
   "pydantic>=2.6.3",
@@ -125,7 +125,7 @@ opctl = [
   "rich",
   "fire",
   "cachetools",
-  "huggingface_hub==0.23.4"
+  "huggingface_hub==0.26.2"
 ]
 optuna = ["optuna==2.9.0", "oracle_ads[viz]"]
 spark = ["pyspark>=3.0.0"]
@@ -179,7 +179,7 @@ anomaly  = [
   "oracledb",
   "report-creator==1.0.28",
   "rrcf==0.4.4",
-  "scikit-learn",
+  "scikit-learn<1.6.0",
   "salesforce-merlion[all]==2.0.4"
 ]
 recommender = [
@@ -212,6 +212,7 @@ aqua = ["jupyter_server"]
 # Revisit this section continuously and update to recent version of libraries. focus on pyt3.9/3.10 versions.
 testsuite = [
   "arff",
+  "autogen-agentchat~=0.2",
   "category_encoders==2.6.3",  # set version to avoid backtracking
   "cohere==4.53",  # set version to avoid backtracking
   "faiss-cpu",

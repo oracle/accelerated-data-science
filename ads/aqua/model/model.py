@@ -40,6 +40,7 @@ from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE,
     AQUA_MODEL_ARTIFACT_FILE,
     AQUA_MODEL_TYPE_CUSTOM,
+    HF_METADATA_FOLDER,
     LICENSE_TXT,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     README,
@@ -126,7 +127,13 @@ class AquaModelApp(AquaApp):
 
     @telemetry(entry_point="plugin=model&action=create", name="aqua")
     def create(
-        self, model_id: str, project_id: str, compartment_id: str = None, **kwargs
+        self,
+        model_id: str,
+        project_id: str,
+        compartment_id: str = None,
+        freeform_tags: Optional[dict] = None,
+        defined_tags: Optional[dict] = None,
+        **kwargs,
     ) -> DataScienceModel:
         """Creates custom aqua model from service model.
 
@@ -139,7 +146,10 @@ class AquaModelApp(AquaApp):
         compartment_id: str
             The compartment id for custom model. Defaults to None.
             If not provided, compartment id will be fetched from environment variables.
-
+        freeform_tags: dict
+            Freeform tags for the model
+        defined_tags: dict
+            Defined tags for the model
         Returns
         -------
         DataScienceModel:
@@ -156,6 +166,16 @@ class AquaModelApp(AquaApp):
             )
             return service_model
 
+        # combine tags
+        combined_freeform_tags = {
+            **(service_model.freeform_tags or {}),
+            **(freeform_tags or {}),
+        }
+        combined_defined_tags = {
+            **(service_model.defined_tags or {}),
+            **(defined_tags or {}),
+        }
+
         custom_model = (
             DataScienceModel()
             .with_compartment_id(target_compartment)
@@ -163,8 +183,8 @@ class AquaModelApp(AquaApp):
             .with_model_file_description(json_dict=service_model.model_file_description)
             .with_display_name(service_model.display_name)
             .with_description(service_model.description)
-            .with_freeform_tags(**(service_model.freeform_tags or {}))
-            .with_defined_tags(**(service_model.defined_tags or {}))
+            .with_freeform_tags(**combined_freeform_tags)
+            .with_defined_tags(**combined_defined_tags)
             .with_custom_metadata_list(service_model.custom_metadata_list)
             .with_defined_metadata_list(service_model.defined_metadata_list)
             .with_provenance_metadata(service_model.provenance_metadata)
@@ -413,7 +433,7 @@ class AquaModelApp(AquaApp):
                         except Exception as ex:
                             raise AquaRuntimeError(
                                 f"The given model already doesn't support finetuning: {ex}"
-                            )
+                            ) from ex
 
                 custom_metadata_list.remove("modelDescription")
                 if task:
@@ -765,6 +785,8 @@ class AquaModelApp(AquaApp):
         compartment_id: Optional[str],
         project_id: Optional[str],
         inference_container_uri: Optional[str],
+        freeform_tags: Optional[dict] = None,
+        defined_tags: Optional[dict] = None,
     ) -> DataScienceModel:
         """Create model by reference from the object storage path
 
@@ -777,6 +799,8 @@ class AquaModelApp(AquaApp):
             compartment_id (Optional[str]): Compartment Id of the compartment where the model has to be created
             project_id (Optional[str]): Project id of the project where the model has to be created
             inference_container_uri (Optional[str]): Inference container uri for BYOC
+            freeform_tags (dict): Freeform tags for the model
+            defined_tags (dict): Defined tags for the model
 
         Returns:
             DataScienceModel: Returns Datascience model instance.
@@ -917,6 +941,8 @@ class AquaModelApp(AquaApp):
             category="Other",
             replace=True,
         )
+        # override tags with freeform tags if set
+        tags = {**tags, **(freeform_tags or {})}
         model = (
             model.with_custom_metadata_list(metadata)
             .with_compartment_id(compartment_id or COMPARTMENT_OCID)
@@ -924,6 +950,7 @@ class AquaModelApp(AquaApp):
             .with_artifact(os_path)
             .with_display_name(model_name)
             .with_freeform_tags(**tags)
+            .with_defined_tags(**(defined_tags or {}))
         ).create(model_by_reference=True)
         logger.debug(model)
         return model
@@ -1274,6 +1301,8 @@ class AquaModelApp(AquaApp):
         model_name: str,
         os_path: str,
         local_dir: str = None,
+        allow_patterns: List[str] = None,
+        ignore_patterns: List[str] = None,
     ) -> str:
         """This helper function downloads the model artifact from Hugging Face to a local folder, then uploads
         to object storage location.
@@ -1283,6 +1312,12 @@ class AquaModelApp(AquaApp):
         model_name (str): The huggingface model name.
         os_path (str): The OS path where the model files are located.
         local_dir (str): The local temp dir to store the huggingface model.
+        allow_patterns (list): Model files matching at least one pattern are downloaded.
+            Example: ["*.json"] will download all .json files. ["folder/*"] will download all files under `folder`.
+            Patterns are Standard Wildcards (globbing patterns) and rules can be found here: https://docs.python.org/3/library/fnmatch.html
+        ignore_patterns (list): Model files matching any of the patterns are not downloaded.
+            Example: ["*.json"] will ignore all .json files. ["folder/*"] will ignore all files under `folder`.
+            Patterns are Standard Wildcards (globbing patterns) and rules can be found here: https://docs.python.org/3/library/fnmatch.html
 
         Returns
         -------
@@ -1293,30 +1328,19 @@ class AquaModelApp(AquaApp):
         if not local_dir:
             local_dir = os.path.join(os.path.expanduser("~"), "cached-model")
         local_dir = os.path.join(local_dir, model_name)
-        retry = 10
-        i = 0
-        huggingface_download_err_message = None
-        while i < retry:
-            try:
-                # Download to cache folder. The while loop retries when there is a network failure
-                snapshot_download(repo_id=model_name)
-            except Exception as e:
-                huggingface_download_err_message = str(e)
-                i += 1
-            else:
-                break
-        if i == retry:
-            raise Exception(
-                f"Could not download the model {model_name} from https://huggingface.co with message {huggingface_download_err_message}"
-            )
         os.makedirs(local_dir, exist_ok=True)
-        # Copy the model from the cache to destination
-        snapshot_download(repo_id=model_name, local_dir=local_dir)
-        # Upload to object storage
+        snapshot_download(
+            repo_id=model_name,
+            local_dir=local_dir,
+            allow_patterns=allow_patterns,
+            ignore_patterns=ignore_patterns,
+        )
+        # Upload to object storage and skip .cache/huggingface/ folder
         model_artifact_path = upload_folder(
             os_path=os_path,
             local_dir=local_dir,
             model_name=model_name,
+            exclude_pattern=f"{HF_METADATA_FOLDER}*",
         )
 
         return model_artifact_path
@@ -1335,6 +1359,12 @@ class AquaModelApp(AquaApp):
                 os_path (str): Object storage destination URI to store the downloaded model. Format: oci://bucket-name@namespace/prefix
                 inference_container (str): selects service defaults
                 finetuning_container (str): selects service defaults
+                allow_patterns (list): Model files matching at least one pattern are downloaded.
+                    Example: ["*.json"] will download all .json files. ["folder/*"] will download all files under `folder`.
+                    Patterns are Standard Wildcards (globbing patterns) and rules can be found here: https://docs.python.org/3/library/fnmatch.html
+                ignore_patterns (list): Model files matching any of the patterns are not downloaded.
+                    Example: ["*.json"] will ignore all .json files. ["folder/*"] will ignore all files under `folder`.
+                    Patterns are Standard Wildcards (globbing patterns) and rules can be found here: https://docs.python.org/3/library/fnmatch.html
 
         Returns:
             AquaModel:
@@ -1381,6 +1411,8 @@ class AquaModelApp(AquaApp):
                 model_name=model_name,
                 os_path=import_model_details.os_path,
                 local_dir=import_model_details.local_dir,
+                allow_patterns=import_model_details.allow_patterns,
+                ignore_patterns=import_model_details.ignore_patterns,
             ).rstrip("/")
         else:
             artifact_path = import_model_details.os_path.rstrip("/")
@@ -1396,6 +1428,8 @@ class AquaModelApp(AquaApp):
             compartment_id=import_model_details.compartment_id,
             project_id=import_model_details.project_id,
             inference_container_uri=import_model_details.inference_container_uri,
+            freeform_tags=import_model_details.freeform_tags,
+            defined_tags=import_model_details.defined_tags,
         )
         # registered model will always have inference and evaluation container, but
         # fine-tuning container may be not set

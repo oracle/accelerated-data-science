@@ -39,6 +39,7 @@ ADS is designed to work with LangChain, enabling developers to incorporate vario
 
     training_llm
     langchain_models
+    autogen_integration
     deploy_langchain_application
     retrieval
     guardrails
