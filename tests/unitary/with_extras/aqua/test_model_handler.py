@@ -132,10 +132,38 @@ class ModelHandlerTestCase(TestCase):
 
     @parameterized.expand(
         [
-            (None, None, False, None, None, None),
-            ("odsc-llm-fine-tuning", None, False, None, None, ["test.json"]),
-            (None, "test.gguf", True, None, ["*.json"], None),
-            (None, None, True, "iad.ocir.io/<namespace>/<image>:<tag>", ["*.json"], ["test.json"]),
+            (None, None, False, None, None, None, None, None),
+            (
+                "odsc-llm-fine-tuning",
+                None,
+                False,
+                None,
+                None,
+                ["test.json"],
+                None,
+                None,
+            ),
+            (None, "test.gguf", True, None, ["*.json"], None, None, None),
+            (
+                None,
+                None,
+                True,
+                "iad.ocir.io/<namespace>/<image>:<tag>",
+                ["*.json"],
+                ["test.json"],
+                None,
+                None,
+            ),
+            (
+                None,
+                None,
+                False,
+                None,
+                None,
+                None,
+                {"ftag1": "fvalue1"},
+                {"dtag1": "dvalue1"},
+            ),
         ],
     )
     @patch("notebook.base.handlers.APIHandler.finish")
@@ -148,6 +176,8 @@ class ModelHandlerTestCase(TestCase):
         inference_container_uri,
         allow_patterns,
         ignore_patterns,
+        freeform_tags,
+        defined_tags,
         mock_register,
         mock_finish,
     ):
@@ -168,7 +198,9 @@ class ModelHandlerTestCase(TestCase):
                 download_from_hf=download_from_hf,
                 inference_container_uri=inference_container_uri,
                 allow_patterns=allow_patterns,
-                ignore_patterns=ignore_patterns
+                ignore_patterns=ignore_patterns,
+                freeform_tags=freeform_tags,
+                defined_tags=defined_tags,
             )
         )
         result = self.model_handler.post()
@@ -183,7 +215,9 @@ class ModelHandlerTestCase(TestCase):
             download_from_hf=download_from_hf,
             inference_container_uri=inference_container_uri,
             allow_patterns=allow_patterns,
-            ignore_patterns=ignore_patterns
+            ignore_patterns=ignore_patterns,
+            freeform_tags=freeform_tags,
+            defined_tags=defined_tags,
         )
         assert result["id"] == "test_id"
         assert result["inference_container"] == "odsc-tgi-serving"
