@@ -659,6 +659,7 @@ def test_arima_automlx_errors(operator_setup, model):
         yaml_i["spec"]["model_kwargs"] = {"model_list": "superfast"}
     if model == "automlx":
         yaml_i["spec"]["model_kwargs"] = {"time_budget": 1}
+        yaml_i["spec"]["explanations_accuracy_mode"] = "AUTOMLX"
 
     run_yaml(
         tmpdirname=tmpdirname,

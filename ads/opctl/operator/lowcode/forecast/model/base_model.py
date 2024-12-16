@@ -720,9 +720,15 @@ class ForecastOperatorBaseModel(ABC):
                     index="row", columns="Feature", values="Attribution"
                 )
                 explanations_df = explanations_df.reset_index(drop=True)
-                # explanations_df[self.spec.datetime_column.name]=self.datasets.additional_data.get_data_for_series(series_id=s_id).tail(self.spec.horizon)[self.spec.datetime_column.name].reset_index(drop=True)
                 self.local_explanation[s_id] = explanations_df
-
+            elif (
+                self.spec.explanations_accuracy_mode == SpeedAccuracyMode.AUTOMLX
+                and self.spec.model != SupportedModels.AutoMLX
+            ):
+                raise ValueError(
+                    "AUTOMLX explanation accuracy mode is only supported for AutoMLX models. "
+                    "Please select mode other than AUTOMLX from the available explanations_accuracy_mode options"
+                )
             elif s_id in self.models:
                 explain_predict_fn = self.get_explain_predict_fn(series_id=s_id)
                 data_trimmed = data_i.tail(
