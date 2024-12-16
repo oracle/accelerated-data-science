@@ -29,6 +29,8 @@ class TestDataset:
         "model_id": "ocid1.datasciencemodel.oc1.iad.<OCID>",
         "instance_shape": "VM.GPU.A10.1",
         "display_name": "test-deployment-name",
+        "freeform_tags": {"ftag1": "fvalue1", "ftag2": "fvalue2"},
+        "defined_tags": {"dtag1": "dvalue1", "dtag2": "dvalue2"},
     }
     inference_request = {
         "prompt": "What is 1+1?",
@@ -156,6 +158,8 @@ class TestAquaDeploymentHandler(unittest.TestCase):
             private_endpoint_id=None,
             container_image_uri=None,
             cmd_var=None,
+            freeform_tags=TestDataset.deployment_request["freeform_tags"],
+            defined_tags=TestDataset.deployment_request["defined_tags"],
         )
 
 
