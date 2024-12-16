@@ -3,7 +3,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import Dict, Self
+from typing import Dict
 
 from ads.model.extractor.embedding_onnx_extractor import EmbeddingONNXExtractor
 from ads.model.generic_model import FrameworkSpecificModel
@@ -161,7 +161,7 @@ class EmbeddingONNXModel(FrameworkSpecificModel):
         auth: Dict | None = None,
         serialize: bool = False,
         **kwargs: dict,
-    ) -> Self:
+    ):
         """
         Initiates a EmbeddingONNXModel instance.
 
