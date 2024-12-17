@@ -10,6 +10,6 @@
     frameworks/lightgbmmodel
     frameworks/xgboostmodel
     frameworks/huggingfacemodel
+    frameworks/embeddingonnxmodel
     frameworks/automlmodel
     frameworks/genericmodel
-
