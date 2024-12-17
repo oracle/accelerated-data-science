@@ -132,7 +132,7 @@ class ModelHandlerTestCase(TestCase):
 
     @parameterized.expand(
         [
-            (None, None, False, None, None, None, None, None),
+            (None, None, False, None, None, None, None, None, True),
             (
                 "odsc-llm-fine-tuning",
                 None,
@@ -142,8 +142,9 @@ class ModelHandlerTestCase(TestCase):
                 ["test.json"],
                 None,
                 None,
+                False,
             ),
-            (None, "test.gguf", True, None, ["*.json"], None, None, None),
+            (None, "test.gguf", True, None, ["*.json"], None, None, None, False),
             (
                 None,
                 None,
@@ -153,6 +154,7 @@ class ModelHandlerTestCase(TestCase):
                 ["test.json"],
                 None,
                 None,
+                False,
             ),
             (
                 None,
@@ -163,6 +165,7 @@ class ModelHandlerTestCase(TestCase):
                 None,
                 {"ftag1": "fvalue1"},
                 {"dtag1": "dvalue1"},
+                False,
             ),
         ],
     )
@@ -178,6 +181,7 @@ class ModelHandlerTestCase(TestCase):
         ignore_patterns,
         freeform_tags,
         defined_tags,
+        ignore_model_artifact_check,
         mock_register,
         mock_finish,
     ):
@@ -201,6 +205,7 @@ class ModelHandlerTestCase(TestCase):
                 ignore_patterns=ignore_patterns,
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
+                ignore_model_artifact_check=ignore_model_artifact_check,
             )
         )
         result = self.model_handler.post()
@@ -218,6 +223,7 @@ class ModelHandlerTestCase(TestCase):
             ignore_patterns=ignore_patterns,
             freeform_tags=freeform_tags,
             defined_tags=defined_tags,
+            ignore_model_artifact_check=ignore_model_artifact_check,
         )
         assert result["id"] == "test_id"
         assert result["inference_container"] == "odsc-tgi-serving"

@@ -133,6 +133,10 @@ class AquaModelHandler(AquaAPIhandler):
         ignore_patterns = input_data.get("ignore_patterns")
         freeform_tags = input_data.get("freeform_tags")
         defined_tags = input_data.get("defined_tags")
+        ignore_model_artifact_check = (
+            str(input_data.get("ignore_model_artifact_check", "false")).lower()
+            == "true"
+        )
 
         return self.finish(
             AquaModelApp().register(
@@ -149,6 +153,7 @@ class AquaModelHandler(AquaAPIhandler):
                 ignore_patterns=ignore_patterns,
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
+                ignore_model_artifact_check=ignore_model_artifact_check,
             )
         )
 
