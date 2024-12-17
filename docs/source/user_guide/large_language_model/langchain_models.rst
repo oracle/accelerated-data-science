@@ -26,15 +26,16 @@ By default, the integration uses the same authentication method configured with 
 .. code-block:: python3
 
     import ads
-    from ads.llm import ChatOCIModelDeploymentVLLM
+    from ads.llm import ChatOCIModelDeployment
     
     ads.set_auth(auth="resource_principal")
     
-    llm = ChatOCIModelDeploymentVLLM(
-        model="odsc-llm",
+    llm = ChatOCIModelDeployment(
+        model="odsc-llm", # default model name if deployed on AQUA
         endpoint= f"https://modeldeployment.oci.customer-oci.com/<OCID>/predict",
-        # Optionally you can specify additional keyword arguments for the model, e.g. temperature.
+        # Optionally you can specify additional keyword arguments for the model, e.g. temperature and default_headers.
         temperature=0.1,
+        default_headers={"route": "v1/chat/completions"}, # default route for chat models
     )
 
 Alternatively, you may use specific authentication for the model:
@@ -42,31 +43,33 @@ Alternatively, you may use specific authentication for the model:
 .. code-block:: python3
 
     import ads
-    from ads.llm import ChatOCIModelDeploymentVLLM
+    from ads.llm import ChatOCIModelDeployment
 
-    llm = ChatOCIModelDeploymentVLLM(
-        model="odsc-llm",
+    llm = ChatOCIModelDeployment(
+        model="odsc-llm", # default model name if deployed on AQUA
         endpoint= f"https://modeldeployment.oci.customer-oci.com/<OCID>/predict",
         # Use security token authentication for the model
         auth=ads.auth.security_token(profile="my_profile"),
-        # Optionally you can specify additional keyword arguments for the model, e.g. temperature.
+        # Optionally you can specify additional keyword arguments for the model, e.g. temperature and default_headers.
         temperature=0.1,
+        default_headers={"route": "v1/chat/completions"}, # default route for chat models
     )
 
 Completion Models
 =================
 
-Completion models takes a text string and input and returns a string with completions. To use completion models, your model should be deployed with the completion endpoint (``/v1/completions``). The following example shows how you can use the ``OCIModelDeploymentVLLM`` class for model deployed with vLLM container. If you deployed the model with TGI container, you can use ``OCIModelDeploymentTGI`` similarly.
+Completion models takes a text string and input and returns a string with completions. To use completion models, your model should be deployed with the completion endpoint (``/v1/completions``).
 
 .. code-block:: python3
 
-    from ads.llm import OCIModelDeploymentVLLM
+    from ads.llm import OCIModelDeploymentLLM
 
-    llm = OCIModelDeploymentVLLM(
-        model="odsc-llm",
+    llm = OCIModelDeploymentLLM(
+        model="odsc-llm", # default model name if deployed on AQUA
         endpoint= f"https://modeldeployment.oci.customer-oci.com/<OCID>/predict",
         # Optionally you can specify additional keyword arguments for the model.
         max_tokens=32,
+        default_headers={"route": "v1/completions"}, # default route for completion models
     )
 
     # Invoke the LLM. The completion will be a string.
@@ -87,18 +90,19 @@ Completion models takes a text string and input and returns a string with comple
 Chat Models
 ===========
 
-Chat models takes `chat messages <https://python.langchain.com/docs/concepts/#messages>`_ as inputs and returns additional chat message (usually `AIMessage <https://python.langchain.com/docs/concepts/#aimessage>`_) as output. To use chat models, your models must be deployed with chat completion endpoint (``/v1/chat/completions``). The following example shows how you can use the ``ChatOCIModelDeploymentVLLM`` class for model deployed with vLLM container. If you deployed the model with TGI container, you can use ``ChatOCIModelDeploymentTGI`` similarly.
+Chat models takes `chat messages <https://python.langchain.com/docs/concepts/#messages>`_ as inputs and returns additional chat message (usually `AIMessage <https://python.langchain.com/docs/concepts/#aimessage>`_) as output. To use chat models, your models must be deployed with chat completion endpoint (``/v1/chat/completions``).
 
 .. code-block:: python3
 
     from langchain_core.messages import HumanMessage, SystemMessage
-    from ads.llm import ChatOCIModelDeploymentVLLM
+    from ads.llm import ChatOCIModelDeployment
 
-    llm = ChatOCIModelDeploymentVLLM(
-        model="odsc-llm",
-        endpoint=f"<oci_model_deployment_url>>/predict",
+    llm = ChatOCIModelDeployment(
+        model="odsc-llm", # default model name if deployed on AQUA
+        endpoint=f"<oci_model_deployment_url>/predict",
         # Optionally you can specify additional keyword arguments for the model.
         max_tokens=32,
+        default_headers={"route": "v1/chat/completions"}, # default route for chat models
     )
 
     messages = [
@@ -133,7 +137,7 @@ The vLLM container support `tool/function calling <https://docs.vllm.ai/en/lates
     from ads.llm import ChatOCIModelDeploymentVLLM, ChatTemplates
 
     llm = ChatOCIModelDeploymentVLLM(
-        model="odsc-llm",
+        model="odsc-llm", # default model name if deployed on AQUA
         endpoint= f"https://modeldeployment.oci.customer-oci.com/<OCID>/predict",
         # Set tool_choice to "auto" to enable tool/function calling.
         tool_choice="auto",
