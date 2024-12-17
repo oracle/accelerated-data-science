@@ -6,7 +6,7 @@ See `API Documentation <../../../ads.model.framework.html#ads.model.framework.em
 Overview
 ========
 
-The ``ads.model.framework.embedding_onnx_model.EmbeddingONNXModel`` class in ADS is designed to rapidly get an Embedding ONNX Model into production. The ``.prepare()`` method creates the model artifacts that are needed without configuring it or writing code. However, you can customize the required ``score.py`` file.
+The ``ads.model.framework.embedding_onnx_model.EmbeddingONNXModel`` class in ADS is designed to rapidly get an Embedding ONNX Model into production. The ``.prepare()`` method creates the model artifacts that are needed without configuring it or writing code. ``EmbeddingONNXModel`` supports `OpenAI spec <https://github.com/huggingface/text-embeddings-inference/blob/main/docs/openapi.json>`_ for embeddings endpoint.
 
 .. include:: ../_template/overview.rst
 
@@ -24,26 +24,26 @@ The following steps take the `sentence-transformers/all-MiniLM-L6-v2 <https://hu
 
     local_dir = tempfile.mkdtemp()
 
+    allow_patterns=[
+        "onnx/model.onnx",
+        "config.json",
+        "special_tokens_map.json",
+        "tokenizer_config.json",
+        "tokenizer.json",
+        "vocab.txt"
+    ]
+
     # download files needed for this demostration to local folder
     snapshot_download(
         repo_id="sentence-transformers/all-MiniLM-L6-v2",
         local_dir=local_dir,
-        allow_patterns=[
-            "onnx/model.onnx",
-            "config.json",
-            "special_tokens_map.json",
-            "tokenizer_config.json",
-            "tokenizer.json",
-            "vocab.txt"
-        ]
+        allow_patterns=allow_patterns
     )
 
     artifact_dir = tempfile.mkdtemp()
     # copy all downloaded files to artifact folder
-    for root, dirs, files in os.walk(local_dir):
-        for file in files:
-            src_path = os.path.join(root, file)
-            shutil.copy(src_path, artifact_dir)
+    for file in allow_patterns:
+        shutil.copy(local_dir + "/" + file, artifact_dir)
 
 
 Install Conda Pack
@@ -213,26 +213,26 @@ Example
 
     local_dir = tempfile.mkdtemp()
 
-    # download files needed for the demostration to local folder
+    allow_patterns=[
+        "onnx/model.onnx",
+        "config.json",
+        "special_tokens_map.json",
+        "tokenizer_config.json",
+        "tokenizer.json",
+        "vocab.txt"
+    ]
+
+    # download files needed for this demostration to local folder
     snapshot_download(
         repo_id="sentence-transformers/all-MiniLM-L6-v2",
         local_dir=local_dir,
-        allow_patterns=[
-            "onnx/model.onnx",
-            "config.json",
-            "special_tokens_map.json",
-            "tokenizer_config.json",
-            "tokenizer.json",
-            "vocab.txt"
-        ]
+        allow_patterns=allow_patterns
     )
 
     artifact_dir = tempfile.mkdtemp()
     # copy all downloaded files to artifact folder
-    for root, dirs, files in os.walk(local_dir):
-        for file in files:
-            src_path = os.path.join(root, file)
-            shutil.copy(src_path, artifact_dir)
+    for file in allow_patterns:
+        shutil.copy(local_dir + "/" + file, artifact_dir)
 
     # initialize EmbeddingONNXModel instance and prepare score.py, runtime.yaml and openapi.json files.
     embedding_onnx_model = EmbeddingONNXModel(artifact_dir=artifact_dir)

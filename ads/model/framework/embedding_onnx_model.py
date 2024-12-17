@@ -3,7 +3,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import Dict
+from typing import Dict, Optional
 
 from ads.model.extractor.embedding_onnx_extractor import EmbeddingONNXExtractor
 from ads.model.generic_model import FrameworkSpecificModel
@@ -108,18 +108,26 @@ class EmbeddingONNXModel(FrameworkSpecificModel):
     >>> from huggingface_hub import snapshot_download
 
     >>> local_dir=tempfile.mkdtemp()
-    >>> # download sentence-transformers/all-MiniLM-L6-v2 from huggingface
+    >>> allow_patterns=[
+    ...     "onnx/model.onnx",
+    ...     "config.json",
+    ...     "special_tokens_map.json",
+    ...     "tokenizer_config.json",
+    ...     "tokenizer.json",
+    ...     "vocab.txt"
+    ... ]
+
+    >>> # download files needed for this demostration to local folder
     >>> snapshot_download(
     ...     repo_id="sentence-transformers/all-MiniLM-L6-v2",
-    ...     local_dir=local_dir
+    ...     local_dir=local_dir,
+    ...     allow_patterns=allow_patterns
     ... )
 
-    >>> # copy all files from local_dir to artifact_dir
     >>> artifact_dir = tempfile.mkdtemp()
-    >>> for root, dirs, files in os.walk(local_dir):
-    >>>     for file in files:
-    >>>         src_path = os.path.join(root, file)
-    >>>         shutil.copy(src_path, artifact_dir)
+    >>> # copy all downloaded files to artifact folder
+    >>> for file in allow_patterns:
+    >>>     shutil.copy(local_dir + "/" + file, artifact_dir)
 
     >>> model = EmbeddingONNXModel(artifact_dir=artifact_dir)
     >>> model.summary_status()
@@ -157,8 +165,8 @@ class EmbeddingONNXModel(FrameworkSpecificModel):
 
     def __init__(
         self,
-        artifact_dir: str | None = None,
-        auth: Dict | None = None,
+        artifact_dir: Optional[str] = None,
+        auth: Optional[Dict] = None,
         serialize: bool = False,
         **kwargs: dict,
     ):
@@ -191,18 +199,26 @@ class EmbeddingONNXModel(FrameworkSpecificModel):
         >>> from huggingface_hub import snapshot_download
 
         >>> local_dir=tempfile.mkdtemp()
-        >>> # download sentence-transformers/all-MiniLM-L6-v2 from huggingface
+        >>> allow_patterns=[
+        ...     "onnx/model.onnx",
+        ...     "config.json",
+        ...     "special_tokens_map.json",
+        ...     "tokenizer_config.json",
+        ...     "tokenizer.json",
+        ...     "vocab.txt"
+        ... ]
+
+        >>> # download files needed for this demostration to local folder
         >>> snapshot_download(
         ...     repo_id="sentence-transformers/all-MiniLM-L6-v2",
-        ...     local_dir=local_dir
+        ...     local_dir=local_dir,
+        ...     allow_patterns=allow_patterns
         ... )
 
-        >>> # copy all files from subdirectory to artifact_dir
         >>> artifact_dir = tempfile.mkdtemp()
-        >>> for root, dirs, files in os.walk(local_dir):
-        >>>     for file in files:
-        >>>         src_path = os.path.join(root, file)
-        >>>         shutil.copy(src_path, artifact_dir)
+        >>> # copy all downloaded files to artifact folder
+        >>> for file in allow_patterns:
+        >>>     shutil.copy(local_dir + "/" + file, artifact_dir)
 
         >>> model = EmbeddingONNXModel(artifact_dir=artifact_dir)
         >>> model.summary_status()
