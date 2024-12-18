@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -11,15 +10,16 @@ from dataclasses import dataclass
 from typing import Any, Dict, List
 
 from ads.common.serializer import DataClassSerializable
-
-from ads.opctl.operator.common.utils import OperatorValidator
 from ads.opctl.operator.common.errors import InvalidParameterError
+from ads.opctl.operator.common.utils import OperatorValidator
+
 
 @dataclass(repr=True)
 class InputData(DataClassSerializable):
     """Class representing operator specification input data details."""
 
     connect_args: Dict = None
+    data: Dict = None
     format: str = None
     columns: List[str] = None
     url: str = None

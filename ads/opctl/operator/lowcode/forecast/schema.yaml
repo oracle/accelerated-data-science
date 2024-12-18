@@ -37,6 +37,9 @@ spec:
           nullable: true
           required: false
           type: dict
+        data:
+          nullable: true
+          required: false
         format:
           allowed:
             - csv
@@ -48,6 +51,7 @@ spec:
             - sql_query
             - hdf
             - tsv
+            - pandas
           required: false
           type: string
         columns:
@@ -92,6 +96,9 @@ spec:
           nullable: true
           required: false
           type: dict
+        data:
+          nullable: true
+          required: false
         format:
           allowed:
             - csv
@@ -103,6 +110,7 @@ spec:
             - sql_query
             - hdf
             - tsv
+            - pandas
           required: false
           type: string
         columns:
@@ -146,6 +154,9 @@ spec:
           nullable: true
           required: false
           type: dict
+        data:
+          nullable: true
+          required: false
         format:
           allowed:
             - csv
@@ -157,6 +168,7 @@ spec:
             - sql_query
             - hdf
             - tsv
+            - pandas
           required: false
           type: string
         columns:

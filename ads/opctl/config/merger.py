@@ -1,35 +1,33 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
 from string import Template
 from typing import Dict
-import json
 
 import yaml
 
 from ads.common.auth import AuthType, ResourcePrincipal
 from ads.opctl import logger
 from ads.opctl.config.base import ConfigProcessor
-from ads.opctl.config.utils import read_from_ini, _DefaultNoneDict
-from ads.opctl.utils import is_in_notebook_session, get_service_pack_prefix
+from ads.opctl.config.utils import _DefaultNoneDict, read_from_ini
 from ads.opctl.constants import (
-    DEFAULT_PROFILE,
-    DEFAULT_OCI_CONFIG_FILE,
-    DEFAULT_CONDA_PACK_FOLDER,
-    DEFAULT_ADS_CONFIG_FOLDER,
-    ADS_JOBS_CONFIG_FILE_NAME,
     ADS_CONFIG_FILE_NAME,
-    ADS_ML_PIPELINE_CONFIG_FILE_NAME,
     ADS_DATAFLOW_CONFIG_FILE_NAME,
+    ADS_JOBS_CONFIG_FILE_NAME,
     ADS_LOCAL_BACKEND_CONFIG_FILE_NAME,
+    ADS_ML_PIPELINE_CONFIG_FILE_NAME,
     ADS_MODEL_DEPLOYMENT_CONFIG_FILE_NAME,
-    DEFAULT_NOTEBOOK_SESSION_CONDA_DIR,
     BACKEND_NAME,
+    DEFAULT_ADS_CONFIG_FOLDER,
+    DEFAULT_CONDA_PACK_FOLDER,
+    DEFAULT_NOTEBOOK_SESSION_CONDA_DIR,
+    DEFAULT_OCI_CONFIG_FILE,
+    DEFAULT_PROFILE,
 )
+from ads.opctl.utils import get_service_pack_prefix, is_in_notebook_session
 
 
 class ConfigMerger(ConfigProcessor):
@@ -41,8 +39,9 @@ class ConfigMerger(ConfigProcessor):
     """
 
     def process(self, **kwargs) -> None:
-        config_string = Template(json.dumps(self.config)).safe_substitute(os.environ)
-        self.config = json.loads(config_string)
+        for key, value in self.config.items():
+            if isinstance(value, str):  # Substitute only if the value is a string
+                self.config[key] = Template(value).safe_substitute(os.environ)
 
         if "runtime" not in self.config:
             self.config["runtime"] = {}
