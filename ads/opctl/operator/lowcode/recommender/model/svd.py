@@ -78,11 +78,11 @@ class SVDOperatorModel(RecommenderOperatorBaseModel):
         return recommendations_df, metric
 
     def _generate_report(self):
-        model_description = """
-            Singular Value Decomposition (SVD) is a matrix factorization technique used in recommendation systems to
-            decompose a user-item interaction matrix into three constituent matrices. These matrices capture the
-            latent factors that explain the observed interactions.
-            """
+        model_description = rc.Text(
+            "Singular Value Decomposition (SVD) is a matrix factorization technique used in recommendation systems to \
+            decompose a user-item interaction matrix into three constituent matrices. These matrices capture the \
+            latent factors that explain the observed interactions."
+        )
         new_user_recommendations = self._get_recommendations(
             "__new_user__", self.spec.top_k
         )

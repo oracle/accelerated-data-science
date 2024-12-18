@@ -159,7 +159,8 @@ class AquaEvaluationApp(AquaApp):
                 create_aqua_evaluation_details = CreateAquaEvaluationDetails(**kwargs)
             except Exception as ex:
                 custom_errors = {
-                    ".".join(map(str, e["loc"])): e["msg"] for e in json.loads(ex.json())
+                    ".".join(map(str, e["loc"])): e["msg"]
+                    for e in json.loads(ex.json())
                 }
                 raise AquaValueError(
                     f"Invalid create evaluation parameters. Error details: {custom_errors}."
@@ -296,6 +297,10 @@ class AquaEvaluationApp(AquaApp):
                 evaluation_mvs_freeform_tags = {
                     Tags.AQUA_EVALUATION: Tags.AQUA_EVALUATION,
                 }
+                evaluation_mvs_freeform_tags = {
+                    **evaluation_mvs_freeform_tags,
+                    **(create_aqua_evaluation_details.freeform_tags or {}),
+                }
 
                 model_version_set = (
                     ModelVersionSet()
@@ -306,6 +311,9 @@ class AquaEvaluationApp(AquaApp):
                         create_aqua_evaluation_details.experiment_description
                     )
                     .with_freeform_tags(**evaluation_mvs_freeform_tags)
+                    .with_defined_tags(
+                        **(create_aqua_evaluation_details.defined_tags or {})
+                    )
                     # TODO: decide what parameters will be needed
                     .create(**kwargs)
                 )
@@ -368,6 +376,10 @@ class AquaEvaluationApp(AquaApp):
             Tags.AQUA_EVALUATION: Tags.AQUA_EVALUATION,
             Tags.AQUA_EVALUATION_MODEL_ID: evaluation_model.id,
         }
+        evaluation_job_freeform_tags = {
+            **evaluation_job_freeform_tags,
+            **(create_aqua_evaluation_details.freeform_tags or {}),
+        }
 
         evaluation_job = Job(name=evaluation_model.display_name).with_infrastructure(
             DataScienceJob()
@@ -378,6 +390,7 @@ class AquaEvaluationApp(AquaApp):
             .with_shape_name(create_aqua_evaluation_details.shape_name)
             .with_block_storage_size(create_aqua_evaluation_details.block_storage_size)
             .with_freeform_tag(**evaluation_job_freeform_tags)
+            .with_defined_tag(**(create_aqua_evaluation_details.defined_tags or {}))
         )
         if (
             create_aqua_evaluation_details.memory_in_gbs
@@ -424,6 +437,7 @@ class AquaEvaluationApp(AquaApp):
         evaluation_job_run = evaluation_job.run(
             name=evaluation_model.display_name,
             freeform_tags=evaluation_job_freeform_tags,
+            defined_tags=(create_aqua_evaluation_details.defined_tags or {}),
             wait=False,
         )
         logger.debug(
@@ -443,13 +457,20 @@ class AquaEvaluationApp(AquaApp):
             for metadata in evaluation_model_custom_metadata.to_dict()["data"]
         ]
 
+        evaluation_model_freeform_tags = {
+            Tags.AQUA_EVALUATION: Tags.AQUA_EVALUATION,
+            **(create_aqua_evaluation_details.freeform_tags or {}),
+        }
+        evaluation_model_defined_tags = (
+            create_aqua_evaluation_details.defined_tags or {}
+        )
+
         self.ds_client.update_model(
             model_id=evaluation_model.id,
             update_model_details=UpdateModelDetails(
                 custom_metadata_list=updated_custom_metadata_list,
-                freeform_tags={
-                    Tags.AQUA_EVALUATION: Tags.AQUA_EVALUATION,
-                },
+                freeform_tags=evaluation_model_freeform_tags,
+                defined_tags=evaluation_model_defined_tags,
             ),
         )
 
@@ -523,6 +544,8 @@ class AquaEvaluationApp(AquaApp):
                 "evaluation_job_id": evaluation_job.id,
                 "evaluation_source": create_aqua_evaluation_details.evaluation_source_id,
                 "evaluation_experiment_id": experiment_model_version_set_id,
+                **evaluation_model_freeform_tags,
+                **evaluation_model_defined_tags,
             },
             parameters=AquaEvalParams(),
         )
@@ -619,11 +642,6 @@ class AquaEvaluationApp(AquaApp):
             evaluation_id=evaluation_id,
             evaluation_target_id=evaluation_source_id,
             input_data={
-                "columns": {
-                    "prompt": "prompt",
-                    "completion": "completion",
-                    "category": "category",
-                },
                 "format": Path(dataset_path).suffix,
                 "url": dataset_path,
             },

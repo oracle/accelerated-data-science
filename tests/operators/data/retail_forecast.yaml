@@ -1,0 +1,16 @@
+kind: operator
+type: forecast
+version: v1
+spec:
+    datetime_column:
+        name: Date
+    historical_data:
+        url: timeseries/retail_prim.csv
+    additional_data:
+        url: timeseries/retail_add.csv
+    test_data:
+        url: timeseries/retail_test.csv
+    horizon: 3
+    model: LGBForecast
+    target_column: Sales
+    # generate_explanations: True

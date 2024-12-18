@@ -1,42 +1,32 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import argparse
 import logging
 import os
 import shutil
 import sys
 import tempfile
-import time
-from string import Template
-from typing import Any, Dict, List, Tuple
-import pandas as pd
-from ads.opctl import logger
-import oracledb
+from typing import List, Union
 
 import fsspec
-import yaml
-from typing import Union
+import oracledb
+import pandas as pd
 
-from ads.opctl import logger
-from ads.opctl.operator.lowcode.common.errors import (
-    InputDataError,
-    InvalidParameterError,
-    PermissionsError,
-    DataMismatchError,
-)
-from ads.opctl.operator.common.operator_config import OutputDirectory
 from ads.common.object_storage_details import ObjectStorageDetails
+from ads.opctl import logger
+from ads.opctl.operator.common.operator_config import OutputDirectory
+from ads.opctl.operator.lowcode.common.errors import (
+    InvalidParameterError,
+)
 from ads.secrets import ADBSecretKeeper
 
 
 def call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
-    if fsspec.utils.get_protocol(filename) == "file":
-        return pd_fn(filename, **kwargs)
-    elif fsspec.utils.get_protocol(filename) in ["http", "https"]:
+    if fsspec.utils.get_protocol(filename) == "file" or fsspec.utils.get_protocol(
+        filename
+    ) in ["http", "https"]:
         return pd_fn(filename, **kwargs)
 
     storage_options = storage_options or (
@@ -48,7 +38,7 @@ def call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
 
 def load_data(data_spec, storage_options=None, **kwargs):
     if data_spec is None:
-        raise InvalidParameterError(f"No details provided for this data source.")
+        raise InvalidParameterError("No details provided for this data source.")
     filename = data_spec.url
     format = data_spec.format
     columns = data_spec.columns
@@ -67,7 +57,7 @@ def load_data(data_spec, storage_options=None, **kwargs):
         if not format:
             _, format = os.path.splitext(filename)
             format = format[1:]
-        if format in ["json", "clipboard", "excel", "csv", "feather", "hdf"]:
+        if format in ["json", "clipboard", "excel", "csv", "feather", "hdf", "parquet"]:
             read_fn = getattr(pd, f"read_{format}")
             data = call_pandas_fsspec(
                 read_fn, filename, storage_options=storage_options
@@ -84,19 +74,31 @@ def load_data(data_spec, storage_options=None, **kwargs):
         with tempfile.TemporaryDirectory() as temp_dir:
             if vault_secret_id is not None:
                 try:
-                    with ADBSecretKeeper.load_secret(vault_secret_id, wallet_dir=temp_dir) as adwsecret:
-                        if 'wallet_location' in adwsecret and 'wallet_location' not in connect_args:
-                            shutil.unpack_archive(adwsecret["wallet_location"], temp_dir)
-                            connect_args['wallet_location'] = temp_dir
-                        if 'user_name' in adwsecret and 'user' not in connect_args:
-                            connect_args['user'] = adwsecret['user_name']
-                        if 'password' in adwsecret and 'password' not in connect_args:
-                            connect_args['password'] = adwsecret['password']
-                        if 'service_name' in adwsecret and 'service_name' not in connect_args:
-                            connect_args['service_name'] = adwsecret['service_name']
+                    with ADBSecretKeeper.load_secret(
+                        vault_secret_id, wallet_dir=temp_dir
+                    ) as adwsecret:
+                        if (
+                            "wallet_location" in adwsecret
+                            and "wallet_location" not in connect_args
+                        ):
+                            shutil.unpack_archive(
+                                adwsecret["wallet_location"], temp_dir
+                            )
+                            connect_args["wallet_location"] = temp_dir
+                        if "user_name" in adwsecret and "user" not in connect_args:
+                            connect_args["user"] = adwsecret["user_name"]
+                        if "password" in adwsecret and "password" not in connect_args:
+                            connect_args["password"] = adwsecret["password"]
+                        if (
+                            "service_name" in adwsecret
+                            and "service_name" not in connect_args
+                        ):
+                            connect_args["service_name"] = adwsecret["service_name"]
 
                 except Exception as e:
-                    raise Exception(f"Could not retrieve database credentials from vault {vault_secret_id}: {e}")
+                    raise Exception(
+                        f"Could not retrieve database credentials from vault {vault_secret_id}: {e}"
+                    )
 
             con = oracledb.connect(**connect_args)
             if table_name is not None:
@@ -105,11 +107,11 @@ def load_data(data_spec, storage_options=None, **kwargs):
                 data = pd.read_sql(sql, con)
             else:
                 raise InvalidParameterError(
-                    f"Database `connect_args` provided without sql query or table name. Please specify either `sql` or `table_name`."
+                    "Database `connect_args` provided without sql query or table name. Please specify either `sql` or `table_name`."
                 )
     else:
         raise InvalidParameterError(
-            f"No filename/url provided, and no connect_args provided. Please specify one of these if you want to read data from a file or a database respectively."
+            "No filename/url provided, and no connect_args provided. Please specify one of these if you want to read data from a file or a database respectively."
         )
     if columns:
         # keep only these columns, done after load because only CSV supports stream filtering
@@ -232,7 +234,7 @@ def human_time_friendly(seconds):
             accumulator.append(
                 "{} {}{}".format(int(amount), unit, "" if amount == 1 else "s")
             )
-    accumulator.append("{} secs".format(round(seconds, 2)))
+    accumulator.append(f"{round(seconds, 2)} secs")
     return ", ".join(accumulator)
 
 
@@ -248,9 +250,7 @@ def find_output_dirname(output_dir: OutputDirectory):
         unique_output_dir = f"{output_dir}_{counter}"
         counter += 1
     logger.warn(
-        "Since the output directory was not specified, the output will be saved to {} directory.".format(
-            unique_output_dir
-        )
+        f"Since the output directory was not specified, the output will be saved to {unique_output_dir} directory."
     )
     return unique_output_dir
 

@@ -96,7 +96,7 @@ class AquaModelHandler(AquaAPIhandler):
         )
 
     @handle_exceptions
-    def post(self, *args, **kwargs):
+    def post(self, *args, **kwargs):  # noqa: ARG002
         """
         Handles post request for the registering any Aqua model.
         Raises
@@ -131,6 +131,8 @@ class AquaModelHandler(AquaAPIhandler):
         inference_container_uri = input_data.get("inference_container_uri")
         allow_patterns = input_data.get("allow_patterns")
         ignore_patterns = input_data.get("ignore_patterns")
+        freeform_tags = input_data.get("freeform_tags")
+        defined_tags = input_data.get("defined_tags")
 
         return self.finish(
             AquaModelApp().register(
@@ -145,6 +147,8 @@ class AquaModelHandler(AquaAPIhandler):
                 inference_container_uri=inference_container_uri,
                 allow_patterns=allow_patterns,
                 ignore_patterns=ignore_patterns,
+                freeform_tags=freeform_tags,
+                defined_tags=defined_tags,
             )
         )
 
@@ -170,11 +174,9 @@ class AquaModelHandler(AquaAPIhandler):
 
         enable_finetuning = input_data.get("enable_finetuning")
         task = input_data.get("task")
-        app=AquaModelApp()
+        app = AquaModelApp()
         self.finish(
-            app.edit_registered_model(
-                id, inference_container, enable_finetuning, task
-            )
+            app.edit_registered_model(id, inference_container, enable_finetuning, task)
         )
         app.clear_model_details_cache(model_id=id)
 
@@ -218,7 +220,7 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
         return None
 
     @handle_exceptions
-    def get(self, *args, **kwargs):
+    def get(self, *args, **kwargs):  # noqa: ARG002
         """
         Finds a list of matching models from hugging face based on query string provided from users.
 
@@ -239,7 +241,7 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
         return self.finish({"models": models})
 
     @handle_exceptions
-    def post(self, *args, **kwargs):
+    def post(self, *args, **kwargs):  # noqa: ARG002
         """Handles post request for the HF Models APIs
 
         Raises

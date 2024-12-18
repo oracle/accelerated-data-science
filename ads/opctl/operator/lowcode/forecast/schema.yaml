@@ -311,7 +311,7 @@ spec:
             missing_value_imputation:
               type: boolean
               required: false
-              default: false
+              default: true
             outlier_treatment:
               type: boolean
               required: false

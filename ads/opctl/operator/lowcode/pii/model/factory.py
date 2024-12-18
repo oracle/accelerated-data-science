@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import uuid
@@ -18,7 +17,7 @@ class UnSupportedDetectorError(Exception):
     def __init__(self, dtype: str):
         super().__init__(
             f"Detector: `{dtype}` "
-            f"is not supported. Supported models: {SupportedDetector.values}"
+            f"is not supported. Supported models: {SupportedDetector.values()}"
         )
 
 
@@ -42,7 +41,10 @@ class SpacyDetector(PiiBaseDetector):
     @runtime_dependency(module="scrubadub", install_from=OptionalDependency.PII)
     @runtime_dependency(module="scrubadub_spacy", install_from=OptionalDependency.PII)
     def construct(cls, entity, model, **kwargs):
-        spacy_entity_detector = scrubadub_spacy.detectors.spacy.SpacyEntityDetector(
+        from scrubadub.filth import Filth
+        from scrubadub_spacy.detectors.spacy import SpacyEntityDetector
+
+        spacy_entity_detector = SpacyEntityDetector(
             named_entities=[entity],
             name=f"spacy_{uuid.uuid4()}",
             model=model,
@@ -50,7 +52,7 @@ class SpacyDetector(PiiBaseDetector):
         if entity.upper() not in cls.DEFAULT_SPACY_NAMED_ENTITIES:
             filth_cls = type(
                 construct_filth_cls_name(entity),
-                (scrubadub.filth.Filth,),
+                (Filth,),
                 {"type": entity.upper()},
             )
             spacy_entity_detector.filth_cls_map[entity.upper()] = filth_cls
