@@ -250,8 +250,8 @@ def evaluate_train_metrics(output):
     return total_metrics
 
 
-def _select_plot_list(fn, series_ids):
-    blocks = [rc.Widget(fn(s_id=s_id), label=s_id) for s_id in series_ids]
+def _select_plot_list(fn, series_ids, target_category_column):
+    blocks = [rc.Widget(fn(s_id=s_id), label=s_id if target_category_column else None) for s_id in series_ids]
     return rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
 
 
@@ -283,6 +283,7 @@ def get_forecast_plots(
     horizon,
     test_data=None,
     ci_interval_width=0.95,
+    target_category_column=None
 ):
     def plot_forecast_plotly(s_id):
         fig = go.Figure()
@@ -379,7 +380,7 @@ def get_forecast_plots(
         )
         return fig
 
-    return _select_plot_list(plot_forecast_plotly, forecast_output.list_series_ids())
+    return _select_plot_list(plot_forecast_plotly, forecast_output.list_series_ids(), target_category_column)
 
 
 def convert_target(target: str, target_col: str):

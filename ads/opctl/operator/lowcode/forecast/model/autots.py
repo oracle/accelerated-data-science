@@ -242,6 +242,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                     self.models.df_wide_numeric, series=s_id
                 ),
                 self.datasets.list_series_ids(),
+                target_category_column=self.target_cat_col
             )
             section_1 = rc.Block(
                 rc.Heading("Forecast Overview", level=2),

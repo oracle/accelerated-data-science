@@ -360,7 +360,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                     pd.Series(
                         m.state_dict(),
                         index=m.state_dict().keys(),
-                        name=s_id,
+                        name=s_id if self.target_cat_col else self.original_target_column,
                     )
                 )
             all_model_states = pd.concat(model_states, axis=1)
@@ -372,6 +372,13 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             try:
                 # If the key is present, call the "explain_model" method
                 self.explain_model()
+
+                if not self.target_cat_col:
+                    self.formatted_global_explanation = self.formatted_global_explanation.rename(
+                        {"Series 1": self.original_target_column},
+                        axis=1,
+                    )
+                    self.formatted_local_explanation.drop("Series", axis=1, inplace=True)
 
                 # Create a markdown section for the global explainability
                 global_explanation_section = rc.Block(
@@ -385,14 +392,14 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 blocks = [
                     rc.DataTable(
                         local_ex_df.drop("Series", axis=1),
-                        label=s_id,
+                        label=s_id if self.target_cat_col else None,
                         index=True,
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]
                 local_explanation_section = rc.Block(
                     rc.Heading("Local Explanation of Models", level=2),
-                    rc.Select(blocks=blocks),
+                    rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0],
                 )
 
                 # Append the global explanation text and section to the "all_sections" list
