@@ -27,10 +27,12 @@ class SpeedAccuracyMode(str, metaclass=ExtendedEnumMeta):
     HIGH_ACCURACY = "HIGH_ACCURACY"
     BALANCED = "BALANCED"
     FAST_APPROXIMATE = "FAST_APPROXIMATE"
+    AUTOMLX = "AUTOMLX"
     ratio = {}
     ratio[HIGH_ACCURACY] = 1  # 100 % data used for generating explanations
     ratio[BALANCED] = 0.5  # 50 % data used for generating explanations
     ratio[FAST_APPROXIMATE] = 0  # constant
+    ratio[AUTOMLX] = 0  # constant
 
 
 class SupportedMetrics(str, metaclass=ExtendedEnumMeta):

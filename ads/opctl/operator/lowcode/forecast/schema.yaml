@@ -332,6 +332,7 @@ spec:
         - HIGH_ACCURACY
         - BALANCED
         - FAST_APPROXIMATE
+        - AUTOMLX
 
     generate_report:
       type: boolean
