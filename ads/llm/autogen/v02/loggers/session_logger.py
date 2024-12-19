@@ -42,6 +42,7 @@ from ads.llm.autogen.reports.data import (
     ToolCallData,
 )
 from ads.llm.autogen.reports.session import SessionReport
+from ads.llm.autogen.v02 import runtime_logging
 from ads.llm.autogen.v02.log_handlers.oci_file_handler import OCIFileHandler
 
 logger = logging.getLogger(__name__)
@@ -621,3 +622,19 @@ class SessionLogger(FileLogger):
 
     def __repr__(self) -> str:
         return self.session.__repr__()
+
+    def __enter__(self) -> "SessionLogger":
+        """Starts the session logger
+
+        Returns
+        -------
+        SessionLogger
+            The session logger
+        """
+        runtime_logging.start(self)
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        """Stops the session logger."""
+        # TODO: log exceptions.
+        runtime_logging.stop(self)

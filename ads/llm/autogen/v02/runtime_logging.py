@@ -137,12 +137,22 @@ def start(
     return session_id
 
 
-def stop() -> BaseLogger:
-    """Stops all AutoGen loggers.
-    Once stopped, all loggers will be removed.
+def stop(*loggers) -> BaseLogger:
+    """Stops AutoGen logger.
+    If loggers are managed by LoggerManager,
+    you may specify one or more loggers to be stopped.
+    If no logger is specified, all loggers will be stopped.
+    Stopped loggers will be removed from the LoggerManager.
     """
-    autogen.runtime_logging.stop()
-    return autogen.runtime_logging.autogen_logger
+    autogen_logger = autogen.runtime_logging.autogen_logger
+    if isinstance(autogen_logger, LoggerManager) and loggers:
+        for logger in loggers:
+            logger.stop()
+            if logger in autogen_logger.loggers:
+                autogen_logger.loggers.remove(logger)
+    else:
+        autogen.runtime_logging.stop()
+    return autogen_logger
 
 
 def get_loggers() -> List[BaseLogger]:
