@@ -431,7 +431,7 @@ class AquaModelApp(AquaApp):
                     if (
                         inference_container
                         == InferenceContainerTypeFamily.AQUA_TEI_CONTAINER_FAMILY
-                        or inference_container == None
+                        or inference_container is None
                     ):
                         custom_metadata_list.add(
                             key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER_URI,
