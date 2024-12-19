@@ -411,8 +411,11 @@ class AquaModelApp(AquaApp):
                 custom_metadata_list = ds_model.custom_metadata_list
                 freeform_tags = ds_model.freeform_tags
                 if inference_container:
-                    if (inference_container==InferenceContainerTypeFamily.AQUA_TEI_CONTAINER_FAMILY
-                            and inference_container_uri is None):
+                    if (
+                        inference_container
+                        == InferenceContainerTypeFamily.AQUA_TEI_CONTAINER_FAMILY
+                        and inference_container_uri is None
+                    ):
                         raise AquaRuntimeError(
                             f"Failed to edit model:{id}. Inference container URI must be provided."
                         )
@@ -425,13 +428,17 @@ class AquaModelApp(AquaApp):
                             replace=True,
                         )
                 if inference_container_uri:
-                    if inference_container==InferenceContainerTypeFamily.AQUA_TEI_CONTAINER_FAMILY or inference_container==None:
+                    if (
+                        inference_container
+                        == InferenceContainerTypeFamily.AQUA_TEI_CONTAINER_FAMILY
+                        or inference_container == None
+                    ):
                         custom_metadata_list.add(
                             key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER_URI,
                             value=inference_container_uri,
                             category=MetadataCustomCategory.OTHER,
                             description=f"Inference container URI for {ds_model.display_name}",
-                            replace=True
+                            replace=True,
                         )
                     else:
                         raise AquaRuntimeError(
