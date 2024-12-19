@@ -8,12 +8,12 @@ from urllib.parse import urlparse
 from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
+from ads.aqua.common.enums import InferenceContainerTypeFamily
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     get_hf_model_info,
     list_hf_models,
 )
-from ads.aqua.common.enums import InferenceContainerTypeFamily
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.model import AquaModelApp
