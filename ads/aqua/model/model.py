@@ -377,7 +377,9 @@ class AquaModelApp(AquaApp):
             )
 
     @telemetry(entry_point="plugin=model&action=delete", name="aqua")
-    def edit_registered_model(self, id, inference_container,inference_container_uri, enable_finetuning, task):
+    def edit_registered_model(
+        self, id, inference_container, inference_container_uri, enable_finetuning, task
+    ):
         """Edits the default config of unverified registered model.
 
         Parameters
@@ -421,7 +423,7 @@ class AquaModelApp(AquaApp):
                         key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER_URI,
                         value=inference_container_uri,
                         category=MetadataCustomCategory.OTHER,
-                        description=f"Inference container URI for {ds_model.display_name}"
+                        description=f"Inference container URI for {ds_model.display_name}",
                     )
                 if enable_finetuning is not None:
                     if enable_finetuning.lower() == "true":
