@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """Chat model for OCI data science model deployment endpoint."""
 
@@ -50,6 +49,7 @@ from ads.llm.langchain.plugins.llms.oci_data_science_model_deployment_endpoint i
 )
 
 logger = logging.getLogger(__name__)
+DEFAULT_INFERENCE_ENDPOINT_CHAT = "/v1/chat/completions"
 
 
 def _is_pydantic_class(obj: Any) -> bool:
@@ -93,6 +93,8 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
     Key init args — client params:
         auth: dict
             ADS auth dictionary for OCI authentication.
+        default_headers: Optional[Dict]
+            The headers to be added to the Model Deployment request.
 
     Instantiate:
         .. code-block:: python
@@ -108,6 +110,10 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
                     "max_token": 512,
                     "temperature": 0.2,
                     # other model parameters ...
+                },
+                default_headers={
+                    "route": "/v1/chat/completions",
+                    # other request headers ...
                 },
             )
 
@@ -289,6 +295,25 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
             "model": self.model,
             "stop": self.stop,
             "stream": self.streaming,
+        }
+
+    def _headers(
+        self, is_async: Optional[bool] = False, body: Optional[dict] = None
+    ) -> Dict:
+        """Construct and return the headers for a request.
+
+        Args:
+            is_async (bool, optional): Indicates if the request is asynchronous.
+                Defaults to `False`.
+            body (optional): The request body to be included in the headers if
+                the request is asynchronous.
+
+        Returns:
+            Dict: A dictionary containing the appropriate headers for the request.
+        """
+        return {
+            "route": DEFAULT_INFERENCE_ENDPOINT_CHAT,
+            **super()._headers(is_async=is_async, body=body),
         }
 
     def _generate(
@@ -704,7 +729,7 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
 
         for choice in choices:
             message = _convert_dict_to_message(choice["message"])
-            generation_info = dict(finish_reason=choice.get("finish_reason"))
+            generation_info = {"finish_reason": choice.get("finish_reason")}
             if "logprobs" in choice:
                 generation_info["logprobs"] = choice["logprobs"]
 
@@ -794,7 +819,7 @@ class ChatOCIModelDeploymentVLLM(ChatOCIModelDeployment):
     """Number of most likely tokens to consider at each step."""
 
     min_p: Optional[float] = 0.0
-    """Float that represents the minimum probability for a token to be considered. 
+    """Float that represents the minimum probability for a token to be considered.
     Must be in [0,1]. 0 to disable this."""
 
     repetition_penalty: Optional[float] = 1.0
@@ -818,7 +843,7 @@ class ChatOCIModelDeploymentVLLM(ChatOCIModelDeployment):
     the EOS token is generated."""
 
     min_tokens: Optional[int] = 0
-    """Minimum number of tokens to generate per output sequence before 
+    """Minimum number of tokens to generate per output sequence before
     EOS or stop_token_ids can be generated"""
 
     stop_token_ids: Optional[List[int]] = None
@@ -836,7 +861,7 @@ class ChatOCIModelDeploymentVLLM(ChatOCIModelDeployment):
     tool_choice: Optional[str] = None
     """Whether to use tool calling.
     Defaults to None, tool calling is disabled.
-    Tool calling requires model support and the vLLM to be configured 
+    Tool calling requires model support and the vLLM to be configured
     with `--tool-call-parser`.
     Set this to `auto` for the model to make tool calls automatically.
     Set this to `required` to force the model to always call one or more tools.
@@ -956,9 +981,9 @@ class ChatOCIModelDeploymentTGI(ChatOCIModelDeployment):
     """Total probability mass of tokens to consider at each step."""
 
     top_logprobs: Optional[int] = None
-    """An integer between 0 and 5 specifying the number of most 
-    likely tokens to return at each token position, each with an 
-    associated log probability. logprobs must be set to true if 
+    """An integer between 0 and 5 specifying the number of most
+    likely tokens to return at each token position, each with an
+    associated log probability. logprobs must be set to true if
     this parameter is used."""
 
     @property
