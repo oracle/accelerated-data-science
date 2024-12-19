@@ -1,5 +1,5 @@
 # Copyright (c) 2024, Oracle and/or its affiliates.  All rights reserved.
-# This software is dual-licensed to you under the Universal Permissive License (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl or Apache License 2.0 as shown at http://www.apache.org/licenses/LICENSE-2.0. You may choose either license.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import importlib
 import inspect
 import json
@@ -34,15 +34,35 @@ from oci.object_storage.models import (
 
 import ads
 from ads.common.auth import default_signer
+from ads.llm.autogen.constants import Events
+from ads.llm.autogen.reports.data import (
+    AgentData,
+    LLMCompletionData,
+    LogRecord,
+    ToolCallData,
+)
 from ads.llm.autogen.reports.session import SessionReport
-from ads.llm.autogen.v02.constants import Events
 from ads.llm.autogen.v02.log_handlers.oci_file_handler import OCIFileHandler
 
 logger = logging.getLogger(__name__)
 
 
-def is_json_serializable(obj) -> bool:
-    """Checks if an object is JSON serializable."""
+CONST_REPLY_FUNC_NAME = "reply_func_name"
+
+
+def is_json_serializable(obj: Any) -> bool:
+    """Checks if an object is JSON serializable.
+
+    Parameters
+    ----------
+    obj : Any
+        Any object.
+
+    Returns
+    -------
+    bool
+        True if the object is JSON serializable, otherwise False.
+    """
     try:
         json.dumps(obj)
     except Exception:
@@ -70,9 +90,10 @@ def serialize_response(response) -> dict:
 
 def serialize(
     obj: Union[int, float, str, bool, Dict[Any, Any], List[Any], Tuple[Any, ...], Any],
-    exclude: Tuple[str, ...] = (),
+    exclude: Tuple[str, ...] = ("api_key", "__class__"),
     no_recursive: Tuple[Any, ...] = (),
 ) -> Any:
+    """Serializes an object for logging purpose."""
     try:
         if isinstance(obj, (int, float, str, bool)):
             return obj
@@ -105,7 +126,7 @@ def serialize(
 
 @dataclass
 class LoggingSession:
-    """Represents a logging session."""
+    """Represents a logging session for a specific thread."""
 
     session_id: str
     log_dir: str
@@ -119,6 +140,14 @@ class LoggingSession:
 
     @property
     def report(self) -> str:
+        """HTML report path of the logging session.
+        If the a pre-authenticated link is generated for the report,
+        the pre-authenticated link will be returned.
+
+        If the report is saved to OCI object storage, the URI will be return.
+        If the report is saved locally, the local path will be return.
+        If there is no report generated, `None` will be returned.
+        """
         if self.par_uri:
             return self.par_uri
         elif self.report_file:
@@ -126,6 +155,7 @@ class LoggingSession:
         return None
 
     def __repr__(self) -> str:
+        """Shows the link to report if it is available, otherwise shows the log file link."""
         if self.report:
             return self.report
         return self.log_file
@@ -248,11 +278,21 @@ class SessionLogger(FileLogger):
         self.session = self.new_session(
             log_dir=log_dir, session_id=session_id, auth=auth
         )
+        # Log only if started is True
         self.started = False
 
+        # Keep track of last check_termination_and_human_reply for calculating tool call duration
+        # This will be a dictionary mapping the IDs of the agents to their last timestamp
+        # of check_termination_and_human_reply
+        self.last_agent_checks = {}
+
     @property
-    def logger(self) -> Optional[str]:
-        """Logger for the thread."""
+    def logger(self) -> Optional[logging.Logger]:
+        """Logger for the thread.
+
+        This property is used to determine whether the log should be saved.
+        No log will be saved if the logger is None.
+        """
         if not self.started:
             return None
         thread_id = threading.get_ident()
@@ -356,9 +396,44 @@ class SessionLogger(FileLogger):
         kwargs = kwargs or self.par_kwargs or {}
 
         report_file = os.path.join(self.report_dir, f"{self.session_id}.html")
-        return self.session.create_report(
+        report_link = self.session.create_report(
             report_file=report_file, return_par_uri=self.report_par_uri, **kwargs
         )
+        print(f"ADS AutoGen Session Report: {report_link}")
+        return report_link
+
+    def new_record(self, event_name: str, source: Any = None) -> LogRecord:
+        """Initialize a new log record.
+
+        The record is not logged until `self.log()` is called.
+        """
+        record = LogRecord(
+            session_id=self.session_id,
+            thread_id=threading.get_ident(),
+            timestamp=get_current_ts(),
+            event_name=event_name,
+        )
+        if source:
+            record.source_id = id(source)
+            record.source_name = str(source.name) if hasattr(source, "name") else source
+        return record
+
+    def log(self, record: LogRecord) -> None:
+        """Logs a record.
+
+        Parameters
+        ----------
+        data : dict
+            Data to be logged.
+        """
+        # Do nothing if there is no logger for the thread.
+        if not self.logger:
+            return
+
+        try:
+            self.logger.info(record.to_string())
+        except Exception:
+            self.logger.info("Failed to log %s", record.event_name)
 
     def start(self) -> str:
         """Start the logging session and return the session_id."""
@@ -392,7 +467,7 @@ class SessionLogger(FileLogger):
         self.started = False
         if self.report_dir:
             try:
-                return self.generate_report()
+                self.generate_report()
             except Exception as e:
                 logger.error(
                     "Failed to create session report for AutoGen session %s\n%s",
@@ -414,115 +489,110 @@ class SessionLogger(FileLogger):
         start_time: str,
     ) -> None:
         """
-        Log a chat completion.
+        Logs a chat completion.
         """
         if not self.logger:
             return
 
-        thread_id = threading.get_ident()
-        source_name = None
-        if isinstance(source, str):
-            source_name = source
-        else:
-            source_name = source.name
+        record = self.new_record(event_name=Events.LLM_CALL, source=source)
+        record.data = LLMCompletionData(
+            invocation_id=str(invocation_id),
+            request=serialize(request),
+            response=serialize_response(response),
+            start_time=start_time,
+            end_time=get_current_ts(),
+            cost=cost,
+            is_cached=is_cached,
+        )
+        record.kwargs = {
+            "client_id": client_id,
+            "wrapper_id": wrapper_id,
+        }
 
-        try:
-            log_data = json.dumps(
-                {
-                    Events.KEY: Events.LLM_CALL,
-                    "invocation_id": str(invocation_id),
-                    "client_id": client_id,
-                    "wrapper_id": wrapper_id,
-                    "request": serialize(request),
-                    "response": serialize_response(response),
-                    "is_cached": is_cached,
-                    "cost": cost,
-                    "start_time": start_time,
-                    "end_time": get_current_ts(),
-                    "thread_id": thread_id,
-                    "source_name": source_name,
-                }
-            )
-
-            self.logger.info(log_data)
-        except Exception as e:
-            self.logger.error(f"[file_logger] Failed to log chat completion: {e}")
+        self.log(record)
 
     def log_function_use(
         self, source: Union[str, Agent], function: F, args: Dict[str, Any], returns: Any
     ) -> None:
         """
-        Log a registered function(can be a tool) use from an agent or a string source.
+        Logs a registered function(can be a tool) use from an agent or a string source.
         """
         if not self.logger:
             return
 
-        thread_id = threading.get_ident()
+        source_id = id(source)
+        if source_id in self.last_agent_checks:
+            start_time = self.last_agent_checks[source_id]
+        else:
+            start_time = get_current_ts()
 
-        try:
-            log_data = json.dumps(
-                {
-                    Events.KEY: Events.TOOL_CALL,
-                    "source_id": id(source),
-                    "source_name": (
-                        str(source.name) if hasattr(source, "name") else source
-                    ),
-                    "agent_module": source.__module__,
-                    "agent_class": source.__class__.__name__,
-                    "tool_name": function.__name__,
-                    # This is the tool call end time
-                    "timestamp": get_current_ts(),
-                    "thread_id": thread_id,
-                    "input_args": safe_serialize(args),
-                    "returns": safe_serialize(returns),
-                }
-            )
-            self.logger.info(log_data)
-        except Exception as e:
-            self.logger.error(f"[file_logger] Failed to log event {e}")
+        record = self.new_record(Events.TOOL_CALL, source=source)
+        record.data = ToolCallData(
+            tool_name=function.__name__,
+            start_time=start_time,
+            end_time=record.timestamp,
+            agent_name=str(source.name) if hasattr(source, "name") else source,
+            agent_module=source.__module__,
+            agent_class=source.__class__.__name__,
+            input_args=safe_serialize(args),
+            returns=safe_serialize(returns),
+        )
+
+        self.log(record)
 
     def log_new_agent(
         self, agent: ConversableAgent, init_args: Dict[str, Any] = {}
     ) -> None:
         """
-        Log a new agent instance.
+        Logs a new agent instance.
         """
         if not self.logger:
             return
 
-        thread_id = threading.get_ident()
+        record = self.new_record(event_name=Events.NEW_AGENT, source=agent)
+        record.data = AgentData(
+            agent_name=(
+                agent.name
+                if hasattr(agent, "name") and agent.name is not None
+                else str(agent)
+            ),
+            agent_module=agent.__module__,
+            agent_class=agent.__class__.__name__,
+            is_manager=isinstance(agent, GroupChatManager),
+        )
+        record.kwargs = {
+            "wrapper_id": serialize(
+                agent.client.wrapper_id
+                if hasattr(agent, "client") and agent.client is not None
+                else ""
+            ),
+            "args": serialize(init_args),
+        }
+        self.log(record)
 
-        try:
-            log_data = json.dumps(
-                {
-                    Events.KEY: Events.NEW_AGENT,
-                    "id": id(agent),
-                    "agent_name": (
-                        agent.name
-                        if hasattr(agent, "name") and agent.name is not None
-                        else ""
-                    ),
-                    "wrapper_id": serialize(
-                        agent.client.wrapper_id
-                        if hasattr(agent, "client") and agent.client is not None
-                        else ""
-                    ),
-                    "session_id": self.session_id,
-                    "current_time": get_current_ts(),
-                    "agent_type": type(agent).__name__,
-                    "args": serialize(init_args),
-                    "thread_id": thread_id,
-                    "is_manager": isinstance(agent, GroupChatManager),
-                }
+    def log_event(
+        self, source: Union[str, Agent], name: str, **kwargs: Dict[str, Any]
+    ) -> None:
+        """
+        Logs an event.
+        """
+        record = self.new_record(event_name=name)
+        record.source_id = id(source)
+        record.source_name = str(source.name) if hasattr(source, "name") else source
+        record.kwargs = kwargs
+        if isinstance(source, Agent):
+            if (
+                CONST_REPLY_FUNC_NAME in kwargs
+                and kwargs[CONST_REPLY_FUNC_NAME] == "check_termination_and_human_reply"
+            ):
+                self.last_agent_checks[record.source_id] = record.timestamp
+            record.data = AgentData(
+                agent_name=record.source_name,
+                agent_module=source.__module__,
+                agent_class=source.__class__.__name__,
+                is_manager=isinstance(source, GroupChatManager),
             )
-            self.logger.info(log_data)
-        except Exception as e:
-            self.logger.error(f"[file_logger] Failed to log new agent: {e}")
-
-    def log_event(self, *args, **kwargs) -> None:
-        if not self.logger:
-            return
-        return super().log_event(*args, **kwargs)
+        self.log(record)
 
     def log_new_wrapper(self, *args, **kwargs) -> None:
         # Do not log new wrapper.
@@ -537,25 +607,17 @@ class SessionLogger(FileLogger):
     ) -> None:
         if not self.logger:
             return
-        thread_id = threading.get_ident()
 
-        try:
-            log_data = json.dumps(
-                {
-                    Events.KEY: Events.NEW_CLIENT,
-                    "client_id": id(client),
-                    "wrapper_id": id(wrapper),
-                    "session_id": self.session_id,
-                    "class": type(client).__name__,
-                    # init_args may contain credentials like api_key
-                    # "json_state": json.dumps(init_args),
-                    "timestamp": get_current_ts(),
-                    "thread_id": thread_id,
-                }
-            )
-            self.logger.info(log_data)
-        except Exception as e:
-            self.logger.error(f"[file_logger] Failed to log event {e}")
+        record = self.new_record(event_name=Events.NEW_CLIENT)
+        # init_args may contain credentials like api_key
+        record.kwargs = {
+            "client_id": id(client),
+            "wrapper_id": id(wrapper),
+            "class": client.__class__.__name__,
+            "args": serialize(init_args),
+        }
+
+        self.log(record)
 
     def __repr__(self) -> str:
         return self.session.__repr__()

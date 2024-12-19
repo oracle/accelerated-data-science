@@ -8,5 +8,6 @@ class Events:
     TOOL_CALL = "tool_call"
     NEW_AGENT = "new_agent"
     NEW_CLIENT = "new_client"
+    RECEIVED_MESSAGE = "received_message"
     SESSION_START = "logging_session_start"
     SESSION_STOP = "logging_session_stop"
