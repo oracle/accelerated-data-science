@@ -97,9 +97,7 @@ class SessionReport(BaseReport):
         agents = {}
         for log in new_agent_logs:
             agent: AgentData = log.data
-            agents[(agent.agent_name, agent.agent_module, agent.agent_class)] = (
-                AgentData
-            )
+            agents[(agent.agent_name, agent.agent_module, agent.agent_class)] = agent
         return list(agents.values())
 
     def _parse_managers(self) -> List[AgentData]:
