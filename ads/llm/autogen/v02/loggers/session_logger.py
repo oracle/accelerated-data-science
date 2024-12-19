@@ -634,7 +634,14 @@ class SessionLogger(FileLogger):
         runtime_logging.start(self)
         return self
 
-    def __exit__(self, *args, **kwargs):
+    def __exit__(self, exc_type, exc_value, tb):
         """Stops the session logger."""
-        # TODO: log exceptions.
+        record = self.new_record(event_name=Events.EXCEPTION)
+        record.kwargs = {
+            "exc_type": exc_type.__name__,
+            "exc_value": str(exc_value),
+            "traceback": "".join(traceback.format_tb(tb)),
+            "locals": serialize(tb.tb_frame.f_locals),
+        }
+        self.log(record)
         runtime_logging.stop(self)

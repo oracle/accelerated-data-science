@@ -384,7 +384,7 @@ class SessionReport(BaseReport):
     def _build_chat_tab(self) -> rc.Block:
         """Builds the chat tab."""
         if not self.received_message_logs:
-            return rc.Text("No messages received in this session.")
+            return rc.Text("No messages received in this session.", label="Chats")
         # The agent sending the first message will be placed on the right.
         # All other agents will be placed on the left
         host = self.received_message_logs[0].kwargs.get("sender")
@@ -450,6 +450,23 @@ class SessionReport(BaseReport):
             label="Logs",
         )
 
+    def _build_errors_tab(self) -> Optional[rc.Block]:
+        """Builds the error tab to show exception."""
+        errors = self.filter_by_event(Events.EXCEPTION)
+        if not errors:
+            return None
+        blocks = []
+        for error in errors:
+            label = f'{error.kwargs.get("exc_type", "")} - {error.kwargs.get("exc_value", "")}'
+            variables: dict = error.kwargs.get("locals", {})
+            table = "| Variable | Value |\n|---|---|\n"
+            table += "\n".join([f"| {k} | {v} |" for k, v in variables.items()])
+            blocks += [
+                rc.Unformatted(text=error.kwargs.get("traceback", ""), label=label),
+                rc.Markdown(table),
+            ]
+        return rc.Block(*blocks, label="Error")
+
     def build(self, output_file: str):
         """Builds the session report.
 
@@ -465,6 +482,17 @@ class SessionReport(BaseReport):
             agent_label = "+1 chat manager"
         else:
             agent_label = f"+{str(len(self.managers))} chat managers"
+
+        blocks = [
+            self._build_timeline_tab(),
+            self._build_invocations_tab(),
+            self._build_chat_tab(),
+            self._build_logs_tab(),
+        ]
+
+        error_block = self._build_errors_tab()
+        if error_block:
+            blocks.append(error_block)
 
         with rc.ReportCreator(
             title=f"AutoGen Session: {self.session_id}",
@@ -492,14 +520,7 @@ class SessionReport(BaseReport):
                         value=len(self.tool_calls),
                     ),
                 ),
-                rc.Select(
-                    blocks=[
-                        self._build_timeline_tab(),
-                        self._build_invocations_tab(),
-                        self._build_chat_tab(),
-                        self._build_logs_tab(),
-                    ],
-                ),
+                rc.Select(blocks=blocks),
             )
 
             report.save(view, output_file)

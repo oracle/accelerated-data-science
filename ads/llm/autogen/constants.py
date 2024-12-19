@@ -4,6 +4,8 @@
 
 class Events:
     KEY = "event_name"
+
+    EXCEPTION = "exception"
     LLM_CALL = "llm_call"
     TOOL_CALL = "tool_call"
     NEW_AGENT = "new_agent"
