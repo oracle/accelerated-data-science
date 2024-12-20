@@ -3,8 +3,8 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Union
-from uuid import UUID, uuid4
+from typing import Any, Dict, List, Optional, Union
+from uuid import UUID
 
 import oci
 from autogen import Agent, ConversableAgent, OpenAIWrapper
@@ -54,37 +54,45 @@ class MetricLogger(BaseLogger):
 
     def __init__(
         self,
-        app_name: str,
         namespace: str,
-        compartment_id: str = None,
-        session_id: str = None,
-        region: str = None,
-        resource_group: str = None,
+        app_name: Optional[str] = None,
+        compartment_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        region: Optional[str] = None,
+        resource_group: Optional[str] = None,
+        log_agent_name: bool = True,
+        log_tool_name: bool = True,
+        log_model_name: bool = True,
     ):
         """Initialize the metric logger.
 
         Parameters
         ----------
-        app_name : str
-            Application name, which will be a metric dimension.
         namespace : str
             Namespace for posting the metric
+        app_name : str
+            Application name, which will be a metric dimension if specified.
         compartment_id : str, optional
             Compartment OCID for posting the metric.
             If compartment_id is not specified,
             ADS will try to fetch the compartment OCID from environment variable.
         session_id : str, optional
             Session ID to be saved as a metric dimension, by default None.
-            If session_id is None, a UUID will be generated automatically.
         region : str, optional
             OCI region for posting the metric, by default None.
             If region is not specified, the region from the authentication signer will be used.
         resource_group : str, optional
             Resource group for the metric, by default None
+        log_agent_name : bool, optional
+            Whether to log agent name as a metric dimension, by default True.
+        log_tool_name : bool, optional
+            Whether to log tool name as a metric dimension, by default True.
+        log_model_name : bool, optional
+            Whether to log model name as a metric dimension, by default True.
 
         """
         self.app_name = app_name
-        self.session_id = str(session_id or uuid4())
+        self.session_id = session_id
         self.compartment_id = compartment_id or ads.config.COMPARTMENT_OCID
         if not self.compartment_id:
             raise ValueError(
@@ -93,17 +101,22 @@ class MetricLogger(BaseLogger):
             )
         self.namespace = namespace
         self.resource_group = resource_group
-
+        self.log_agent_name = log_agent_name
+        self.log_tool_name = log_tool_name
+        self.log_model_name = log_model_name
         # Indicate if the logger has started.
         self.started = False
 
         auth = ads.auth.default_signer()
 
-        # Use the signer to determine the region if it not specified.
+        # Use the config/signer to determine the region if it not specified.
         signer = auth.get("signer")
+        config = auth.get("config", {})
         if not region:
             if hasattr(signer, "region") and signer.region:
                 region = signer.region
+            elif config.get("region"):
+                region = config.get("region")
             else:
                 raise ValueError(
                     "Unable to determine the region for OCI monitoring service. "
@@ -111,7 +124,7 @@ class MetricLogger(BaseLogger):
                 )
 
         self.monitoring_client = MonitoringClient(
-            config=auth.get("config", {}),
+            config=config,
             signer=signer,
             # Metrics should be submitted with the "telemetry-ingestion" endpoint instead.
             # See note here: https://docs.oracle.com/iaas/api/#/en/monitoring/20180401/MetricData/PostMetricData
@@ -122,12 +135,11 @@ class MetricLogger(BaseLogger):
         """Posts metric to OCI monitoring."""
         # Add app_name and session_id to dimensions
         dimensions = metric.dimensions
-        dimensions.update(
-            {
-                MetricDimension.SESSION_ID: self.session_id,
-                MetricDimension.APP_NAME: self.app_name,
-            }
-        )
+        if self.app_name:
+            dimensions[MetricDimension.APP_NAME] = self.app_name
+        if self.session_id:
+            dimensions[MetricDimension.SESSION_ID] = self.session_id
+
         logger.debug("Posting metrics:\n%s", str(metric))
         self.monitoring_client.post_metric_data(
             post_metric_data_details=oci.monitoring.models.PostMetricDataDetails(
@@ -156,7 +168,10 @@ class MetricLogger(BaseLogger):
 
     def start(self):
         """Starts the logger."""
-        logger.info(f"Starting metric logging for session_id: {self.session_id}")
+        if self.session_id:
+            logger.info(f"Starting metric logging for session_id: {self.session_id}")
+        else:
+            logger.info("Starting metric logging.")
         self.started = True
         try:
             metric = Metric(
@@ -188,10 +203,11 @@ class MetricLogger(BaseLogger):
         if not self.started:
             return
         agent_name = str(source.name) if hasattr(source, "name") else source
-        dimensions = {
-            MetricDimension.TOOL_NAME: function.__name__,
-            MetricDimension.AGENT_NAME: agent_name,
-        }
+        dimensions = {}
+        if self.log_tool_name:
+            dimensions[MetricDimension.TOOL_NAME] = function.__name__
+        if self.log_agent_name:
+            dimensions[MetricDimension.AGENT_NAME] = agent_name
         try:
             self._post_metric(
                 Metric(
@@ -229,10 +245,11 @@ class MetricLogger(BaseLogger):
             # Post usage metric
             agent_name = str(source.name) if hasattr(source, "name") else source
             model = response.get("model", "N/A")
-            dimensions = {
-                MetricDimension.AGENT_NAME: agent_name,
-                MetricDimension.MODEL: model,
-            }
+            dimensions = {}
+            if self.log_model_name:
+                dimensions[MetricDimension.MODEL] = model
+            if self.log_agent_name:
+                dimensions[MetricDimension.AGENT_NAME] = agent_name
 
             # Chat completion count
             self._post_metric(
