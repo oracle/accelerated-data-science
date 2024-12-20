@@ -60,9 +60,9 @@ class MetricLogger(BaseLogger):
         session_id: Optional[str] = None,
         region: Optional[str] = None,
         resource_group: Optional[str] = None,
-        log_agent_name: bool = True,
-        log_tool_name: bool = True,
-        log_model_name: bool = True,
+        log_agent_name: bool = False,
+        log_tool_name: bool = False,
+        log_model_name: bool = False,
     ):
         """Initialize the metric logger.
 
