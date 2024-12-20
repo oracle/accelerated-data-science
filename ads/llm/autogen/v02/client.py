@@ -1,6 +1,5 @@
-# coding: utf-8
-# Copyright (c) 2016, 2024, Oracle and/or its affiliates.  All rights reserved.
-# This software is dual-licensed to you under the Universal Permissive License (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl or Apache License 2.0 as shown at http://www.apache.org/licenses/LICENSE-2.0. You may choose either license.
+# Copyright (c) 2024, Oracle and/or its affiliates.  All rights reserved.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """This module contains the custom LLM client for AutoGen v0.2 to use LangChain chat models.
 https://microsoft.github.io/autogen/0.2/blog/2024/01/26/Custom-Models/
@@ -72,13 +71,13 @@ import copy
 import importlib
 import json
 import logging
-from typing import Any, Dict, List, Union
+from dataclasses import asdict, dataclass
 from types import SimpleNamespace
+from typing import Any, Dict, List, Union
 
 from autogen import ModelClient
 from autogen.oai.client import OpenAIWrapper, PlaceHolderClient
 from langchain_core.messages import AIMessage
-
 
 logger = logging.getLogger(__name__)
 
@@ -177,6 +176,13 @@ class Message(AIMessage):
         return self.tool_calls
 
 
+@dataclass
+class Usage:
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+
+
 class LangChainModelClient(ModelClient):
     """Represents a model client wrapping a LangChain chat model."""
 
@@ -202,8 +208,8 @@ class LangChainModelClient(ModelClient):
         # Import the LangChain class
         if "langchain_cls" not in config:
             raise ValueError("Missing langchain_cls in LangChain Model Client config.")
-        module_cls = config.pop("langchain_cls")
-        module_name, cls_name = str(module_cls).rsplit(".", 1)
+        self.langchain_cls = config.pop("langchain_cls")
+        module_name, cls_name = str(self.langchain_cls).rsplit(".", 1)
         langchain_module = importlib.import_module(module_name)
         langchain_cls = getattr(langchain_module, cls_name)
 
@@ -232,7 +238,14 @@ class LangChainModelClient(ModelClient):
         streaming = params.get("stream", False)
         # TODO: num_of_responses
         num_of_responses = params.get("n", 1)
-        messages = params.pop("messages", [])
+
+        messages = copy.deepcopy(params.get("messages", []))
+
+        # OCI Gen AI does not allow empty message.
+        if str(self.langchain_cls).endswith("oci_generative_ai.ChatOCIGenAI"):
+            for message in messages:
+                if len(message.get("content", "")) == 0:
+                    message["content"] = " "
 
         invoke_params = copy.deepcopy(self.invoke_params)
 
@@ -241,7 +254,6 @@ class LangChainModelClient(ModelClient):
             model = self.model.bind_tools(
                 [_convert_to_langchain_tool(tool) for tool in tools]
             )
-            # invoke_params["tools"] = tools
             invoke_params.update(self.function_call_params)
         else:
             model = self.model
@@ -249,6 +261,7 @@ class LangChainModelClient(ModelClient):
         response = SimpleNamespace()
         response.choices = []
         response.model = self.model_name
+        response.usage = Usage()
 
         if streaming and messages:
             # If streaming is enabled and has messages, then iterate over the chunks of the response.
@@ -279,4 +292,4 @@ class LangChainModelClient(ModelClient):
     @staticmethod
     def get_usage(response: ModelClient.ModelClientResponseProtocol) -> Dict:
         """Return usage summary of the response using RESPONSE_USAGE_KEYS."""
-        return {}
+        return asdict(response.usage)
