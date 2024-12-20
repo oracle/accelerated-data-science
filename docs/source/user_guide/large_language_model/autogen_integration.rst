@@ -163,7 +163,7 @@ allowing you to integrate AutoGen application with OCI monitoring service to `bu
     from ads.llm.autogen.v02 import runtime_logging
     from ads.llm.autogen.v02.loggers import MetricLogger
 
-    monitoring_logger = AgentMonitoring(
+    monitoring_logger = MetricLogger(
         # Metric namespace required by OCI monitoring.
         namespace="<MY_NAMESPACE>",
         # Optional application name, which will be a metric dimension if specified.
