@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
 import os
 
 from ads import logger, set_auth
+from ads.aqua.client.client import AsyncClient, Client
 from ads.aqua.common.utils import fetch_service_compartment
 from ads.config import OCI_RESOURCE_PRINCIPAL_VERSION
 

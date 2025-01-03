@@ -75,6 +75,8 @@ dependencies = [
   "tabulate>=0.8.9",
   "tqdm>=4.59.0",
   "pydantic>=2.6.3",
+  "tenacity",
+  "httpx",
 ]
 
 [project.optional-dependencies]
