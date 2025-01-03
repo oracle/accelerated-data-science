@@ -2,6 +2,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 import os
 from dataclasses import fields
 from typing import Dict, Union
@@ -135,6 +136,8 @@ class AquaApp:
         description: str = None,
         compartment_id: str = None,
         project_id: str = None,
+        freeform_tags: dict = None,
+        defined_tags: dict = None,
         **kwargs,
     ) -> tuple:
         """Creates ModelVersionSet from given ID or Name.
@@ -153,7 +156,10 @@ class AquaApp:
             Project OCID.
         tag: (str, optional)
             calling tag, can be Tags.AQUA_FINE_TUNING or Tags.AQUA_EVALUATION
-
+        freeform_tags: (dict, optional)
+            Freeform tags for the model version set
+        defined_tags: (dict, optional)
+            Defined tags for the model version set
         Returns
         -------
         tuple: (model_version_set_id, model_version_set_name)
@@ -182,6 +188,7 @@ class AquaApp:
                 mvs_freeform_tags = {
                     tag: tag,
                 }
+                mvs_freeform_tags = {**mvs_freeform_tags, **(freeform_tags or {})}
                 model_version_set = (
                     ModelVersionSet()
                     .with_compartment_id(compartment_id)
@@ -189,6 +196,7 @@ class AquaApp:
                     .with_name(model_version_set_name)
                     .with_description(description)
                     .with_freeform_tags(**mvs_freeform_tags)
+                    .with_defined_tags(**(defined_tags or {}))
                     # TODO: decide what parameters will be needed
                     # when refactor eval to use this method, we need to pass tag here.
                     .create(**kwargs)
@@ -340,7 +348,9 @@ class CLIBuilderMixin:
         """
         cmd = f"ads aqua {self._command}"
         params = [
-            f"--{field.name} {getattr(self,field.name)}"
+            f"--{field.name} {json.dumps(getattr(self, field.name))}"
+            if isinstance(getattr(self, field.name), dict)
+            else f"--{field.name} {getattr(self, field.name)}"
             for field in fields(self.__class__)
             if getattr(self, field.name) is not None
         ]

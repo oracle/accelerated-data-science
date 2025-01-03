@@ -142,6 +142,9 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             dt_column=self.spec.datetime_column.name,
         )
 
+        # if os.environ["OCI__IS_SPARK"]:
+        #     pass
+        # else:
         Parallel(n_jobs=-1, require="sharedmem")(
             delayed(ProphetOperatorModel._train_model)(
                 self, i, series_id, df, model_kwargs.copy()
@@ -354,7 +357,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 logger.warn(f"Failed to generate Explanations with error: {e}.")
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
 
-        model_description = (
+        model_description = rc.Text(
             "Prophet is a procedure for forecasting time series data based on an additive "
             "model where non-linear trends are fit with yearly, weekly, and daily seasonality, "
             "plus holiday effects. It works best with time series that have strong seasonal "

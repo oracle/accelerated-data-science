@@ -15,24 +15,24 @@ If the historical data includes a ``target_category_column``, it should also be 
 
 For example, if the historical data is:
 
-====  ========= 
- Qtr   Revenue 
-====  ========= 
- Q1    1200     
- Q2    1300  
- Q3    1500  
-====  ========= 
+===========   ========= 
+ Month        Revenue 
+===========   ========= 
+ 01-01-2024    1200     
+ 01-02-2024    1300  
+ 01-03-2024    1500  
+===========  ========= 
 
 Then the additional data (with a horizon of 1) should be formatted as:
 
-====  ========  ========  ==============
- Qtr    COGS    Discount   SP500 Futures
-====  ========  ========  ==============
- Q1    100        0        1.02
- Q2    100        0.1      1.03
- Q3    105        0        1.04
- Q4    105        0.1      1.01
-====  ========  ========  ==============
+===========    ========  ========  ==============
+ Month          COGS    Discount   SP500 Futures
+===========    ========  ========  ==============
+ 01-01-2024    100        0        1.02
+ 01-02-2024    100        0.1      1.03
+ 01-03-2024    105        0        1.04
+ 01-04-2024    105        0.1      1.01
+===========   ========  ========  ==============
 
 Note that the additional data does not include the target column (Revenue), but it does include the datetime column (Qtr). You would include this additional data in the YAML file as follows:
 
@@ -43,7 +43,7 @@ Note that the additional data does not include the target column (Revenue), but 
     version: v1
     spec:
         datetime_column:
-            name: Qtr
+            name: Month
         historical_data:
             url: historical_data.csv
         additional_data:
@@ -61,7 +61,7 @@ You can experiment by removing columns and observing how the results change. Bel
     version: v1
     spec:
         datetime_column:
-            name: Qtr
+            name: Month
         historical_data:
             url: historical_data.csv
         additional_data:
