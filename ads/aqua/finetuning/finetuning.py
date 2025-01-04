@@ -103,7 +103,9 @@ class AquaFineTuningApp(AquaApp):
             The instance of AquaFineTuningSummary.
         """
         if not create_fine_tuning_details:
-            validate_dataclass_params(CreateFineTuningDetails, **kwargs)
+            create_fine_tuning_details = validate_dataclass_params(
+                CreateFineTuningDetails, **kwargs
+            )
 
         source = self.get_source(create_fine_tuning_details.ft_source_id)
 
