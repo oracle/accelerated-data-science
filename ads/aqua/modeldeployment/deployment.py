@@ -664,7 +664,7 @@ class AquaDeploymentApp(AquaApp):
         config = self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG)
         if not config:
             logger.debug(
-                f"Deployment config for custom model: {model_id} is not available."
+                f"Deployment config for custom model: {model_id} is not available. Use defaults."
             )
         return config
 
