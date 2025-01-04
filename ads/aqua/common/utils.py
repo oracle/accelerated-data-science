@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA utils and constants."""
 
@@ -12,11 +12,12 @@ import random
 import re
 import shlex
 import subprocess
+from dataclasses import fields
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 from string import Template
-from typing import List, Union
+from typing import Any, List, Optional, Type, TypeVar, Union
 
 import fsspec
 import oci
@@ -74,6 +75,7 @@ from ads.config import (
 from ads.model import DataScienceModel, ModelVersionSet
 
 logger = logging.getLogger("ads.aqua")
+T = TypeVar("T")
 
 
 class LifecycleStatus(str, metaclass=ExtendedEnumMeta):
@@ -788,7 +790,9 @@ def get_ocid_substring(ocid: str, key_len: int) -> str:
     return ocid[-key_len:] if ocid and len(ocid) > key_len else ""
 
 
-def upload_folder(os_path: str, local_dir: str, model_name: str, exclude_pattern: str = None) -> str:
+def upload_folder(
+    os_path: str, local_dir: str, model_name: str, exclude_pattern: str = None
+) -> str:
     """Upload the local folder to the object storage
 
     Args:
@@ -1159,3 +1163,44 @@ def validate_cmd_var(cmd_var: List[str], overrides: List[str]) -> List[str]:
 
     combined_cmd_var = cmd_var + overrides
     return combined_cmd_var
+
+
+def validate_dataclass_params(dataclass_type: Type[T], **kwargs: Any) -> Optional[T]:
+    """This method tries to initialize a dataclass with the provided keyword arguments. It handles
+    errors related to missing, unexpected or invalid arguments.
+
+    Parameters
+    ----------
+    dataclass_type (Type[T]):
+        the dataclass type to instantiate.
+    kwargs (Any):
+        the keyword arguments to initialize the dataclass
+    Returns
+    -------
+    Optional[T]
+        instance of dataclass if successfully initialized
+    """
+
+    try:
+        return dataclass_type(**kwargs)
+    except TypeError as ex:
+        error_message = str(ex)
+        allowed_params = ", ".join(
+            field.name for field in fields(dataclass_type)
+        ).rstrip()
+        if "__init__() missing" in error_message:
+            missing_params = error_message.split("missing ")[1]
+            raise AquaValueError(
+                "Error: Missing required parameters: "
+                f"{missing_params}. Allowable parameters are: {allowed_params}."
+            ) from ex
+        elif "__init__() got an unexpected keyword argument" in error_message:
+            unexpected_param = error_message.split("argument '")[1].rstrip("'")
+            raise AquaValueError(
+                "Error: Unexpected parameter: "
+                f"{unexpected_param}. Allowable parameters are: {allowed_params}."
+            ) from ex
+        else:
+            raise AquaValueError(
+                "Invalid parameters. Allowable parameters are: " f"{allowed_params}."
+            ) from ex

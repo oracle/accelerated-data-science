@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -33,7 +33,7 @@ class AquaFineTuneHandler(AquaAPIhandler):
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
     @handle_exceptions
-    def post(self, *args, **kwargs):
+    def post(self, *args, **kwargs):  # noqa: ARG002
         """Handles post request for the fine-tuning API
 
         Raises
@@ -43,8 +43,8 @@ class AquaFineTuneHandler(AquaAPIhandler):
         """
         try:
             input_data = self.get_json_body()
-        except Exception:
-            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT)
+        except Exception as ex:
+            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT) from ex
 
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)
@@ -71,7 +71,7 @@ class AquaFineTuneParamsHandler(AquaAPIhandler):
         )
 
     @handle_exceptions
-    def post(self, *args, **kwargs):
+    def post(self, *args, **kwargs):  # noqa: ARG002
         """Handles post request for the finetuning param handler API.
 
         Raises
@@ -81,15 +81,15 @@ class AquaFineTuneParamsHandler(AquaAPIhandler):
         """
         try:
             input_data = self.get_json_body()
-        except Exception:
-            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT)
+        except Exception as ex:
+            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT) from ex
 
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)
 
         params = input_data.get("params", None)
         return self.finish(
-            AquaFineTuningApp().validate_finetuning_params(
+            AquaFineTuningApp.validate_finetuning_params(
                 params=params,
             )
         )
