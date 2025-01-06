@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import base64
 import json
@@ -43,6 +43,7 @@ from ads.aqua.common.utils import (
     get_container_image,
     is_valid_ocid,
     upload_local_to_os,
+    validate_dataclass_params,
 )
 from ads.aqua.config.config import get_evaluation_service_config
 from ads.aqua.constants import (
@@ -155,16 +156,9 @@ class AquaEvaluationApp(AquaApp):
             The instance of AquaEvaluationSummary.
         """
         if not create_aqua_evaluation_details:
-            try:
-                create_aqua_evaluation_details = CreateAquaEvaluationDetails(**kwargs)
-            except Exception as ex:
-                custom_errors = {
-                    ".".join(map(str, e["loc"])): e["msg"]
-                    for e in json.loads(ex.json())
-                }
-                raise AquaValueError(
-                    f"Invalid create evaluation parameters. Error details: {custom_errors}."
-                ) from ex
+            create_aqua_evaluation_details = validate_dataclass_params(
+                CreateAquaEvaluationDetails, **kwargs
+            )
 
         if not is_valid_ocid(create_aqua_evaluation_details.evaluation_source_id):
             raise AquaValueError(

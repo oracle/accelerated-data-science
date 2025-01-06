@@ -31,6 +31,7 @@ from huggingface_hub.utils import (
 )
 from oci.data_science.models import JobRun, Model
 from oci.object_storage.models import ObjectSummary
+from pydantic import BaseModel, ValidationError
 
 from ads.aqua.common.enums import (
     InferenceContainerParamType,
@@ -75,7 +76,7 @@ from ads.config import (
 from ads.model import DataScienceModel, ModelVersionSet
 
 logger = logging.getLogger("ads.aqua")
-T = TypeVar("T")
+T = TypeVar("T", bound=Union[BaseModel, Any])
 
 
 class LifecycleStatus(str, metaclass=ExtendedEnumMeta):
@@ -1204,3 +1205,8 @@ def validate_dataclass_params(dataclass_type: Type[T], **kwargs: Any) -> Optiona
             raise AquaValueError(
                 "Invalid parameters. Allowable parameters are: " f"{allowed_params}."
             ) from ex
+    except ValidationError as ex:
+        custom_errors = {".".join(map(str, e["loc"])): e["msg"] for e in ex.errors()}
+        raise AquaValueError(
+            f"Invalid parameters. Error details: {custom_errors}."
+        ) from ex
