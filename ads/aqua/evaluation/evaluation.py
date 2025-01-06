@@ -193,11 +193,11 @@ class AquaEvaluationApp(AquaApp):
                             eval_inference_configuration = (
                                 container.spec.evaluation_configuration
                             )
-            except Exception:
+            except Exception as ex:
                 logger.debug(
                     f"Could not load inference config details for the evaluation source id: "
                     f"{create_aqua_evaluation_details.evaluation_source_id}. Please check if the container"
-                    f" runtime has the correct SMC image information."
+                    f" runtime has the correct SMC image information.\nError: {str(ex)}"
                 )
         elif (
             DataScienceResource.MODEL
@@ -283,7 +283,7 @@ class AquaEvaluationApp(AquaApp):
                         f"Invalid experiment name. Please provide an experiment with `{Tags.AQUA_EVALUATION}` in tags."
                     )
             except Exception:
-                logger.debug(
+                logger.info(
                     f"Model version set {experiment_model_version_set_name} doesn't exist. "
                     "Creating new model version set."
                 )
@@ -705,14 +705,16 @@ class AquaEvaluationApp(AquaApp):
             try:
                 log = utils.query_resource(log_id, return_all=False)
                 log_name = log.display_name if log else ""
-            except Exception:
+            except Exception as ex:
+                logger.debug(f"Failed to get associated log name. Error: {ex}")
                 pass
 
         if loggroup_id:
             try:
                 loggroup = utils.query_resource(loggroup_id, return_all=False)
                 loggroup_name = loggroup.display_name if loggroup else ""
-            except Exception:
+            except Exception as ex:
+                logger.debug(f"Failed to get associated loggroup name. Error: {ex}")
                 pass
 
         try:
@@ -1041,6 +1043,7 @@ class AquaEvaluationApp(AquaApp):
                 return report
 
         with tempfile.TemporaryDirectory() as temp_dir:
+            logger.info(f"Downloading evaluation artifact for {eval_id}.")
             DataScienceModel.from_id(eval_id).download_artifact(
                 temp_dir,
                 auth=self._auth,
@@ -1194,6 +1197,7 @@ class AquaEvaluationApp(AquaApp):
     def load_evaluation_config(self, container: Optional[str] = None) -> Dict:
         """Loads evaluation config."""
 
+        logger.info("Loading evaluation container config.")
         # retrieve the evaluation config by container family name
         evaluation_config = get_evaluation_service_config(container)
 
@@ -1273,9 +1277,9 @@ class AquaEvaluationApp(AquaApp):
                     raise AquaRuntimeError(
                         f"Not supported source type: {resource_type}"
                     )
-        except Exception:
+        except Exception as ex:
             logger.debug(
-                f"Failed to retrieve source information for evaluation {evaluation.identifier}."
+                f"Failed to retrieve source information for evaluation {evaluation.identifier}.\nError: {ex}"
             )
             source_name = ""
 
