@@ -21,7 +21,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads" # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.12.8"
+version = "2.12.9"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -71,7 +71,7 @@ dependencies = [
   "psutil>=5.7.2",
   "python_jsonschema_objects>=0.3.13",
   "requests",
-  "scikit-learn>=1.0",
+  "scikit-learn>=1.0,<1.6.0",
   "tabulate>=0.8.9",
   "tqdm>=4.59.0",
   "pydantic>=2.6.3",
@@ -179,7 +179,7 @@ anomaly  = [
   "oracledb",
   "report-creator==1.0.28",
   "rrcf==0.4.4",
-  "scikit-learn",
+  "scikit-learn<1.6.0",
   "salesforce-merlion[all]==2.0.4"
 ]
 recommender = [

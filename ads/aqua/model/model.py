@@ -127,7 +127,13 @@ class AquaModelApp(AquaApp):
 
     @telemetry(entry_point="plugin=model&action=create", name="aqua")
     def create(
-        self, model_id: str, project_id: str, compartment_id: str = None, **kwargs
+        self,
+        model_id: str,
+        project_id: str,
+        compartment_id: str = None,
+        freeform_tags: Optional[dict] = None,
+        defined_tags: Optional[dict] = None,
+        **kwargs,
     ) -> DataScienceModel:
         """Creates custom aqua model from service model.
 
@@ -140,7 +146,10 @@ class AquaModelApp(AquaApp):
         compartment_id: str
             The compartment id for custom model. Defaults to None.
             If not provided, compartment id will be fetched from environment variables.
-
+        freeform_tags: dict
+            Freeform tags for the model
+        defined_tags: dict
+            Defined tags for the model
         Returns
         -------
         DataScienceModel:
@@ -157,6 +166,16 @@ class AquaModelApp(AquaApp):
             )
             return service_model
 
+        # combine tags
+        combined_freeform_tags = {
+            **(service_model.freeform_tags or {}),
+            **(freeform_tags or {}),
+        }
+        combined_defined_tags = {
+            **(service_model.defined_tags or {}),
+            **(defined_tags or {}),
+        }
+
         custom_model = (
             DataScienceModel()
             .with_compartment_id(target_compartment)
@@ -164,8 +183,8 @@ class AquaModelApp(AquaApp):
             .with_model_file_description(json_dict=service_model.model_file_description)
             .with_display_name(service_model.display_name)
             .with_description(service_model.description)
-            .with_freeform_tags(**(service_model.freeform_tags or {}))
-            .with_defined_tags(**(service_model.defined_tags or {}))
+            .with_freeform_tags(**combined_freeform_tags)
+            .with_defined_tags(**combined_defined_tags)
             .with_custom_metadata_list(service_model.custom_metadata_list)
             .with_defined_metadata_list(service_model.defined_metadata_list)
             .with_provenance_metadata(service_model.provenance_metadata)
@@ -414,7 +433,7 @@ class AquaModelApp(AquaApp):
                         except Exception as ex:
                             raise AquaRuntimeError(
                                 f"The given model already doesn't support finetuning: {ex}"
-                            )
+                            ) from ex
 
                 custom_metadata_list.remove("modelDescription")
                 if task:
@@ -766,6 +785,8 @@ class AquaModelApp(AquaApp):
         compartment_id: Optional[str],
         project_id: Optional[str],
         inference_container_uri: Optional[str],
+        freeform_tags: Optional[dict] = None,
+        defined_tags: Optional[dict] = None,
     ) -> DataScienceModel:
         """Create model by reference from the object storage path
 
@@ -778,6 +799,8 @@ class AquaModelApp(AquaApp):
             compartment_id (Optional[str]): Compartment Id of the compartment where the model has to be created
             project_id (Optional[str]): Project id of the project where the model has to be created
             inference_container_uri (Optional[str]): Inference container uri for BYOC
+            freeform_tags (dict): Freeform tags for the model
+            defined_tags (dict): Defined tags for the model
 
         Returns:
             DataScienceModel: Returns Datascience model instance.
@@ -918,6 +941,8 @@ class AquaModelApp(AquaApp):
             category="Other",
             replace=True,
         )
+        # override tags with freeform tags if set
+        tags = {**tags, **(freeform_tags or {})}
         model = (
             model.with_custom_metadata_list(metadata)
             .with_compartment_id(compartment_id or COMPARTMENT_OCID)
@@ -925,6 +950,7 @@ class AquaModelApp(AquaApp):
             .with_artifact(os_path)
             .with_display_name(model_name)
             .with_freeform_tags(**tags)
+            .with_defined_tags(**(defined_tags or {}))
         ).create(model_by_reference=True)
         logger.debug(model)
         return model
@@ -1314,7 +1340,7 @@ class AquaModelApp(AquaApp):
             os_path=os_path,
             local_dir=local_dir,
             model_name=model_name,
-            exclude_pattern=f"{HF_METADATA_FOLDER}*"
+            exclude_pattern=f"{HF_METADATA_FOLDER}*",
         )
 
         return model_artifact_path
@@ -1402,6 +1428,8 @@ class AquaModelApp(AquaApp):
             compartment_id=import_model_details.compartment_id,
             project_id=import_model_details.project_id,
             inference_container_uri=import_model_details.inference_container_uri,
+            freeform_tags=import_model_details.freeform_tags,
+            defined_tags=import_model_details.defined_tags,
         )
         # registered model will always have inference and evaluation container, but
         # fine-tuning container may be not set
