@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -21,13 +21,20 @@ class TestEmbeddingONNXModel:
         cls.inference_conda = "oci://fake_bucket@fake_namespace/inference_conda"
         cls.training_conda = "oci://fake_bucket@fake_namespace/training_conda"
 
-    def test_init(self):
+    @patch(
+        "ads.model.framework.embedding_onnx_model.EmbeddingONNXModel._validate_artifact_directory"
+    )
+    def test_init(self, mock_validate):
         model = EmbeddingONNXModel(artifact_dir=self.tmp_model_dir)
         assert model.algorithm == "Embedding_ONNX"
         assert model.framework == Framework.EMBEDDING_ONNX
+        mock_validate.assert_called()
 
     @patch("ads.model.generic_model.GenericModel.verify")
-    def test_prepare_and_verify(self, mock_verify):
+    @patch(
+        "ads.model.framework.embedding_onnx_model.EmbeddingONNXModel._validate_artifact_directory"
+    )
+    def test_prepare_and_verify(self, mock_validate, mock_verify):
         mock_verify.return_value = {"results": "successful"}
 
         model = EmbeddingONNXModel(artifact_dir=self.tmp_model_dir)
@@ -87,11 +94,17 @@ class TestEmbeddingONNXModel:
             reload_artifacts=True,
             auto_serialize_data=False,
         )
+        mock_validate.assert_called()
 
     @patch("ads.model.generic_model.GenericModel.predict")
     @patch("ads.model.generic_model.GenericModel.deploy")
     @patch("ads.model.generic_model.GenericModel.save")
-    def test_prepare_save_deploy_predict(self, mock_save, mock_deploy, mock_predict):
+    @patch(
+        "ads.model.framework.embedding_onnx_model.EmbeddingONNXModel._validate_artifact_directory"
+    )
+    def test_prepare_save_deploy_predict(
+        self, mock_validate, mock_save, mock_deploy, mock_predict
+    ):
         model = EmbeddingONNXModel(artifact_dir=self.tmp_model_dir)
         model.prepare(
             model_file_name="test_model_file_name",
@@ -127,6 +140,7 @@ class TestEmbeddingONNXModel:
             deployment_ocpus=20,
             deployment_memory_in_gbs=256,
         )
+        mock_validate.assert_called()
 
     def teardown_class(cls):
         shutil.rmtree(cls.tmp_model_dir, ignore_errors=True)

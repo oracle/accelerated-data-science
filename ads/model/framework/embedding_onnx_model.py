@@ -1,12 +1,26 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import logging
+import os
+from pathlib import Path
 from typing import Dict, Optional
 
 from ads.model.extractor.embedding_onnx_extractor import EmbeddingONNXExtractor
 from ads.model.generic_model import FrameworkSpecificModel
+
+logger = logging.getLogger(__name__)
+
+CONFIG = "config.json"
+TOKENIZERS = [
+    "tokenizer.json",
+    "tokenizer_config.json",
+    "spiece.model",
+    "vocab.txt",
+    "vocab.json",
+]
 
 
 class EmbeddingONNXModel(FrameworkSpecificModel):
@@ -18,6 +32,12 @@ class EmbeddingONNXModel(FrameworkSpecificModel):
         The algorithm of the model.
     artifact_dir: str
         Artifact directory to store the files needed for deployment.
+    model_file_name: str
+        Path to the model artifact.
+    config_json: str
+        Path to the config.json file.
+    tokenizer_dir: str
+        Path to the tokenizer directory.
     auth: Dict
         Default authentication is set using the `ads.set_auth` API. To override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create
@@ -166,6 +186,9 @@ class EmbeddingONNXModel(FrameworkSpecificModel):
     def __init__(
         self,
         artifact_dir: Optional[str] = None,
+        model_file_name: Optional[str] = None,
+        config_json: Optional[str] = None,
+        tokenizer_dir: Optional[str] = None,
         auth: Optional[Dict] = None,
         serialize: bool = False,
         **kwargs: dict,
@@ -175,8 +198,14 @@ class EmbeddingONNXModel(FrameworkSpecificModel):
 
         Parameters
         ----------
-        artifact_dir: str
+        artifact_dir: (str, optional). Defaults to None.
             Directory for generate artifact.
+        model_file_name: (str, optional). Defaults to None.
+            Path to the model artifact.
+        config_json: (str, optional). Defaults to None.
+            Path to the config.json file.
+        tokenizer_dir: (str, optional). Defaults to None.
+            Path to the tokenizer directory.
         auth: (Dict, optional). Defaults to None.
             The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
@@ -260,11 +289,62 @@ class EmbeddingONNXModel(FrameworkSpecificModel):
             **kwargs,
         )
 
+        self._validate_artifact_directory(
+            model_file_name=model_file_name,
+            config_json=config_json,
+            tokenizer_dir=tokenizer_dir,
+        )
+
         self._extractor = EmbeddingONNXExtractor()
         self.framework = self._extractor.framework
         self.algorithm = self._extractor.algorithm
         self.version = self._extractor.version
         self.hyperparameter = self._extractor.hyperparameter
+
+    def _validate_artifact_directory(
+        self,
+        model_file_name: str = None,
+        config_json: str = None,
+        tokenizer_dir: str = None,
+    ):
+        artifacts = []
+        for _, _, files in os.walk(self.artifact_dir):
+            artifacts.extend(files)
+
+        if not artifacts:
+            raise ValueError(
+                f"No files found in {self.artifact_dir}. Specify a valid `artifact_dir`."
+            )
+
+        if not model_file_name:
+            has_model_file = False
+            for artifact in artifacts:
+                if Path(artifact).suffix.lstrip(".").lower() == "onnx":
+                    has_model_file = True
+                    break
+
+            if not has_model_file:
+                raise ValueError(
+                    f"No onnx model found in {self.artifact_dir}. Specify a valid `artifact_dir` or `model_file_name`."
+                )
+
+        if not config_json:
+            if CONFIG not in artifacts:
+                logger.warning(
+                    f"No {CONFIG} found in {self.artifact_dir}. Specify a valid `artifact_dir` or `config_json`."
+                )
+
+        if not tokenizer_dir:
+            has_tokenizer = False
+            for artifact in artifacts:
+                if artifact in TOKENIZERS:
+                    has_tokenizer = True
+                    break
+
+            if not has_tokenizer:
+                logger.warning(
+                    f"No tokenizer found in {self.artifact_dir}. Specify a valid `artifact_dir` or `tokenizer_dir`."
+                )
 
     def verify(
         self, data=None, reload_artifacts=True, auto_serialize_data=False, **kwargs
