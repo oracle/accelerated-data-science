@@ -7,9 +7,9 @@ import logging
 import threading
 import traceback
 import urllib.parse
+from typing import Optional
 
 import oci
-from requests import Response
 
 from ads.config import DEBUG_TELEMETRY
 
@@ -47,7 +47,7 @@ class TelemetryClient(TelemetryBase):
 
     def record_event(
         self, category: str = None, action: str = None, detail: str = None, **kwargs
-    ) -> Response:
+    ) -> Optional[int]:
         """Send a head request to generate an event record.
 
         Parameters
@@ -64,7 +64,12 @@ class TelemetryClient(TelemetryBase):
 
         Returns
         -------
-        Response
+        int
+            The status code for the telemetry request.
+            200: The the object exists for the telemetry request
+            404: The the object does not exist for the telemetry request.
+            Note that for telemetry purpose, the object does not need to be exist.
+            `None` will be returned if the telemetry request failed.
         """
         try:
             if not category or not action:
@@ -77,17 +82,23 @@ class TelemetryClient(TelemetryBase):
             logger.debug(f"Sending telemetry to endpoint: {endpoint}")
 
             self.os_client.base_client.user_agent = self._encode_user_agent(**kwargs)
-            response: oci.response.Response = self.os_client.head_object(
-                namespace_name=self.namespace,
-                bucket_name=self.bucket,
-                object_name=f"telemetry/{category}/{action}",
-            )
-            logger.debug(f"Telemetry status: {response.status}")
-            return response
+            try:
+                response: oci.response.Response = self.os_client.head_object(
+                    namespace_name=self.namespace,
+                    bucket_name=self.bucket,
+                    object_name=f"telemetry/{category}/{action}",
+                )
+                logger.debug(f"Telemetry status: {response.status}")
+                return response.status
+            except oci.exceptions.ServiceError as ex:
+                if ex.status == 404:
+                    return ex.status
+                raise ex
         except Exception as e:
             if DEBUG_TELEMETRY:
                 logger.error(f"There is an error recording telemetry: {e}")
                 traceback.print_exc()
+            return None
 
     def record_event_async(
         self, category: str = None, action: str = None, detail: str = None, **kwargs
