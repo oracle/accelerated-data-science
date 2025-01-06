@@ -721,7 +721,11 @@ class AquaEvaluationApp(AquaApp):
             introspection = json.loads(
                 self._get_attribute_from_model_metadata(resource, "ArtifactTestResults")
             )
-        except Exception:
+        except Exception as ex:
+            logger.debug(
+                f"There was an issue loading the model attribute as json object for evaluation {eval_id}. "
+                f"Setting introspection to empty.\n Error:{ex}"
+            )
             introspection = {}
 
         summary = AquaEvaluationDetail(
@@ -874,13 +878,13 @@ class AquaEvaluationApp(AquaApp):
         try:
             log_id = job_run_details.log_details.log_id
         except Exception as e:
-            logger.debug(f"Failed to get associated log. {str(e)}")
+            logger.debug(f"Failed to get associated log.\nError: {str(e)}")
             log_id = ""
 
         try:
             loggroup_id = job_run_details.log_details.log_group_id
         except Exception as e:
-            logger.debug(f"Failed to get associated log. {str(e)}")
+            logger.debug(f"Failed to get associated log.\nError: {str(e)}")
             loggroup_id = ""
 
         loggroup_url = get_log_links(region=self.region, log_group_id=loggroup_id)
@@ -954,7 +958,7 @@ class AquaEvaluationApp(AquaApp):
                 )
             except Exception as e:
                 logger.debug(
-                    "Failed to load `report.json` from evaluation artifact" f"{str(e)}"
+                    f"Failed to load `report.json` from evaluation artifact.\nError: {str(e)}"
                 )
                 json_report = {}
 
@@ -1279,7 +1283,7 @@ class AquaEvaluationApp(AquaApp):
                     )
         except Exception as ex:
             logger.debug(
-                f"Failed to retrieve source information for evaluation {evaluation.identifier}.\nError: {ex}"
+                f"Failed to retrieve source information for evaluation {evaluation.identifier}.\nError: {str(ex)}"
             )
             source_name = ""
 
