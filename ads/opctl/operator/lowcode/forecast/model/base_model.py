@@ -28,6 +28,7 @@ from ads.opctl.operator.lowcode.common.utils import (
     seconds_to_datetime,
     write_data,
 )
+from ads.opctl.operator.lowcode.common.const import DataColumns
 from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import TestData
 from ads.opctl.operator.lowcode.forecast.utils import (
     _build_metrics_df,
@@ -69,7 +70,7 @@ class ForecastOperatorBaseModel(ABC):
         self.config: ForecastOperatorConfig = config
         self.spec: ForecastOperatorSpec = config.spec
         self.datasets: ForecastDatasets = datasets
-
+        self.target_cat_col = self.spec.target_category_columns
         self.full_data_dict = datasets.get_data_by_series()
 
         self.test_eval_metrics = None
@@ -124,6 +125,9 @@ class ForecastOperatorBaseModel(ABC):
 
             if self.spec.generate_report or self.spec.generate_metrics:
                 self.eval_metrics = self.generate_train_metrics()
+                if not self.target_cat_col:
+                    self.eval_metrics.rename({"Series 1": self.original_target_column},
+                                             axis=1, inplace=True)
 
                 if self.spec.test_data:
                     try:
@@ -134,6 +138,9 @@ class ForecastOperatorBaseModel(ABC):
                         ) = self._test_evaluate_metrics(
                             elapsed_time=elapsed_time,
                         )
+                        if not self.target_cat_col:
+                            self.test_eval_metrics.rename({"Series 1": self.original_target_column},
+                                                     axis=1, inplace=True)
                     except Exception:
                         logger.warn("Unable to generate Test Metrics.")
                         logger.debug(f"Full Traceback: {traceback.format_exc()}")
@@ -179,7 +186,7 @@ class ForecastOperatorBaseModel(ABC):
                 first_5_rows_blocks = [
                     rc.DataTable(
                         df.head(5),
-                        label=s_id,
+                        label=s_id if self.target_cat_col else None,
                         index=True,
                     )
                     for s_id, df in self.full_data_dict.items()
@@ -188,7 +195,7 @@ class ForecastOperatorBaseModel(ABC):
                 last_5_rows_blocks = [
                     rc.DataTable(
                         df.tail(5),
-                        label=s_id,
+                        label=s_id if self.target_cat_col else None,
                         index=True,
                     )
                     for s_id, df in self.full_data_dict.items()
@@ -197,7 +204,7 @@ class ForecastOperatorBaseModel(ABC):
                 data_summary_blocks = [
                     rc.DataTable(
                         df.describe(),
-                        label=s_id,
+                        label=s_id if self.target_cat_col else None,
                         index=True,
                     )
                     for s_id, df in self.full_data_dict.items()
@@ -215,17 +222,17 @@ class ForecastOperatorBaseModel(ABC):
                     rc.Block(
                         first_10_title,
                         # series_subtext,
-                        rc.Select(blocks=first_5_rows_blocks),
+                        rc.Select(blocks=first_5_rows_blocks) if self.target_cat_col else first_5_rows_blocks[0],
                     ),
                     rc.Block(
                         last_10_title,
                         # series_subtext,
-                        rc.Select(blocks=last_5_rows_blocks),
+                        rc.Select(blocks=last_5_rows_blocks) if self.target_cat_col else last_5_rows_blocks[0],
                     ),
                     rc.Block(
                         summary_title,
                         # series_subtext,
-                        rc.Select(blocks=data_summary_blocks),
+                        rc.Select(blocks=data_summary_blocks) if self.target_cat_col else data_summary_blocks[0],
                     ),
                     rc.Separator(),
                 )
@@ -300,6 +307,7 @@ class ForecastOperatorBaseModel(ABC):
                         horizon=self.spec.horizon,
                         test_data=test_data,
                         ci_interval_width=self.spec.confidence_interval_width,
+                        target_category_column=self.target_cat_col
                     )
                     if (
                         series_name is not None
@@ -475,6 +483,7 @@ class ForecastOperatorBaseModel(ABC):
                         f2.write(f1.read())
 
         # forecast csv report
+        result_df = result_df if self.target_cat_col else result_df.drop(DataColumns.Series, axis=1)
         write_data(
             data=result_df,
             filename=os.path.join(unique_output_dir, self.spec.forecast_filename),
