@@ -20,6 +20,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    Type,
     TypeVar,
     Union,
 )
@@ -365,7 +366,7 @@ class Client(BaseClient):
 
     def __exit__(
         self,
-        exc_type: Optional[type[BaseException]] = None,
+        exc_type: Optional[Type[BaseException]] = None,
         exc: Optional[BaseException] = None,
         exc_tb: Optional[TracebackType] = None,
     ) -> None:
@@ -597,7 +598,7 @@ class AsyncClient(BaseClient):
 
     async def __aexit__(
         self,
-        exc_type: Optional[type[BaseException]] = None,
+        exc_type: Optional[Type[BaseException]] = None,
         exc: Optional[BaseException] = None,
         exc_tb: Optional[TracebackType] = None,
     ) -> None:
