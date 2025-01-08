@@ -1,17 +1,19 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
 import logging
 import threading
+import traceback
 import urllib.parse
-import requests
-from requests import Response
-from .base import TelemetryBase
+from typing import Optional
+
+import oci
+
 from ads.config import DEBUG_TELEMETRY
 
+from .base import TelemetryBase
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +34,7 @@ class TelemetryClient(TelemetryBase):
     >>> import traceback
     >>> from ads.telemetry.client import TelemetryClient
     >>> AQUA_BUCKET = os.environ.get("AQUA_BUCKET", "service-managed-models")
-    >>> AQUA_BUCKET_NS = os.environ.get("AQUA_BUCKET_NS", "ociodscdev")
+    >>> AQUA_BUCKET_NS = os.environ.get("AQUA_BUCKET_NS", "namespace")
     >>> telemetry = TelemetryClient(bucket=AQUA_BUCKET, namespace=AQUA_BUCKET_NS)
     >>> telemetry.record_event_async(category="aqua/service/model", action="create") # records create action
     >>> telemetry.record_event_async(category="aqua/service/model/create", action="shape", detail="VM.GPU.A10.1")
@@ -45,7 +47,7 @@ class TelemetryClient(TelemetryBase):
 
     def record_event(
         self, category: str = None, action: str = None, detail: str = None, **kwargs
-    ) -> Response:
+    ) -> Optional[int]:
         """Send a head request to generate an event record.
 
         Parameters
@@ -62,23 +64,41 @@ class TelemetryClient(TelemetryBase):
 
         Returns
         -------
-        Response
+        int
+            The status code for the telemetry request.
+            200: The the object exists for the telemetry request
+            404: The the object does not exist for the telemetry request.
+            Note that for telemetry purpose, the object does not need to be exist.
+            `None` will be returned if the telemetry request failed.
         """
         try:
             if not category or not action:
                 raise ValueError("Please specify the category and the action.")
             if detail:
                 category, action = f"{category}/{action}", detail
+            # Here `endpoint`` is for debugging purpose
+            # For some federated/domain users, the `endpoint` may not be a valid URL
             endpoint = f"{self.service_endpoint}/n/{self.namespace}/b/{self.bucket}/o/telemetry/{category}/{action}"
-            headers = {"User-Agent": self._encode_user_agent(**kwargs)}
             logger.debug(f"Sending telemetry to endpoint: {endpoint}")
-            signer = self._auth["signer"]
-            response = requests.head(endpoint, auth=signer, headers=headers)
-            logger.debug(f"Telemetry status code: {response.status_code}")
-            return response
+
+            self.os_client.base_client.user_agent = self._encode_user_agent(**kwargs)
+            try:
+                response: oci.response.Response = self.os_client.head_object(
+                    namespace_name=self.namespace,
+                    bucket_name=self.bucket,
+                    object_name=f"telemetry/{category}/{action}",
+                )
+                logger.debug(f"Telemetry status: {response.status}")
+                return response.status
+            except oci.exceptions.ServiceError as ex:
+                if ex.status == 404:
+                    return ex.status
+                raise ex
         except Exception as e:
             if DEBUG_TELEMETRY:
                 logger.error(f"There is an error recording telemetry: {e}")
+                traceback.print_exc()
+            return None
 
     def record_event_async(
         self, category: str = None, action: str = None, detail: str = None, **kwargs
