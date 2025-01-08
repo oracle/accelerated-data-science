@@ -413,41 +413,45 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         for s_id, data_i in self.datasets.get_data_by_series(
             include_horizon=False
         ).items():
-            if self.spec.explanations_accuracy_mode == SpeedAccuracyMode.AUTOMLX:
-                # Use the MLExplainer class from AutoMLx to generate explanations
-                explainer = automlx.MLExplainer(
-                    self.models[s_id],
-                    self.datasets.additional_data.get_data_for_series(series_id=s_id)
-                    .drop(self.spec.datetime_column.name, axis=1)
-                    .head(-self.spec.horizon)
-                    if self.spec.additional_data
-                    else None,
-                    pd.DataFrame(data_i[self.spec.target_column]),
-                    task="forecasting",
-                )
+            try:
+                if self.spec.explanations_accuracy_mode == SpeedAccuracyMode.AUTOMLX:
+                    # Use the MLExplainer class from AutoMLx to generate explanations
+                    explainer = automlx.MLExplainer(
+                        self.models[s_id],
+                        self.datasets.additional_data.get_data_for_series(series_id=s_id)
+                        .drop(self.spec.datetime_column.name, axis=1)
+                        .head(-self.spec.horizon)
+                        if self.spec.additional_data
+                        else None,
+                        pd.DataFrame(data_i[self.spec.target_column]),
+                        task="forecasting",
+                    )
 
-                # Generate explanations for the forecast
-                explanations = explainer.explain_prediction(
-                    X=self.datasets.additional_data.get_data_for_series(series_id=s_id)
-                    .drop(self.spec.datetime_column.name, axis=1)
-                    .tail(self.spec.horizon)
-                    if self.spec.additional_data
-                    else None,
-                    forecast_timepoints=list(range(self.spec.horizon + 1)),
-                )
+                    # Generate explanations for the forecast
+                    explanations = explainer.explain_prediction(
+                        X=self.datasets.additional_data.get_data_for_series(series_id=s_id)
+                        .drop(self.spec.datetime_column.name, axis=1)
+                        .tail(self.spec.horizon)
+                        if self.spec.additional_data
+                        else None,
+                        forecast_timepoints=list(range(self.spec.horizon + 1)),
+                    )
 
-                # Convert the explanations to a DataFrame
-                explanations_df = pd.concat(
-                    [exp.to_dataframe() for exp in explanations]
-                )
-                explanations_df["row"] = explanations_df.groupby("Feature").cumcount()
-                explanations_df = explanations_df.pivot(
-                    index="row", columns="Feature", values="Attribution"
-                )
-                explanations_df = explanations_df.reset_index(drop=True)
+                    # Convert the explanations to a DataFrame
+                    explanations_df = pd.concat(
+                        [exp.to_dataframe() for exp in explanations]
+                    )
+                    explanations_df["row"] = explanations_df.groupby("Feature").cumcount()
+                    explanations_df = explanations_df.pivot(
+                        index="row", columns="Feature", values="Attribution"
+                    )
+                    explanations_df = explanations_df.reset_index(drop=True)
 
-                # Store the explanations in the local_explanation dictionary
-                self.local_explanation[s_id] = explanations_df
-            else:
-                # Fall back to the default explanation generation method
-                super().explain_model()
+                    # Store the explanations in the local_explanation dictionary
+                    self.local_explanation[s_id] = explanations_df
+                else:
+                    # Fall back to the default explanation generation method
+                    super().explain_model()
+            except Exception as e:
+                logger.warning(f"Failed to generate explanations for series {s_id} with error: {e}.")
+                logger.debug(f"Full Traceback: {traceback.format_exc()}")
