@@ -11,7 +11,7 @@ if sys.version_info < (3, 9):
 
 import autogen
 from langchain_core.messages import AIMessage, ToolCall
-from ads.llm.autogen.client_v02 import (
+from ads.llm.autogen.v02.client import (
     LangChainModelClient,
     register_custom_client,
     custom_clients,
