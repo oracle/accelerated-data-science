@@ -58,7 +58,7 @@ jobs:
           set -x # print commands that are executed
           $CONDA/bin/conda init
           source /home/runner/.bashrc
-          conda install python=${{ matrix.python-version }}
+          conda install python=${{ matrix.python-version }} --no-deps conda-anaconda-telemetry
           pip install -r test-requirements.txt
           conda list
           python -m pytest -v -p no:warnings --durations=5 tests/unitary/default_setup
