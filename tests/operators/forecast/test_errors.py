@@ -591,6 +591,8 @@ def test_all_series_failure(model):
     yaml_i["spec"]["preprocessing"] = {"enabled": True, "steps": preprocessing_steps}
     if yaml_i["spec"].get("additional_data") is not None and model != "autots":
         yaml_i["spec"]["generate_explanations"] = True
+    else:
+        yaml_i["spec"]["generate_explanations"] = False
     if model == "autots":
         yaml_i["spec"]["model_kwargs"] = {"model_list": "superfast"}
     if model == "automlx":
@@ -700,21 +702,15 @@ def test_arima_automlx_errors(operator_setup, model):
                 in error_content["13"]["error"]
             ), "Error message mismatch"
 
-    if model not in ["autots", "automlx"]:  # , "lgbforecast"
-        global_fn = f"{tmpdirname}/results/global_explanation.csv"
-        assert os.path.exists(
-            global_fn
-        ), f"Global explanation file not found at {report_path}"
+    if model not in ["autots"]:  # , "lgbforecast"
+        if yaml_i["spec"].get("explanations_accuracy_mode") != "AUTOMLX":
+            global_fn = f"{tmpdirname}/results/global_explanation.csv"
+            assert os.path.exists(global_fn), f"Global explanation file not found at {report_path}"
+            assert not pd.read_csv(global_fn, index_col=0).empty
 
         local_fn = f"{tmpdirname}/results/local_explanation.csv"
-        assert os.path.exists(
-            local_fn
-        ), f"Local explanation file not found at {report_path}"
-
-        glb_expl = pd.read_csv(global_fn, index_col=0)
-        loc_expl = pd.read_csv(local_fn)
-        assert not glb_expl.empty
-        assert not loc_expl.empty
+        assert os.path.exists(local_fn), f"Local explanation file not found at {report_path}"
+        assert not pd.read_csv(local_fn).empty
 
 
 def test_smape_error():
