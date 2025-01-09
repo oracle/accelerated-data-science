@@ -6,16 +6,20 @@
 
 import logging
 import time
+from dataclasses import dataclass
 from functools import wraps
 from io import BytesIO
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Union
 
 import oci.data_science
+from requests.structures import CaseInsensitiveDict
+
 from ads.common import utils
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.oci_mixin import OCIWorkRequestMixin
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
+from ads.common.serializer import DataClassSerializable
 from ads.common.utils import extract_region
 from ads.common.work_request import DataScienceWorkRequest
 from ads.model.deployment import ModelDeployment
@@ -59,6 +63,13 @@ class ModelWithActiveDeploymentError(Exception):  # pragma: no cover
 class ModelMetadataArtifactNotFoundError(Exception):  # pragma: no cover
     pass
 
+@dataclass(repr=False)
+class ModelMetadataArtifactDetails(DataClassSerializable):
+    """Represents a details of Model Metadata ."""
+
+    headers: Union[Dict,CaseInsensitiveDict]
+    status: str
+
 
 def check_for_model_id(msg: str = MODEL_NEEDS_TO_BE_SAVED):
     """The decorator helping to check if the ID attribute sepcified for a datascience model.
@@ -92,10 +103,8 @@ def check_for_model_id(msg: str = MODEL_NEEDS_TO_BE_SAVED):
     return decorator
 
 
-def convert_response_to_dict(headers:dict,status:int):
-    response_dict: dict = headers
-    response_dict['status'] = str(status)
-    return response_dict
+def convert_model_metadata_response(headers: Union[Dict,CaseInsensitiveDict], status: int) -> ModelMetadataArtifactDetails:
+    return ModelMetadataArtifactDetails(headers=headers, status=str(status))
 
 
 class OCIDataScienceModel(
@@ -606,7 +615,7 @@ class OCIDataScienceModel(
                     return True
         return False
 
-    def create_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> dict:
+    def create_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> ModelMetadataArtifactDetails:
         """Creates model custom metadata artifact for specified model.
 
         Parameters
@@ -644,10 +653,10 @@ class OCIDataScienceModel(
         response = self.client.create_model_custom_metadatum_artifact(model_ocid, metadata_key_name, contents,
                                                            content_disposition='form'
                                                                                '-data; name="file"; filename="readme.*"')
-        response_data = convert_response_to_dict(response.headers,response.status)
+        response_data = convert_model_metadata_response(response.headers, response.status)
         return response_data
 
-    def create_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> dict:
+    def create_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> ModelMetadataArtifactDetails:
         """Creates model defined metadata artifact for specified model.
 
         Parameters
@@ -681,10 +690,10 @@ class OCIDataScienceModel(
             contents = f.read()
         response = self.client.create_model_defined_metadatum_artifact(model_ocid, metadata_key_name, contents,
                                                             content_disposition='form-data; name="file"; filename="readme.*"')
-        response_data = convert_response_to_dict(response.headers,response.status)
+        response_data = convert_model_metadata_response(response.headers, response.status)
         return response_data
 
-    def update_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> dict:
+    def update_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> ModelMetadataArtifactDetails:
         """Update model defined metadata artifact for specified model.
 
         Parameters
@@ -719,11 +728,11 @@ class OCIDataScienceModel(
             contents = f.read()
         response =  self.client.update_model_defined_metadatum_artifact(model_ocid, metadata_key_name, contents,
                                                             content_disposition='form-data; name="file"; filename="readme.*"')
-        response_data = convert_response_to_dict(response.headers, response.status)
+        response_data = convert_model_metadata_response(response.headers, response.status)
         return response_data
 
 
-    def update_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> dict:
+    def update_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> ModelMetadataArtifactDetails:
         """Update model custom metadata artifact for specified model.
 
         Parameters
@@ -759,7 +768,7 @@ class OCIDataScienceModel(
         response =  self.client.update_model_custom_metadatum_artifact(model_ocid, metadata_key_name, contents,
                                                            content_disposition='form'
                                                                                '-data; name="file"; filename="readme.*"')
-        response_data = convert_response_to_dict(response.headers, response.status)
+        response_data = convert_model_metadata_response(response.headers, response.status)
         return response_data
 
     def get_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> BytesIO:
@@ -783,6 +792,7 @@ class OCIDataScienceModel(
             return self.client.get_model_custom_metadatum_artifact_content(model_ocid, metadata_key_name).data.content
         except ServiceError as ex:
             if ex.status == 404:
+                logger.error(f"The metadata with keyname - {metadata_key_name} not found")
                 raise ModelMetadataArtifactNotFoundError()
 
 
@@ -807,10 +817,11 @@ class OCIDataScienceModel(
             return self.client.get_model_defined_metadatum_artifact_content(model_ocid, metadata_key_name).data.content
         except ServiceError as ex:
             if ex.status == 404:
+                logger.error(f"The metadata with keyname - {metadata_key_name} not found")
                 raise ModelMetadataArtifactNotFoundError()
 
 
-    def head_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> dict:
+    def head_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> ModelMetadataArtifactDetails:
         """Gets custom metadata artifact metadata for specified model metadata key.
 
         Parameters
@@ -839,10 +850,10 @@ class OCIDataScienceModel(
 
         """
         response = self.client.head_model_custom_metadatum_artifact(model_ocid, metadata_key_name)
-        response_data = convert_response_to_dict(response.headers, response.status)
+        response_data = convert_model_metadata_response(response.headers, response.status)
         return response_data
 
-    def head_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> dict:
+    def head_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> ModelMetadataArtifactDetails:
         """Gets defined metadata artifact metadata for specified model metadata key.
 
         Parameters
@@ -871,10 +882,10 @@ class OCIDataScienceModel(
 
         """
         response = self.client.head_model_defined_metadatum_artifact(model_ocid, metadata_key_name)
-        response_data = convert_response_to_dict(response.headers, response.status)
+        response_data = convert_model_metadata_response(response.headers, response.status)
         return response_data
 
-    def delete_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> dict:
+    def delete_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> ModelMetadataArtifactDetails:
         """Deletes model custom metadata artifact for specified model metadata key.
 
         Parameters
@@ -901,10 +912,10 @@ class OCIDataScienceModel(
 
         """
         response = self.client.delete_model_custom_metadatum_artifact(model_ocid, metadata_key_name)
-        response_data = convert_response_to_dict(response.headers, response.status)
+        response_data = convert_model_metadata_response(response.headers, response.status)
         return response_data
 
-    def delete_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> dict:
+    def delete_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> ModelMetadataArtifactDetails:
         """Deletes model defined metadata artifact for specified model metadata key.
 
         Parameters
@@ -931,5 +942,5 @@ class OCIDataScienceModel(
 
         """
         response = self.client.delete_model_defined_metadatum_artifact(model_ocid, metadata_key_name)
-        response_data = convert_response_to_dict(response.headers, response.status)
+        response_data = convert_model_metadata_response(response.headers, response.status)
         return response_data

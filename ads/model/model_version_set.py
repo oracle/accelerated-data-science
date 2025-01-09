@@ -14,7 +14,7 @@ from typing import Dict, List, Optional, Union
 
 import oci.data_science
 from ads.common.utils import batch_convert_case, get_value, snake_to_camel
-from ads.config import COMPARTMENT_OCID, OCI_REGION_METADATA, PROJECT_OCID
+from ads.config import COMPARTMENT_OCID, OCI_REGION_METADATA, PROJECT_OCID, USER
 from ads.jobs.builders.base import Builder
 from ads.model.datascience_model import DataScienceModel
 from ads.model.service.oci_datascience_model_version_set import (
@@ -454,7 +454,7 @@ class ModelVersionSet(Builder):
         return "modelVersionSet"
 
     @classmethod
-    def list(cls, compartment_id: str = None, category: str = "USER", **kwargs) -> List["ModelVersionSet"]:
+    def list(cls, compartment_id: str = None, category: str = USER, **kwargs) -> List["ModelVersionSet"]:
         """
         List model version sets in a given compartment.
 
