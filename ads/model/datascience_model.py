@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
 # Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -10,10 +9,8 @@ import logging
 import os
 import shutil
 import tempfile
-import uuid
 from copy import deepcopy
 from typing import Dict, List, Optional, Tuple, Union
-from zipfile import ZipFile
 
 import pandas
 import yaml
@@ -24,9 +21,12 @@ from ads.common import utils
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import (
+    AQUA_SERVICE_MODELS_BUCKET as SERVICE_MODELS_BUCKET,
+)
+from ads.config import (
     COMPARTMENT_OCID,
     PROJECT_OCID,
-    AQUA_SERVICE_MODELS_BUCKET as SERVICE_MODELS_BUCKET,
+    USER,
 )
 from ads.feature_engineering.schema import Schema
 from ads.jobs.builders.base import Builder
@@ -43,6 +43,7 @@ from ads.model.model_metadata import (
     ModelTaxonomyMetadata,
 )
 from ads.model.service.oci_datascience_model import (
+    ModelMetadataArtifactDetails,
     ModelProvenanceNotFoundError,
     OCIDataScienceModel,
 )
@@ -1044,7 +1045,7 @@ class DataScienceModel(Builder):
         elif json_string:
             json_data = json.loads(json_string)
         elif json_uri:
-            with open(json_uri, "r") as json_file:
+            with open(json_uri) as json_file:
                 json_data = json.load(json_file)
         else:
             raise ValueError("Must provide either a valid json string or URI location.")
@@ -1573,7 +1574,7 @@ class DataScienceModel(Builder):
 
     @classmethod
     def list(
-            cls, compartment_id: str = None, project_id: str = None, category: str = "USER", **kwargs
+            cls, compartment_id: str = None, project_id: str = None, category: str = USER, **kwargs
     ) -> List["DataScienceModel"]:
         """Lists datascience models in a given compartment.
 
@@ -1602,7 +1603,7 @@ class DataScienceModel(Builder):
 
     @classmethod
     def list_df(
-            cls, compartment_id: str = None, project_id: str = None, category: str = "USER", **kwargs
+            cls, compartment_id: str = None, project_id: str = None, category: str = USER, **kwargs
     ) -> "pandas.DataFrame":
         """Lists datascience models in a given compartment.
 
@@ -2200,7 +2201,7 @@ class DataScienceModel(Builder):
             # model found case
             self.model_file_description["models"].pop(modelSearchIdx)
 
-    def create_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> dict:
+    def create_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> ModelMetadataArtifactDetails:
         """Creates model custom metadata artifact for specified model.
 
         Parameters
@@ -2213,7 +2214,7 @@ class DataScienceModel(Builder):
             The name of the model metadatum in the metadata.
 
         artifact_path: str
-            The model custom metadata artifact path to be upload.
+            The model custom metadata artifact local file path to be upload.
         Returns
         -------
         Dict
@@ -2235,7 +2236,7 @@ class DataScienceModel(Builder):
                                                        artifact_path=artifact_path)
 
 
-    def create_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> dict:
+    def create_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> ModelMetadataArtifactDetails:
         """Creates model defined metadata artifact for specified model.
 
         Parameters
@@ -2248,7 +2249,7 @@ class DataScienceModel(Builder):
             The name of the model metadatum in the metadata.
 
         artifact_path: str
-            The model custom metadata artifact path to be upload.
+            The model defined metadata artifact local file path to be upload.
         Returns
         -------
         The model defined metadata artifact creation info.
@@ -2269,7 +2270,7 @@ class DataScienceModel(Builder):
                                                         artifact_path=artifact_path)
 
 
-    def update_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> dict:
+    def update_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> ModelMetadataArtifactDetails:
         """Update model custom metadata artifact for specified model.
 
         Parameters
@@ -2282,7 +2283,7 @@ class DataScienceModel(Builder):
             The name of the model metadatum in the metadata.
 
         artifact_path: str
-            The model custom metadata artifact path to be upload.
+            The model custom metadata artifact local file path to be upload.
         Returns
         -------
         Dict
@@ -2304,7 +2305,7 @@ class DataScienceModel(Builder):
                                                        artifact_path=artifact_path)
 
 
-    def update_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> dict:
+    def update_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> ModelMetadataArtifactDetails:
         """Update model defined metadata artifact for specified model.
 
         Parameters
@@ -2317,7 +2318,7 @@ class DataScienceModel(Builder):
             The name of the model metadatum in the metadata.
 
         artifact_path: str
-            The model defined metadata artifact path to be upload.
+            The model defined metadata artifact local file path to be upload.
         Returns
         -------
         Dict
@@ -2338,7 +2339,8 @@ class DataScienceModel(Builder):
         return self.dsc_model.update_defined_metadata_artifact(model_ocid=model_ocid, metadata_key_name=metadata_key_name,
                                                        artifact_path=artifact_path)
 
-    def get_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str, target_dir: str) -> None:
+    def get_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str, target_dir: str,
+                                     override: bool = False) -> None:
         """Downloads model custom metadata artifact content for specified model metadata key.
 
         Parameters
@@ -2349,6 +2351,12 @@ class DataScienceModel(Builder):
 
         metadata_key_name: str
             The name of the model metadatum in the metadata.
+        target_dir: str
+            The local file path where downloaded model custom metadata artifact saved.
+        override: bool
+            A boolean flag that controls downloaded metadata artifact file overwriting
+            - If True, overwrites the file if it already exists.
+            - If False (default), raises a `FileExistsError` if the file exists.
         Returns
         -------
         BytesIO
@@ -2356,15 +2364,20 @@ class DataScienceModel(Builder):
 
         """
         file_content = self.dsc_model.get_custom_metadata_artifact(model_ocid=model_ocid,
-                                                                    metadata_key_name=metadata_key_name)
+                                                                   metadata_key_name=metadata_key_name)
         artifact_file_path = os.path.join(
             target_dir, f"{metadata_key_name}"
         )
+
+        if not override and os.path.exists(artifact_file_path):
+            raise FileExistsError(f"File already exists: {artifact_file_path}")
+
         with open(artifact_file_path, "wb") as _file:
             _file.write(file_content)
-            print(f"Artifact downloaded to location - {artifact_file_path}")
+            logger.info(f"Artifact downloaded to location - {artifact_file_path}")
 
-    def get_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str, target_dir: str) -> None:
+    def get_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str, target_dir: str,
+                                      override: bool = False) -> None:
         """Downloads model defined metadata artifact content for specified model metadata key.
 
         Parameters
@@ -2375,6 +2388,12 @@ class DataScienceModel(Builder):
 
         metadata_key_name: str
             The name of the model metadatum in the metadata.
+        target_dir: str
+            The local file path where downloaded model defined metadata artifact saved.
+        override: bool
+            A boolean flag that controls downloaded metadata artifact file overwriting
+            - If True, overwrites the file if it already exists.
+            - If False (default), raises a `FileExistsError` if the file exists.
         Returns
         -------
         BytesIO
@@ -2382,15 +2401,19 @@ class DataScienceModel(Builder):
 
         """
         file_content = self.dsc_model.get_defined_metadata_artifact(model_ocid=model_ocid,
-                                                                   metadata_key_name=metadata_key_name)
+                                                                    metadata_key_name=metadata_key_name)
         artifact_file_path = os.path.join(
             target_dir, f"{metadata_key_name}"
         )
+
+        if not override and os.path.exists(artifact_file_path):
+            raise FileExistsError(f"File already exists: {artifact_file_path}")
+
         with open(artifact_file_path, "wb") as _file:
             _file.write(file_content)
-            print(f"Artifact downloaded to location - {artifact_file_path}")
+            logger.info(f"Artifact downloaded to location - {artifact_file_path}")
 
-    def delete_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> dict:
+    def delete_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> ModelMetadataArtifactDetails:
         """Deletes model custom metadata artifact for specified model metadata key.
 
         Parameters
@@ -2418,7 +2441,7 @@ class DataScienceModel(Builder):
         """
         return self.dsc_model.delete_custom_metadata_artifact(model_ocid=model_ocid, metadata_key_name=metadata_key_name)
 
-    def delete_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> dict:
+    def delete_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> ModelMetadataArtifactDetails:
         """Deletes model defined metadata artifact for specified model metadata key.
 
         Parameters
