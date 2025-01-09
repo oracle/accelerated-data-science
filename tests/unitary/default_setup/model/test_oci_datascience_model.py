@@ -492,7 +492,7 @@ class TestOCIDataScienceModel:
         mock_client.create_model_defined_metadatum_artifact.return_value = response
         data = self.mock_model.create_defined_metadata_artifact("MODEL_OCID", "metadata_key_name",
                                                                 "./test_files/metadata_test_artifact_test.json")
-        assert data['status'] == '204'
+        assert data.status == '204'
 
     @patch.object(OCIDataScienceModel, "client")
     def test_create_custom_metadata_artifact(self, mock_client):
