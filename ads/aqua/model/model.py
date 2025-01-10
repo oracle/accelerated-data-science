@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
 import pathlib
@@ -164,7 +164,7 @@ class AquaModelApp(AquaApp):
         target_compartment = compartment_id or COMPARTMENT_OCID
 
         if service_model.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
-            logger.debug(
+            logger.info(
                 f"Aqua Model {model_id} already exists in user's compartment."
                 "Skipped copying."
             )
@@ -195,8 +195,8 @@ class AquaModelApp(AquaApp):
             # TODO: decide what kwargs will be needed.
             .create(model_by_reference=True, **kwargs)
         )
-        logger.debug(
-            f"Aqua Model {custom_model.id} created with the service model {model_id}"
+        logger.info(
+            f"Aqua Model {custom_model.id} created with the service model {model_id}."
         )
 
         # tracks unique models that were created in the user compartment
@@ -227,11 +227,16 @@ class AquaModelApp(AquaApp):
 
         cached_item = self._service_model_details_cache.get(model_id)
         if cached_item:
+            logger.info(f"Fetching model details for model {model_id} from cache.")
             return cached_item
 
+        logger.info(f"Fetching model details for model {model_id}.")
         ds_model = DataScienceModel.from_id(model_id)
         if not self._if_show(ds_model):
-            raise AquaRuntimeError(f"Target model `{ds_model.id} `is not Aqua model.")
+            raise AquaRuntimeError(
+                f"Target model `{ds_model.id} `is not an Aqua model as it does not contain "
+                f"{Tags.AQUA_TAG} tag."
+            )
 
         is_fine_tuned_model = bool(
             ds_model.freeform_tags
@@ -250,16 +255,21 @@ class AquaModelApp(AquaApp):
                 ds_model.custom_metadata_list._to_oci_metadata()
             )
             if artifact_path != UNKNOWN:
+                model_card_path = (
+                    f"{artifact_path.rstrip('/')}/config/{README}"
+                    if is_verified_type
+                    else f"{artifact_path.rstrip('/')}/{README}"
+                )
                 model_card = str(
                     read_file(
-                        file_path=(
-                            f"{artifact_path.rstrip('/')}/config/{README}"
-                            if is_verified_type
-                            else f"{artifact_path.rstrip('/')}/{README}"
-                        ),
+                        file_path=model_card_path,
                         auth=default_signer(),
                     )
                 )
+                if not model_card:
+                    logger.warn(
+                        f"Model card for {model_id} is empty or could not be loaded from {model_card_path}."
+                    )
 
         inference_container = ds_model.custom_metadata_list.get(
             ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
@@ -305,9 +315,10 @@ class AquaModelApp(AquaApp):
             try:
                 jobrun_ocid = ds_model.provenance_metadata.training_id
                 jobrun = self.ds_client.get_job_run(jobrun_ocid).data
-            except Exception:
+            except Exception as e:
                 logger.debug(
                     f"Missing jobrun information in the provenance metadata of the given model {model_id}."
+                    f"\nError: {str(e)}"
                 )
                 jobrun = None
 
@@ -316,7 +327,10 @@ class AquaModelApp(AquaApp):
                     FineTuningCustomMetadata.FT_SOURCE
                 ).value
             except ValueError as e:
-                logger.debug(str(e))
+                logger.debug(
+                    f"Custom metadata is missing {FineTuningCustomMetadata.FT_SOURCE} key for "
+                    f"model {model_id}.\nError: {str(e)}"
+                )
                 source_id = UNKNOWN
 
             try:
@@ -324,7 +338,10 @@ class AquaModelApp(AquaApp):
                     FineTuningCustomMetadata.FT_SOURCE_NAME
                 ).value
             except ValueError as e:
-                logger.debug(str(e))
+                logger.debug(
+                    f"Custom metadata is missing {FineTuningCustomMetadata.FT_SOURCE_NAME} key for "
+                    f"model {model_id}.\nError: {str(e)}"
+                )
                 source_name = UNKNOWN
 
             source_identifier = _build_resource_identifier(
@@ -374,6 +391,7 @@ class AquaModelApp(AquaApp):
             Tags.AQUA_FINE_TUNED_MODEL_TAG, None
         )
         if is_registered_model or is_fine_tuned_model:
+            logger.info(f"Deleting model {model_id}.")
             return ds_model.delete()
         else:
             raise AquaRuntimeError(
@@ -451,6 +469,7 @@ class AquaModelApp(AquaApp):
                     freeform_tags=freeform_tags,
                 )
                 AquaApp().update_model(id, update_model_details)
+                logger.info(f"Updated model details for the model {id}.")
         else:
             raise AquaRuntimeError(
                 f"Failed to edit model:{id}. Only registered unverified models can be edited."
@@ -710,7 +729,7 @@ class AquaModelApp(AquaApp):
             )
 
         logger.info(
-            f"Fetch {len(models)} model in compartment_id={compartment_id or ODSC_MODEL_COMPARTMENT_OCID}."
+            f"Fetched {len(models)} model in compartment_id={compartment_id or ODSC_MODEL_COMPARTMENT_OCID}."
         )
 
         aqua_models = []
@@ -740,10 +759,12 @@ class AquaModelApp(AquaApp):
             dict with the key used, and True if cache has the key that needs to be deleted.
         """
         res = {}
-        logger.info("Clearing _service_models_cache")
         with self._cache_lock:
             if ODSC_MODEL_COMPARTMENT_OCID in self._service_models_cache:
                 self._service_models_cache.pop(key=ODSC_MODEL_COMPARTMENT_OCID)
+                logger.info(
+                    f"Cleared models cache for service compartment {ODSC_MODEL_COMPARTMENT_OCID}."
+                )
                 res = {
                     "key": {
                         "compartment_id": ODSC_MODEL_COMPARTMENT_OCID,
@@ -760,10 +781,10 @@ class AquaModelApp(AquaApp):
             dict with the key used, and True if cache has the key that needs to be deleted.
         """
         res = {}
-        logger.info(f"Clearing _service_model_details_cache for {model_id}")
         with self._cache_lock:
             if model_id in self._service_model_details_cache:
                 self._service_model_details_cache.pop(key=model_id)
+                logger.info(f"Clearing model details cache for model {model_id}.")
                 res = {"key": {"model_id": model_id}, "cache_deleted": True}
 
         return res
@@ -848,7 +869,8 @@ class AquaModelApp(AquaApp):
             metadata = ModelCustomMetadata()
             if not inference_container:
                 raise AquaRuntimeError(
-                    f"Require Inference container information. Model: {model_name} does not have associated inference container defaults. Check docs for more information on how to pass inference container."
+                    f"Require Inference container information. Model: {model_name} does not have associated inference "
+                    f"container defaults. Check docs for more information on how to pass inference container."
                 )
             metadata.add(
                 key=AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
@@ -924,7 +946,7 @@ class AquaModelApp(AquaApp):
             artifact_path = metadata.get(MODEL_BY_REFERENCE_OSS_PATH_KEY).value
             logger.info(
                 f"Found model artifact in the service bucket. "
-                f"Using artifact from service bucket instead of {os_path}"
+                f"Using artifact from service bucket instead of {os_path}."
             )
 
             # todo: implement generic copy_folder method
@@ -956,7 +978,7 @@ class AquaModelApp(AquaApp):
             .with_freeform_tags(**tags)
             .with_defined_tags(**(defined_tags or {}))
         ).create(model_by_reference=True)
-        logger.debug(model)
+        logger.debug(f"Created model catalog entry for the model:\n{model}")
         return model
 
     @staticmethod
@@ -1000,6 +1022,9 @@ class AquaModelApp(AquaApp):
             model_files.extend(
                 list_os_files_with_extension(oss_path=os_path, extension=".gguf")
             )
+        logger.debug(
+            f"Fetched {len(model_files)} model files from {os_path} for model format {model_format}."
+        )
         return model_files
 
     @staticmethod
@@ -1044,6 +1069,9 @@ class AquaModelApp(AquaApp):
             if extension == model_format.value:
                 model_files.append(model_sibling.rfilename)
 
+        logger.debug(
+            f"Fetched {len(model_files)} model files for the model {model_name} for model format {model_format}."
+        )
         return model_files
 
     def _validate_model(
@@ -1370,6 +1398,9 @@ class AquaModelApp(AquaApp):
             local_dir = os.path.join(os.path.expanduser("~"), "cached-model")
         local_dir = os.path.join(local_dir, model_name)
         os.makedirs(local_dir, exist_ok=True)
+        logger.debug(
+            f"Downloading artifacts from Hugging Face to local directory {local_dir}."
+        )
         snapshot_download(
             repo_id=model_name,
             local_dir=local_dir,
@@ -1377,6 +1408,9 @@ class AquaModelApp(AquaApp):
             ignore_patterns=ignore_patterns,
         )
         # Upload to object storage and skip .cache/huggingface/ folder
+        logger.debug(
+            f"Uploading local artifacts from local directory {local_dir} to {os_path}."
+        )
         model_artifact_path = upload_folder(
             os_path=os_path,
             local_dir=local_dir,
@@ -1420,6 +1454,7 @@ class AquaModelApp(AquaApp):
             import_model_details.model.startswith("ocid")
             and "datasciencemodel" in import_model_details.model
         ):
+            logger.info(f"Fetching details for model {import_model_details.model}.")
             verified_model = DataScienceModel.from_id(import_model_details.model)
         else:
             # If users passes model name, check if there is model with the same name in the service model catalog. If it is there, then use that model
@@ -1541,7 +1576,7 @@ class AquaModelApp(AquaApp):
         elif model_type == ModelType.BASE:
             filter_tag = Tags.BASE_MODEL_CUSTOM
         else:
-            raise ValueError(
+            raise AquaValueError(
                 f"Model of type {model_type} is unknown. The values should be in {ModelType.values()}"
             )
 
@@ -1581,7 +1616,10 @@ class AquaModelApp(AquaApp):
         oci_model = self.ds_client.get_model(model_id).data
         artifact_path = get_artifact_path(oci_model.custom_metadata_list)
         if not artifact_path:
-            raise AquaRuntimeError("Failed to get artifact path from custom metadata.")
+            raise AquaRuntimeError(
+                f"License could not be loaded. Failed to get artifact path from custom metadata for"
+                f"the model {model_id}."
+            )
 
         content = str(
             read_file(
@@ -1612,6 +1650,9 @@ class AquaModelApp(AquaApp):
 
         for aqua_model_summary in aqua_model_list:
             if aqua_model_summary.name.lower() == model_id_lower:
+                logger.info(
+                    f"Found matching verified model id {aqua_model_summary.id} for the model {model_id}"
+                )
                 return aqua_model_summary.id
 
         return None

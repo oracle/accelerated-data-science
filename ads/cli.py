@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import logging
 import sys
 import traceback
-from dataclasses import is_dataclass
+import uuid
 
 import fire
 
@@ -27,7 +27,7 @@ except Exception as ex:
     )
     logger.debug(ex)
     logger.debug(traceback.format_exc())
-    exit()
+    sys.exit()
 
 # https://packaging.python.org/en/latest/guides/single-sourcing-package-version/#single-sourcing-the-package-version
 if sys.version_info >= (3, 8):
@@ -122,8 +122,9 @@ def exit_program(ex: Exception, logger: "logging.Logger") -> None:
     ...     exit_program(e, logger)
     """
 
-    logger.debug(traceback.format_exc())
-    logger.error(str(ex))
+    request_id = str(uuid.uuid4())
+    logger.debug(f"Error Request ID: {request_id}\nError: {traceback.format_exc()}")
+    logger.error(f"Error Request ID: {request_id}\n" f"Error: {str(ex)}")
 
     exit_code = getattr(ex, "exit_code", 1)
     logger.error(f"Exit code: {exit_code}")
