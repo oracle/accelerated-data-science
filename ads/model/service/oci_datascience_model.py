@@ -61,6 +61,10 @@ class ModelWithActiveDeploymentError(Exception):  # pragma: no cover
     pass
 
 class ModelMetadataArtifactNotFoundError(Exception):  # pragma: no cover
+    def __init__(self, model_ocid, metadata_key: str):
+        super().__init__(
+            f"The model {model_ocid} does not contain the metadata with key {metadata_key}."
+        )
     pass
 
 @dataclass(repr=False)
@@ -631,7 +635,7 @@ class OCIDataScienceModel(
             The model custom metadata artifact path to be upload.
         Returns
         -------
-        Dict
+        ModelMetadataArtifactDetails
             The model custom metadata artifact creation info.
             Example:
             {
@@ -646,9 +650,13 @@ class OCIDataScienceModel(
             }
 
         """
+        if not utils.is_path_exists(artifact_path):
+            raise FileNotFoundError(
+                    f"File not found:  {artifact_path} . "
+                )
         with open(artifact_path, 'rb') as f:
             contents = f.read()
-            print(contents)
+            logger.info(f"The metadata artifact content - {contents}")
 
         response = self.client.create_model_custom_metadatum_artifact(model_ocid, metadata_key_name, contents,
                                                            content_disposition='form'
@@ -672,7 +680,8 @@ class OCIDataScienceModel(
             The model custom metadata artifact path to be upload.
         Returns
         -------
-        The model defined metadata artifact creation info.
+        ModelMetadataArtifactDetails
+            The model defined metadata artifact creation info.
             Example:
             {
                 'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
@@ -686,8 +695,13 @@ class OCIDataScienceModel(
             }
 
         """
+        if not utils.is_path_exists(artifact_path):
+            raise FileNotFoundError(
+                    f"File not found:  {artifact_path} . "
+                )
         with open(artifact_path, 'rb') as f:
             contents = f.read()
+            logger.info(f"The metadata artifact content - {contents}")
         response = self.client.create_model_defined_metadatum_artifact(model_ocid, metadata_key_name, contents,
                                                             content_disposition='form-data; name="file"; filename="readme.*"')
         response_data = convert_model_metadata_response(response.headers, response.status)
@@ -709,7 +723,7 @@ class OCIDataScienceModel(
             The model defined metadata artifact path to be upload.
         Returns
         -------
-        Dict
+        ModelMetadataArtifactDetails
             The model defined metadata artifact update info.
             Example:
             {
@@ -724,8 +738,13 @@ class OCIDataScienceModel(
             }
 
         """
+        if not utils.is_path_exists(artifact_path):
+            raise FileNotFoundError(
+                    f"File not found:  {artifact_path} . "
+                )
         with open(artifact_path, 'rb') as f:
             contents = f.read()
+            logger.info(f"The content of metadata with key {metadata_key_name} - {contents}")
         response =  self.client.update_model_defined_metadatum_artifact(model_ocid, metadata_key_name, contents,
                                                             content_disposition='form-data; name="file"; filename="readme.*"')
         response_data = convert_model_metadata_response(response.headers, response.status)
@@ -748,7 +767,7 @@ class OCIDataScienceModel(
             The model custom metadata artifact path to be upload.
         Returns
         -------
-        Dict
+        ModelMetadataArtifactDetails
             The model custom metadata artifact update info.
             Example:
             {
@@ -763,8 +782,13 @@ class OCIDataScienceModel(
             }
 
         """
+        if not utils.is_path_exists(artifact_path):
+            raise FileNotFoundError(
+                    f"File not found:  {artifact_path} . "
+                )
         with open(artifact_path, 'rb') as f:
             contents = f.read()
+            logger.info(f"The content of metadata with key {metadata_key_name} - {contents}")
         response =  self.client.update_model_custom_metadatum_artifact(model_ocid, metadata_key_name, contents,
                                                            content_disposition='form'
                                                                                '-data; name="file"; filename="readme.*"')
@@ -792,8 +816,7 @@ class OCIDataScienceModel(
             return self.client.get_model_custom_metadatum_artifact_content(model_ocid, metadata_key_name).data.content
         except ServiceError as ex:
             if ex.status == 404:
-                logger.error(f"The metadata with keyname - {metadata_key_name} not found")
-                raise ModelMetadataArtifactNotFoundError()
+                raise ModelMetadataArtifactNotFoundError(model_ocid,metadata_key_name)
 
 
     def get_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> BytesIO:
@@ -817,8 +840,7 @@ class OCIDataScienceModel(
             return self.client.get_model_defined_metadatum_artifact_content(model_ocid, metadata_key_name).data.content
         except ServiceError as ex:
             if ex.status == 404:
-                logger.error(f"The metadata with keyname - {metadata_key_name} not found")
-                raise ModelMetadataArtifactNotFoundError()
+                raise ModelMetadataArtifactNotFoundError(model_ocid,metadata_key_name)
 
 
     def head_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> ModelMetadataArtifactDetails:
@@ -834,7 +856,7 @@ class OCIDataScienceModel(
             The name of the model metadatum in the metadata.
         Returns
         -------
-        Dict
+        ModelMetadataArtifactDetails
             The model custom metadata artifact head call info.
             Example:
             {
@@ -866,7 +888,7 @@ class OCIDataScienceModel(
             The name of the model metadatum in the metadata.
         Returns
         -------
-        Dict
+        ModelMetadataArtifactDetails
             The model defined metadata artifact head call info.
             Example:
             {
@@ -898,7 +920,7 @@ class OCIDataScienceModel(
             The name of the model metadatum in the metadata.
         Returns
         -------
-        Dict
+        ModelMetadataArtifactDetails
             The model custom metadata artifact delete call info.
             Example:
             {
@@ -928,7 +950,7 @@ class OCIDataScienceModel(
             The name of the model metadatum in the metadata.
         Returns
         -------
-        Dict
+        ModelMetadataArtifactDetails
             The model defined metadata artifact delete call info.
             Example:
             {

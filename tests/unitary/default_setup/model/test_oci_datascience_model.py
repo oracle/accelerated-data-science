@@ -2,7 +2,8 @@
 
 # Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
+import logging
+import os
 from unittest.mock import MagicMock, patch, call, PropertyMock
 
 import pytest
@@ -91,6 +92,7 @@ class TestOCIDataScienceModel:
         cls.mock_delete_model_response = Response(
             data=None, status=None, headers=None, request=None
         )
+        cls.curr_dir = os.path.dirname(os.path.abspath(__file__))
 
         # Mock create/update model response
         cls.mock_create_model_response = Response(
@@ -488,35 +490,50 @@ class TestOCIDataScienceModel:
     @patch.object(OCIDataScienceModel, "client")
     def test_create_defined_metadata_artifact(self, mock_client):
         """Tests create defined metadata artifact for specified model."""
+        self.mock_artifact_file_path = os.path.join(
+            self.curr_dir, "test_files/metadata_test_artifact_test.json"
+        )
         response = Response(headers={}, status=204, data=None, request=None)
         mock_client.create_model_defined_metadatum_artifact.return_value = response
         data = self.mock_model.create_defined_metadata_artifact("MODEL_OCID", "metadata_key_name",
-                                                                "./test_files/metadata_test_artifact_test.json")
+                                                                self.mock_artifact_file_path)
         assert data.status == '204'
+
 
     @patch.object(OCIDataScienceModel, "client")
     def test_create_custom_metadata_artifact(self, mock_client):
         """Tests create defined metadata artifact for specified model."""
+        self.mock_artifact_file_path = os.path.join(
+            self.curr_dir, "test_files/metadata_test_artifact_test.json"
+        )
         response = Response(headers={}, status=204, data=None, request=None)
         mock_client.create_model_defined_metadatum_artifact.return_value = response
         data = self.mock_model.create_defined_metadata_artifact("MODEL_OCID", "metadata_key_name",
-                                                                "./test_files/metadata_test_artifact_test.json")
+                                                                self.mock_artifact_file_path)
         assert data.status == '204'
 
     @patch.object(OCIDataScienceModel, "client")
     def test_update_defined_metadata_artifact(self, mock_client):
         """Tests create defined metadata artifact for specified model."""
+        self.mock_artifact_file_path = os.path.join(
+            self.curr_dir, "test_files/metadata_test_artifact_test.json"
+        )
         response = Response(headers={}, status=204, data=None, request=None)
         mock_client.update_model_defined_metadatum_artifact.return_value = response
-        data = self.mock_model.update_defined_metadata_artifact("MODEL_OCID", "metadata_key_name","./test_files/metadata_test_artifact_test.json")
+        data = self.mock_model.update_defined_metadata_artifact("MODEL_OCID", "metadata_key_name",
+                                                                self.mock_artifact_file_path)
         assert data.status == '204'
 
     @patch.object(OCIDataScienceModel, "client")
     def test_update_custom_metadata_artifact(self, mock_client):
         """Tests create defined metadata artifact for specified model."""
+        self.mock_artifact_file_path = os.path.join(
+            self.curr_dir, "test_files/metadata_test_artifact_test.json"
+        )
         response = Response(headers={}, status=204, data=None, request=None)
         mock_client.update_model_custom_metadatum_artifact.return_value = response
-        data = self.mock_model.update_custom_metadata_artifact("MODEL_OCID", "metadata_key_name","./test_files/metadata_test_artifact_test.json")
+        data = self.mock_model.update_custom_metadata_artifact("MODEL_OCID", "metadata_key_name",
+                                                               self.mock_artifact_file_path)
         assert data.status == '204'
 
     @patch.object(OCIDataScienceModel, "client")
