@@ -385,6 +385,7 @@ class TestDataScienceModel:
         mock_list_resource.assert_called_with(
             "test_compartment_id",
             project_id="test_project_id",
+            category="USER",
             **{"extra_tag": "test_cvalue"},
         )
         assert len(result) == 1
@@ -419,6 +420,7 @@ class TestDataScienceModel:
         mock_list_resource.assert_called_with(
             "test_compartment_id",
             project_id="test_project_id",
+            category='USER',
             **{"extra_tag": "test_cvalue"},
         )
         assert expected_result.equals(result)
