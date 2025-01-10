@@ -4,7 +4,7 @@
 
 
 import os
-from logging import StreamHandler, getLogger
+from logging import getLogger
 
 from ads import set_auth
 from ads.aqua.common.utils import fetch_service_compartment
