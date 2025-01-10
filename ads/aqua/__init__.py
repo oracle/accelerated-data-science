@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -19,6 +18,7 @@ def get_logger_level():
     level = os.environ.get(ENV_VAR_LOG_LEVEL, "INFO").upper()
     return level
 
+
 logger = getLogger(__name__)
 logger.setLevel(get_logger_level())
 
@@ -28,7 +28,6 @@ def set_log_level(log_level: str):
 
     log_level = log_level.upper()
     logger.setLevel(log_level.upper())
-    logger.handlers[0].setLevel(log_level)
 
 
 if OCI_RESOURCE_PRINCIPAL_VERSION:
