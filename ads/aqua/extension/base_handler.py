@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
+# -*- coding: utf-8 -*-
+# Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -34,7 +35,7 @@ class AquaAPIhandler(APIHandler):
             self.telemetry = TelemetryClient(
                 bucket=AQUA_TELEMETRY_BUCKET, namespace=AQUA_TELEMETRY_BUCKET_NS
             )
-        except Exception:
+        except:
             pass
 
     @staticmethod
@@ -81,23 +82,19 @@ class AquaAPIhandler(APIHandler):
             "message": message,
             "service_payload": service_payload,
             "reason": reason,
-            "request_id": str(uuid.uuid4()),
         }
         exc_info = kwargs.get("exc_info")
         if exc_info:
-            logger.error(
-                f"Error Request ID: {reply['request_id']}\n"
-                f"Error: {''.join(traceback.format_exception(*exc_info))}"
-            )
+            logger.error("".join(traceback.format_exception(*exc_info)))
             e = exc_info[1]
             if isinstance(e, HTTPError):
                 reply["message"] = e.log_message or message
                 reply["reason"] = e.reason if e.reason else reply["reason"]
+                reply["request_id"] = str(uuid.uuid4())
+            else:
+                reply["request_id"] = str(uuid.uuid4())
 
-        logger.error(
-            f"Error Request ID: {reply['request_id']}\n"
-            f"Error: {reply['message']} {reply['reason']}"
-        )
+        logger.warning(reply["message"])
 
         # telemetry may not be present if there is an error while initializing
         if hasattr(self, "telemetry"):
@@ -106,7 +103,7 @@ class AquaAPIhandler(APIHandler):
                 category="aqua/error",
                 action=str(status_code),
                 value=reason,
-                **aqua_api_details,
+                **aqua_api_details
             )
 
         self.finish(json.dumps(reply))

@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
 import os
 import subprocess
-import uuid
 from importlib import reload
 from unittest import TestCase
 from unittest.mock import call, patch
@@ -149,7 +148,6 @@ class TestAquaCLI(TestCase):
         ]
     )
     @patch("sys.argv", ["ads", "aqua", "--error-option"])
-    @patch("uuid.uuid4")
     @patch("fire.Fire")
     @patch("ads.aqua.cli.AquaCommand")
     @patch("ads.aqua.logger.error")
@@ -164,17 +162,11 @@ class TestAquaCLI(TestCase):
         mock_logger_error,
         mock_aqua_command,
         mock_fire,
-        mock_uuid,
     ):
         """Tests when Aqua Cli gracefully exit when error raised."""
         mock_fire.side_effect = mock_side_effect
         from ads.cli import cli
 
-        uuid_value = "12345678-1234-5678-1234-567812345678"
-        mock_uuid.return_value = uuid.UUID(uuid_value)
-        expected_logging_message = type(expected_logging_message)(
-            f"Error Request ID: {uuid_value}\nError: {str(expected_logging_message)}"
-        )
         cli()
         calls = [
             call(expected_logging_message),
