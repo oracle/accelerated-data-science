@@ -769,6 +769,8 @@ class ChatOCIModelDeploymentVLLM(ChatOCIModelDeployment):
     Science Model Deployment endpoint. See:
     https://docs.oracle.com/en-us/iaas/data-science/using/model-dep-policies-auth.htm#model_dep_policies_auth__predict-endpoint
 
+    See https://docs.vllm.ai/en/latest/api/inference_params.html for the defaults of the parameters.
+
     Example:
 
         .. code-block:: python
@@ -786,7 +788,7 @@ class ChatOCIModelDeploymentVLLM(ChatOCIModelDeployment):
 
     """  # noqa: E501
 
-    frequency_penalty: float = 0.0
+    frequency_penalty: Optional[float] = None
     """Penalizes repeated tokens according to frequency. Between 0 and 1."""
 
     logit_bias: Optional[Dict[str, float]] = None
@@ -798,7 +800,7 @@ class ChatOCIModelDeploymentVLLM(ChatOCIModelDeployment):
     n: int = 1
     """Number of output sequences to return for the given prompt."""
 
-    presence_penalty: float = 0.0
+    presence_penalty: Optional[float] = None
     """Penalizes repeated tokens. Between 0 and 1."""
 
     temperature: float = 0.2
@@ -812,7 +814,7 @@ class ChatOCIModelDeploymentVLLM(ChatOCIModelDeployment):
     (the one with the highest log probability per token).
     """
 
-    use_beam_search: Optional[bool] = False
+    use_beam_search: Optional[bool] = None
     """Whether to use beam search instead of sampling."""
 
     top_k: Optional[int] = -1
@@ -822,15 +824,15 @@ class ChatOCIModelDeploymentVLLM(ChatOCIModelDeployment):
     """Float that represents the minimum probability for a token to be considered.
     Must be in [0,1]. 0 to disable this."""
 
-    repetition_penalty: Optional[float] = 1.0
+    repetition_penalty: Optional[float] = None
     """Float that penalizes new tokens based on their frequency in the
     generated text. Values > 1 encourage the model to use new tokens."""
 
-    length_penalty: Optional[float] = 1.0
+    length_penalty: Optional[float] = None
     """Float that penalizes sequences based on their length. Used only
     when `use_beam_search` is True."""
 
-    early_stopping: Optional[bool] = False
+    early_stopping: Optional[bool] = None
     """Controls the stopping condition for beam search. It accepts the
     following values: `True`, where the generation stops as soon as there
     are `best_of` complete candidates; `False`, where a heuristic is applied
@@ -842,7 +844,7 @@ class ChatOCIModelDeploymentVLLM(ChatOCIModelDeployment):
     """Whether to ignore the EOS token and continue generating tokens after
     the EOS token is generated."""
 
-    min_tokens: Optional[int] = 0
+    min_tokens: Optional[int] = None
     """Minimum number of tokens to generate per output sequence before
     EOS or stop_token_ids can be generated"""
 
@@ -851,12 +853,11 @@ class ChatOCIModelDeploymentVLLM(ChatOCIModelDeployment):
     The returned output will contain the stop tokens unless the stop tokens
     are special tokens."""
 
-    skip_special_tokens: Optional[bool] = True
+    skip_special_tokens: Optional[bool] = None
     """Whether to skip special tokens in the output. Defaults to True."""
 
-    spaces_between_special_tokens: Optional[bool] = True
-    """Whether to add spaces between special tokens in the output.
-    Defaults to True."""
+    spaces_between_special_tokens: Optional[bool] = None
+    """Whether to add spaces between special tokens in the output."""
 
     tool_choice: Optional[str] = None
     """Whether to use tool calling.
