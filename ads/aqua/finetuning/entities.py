@@ -1,16 +1,22 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-from dataclasses import dataclass, field
+
+import json
 from typing import List, Optional
 
-from ads.aqua.data import AquaJobSummary
-from ads.common.serializer import DataClassSerializable
+from pydantic import Field, model_validator
+
+from ads.aqua.common.errors import AquaValueError
+from ads.aqua.config.utils.serializer import Serializable
+from ads.aqua.data import AquaResourceIdentifier
+from ads.aqua.finetuning.constants import FineTuningForbiddenParams
 
 
-@dataclass(repr=False)
-class AquaFineTuningParams(DataClassSerializable):
-    epochs: int
+class AquaFineTuningParams(Serializable):
+    """Class for maintaining aqua fine-tuning model parameters"""
+
+    epochs: Optional[int] = None
     learning_rate: Optional[float] = None
     sample_packing: Optional[bool] = "auto"
     batch_size: Optional[int] = (
@@ -22,21 +28,59 @@ class AquaFineTuningParams(DataClassSerializable):
     lora_alpha: Optional[int] = None
     lora_dropout: Optional[float] = None
     lora_target_linear: Optional[bool] = None
-    lora_target_modules: Optional[List] = None
+    lora_target_modules: Optional[List[str]] = None
     early_stopping_patience: Optional[int] = None
     early_stopping_threshold: Optional[float] = None
+    load_best_model_at_end: Optional[bool] = None
+    metric_for_best_model: Optional[str] = None
+
+    class Config:
+        extra = "allow"
+
+    def to_dict(self) -> dict:
+        return json.loads(super().to_json(exclude_none=True))
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_forbidden_fields(cls, data: dict):
+        # we may want to skip validation if loading data from config files instead of user entered parameters
+        validate = data.pop("_validate", True)
+        if not (validate and isinstance(data, dict)):
+            return data
+        forbidden_params = [
+            param for param in data if param in FineTuningForbiddenParams.values()
+        ]
+        if forbidden_params:
+            raise AquaValueError(f"Found restricted parameter name: {forbidden_params}")
+        return data
 
 
-@dataclass(repr=False)
-class AquaFineTuningSummary(AquaJobSummary, DataClassSerializable):
-    parameters: AquaFineTuningParams = field(default_factory=AquaFineTuningParams)
+class AquaFineTuningSummary(Serializable):
+    """Represents a summary of Aqua Finetuning job."""
+
+    id: str
+    name: str
+    console_url: str
+    lifecycle_state: str
+    lifecycle_details: str
+    time_created: str
+    tags: dict
+    experiment: AquaResourceIdentifier = Field(default_factory=AquaResourceIdentifier)
+    source: AquaResourceIdentifier = Field(default_factory=AquaResourceIdentifier)
+    job: AquaResourceIdentifier = Field(default_factory=AquaResourceIdentifier)
+    parameters: AquaFineTuningParams = Field(default_factory=AquaFineTuningParams)
+
+    class Config:
+        extra = "ignore"
+
+    def to_dict(self) -> dict:
+        return json.loads(super().to_json(exclude_none=True))
 
 
-@dataclass(repr=False)
-class CreateFineTuningDetails(DataClassSerializable):
-    """Dataclass to create aqua model fine tuning.
+class CreateFineTuningDetails(Serializable):
+    """Class to create aqua model fine-tuning instance.
 
-    Fields
+    Properties
     ------
     ft_source_id: str
         The fine tuning source id. Must be model ocid.
@@ -107,3 +151,6 @@ class CreateFineTuningDetails(DataClassSerializable):
     force_overwrite: Optional[bool] = False
     freeform_tags: Optional[dict] = None
     defined_tags: Optional[dict] = None
+
+    class Config:
+        extra = "ignore"
