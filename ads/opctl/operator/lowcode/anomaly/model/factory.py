@@ -26,9 +26,9 @@ class UnSupportedModelError(Exception):
 
     def __init__(self, operator_config: AnomalyOperatorConfig, model_type: str):
         supported_models = (
-            SupportedModels.values
+            SupportedModels.values()
             if operator_config.spec.datetime_column
-            else NonTimeADSupportedModels.values
+            else NonTimeADSupportedModels.values()
         )
         message = (
             f"Model: `{model_type}` is not supported. "

@@ -2,13 +2,31 @@
 Release Notes
 =============
 
+2.12.9
+-------
+Release date: December 18, 2024
+
+* Support freeform and defined tags for resource creation in AI Quick Actions.
+* Enhance LangChain Integration to accept the route parameter in the request headers.
+
+2.12.8
+-------
+Release date: November 27, 2024
+
+* Fixed bugs in the AI Quick Actions Model Deployment for models registered via Object Storage.
+
+2.12.7
+-------
+Release date: November 20, 2024
+
+* Fixed bugs in the AI Quick Actions Evaluation.
+
 2.12.6
 -------
 Release date: November 12, 2024
 
 * Support using environment variable to override AI Quick Actions Fine Tuning container image.
 * Adding metadata in telemetry error logging for AI Quick Actions.
-
 
 2.12.5
 -------

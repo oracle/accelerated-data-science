@@ -28,6 +28,7 @@ from ads.opctl.operator.lowcode.common.utils import (
     seconds_to_datetime,
     write_data,
 )
+from ads.opctl.operator.lowcode.common.const import DataColumns
 from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import TestData
 from ads.opctl.operator.lowcode.forecast.utils import (
     _build_metrics_df,
@@ -47,6 +48,7 @@ from ..const import (
     SpeedAccuracyMode,
     SupportedMetrics,
     SupportedModels,
+    BACKTEST_REPORT_NAME
 )
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 from .forecast_datasets import ForecastDatasets
@@ -68,7 +70,7 @@ class ForecastOperatorBaseModel(ABC):
         self.config: ForecastOperatorConfig = config
         self.spec: ForecastOperatorSpec = config.spec
         self.datasets: ForecastDatasets = datasets
-
+        self.target_cat_col = self.spec.target_category_columns
         self.full_data_dict = datasets.get_data_by_series()
 
         self.test_eval_metrics = None
@@ -123,6 +125,9 @@ class ForecastOperatorBaseModel(ABC):
 
             if self.spec.generate_report or self.spec.generate_metrics:
                 self.eval_metrics = self.generate_train_metrics()
+                if not self.target_cat_col:
+                    self.eval_metrics.rename({"Series 1": self.original_target_column},
+                                             axis=1, inplace=True)
 
                 if self.spec.test_data:
                     try:
@@ -133,6 +138,9 @@ class ForecastOperatorBaseModel(ABC):
                         ) = self._test_evaluate_metrics(
                             elapsed_time=elapsed_time,
                         )
+                        if not self.target_cat_col:
+                            self.test_eval_metrics.rename({"Series 1": self.original_target_column},
+                                                     axis=1, inplace=True)
                     except Exception:
                         logger.warn("Unable to generate Test Metrics.")
                         logger.debug(f"Full Traceback: {traceback.format_exc()}")
@@ -148,8 +156,9 @@ class ForecastOperatorBaseModel(ABC):
                 header_section = rc.Block(
                     rc.Heading("Forecast Report", level=1),
                     rc.Text(
-                        f"You selected the {self.spec.model} model.\n{model_description}\nBased on your dataset, you could have also selected any of the models: {SupportedModels.keys()}."
+                        f"You selected the {self.spec.model} model.\nBased on your dataset, you could have also selected any of the models: {SupportedModels.keys()}."
                     ),
+                    model_description,
                     rc.Group(
                         rc.Metric(
                             heading="Analysis was completed in ",
@@ -177,7 +186,7 @@ class ForecastOperatorBaseModel(ABC):
                 first_5_rows_blocks = [
                     rc.DataTable(
                         df.head(5),
-                        label=s_id,
+                        label=s_id if self.target_cat_col else None,
                         index=True,
                     )
                     for s_id, df in self.full_data_dict.items()
@@ -186,7 +195,7 @@ class ForecastOperatorBaseModel(ABC):
                 last_5_rows_blocks = [
                     rc.DataTable(
                         df.tail(5),
-                        label=s_id,
+                        label=s_id if self.target_cat_col else None,
                         index=True,
                     )
                     for s_id, df in self.full_data_dict.items()
@@ -195,7 +204,7 @@ class ForecastOperatorBaseModel(ABC):
                 data_summary_blocks = [
                     rc.DataTable(
                         df.describe(),
-                        label=s_id,
+                        label=s_id if self.target_cat_col else None,
                         index=True,
                     )
                     for s_id, df in self.full_data_dict.items()
@@ -213,17 +222,17 @@ class ForecastOperatorBaseModel(ABC):
                     rc.Block(
                         first_10_title,
                         # series_subtext,
-                        rc.Select(blocks=first_5_rows_blocks),
+                        rc.Select(blocks=first_5_rows_blocks) if self.target_cat_col else first_5_rows_blocks[0],
                     ),
                     rc.Block(
                         last_10_title,
                         # series_subtext,
-                        rc.Select(blocks=last_5_rows_blocks),
+                        rc.Select(blocks=last_5_rows_blocks) if self.target_cat_col else last_5_rows_blocks[0],
                     ),
                     rc.Block(
                         summary_title,
                         # series_subtext,
-                        rc.Select(blocks=data_summary_blocks),
+                        rc.Select(blocks=data_summary_blocks) if self.target_cat_col else data_summary_blocks[0],
                     ),
                     rc.Separator(),
                 )
@@ -255,12 +264,9 @@ class ForecastOperatorBaseModel(ABC):
 
                 backtest_sections = []
                 output_dir = self.spec.output_directory.url
-                backtest_report_name = "backtest_stats.csv"
-                file_path = f"{output_dir}/{backtest_report_name}"
+                file_path = f"{output_dir}/{BACKTEST_REPORT_NAME}"
                 if self.spec.model == AUTO_SELECT:
-                    backtest_sections.append(
-                        rc.Heading("Auto-select statistics", level=2)
-                    )
+                    backtest_sections.append(rc.Heading("Auto-Select Backtesting and Performance Metrics", level=2))
                     if not os.path.exists(file_path):
                         failure_msg = rc.Text(
                             "auto-select could not be executed. Please check the "
@@ -269,19 +275,15 @@ class ForecastOperatorBaseModel(ABC):
                         backtest_sections.append(failure_msg)
                     else:
                         backtest_stats = pd.read_csv(file_path)
-                        average_dict = backtest_stats.mean().to_dict()
-                        del average_dict["backtest"]
+                        model_metric_map = backtest_stats.drop(columns=['metric', 'backtest'])
+                        average_dict = {k: round(v, 4) for k, v in model_metric_map.mean().to_dict().items()}
                         best_model = min(average_dict, key=average_dict.get)
-                        backtest_text = rc.Heading("Back Testing Metrics", level=3)
                         summary_text = rc.Text(
-                            f"Overall, the average scores for the models are {average_dict}, with {best_model}"
-                            f" being identified as the top-performing model during backtesting."
-                        )
+                            f"Overall, the average {self.spec.metric} scores for the models are {average_dict}, with"
+                            f" {best_model} being identified as the top-performing model during backtesting.")
                         backtest_table = rc.DataTable(backtest_stats, index=True)
                         liner_plot = get_auto_select_plot(backtest_stats)
-                        backtest_sections.extend(
-                            [backtest_text, backtest_table, summary_text, liner_plot]
-                        )
+                        backtest_sections.extend([backtest_table, summary_text, liner_plot])
 
                 forecast_plots = []
                 if len(self.forecast_output.list_series_ids()) > 0:
@@ -293,6 +295,7 @@ class ForecastOperatorBaseModel(ABC):
                         horizon=self.spec.horizon,
                         test_data=test_data,
                         ci_interval_width=self.spec.confidence_interval_width,
+                        target_category_column=self.target_cat_col
                     )
                     if (
                         series_name is not None
@@ -468,6 +471,7 @@ class ForecastOperatorBaseModel(ABC):
                         f2.write(f1.read())
 
         # forecast csv report
+        result_df = result_df if self.target_cat_col else result_df.drop(DataColumns.Series, axis=1)
         write_data(
             data=result_df,
             filename=os.path.join(unique_output_dir, self.spec.forecast_filename),

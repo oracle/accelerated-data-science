@@ -748,13 +748,13 @@ class TestAquaModel:
                     local_dir=str(tmpdir),
                     download_from_hf=True,
                     allow_patterns=["*.json"],
-                    ignore_patterns=["test.json"]
+                    ignore_patterns=["test.json"],
                 )
                 mock_snapshot_download.assert_called_with(
                     repo_id=model_name,
                     local_dir=f"{str(tmpdir)}/{model_name}",
                     allow_patterns=["*.json"],
-                    ignore_patterns=["test.json"]
+                    ignore_patterns=["test.json"],
                 )
                 mock_subprocess.assert_called_with(
                     shlex.split(
@@ -1119,6 +1119,61 @@ class TestAquaModel:
         assert model.ready_to_deploy is True
         assert model.ready_to_finetune is False
 
+    @patch("ads.model.service.oci_datascience_model.OCIDataScienceModel.create")
+    @patch("ads.model.datascience_model.DataScienceModel.sync")
+    @patch("ads.model.datascience_model.DataScienceModel.upload_artifact")
+    @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
+    @patch.object(HfApi, "model_info")
+    @patch("ads.aqua.common.utils.load_config", return_value={})
+    def test_import_model_with_input_tags(
+        self,
+        mock_load_config,
+        mock_list_objects,
+        mock_upload_artifact,
+        mock_sync,
+        mock_ocidsc_create,
+        mock_get_hf_model_info,
+        mock_init_client,
+    ):
+        my_model = "oracle/aqua-1t-mega-model"
+        ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
+
+        os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
+        ds_freeform_tags = {
+            "OCI_AQUA": "active",
+        }
+        mock_list_objects.return_value = MagicMock(objects=[])
+
+        reload(ads.aqua.model.model)
+        app = AquaModelApp()
+        with patch.object(AquaModelApp, "list") as aqua_model_mock_list:
+            aqua_model_mock_list.return_value = [
+                AquaModelSummary(
+                    id="test_id1",
+                    name="organization1/name1",
+                    organization="organization1",
+                )
+            ]
+            model: AquaModel = app.register(
+                model=my_model,
+                os_path=os_path,
+                inference_container="odsc-vllm-or-tgi-container",
+                finetuning_container="odsc-llm-fine-tuning",
+                download_from_hf=False,
+                freeform_tags={"ftag1": "fvalue1", "ftag2": "fvalue2"},
+                defined_tags={"dtag1": "dvalue1", "dtag2": "dvalue2"},
+            )
+            assert model.tags == {
+                "aqua_custom_base_model": "true",
+                "model_format": "SAFETENSORS",
+                "ready_to_fine_tune": "true",
+                "dtag1": "dvalue1",
+                "dtag2": "dvalue2",
+                "ftag1": "fvalue1",
+                "ftag2": "fvalue2",
+                **ds_freeform_tags,
+            }
+
     @pytest.mark.parametrize(
         "data, expected_output",
         [
@@ -1162,6 +1217,18 @@ class TestAquaModel:
                     "inference_container_uri": "<region>.ocir.io/<your_tenancy>/<your_image>",
                 },
                 "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --inference_container odsc-tei-serving --inference_container_uri <region>.ocir.io/<your_tenancy>/<your_image>",
+            ),
+            (
+                {
+                    "os_path": "oci://aqua-bkt@aqua-ns/path",
+                    "model": "oracle/oracle-1it",
+                    "inference_container": "odsc-vllm-serving",
+                    "freeform_tags": {"ftag1": "fvalue1", "ftag2": "fvalue2"},
+                    "defined_tags": {"dtag1": "dvalue1", "dtag2": "dvalue2"},
+                },
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path "
+                "--download_from_hf True --inference_container odsc-vllm-serving --freeform_tags "
+                '{"ftag1": "fvalue1", "ftag2": "fvalue2"} --defined_tags {"dtag1": "dvalue1", "dtag2": "dvalue2"}',
             ),
         ],
     )

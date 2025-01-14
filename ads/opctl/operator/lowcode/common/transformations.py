@@ -1,18 +1,19 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from ads.opctl import logger
-from ads.opctl.operator.lowcode.common.errors import (
-    InvalidParameterError,
-    DataMismatchError,
-)
-from ads.opctl.operator.lowcode.common.const import DataColumns
-from ads.opctl.operator.lowcode.common.utils import merge_category_columns
-import pandas as pd
 from abc import ABC
+
+import pandas as pd
+
+from ads.opctl import logger
+from ads.opctl.operator.lowcode.common.const import DataColumns
+from ads.opctl.operator.lowcode.common.errors import (
+    DataMismatchError,
+    InvalidParameterError,
+)
+from ads.opctl.operator.lowcode.common.utils import merge_category_columns
 
 
 class Transformations(ABC):
@@ -58,6 +59,7 @@ class Transformations(ABC):
 
         """
         clean_df = self._remove_trailing_whitespace(data)
+        # clean_df = self._normalize_column_names(clean_df)
         if self.name == "historical_data":
             self._check_historical_dataset(clean_df)
         clean_df = self._set_series_id_column(clean_df)
@@ -95,8 +97,11 @@ class Transformations(ABC):
     def _remove_trailing_whitespace(self, df):
         return df.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
 
+    # def _normalize_column_names(self, df):
+    #     return df.rename(columns=lambda x: re.sub("[^A-Za-z0-9_]+", "", x))
+
     def _set_series_id_column(self, df):
-        self._target_category_columns_map = dict()
+        self._target_category_columns_map = {}
         if not self.target_category_columns:
             df[DataColumns.Series] = "Series 1"
             self.has_artificial_series = True
@@ -125,10 +130,10 @@ class Transformations(ABC):
             df[self.dt_column_name] = pd.to_datetime(
                 df[self.dt_column_name], format=self.dt_column_format
             )
-        except:
+        except Exception as ee:
             raise InvalidParameterError(
                 f"Unable to determine the datetime type for column: {self.dt_column_name} in dataset: {self.name}. Please specify the format explicitly. (For example adding 'format: %d/%m/%Y' underneath 'name: {self.dt_column_name}' in the datetime_column section of the yaml file if you haven't already. For reference, here is the first datetime given: {df[self.dt_column_name].values[0]}"
-            )
+            ) from ee
         return df
 
     def _set_multi_index(self, df):
@@ -242,7 +247,6 @@ class Transformations(ABC):
                 "Class": "A",
                 "Num": 2
             },
-            
         }
     """
 
