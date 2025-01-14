@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -11,7 +11,6 @@ from parameterized import parameterized
 from unittest import TestCase
 from unittest.mock import MagicMock, PropertyMock
 from mock import patch
-from dataclasses import asdict
 from importlib import reload
 
 import ads.aqua
@@ -147,7 +146,7 @@ class FineTuningTestCase(TestCase):
 
         aqua_ft_summary = self.app.create(**create_aqua_ft_details)
 
-        assert asdict(aqua_ft_summary) == {
+        assert aqua_ft_summary.to_dict() == {
             "console_url": f"https://cloud.oracle.com/data-science/models/{ft_model.id}?region={self.app.region}",
             "experiment": {
                 "id": f"{mock_mvs_create.return_value[0]}",
@@ -267,15 +266,14 @@ class FineTuningTestCase(TestCase):
         params_dict = {
             "params": {
                 "batch_size": 1,
+                "val_set_size": 0.1,
                 "sequence_len": 2048,
-                "sample_packing": True,
                 "pad_to_sequence_len": True,
                 "learning_rate": 0.0002,
                 "lora_r": 32,
                 "lora_alpha": 16,
                 "lora_dropout": 0.05,
                 "lora_target_linear": True,
-                "lora_target_modules": ["q_proj", "k_proj"],
             }
         }
         config_json = os.path.join(self.curr_dir, "test_data/finetuning/ft_config.json")
@@ -309,14 +307,22 @@ class FineTuningTestCase(TestCase):
                 True,
             ),
             (
+                {"optimizer": "adamw_torch"},
+                False,
+            ),
+            (
                 {
-                    "micro_batch_size": 1,
-                    "max_sequence_len": 2048,
-                    "flash_attention": True,
-                    "pad_to_sequence_len": True,
-                    "lr_scheduler": "cosine",
+                    "epochs": [2],
                 },
                 False,
+            ),
+            (
+                {
+                    "epochs": 2,
+                    "load_best_model_at_end": True,
+                    "metric_for_best_model": "accuracy",
+                },
+                True,
             ),
         ]
     )
