@@ -43,7 +43,6 @@ from ads.aqua.common.utils import (
     get_container_image,
     is_valid_ocid,
     upload_local_to_os,
-    validate_dataclass_params,
 )
 from ads.aqua.config.config import get_evaluation_service_config
 from ads.aqua.constants import (
@@ -156,9 +155,16 @@ class AquaEvaluationApp(AquaApp):
             The instance of AquaEvaluationSummary.
         """
         if not create_aqua_evaluation_details:
-            create_aqua_evaluation_details = validate_dataclass_params(
-                CreateAquaEvaluationDetails, **kwargs
-            )
+            try:
+                create_aqua_evaluation_details = CreateAquaEvaluationDetails(**kwargs)
+            except Exception as ex:
+                custom_errors = {
+                    ".".join(map(str, e["loc"])): e["msg"]
+                    for e in json.loads(ex.json())
+                }
+                raise AquaValueError(
+                    f"Invalid create evaluation parameters. Error details: {custom_errors}."
+                ) from ex
 
         if not is_valid_ocid(create_aqua_evaluation_details.evaluation_source_id):
             raise AquaValueError(

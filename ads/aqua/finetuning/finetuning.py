@@ -4,7 +4,7 @@
 
 import json
 import os
-from dataclasses import asdict, fields
+from dataclasses import MISSING, asdict, fields
 from typing import Dict
 
 from oci.data_science.models import (
@@ -20,7 +20,6 @@ from ads.aqua.common.errors import AquaFileExistsError, AquaValueError
 from ads.aqua.common.utils import (
     get_container_image,
     upload_local_to_os,
-    validate_dataclass_params,
 )
 from ads.aqua.constants import (
     DEFAULT_FT_BATCH_SIZE,
@@ -103,9 +102,16 @@ class AquaFineTuningApp(AquaApp):
             The instance of AquaFineTuningSummary.
         """
         if not create_fine_tuning_details:
-            create_fine_tuning_details = validate_dataclass_params(
-                CreateFineTuningDetails, **kwargs
-            )
+            try:
+                create_fine_tuning_details = CreateFineTuningDetails(**kwargs)
+            except Exception as ex:
+                allowed_create_fine_tuning_details = ", ".join(
+                    field.name for field in fields(CreateFineTuningDetails)
+                ).rstrip()
+                raise AquaValueError(
+                    "Invalid create fine tuning parameters. Allowable parameters are: "
+                    f"{allowed_create_fine_tuning_details}."
+                ) from ex
 
         source = self.get_source(create_fine_tuning_details.ft_source_id)
 
@@ -615,8 +621,7 @@ class AquaFineTuningApp(AquaApp):
 
         return default_params
 
-    @staticmethod
-    def validate_finetuning_params(params: Dict = None) -> Dict:
+    def validate_finetuning_params(self, params: Dict = None) -> Dict:
         """Validate if the fine-tuning parameters passed by the user can be overridden. Parameter values are not
         validated, only param keys are validated.
 
@@ -627,7 +632,21 @@ class AquaFineTuningApp(AquaApp):
 
         Returns
         -------
-            Return a dict with value true if valid, else raises AquaValueError.
+            Return a list of restricted params.
         """
-        validate_dataclass_params(AquaFineTuningParams, **(params or {}))
+        try:
+            AquaFineTuningParams(
+                **params,
+            )
+        except Exception as e:
+            logger.debug(str(e))
+            allowed_fine_tuning_parameters = ", ".join(
+                f"{field.name} (required)" if field.default is MISSING else field.name
+                for field in fields(AquaFineTuningParams)
+            ).rstrip()
+            raise AquaValueError(
+                f"Invalid fine tuning parameters. Allowable parameters are: "
+                f"{allowed_fine_tuning_parameters}."
+            ) from e
+
         return {"valid": True}

@@ -89,7 +89,7 @@ class AquaFineTuneParamsHandler(AquaAPIhandler):
 
         params = input_data.get("params", None)
         return self.finish(
-            AquaFineTuningApp.validate_finetuning_params(
+            AquaFineTuningApp().validate_finetuning_params(
                 params=params,
             )
         )
