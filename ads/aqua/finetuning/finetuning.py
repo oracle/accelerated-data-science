@@ -18,6 +18,7 @@ from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import Resource, Tags
 from ads.aqua.common.errors import AquaFileExistsError, AquaValueError
 from ads.aqua.common.utils import (
+    build_pydantic_error_message,
     get_container_image,
     upload_local_to_os,
 )
@@ -105,14 +106,10 @@ class AquaFineTuningApp(AquaApp):
             try:
                 create_fine_tuning_details = CreateFineTuningDetails(**kwargs)
             except ValidationError as ex:
-                custom_errors = {
-                    ".".join(map(str, e["loc"])): e["msg"] for e in ex.errors()
-                }
+                custom_errors = build_pydantic_error_message(ex)
                 raise AquaValueError(
                     f"Invalid parameters for creating a fine-tuned model. Error details: {custom_errors}."
                 ) from ex
-
-        source = self.get_source(create_fine_tuning_details.ft_source_id)
 
         target_compartment = (
             create_fine_tuning_details.compartment_id or COMPARTMENT_OCID
@@ -210,6 +207,8 @@ class AquaFineTuningApp(AquaApp):
             freeform_tags=create_fine_tuning_details.freeform_tags,
             defined_tags=create_fine_tuning_details.defined_tags,
         )
+
+        source = self.get_source(create_fine_tuning_details.ft_source_id)
 
         ft_model_custom_metadata = ModelCustomMetadata()
         ft_model_custom_metadata.add(
@@ -615,13 +614,7 @@ class AquaFineTuningApp(AquaApp):
                 **{**params, **{"_validate": validate}}
             )
         except ValidationError as ex:
-            # combine both loc and msg for errors where loc (field) is present in error details, else only build error
-            # message using msg field. Added to handle error messages from pydantic model validator handler.
-            custom_errors = {
-                ".".join(map(str, e["loc"])): e["msg"]
-                for e in ex.errors()
-                if "loc" in e and e["loc"]
-            } or "; ".join(e["msg"] for e in ex.errors())
+            custom_errors = build_pydantic_error_message(ex)
             raise AquaValueError(
                 f"Invalid finetuning parameters. Error details: {custom_errors}."
             ) from ex

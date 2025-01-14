@@ -11,7 +11,6 @@ from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.finetuning import AquaFineTuningApp
-from ads.aqua.finetuning.entities import CreateFineTuningDetails
 
 
 class AquaFineTuneHandler(AquaAPIhandler):
@@ -48,7 +47,7 @@ class AquaFineTuneHandler(AquaAPIhandler):
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)
 
-        self.finish(AquaFineTuningApp().create(CreateFineTuningDetails(**input_data)))
+        self.finish(AquaFineTuningApp().create(**input_data))
 
     def get_finetuning_config(self, model_id):
         """Gets the finetuning config for Aqua model."""
