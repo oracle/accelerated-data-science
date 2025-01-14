@@ -1,10 +1,9 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
 import os
-from dataclasses import MISSING, asdict, fields
 from typing import Dict
 
 from oci.data_science.models import (
@@ -12,6 +11,7 @@ from oci.data_science.models import (
     UpdateModelDetails,
     UpdateModelProvenanceDetails,
 )
+from pydantic import ValidationError
 
 from ads.aqua import logger
 from ads.aqua.app import AquaApp
@@ -104,23 +104,15 @@ class AquaFineTuningApp(AquaApp):
         if not create_fine_tuning_details:
             try:
                 create_fine_tuning_details = CreateFineTuningDetails(**kwargs)
-            except Exception as ex:
-                allowed_create_fine_tuning_details = ", ".join(
-                    field.name for field in fields(CreateFineTuningDetails)
-                ).rstrip()
+            except ValidationError as ex:
+                custom_errors = {
+                    ".".join(map(str, e["loc"])): e["msg"] for e in ex.errors()
+                }
                 raise AquaValueError(
-                    "Invalid create fine tuning parameters. Allowable parameters are: "
-                    f"{allowed_create_fine_tuning_details}."
+                    f"Invalid parameters for creating a fine-tuned model. Error details: {custom_errors}."
                 ) from ex
 
         source = self.get_source(create_fine_tuning_details.ft_source_id)
-
-        # todo: revisit validation for fine tuned models
-        # if source.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
-        #     raise AquaValueError(
-        #         f"Fine tuning is only supported for Aqua service models in {ODSC_MODEL_COMPARTMENT_OCID}. "
-        #         "Use a valid Aqua service model id instead."
-        #     )
 
         target_compartment = (
             create_fine_tuning_details.compartment_id or COMPARTMENT_OCID
@@ -160,19 +152,9 @@ class AquaFineTuningApp(AquaApp):
                 f"Logging is required for fine tuning if replica is larger than {DEFAULT_FT_REPLICA}."
             )
 
-        ft_parameters = None
-        try:
-            ft_parameters = AquaFineTuningParams(
-                **create_fine_tuning_details.ft_parameters,
-            )
-        except Exception as ex:
-            allowed_fine_tuning_parameters = ", ".join(
-                field.name for field in fields(AquaFineTuningParams)
-            ).rstrip()
-            raise AquaValueError(
-                "Invalid fine tuning parameters. Fine tuning parameters should "
-                f"be a dictionary with keys: {allowed_fine_tuning_parameters}."
-            ) from ex
+        ft_parameters = self._validate_finetuning_params(
+            create_fine_tuning_details.ft_parameters
+        )
 
         experiment_model_version_set_id = create_fine_tuning_details.experiment_id
         experiment_model_version_set_name = create_fine_tuning_details.experiment_name
@@ -481,11 +463,7 @@ class AquaFineTuningApp(AquaApp):
                 **model_freeform_tags,
                 **model_defined_tags,
             },
-            parameters={
-                key: value
-                for key, value in asdict(ft_parameters).items()
-                if value is not None
-            },
+            parameters=ft_parameters,
         )
 
     def _build_fine_tuning_runtime(
@@ -548,7 +526,7 @@ class AquaFineTuningApp(AquaApp):
     ) -> str:
         """Builds the oci launch cmd for fine tuning container runtime."""
         oci_launch_cmd = f"--training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} "
-        for key, value in asdict(parameters).items():
+        for key, value in parameters.to_dict().items():
             if value is not None:
                 if key == "batch_size":
                     oci_launch_cmd += f"--micro_{key} {value} "
@@ -613,14 +591,32 @@ class AquaFineTuningApp(AquaApp):
         default_params = {"params": {}}
         finetuning_config = self.get_finetuning_config(model_id)
         config_parameters = finetuning_config.get("configuration", UNKNOWN_DICT)
-        dataclass_fields = {field.name for field in fields(AquaFineTuningParams)}
+        config_parameters["_validate"] = False
+        dataclass_fields = AquaFineTuningParams(**config_parameters).to_dict()
         for name, value in config_parameters.items():
-            if name == "micro_batch_size":
-                name = "batch_size"
             if name in dataclass_fields:
+                if name == "micro_batch_size":
+                    name = "batch_size"
                 default_params["params"][name] = value
 
         return default_params
+
+    @staticmethod
+    def _validate_finetuning_params(params: Dict = None) -> AquaFineTuningParams:
+        try:
+            finetuning_params = AquaFineTuningParams(**params)
+        except ValidationError as ex:
+            # combine both loc and msg for errors where loc (field) is present in error details, else only build error
+            # message using msg field. Added to handle error messages from pydantic model validator handler.
+            custom_errors = {
+                ".".join(map(str, e["loc"])): e["msg"]
+                for e in ex.errors()
+                if "loc" in e and e["loc"]
+            } or "; ".join(e["msg"] for e in ex.errors())
+            raise AquaValueError(
+                f"Invalid finetuning parameters. Error details: {custom_errors}."
+            ) from ex
+        return finetuning_params
 
     def validate_finetuning_params(self, params: Dict = None) -> Dict:
         """Validate if the fine-tuning parameters passed by the user can be overridden. Parameter values are not
@@ -635,19 +631,5 @@ class AquaFineTuningApp(AquaApp):
         -------
             Return a list of restricted params.
         """
-        try:
-            AquaFineTuningParams(
-                **params,
-            )
-        except Exception as e:
-            logger.debug(str(e))
-            allowed_fine_tuning_parameters = ", ".join(
-                f"{field.name} (required)" if field.default is MISSING else field.name
-                for field in fields(AquaFineTuningParams)
-            ).rstrip()
-            raise AquaValueError(
-                f"Invalid fine tuning parameters. Allowable parameters are: "
-                f"{allowed_fine_tuning_parameters}."
-            ) from e
-
+        self._validate_finetuning_params(params or {})
         return {"valid": True}
