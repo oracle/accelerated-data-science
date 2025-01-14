@@ -3,14 +3,14 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
-from typing import List, Optional
+from typing import List, Literal, Optional, Union
 
 from pydantic import Field, model_validator
 
 from ads.aqua.common.errors import AquaValueError
 from ads.aqua.config.utils.serializer import Serializable
 from ads.aqua.data import AquaResourceIdentifier
-from ads.aqua.finetuning.constants import FineTuningForbiddenParams
+from ads.aqua.finetuning.constants import FineTuningRestrictedParams
 
 
 class AquaFineTuningParams(Serializable):
@@ -18,7 +18,7 @@ class AquaFineTuningParams(Serializable):
 
     epochs: Optional[int] = None
     learning_rate: Optional[float] = None
-    sample_packing: Optional[bool] = "auto"
+    sample_packing: Union[bool, None, Literal["auto"]] = "auto"
     batch_size: Optional[int] = (
         None  # make it batch_size for user, but internally this is micro_batch_size
     )
@@ -40,16 +40,18 @@ class AquaFineTuningParams(Serializable):
 
     @model_validator(mode="before")
     @classmethod
-    def validate_forbidden_fields(cls, data: dict):
+    def validate_restricted_fields(cls, data: dict):
         # we may want to skip validation if loading data from config files instead of user entered parameters
         validate = data.pop("_validate", True)
         if not (validate and isinstance(data, dict)):
             return data
-        forbidden_params = [
-            param for param in data if param in FineTuningForbiddenParams.values()
+        restricted_params = [
+            param for param in data if param in FineTuningRestrictedParams.values()
         ]
-        if forbidden_params:
-            raise AquaValueError(f"Found restricted parameter name: {forbidden_params}")
+        if restricted_params:
+            raise AquaValueError(
+                f"Found restricted parameter name: {restricted_params}"
+            )
         return data
 
 

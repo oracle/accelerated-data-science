@@ -16,7 +16,7 @@ class FineTuneCustomMetadata(str, metaclass=ExtendedEnumMeta):
     SERVICE_MODEL_FINE_TUNE_CONTAINER = "finetune-container"
 
 
-class FineTuningForbiddenParams(str, metaclass=ExtendedEnumMeta):
+class FineTuningRestrictedParams(str, metaclass=ExtendedEnumMeta):
     OPTIMIZER = "optimizer"
 
 

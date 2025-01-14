@@ -152,7 +152,7 @@ class AquaFineTuningApp(AquaApp):
                 f"Logging is required for fine tuning if replica is larger than {DEFAULT_FT_REPLICA}."
             )
 
-        ft_parameters = self._validate_finetuning_params(
+        ft_parameters = self._get_finetuning_params(
             create_fine_tuning_details.ft_parameters
         )
 
@@ -591,8 +591,9 @@ class AquaFineTuningApp(AquaApp):
         default_params = {"params": {}}
         finetuning_config = self.get_finetuning_config(model_id)
         config_parameters = finetuning_config.get("configuration", UNKNOWN_DICT)
-        config_parameters["_validate"] = False
-        dataclass_fields = AquaFineTuningParams(**config_parameters).to_dict()
+        dataclass_fields = self._get_finetuning_params(
+            config_parameters, validate=False
+        ).to_dict()
         for name, value in config_parameters.items():
             if name in dataclass_fields:
                 if name == "micro_batch_size":
@@ -602,9 +603,17 @@ class AquaFineTuningApp(AquaApp):
         return default_params
 
     @staticmethod
-    def _validate_finetuning_params(params: Dict = None) -> AquaFineTuningParams:
+    def _get_finetuning_params(
+        params: Dict = None, validate: bool = True
+    ) -> AquaFineTuningParams:
+        """
+        Get and validate the fine-tuning params, and return an error message if validation fails. In order to skip
+        @model_validator decorator's validation, pass validate=False.
+        """
         try:
-            finetuning_params = AquaFineTuningParams(**params)
+            finetuning_params = AquaFineTuningParams(
+                **{**params, **{"_validate": validate}}
+            )
         except ValidationError as ex:
             # combine both loc and msg for errors where loc (field) is present in error details, else only build error
             # message using msg field. Added to handle error messages from pydantic model validator handler.
@@ -631,5 +640,5 @@ class AquaFineTuningApp(AquaApp):
         -------
             Return a list of restricted params.
         """
-        self._validate_finetuning_params(params or {})
+        self._get_finetuning_params(params or {})
         return {"valid": True}
