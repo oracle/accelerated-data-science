@@ -12,9 +12,6 @@ try:
         ChatOCIModelDeploymentTGI,
         ChatOCIModelDeploymentVLLM,
     )
-    from ads.llm.langchain.plugins.embeddings.oci_data_science_model_deployment_endpoint import (
-        OCIModelDeploymentEndpointEmbeddings,
-    )
     from ads.llm.langchain.plugins.llms.oci_data_science_model_deployment_endpoint import (
         OCIModelDeploymentTGI,
         OCIModelDeploymentVLLM,
