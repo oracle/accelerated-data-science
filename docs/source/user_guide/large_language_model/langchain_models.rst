@@ -127,6 +127,26 @@ Chat models takes `chat messages <https://python.langchain.com/docs/concepts/#me
         print(chunk.content, end="")
 
 
+Embedding Models
+================
+
+You can also use embedding model that's hosted on a `OCI Data Science Model Deployment <https://docs.oracle.com/en-us/iaas/data-science/using/model-dep-about.htm>`_.
+
+
+.. code-block:: python3
+
+    from langchain_community.embeddings import OCIModelDeploymentEndpointEmbeddings
+
+    # Create an instance of OCI Model Deployment Endpoint
+    # Replace the endpoint uri with your own
+    embeddings = OCIModelDeploymentEndpointEmbeddings(
+        endpoint="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<MD_OCID>/predict",
+    )
+
+    query = "Hello World!"
+    embeddings.embed_query(query)
+
+
 Tool Calling
 ============
 
