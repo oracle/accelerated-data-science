@@ -7,7 +7,9 @@
 """Test OCI Data Science Model Deployment Endpoint."""
 
 from unittest.mock import MagicMock, patch
-from ads.llm import OCIModelDeploymentEndpointEmbeddings
+from ads.llm.langchain.plugins.embeddings.oci_data_science_model_deployment_endpoint import (
+    OCIModelDeploymentEndpointEmbeddings,
+)
 
 
 @patch("ads.llm.OCIModelDeploymentEndpointEmbeddings._embed_with_retry")
