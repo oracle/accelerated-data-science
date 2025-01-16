@@ -31,10 +31,10 @@ DATASETS_LIST = [
 
 MODELS = [
     "arima",
-    # "automlx",
+    "automlx",
     "prophet",
     "neuralprophet",
-    # "autots",
+    "autots",
     # "lgbforecast",
     "auto-select",
 ]
@@ -156,7 +156,7 @@ def test_load_datasets(model, data_details):
             verify_explanations(
                 tmpdirname=tmpdirname,
                 additional_cols=additional_cols,
-                target_category_columns=yaml_i["spec"]['target_category_columns']
+                target_category_columns=yaml_i["spec"]["target_category_columns"],
             )
         if include_test_data:
             test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")
@@ -165,7 +165,7 @@ def test_load_datasets(model, data_details):
             print(train_metrics)
 
 
-@pytest.mark.parametrize("model", MODELS[:1])
+@pytest.mark.parametrize("model", MODELS[:-1])
 def test_pandas_to_historical(model):
     df = pd.read_csv(f"{DATASET_PREFIX}dataset1.csv")
 
@@ -184,7 +184,7 @@ def test_pandas_to_historical(model):
         check_output_for_errors(output_data_path)
 
 
-@pytest.mark.parametrize("model", ["neuralprophet"])
+@pytest.mark.parametrize("model", MODELS[:-1])
 def test_pandas_to_historical_test(model):
     df = pd.read_csv(f"{DATASET_PREFIX}dataset4.csv")
     df_train = df[:-PERIODS]
@@ -207,26 +207,33 @@ def test_pandas_to_historical_test(model):
         test_metrics = pd.read_csv(f"{output_data_path}/metrics.csv")
         print(test_metrics)
 
+
 def check_output_for_errors(output_data_path):
     # try:
     # List files in the directory
-    result = subprocess.run(f"ls -a {output_data_path}", shell=True, check=True, text=True, capture_output=True)
+    result = subprocess.run(
+        f"ls -a {output_data_path}",
+        shell=True,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
     files = result.stdout.splitlines()
 
     # Check if errors.json is in the directory
     if "errors.json" in files:
         errors_file_path = os.path.join(output_data_path, "errors.json")
-        
+
         # Read the errors.json file
         with open(errors_file_path, "r") as f:
             errors_content = json.load(f)
-        
+
         # Extract and raise the error message
         # error_message = errors_content.get("message", "An error occurred.")
         raise Exception(errors_content)
 
     print("No errors.json file found. Directory is clear.")
-    
+
     # except subprocess.CalledProcessError as e:
     #     print(f"Error listing files in directory: {e}")
     # except FileNotFoundError:
@@ -235,6 +242,7 @@ def check_output_for_errors(output_data_path):
     #     print("errors.json is not a valid JSON file.")
     # except Exception as e:
     #     print(f"Raised error: {e}")
+
 
 def run_operator(
     historical_data_path,
