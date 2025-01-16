@@ -92,5 +92,3 @@ Below is an example of a ``forecast.yaml`` file with every parameter specified:
     * **global_explanation_filename**: (Optional) The name of the global explanation file. It is saved in the output directory, with a default name of ``global_explanations.csv``.
 
     * **local_explanation_filename**: (Optional) The name of the local explanation file. It is saved in the output directory, with a default name of ``local_explanations.csv``.
-
-    * **what_if_analysis**: (Optional) When enabled, models are saved to the model catalog, allowing for what-if analysis by deploying these models. Defaults to false. The project OCID from config.PROJECT_OCID and the compartment OCID from config.NB_SESSION_COMPARTMENT_OCID are used.
