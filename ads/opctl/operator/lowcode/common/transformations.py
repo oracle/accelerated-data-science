@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from abc import ABC
 
+import numpy as np
 import pandas as pd
 
 from ads.opctl import logger
@@ -215,12 +216,17 @@ class Transformations(ABC):
             .transform(lambda x: (x - x.mean()) / x.std())
         )
         outliers_mask = df["z_score"].abs() > 3
+
+        if df[self.target_column_name].dtype == np.int:
+            df[self.target_column_name].astype(np.float)
+
         df.loc[outliers_mask, self.target_column_name] = (
             df[self.target_column_name]
             .groupby(DataColumns.Series)
-            .transform(lambda x: x.mean())
+            .transform(lambda x: np.median(x))
         )
-        return df.drop("z_score", axis=1)
+        df_ret = df.drop("z_score", axis=1)
+        return df_ret
 
     def _check_historical_dataset(self, df):
         expected_names = [self.target_column_name, self.dt_column_name] + (

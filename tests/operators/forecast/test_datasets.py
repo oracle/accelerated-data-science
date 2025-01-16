@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
 import yaml
@@ -157,6 +157,39 @@ def test_load_datasets(model, data_details):
             print(test_metrics)
             train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
             print(train_metrics)
+
+
+@pytest.mark.parametrize("model", MODELS[:-1])
+def test_pandas_df_historical(model):
+    df = pd.read_csv(f"{DATASET_PREFIX}dataset1.csv")
+
+    yaml_i = deepcopy(TEMPLATE_YAML)
+    yaml_i["spec"]["model"] = model
+    yaml_i["spec"]["historical_data"].pop("url")
+    yaml_i["spec"]["historical_data"]["data"] = df
+    yaml_i["spec"]["target_column"] = "Y"
+    yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COL
+    yaml_i["spec"]["horizon"] = 5
+    run(yaml_i, backend="operator.local", debug=False)
+    subprocess.run(f"ls -a {output_data_path}", shell=True)
+
+
+@pytest.mark.parametrize("model", MODELS[:-1])
+def test_pandas_historical_test(model):
+    df = pd.read_csv(f"{DATASET_PREFIX}dataset4.csv")
+    df_train = df[:-1]
+    df_test = df[-1:]
+
+    yaml_i = deepcopy(TEMPLATE_YAML)
+    yaml_i["spec"]["model"] = model
+    yaml_i["spec"]["historical_data"].pop("url")
+    yaml_i["spec"]["historical_data"]["data"] = df_train
+    yaml_i["spec"]["test_data"]["data"] = df_test
+    yaml_i["spec"]["target_column"] = "Y"
+    yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COL
+    yaml_i["spec"]["horizon"] = 5
+    run(yaml_i, backend="operator.local", debug=False)
+    subprocess.run(f"ls -a {output_data_path}", shell=True)
 
 
 def run_operator(
