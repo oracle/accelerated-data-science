@@ -18,13 +18,34 @@ from ads.opctl.operator.lowcode.common.utils import find_output_dirname
 
 from .const import SpeedAccuracyMode, SupportedMetrics, SupportedModels
 
+@dataclass
+class AutoScaling(DataClassSerializable):
+    """Class representing simple autoscaling policy"""
+    minimum_instance: int = 1
+    maximum_instance: int = None
+    cool_down_in_seconds: int = 600
+    scale_in_threshold: int = 10
+    scale_out_threshold: int = 80
+    scaling_metric: str = "CPU_UTILIZATION"
+
+@dataclass(repr=True)
+class ModelDeploymentServer(DataClassSerializable):
+    """Class representing model deployment server specification for whatif-analysis."""
+    display_name: str = None
+    initial_shape: str = None
+    description: str = None
+    log_group: str = None
+    log_id: str = None
+    auto_scaling: AutoScaling = field(default_factory=AutoScaling)
+
 
 @dataclass(repr=True)
 class WhatIfAnalysis(DataClassSerializable):
     """Class representing operator specification for whatif-analysis."""
-    model_name: str = None
+    model_display_name: str = None
     compartment_id: str = None
     project_id: str = None
+    model_deployment: ModelDeploymentServer = field(default_factory=ModelDeploymentServer)
 
 
 @dataclass(repr=True)

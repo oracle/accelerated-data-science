@@ -33,6 +33,9 @@ def operate(operator_config: ForecastOperatorConfig) -> None:
     if spec.what_if_analysis and datasets.additional_data:
         mdm = ModelDeploymentManager(spec, datasets.additional_data)
         mdm.save_to_catalog()
+        if spec.what_if_analysis.model_deployment:
+            mdm.create_deployment()
+        mdm.save_deployment_info()
 
 
 def verify(spec: Dict, **kwargs: Dict) -> bool:

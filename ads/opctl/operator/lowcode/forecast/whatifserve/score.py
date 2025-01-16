@@ -163,7 +163,7 @@ def get_forecast(future_df, model_name, series_id, model_object, date_col, targe
     elif model_name == NEURALPROPHET and series_id in model_object:
         model = model_object[series_id]
         model.restore_trainer()
-        accepted_regressors = list(model.config_regressors.keys())
+        accepted_regressors = list(model.config_regressors.regressors.keys())
         data = future_df.rename(columns={date_col_name: 'ds', target_column: 'y'})
         future = data[accepted_regressors + ["ds"]].reset_index(drop=True)
         future["y"] = None
