@@ -210,12 +210,13 @@ class Transformations(ABC):
         -------
             A new Pandas DataFrame with treated outliears.
         """
-        df["z_score"] = (
+        return df
+        df["__z_score"] = (
             df[self.target_column_name]
             .groupby(DataColumns.Series)
             .transform(lambda x: (x - x.mean()) / x.std())
         )
-        outliers_mask = df["z_score"].abs() > 3
+        outliers_mask = df["__z_score"].abs() > 3
 
         if df[self.target_column_name].dtype == np.int:
             df[self.target_column_name].astype(np.float)
@@ -225,7 +226,7 @@ class Transformations(ABC):
             .groupby(DataColumns.Series)
             .transform(lambda x: np.median(x))
         )
-        df_ret = df.drop("z_score", axis=1)
+        df_ret = df.drop("__z_score", axis=1)
         return df_ret
 
     def _check_historical_dataset(self, df):
