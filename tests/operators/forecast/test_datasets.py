@@ -76,16 +76,18 @@ for dataset_i in DATASETS_LIST:  #  + [DATASETS_LIST[-2]]
             parameters_short.append((model, dataset_i))
 
 
-def verify_explanations(tmpdirname, additional_cols):
+def verify_explanations(tmpdirname, additional_cols, target_category_columns):
     glb_expl = pd.read_csv(f"{tmpdirname}/results/global_explanation.csv", index_col=0)
     loc_expl = pd.read_csv(f"{tmpdirname}/results/local_explanation.csv")
     assert loc_expl.shape[0] == PERIODS
-    for x in ["Date", "Series"]:
+    columns = ["Date", "Series"]
+    if not target_category_columns:
+        columns.remove("Series")
+    for x in columns:
         assert x in set(loc_expl.columns)
     # for x in additional_cols:
     #     assert x in set(loc_expl.columns)
     #     assert x in set(glb_expl.index)
-    assert "Series 1" in set(glb_expl.columns)
 
 
 @pytest.mark.parametrize("model, data_details", parameters_short)
@@ -154,6 +156,7 @@ def test_load_datasets(model, data_details):
             verify_explanations(
                 tmpdirname=tmpdirname,
                 additional_cols=additional_cols,
+                target_category_columns=yaml_i["spec"]['target_category_columns']
             )
         if include_test_data:
             test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")

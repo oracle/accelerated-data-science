@@ -403,10 +403,23 @@ def test_0_series(operator_setup, model):
             tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path
         )
     yaml_i["spec"].pop("target_category_columns")
+    yaml_i["spec"]["generate_explanations"] = True
     run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
-    add_data = yaml_i["spec"].pop("additional_data")
+    output_files = ['forecast.csv', 'metrics.csv', 'test_metrics.csv',
+                    'report.html', 'local_explanation.csv', 'global_explanation.csv']
+    if model == "autots":
+        # explanations are not supported for autots
+        output_files.remove("local_explanation.csv")
+        output_files.remove("global_explanation.csv")
+    for file in output_files:
+        file_path = os.path.join(output_data_path, file)
+        with open(file_path, 'r', encoding='utf-8') as cur_file:
+            content = cur_file.read()
+            assert "Series 1" not in content, f"'Series 1' found in file: {file}"
+    yaml_i["spec"].pop("additional_data")
+    yaml_i["spec"].pop("generate_explanations")
     run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
-    test_data = yaml_i["spec"].pop("test_data")
+    yaml_i["spec"].pop("test_data")
     run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
     # Todo test horizon mismatch with add data and/or test data
 

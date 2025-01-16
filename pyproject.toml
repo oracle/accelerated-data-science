@@ -21,7 +21,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads" # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.12.8"
+version = "2.12.9"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -211,7 +211,7 @@ aqua = ["jupyter_server"]
 # Revisit this section continuously and update to recent version of libraries. focus on pyt3.9/3.10 versions.
 testsuite = [
   "arff",
-  "autogen-agentchat~=0.2",
+  "autogen-agentchat<0.4",
   "category_encoders==2.6.3",  # set version to avoid backtracking
   "cohere==4.53",  # set version to avoid backtracking
   "faiss-cpu",
