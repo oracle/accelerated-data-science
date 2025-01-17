@@ -767,7 +767,12 @@ def test_what_if_analysis(operator_setup, model):
     )
     yaml_i["spec"]["horizon"] = 10
     yaml_i["spec"]["model"] = model
-    yaml_i["spec"]["what_if_analysis"] = {"model_name": f"model_{model}"}
+    yaml_i["spec"]["what_if_analysis"] = {
+        "model_name": f"model_{model}",
+        "model_display_name": f"test_{model}",
+        "project_id": "test_project_id",
+        "compartment_id": "test_compartment_id"
+    }
 
     run_yaml(
         tmpdirname=tmpdirname,
@@ -776,7 +781,9 @@ def test_what_if_analysis(operator_setup, model):
         test_metrics_check=False,
     )
     report_path = f"{output_data_path}/report.html"
+    deployment_metadata = f"{output_data_path}/deployment_info.json"
     assert os.path.exists(report_path), f"Report file not found at {report_path}"
+    assert os.path.exists(deployment_metadata), f"Deployment info file not found at {deployment_metadata}"
 
 if __name__ == "__main__":
     pass
