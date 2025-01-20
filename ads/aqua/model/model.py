@@ -413,8 +413,7 @@ class AquaModelApp(AquaApp):
                 freeform_tags = ds_model.freeform_tags
                 if inference_container:
                     if (
-                        inference_container
-                        in CustomInferenceContainerTypeFamily
+                        inference_container in CustomInferenceContainerTypeFamily
                         and inference_container_uri is None
                     ):
                         raise AquaRuntimeError(
@@ -430,8 +429,7 @@ class AquaModelApp(AquaApp):
                         )
                 if inference_container_uri:
                     if (
-                        inference_container
-                        in CustomInferenceContainerTypeFamily
+                        inference_container in CustomInferenceContainerTypeFamily
                         or inference_container is None
                     ):
                         custom_metadata_list.add(
