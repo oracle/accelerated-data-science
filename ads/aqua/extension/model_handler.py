@@ -150,6 +150,7 @@ class AquaModelHandler(AquaAPIhandler):
                 ignore_patterns=ignore_patterns,
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
+                task=task
             )
         )
 
