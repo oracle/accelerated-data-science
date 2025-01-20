@@ -1119,6 +1119,8 @@ class AquaModelApp(AquaApp):
                     validation_result.tags = hf_tags
                 except Exception:
                     pass
+            else:
+                validation_result.tags={Tags.TASK: import_model_details.task if import_model_details.task else UNKNOWN}
 
         validation_result.model_formats = model_formats
 

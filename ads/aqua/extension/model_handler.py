@@ -133,6 +133,7 @@ class AquaModelHandler(AquaAPIhandler):
         ignore_patterns = input_data.get("ignore_patterns")
         freeform_tags = input_data.get("freeform_tags")
         defined_tags = input_data.get("defined_tags")
+        task=input_data.get("task")
 
         return self.finish(
             AquaModelApp().register(
