@@ -376,7 +376,7 @@ class AquaModelApp(AquaApp):
                 f"Failed to delete model:{model_id}. Only registered models or finetuned model can be deleted."
             )
 
-    @telemetry(entry_point="plugin=model&action=delete", name="aqua")
+    @telemetry(entry_point="plugin=model&action=edit", name="aqua")
     def edit_registered_model(self, id, inference_container, enable_finetuning, task):
         """Edits the default config of unverified registered model.
 
