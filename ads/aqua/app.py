@@ -296,36 +296,16 @@ class AquaApp:
             raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
 
         config = {}
-        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
-        if not artifact_path:
-            logger.error(
-                f"Failed to get artifact path from custom metadata for the model: {model_id}"
-            )
-            return config
-
         try:
-            config_path = f"{os.path.dirname(artifact_path)}/config/"
-            config = load_config(
-                config_path,
-                config_file_name=config_file_name,
-            )
+            config = self.ds_client.get_model_defined_metadatum_artifact_content(model_id,config_file_name)
         except Exception:
-            # todo: temp fix for issue related to config load for byom models, update logic to choose the right path
-            try:
-                config_path = f"{artifact_path.rstrip('/')}/config/"
-                config = load_config(
-                    config_path,
-                    config_file_name=config_file_name,
-                )
-            except Exception:
-                pass
+            pass
 
         if not config:
             logger.error(
-                f"{config_file_name} is not available for the model: {model_id}. Check if the custom metadata has the artifact path set."
+                f"{config_file_name} is not available for the model: {model_id}."
             )
             return config
-
         return config
 
     @property
