@@ -377,7 +377,7 @@ class AquaModelApp(AquaApp):
                 f"Failed to delete model:{model_id}. Only registered models or finetuned model can be deleted."
             )
 
-    @telemetry(entry_point="plugin=model&action=delete", name="aqua")
+    @telemetry(entry_point="plugin=model&action=edit", name="aqua")
     def edit_registered_model(
         self, id, inference_container, inference_container_uri, enable_finetuning, task
     ):
@@ -414,7 +414,7 @@ class AquaModelApp(AquaApp):
                 if inference_container:
                     if (
                         inference_container
-                        in CustomInferenceContainerTypeFamily.values()
+                        in CustomInferenceContainerTypeFamily
                         and inference_container_uri is None
                     ):
                         raise AquaRuntimeError(
@@ -431,7 +431,7 @@ class AquaModelApp(AquaApp):
                 if inference_container_uri:
                     if (
                         inference_container
-                        in CustomInferenceContainerTypeFamily.values()
+                        in CustomInferenceContainerTypeFamily
                         or inference_container is None
                     ):
                         custom_metadata_list.add(
