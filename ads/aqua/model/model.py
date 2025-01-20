@@ -17,7 +17,7 @@ from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import (
     FineTuningContainerTypeFamily,
     InferenceContainerTypeFamily,
-    Tags,
+    Tags, CustomInferenceContainerTypeFamily,
 )
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
@@ -405,19 +405,18 @@ class AquaModelApp(AquaApp):
         if ds_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None):
             if ds_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, None):
                 raise AquaRuntimeError(
-                    f"Failed to edit model:{id}. Only registered unverified models can be edited."
+                    f"Only registered unverified models can be edited."
                 )
             else:
                 custom_metadata_list = ds_model.custom_metadata_list
                 freeform_tags = ds_model.freeform_tags
                 if inference_container:
                     if (
-                        inference_container
-                        == InferenceContainerTypeFamily.AQUA_TEI_CONTAINER_FAMILY
+                            inference_container in CustomInferenceContainerTypeFamily.values()
                         and inference_container_uri is None
                     ):
                         raise AquaRuntimeError(
-                            f"Failed to edit model:{id}. Inference container URI must be provided."
+                            f"Inference container URI must be provided."
                         )
                     else:
                         custom_metadata_list.add(
@@ -429,8 +428,7 @@ class AquaModelApp(AquaApp):
                         )
                 if inference_container_uri:
                     if (
-                        inference_container
-                        == InferenceContainerTypeFamily.AQUA_TEI_CONTAINER_FAMILY
+                            inference_container in CustomInferenceContainerTypeFamily.values()
                         or inference_container is None
                     ):
                         custom_metadata_list.add(
@@ -442,7 +440,7 @@ class AquaModelApp(AquaApp):
                         )
                     else:
                         raise AquaRuntimeError(
-                            f"Failed to edit model:{id}. Inference container URI can be edited only with TEI container."
+                            f"Inference container URI can be edited only with container values: {CustomInferenceContainerTypeFamily.values()}"
                         )
 
                 if enable_finetuning is not None:
@@ -480,7 +478,7 @@ class AquaModelApp(AquaApp):
                 AquaApp().update_model(id, update_model_details)
         else:
             raise AquaRuntimeError(
-                f"Failed to edit model:{id}. Only registered unverified models can be edited."
+                f"Only registered unverified models can be edited."
             )
 
     def _fetch_metric_from_metadata(
@@ -900,8 +898,7 @@ class AquaModelApp(AquaApp):
             # only add cmd vars if inference container is not an SMC
             if (
                 inference_container not in smc_container_set
-                and inference_container
-                == InferenceContainerTypeFamily.AQUA_TEI_CONTAINER_FAMILY
+                and inference_container in CustomInferenceContainerTypeFamily.values()
             ):
                 cmd_vars = generate_tei_cmd_var(os_path)
                 metadata.add(

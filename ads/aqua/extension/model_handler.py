@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
-from ads.aqua.common.enums import InferenceContainerTypeFamily
+from ads.aqua.common.enums import InferenceContainerTypeFamily,CustomInferenceContainerTypeFamily
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     get_hf_model_info,
@@ -166,11 +166,10 @@ class AquaModelHandler(AquaAPIhandler):
         inference_container = input_data.get("inference_container")
         inference_container_uri = input_data.get("inference_container_uri")
         inference_containers = AquaModelApp.list_valid_inference_containers()
+        inference_containers.extend(CustomInferenceContainerTypeFamily.values())
         if (
             inference_container is not None
             and inference_container not in inference_containers
-            and inference_container
-            != InferenceContainerTypeFamily.AQUA_TEI_CONTAINER_FAMILY
         ):
             raise HTTPError(
                 400, Errors.INVALID_VALUE_OF_PARAMETER.format("inference_container")
