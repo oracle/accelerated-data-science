@@ -15,9 +15,10 @@ from oci.data_science.models import JobRun, Metadata, Model, UpdateModelDetails
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import (
+    CustomInferenceContainerTypeFamily,
     FineTuningContainerTypeFamily,
     InferenceContainerTypeFamily,
-    Tags, CustomInferenceContainerTypeFamily,
+    Tags,
 )
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
@@ -405,18 +406,19 @@ class AquaModelApp(AquaApp):
         if ds_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None):
             if ds_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, None):
                 raise AquaRuntimeError(
-                    f"Only registered unverified models can be edited."
+                    "Only registered unverified models can be edited."
                 )
             else:
                 custom_metadata_list = ds_model.custom_metadata_list
                 freeform_tags = ds_model.freeform_tags
                 if inference_container:
                     if (
-                            inference_container in CustomInferenceContainerTypeFamily.values()
+                        inference_container
+                        in CustomInferenceContainerTypeFamily.values()
                         and inference_container_uri is None
                     ):
                         raise AquaRuntimeError(
-                            f"Inference container URI must be provided."
+                            "Inference container URI must be provided."
                         )
                     else:
                         custom_metadata_list.add(
@@ -428,7 +430,8 @@ class AquaModelApp(AquaApp):
                         )
                 if inference_container_uri:
                     if (
-                            inference_container in CustomInferenceContainerTypeFamily.values()
+                        inference_container
+                        in CustomInferenceContainerTypeFamily.values()
                         or inference_container is None
                     ):
                         custom_metadata_list.add(
@@ -477,9 +480,7 @@ class AquaModelApp(AquaApp):
                 )
                 AquaApp().update_model(id, update_model_details)
         else:
-            raise AquaRuntimeError(
-                f"Only registered unverified models can be edited."
-            )
+            raise AquaRuntimeError("Only registered unverified models can be edited.")
 
     def _fetch_metric_from_metadata(
         self,

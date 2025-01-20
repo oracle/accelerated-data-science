@@ -53,8 +53,10 @@ class InferenceContainerTypeFamily(str, metaclass=ExtendedEnumMeta):
     AQUA_TGI_CONTAINER_FAMILY = "odsc-tgi-serving"
     AQUA_LLAMA_CPP_CONTAINER_FAMILY = "odsc-llama-cpp-serving"
 
-class CustomInferenceContainerTypeFamily(str,metaclass=ExtendedEnumMeta):
-    AQUA_TEI_CONTAINER_FAMILY="odsc-tei-serving"
+
+class CustomInferenceContainerTypeFamily(str, metaclass=ExtendedEnumMeta):
+    AQUA_TEI_CONTAINER_FAMILY = "odsc-tei-serving"
+
 
 class InferenceContainerParamType(str, metaclass=ExtendedEnumMeta):
     PARAM_TYPE_VLLM = "VLLM_PARAMS"
