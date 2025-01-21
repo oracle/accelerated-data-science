@@ -32,7 +32,7 @@ from ads.aqua.constants import (
     AQUA_MODEL_TYPE_SERVICE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     UNKNOWN,
-    UNKNOWN_DICT,
+    UNKNOWN_DICT, DEPLOYMENT_CONFIGURATION,
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
@@ -649,7 +649,7 @@ class AquaDeploymentApp(AquaApp):
         Dict:
             A dict of allowed deployment configs.
         """
-        config = self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG)
+        config = self.get_config(model_id, DEPLOYMENT_CONFIGURATION)
         if not config:
             logger.debug(
                 f"Deployment config for custom model: {model_id} is not available."

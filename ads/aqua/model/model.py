@@ -41,7 +41,6 @@ from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_FILE,
     AQUA_MODEL_TYPE_CUSTOM,
     HF_METADATA_FOLDER,
-    LICENSE_TXT,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     README,
     READY_TO_DEPLOY_STATUS,
@@ -51,7 +50,7 @@ from ads.aqua.constants import (
     TRINING_METRICS,
     UNKNOWN,
     VALIDATION_METRICS,
-    VALIDATION_METRICS_FINAL,
+    VALIDATION_METRICS_FINAL, LICENSE,
 )
 from ads.aqua.model.constants import (
     FineTuningCustomMetadata,
@@ -247,7 +246,7 @@ class AquaModelApp(AquaApp):
             )
             if artifact_path != UNKNOWN:
                 model_card = str(
-                    self.ds_client.get_model_defined_metadatum_artifact_content(model_id,LICENSE_TXT)
+                    self.ds_client.get_model_defined_metadatum_artifact_content(model_id,LICENSE)
                 )
 
         inference_container = ds_model.custom_metadata_list.get(
@@ -1539,7 +1538,7 @@ class AquaModelApp(AquaApp):
             raise AquaRuntimeError("Failed to get artifact path from custom metadata.")
 
         content = str(
-            self.ds_client.get_model_defined_metadatum_artifact_content(model_id,LICENSE_TXT)
+            self.ds_client.get_model_defined_metadatum_artifact_content(model_id,LICENSE)
         )
 
         return AquaModelLicense(id=model_id, license=content)

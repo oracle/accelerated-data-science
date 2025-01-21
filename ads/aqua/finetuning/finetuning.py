@@ -28,7 +28,7 @@ from ads.aqua.constants import (
     DEFAULT_FT_VALIDATION_SET_SIZE,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     UNKNOWN,
-    UNKNOWN_DICT,
+    UNKNOWN_DICT, FINE_TUNING_CONFIGURATION,
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.constants import (
@@ -584,7 +584,7 @@ class AquaFineTuningApp(AquaApp):
         Dict:
             A dict of allowed finetuning configs.
         """
-        config = self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG)
+        config = self.get_config(model_id, FINE_TUNING_CONFIGURATION)
         if not config:
             logger.debug(
                 f"Fine-tuning config for custom model: {model_id} is not available."
