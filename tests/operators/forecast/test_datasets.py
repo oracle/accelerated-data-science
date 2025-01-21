@@ -179,6 +179,8 @@ def test_pandas_to_historical(model):
         yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COL
         yaml_i["spec"]["horizon"] = PERIODS
         yaml_i["spec"]["output_directory"]["url"] = output_data_path
+        if model == "automlx":
+            yaml_i["spec"]["model_kwargs"] = {"time_budget": 2}
         operator_config = ForecastOperatorConfig.from_dict(yaml_i)
         forecast_operate(operator_config)
         check_output_for_errors(output_data_path)
@@ -201,6 +203,8 @@ def test_pandas_to_historical_test(model):
         yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COL
         yaml_i["spec"]["horizon"] = PERIODS
         yaml_i["spec"]["output_directory"]["url"] = output_data_path
+        if model == "automlx":
+            yaml_i["spec"]["model_kwargs"] = {"time_budget": 2}
         operator_config = ForecastOperatorConfig.from_dict(yaml_i)
         forecast_operate(operator_config)
         check_output_for_errors(output_data_path)
