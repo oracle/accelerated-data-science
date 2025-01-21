@@ -11,7 +11,7 @@ import tempfile
 import oci
 
 import pandas as pd
-from joblib import dump
+import cloudpickle
 
 from ads.opctl import logger
 from ads.common.model_export_util import prepare_generic_model
@@ -93,7 +93,8 @@ class ModelDeploymentManager:
             os.mkdir(self.path_to_artifact)
 
         artifact_dict = {"spec": self.spec.to_dict(), "models": self.model_obj}
-        dump(artifact_dict, os.path.join(self.path_to_artifact, "model.joblib"))
+        with open(f"{self.path_to_artifact}/models.pickle", "wb") as f:
+            cloudpickle.dump(artifact_dict, f)
         artifact = prepare_generic_model(
             self.path_to_artifact,
             function_artifacts=False,

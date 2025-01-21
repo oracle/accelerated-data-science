@@ -44,7 +44,7 @@ def load_model():
     """
     model_dir = os.path.dirname(os.path.realpath(__file__))
     contents = os.listdir(model_dir)
-    model_file_name = "model.joblib"
+    model_file_name = "models.pickle"
     if model_file_name in contents:
         with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), model_file_name), "rb") as file:
             model = load(file)
