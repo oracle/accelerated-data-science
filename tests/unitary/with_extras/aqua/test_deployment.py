@@ -253,7 +253,6 @@ class TestDataset:
         "created_on": "2024-01-01T00:00:00.000000+00:00",
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
-        "private_endpoint_id": "",
         "environment_variables": {
             "BASE_MODEL": "service_models/model-name/artifact",
             "MODEL_DEPLOY_ENABLE_STREAMING": "true",
@@ -521,7 +520,6 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result["state"] = "CREATING"
         expected_result["tags"].update(freeform_tags)
         expected_result["tags"].update(defined_tags)
-        expected_result["private_endpoint_id"] = ""
         assert actual_attributes == expected_result
 
     @patch("ads.aqua.modeldeployment.deployment.get_container_config")
@@ -594,7 +592,6 @@ class TestAquaDeployment(unittest.TestCase):
         assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
         expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
         expected_result["state"] = "CREATING"
-        expected_result["private_endpoint_id"] = ""
         assert actual_attributes == expected_result
 
     @patch("ads.aqua.modeldeployment.deployment.get_container_config")
@@ -675,7 +672,6 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result["environment_variables"] = (
             TestDataset.aqua_deployment_gguf_env_vars
         )
-        expected_result["private_endpoint_id"] = ""
         assert actual_attributes == expected_result
 
     @patch("ads.aqua.modeldeployment.deployment.get_container_config")
@@ -754,7 +750,6 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result["shape_info"] = (
             TestDataset.aqua_deployment_tei_byoc_embeddings_shape_info
         )
-        expected_result["private_endpoint_id"] = ""
         expected_result["cmd"] = TestDataset.aqua_deployment_tei_byoc_embeddings_cmd
         expected_result["environment_variables"] = (
             TestDataset.aqua_deployment_tei_byoc_embeddings_env_vars
