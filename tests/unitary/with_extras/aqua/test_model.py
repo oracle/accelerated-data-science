@@ -1021,11 +1021,15 @@ class TestAquaModel:
                 inference_container="odsc-vllm-or-tgi-container",
                 finetuning_container="odsc-llm-fine-tuning",
                 download_from_hf=False,
+                task='text-generation'
             )
             assert model.tags == {
                 "aqua_custom_base_model": "true",
                 "model_format": "SAFETENSORS",
                 "ready_to_fine_tune": "true",
+                'license': '',
+                'organization': '',
+                'task': 'text-generation',
                 **ds_freeform_tags,
             }
             assert model.inference_container == "odsc-vllm-or-tgi-container"
@@ -1162,6 +1166,7 @@ class TestAquaModel:
                 download_from_hf=False,
                 freeform_tags={"ftag1": "fvalue1", "ftag2": "fvalue2"},
                 defined_tags={"dtag1": "dvalue1", "dtag2": "dvalue2"},
+                task="image_text_to_text"
             )
             assert model.tags == {
                 "aqua_custom_base_model": "true",
@@ -1171,6 +1176,9 @@ class TestAquaModel:
                 "dtag2": "dvalue2",
                 "ftag1": "fvalue1",
                 "ftag2": "fvalue2",
+                'license': '',
+                'organization': '',
+                'task': 'image_text_to_text',
                 **ds_freeform_tags,
             }
 
