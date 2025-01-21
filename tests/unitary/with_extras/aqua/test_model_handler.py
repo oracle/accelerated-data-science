@@ -218,7 +218,7 @@ class ModelHandlerTestCase(TestCase):
             ignore_patterns=ignore_patterns,
             freeform_tags=freeform_tags,
             defined_tags=defined_tags,
-            task=None
+            task=None,
         )
         assert result["id"] == "test_id"
         assert result["inference_container"] == "odsc-tgi-serving"

@@ -521,7 +521,7 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result["state"] = "CREATING"
         expected_result["tags"].update(freeform_tags)
         expected_result["tags"].update(defined_tags)
-        expected_result["private_endpoint_id"]=""
+        expected_result["private_endpoint_id"] = ""
         assert actual_attributes == expected_result
 
     @patch("ads.aqua.modeldeployment.deployment.get_container_config")
@@ -754,7 +754,7 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result["shape_info"] = (
             TestDataset.aqua_deployment_tei_byoc_embeddings_shape_info
         )
-        expected_result["private_endpoint_id"]=""
+        expected_result["private_endpoint_id"] = ""
         expected_result["cmd"] = TestDataset.aqua_deployment_tei_byoc_embeddings_cmd
         expected_result["environment_variables"] = (
             TestDataset.aqua_deployment_tei_byoc_embeddings_env_vars
