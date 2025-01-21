@@ -253,6 +253,7 @@ class TestDataset:
         "created_on": "2024-01-01T00:00:00.000000+00:00",
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
+        "private_endpoint_id": null,
         "environment_variables": {
             "BASE_MODEL": "service_models/model-name/artifact",
             "MODEL_DEPLOY_ENABLE_STREAMING": "true",
