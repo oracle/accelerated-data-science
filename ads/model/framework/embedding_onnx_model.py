@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
 CONFIG = "config.json"
 TOKENIZERS = [
     "tokenizer.json",
+    "tokenizer.model",
     "tokenizer_config.json",
+    "sentencepiece.bpe.model",
     "spiece.model",
     "vocab.txt",
     "vocab.json",
