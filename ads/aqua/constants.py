@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """This module defines constants used in ads.aqua module."""
 
@@ -46,6 +46,8 @@ VALIDATION_METRICS = "validation_metrics"
 SERVICE_MANAGED_CONTAINER_URI_SCHEME = "dsmc://"
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "artifact_location"
+AQUA_EXTENSION_LOAD_DEFAULT_TIMEOUT = 10
+AQUA_EXTENSION_LOAD_MAX_ATTEMPTS = 1
 
 CONSOLE_LINK_RESOURCE_TYPE_MAPPING = {
     "datasciencemodel": "models",

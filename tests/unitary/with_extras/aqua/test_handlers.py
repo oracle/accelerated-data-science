@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -131,9 +131,13 @@ class TestBaseHandlers(unittest.TestCase):
                     ),
                     aqua_api_details=dict(
                         aqua_api_name="TestDataset.create",
-                        oci_api_name=TestDataset.mock_service_payload_create["operation_name"],
-                        service_endpoint=TestDataset.mock_service_payload_create["request_endpoint"]
-                    )
+                        oci_api_name=TestDataset.mock_service_payload_create[
+                            "operation_name"
+                        ],
+                        service_endpoint=TestDataset.mock_service_payload_create[
+                            "request_endpoint"
+                        ],
+                    ),
                 ),
                 "Authorization Failed: The resource you're looking for isn't accessible. Operation Name: get_job_run.",
             ],
@@ -171,7 +175,7 @@ class TestBaseHandlers(unittest.TestCase):
                 input.get("status_code"),
             ),
             value=input.get("reason"),
-            **aqua_api_details
+            **aqua_api_details,
         )
 
         mock_logger.warning.assert_called_with(expected_msg)
@@ -263,7 +267,11 @@ class TestHandlers(unittest.TestCase):
                 None,
                 None,
                 None,
-                dict(status="ok"),
+                dict(
+                    status="ok",
+                    payload={"ODSC_MODEL_COMPARTMENT_OCID": "mytemp"},
+                    msg="Successfully retrieved service compartment id.",
+                ),
                 "/aqua/hello",
             ),
             (
