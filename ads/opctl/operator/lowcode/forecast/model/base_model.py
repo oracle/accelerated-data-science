@@ -49,6 +49,7 @@ from ..const import (
     SpeedAccuracyMode,
     SupportedMetrics,
     SupportedModels,
+    BACKTEST_REPORT_NAME,
 )
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 from .forecast_datasets import ForecastDatasets
@@ -665,6 +666,13 @@ class ForecastOperatorBaseModel(ABC):
             storage_options=storage_options,
         )
 
+    def _validate_automlx_explanation_mode(self):
+        if self.spec.model != SupportedModels.AutoMLX and self.spec.explanations_accuracy_mode == SpeedAccuracyMode.AUTOMLX:
+            raise ValueError(
+                "AUTOMLX explanation accuracy mode is only supported for AutoMLX models. "
+                "Please select mode other than AUTOMLX from the available explanations_accuracy_mode options"
+            )
+
     @runtime_dependency(
         module="shap",
         err_msg=(
@@ -692,6 +700,9 @@ class ForecastOperatorBaseModel(ABC):
             f"Calculating explanations using {self.spec.explanations_accuracy_mode} mode"
         )
         ratio = SpeedAccuracyMode.ratio[self.spec.explanations_accuracy_mode]
+
+        # validate the automlx mode is use for automlx model
+        self._validate_automlx_explanation_mode()
 
         for s_id, data_i in self.datasets.get_data_by_series(
             include_horizon=False
@@ -726,6 +737,14 @@ class ForecastOperatorBaseModel(ABC):
                 if not len(kernel_explnr_vals):
                     logger.warn(
                         "No explanations generated. Ensure that additional data has been provided."
+                    )
+                elif (
+                    self.spec.model == SupportedModels.AutoMLX
+                    and self.spec.explanations_accuracy_mode
+                    == SpeedAccuracyMode.AUTOMLX
+                ):
+                    logger.warning(
+                        "Global explanations not available for AutoMLX models with inherent explainability"
                     )
                 else:
                     self.global_explanation[s_id] = dict(
