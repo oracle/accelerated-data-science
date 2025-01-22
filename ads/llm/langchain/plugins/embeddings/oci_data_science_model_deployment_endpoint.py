@@ -8,8 +8,8 @@ from typing import Any, Callable, Dict, List, Mapping, Optional
 import requests
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.llms import create_base_retry_decorator
+from langchain_core.pydantic_v1 import BaseModel, Field, root_validator
 from langchain_core.utils import get_from_dict_or_env
-from pydantic import BaseModel, Field, model_validator
 
 DEFAULT_HEADER = {
     "Content-Type": "application/json",
@@ -64,7 +64,7 @@ class OCIModelDeploymentEndpointEmbeddings(BaseModel, Embeddings):
     max_retries: int = 1
     """The maximum number of retries to make when generating."""
 
-    @model_validator(mode="before")
+    @root_validator()
     def validate_environment(  # pylint: disable=no-self-argument
         cls, values: Dict
     ) -> Dict:
@@ -167,7 +167,7 @@ class OCIModelDeploymentEndpointEmbeddings(BaseModel, Embeddings):
         except Exception as e:
             raise ValueError(
                 f"Error raised by inference API: {e}.\nResponse: {response.text}"
-            )
+            ) from e
         return embeddings
 
     def embed_documents(
