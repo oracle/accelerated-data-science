@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA utils and constants."""
 
@@ -11,6 +11,7 @@ import os
 import random
 import re
 import shlex
+import shutil
 import subprocess
 from datetime import datetime, timedelta
 from functools import wraps
@@ -21,6 +22,8 @@ from typing import List, Union
 import fsspec
 import oci
 from cachetools import TTLCache, cached
+from huggingface_hub.constants import HF_HUB_CACHE
+from huggingface_hub.file_download import repo_folder_name
 from huggingface_hub.hf_api import HfApi, ModelInfo
 from huggingface_hub.utils import (
     GatedRepoError,
@@ -788,7 +791,9 @@ def get_ocid_substring(ocid: str, key_len: int) -> str:
     return ocid[-key_len:] if ocid and len(ocid) > key_len else ""
 
 
-def upload_folder(os_path: str, local_dir: str, model_name: str, exclude_pattern: str = None) -> str:
+def upload_folder(
+    os_path: str, local_dir: str, model_name: str, exclude_pattern: str = None
+) -> str:
     """Upload the local folder to the object storage
 
     Args:
@@ -816,6 +821,38 @@ def upload_folder(os_path: str, local_dir: str, model_name: str, exclude_pattern
         )
 
     return f"oci://{os_details.bucket}@{os_details.namespace}" + "/" + object_path
+
+
+def cleanup_local_hf_model_artifact(
+    model_name: str,
+    local_dir: str = None,
+):
+    """
+    Helper function that deletes local artifacts downloaded from Hugging Face to free up disk space.
+    Parameters
+    ----------
+    model_name (str): Name of the huggingface model
+    local_dir (str): Local directory where the object is downloaded
+
+    """
+    if local_dir and os.path.exists(local_dir):
+        model_dir = os.path.join(local_dir, model_name)
+        if os.path.exists(model_dir):
+            shutil.rmtree(model_dir)
+            logger.debug(f"Deleted local model artifact directory: {model_dir}")
+
+        if not os.listdir(local_dir):
+            shutil.rmtree(local_dir)
+            logger.debug(f"Deleted local directory {model_dir} as it is empty.")
+
+    hf_local_path = os.path.join(
+        HF_HUB_CACHE, repo_folder_name(repo_id=model_name, repo_type="model")
+    )
+    if os.path.exists(hf_local_path):
+        shutil.rmtree(hf_local_path)
+        logger.debug(
+            f"Deleted local Hugging Face cache directory {hf_local_path} for the model {model_name} "
+        )
 
 
 def is_service_managed_container(container):
