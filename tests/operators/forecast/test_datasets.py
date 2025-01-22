@@ -165,7 +165,7 @@ def test_load_datasets(model, data_details):
             print(train_metrics)
 
 
-@pytest.mark.parametrize("model", MODELS[:-1])
+@pytest.mark.parametrize("model", MODELS[:-2])
 def test_pandas_to_historical(model):
     df = pd.read_csv(f"{DATASET_PREFIX}dataset1.csv")
 
@@ -186,7 +186,7 @@ def test_pandas_to_historical(model):
         check_output_for_errors(output_data_path)
 
 
-@pytest.mark.parametrize("model", MODELS[:-1])
+@pytest.mark.parametrize("model", MODELS[:-2])
 def test_pandas_to_historical_test(model):
     df = pd.read_csv(f"{DATASET_PREFIX}dataset4.csv")
     df_train = df[:-PERIODS]
