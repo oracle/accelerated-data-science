@@ -49,7 +49,7 @@ class ModelDeploymentManager:
         self.test_mode = os.environ.get("TEST_MODE", False)
         self.deployment_info = {}
 
-    def _satiny_test(self):
+    def _sanity_test(self):
         """
         Function perform sanity test for saved artifact
         """
@@ -102,7 +102,7 @@ class ModelDeploymentManager:
             data_science_env=True)
 
         self._copy_score_file()
-        self._satiny_test()
+        self._sanity_test()
 
         if isinstance(self.model_obj, dict):
             series = self.model_obj.keys()
@@ -119,9 +119,9 @@ class ModelDeploymentManager:
             self.catalog_id = catalog_entry.id
 
         logger.info(f"Saved {self.model_name} version-v{self.model_version} to model catalog"
-                    f" with catalog id : {self.catalog_id}")
+                    f" with model ocid : {self.catalog_id}")
 
-        self.deployment_info = {"catalog_id": self.catalog_id, "series": list(series)}
+        self.deployment_info = {"model_ocid": self.catalog_id, "series": list(series)}
 
     def create_deployment(self):
         """Create a model deployment serving"""
@@ -199,9 +199,10 @@ class ModelDeploymentManager:
                 model_deploy_configuration,
                 wait_for_states=[
                     "SUCCEEDED", "FAILED"])
-            self.deployment_info['model_deployment_id'] = model_deployment.data.id
+            self.deployment_info['work_request'] = model_deployment.data.id
             logger.info(f"deployment metadata :{model_deployment.data}")
             md = data_science.get_model_deployment(model_deployment_id=model_deployment.data.resources[0].identifier)
+            self.deployment_info['model_deployment_ocid'] = md.data.id
             endpoint_url = md.data.model_deployment_url
             self.deployment_info['model_deployment_endpoint'] = f"{endpoint_url}/predict"
 
