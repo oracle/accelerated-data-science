@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from typing import Optional
@@ -128,6 +128,10 @@ class AquaModelHandler(AquaAPIhandler):
         download_from_hf = (
             str(input_data.get("download_from_hf", "false")).lower() == "true"
         )
+        local_dir = input_data.get("local_dir")
+        delete_from_local = (
+            str(input_data.get("delete_from_local", "true")).lower() == "true"
+        )
         inference_container_uri = input_data.get("inference_container_uri")
         allow_patterns = input_data.get("allow_patterns")
         ignore_patterns = input_data.get("ignore_patterns")
@@ -139,6 +143,8 @@ class AquaModelHandler(AquaAPIhandler):
                 model=model,
                 os_path=os_path,
                 download_from_hf=download_from_hf,
+                local_dir=local_dir,
+                delete_from_local=delete_from_local,
                 inference_container=inference_container,
                 finetuning_container=finetuning_container,
                 compartment_id=compartment_id,

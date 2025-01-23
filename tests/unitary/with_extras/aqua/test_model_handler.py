@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from unittest import TestCase
@@ -213,6 +213,8 @@ class ModelHandlerTestCase(TestCase):
             project_id=None,
             model_file=model_file,
             download_from_hf=download_from_hf,
+            local_dir=None,
+            delete_from_local=True,
             inference_container_uri=inference_container_uri,
             allow_patterns=allow_patterns,
             ignore_patterns=ignore_patterns,
