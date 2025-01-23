@@ -129,8 +129,8 @@ class AquaModelHandler(AquaAPIhandler):
             str(input_data.get("download_from_hf", "false")).lower() == "true"
         )
         local_dir = input_data.get("local_dir")
-        delete_from_local = (
-            str(input_data.get("delete_from_local", "true")).lower() == "true"
+        cleanup_model_cache = (
+            str(input_data.get("cleanup_model_cache", "true")).lower() == "true"
         )
         inference_container_uri = input_data.get("inference_container_uri")
         allow_patterns = input_data.get("allow_patterns")
@@ -144,7 +144,7 @@ class AquaModelHandler(AquaAPIhandler):
                 os_path=os_path,
                 download_from_hf=download_from_hf,
                 local_dir=local_dir,
-                delete_from_local=delete_from_local,
+                cleanup_model_cache=cleanup_model_cache,
                 inference_container=inference_container,
                 finetuning_container=finetuning_container,
                 compartment_id=compartment_id,

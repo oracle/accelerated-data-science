@@ -1364,7 +1364,7 @@ class AquaModelApp(AquaApp):
                 ignore_patterns (list): Model files matching any of the patterns are not downloaded.
                     Example: ["*.json"] will ignore all .json files. ["folder/*"] will ignore all files under `folder`.
                     Patterns are Standard Wildcards (globbing patterns) and rules can be found here: https://docs.python.org/3/library/fnmatch.html
-                delete_from_local (bool): Deletes downloaded files from local machine after model is successfully
+                cleanup_model_cache (bool): Deletes downloaded files from local machine after model is successfully
                 registered. Set to True by default.
 
         Returns:
@@ -1477,7 +1477,7 @@ class AquaModelApp(AquaApp):
 
         if (
             import_model_details.download_from_hf
-            and import_model_details.delete_from_local
+            and import_model_details.cleanup_model_cache
         ):
             cleanup_local_hf_model_artifact(
                 model_name=model_name, local_dir=import_model_details.local_dir
