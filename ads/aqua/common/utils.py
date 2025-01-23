@@ -837,21 +837,31 @@ def cleanup_local_hf_model_artifact(
     """
     if local_dir and os.path.exists(local_dir):
         model_dir = os.path.join(local_dir, model_name)
+        model_dir = (
+            os.path.dirname(model_dir)
+            if "/" in model_name or os.sep in model_name
+            else model_dir
+        )
+        shutil.rmtree(model_dir, ignore_errors=True)
         if os.path.exists(model_dir):
-            shutil.rmtree(model_dir)
-            logger.debug(f"Deleted local model artifact directory: {model_dir}")
-
-        if not os.listdir(local_dir):
-            shutil.rmtree(local_dir)
-            logger.debug(f"Deleted local directory {model_dir} as it is empty.")
+            logger.debug(
+                f"Could not delete local model artifact directory: {model_dir}"
+            )
+        else:
+            logger.debug(f"Deleted local model artifact directory: {model_dir}.")
 
     hf_local_path = os.path.join(
         HF_HUB_CACHE, repo_folder_name(repo_id=model_name, repo_type="model")
     )
+    shutil.rmtree(hf_local_path, ignore_errors=True)
+
     if os.path.exists(hf_local_path):
-        shutil.rmtree(hf_local_path)
         logger.debug(
-            f"Deleted local Hugging Face cache directory {hf_local_path} for the model {model_name} "
+            f"Could not clear the local Hugging Face cache directory {hf_local_path} for the model {model_name}."
+        )
+    else:
+        logger.debug(
+            f"Cleared contents of local Hugging Face cache directory {hf_local_path} for the model {model_name}."
         )
 
 
