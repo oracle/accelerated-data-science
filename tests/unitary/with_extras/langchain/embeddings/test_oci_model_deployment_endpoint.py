@@ -7,12 +7,10 @@
 """Test OCI Data Science Model Deployment Endpoint."""
 
 from unittest.mock import MagicMock, patch
-from ads.llm.langchain.plugins.embeddings.oci_data_science_model_deployment_endpoint import (
-    OCIModelDeploymentEndpointEmbeddings,
-)
+from ads.llm import OCIDataScienceEmbedding
 
 
-@patch("ads.llm.OCIModelDeploymentEndpointEmbeddings._embed_with_retry")
+@patch("ads.llm.OCIDataScienceEmbedding._embed_with_retry")
 def test_embed_documents(mock_embed_with_retry) -> None:
     """Test valid call to oci model deployment endpoint."""
     expected_output = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]
@@ -26,7 +24,7 @@ def test_embed_documents(mock_embed_with_retry) -> None:
     endpoint = "https://MD_OCID/predict"
     documents = ["Hello", "World"]
 
-    embeddings = OCIModelDeploymentEndpointEmbeddings(
+    embeddings = OCIDataScienceEmbedding(
         endpoint=endpoint,
     )
 
@@ -34,7 +32,7 @@ def test_embed_documents(mock_embed_with_retry) -> None:
     assert output == expected_output
 
 
-@patch("ads.llm.OCIModelDeploymentEndpointEmbeddings._embed_with_retry")
+@patch("ads.llm.OCIDataScienceEmbedding._embed_with_retry")
 def test_embed_query(mock_embed_with_retry) -> None:
     """Test valid call to oci model deployment endpoint."""
     expected_output = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]
@@ -48,7 +46,7 @@ def test_embed_query(mock_embed_with_retry) -> None:
     endpoint = "https://MD_OCID/predict"
     query = "Hello world"
 
-    embeddings = OCIModelDeploymentEndpointEmbeddings(
+    embeddings = OCIDataScienceEmbedding(
         endpoint=endpoint,
     )
 

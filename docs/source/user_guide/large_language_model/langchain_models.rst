@@ -135,11 +135,11 @@ You can also use embedding model that's hosted on a `OCI Data Science Model Depl
 
 .. code-block:: python3
 
-    from langchain_community.embeddings import OCIModelDeploymentEndpointEmbeddings
+    from ads.llm import OCIDataScienceEmbedding
 
     # Create an instance of OCI Model Deployment Endpoint
     # Replace the endpoint uri with your own
-    embeddings = OCIModelDeploymentEndpointEmbeddings(
+    embeddings = OCIDataScienceEmbedding(
         endpoint="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<MD_OCID>/predict",
     )
 

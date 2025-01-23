@@ -8,8 +8,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional
 import requests
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.llms import create_base_retry_decorator
-from langchain_core.pydantic_v1 import BaseModel, Field, root_validator
-from langchain_core.utils import get_from_dict_or_env
+from langchain_core.pydantic_v1 import BaseModel, Field
 
 DEFAULT_HEADER = {
     "Content-Type": "application/json",
@@ -29,16 +28,16 @@ def _create_retry_decorator(llm) -> Callable[[Any], Any]:
     return decorator
 
 
-class OCIModelDeploymentEndpointEmbeddings(BaseModel, Embeddings):
+class OCIDataScienceEmbedding(BaseModel, Embeddings):
     """Embedding model deployed on OCI Data Science Model Deployment.
 
     Example:
 
         .. code-block:: python
 
-            from langchain_community.embeddings import OCIModelDeploymentEndpointEmbeddings
+            from ads.llm import OCIDataScienceEmbedding
 
-            embeddings = OCIModelDeploymentEndpointEmbeddings(
+            embeddings = OCIDataScienceEmbedding(
                 endpoint="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<md_ocid>/predict",
             )
     """  # noqa: E501
@@ -63,28 +62,6 @@ class OCIModelDeploymentEndpointEmbeddings(BaseModel, Embeddings):
 
     max_retries: int = 1
     """The maximum number of retries to make when generating."""
-
-    @root_validator()
-    def validate_environment(  # pylint: disable=no-self-argument
-        cls, values: Dict
-    ) -> Dict:
-        """Validate that python package exists in environment."""
-        try:
-            import ads
-
-        except ImportError as ex:
-            raise ImportError(
-                "Could not import ads python package. "
-                "Please install it with `pip install oracle_ads`."
-            ) from ex
-        if not values.get("auth"):
-            values["auth"] = ads.common.auth.default_signer()
-        values["endpoint"] = get_from_dict_or_env(
-            values,
-            "endpoint",
-            "OCI_LLM_ENDPOINT",
-        )
-        return values
 
     @property
     def _identifying_params(self) -> Mapping[str, Any]:
