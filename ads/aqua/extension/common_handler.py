@@ -11,16 +11,15 @@ from huggingface_hub import HfApi
 from huggingface_hub.utils import LocalTokenNotFoundError
 from tornado.web import HTTPError
 
-from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.errors import AquaResourceAccessError, AquaRuntimeError
 from ads.aqua.common.utils import (
-    fetch_service_compartment,
     get_huggingface_login_timeout,
     known_realm,
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
+from ads.aqua.extension.utils import ui_compatability_check
 
 
 class ADSVersionHandler(AquaAPIhandler):
@@ -51,7 +50,7 @@ class CompatibilityCheckHandler(AquaAPIhandler):
             AquaResourceAccessError: raised when aqua is not accessible in the given session/region.
 
         """
-        if ODSC_MODEL_COMPARTMENT_OCID or fetch_service_compartment():
+        if ui_compatability_check():
             return self.finish({"status": "ok"})
         elif known_realm():
             return self.finish({"status": "compatible"})

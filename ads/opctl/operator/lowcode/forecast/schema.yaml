@@ -311,7 +311,7 @@ spec:
             missing_value_imputation:
               type: boolean
               required: false
-              default: false
+              default: true
             outlier_treatment:
               type: boolean
               required: false
@@ -332,6 +332,7 @@ spec:
         - HIGH_ACCURACY
         - BALANCED
         - FAST_APPROXIMATE
+        - AUTOMLX
 
     generate_report:
       type: boolean
@@ -374,12 +375,12 @@ spec:
     model:
       type: string
       required: false
-      default: auto-select
+      default: prophet
       allowed:
         - prophet
         - arima
         - neuralprophet
-        - lgbforecast
+        # - lgbforecast
         - automlx
         - autots
         - auto-select

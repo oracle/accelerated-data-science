@@ -1,26 +1,26 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from ..const import SupportedModels, AUTO_SELECT
+from ..const import AUTO_SELECT, SupportedModels
+from ..model_evaluator import ModelEvaluator
 from ..operator_config import ForecastOperatorConfig
 from .arima import ArimaOperatorModel
 from .automlx import AutoMLXOperatorModel
 from .autots import AutoTSOperatorModel
 from .base_model import ForecastOperatorBaseModel
-from .neuralprophet import NeuralProphetOperatorModel
-from .prophet import ProphetOperatorModel
 from .forecast_datasets import ForecastDatasets
 from .ml_forecast import MLForecastOperatorModel
-from ..model_evaluator import ModelEvaluator
+from .neuralprophet import NeuralProphetOperatorModel
+from .prophet import ProphetOperatorModel
+
 
 class UnSupportedModelError(Exception):
     def __init__(self, model_type: str):
         super().__init__(
             f"Model: `{model_type}` "
-            f"is not supported. Supported models: {SupportedModels.values}"
+            f"is not supported. Supported models: {SupportedModels.values()}"
         )
 
 
@@ -35,7 +35,7 @@ class ForecastOperatorModelFactory:
         SupportedModels.NeuralProphet: NeuralProphetOperatorModel,
         SupportedModels.LGBForecast: MLForecastOperatorModel,
         SupportedModels.AutoMLX: AutoMLXOperatorModel,
-        SupportedModels.AutoTS: AutoTSOperatorModel
+        SupportedModels.AutoTS: AutoTSOperatorModel,
     }
 
     @classmethod
@@ -65,14 +65,14 @@ class ForecastOperatorModelFactory:
         model_type = operator_config.spec.model
         if model_type == AUTO_SELECT:
             model_type = cls.auto_select_model(datasets, operator_config)
-            operator_config.spec.model_kwargs = dict()
+            operator_config.spec.model_kwargs = {}
         if model_type not in cls._MAP:
             raise UnSupportedModelError(model_type)
         return cls._MAP[model_type](config=operator_config, datasets=datasets)
 
     @classmethod
     def auto_select_model(
-            cls, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
+        cls, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
     ) -> str:
         """
         Selects AutoMLX or Arima model based on column count.
@@ -90,7 +90,9 @@ class ForecastOperatorModelFactory:
         str
             The type of the model.
         """
-        all_models = operator_config.spec.model_kwargs.get("model_list", cls._MAP.keys())
+        all_models = operator_config.spec.model_kwargs.get(
+            "model_list", cls._MAP.keys()
+        )
         num_backtests = operator_config.spec.model_kwargs.get("num_backtests", 5)
         sample_ratio = operator_config.spec.model_kwargs.get("sample_ratio", 0.20)
         model_evaluator = ModelEvaluator(all_models, num_backtests, sample_ratio)

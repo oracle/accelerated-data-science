@@ -1,16 +1,17 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import ads
-from ads.secrets import SecretKeeper, Secret
 import json
 import os
 import tempfile
 import zipfile
+
 from tqdm.auto import tqdm
+
+import ads
+from ads.secrets import Secret, SecretKeeper
 
 logger = ads.getLogger("ads.secrets")
 
@@ -25,7 +26,7 @@ class ADBSecret(Secret):
 
     user_name: str
     password: str
-    service_name: str
+    service_name: str = field(default=None)
     wallet_location: str = field(
         default=None, metadata={"serializable": False}
     )  # Not saved in vault
@@ -40,6 +41,7 @@ class ADBSecret(Secret):
     wallet_secret_ids: list = field(
         repr=False, default_factory=list
     )  # Not exposed through environment or `to_dict` function
+    dsn: str = field(default=None)
 
     def __post_init__(self):
         self.wallet_file_name = (
@@ -75,6 +77,22 @@ class ADBSecretKeeper(SecretKeeper):
     >>> adw_keeper.save("adw_employee", "My DB credentials", freeform_tags={"schema":"emp"}) # Does not save the wallet file
     >>> print(adw_keeper.secret_id) # Prints the secret_id of the stored credentials
     >>> adw_keeper.export_vault_details("adw_employee_att.json", format="json") # Save the secret id and vault info to a json file
+
+
+    >>> # Saving credentials for TLS connection
+    >>> from ads.secrets.adw import ADBSecretKeeper
+    >>> vault_id = "ocid1.vault.oc1..<unique_ID>"
+    >>> kid = "ocid1.ke..<unique_ID>"
+
+    >>> import ads
+    >>> ads.set_auth("resource_principal") # If using resource principal for authentication
+    >>> connection_parameters={
+    ...     "user_name":"admin",
+    ...     "password":"<your password>",
+    ...     "dsn":"<dsn string>"
+    ... }
+    >>> adw_keeper = ADBSecretKeeper(vault_id=vault_id, key_id=kid, **connection_parameters)
+    >>> adw_keeper.save("adw_employee", "My DB credentials", freeform_tags={"schema":"emp"})
 
     >>> # Loading credentails
     >>> import ads
@@ -133,6 +151,7 @@ class ADBSecretKeeper(SecretKeeper):
         wallet_dir: str = None,
         repository_path: str = None,
         repository_key: str = None,
+        dsn: str = None,
         **kwargs,
     ):
         """
@@ -152,6 +171,8 @@ class ADBSecretKeeper(SecretKeeper):
             Path to credentials repository. For more details refer `ads.database.connection`
         repository_key: (str, optional). Default None.
             Configuration key for loading the right configuration from repository. For more details refer `ads.database.connection`
+        dsn: (str, optional). Default None.
+            dsn string copied from the OCI console for TLS connection
         kwargs:
             vault_id: str. OCID of the vault where the secret is stored. Required for saving secret.
             key_id: str. OCID of the key used for encrypting the secret. Required for saving secret.
@@ -180,6 +201,7 @@ class ADBSecretKeeper(SecretKeeper):
             password=password,
             service_name=service_name,
             wallet_location=wallet_location,
+            dsn=dsn,
         )
         self.wallet_dir = wallet_dir
 
@@ -252,7 +274,7 @@ class ADBSecretKeeper(SecretKeeper):
             logger.debug(f"Setting wallet file to {self.data.wallet_location}")
             data.wallet_location = self.data.wallet_location
         elif data.wallet_secret_ids and len(data.wallet_secret_ids) > 0:
-            logger.debug(f"Secret ids corresponding to the wallet files found.")
+            logger.debug("Secret ids corresponding to the wallet files found.")
             # If the secret ids for wallet files are available in secret, then we
             # can generate the wallet file.
 

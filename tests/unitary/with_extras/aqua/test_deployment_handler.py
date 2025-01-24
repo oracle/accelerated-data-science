@@ -29,6 +29,8 @@ class TestDataset:
         "model_id": "ocid1.datasciencemodel.oc1.iad.<OCID>",
         "instance_shape": "VM.GPU.A10.1",
         "display_name": "test-deployment-name",
+        "freeform_tags": {"ftag1": "fvalue1", "ftag2": "fvalue2"},
+        "defined_tags": {"dtag1": "dvalue1", "dtag2": "dvalue2"},
     }
     inference_request = {
         "prompt": "What is 1+1?",
@@ -92,6 +94,30 @@ class TestAquaDeploymentHandler(unittest.TestCase):
         self.deployment_handler.get(id="mock-model-id")
         mock_get.assert_called()
 
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.delete")
+    def test_delete_deployment(self, mock_delete):
+        self.deployment_handler.request.path = "aqua/deployments"
+        self.deployment_handler.delete("mock-model-id")
+        mock_delete.assert_called()
+
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.activate")
+    def test_activate_deployment(self, mock_activate):
+        self.deployment_handler.request.path = (
+            "aqua/deployments/ocid1.datasciencemodeldeployment.oc1.iad.xxx/activate"
+        )
+        mock_activate.return_value = {"lifecycle_state": "UPDATING"}
+        self.deployment_handler.put()
+        mock_activate.assert_called()
+
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.deactivate")
+    def test_deactivate_deployment(self, mock_deactivate):
+        self.deployment_handler.request.path = (
+            "aqua/deployments/ocid1.datasciencemodeldeployment.oc1.iad.xxx/deactivate"
+        )
+        mock_deactivate.return_value = {"lifecycle_state": "UPDATING"}
+        self.deployment_handler.put()
+        mock_deactivate.assert_called()
+
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.list")
     def test_list_deployment(self, mock_list):
         """Test get method to return a list of model deployments."""
@@ -129,6 +155,11 @@ class TestAquaDeploymentHandler(unittest.TestCase):
             memory_in_gbs=None,
             ocpus=None,
             model_file=None,
+            private_endpoint_id=None,
+            container_image_uri=None,
+            cmd_var=None,
+            freeform_tags=TestDataset.deployment_request["freeform_tags"],
+            defined_tags=TestDataset.deployment_request["defined_tags"],
         )
 
 

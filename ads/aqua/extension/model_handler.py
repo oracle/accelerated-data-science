@@ -9,11 +9,13 @@ from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
-from ads.aqua.common.utils import get_hf_model_info
+from ads.aqua.common.utils import (
+    get_hf_model_info,
+    list_hf_models,
+)
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.model import AquaModelApp
-from ads.aqua.model.constants import ModelTask
 from ads.aqua.model.entities import AquaModelSummary, HFModelSummary
 from ads.aqua.ui import ModelFormat
 
@@ -68,12 +70,14 @@ class AquaModelHandler(AquaAPIhandler):
         return self.finish(AquaModelApp().get(model_id))
 
     @handle_exceptions
-    def delete(self):
+    def delete(self, id=""):
         """Handles DELETE request for clearing cache"""
         url_parse = urlparse(self.request.path)
         paths = url_parse.path.strip("/")
         if paths.startswith("aqua/model/cache"):
             return self.finish(AquaModelApp().clear_model_list_cache())
+        elif id:
+            return self.finish(AquaModelApp().delete_model(id))
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
@@ -92,7 +96,7 @@ class AquaModelHandler(AquaAPIhandler):
         )
 
     @handle_exceptions
-    def post(self, *args, **kwargs):
+    def post(self, *args, **kwargs):  # noqa: ARG002
         """
         Handles post request for the registering any Aqua model.
         Raises
@@ -124,6 +128,11 @@ class AquaModelHandler(AquaAPIhandler):
         download_from_hf = (
             str(input_data.get("download_from_hf", "false")).lower() == "true"
         )
+        inference_container_uri = input_data.get("inference_container_uri")
+        allow_patterns = input_data.get("allow_patterns")
+        ignore_patterns = input_data.get("ignore_patterns")
+        freeform_tags = input_data.get("freeform_tags")
+        defined_tags = input_data.get("defined_tags")
 
         return self.finish(
             AquaModelApp().register(
@@ -135,8 +144,41 @@ class AquaModelHandler(AquaAPIhandler):
                 compartment_id=compartment_id,
                 project_id=project_id,
                 model_file=model_file,
+                inference_container_uri=inference_container_uri,
+                allow_patterns=allow_patterns,
+                ignore_patterns=ignore_patterns,
+                freeform_tags=freeform_tags,
+                defined_tags=defined_tags,
             )
         )
+
+    @handle_exceptions
+    def put(self, id):
+        try:
+            input_data = self.get_json_body()
+        except Exception as ex:
+            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT) from ex
+
+        if not input_data:
+            raise HTTPError(400, Errors.NO_INPUT_DATA)
+
+        inference_container = input_data.get("inference_container")
+        inference_containers = AquaModelApp.list_valid_inference_containers()
+        if (
+            inference_container is not None
+            and inference_container not in inference_containers
+        ):
+            raise HTTPError(
+                400, Errors.INVALID_VALUE_OF_PARAMETER.format("inference_container")
+            )
+
+        enable_finetuning = input_data.get("enable_finetuning")
+        task = input_data.get("task")
+        app = AquaModelApp()
+        self.finish(
+            app.edit_registered_model(id, inference_container, enable_finetuning, task)
+        )
+        app.clear_model_details_cache(model_id=id)
 
 
 class AquaModelLicenseHandler(AquaAPIhandler):
@@ -178,7 +220,28 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
         return None
 
     @handle_exceptions
-    def post(self, *args, **kwargs):
+    def get(self, *args, **kwargs):  # noqa: ARG002
+        """
+        Finds a list of matching models from hugging face based on query string provided from users.
+
+        Parameters
+        ----------
+        query (str): The Hugging Face model name to search for.
+
+        Returns
+        -------
+        List[str]
+            Returns the matching model ids string
+        """
+
+        query = self.get_argument("query", default=None)
+        if not query:
+            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("query"))
+        models = list_hf_models(query)
+        return self.finish({"models": models})
+
+    @handle_exceptions
+    def post(self, *args, **kwargs):  # noqa: ARG002
         """Handles post request for the HF Models APIs
 
         Raises
@@ -209,16 +272,17 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
                 "Please verify the model's status on the Hugging Face Model Hub or select a different model."
             )
 
-        # Check pipeline_tag, it should be `text-generation`
-        if (
-            not hf_model_info.pipeline_tag
-            or hf_model_info.pipeline_tag.lower() != ModelTask.TEXT_GENERATION
-        ):
-            raise AquaRuntimeError(
-                f"Unsupported pipeline tag for the chosen model: '{hf_model_info.pipeline_tag}'. "
-                f"AQUA currently supports the following tasks only: {', '.join(ModelTask.values())}. "
-                "Please select a model with a compatible pipeline tag."
-            )
+        # Commented the validation below to let users to register any model type.
+        # # Check pipeline_tag, it should be `text-generation`
+        # if not (
+        #     hf_model_info.pipeline_tag
+        #     and hf_model_info.pipeline_tag.lower() in ModelTask
+        # ):
+        #     raise AquaRuntimeError(
+        #         f"Unsupported pipeline tag for the chosen model: '{hf_model_info.pipeline_tag}'. "
+        #         f"AQUA currently supports the following tasks only: {', '.join(ModelTask.values())}. "
+        #         "Please select a model with a compatible pipeline tag."
+        #     )
 
         # Check if it is a service/verified model
         aqua_model_info: AquaModelSummary = self._find_matching_aqua_model(

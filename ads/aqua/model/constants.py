@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -9,6 +8,7 @@ aqua.model.constants
 
 This module contains constants/enums used in Aqua Model.
 """
+
 from ads.common.extended_enum import ExtendedEnumMeta
 
 
@@ -17,10 +17,13 @@ class ModelCustomMetadataFields(str, metaclass=ExtendedEnumMeta):
     DEPLOYMENT_CONTAINER = "deployment-container"
     EVALUATION_CONTAINER = "evaluation-container"
     FINETUNE_CONTAINER = "finetune-container"
+    DEPLOYMENT_CONTAINER_URI = "deployment-container-uri"
 
 
 class ModelTask(str, metaclass=ExtendedEnumMeta):
     TEXT_GENERATION = "text-generation"
+    IMAGE_TEXT_TO_TEXT = "image-text-to-text"
+    IMAGE_TO_TEXT = "image-to-text"
 
 
 class FineTuningMetricCategories(str, metaclass=ExtendedEnumMeta):

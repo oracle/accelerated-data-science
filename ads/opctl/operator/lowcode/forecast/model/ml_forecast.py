@@ -2,7 +2,9 @@
 
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import numpy as np
+import logging
+import traceback
+
 import pandas as pd
 
 from ads.common.decorator import runtime_dependency
@@ -164,7 +166,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
             self.errors_dict[self.spec.model] = {
                 "model_name": self.spec.model,
                 "error": str(e),
-                "error_trace": traceback.format_exc()
+                "error_trace": traceback.format_exc(),
             }
             logger.warn(f"Encountered Error: {e}. Skipping.")
             logger.warn(traceback.format_exc())
@@ -173,7 +175,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
     def _build_model(self) -> pd.DataFrame:
         data_train = self.datasets.get_all_data_long(include_horizon=False)
         data_test = self.datasets.get_all_data_long_forecast_horizon()
-        self.models = dict()
+        self.models = {}
         model_kwargs = self.set_kwargs()
         self.forecast_output = ForecastOutput(
             confidence_interval_width=self.spec.confidence_interval_width,
@@ -190,6 +192,8 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
         """
         import report_creator as rc
         from utilsforecast.plotting import plot_series
+
+        logging.getLogger("report_creator").setLevel(logging.WARNING)
 
         # Section 1: Forecast Overview
         sec1_text = rc.Block(

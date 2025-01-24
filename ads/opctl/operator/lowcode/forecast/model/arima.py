@@ -1,23 +1,26 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import logging
+import traceback
+
 import pandas as pd
-import numpy as np
 import pmdarima as pm
+import report_creator as rc
 from joblib import Parallel, delayed
 
 from ads.opctl import logger
-
-from ads.opctl.operator.lowcode.forecast.utils import _label_encode_dataframe
 from ads.opctl.operator.lowcode.common.utils import seconds_to_datetime
-from .base_model import ForecastOperatorBaseModel
-from ..operator_config import ForecastOperatorConfig
-import traceback
-from .forecast_datasets import ForecastDatasets, ForecastOutput
+from ads.opctl.operator.lowcode.forecast.utils import _label_encode_dataframe
+
 from ..const import ForecastOutputColumns, SupportedModels
+from ..operator_config import ForecastOperatorConfig
+from .base_model import ForecastOperatorBaseModel
+from .forecast_datasets import ForecastDatasets, ForecastOutput
+
+logging.getLogger("report_creator").setLevel(logging.WARNING)
 
 
 class ArimaOperatorModel(ForecastOperatorBaseModel):
@@ -39,7 +42,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             )
         model_kwargs = self.spec.model_kwargs
         model_kwargs["alpha"] = 1 - self.spec.confidence_interval_width
-        if "error_action" not in model_kwargs.keys():
+        if "error_action" not in model_kwargs:
             model_kwargs["error_action"] = "ignore"
         return model_kwargs
 
@@ -129,13 +132,14 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             self.errors_dict[s_id] = {
                 "model_name": self.spec.model,
                 "error": str(e),
-                "error_trace": traceback.format_exc()}
+                "error_trace": traceback.format_exc(),
+            }
             logger.warn(f"Encountered Error: {e}. Skipping.")
             logger.warn(traceback.format_exc())
 
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.datasets.get_data_by_series()
-        self.models = dict()
+        self.models = {}
         self.additional_regressors = self.datasets.get_additional_data_column_names()
         model_kwargs = self.set_kwargs()
         self.forecast_output = ForecastOutput(
@@ -154,19 +158,17 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
     def _generate_report(self):
         """The method that needs to be implemented on the particular model level."""
-        import report_creator as rc
-
         all_sections = []
         if len(self.models) > 0:
             sec5_text = rc.Heading("ARIMA Model Parameters", level=2)
             blocks = [
                 rc.Html(
                     m.summary().as_html(),
-                    label=s_id,
+                    label=s_id if self.target_cat_col else None,
                 )
                 for i, (s_id, m) in enumerate(self.models.items())
             ]
-            sec5 = rc.Select(blocks=blocks)
+            sec5 = rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
             all_sections = [sec5_text, sec5]
 
         if self.spec.generate_explanations:
@@ -186,6 +188,21 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                         axis=1,
                     )
                 )
+                aggregate_local_explanations = pd.DataFrame()
+                for s_id, local_ex_df in self.local_explanation.items():
+                    local_ex_df_copy = local_ex_df.copy()
+                    local_ex_df_copy["Series"] = s_id
+                    aggregate_local_explanations = pd.concat(
+                        [aggregate_local_explanations, local_ex_df_copy], axis=0
+                    )
+                self.formatted_local_explanation = aggregate_local_explanations
+
+                if not self.target_cat_col:
+                    self.formatted_global_explanation = self.formatted_global_explanation.rename(
+                        {"Series 1": self.original_target_column},
+                        axis=1,
+                    )
+                    self.formatted_local_explanation.drop("Series", axis=1, inplace=True)
 
                 # Create a markdown section for the global explainability
                 global_explanation_section = rc.Block(
@@ -196,26 +213,17 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                     rc.DataTable(self.formatted_global_explanation, index=True),
                 )
 
-                aggregate_local_explanations = pd.DataFrame()
-                for s_id, local_ex_df in self.local_explanation.items():
-                    local_ex_df_copy = local_ex_df.copy()
-                    local_ex_df_copy["Series"] = s_id
-                    aggregate_local_explanations = pd.concat(
-                        [aggregate_local_explanations, local_ex_df_copy], axis=0
-                    )
-                self.formatted_local_explanation = aggregate_local_explanations
-
                 blocks = [
                     rc.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                        label=s_id,
+                        label=s_id if self.target_cat_col else None,
                         index=True,
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]
                 local_explanation_section = rc.Block(
                     rc.Heading("Local Explanation of Models", level=2),
-                    rc.Select(blocks=blocks),
+                    rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0],
                 )
 
                 # Append the global explanation text and section to the "all_sections" list

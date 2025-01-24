@@ -9,7 +9,6 @@ import copy
 import json
 import os
 import unittest
-from dataclasses import asdict
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import oci
@@ -21,6 +20,13 @@ from ads.aqua.common.errors import (
     AquaFileNotFoundError,
     AquaMissingKeyError,
     AquaRuntimeError,
+)
+from ads.aqua.config.evaluation.evaluation_service_config import (
+    EvaluationServiceConfig,
+    MetricConfig,
+    ModelParamsConfig,
+    ShapeConfig,
+    UIConfig,
 )
 from ads.aqua.constants import EVALUATION_REPORT_JSON, EVALUATION_REPORT_MD, UNKNOWN
 from ads.aqua.evaluation import AquaEvaluationApp
@@ -296,7 +302,7 @@ class TestDataset:
                         "category": null,
                         "description": null,
                         "key": "Hyperparameters",
-                        "value": '{"model_params": {"max_tokens": 500, "top_p": 1, "top_k": 50, "temperature": 0.7, "presence_penalty": 0, "frequency_penalty": 0, "stop": [], "shape": "VM.Standard.E3.Flex", "dataset_path": "oci://mybucket@mytenancy/data.jsonl", "report_path": "oci://mybucket@mytenancy/report"}}',
+                        "value": '{"model_params": {"model": "odsc-llm", "max_tokens": 500, "top_p": 1, "top_k": 50, "temperature": 0.7, "presence_penalty": 0, "frequency_penalty": 0, "stop": [], "shape": "VM.Standard.E3.Flex", "dataset_path": "oci://mybucket@mytenancy/data.jsonl", "report_path": "oci://mybucket@mytenancy/report"}}',
                     },
                     {
                         "category": null,
@@ -412,7 +418,7 @@ class TestAquaEvaluation(unittest.TestCase):
         """Checks each field is not empty."""
 
         attributes = response_type.__annotations__.keys()
-        rdict = asdict(response)
+        rdict = response.to_dict()
 
         for attr in attributes:
             if attr == "lifecycle_details":  # can be empty when jobrun is succeed
@@ -469,6 +475,9 @@ class TestAquaEvaluation(unittest.TestCase):
         self.app.ds_client.update_model = MagicMock()
         self.app.ds_client.update_model_provenance = MagicMock()
 
+        eval_model_freeform_tags = {"ftag1": "fvalue1", "ftag2": "fvalue2"}
+        eval_model_defined_tags = {"dtag1": "dvalue1", "dtag2": "dvalue2"}
+
         create_aqua_evaluation_details = dict(
             evaluation_source_id="ocid1.datasciencemodel.oc1.iad.<OCID>",
             evaluation_name="test_evaluation_name",
@@ -480,10 +489,12 @@ class TestAquaEvaluation(unittest.TestCase):
             experiment_name="test_experiment_name",
             memory_in_gbs=1,
             ocpus=1,
+            freeform_tags=eval_model_freeform_tags,
+            defined_tags=eval_model_defined_tags,
         )
         aqua_evaluation_summary = self.app.create(**create_aqua_evaluation_details)
 
-        assert asdict(aqua_evaluation_summary) == {
+        assert aqua_evaluation_summary.to_dict() == {
             "console_url": f"https://cloud.oracle.com/data-science/models/{evaluation_model.id}?region={self.app.region}",
             "experiment": {
                 "id": f"{experiment.id}",
@@ -501,15 +512,8 @@ class TestAquaEvaluation(unittest.TestCase):
             "name": f"{evaluation_model.display_name}",
             "parameters": {
                 "dataset_path": "",
-                "frequency_penalty": 0.0,
-                "max_tokens": "",
-                "presence_penalty": 0.0,
                 "report_path": "",
                 "shape": "",
-                "stop": [],
-                "temperature": "",
-                "top_k": "",
-                "top_p": "",
             },
             "source": {
                 "id": "ocid1.datasciencemodel.oc1.iad.<OCID>",
@@ -517,10 +521,14 @@ class TestAquaEvaluation(unittest.TestCase):
                 "url": f"https://cloud.oracle.com/data-science/models/ocid1.datasciencemodel.oc1.iad.<OCID>?region={self.app.region}",
             },
             "tags": {
-                "aqua_evaluation": "aqua_evaluation",
-                "evaluation_experiment_id": f"{experiment.id}",
-                "evaluation_job_id": f"{mock_job_id.return_value}",
-                "evaluation_source": "ocid1.datasciencemodel.oc1.iad.<OCID>",
+                **{
+                    "aqua_evaluation": "aqua_evaluation",
+                    "evaluation_experiment_id": f"{experiment.id}",
+                    "evaluation_job_id": f"{mock_job_id.return_value}",
+                    "evaluation_source": "ocid1.datasciencemodel.oc1.iad.<OCID>",
+                },
+                **eval_model_freeform_tags,
+                **eval_model_defined_tags,
             },
             "time_created": f"{oci_dsc_model.time_created}",
         }
@@ -875,28 +883,115 @@ class TestAquaEvaluation(unittest.TestCase):
         msg = self.app._extract_job_lifecycle_details(input)
         assert msg == expect_output, msg
 
-    def test_get_supported_metrics(self):
-        """Tests getting a list of supported metrics for evaluation.
-        This method currently hardcoded the return value.
+    @patch("ads.aqua.evaluation.evaluation.get_evaluation_service_config")
+    def test_get_supported_metrics(self, mock_get_evaluation_service_config):
         """
-        from .utils import SupportMetricsFormat as metric_schema
-        from .utils import check
+        Tests getting a list of supported metrics for evaluation.
+        """
 
+        test_evaluation_service_config = EvaluationServiceConfig(
+            ui_config=UIConfig(
+                metrics=[
+                    MetricConfig(
+                        **{
+                            "args": {},
+                            "description": "BERT Score.",
+                            "key": "bertscore",
+                            "name": "BERT Score",
+                            "tags": [],
+                            "task": ["text-generation"],
+                        },
+                    )
+                ]
+            )
+        )
+        mock_get_evaluation_service_config.return_value = test_evaluation_service_config
         response = self.app.get_supported_metrics()
         assert isinstance(response, list)
-        for metric in response:
-            assert check(metric_schema, metric)
+        assert len(response) == len(test_evaluation_service_config.ui_config.metrics)
+        assert response == [
+            item.to_dict() for item in test_evaluation_service_config.ui_config.metrics
+        ]
 
-    def test_load_evaluation_config(self):
-        """Tests loading default config for evaluation.
+    @patch("ads.aqua.evaluation.evaluation.get_evaluation_service_config")
+    def test_load_evaluation_config(self, mock_get_evaluation_service_config):
+        """
+        Tests loading default config for evaluation.
         This method currently hardcoded the return value.
         """
-        from .utils import EvaluationConfigFormat as config_schema
-        from .utils import check
 
-        response = self.app.load_evaluation_config(eval_id=TestDataset.EVAL_ID)
+        test_evaluation_service_config = EvaluationServiceConfig(
+            ui_config=UIConfig(
+                model_params=ModelParamsConfig(
+                    **{
+                        "default": {
+                            "model": "odsc-llm",
+                            "max_tokens": 500,
+                            "temperature": 0.7,
+                            "top_p": 0.9,
+                            "top_k": 50,
+                            "presence_penalty": 0.0,
+                            "frequency_penalty": 0.0,
+                            "stop": [],
+                        }
+                    }
+                ),
+                shapes=[
+                    ShapeConfig(
+                        **{
+                            "name": "VM.Standard.E3.Flex",
+                            "ocpu": 8,
+                            "memory_in_gbs": 128,
+                            "block_storage_size": 200,
+                            "filter": {
+                                "evaluation_container": ["odsc-llm-evaluate"],
+                                "evaluation_target": ["datasciencemodeldeployment"],
+                            },
+                        }
+                    )
+                ],
+            )
+        )
+        mock_get_evaluation_service_config.return_value = test_evaluation_service_config
+
+        expected_result = {
+            "model_params": {
+                "model": "odsc-llm",
+                "max_tokens": 500,
+                "temperature": 0.7,
+                "top_p": 0.9,
+                "top_k": 50,
+                "presence_penalty": 0.0,
+                "frequency_penalty": 0.0,
+                "stop": [],
+            },
+            "shape": {
+                "VM.Standard.E3.Flex": {
+                    "name": "VM.Standard.E3.Flex",
+                    "ocpu": 8,
+                    "memory_in_gbs": 128,
+                    "block_storage_size": 200,
+                    "filter": {
+                        "evaluation_container": ["odsc-llm-evaluate"],
+                        "evaluation_target": ["datasciencemodeldeployment"],
+                    },
+                }
+            },
+            "default": {
+                "name": "VM.Standard.E3.Flex",
+                "ocpu": 8,
+                "memory_in_gbs": 128,
+                "block_storage_size": 200,
+                "filter": {
+                    "evaluation_container": ["odsc-llm-evaluate"],
+                    "evaluation_target": ["datasciencemodeldeployment"],
+                },
+            },
+        }
+
+        response = self.app.load_evaluation_config()
         assert isinstance(response, dict)
-        assert check(config_schema, response)
+        assert response == expected_result
 
 
 class TestAquaEvaluationList(unittest.TestCase):

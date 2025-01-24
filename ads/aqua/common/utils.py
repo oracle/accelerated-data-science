@@ -35,6 +35,7 @@ from ads.aqua.common.enums import (
     InferenceContainerParamType,
     InferenceContainerType,
     RqsAdditionalDetails,
+    TextEmbeddingInferenceContainerParams,
 )
 from ads.aqua.common.errors import (
     AquaFileNotFoundError,
@@ -51,6 +52,7 @@ from ads.aqua.constants import (
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     SERVICE_MANAGED_CONTAINER_URI_SCHEME,
     SUPPORTED_FILE_FORMATS,
+    TEI_CONTAINER_DEFAULT_HOST,
     TGI_INFERENCE_RESTRICTED_PARAMS,
     UNKNOWN,
     UNKNOWN_JSON_STR,
@@ -58,11 +60,17 @@ from ads.aqua.constants import (
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.auth import AuthState, default_signer
+from ads.common.decorator.threaded import threaded
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import copy_file, get_console_link, upload_to_os
-from ads.config import AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, TENANCY_OCID
+from ads.config import (
+    AQUA_MODEL_DEPLOYMENT_FOLDER,
+    AQUA_SERVICE_MODELS_BUCKET,
+    CONDA_BUCKET_NS,
+    TENANCY_OCID,
+)
 from ads.model import DataScienceModel, ModelVersionSet
 
 logger = logging.getLogger("ads.aqua")
@@ -225,6 +233,7 @@ def read_file(file_path: str, **kwargs) -> str:
         return UNKNOWN
 
 
+@threaded()
 def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
     artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
     signer = default_signer() if artifact_path.startswith("oci://") else {}
@@ -536,14 +545,14 @@ def _build_job_identifier(
         return AquaResourceIdentifier()
 
 
-def container_config_path():
+def service_config_path():
     return f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
 
 
 @cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=5), timer=datetime.now))
 def get_container_config():
     config = load_config(
-        file_path=container_config_path(),
+        file_path=service_config_path(),
         config_file_name=CONTAINER_INDEX,
     )
 
@@ -567,15 +576,13 @@ def get_container_image(
         A dict of allowed configs.
     """
 
+    container_image = UNKNOWN
     config = config_file_name or get_container_config()
-    config_file_name = container_config_path()
+    config_file_name = service_config_path()
 
     if container_type not in config:
-        raise AquaValueError(
-            f"{config_file_name} does not have config details for model: {container_type}"
-        )
+        return UNKNOWN
 
-    container_image = None
     mapping = config[container_type]
     versions = [obj["version"] for obj in mapping]
     # assumes numbered versions, update if `latest` is used
@@ -781,13 +788,14 @@ def get_ocid_substring(ocid: str, key_len: int) -> str:
     return ocid[-key_len:] if ocid and len(ocid) > key_len else ""
 
 
-def upload_folder(os_path: str, local_dir: str, model_name: str) -> str:
+def upload_folder(os_path: str, local_dir: str, model_name: str, exclude_pattern: str = None) -> str:
     """Upload the local folder to the object storage
 
     Args:
         os_path (str): object storage URI with prefix. This is the path to upload
         local_dir (str): Local directory where the object is downloaded
         model_name (str): Name of the huggingface model
+        exclude_pattern (optional, str): The matching pattern of files to be excluded from uploading.
     Retuns:
         str: Object name inside the bucket
     """
@@ -797,6 +805,8 @@ def upload_folder(os_path: str, local_dir: str, model_name: str) -> str:
     auth_state = AuthState()
     object_path = os_details.filepath.rstrip("/") + "/" + model_name + "/"
     command = f"oci os object bulk-upload --src-dir {local_dir} --prefix {object_path} -bn {os_details.bucket} -ns {os_details.namespace} --auth {auth_state.oci_iam_type} --profile {auth_state.oci_key_profile} --no-overwrite"
+    if exclude_pattern:
+        command += f" --exclude {exclude_pattern}"
     try:
         logger.info(f"Running: {command}")
         subprocess.check_call(shlex.split(command))
@@ -1062,3 +1072,90 @@ def get_hf_model_info(repo_id: str) -> ModelInfo:
         return HfApi().model_info(repo_id=repo_id)
     except HfHubHTTPError as err:
         raise format_hf_custom_error_message(err) from err
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=5), timer=datetime.now))
+def list_hf_models(query: str) -> List[str]:
+    try:
+        models = HfApi().list_models(
+            model_name=query,
+            sort="downloads",
+            direction=-1,
+            limit=20,
+        )
+        return [model.id for model in models if model.disabled is None]
+    except HfHubHTTPError as err:
+        raise format_hf_custom_error_message(err) from err
+
+
+def generate_tei_cmd_var(os_path: str) -> List[str]:
+    """This utility functions generates CMD params for Text Embedding Inference container. Only the
+    essential parameters for OCI model deployment are added, defaults are used for the rest.
+    Parameters
+    ----------
+    os_path: str
+        OCI bucket path where the model artifacts are uploaded - oci://bucket@namespace/prefix
+
+    Returns
+    -------
+        cmd_var:
+            List of command line arguments
+    """
+
+    cmd_prefix = "--"
+    cmd_var = [
+        f"{cmd_prefix}{TextEmbeddingInferenceContainerParams.MODEL_ID}",
+        f"{AQUA_MODEL_DEPLOYMENT_FOLDER}{ObjectStorageDetails.from_path(os_path.rstrip('/')).filepath}/",
+        f"{cmd_prefix}{TextEmbeddingInferenceContainerParams.PORT}",
+        TEI_CONTAINER_DEFAULT_HOST,
+    ]
+
+    return cmd_var
+
+
+def parse_cmd_var(cmd_list: List[str]) -> dict:
+    """Helper functions that parses a list into a key-value dictionary. The list contains keys separated by the prefix
+    '--' and the value of the key is the subsequent element.
+    """
+    parsed_cmd = {}
+
+    for i, cmd in enumerate(cmd_list):
+        if cmd.startswith("--"):
+            if i + 1 < len(cmd_list) and not cmd_list[i + 1].startswith("--"):
+                parsed_cmd[cmd] = cmd_list[i + 1]
+                i += 1
+            else:
+                parsed_cmd[cmd] = None
+    return parsed_cmd
+
+
+def validate_cmd_var(cmd_var: List[str], overrides: List[str]) -> List[str]:
+    """This function accepts two lists of parameters and combines them. If the second list shares the common parameter
+    names/keys, then it raises an error.
+    Parameters
+    ----------
+    cmd_var: List[str]
+        Default list of parameters
+    overrides: List[str]
+        List of parameters to override
+    Returns
+    -------
+        List[str] of combined parameters
+    """
+    cmd_var = [str(x) for x in cmd_var]
+    if not overrides:
+        return cmd_var
+    overrides = [str(x) for x in overrides]
+
+    cmd_dict = parse_cmd_var(cmd_var)
+    overrides_dict = parse_cmd_var(overrides)
+
+    # check for conflicts
+    common_keys = set(cmd_dict.keys()) & set(overrides_dict.keys())
+    if common_keys:
+        raise AquaValueError(
+            f"The following CMD input cannot be overridden for model deployment: {', '.join(common_keys)}"
+        )
+
+    combined_cmd_var = cmd_var + overrides
+    return combined_cmd_var

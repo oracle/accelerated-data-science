@@ -1,20 +1,19 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
 import datetime
 import functools
-import operator
 import importlib.util
+import operator
 import sys
+from typing import Any, List, Optional, Union
 
-from typing import Any, List, Dict, Tuple
 from langchain.schema.prompt import PromptValue
 from langchain.tools.base import BaseTool, ToolException
-from langchain.pydantic_v1 import BaseModel, root_validator
+from pydantic import BaseModel, model_validator
 
 
 class RunInfo(BaseModel):
@@ -156,7 +155,6 @@ class Guardrail(BaseTool):
 
     class Config:
         arbitrary_types_allowed = True
-        underscore_attrs_are_private = True
 
     name: str = ""
     description: str = "Guardrail"
@@ -190,7 +188,8 @@ class Guardrail(BaseTool):
     This is used by the ``apply_filter()`` method.
     """
 
-    @root_validator
+    @model_validator(mode="before")
+    @classmethod
     def default_name(cls, values):
         """Sets the default name of the guardrail."""
         if not values.get("name"):
@@ -207,7 +206,9 @@ class Guardrail(BaseTool):
             return input.to_string()
         return str(input)
 
-    def _to_args_and_kwargs(self, tool_input: Any) -> Tuple[Tuple, Dict]:
+    def _to_args_and_kwargs(
+        self, tool_input: Union[str, dict], tool_call_id: Optional[str]
+    ) -> tuple[tuple, dict]:
         if isinstance(tool_input, dict):
             return (), tool_input
         else:

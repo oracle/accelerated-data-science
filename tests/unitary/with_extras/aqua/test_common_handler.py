@@ -15,6 +15,7 @@ import ads.aqua
 import ads.config
 from ads.aqua.constants import AQUA_GA_LIST
 from ads.aqua.extension.common_handler import CompatibilityCheckHandler
+from ads.aqua.extension.utils import ui_compatability_check
 
 
 class TestDataset:
@@ -28,6 +29,9 @@ class TestEvaluationHandler(unittest.TestCase):
         self.common_handler = CompatibilityCheckHandler(MagicMock(), MagicMock())
         self.common_handler.request = MagicMock()
 
+    def tearDown(self) -> None:
+        ui_compatability_check.cache_clear()
+
     def test_get_ok(self):
         """Test to check if ok is returned when ODSC_MODEL_COMPARTMENT_OCID is set."""
         with patch.dict(
@@ -36,15 +40,22 @@ class TestEvaluationHandler(unittest.TestCase):
         ):
             reload(ads.config)
             reload(ads.aqua)
+            reload(ads.aqua.extension.utils)
             reload(ads.aqua.extension.common_handler)
 
             with patch(
                 "ads.aqua.extension.base_handler.AquaAPIhandler.finish"
             ) as mock_finish:
-                mock_finish.side_effect = lambda x: x
-                self.common_handler.request.path = "aqua/hello"
-                result = self.common_handler.get()
-                assert result["status"] == "ok"
+                with patch(
+                    "ads.aqua.extension.utils.fetch_service_compartment"
+                ) as mock_fetch_service_compartment:
+                    mock_fetch_service_compartment.return_value = (
+                        TestDataset.SERVICE_COMPARTMENT_ID
+                    )
+                    mock_finish.side_effect = lambda x: x
+                    self.common_handler.request.path = "aqua/hello"
+                    result = self.common_handler.get()
+                    assert result["status"] == "ok"
 
     def test_get_compatible_status(self):
         """Test to check if compatible is returned when ODSC_MODEL_COMPARTMENT_OCID is not set
@@ -55,12 +66,13 @@ class TestEvaluationHandler(unittest.TestCase):
         ):
             reload(ads.config)
             reload(ads.aqua)
+            reload(ads.aqua.extension.utils)
             reload(ads.aqua.extension.common_handler)
             with patch(
                 "ads.aqua.extension.base_handler.AquaAPIhandler.finish"
             ) as mock_finish:
                 with patch(
-                    "ads.aqua.extension.common_handler.fetch_service_compartment"
+                    "ads.aqua.extension.utils.fetch_service_compartment"
                 ) as mock_fetch_service_compartment:
                     mock_fetch_service_compartment.return_value = None
                     mock_finish.side_effect = lambda x: x
@@ -77,12 +89,13 @@ class TestEvaluationHandler(unittest.TestCase):
         ):
             reload(ads.config)
             reload(ads.aqua)
+            reload(ads.aqua.extension.utils)
             reload(ads.aqua.extension.common_handler)
             with patch(
                 "ads.aqua.extension.base_handler.AquaAPIhandler.finish"
             ) as mock_finish:
                 with patch(
-                    "ads.aqua.extension.common_handler.fetch_service_compartment"
+                    "ads.aqua.extension.utils.fetch_service_compartment"
                 ) as mock_fetch_service_compartment:
                     mock_fetch_service_compartment.return_value = None
                     mock_finish.side_effect = lambda x: x

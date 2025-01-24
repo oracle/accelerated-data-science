@@ -7,8 +7,14 @@
 import json
 import os
 import tempfile
+import sys
 from typing import Any, List, Dict, Mapping, Optional
 from unittest import TestCase
+import pytest
+
+if sys.version_info < (3, 9):
+    pytest.skip("Requires Python 3.9 or higher", allow_module_level=True)
+
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 from langchain.llms.base import LLM
 from langchain.prompts import PromptTemplate
@@ -17,7 +23,6 @@ from ads.llm.guardrails.huggingface import HuggingFaceEvaluation
 from ads.llm.guardrails.base import BlockedByGuardrail, GuardrailIO
 from ads.llm.chain import GuardrailSequence
 from ads.llm.serialize import load, dump
-import pytest
 
 
 class FakeLLM(LLM):

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
 # Copyright (c) 2020, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -57,15 +56,11 @@ AQUA_MODEL_FINETUNING_CONFIG = os.environ.get(
 AQUA_CONTAINER_INDEX_CONFIG = os.environ.get(
     "AQUA_CONTAINER_INDEX_CONFIG", "container_index.json"
 )
-AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS = os.environ.get(
-    "AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS", "deployment_config_defaults.json"
-)
-AQUA_RESOURCE_LIMIT_NAMES_CONFIG = os.environ.get(
-    "AQUA_RESOURCE_LIMIT_NAMES_CONFIG", "resource_limit_names.json"
-)
 AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME = "deployment-container"
 AQUA_FINETUNING_CONTAINER_METADATA_NAME = "finetune-container"
 AQUA_EVALUATION_CONTAINER_METADATA_NAME = "evaluation-container"
+AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME = "container-cmd-var"
+AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME = "deployment-container-uri"
 AQUA_DEPLOYMENT_CONTAINER_OVERRIDE_FLAG_METADATA_NAME = "deployment-container-custom"
 AQUA_FINETUNING_CONTAINER_OVERRIDE_FLAG_METADATA_NAME = "finetune-container-custom"
 AQUA_MODEL_DEPLOYMENT_FOLDER = "/opt/ds/model/deployed_model/"
@@ -212,7 +207,7 @@ def open(
         frame.f_globals.pop("config", None)
 
         # Restores original globals
-        for key in defined_globals.keys():
+        for key in defined_globals:
             frame.f_globals[key] = defined_globals[key]
 
         # Saving config if it necessary

@@ -1,108 +1,22 @@
 LangChain Integration
 *********************
 
-.. versionadded:: 2.9.1
+.. versionadded:: 2.12.0
 
-LangChain compatible models/interfaces are needed for LangChain applications to invoke OCI generative AI service or LLMs deployed on OCI data science model deployment service.
-
-.. admonition:: Preview Feature
+.. admonition:: LangChain Community
   :class: note
 
-  While the official integration of OCI and LangChain will be added to the LangChain library, ADS provides a preview version of the integration.
-  It it important to note that the APIs of the preview version may change in the future.
+  While the stable integrations (such as ``ChatOCIModelDeploymentVLLM`` and ``OCIModelDeploymentVLLM``) are also available from `LangChain Community <https://python.langchain.com/docs/integrations/llms/oci_model_deployment_endpoint>`_, integrations from ADS may provide additional or experimental features in the latest updates.
 
-Integration with Generative AI
-==============================
-
-The `OCI Generative AI service <https://www.oracle.com/artificial-intelligence/generative-ai/large-language-models/>`_ provide text generation, summarization and embedding models.
-
-To use the text generation model as LLM in LangChain:
-
-.. code-block:: python3
-
-    from ads.llm import GenerativeAI
-
-    llm = GenerativeAI(
-        compartment_id="<compartment_ocid>",
-        # Optionally you can specify keyword arguments for the OCI client, e.g. service_endpoint.
-        client_kwargs={
-            "service_endpoint": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com"
-        },
-    )
-
-    llm.invoke("Translate the following sentence into French:\nHow are you?\n")
-
-Here is an example of using prompt template and OCI generative AI LLM to build a translation app:
-
-.. code-block:: python3
-
-    from langchain.prompts import PromptTemplate
-    from langchain.schema.runnable import RunnableParallel, RunnablePassthrough
-    from ads.llm import GenerativeAI
-    
-    # Map the input into a dictionary
-    map_input = RunnableParallel(text=RunnablePassthrough())
-    # Template for the input text.
-    template = PromptTemplate.from_template(
-        "Translate English into French. Do not ask any questions.\nEnglish: Hello!\nFrench: "
-    )
-    llm = GenerativeAI(
-        compartment_id="<compartment_ocid>",
-        # Optionally you can specify keyword arguments for the OCI client, e.g. service_endpoint.
-        client_kwargs={
-            "service_endpoint": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com"
-        },
-    )
-
-    # Build the app as a chain
-    translation_app = map_input | template | llm
-
-    # Now you have a translation app.
-    translation_app.invoke("Hello!")
-    # "Bonjour!"
-
-Similarly, you can use the embedding model:
-
-.. code-block:: python3
-
-    from ads.llm import GenerativeAIEmbeddings
-
-    embed = GenerativeAIEmbeddings(
-        compartment_id="<compartment_ocid>",
-        # Optionally you can specify keyword arguments for the OCI client, e.g. service_endpoint.
-        client_kwargs={
-            "service_endpoint": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com"
-        },
-    )
-
-    embed.embed_query("How are you?")
-
-Integration with Model Deployment
-=================================
-
-.. admonition:: Available in LangChain
+.. admonition:: Requirements
   :class: note
 
-  The same ``OCIModelDeploymentVLLM`` and ``ModelDeploymentTGI`` classes are also `available from LangChain <https://python.langchain.com/docs/integrations/llms/oci_model_deployment_endpoint>`_.
+  The LangChain integration requires ``python>=3.9`` and ``langchain>=0.3``. Chat model also requires ``langchain-openai``.
 
-If you deploy open-source or your own LLM on OCI model deployment service using `vLLM <https://docs.vllm.ai/en/latest/>`_ or `HuggingFace TGI <https://huggingface.co/docs/text-generation-inference/index>`_ , you can use the ``ModelDeploymentVLLM`` or ``ModelDeploymentTGI`` to integrate your model with LangChain.
 
-.. code-block:: python3
+LangChain compatible models/interfaces are needed for LangChain applications to invoke LLMs deployed on OCI data science model deployment service.
 
-    from ads.llm import ModelDeploymentVLLM
-
-    llm = ModelDeploymentVLLM(
-        endpoint="https://<your_model_deployment_endpoint>/predict",
-        model="<model_name>"
-    )
-
-.. code-block:: python3
-
-    from ads.llm import ModelDeploymentTGI
-
-    llm = ModelDeploymentTGI(
-        endpoint="https://<your_model_deployment_endpoint>/predict",
-    )
+If you deploy LLM on OCI model deployment service using `AI Quick Actions <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/model-deployment-tips.md>`_ or `HuggingFace TGI <https://huggingface.co/docs/text-generation-inference/index>`_ , you can use the integration models described in this page to build your application with LangChain.
 
 Authentication
 ==============
@@ -112,16 +26,16 @@ By default, the integration uses the same authentication method configured with 
 .. code-block:: python3
 
     import ads
-    from ads.llm import GenerativeAI
+    from ads.llm import ChatOCIModelDeployment
     
     ads.set_auth(auth="resource_principal")
     
-    llm = GenerativeAI(
-        compartment_id="<compartment_ocid>",
-        # Optionally you can specify keyword arguments for the OCI client, e.g. service_endpoint.
-        client_kwargs={
-            "service_endpoint": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com"
-        },
+    llm = ChatOCIModelDeployment(
+        model="odsc-llm", # default model name if deployed on AQUA
+        endpoint= f"https://modeldeployment.oci.customer-oci.com/<OCID>/predict",
+        # Optionally you can specify additional keyword arguments for the model, e.g. temperature and default_headers.
+        temperature=0.1,
+        default_headers={"route": "v1/chat/completions"}, # default route for chat models
     )
 
 Alternatively, you may use specific authentication for the model:
@@ -129,14 +43,134 @@ Alternatively, you may use specific authentication for the model:
 .. code-block:: python3
 
     import ads
-    from ads.llm import GenerativeAI
+    from ads.llm import ChatOCIModelDeployment
 
-    llm = GenerativeAI(
+    llm = ChatOCIModelDeployment(
+        model="odsc-llm", # default model name if deployed on AQUA
+        endpoint= f"https://modeldeployment.oci.customer-oci.com/<OCID>/predict",
         # Use security token authentication for the model
         auth=ads.auth.security_token(profile="my_profile"),
-        compartment_id="<compartment_ocid>",
-        # Optionally you can specify keyword arguments for the OCI client, e.g. service_endpoint.
-        client_kwargs={
-            "service_endpoint": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com"
-        },
+        # Optionally you can specify additional keyword arguments for the model, e.g. temperature and default_headers.
+        temperature=0.1,
+        default_headers={"route": "v1/chat/completions"}, # default route for chat models
     )
+
+Completion Models
+=================
+
+Completion models takes a text string and input and returns a string with completions. To use completion models, your model should be deployed with the completion endpoint (``/v1/completions``).
+
+.. code-block:: python3
+
+    from ads.llm import OCIModelDeploymentLLM
+
+    llm = OCIModelDeploymentLLM(
+        model="odsc-llm", # default model name if deployed on AQUA
+        endpoint= f"https://modeldeployment.oci.customer-oci.com/<OCID>/predict",
+        # Optionally you can specify additional keyword arguments for the model.
+        max_tokens=32,
+        default_headers={"route": "v1/completions"}, # default route for completion models
+    )
+
+    # Invoke the LLM. The completion will be a string.
+    completion = llm.invoke("Who is the first president of United States?")
+
+    # Stream the completion
+    for chunk in llm.stream("Who is the first president of United States?"):
+        print(chunk, end="", flush=True)
+
+    # Invoke asynchronously
+    completion = await llm.ainvoke("Who is the first president of United States?")
+
+    # Stream asynchronously
+    async for chunk in llm.astream("Who is the first president of United States?"):
+        print(chunk, end="", flush=True)
+
+
+Chat Models
+===========
+
+Chat models takes `chat messages <https://python.langchain.com/docs/concepts/#messages>`_ as inputs and returns additional chat message (usually `AIMessage <https://python.langchain.com/docs/concepts/#aimessage>`_) as output. To use chat models, your models must be deployed with chat completion endpoint (``/v1/chat/completions``).
+
+.. code-block:: python3
+
+    from langchain_core.messages import HumanMessage, SystemMessage
+    from ads.llm import ChatOCIModelDeployment
+
+    llm = ChatOCIModelDeployment(
+        model="odsc-llm", # default model name if deployed on AQUA
+        endpoint=f"<oci_model_deployment_url>/predict",
+        # Optionally you can specify additional keyword arguments for the model.
+        max_tokens=32,
+        default_headers={"route": "v1/chat/completions"}, # default route for chat models
+    )
+
+    messages = [
+        HumanMessage(content="Who's the first president of United States?"),
+    ]
+
+    # Invoke the LLM. The response will be `AIMessage`
+    response = llm.invoke(messages)
+    # Print the text of the response
+    print(response.content)
+
+    # Stream the response. Note that each chunk is an `AIMessageChunk``
+    for chunk in llm.stream(messages):
+        print(chunk.content, end="", flush=True)
+
+    # Invoke asynchronously
+    response = await llm.ainvoke(messages)
+    print(response.content)
+
+    # Stream asynchronously
+    async for chunk in llm.astream(messages):
+        print(chunk.content, end="")
+
+
+Tool Calling
+============
+
+The vLLM container support `tool/function calling <https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#automatic-function-calling>`_ on some models (e.g. Mistral and Hermes models). To use tool calling, you must customize the "Model deployment configuration" to use ``--enable-auto-tool-choice`` and specify ``--tool-call-parser`` when deploying the model with vLLM container. A customized ``chat_template`` is also needed for tool/function calling to work with vLLM. ADS includes a convenience way to import the example templates provided by vLLM.
+
+.. code-block:: python3
+
+    from ads.llm import ChatOCIModelDeploymentVLLM, ChatTemplates
+
+    llm = ChatOCIModelDeploymentVLLM(
+        model="odsc-llm", # default model name if deployed on AQUA
+        endpoint= f"https://modeldeployment.oci.customer-oci.com/<OCID>/predict",
+        # Set tool_choice to "auto" to enable tool/function calling.
+        tool_choice="auto",
+        # Use the modified mistral template provided by vLLM
+        chat_template=ChatTemplates.mistral()
+    )
+
+Following is an example of creating an agent with a tool to get current exchange rate:
+
+.. code-block:: python3
+
+    import requests
+    from langchain_core.tools import tool
+    from langchain_core.prompts import ChatPromptTemplate
+    from langchain.agents import create_tool_calling_agent, AgentExecutor
+
+    @tool
+    def get_exchange_rate(currency:str) -> str:
+        """Obtain the current exchange rates of currency in ISO 4217 Three Letter Currency Code"""
+
+        response = requests.get(f"https://open.er-api.com/v6/latest/{currency}")
+        return response.json()
+
+    tools = [get_exchange_rate]
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", "You are a helpful assistant"),
+            ("placeholder", "{chat_history}"),
+            ("human", "{input}"),
+            ("placeholder", "{agent_scratchpad}"),
+        ]
+    )
+
+    agent = create_tool_calling_agent(llm, tools, prompt)
+    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True, return_intermediate_steps=True)
+    agent_executor.invoke({"input": "what's the currency conversion of USD to Yen"})

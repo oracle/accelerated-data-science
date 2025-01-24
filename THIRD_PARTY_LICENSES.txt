@@ -24,6 +24,12 @@ autots
 * Source code: https://github.com/winedarksea/AutoTS
 * Project home: https://winedarksea.github.io/AutoTS/build/html/index.html
 
+autogen
+* Copyright (c) 2024 Microsoft Corporation.
+* License: MIT License
+* Source code: https://github.com/microsoft/autogen
+* Project home: microsoft.github.io/autogen/
+
 bokeh
 * Copyright Copyright (c) 2012 - 2021, Anaconda, Inc., and Bokeh Contributors
 * License: BSD 3-Clause "New" or "Revised" License
@@ -71,6 +77,12 @@ fastavro
 * License: MIT License
 * Source code: https://github.com/fastavro/fastavro
 * Project home: https://github.com/fastavro/fastavro
+
+fiona
+* Copyright (c) 2007, Sean C. Gillies
+* License: BSD 3-Clause "New" or "Revised" License
+* Source code: https://github.com/Toblerity/Fiona
+* Project home: https://github.com/Toblerity/Fiona
 
 folium
 * Copyright (C) 2013, Rob Story
@@ -150,6 +162,18 @@ langchain
 * License: MIT license
 * Source code: https://github.com/langchain-ai/langchain
 * Project home: https://www.langchain.com/
+
+langchain-community
+* Copyright (c) 2023 LangChain, Inc.
+* License: MIT license
+* Source code: https://github.com/langchain-ai/langchain/tree/master/libs/community
+* Project home: https://github.com/langchain-ai/langchain/tree/master/libs/community
+
+langchain-openai
+* Copyright (c) 2023 LangChain, Inc.
+* License: MIT license
+* Source code: https://github.com/langchain-ai/langchain/tree/master/libs/partners/openai
+* Project home: https://github.com/langchain-ai/langchain/tree/master/libs/partners/openai
 
 lightgbm
 * Copyright (c) 2023 Microsoft Corporation
@@ -453,7 +477,24 @@ mlforecast
 * Source code: https://github.com/Nixtla/mlforecast
 * Project home: https://github.com/Nixtla/mlforecast
 
-=======
+pydantic
+* Copyright (c) 2017 to present Pydantic Services Inc. and individual contributors.
+* License: The MIT License (MIT)
+* Source code: https://github.com/pydantic/pydantic
+* Project home: https://docs.pydantic.dev/latest/
+
+rrcf
+* Copyright 2018 kLabUM
+* License: MIT License
+* Source code: https://github.com/kLabUM/rrcf
+* Project home: https://github.com/kLabUM/rrcf
+
+Merlion
+* Copyright 2021 Salesforce.com Inc
+* License: BSD-3 Clause License
+* Source code: https://github.com/salesforce/Merlion
+* Project Home: https://github.com/salesforce/Merlion
+
 =============================== Licenses ===============================
 ------------------------------------------------------------------------
 

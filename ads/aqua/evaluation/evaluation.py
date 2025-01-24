@@ -7,11 +7,10 @@ import os
 import re
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import asdict, fields
 from datetime import datetime, timedelta
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import oci
 from cachetools import TTLCache
@@ -45,6 +44,7 @@ from ads.aqua.common.utils import (
     is_valid_ocid,
     upload_local_to_os,
 )
+from ads.aqua.config.config import get_evaluation_service_config
 from ads.aqua.constants import (
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     EVALUATION_REPORT,
@@ -73,7 +73,6 @@ from ads.aqua.evaluation.entities import (
     AquaEvaluationSummary,
     AquaResourceIdentifier,
     CreateAquaEvaluationDetails,
-    ModelParams,
 )
 from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
 from ads.aqua.ui import AquaContainerConfig
@@ -159,10 +158,12 @@ class AquaEvaluationApp(AquaApp):
             try:
                 create_aqua_evaluation_details = CreateAquaEvaluationDetails(**kwargs)
             except Exception as ex:
+                custom_errors = {
+                    ".".join(map(str, e["loc"])): e["msg"]
+                    for e in json.loads(ex.json())
+                }
                 raise AquaValueError(
-                    "Invalid create evaluation parameters. "
-                    "Allowable parameters are: "
-                    f"{', '.join([field.name for field in fields(CreateAquaEvaluationDetails)])}."
+                    f"Invalid create evaluation parameters. Error details: {custom_errors}."
                 ) from ex
 
         if not is_valid_ocid(create_aqua_evaluation_details.evaluation_source_id):
@@ -170,8 +171,11 @@ class AquaEvaluationApp(AquaApp):
                 f"Invalid evaluation source {create_aqua_evaluation_details.evaluation_source_id}. "
                 "Specify either a model or model deployment id."
             )
+
+        # The model to evaluate
         evaluation_source = None
-        eval_inference_configuration = None
+        eval_inference_configuration: Dict = {}
+
         if (
             DataScienceResource.MODEL_DEPLOYMENT
             in create_aqua_evaluation_details.evaluation_source_id
@@ -191,13 +195,13 @@ class AquaEvaluationApp(AquaApp):
                         enable_spec=True
                     ).inference
                     for container in inference_config.values():
-                        if container.name == runtime.image[:runtime.image.rfind(":")]:
+                        if container.name == runtime.image[: runtime.image.rfind(":")]:
                             eval_inference_configuration = (
                                 container.spec.evaluation_configuration
                             )
             except Exception:
                 logger.debug(
-                    f"Could not load inference config details for the evaluation id: "
+                    f"Could not load inference config details for the evaluation source id: "
                     f"{create_aqua_evaluation_details.evaluation_source_id}. Please check if the container"
                     f" runtime has the correct SMC image information."
                 )
@@ -249,19 +253,12 @@ class AquaEvaluationApp(AquaApp):
             )
             evaluation_dataset_path = dst_uri
 
-        evaluation_model_parameters = None
-        try:
-            evaluation_model_parameters = AquaEvalParams(
-                shape=create_aqua_evaluation_details.shape_name,
-                dataset_path=evaluation_dataset_path,
-                report_path=create_aqua_evaluation_details.report_path,
-                **create_aqua_evaluation_details.model_parameters,
-            )
-        except Exception as ex:
-            raise AquaValueError(
-                "Invalid model parameters. Model parameters should "
-                f"be a dictionary with keys: {', '.join(list(ModelParams.__annotations__.keys()))}."
-            ) from ex
+        evaluation_model_parameters = AquaEvalParams(
+            shape=create_aqua_evaluation_details.shape_name,
+            dataset_path=evaluation_dataset_path,
+            report_path=create_aqua_evaluation_details.report_path,
+            **create_aqua_evaluation_details.model_parameters,
+        )
 
         target_compartment = (
             create_aqua_evaluation_details.compartment_id or COMPARTMENT_OCID
@@ -300,6 +297,10 @@ class AquaEvaluationApp(AquaApp):
                 evaluation_mvs_freeform_tags = {
                     Tags.AQUA_EVALUATION: Tags.AQUA_EVALUATION,
                 }
+                evaluation_mvs_freeform_tags = {
+                    **evaluation_mvs_freeform_tags,
+                    **(create_aqua_evaluation_details.freeform_tags or {}),
+                }
 
                 model_version_set = (
                     ModelVersionSet()
@@ -310,6 +311,9 @@ class AquaEvaluationApp(AquaApp):
                         create_aqua_evaluation_details.experiment_description
                     )
                     .with_freeform_tags(**evaluation_mvs_freeform_tags)
+                    .with_defined_tags(
+                        **(create_aqua_evaluation_details.defined_tags or {})
+                    )
                     # TODO: decide what parameters will be needed
                     .create(**kwargs)
                 )
@@ -342,7 +346,7 @@ class AquaEvaluationApp(AquaApp):
         evaluation_model_taxonomy_metadata = ModelTaxonomyMetadata()
         evaluation_model_taxonomy_metadata[
             MetadataTaxonomyKeys.HYPERPARAMETERS
-        ].value = {"model_params": dict(asdict(evaluation_model_parameters))}
+        ].value = {"model_params": evaluation_model_parameters.to_dict()}
 
         evaluation_model = (
             DataScienceModel()
@@ -372,6 +376,10 @@ class AquaEvaluationApp(AquaApp):
             Tags.AQUA_EVALUATION: Tags.AQUA_EVALUATION,
             Tags.AQUA_EVALUATION_MODEL_ID: evaluation_model.id,
         }
+        evaluation_job_freeform_tags = {
+            **evaluation_job_freeform_tags,
+            **(create_aqua_evaluation_details.freeform_tags or {}),
+        }
 
         evaluation_job = Job(name=evaluation_model.display_name).with_infrastructure(
             DataScienceJob()
@@ -382,6 +390,7 @@ class AquaEvaluationApp(AquaApp):
             .with_shape_name(create_aqua_evaluation_details.shape_name)
             .with_block_storage_size(create_aqua_evaluation_details.block_storage_size)
             .with_freeform_tag(**evaluation_job_freeform_tags)
+            .with_defined_tag(**(create_aqua_evaluation_details.defined_tags or {}))
         )
         if (
             create_aqua_evaluation_details.memory_in_gbs
@@ -414,11 +423,11 @@ class AquaEvaluationApp(AquaApp):
                 container_image=container_image,
                 dataset_path=evaluation_dataset_path,
                 report_path=create_aqua_evaluation_details.report_path,
-                model_parameters=create_aqua_evaluation_details.model_parameters,
+                model_parameters={
+                    **create_aqua_evaluation_details.model_parameters,
+                },
                 metrics=create_aqua_evaluation_details.metrics,
-                inference_configuration=eval_inference_configuration.to_filtered_dict()
-                if eval_inference_configuration
-                else {},
+                inference_configuration=eval_inference_configuration or {},
             )
         ).create(**kwargs)  ## TODO: decide what parameters will be needed
         logger.debug(
@@ -428,6 +437,7 @@ class AquaEvaluationApp(AquaApp):
         evaluation_job_run = evaluation_job.run(
             name=evaluation_model.display_name,
             freeform_tags=evaluation_job_freeform_tags,
+            defined_tags=(create_aqua_evaluation_details.defined_tags or {}),
             wait=False,
         )
         logger.debug(
@@ -447,13 +457,20 @@ class AquaEvaluationApp(AquaApp):
             for metadata in evaluation_model_custom_metadata.to_dict()["data"]
         ]
 
+        evaluation_model_freeform_tags = {
+            Tags.AQUA_EVALUATION: Tags.AQUA_EVALUATION,
+            **(create_aqua_evaluation_details.freeform_tags or {}),
+        }
+        evaluation_model_defined_tags = (
+            create_aqua_evaluation_details.defined_tags or {}
+        )
+
         self.ds_client.update_model(
             model_id=evaluation_model.id,
             update_model_details=UpdateModelDetails(
                 custom_metadata_list=updated_custom_metadata_list,
-                freeform_tags={
-                    Tags.AQUA_EVALUATION: Tags.AQUA_EVALUATION,
-                },
+                freeform_tags=evaluation_model_freeform_tags,
+                defined_tags=evaluation_model_defined_tags,
             ),
         )
 
@@ -527,6 +544,8 @@ class AquaEvaluationApp(AquaApp):
                 "evaluation_job_id": evaluation_job.id,
                 "evaluation_source": create_aqua_evaluation_details.evaluation_source_id,
                 "evaluation_experiment_id": experiment_model_version_set_id,
+                **evaluation_model_freeform_tags,
+                **evaluation_model_defined_tags,
             },
             parameters=AquaEvalParams(),
         )
@@ -551,16 +570,14 @@ class AquaEvaluationApp(AquaApp):
                 **{
                     "AIP_SMC_EVALUATION_ARGUMENTS": json.dumps(
                         {
-                            **asdict(
-                                self._build_launch_cmd(
-                                    evaluation_id=evaluation_id,
-                                    evaluation_source_id=evaluation_source_id,
-                                    dataset_path=dataset_path,
-                                    report_path=report_path,
-                                    model_parameters=model_parameters,
-                                    metrics=metrics,
-                                ),
-                            ),
+                            **self._build_launch_cmd(
+                                evaluation_id=evaluation_id,
+                                evaluation_source_id=evaluation_source_id,
+                                dataset_path=dataset_path,
+                                report_path=report_path,
+                                model_parameters=model_parameters,
+                                metrics=metrics,
+                            ).to_dict(),
                             **(inference_configuration or {}),
                         },
                     ),
@@ -625,17 +642,12 @@ class AquaEvaluationApp(AquaApp):
             evaluation_id=evaluation_id,
             evaluation_target_id=evaluation_source_id,
             input_data={
-                "columns": {
-                    "prompt": "prompt",
-                    "completion": "completion",
-                    "category": "category",
-                },
                 "format": Path(dataset_path).suffix,
                 "url": dataset_path,
             },
-            metrics=metrics,
+            metrics=metrics or [],
             output_dir=report_path,
-            params=model_parameters,
+            params=model_parameters or {},
         )
 
     @telemetry(entry_point="plugin=evaluation&action=get", name="aqua")
@@ -901,48 +913,8 @@ class AquaEvaluationApp(AquaApp):
 
     def get_supported_metrics(self) -> dict:
         """Gets a list of supported metrics for evaluation."""
-        # TODO: implement it when starting to support more metrics.
         return [
-            {
-                "use_case": ["text_generation"],
-                "key": "bertscore",
-                "name": "bertscore",
-                "description": (
-                    "BERT Score is a metric for evaluating the quality of text "
-                    "generation models, such as machine translation or summarization. "
-                    "It utilizes pre-trained BERT contextual embeddings for both the "
-                    "generated and reference texts, and then calculates the cosine "
-                    "similarity between these embeddings."
-                ),
-                "args": {},
-            },
-            {
-                "use_case": ["text_generation"],
-                "key": "rouge",
-                "name": "rouge",
-                "description": (
-                    "ROUGE scores compare a candidate document to a collection of "
-                    "reference documents to evaluate the similarity between them. "
-                    "The metrics range from 0 to 1, with higher scores indicating "
-                    "greater similarity. ROUGE is more suitable for models that don't "
-                    "include paraphrasing and do not generate new text units that don't "
-                    "appear in the references."
-                ),
-                "args": {},
-            },
-            {
-                "use_case": ["text_generation"],
-                "key": "bleu",
-                "name": "bleu",
-                "description": (
-                    "BLEU (Bilingual Evaluation Understudy) is an algorithm for evaluating the "
-                    "quality of text which has been machine-translated from one natural language to another. "
-                    "Quality is considered to be the correspondence between a machine's output and that of a "
-                    "human: 'the closer a machine translation is to a professional human translation, "
-                    "the better it is'."
-                ),
-                "args": {},
-            },
+            item.to_dict() for item in get_evaluation_service_config().ui_config.metrics
         ]
 
     @telemetry(entry_point="plugin=evaluation&action=load_metrics", name="aqua")
@@ -1225,45 +1197,24 @@ class AquaEvaluationApp(AquaApp):
                 f"Exception message: {ex}"
             )
 
-    def load_evaluation_config(self, eval_id):
+    def load_evaluation_config(self, container: Optional[str] = None) -> Dict:
         """Loads evaluation config."""
+
+        # retrieve the evaluation config by container family name
+        evaluation_config = get_evaluation_service_config(container)
+
+        # convert the new config representation to the old one
         return {
-            "model_params": {
-                "max_tokens": 500,
-                "temperature": 0.7,
-                "top_p": 1.0,
-                "top_k": 50,
-                "presence_penalty": 0.0,
-                "frequency_penalty": 0.0,
-                "stop": [],
-            },
+            "model_params": evaluation_config.ui_config.model_params.default,
             "shape": {
-                "VM.Standard.E3.Flex": {
-                    "ocpu": 8,
-                    "memory_in_gbs": 128,
-                    "block_storage_size": 200,
-                },
-                "VM.Standard.E4.Flex": {
-                    "ocpu": 8,
-                    "memory_in_gbs": 128,
-                    "block_storage_size": 200,
-                },
-                "VM.Standard3.Flex": {
-                    "ocpu": 8,
-                    "memory_in_gbs": 128,
-                    "block_storage_size": 200,
-                },
-                "VM.Optimized3.Flex": {
-                    "ocpu": 8,
-                    "memory_in_gbs": 128,
-                    "block_storage_size": 200,
-                },
+                shape.name: shape.to_dict()
+                for shape in evaluation_config.ui_config.shapes
             },
-            "default": {
-                "ocpu": 8,
-                "memory_in_gbs": 128,
-                "block_storage_size": 200,
-            },
+            "default": (
+                evaluation_config.ui_config.shapes[0].to_dict()
+                if len(evaluation_config.ui_config.shapes) > 0
+                else {}
+            ),
         }
 
     def _get_attribute_from_model_metadata(
@@ -1372,7 +1323,7 @@ class AquaEvaluationApp(AquaApp):
             "id": model_id,
             "name": model.display_name,
             "console_url": console_url,
-            "time_created": model.time_created,
+            "time_created": str(model.time_created),
             "tags": tags,
             "experiment": self._build_resource_identifier(
                 id=experiment_id,

@@ -2,6 +2,86 @@
 Release Notes
 =============
 
+2.12.9
+-------
+Release date: December 18, 2024
+
+* Support freeform and defined tags for resource creation in AI Quick Actions.
+* Enhance LangChain Integration to accept the route parameter in the request headers.
+
+2.12.8
+-------
+Release date: November 27, 2024
+
+* Fixed bugs in the AI Quick Actions Model Deployment for models registered via Object Storage.
+
+2.12.7
+-------
+Release date: November 20, 2024
+
+* Fixed bugs in the AI Quick Actions Evaluation.
+
+2.12.6
+-------
+Release date: November 12, 2024
+
+* Support using environment variable to override AI Quick Actions Fine Tuning container image.
+* Adding metadata in telemetry error logging for AI Quick Actions.
+
+2.12.5
+-------
+Release date: November 10, 2024
+
+* Fixed bugs in the AI Quick Actions Evaluation.
+
+2.12.4
+-------
+Release date: November 7, 2024
+
+* Upgraded automlx to 24.4.0.
+* Added support to input DSN in ADW secret to allow for TLS connections.
+* Introduced enhancements for AI Quick Actions to support BYOC deployment of embedding models, and additional APIs to update user created models and deployments.
+
+2.12.3
+-------
+Release date: October 29, 2024
+
+* Added support for private endpoint for Model Deployment.
+* Removed tag validation for filtering AI Quick Actions models.
+* Added support for BYOC deployment for embedding models via Text Embedding Inference for AI Quick Actions.
+* Fixed bugs for GGUF model registration for AI Quick Actions.
+* Updates for LLM integration for LangChain and documentation for LLM apps/agents deployment.
+
+2.12.2
+-------
+Release date: October 18, 2024
+
+* Introduced enhancements for AI Quick Actions.
+
+2.12.1
+-------
+Release date: October 10, 2024
+
+* Fixed bugs and introduced enhancements for AI Quick Actions.
+
+2.12.0
+-------
+Release date: October 1, 2024
+
+* Update LangChain Integration to add support for chat model, streaming and async calls.
+
+2.11.19
+-------
+Release date: September 24, 2024
+
+* Fixed bugs and introduced enhancements for AI Quick Actions.
+
+2.11.18
+-------
+Release date: September 20, 2024
+
+* Added ``with_artifact()`` in ``ContainerRuntime`` class to support running container job with additional artifact.
+
 2.11.17
 -------
 Release date: August 9, 2024
@@ -83,7 +163,7 @@ Release date: April 24, 2024
 Release date: April 18, 2024
 
 * Fixed the bug in ``ADSDataset.show_in_notebook()``.
-* Updated langchain version. 
+* Updated langchain version.
 
 
 2.11.6
@@ -128,7 +208,7 @@ Release date: March 20, 2024
 Release date: February 7, 2024
 
 * Releasing v1 of the Anomaly Detection Operator! The Anomaly Detection Operator is a no-code Anomaly or Outlier Detection solution through the OCI Data Science Platform. It uses dozens of models from Oracle’s own proprietary research and the best of open source. See the ``Anomaly Detection`` Section of the ``AI Operators`` tab for full details (:doc:`link <./user_guide/operators/anomaly_detection_operator/index>`).
-* Releasing a new version of the Forecast Operator. This release has faster explainability, improved support for reading from databases, upgrades to the automatic reporting, improved parallelization across all models, and an ability to save models for deferred inference. See the ``Forecast`` Section of the ``AI Operators`` tab for full details (:doc:`link <./user_guide/operators/forecasting_operator/index>`).
+* Releasing a new version of the Forecast Operator. This release has faster explainability, improved support for reading from databases, upgrades to the automatic reporting, improved parallelization across all models, and an ability to save models for deferred inference. See the ``Forecast`` Section of the ``AI Operators`` tab for full details (:doc:`link <./user_guide/operators/forecast_operator/index>`).
 * Change to the default signer such that it now defaults to ``resource_prinicpal`` on any OCI Data Science resource (for example, jobs, notebooks, model deployments, dataflow).
 
 2.10.0

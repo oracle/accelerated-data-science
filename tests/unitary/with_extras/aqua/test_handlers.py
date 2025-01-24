@@ -13,7 +13,6 @@ from unittest.mock import MagicMock, patch
 from notebook.base.handlers import APIHandler, IPythonHandler
 from oci.exceptions import ServiceError
 from parameterized import parameterized
-from tornado.httpserver import HTTPRequest
 from tornado.httputil import HTTPServerRequest
 from tornado.web import Application, HTTPError
 
@@ -130,6 +129,11 @@ class TestBaseHandlers(unittest.TestCase):
                         ),
                         None,
                     ),
+                    aqua_api_details=dict(
+                        aqua_api_name="TestDataset.create",
+                        oci_api_name=TestDataset.mock_service_payload_create["operation_name"],
+                        service_endpoint=TestDataset.mock_service_payload_create["request_endpoint"]
+                    )
                 ),
                 "Authorization Failed: The resource you're looking for isn't accessible. Operation Name: get_job_run.",
             ],
@@ -160,12 +164,14 @@ class TestBaseHandlers(unittest.TestCase):
             "request_id": "1234",
         }
         self.test_instance.finish.assert_called_once_with(json.dumps(expected_reply))
+        aqua_api_details = input.get("aqua_api_details", {})
         self.test_instance.telemetry.record_event_async.assert_called_with(
             category="aqua/error",
             action=str(
                 input.get("status_code"),
             ),
             value=input.get("reason"),
+            **aqua_api_details
         )
 
         mock_logger.warning.assert_called_with(expected_msg)
@@ -191,6 +197,7 @@ class TestHandlers(unittest.TestCase):
 
         reload(ads.config)
         reload(ads.aqua)
+        reload(ads.aqua.extension.utils)
         reload(ads.aqua.extension.common_handler)
 
     @classmethod
@@ -200,6 +207,7 @@ class TestHandlers(unittest.TestCase):
 
         reload(ads.config)
         reload(ads.aqua)
+        reload(ads.aqua.extension.utils)
         reload(ads.aqua.extension.common_handler)
 
     @parameterized.expand(

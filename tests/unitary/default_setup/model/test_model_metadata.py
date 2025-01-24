@@ -31,8 +31,10 @@ from ads.model.model_metadata import (
     ModelTaxonomyMetadata,
     ModelTaxonomyMetadataItem,
     MetadataTaxonomyKeys,
-    UseCaseType,
+    UseCaseType
 )
+from ads.model.datascience_model import ModelRetentionSetting, CustomerNotificationType, SettingStatus, \
+    ModelBackupSetting, ModelRetentionOperationDetails, ModelBackupOperationDetails
 from oci.data_science.models import Metadata as OciMetadataItem
 
 try:
@@ -1012,3 +1014,413 @@ class TestModelTaxonomyMetadata:
             )
         open_mock.assert_called_with(mock_file_path, mode="w", **mock_storage_options)
         open_mock.return_value.write.assert_called_with(metadata_taxonomy.to_json())
+
+class TestModelBackupSetting:
+    """Unit tests for ModelBackupSetting class."""
+
+    def test_initialization(self):
+        """Test default initialization of ModelBackupSetting."""
+        backup_setting = ModelBackupSetting()
+        assert backup_setting.is_backup_enabled == False
+        assert backup_setting.backup_region is None
+        assert backup_setting.customer_notification_type == CustomerNotificationType.NONE
+
+        # Test with parameters
+        backup_setting = ModelBackupSetting(
+            is_backup_enabled=True,
+            backup_region="us-west-1",
+            customer_notification_type=CustomerNotificationType.ALL
+        )
+        assert backup_setting.is_backup_enabled == True
+        assert backup_setting.backup_region == "us-west-1"
+        assert backup_setting.customer_notification_type == CustomerNotificationType.ALL
+
+    def test_to_dict(self):
+        """Test conversion to dictionary."""
+        backup_setting = ModelBackupSetting(
+            is_backup_enabled=True,
+            backup_region="us-west-1",
+            customer_notification_type=CustomerNotificationType.ALL
+        )
+        expected_dict = {
+            "is_backup_enabled": True,
+            "backup_region": "us-west-1",
+            "customer_notification_type": "ALL"
+        }
+        assert backup_setting.to_dict() == expected_dict
+
+    def test_from_dict(self):
+        """Test constructing from dictionary."""
+        data = {
+            "is_backup_enabled": True,
+            "backup_region": "us-west-1",
+            "customer_notification_type": "ALL"
+        }
+        backup_setting = ModelBackupSetting.from_dict(data)
+        assert backup_setting.is_backup_enabled == True
+        assert backup_setting.backup_region == "us-west-1"
+        assert backup_setting.customer_notification_type == CustomerNotificationType.ALL
+
+    def test_to_json(self):
+        """Test conversion to JSON."""
+        backup_setting = ModelBackupSetting(
+            is_backup_enabled=True,
+            backup_region="us-west-1",
+            customer_notification_type=CustomerNotificationType.ALL
+        )
+        expected_json = json.dumps({
+            "is_backup_enabled": True,
+            "backup_region": "us-west-1",
+            "customer_notification_type": "ALL"
+        })
+        assert backup_setting.to_json() == expected_json
+
+    def test_from_json(self):
+        """Test constructing from JSON."""
+        json_str = json.dumps({
+            "is_backup_enabled": True,
+            "backup_region": "us-west-1",
+            "customer_notification_type": "ALL"
+        })
+        backup_setting = ModelBackupSetting.from_json(json_str)
+        assert backup_setting.is_backup_enabled == True
+        assert backup_setting.backup_region == "us-west-1"
+        assert backup_setting.customer_notification_type == CustomerNotificationType.ALL
+
+    def test_to_yaml(self):
+        """Test conversion to YAML."""
+        backup_setting = ModelBackupSetting(
+            is_backup_enabled=True,
+            backup_region="us-west-1",
+            customer_notification_type=CustomerNotificationType.ALL
+        )
+        expected_yaml = yaml.dump({
+            "is_backup_enabled": True,
+            "backup_region": "us-west-1",
+            "customer_notification_type": "ALL"
+        })
+        assert backup_setting.to_yaml() == expected_yaml
+
+    def test_validate(self):
+        """Test validation of backup settings."""
+        # Valid settings
+        backup_setting = ModelBackupSetting(
+            is_backup_enabled=True,
+            backup_region="us-west-1",
+            customer_notification_type=CustomerNotificationType.ALL
+        )
+        assert backup_setting.validate() == True
+
+        # Invalid settings (wrong types)
+        backup_setting.is_backup_enabled = "Yes"  # Should be boolean
+        assert backup_setting.validate() == False
+
+        backup_setting.is_backup_enabled = True
+        backup_setting.backup_region = 123  # Should be a string
+        assert backup_setting.validate() == False
+
+        backup_setting.backup_region = "us-west-1"
+        backup_setting.customer_notification_type = "all_notif"  # Should be CustomerNotificationType Enum
+        assert backup_setting.validate() == False
+
+class TestModelRetentionSetting:
+    """Test cases for ModelRetentionSetting class."""
+
+    def test_to_dict(self):
+        """Test that to_dict method returns the correct dictionary."""
+        setting = ModelRetentionSetting(archive_after_days=30, delete_after_days=60, customer_notification_type=CustomerNotificationType.ALL)
+        expected_dict = {
+            "archive_after_days": 30,
+            "delete_after_days": 60,
+            "customer_notification_type": "ALL"
+        }
+        assert setting.to_dict() == expected_dict
+
+    def test_from_dict(self):
+        """Test that from_dict method correctly creates a ModelRetentionSetting object."""
+        data = {
+            "archive_after_days": 30,
+            "delete_after_days": 60,
+            "customer_notification_type": "ALL"
+        }
+        setting = ModelRetentionSetting.from_dict(data)
+        assert setting.archive_after_days == 30
+        assert setting.delete_after_days == 60
+        assert setting.customer_notification_type == CustomerNotificationType.ALL
+
+    def test_to_json(self):
+        """Test that to_json serializes the settings to a JSON string."""
+        setting = ModelRetentionSetting(
+            archive_after_days=30,
+            delete_after_days=60,
+            customer_notification_type=CustomerNotificationType.ALL)
+        expected_json = json.dumps({
+            "archive_after_days": 30,
+            "delete_after_days": 60,
+            "customer_notification_type": "ALL"
+        })
+        assert setting.to_json() == expected_json
+
+    def test_from_json(self):
+        """Test that from_json correctly deserializes the settings from a JSON string."""
+        json_str = json.dumps({
+            "archive_after_days": 30,
+            "delete_after_days": 60,
+            "customer_notification_type": "ALL"
+        })
+        setting = ModelRetentionSetting.from_json(json_str)
+        assert setting.archive_after_days == 30
+        assert setting.delete_after_days == 60
+        assert setting.customer_notification_type == CustomerNotificationType.ALL
+
+    def test_to_yaml(self):
+        """Test that to_yaml serializes the settings to a YAML string."""
+        setting = ModelRetentionSetting(archive_after_days=30, delete_after_days=60, customer_notification_type=CustomerNotificationType.ALL)
+        expected_yaml = yaml.dump({
+            "archive_after_days": 30,
+            "delete_after_days": 60,
+            "customer_notification_type": "ALL"
+        })
+        assert setting.to_yaml() == expected_yaml
+
+    def test_validate_valid(self):
+        """Test that validate method returns True for valid retention settings."""
+        setting = ModelRetentionSetting(archive_after_days=30, delete_after_days=60, customer_notification_type=CustomerNotificationType.ALL)
+        assert setting.validate() is True
+
+    def test_validate_invalid_days(self):
+        """Test that validate returns False for invalid archive or delete days."""
+        setting = ModelRetentionSetting(archive_after_days=-1, delete_after_days=60, customer_notification_type=CustomerNotificationType.ALL)
+        assert setting.validate() is False
+
+        setting = ModelRetentionSetting(archive_after_days=30, delete_after_days=-10, customer_notification_type=CustomerNotificationType.ALL)
+        assert setting.validate() is False
+
+    def test_validate_invalid_customer_notification_type(self):
+        """Test that validate method returns False for an invalid notification type."""
+        setting = ModelRetentionSetting(archive_after_days=30, delete_after_days=60, customer_notification_type="INVALID")
+        assert setting.validate() is False
+
+class TestModelRetentionOperationDetails:
+    """Test cases for ModelRetentionOperationDetails class."""
+
+    def test_to_dict(self):
+        """Test that to_dict method returns the correct dictionary."""
+        details = ModelRetentionOperationDetails(
+            archive_state=SettingStatus.SUCCEEDED,
+            archive_state_details="Archived successfully",
+            delete_state=SettingStatus.PENDING,
+            delete_state_details="Deletion pending",
+            time_archival_scheduled=1633046400,
+            time_deletion_scheduled=1635638400
+        )
+        expected_dict = {
+            "archive_state": "SUCCEEDED",
+            "archive_state_details": "Archived successfully",
+            "delete_state": "PENDING",
+            "delete_state_details": "Deletion pending",
+            "time_archival_scheduled": 1633046400,
+            "time_deletion_scheduled": 1635638400
+        }
+        assert details.to_dict() == expected_dict
+
+    def test_from_dict(self):
+        """Test that from_dict method correctly creates a ModelRetentionOperationDetails object."""
+        data = {
+            "archive_state": "SUCCEEDED",
+            "archive_state_details": "Archived successfully",
+            "delete_state": "PENDING",
+            "delete_state_details": "Deletion pending",
+            "time_archival_scheduled": 1633046400,
+            "time_deletion_scheduled": 1635638400
+        }
+        details = ModelRetentionOperationDetails.from_dict(data)
+        assert details.archive_state == SettingStatus.SUCCEEDED
+        assert details.archive_state_details == "Archived successfully"
+        assert details.delete_state == SettingStatus.PENDING
+        assert details.delete_state_details == "Deletion pending"
+        assert details.time_archival_scheduled == 1633046400
+        assert details.time_deletion_scheduled == 1635638400
+
+    def test_to_json(self):
+        """Test that to_json serializes the details to a JSON string."""
+        details = ModelRetentionOperationDetails(
+            archive_state=SettingStatus.SUCCEEDED,
+            archive_state_details="Archived successfully",
+            delete_state=SettingStatus.PENDING,
+            delete_state_details="Deletion pending",
+            time_archival_scheduled=1633046400,
+            time_deletion_scheduled=1635638400
+        )
+        expected_json = json.dumps({
+            "archive_state": "SUCCEEDED",
+            "archive_state_details": "Archived successfully",
+            "delete_state": "PENDING",
+            "delete_state_details": "Deletion pending",
+            "time_archival_scheduled": 1633046400,
+            "time_deletion_scheduled": 1635638400
+        })
+        assert details.to_json() == expected_json
+
+    def test_from_json(self):
+        """Test that from_json correctly deserializes the details from a JSON string."""
+        json_str = json.dumps({
+            "archive_state": "SUCCEEDED",
+            "archive_state_details": "Archived successfully",
+            "delete_state": "PENDING",
+            "delete_state_details": "Deletion pending",
+            "time_archival_scheduled": 1633046400,
+            "time_deletion_scheduled": 1635638400
+        })
+        details = ModelRetentionOperationDetails.from_json(json_str)
+        assert details.archive_state == SettingStatus.SUCCEEDED
+        assert details.archive_state_details == "Archived successfully"
+        assert details.delete_state == SettingStatus.PENDING
+        assert details.delete_state_details == "Deletion pending"
+        assert details.time_archival_scheduled == 1633046400
+        assert details.time_deletion_scheduled == 1635638400
+
+    def test_to_yaml(self):
+        """Test that to_yaml serializes the details to a YAML string."""
+        details = ModelRetentionOperationDetails(
+            archive_state=SettingStatus.SUCCEEDED,
+            archive_state_details="Archived successfully",
+            delete_state=SettingStatus.PENDING,
+            delete_state_details="Deletion pending",
+            time_archival_scheduled=1633046400,
+            time_deletion_scheduled=1635638400
+        )
+        expected_yaml = yaml.dump({
+            "archive_state": "SUCCEEDED",
+            "archive_state_details": "Archived successfully",
+            "delete_state": "PENDING",
+            "delete_state_details": "Deletion pending",
+            "time_archival_scheduled": 1633046400,
+            "time_deletion_scheduled": 1635638400
+        })
+        assert details.to_yaml() == expected_yaml
+
+    def test_validate_valid(self):
+        """Test that validate method returns True for valid retention operation details."""
+        details = ModelRetentionOperationDetails(
+            archive_state=SettingStatus.SUCCEEDED,
+            delete_state=SettingStatus.PENDING,
+            time_archival_scheduled=1633046400,
+            time_deletion_scheduled=1635638400
+        )
+        assert details.validate() is True
+
+    def test_validate_invalid_state(self):
+        """Test that validate method returns False for invalid archive or delete state."""
+        details = ModelRetentionOperationDetails(
+            archive_state="INVALID_STATE",  # Invalid state
+            delete_state=SettingStatus.PENDING,
+            time_archival_scheduled=1633046400,
+            time_deletion_scheduled=1635638400
+        )
+        assert details.validate() is False
+
+    def test_validate_invalid_time(self):
+        """Test that validate method returns False for invalid time values."""
+        details = ModelRetentionOperationDetails(
+            archive_state=SettingStatus.SUCCEEDED,
+            delete_state=SettingStatus.PENDING,
+            time_archival_scheduled="invalid_time",  # Invalid time
+            time_deletion_scheduled=1635638400
+        )
+        assert details.validate() is False
+
+class TestModelBackupOperationDetails:
+    """Test cases for ModelBackupOperationDetails class."""
+
+    def test_to_dict(self):
+        """Test that to_dict method returns the correct dictionary."""
+        details = ModelBackupOperationDetails(
+            backup_state=SettingStatus.SUCCEEDED,
+            backup_state_details="Backup completed successfully",
+            time_last_backup=1633046400
+        )
+        expected_dict = {
+            "backup_state": "SUCCEEDED",
+            "backup_state_details": "Backup completed successfully",
+            "time_last_backup": 1633046400
+        }
+        assert details.to_dict() == expected_dict
+
+    def test_from_dict(self):
+        """Test that from_dict method correctly creates a ModelBackupOperationDetails object."""
+        data = {
+            "backup_state": "SUCCEEDED",
+            "backup_state_details": "Backup completed successfully",
+            "time_last_backup": 1633046400
+        }
+        details = ModelBackupOperationDetails.from_dict(data)
+        assert details.backup_state == SettingStatus.SUCCEEDED
+        assert details.backup_state_details == "Backup completed successfully"
+        assert details.time_last_backup == 1633046400
+
+    def test_to_json(self):
+        """Test that to_json serializes the details to a JSON string."""
+        details = ModelBackupOperationDetails(
+            backup_state=SettingStatus.SUCCEEDED,
+            backup_state_details="Backup completed successfully",
+            time_last_backup=1633046400
+        )
+        expected_json = json.dumps({
+            "backup_state": "SUCCEEDED",
+            "backup_state_details": "Backup completed successfully",
+            "time_last_backup": 1633046400
+        })
+        assert details.to_json() == expected_json
+
+    def test_from_json(self):
+        """Test that from_json correctly deserializes the details from a JSON string."""
+        json_str = json.dumps({
+            "backup_state": "SUCCEEDED",
+            "backup_state_details": "Backup completed successfully",
+            "time_last_backup": 1633046400
+        })
+        details = ModelBackupOperationDetails.from_json(json_str)
+        assert details.backup_state == SettingStatus.SUCCEEDED
+        assert details.backup_state_details == "Backup completed successfully"
+        assert details.time_last_backup == 1633046400
+
+    def test_to_yaml(self):
+        """Test that to_yaml serializes the details to a YAML string."""
+        details = ModelBackupOperationDetails(
+            backup_state=SettingStatus.SUCCEEDED,
+            backup_state_details="Backup completed successfully",
+            time_last_backup=1633046400
+        )
+        expected_yaml = yaml.dump({
+            "backup_state": "SUCCEEDED",
+            "backup_state_details": "Backup completed successfully",
+            "time_last_backup": 1633046400
+        })
+        assert details.to_yaml() == expected_yaml
+
+    def test_validate_valid(self):
+        """Test that validate method returns True for valid backup operation details."""
+        details = ModelBackupOperationDetails(
+            backup_state=SettingStatus.SUCCEEDED,
+            time_last_backup=1633046400
+        )
+        assert details.validate() is True
+
+    def test_validate_invalid_state(self):
+        """Test that validate method returns False for an invalid backup state."""
+        details = ModelBackupOperationDetails(
+            backup_state="INVALID_STATE",
+            time_last_backup=1633046400
+        )
+        assert details.validate() is False
+
+    def test_validate_invalid_time(self):
+        """Test that validate method returns False for an invalid time value."""
+        details = ModelBackupOperationDetails(
+            backup_state=SettingStatus.SUCCEEDED,
+            time_last_backup="invalid_time"  # Invalid time
+        )
+        assert details.validate() is False
+
+

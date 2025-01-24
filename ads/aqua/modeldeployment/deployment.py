@@ -3,6 +3,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
+import shlex
 from typing import Dict, List, Optional, Union
 
 from ads.aqua.app import AquaApp, logger
@@ -23,7 +24,7 @@ from ads.aqua.common.utils import (
     get_params_list,
     get_resource_name,
     get_restricted_params_by_container,
-    load_config,
+    validate_cmd_var,
 )
 from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_FILE,
@@ -44,11 +45,10 @@ from ads.aqua.ui import ModelFormat
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
 from ads.config import (
-    AQUA_CONFIG_FOLDER,
+    AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
-    AQUA_DEPLOYMENT_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
+    AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
     AQUA_MODEL_DEPLOYMENT_CONFIG,
-    AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS,
     COMPARTMENT_OCID,
 )
 from ads.model.datascience_model import DataScienceModel
@@ -87,26 +87,31 @@ class AquaDeploymentApp(AquaApp):
 
     @telemetry(entry_point="plugin=deployment&action=create", name="aqua")
     def create(
-            self,
-            model_id: str,
-            instance_shape: str,
-            display_name: str,
-            instance_count: int = None,
-            log_group_id: str = None,
-            access_log_id: str = None,
-            predict_log_id: str = None,
-            compartment_id: str = None,
-            project_id: str = None,
-            description: str = None,
-            bandwidth_mbps: int = None,
-            web_concurrency: int = None,
-            server_port: int = None,
-            health_check_port: int = None,
-            env_var: Dict = None,
-            container_family: str = None,
-            memory_in_gbs: Optional[float] = None,
-            ocpus: Optional[float] = None,
-            model_file: Optional[str] = None,
+        self,
+        model_id: str,
+        instance_shape: str,
+        display_name: str,
+        instance_count: int = None,
+        log_group_id: str = None,
+        access_log_id: str = None,
+        predict_log_id: str = None,
+        compartment_id: str = None,
+        project_id: str = None,
+        description: str = None,
+        bandwidth_mbps: int = None,
+        web_concurrency: int = None,
+        server_port: int = None,
+        health_check_port: int = None,
+        env_var: Dict = None,
+        container_family: str = None,
+        memory_in_gbs: Optional[float] = None,
+        ocpus: Optional[float] = None,
+        model_file: Optional[str] = None,
+        private_endpoint_id: Optional[str] = None,
+        container_image_uri: Optional[None] = None,
+        cmd_var: List[str] = None,
+        freeform_tags: Optional[dict] = None,
+        defined_tags: Optional[dict] = None,
     ) -> "AquaDeployment":
         """
         Creates a new Aqua deployment
@@ -146,13 +151,24 @@ class AquaDeploymentApp(AquaApp):
         env_var : dict, optional
             Environment variable for the deployment, by default None.
         container_family: str
-            The image family of model deployment container runtime. Required for unverified Aqua models.
+            The image family of model deployment container runtime.
         memory_in_gbs: float
             The memory in gbs for the shape selected.
         ocpus: float
             The ocpu count for the shape selected.
         model_file: str
             The file used for model deployment.
+        private_endpoint_id: str
+            The private endpoint id of model deployment.
+        container_image_uri: str
+            The image of model deployment container runtime, ignored for service managed containers.
+            Required parameter for BYOC based deployments if this parameter was not set during model registration.
+        cmd_var: List[str]
+            The cmd of model deployment container runtime.
+        freeform_tags: dict
+            Freeform tags for the model deployment
+        defined_tags: dict
+            Defined tags for the model deployment
         Returns
         -------
         AquaDeployment
@@ -162,7 +178,11 @@ class AquaDeploymentApp(AquaApp):
         # TODO validate if the service model has no artifact and if it requires import step before deployment.
         # Create a model catalog entry in the user compartment
         aqua_model = AquaModelApp().create(
-            model_id=model_id, compartment_id=compartment_id, project_id=project_id
+            model_id=model_id,
+            compartment_id=compartment_id,
+            project_id=project_id,
+            freeform_tags=freeform_tags,
+            defined_tags=defined_tags,
         )
 
         tags = {}
@@ -175,6 +195,7 @@ class AquaDeploymentApp(AquaApp):
                 tags[tag] = aqua_model.freeform_tags[tag]
 
         tags.update({Tags.AQUA_MODEL_NAME_TAG: aqua_model.display_name})
+        tags.update({Tags.TASK: aqua_model.freeform_tags.get(Tags.TASK, UNKNOWN)})
 
         # Set up info to get deployment config
         config_source_id = model_id
@@ -196,9 +217,11 @@ class AquaDeploymentApp(AquaApp):
                     f"from custom metadata for the model {config_source_id}"
                 ) from err
 
-        # set up env vars
+        # set up env and cmd var
         if not env_var:
             env_var = {}
+        if not cmd_var:
+            cmd_var = []
 
         try:
             model_path_prefix = aqua_model.custom_metadata_list.get(
@@ -230,44 +253,45 @@ class AquaDeploymentApp(AquaApp):
 
             env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
 
-        is_custom_container = False
-        try:
-            container_type_key = aqua_model.custom_metadata_list.get(
-                AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
-            ).value
-        except ValueError as err:
-            message = (
-                f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field "
-                f"for model {aqua_model.id}."
-            )
-            logger.debug(message)
-            if not container_family:
-                raise AquaValueError(
-                    f"{message}. For unverified Aqua models, container_family parameter should be "
-                    f"set and value can be one of {', '.join(InferenceContainerTypeFamily.values())}."
-                ) from err
-            container_type_key = container_family
-        try:
-            # Check if the container override flag is set. If set, then the user has chosen custom image
-            if aqua_model.custom_metadata_list.get(
-                    AQUA_DEPLOYMENT_CONTAINER_OVERRIDE_FLAG_METADATA_NAME
-            ).value:
-                is_custom_container = True
-        except Exception:
-            pass
+        container_type_key = self._get_container_type_key(
+            model=aqua_model, container_family=container_family
+        )
 
-        # fetch image name from config
-        # If the image is of type custom, then `container_type_key` is the inference image
-        container_image = (
-            get_container_image(
-                container_type=container_type_key,
-            )
-            if not is_custom_container
-            else container_type_key
+        container_image_uri = container_image_uri or get_container_image(
+            container_type=container_type_key
         )
+        if not container_image_uri:
+            try:
+                container_image_uri = aqua_model.custom_metadata_list.get(
+                    AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME
+                ).value
+            except ValueError as err:
+                raise AquaValueError(
+                    f"{AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME} key is not available in the custom metadata "
+                    f"field. Either re-register the model with custom container URI, or set container_image_uri "
+                    f"parameter when creating this deployment."
+                ) from err
         logging.info(
-            f"Aqua Image used for deploying {aqua_model.id} : {container_image}"
+            f"Aqua Image used for deploying {aqua_model.id} : {container_image_uri}"
         )
+
+        try:
+            cmd_var_string = aqua_model.custom_metadata_list.get(
+                AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME
+            ).value
+            default_cmd_var = shlex.split(cmd_var_string)
+            if default_cmd_var:
+                cmd_var = validate_cmd_var(default_cmd_var, cmd_var)
+            logging.info(f"CMD used for deploying {aqua_model.id} :{cmd_var}")
+        except ValueError:
+            logging.debug(
+                f"CMD will be ignored for this deployment as {AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME} "
+                f"key is not available in the custom metadata field for this model."
+            )
+        except Exception as e:
+            logging.error(
+                f"There was an issue processing CMD arguments. Error: {str(e)}"
+            )
 
         model_formats_str = aqua_model.freeform_tags.get(
             Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS.value
@@ -275,7 +299,11 @@ class AquaDeploymentApp(AquaApp):
         model_format = model_formats_str.split(",")
 
         # Figure out a better way to handle this in future release
-        if ModelFormat.GGUF.value in model_format and container_type_key.lower() == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY:
+        if (
+            ModelFormat.GGUF.value in model_format
+            and container_type_key.lower()
+            == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
+        ):
             if model_file is not None:
                 logger.info(
                     f"Overriding {model_file} as model_file for model {aqua_model.id}."
@@ -326,13 +354,13 @@ class AquaDeploymentApp(AquaApp):
         if user_params:
             # todo: remove this check in the future version, logic to be moved to container_index
             if (
-                    container_type_key.lower()
-                    == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
+                container_type_key.lower()
+                == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
             ):
                 # AQUA_LLAMA_CPP_CONTAINER_FAMILY container uses uvicorn that required model/server params
                 # to be set as env vars
                 raise AquaValueError(
-                    f"Currently, parameters cannot be overridden for the container: {container_image}. Please proceed "
+                    f"Currently, parameters cannot be overridden for the container: {container_image_uri}. Please proceed "
                     f"with deployment without parameter overrides."
                 )
 
@@ -369,6 +397,7 @@ class AquaDeploymentApp(AquaApp):
             .with_bandwidth_mbps(bandwidth_mbps)
             .with_replica(instance_count)
             .with_web_concurrency(web_concurrency)
+            .with_private_endpoint_id(private_endpoint_id)
             .with_access_log(
                 log_group_id=log_group_id,
                 log_id=access_log_id,
@@ -386,7 +415,7 @@ class AquaDeploymentApp(AquaApp):
         # configure model deployment runtime
         container_runtime = (
             ModelDeploymentContainerRuntime()
-            .with_image(container_image)
+            .with_image(container_image_uri)
             .with_server_port(server_port)
             .with_health_check_port(health_check_port)
             .with_env(env_var)
@@ -396,13 +425,17 @@ class AquaDeploymentApp(AquaApp):
             .with_overwrite_existing_artifact(True)
             .with_remove_existing_artifact(True)
         )
+        if cmd_var:
+            container_runtime.with_cmd(cmd_var)
 
+        tags = {**tags, **(freeform_tags or {})}
         # configure model deployment and deploy model on container runtime
         deployment = (
             ModelDeployment()
             .with_display_name(display_name)
             .with_description(description)
             .with_freeform_tags(**tags)
+            .with_defined_tags(**(defined_tags or {}))
             .with_infrastructure(infrastructure)
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
@@ -433,6 +466,25 @@ class AquaDeploymentApp(AquaApp):
             deployment.dsc_model_deployment, self.region
         )
 
+    @staticmethod
+    def _get_container_type_key(model: DataScienceModel, container_family: str) -> str:
+        container_type_key = UNKNOWN
+        if container_family:
+            container_type_key = container_family
+        else:
+            try:
+                container_type_key = model.custom_metadata_list.get(
+                    AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
+                ).value
+            except ValueError as err:
+                raise AquaValueError(
+                    f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field "
+                    f"for model {model.id}. For unverified Aqua models, {AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} should be"
+                    f"set and value can be one of {', '.join(InferenceContainerTypeFamily.values())}."
+                ) from err
+
+        return container_type_key
+
     @telemetry(entry_point="plugin=deployment&action=list", name="aqua")
     def list(self, **kwargs) -> List["AquaDeployment"]:
         """List Aqua model deployments in a given compartment and under certain project.
@@ -460,8 +512,8 @@ class AquaDeploymentApp(AquaApp):
         for model_deployment in model_deployments:
             oci_aqua = (
                 (
-                        Tags.AQUA_TAG in model_deployment.freeform_tags
-                        or Tags.AQUA_TAG.lower() in model_deployment.freeform_tags
+                    Tags.AQUA_TAG in model_deployment.freeform_tags
+                    or Tags.AQUA_TAG.lower() in model_deployment.freeform_tags
                 )
                 if model_deployment.freeform_tags
                 else False
@@ -492,6 +544,24 @@ class AquaDeploymentApp(AquaApp):
 
         return results
 
+    @telemetry(entry_point="plugin=deployment&action=delete", name="aqua")
+    def delete(self, model_deployment_id: str):
+        return self.ds_client.delete_model_deployment(
+            model_deployment_id=model_deployment_id
+        ).data
+
+    @telemetry(entry_point="plugin=deployment&action=deactivate", name="aqua")
+    def deactivate(self, model_deployment_id: str):
+        return self.ds_client.deactivate_model_deployment(
+            model_deployment_id=model_deployment_id
+        ).data
+
+    @telemetry(entry_point="plugin=deployment&action=activate", name="aqua")
+    def activate(self, model_deployment_id: str):
+        return self.ds_client.activate_model_deployment(
+            model_deployment_id=model_deployment_id
+        ).data
+
     @telemetry(entry_point="plugin=deployment&action=get", name="aqua")
     def get(self, model_deployment_id: str, **kwargs) -> "AquaDeploymentDetail":
         """Gets the information of Aqua model deployment.
@@ -515,8 +585,8 @@ class AquaDeploymentApp(AquaApp):
 
         oci_aqua = (
             (
-                    Tags.AQUA_TAG in model_deployment.freeform_tags
-                    or Tags.AQUA_TAG.lower() in model_deployment.freeform_tags
+                Tags.AQUA_TAG in model_deployment.freeform_tags
+                or Tags.AQUA_TAG.lower() in model_deployment.freeform_tags
             )
             if model_deployment.freeform_tags
             else False
@@ -533,8 +603,8 @@ class AquaDeploymentApp(AquaApp):
         log_group_name = ""
 
         logs = (
-                model_deployment.category_log_details.access
-                or model_deployment.category_log_details.predict
+            model_deployment.category_log_details.access
+            or model_deployment.category_log_details.predict
         )
         if logs:
             log_id = logs.log_id
@@ -581,17 +651,15 @@ class AquaDeploymentApp(AquaApp):
         """
         config = self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG)
         if not config:
-            logger.info(f"Fetching default deployment config for model: {model_id}")
-            config = load_config(
-                AQUA_CONFIG_FOLDER,
-                config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG_DEFAULTS,
+            logger.debug(
+                f"Deployment config for custom model: {model_id} is not available."
             )
         return config
 
     def get_deployment_default_params(
-            self,
-            model_id: str,
-            instance_shape: str,
+        self,
+        model_id: str,
+        instance_shape: str,
     ) -> List[str]:
         """Gets the default params set in the deployment configs for the given model and instance shape.
 
@@ -623,8 +691,8 @@ class AquaDeploymentApp(AquaApp):
             )
 
         if (
-                container_type_key
-                and container_type_key in InferenceContainerTypeFamily.values()
+            container_type_key
+            and container_type_key in InferenceContainerTypeFamily.values()
         ):
             deployment_config = self.get_deployment_config(model_id)
             config_params = (
@@ -647,10 +715,10 @@ class AquaDeploymentApp(AquaApp):
         return default_params
 
     def validate_deployment_params(
-            self,
-            model_id: str,
-            params: List[str] = None,
-            container_family: str = None,
+        self,
+        model_id: str,
+        params: List[str] = None,
+        container_family: str = None,
     ) -> Dict:
         """Validate if the deployment parameters passed by the user can be overridden. Parameter values are not
         validated, only param keys are validated.
@@ -672,23 +740,9 @@ class AquaDeploymentApp(AquaApp):
         restricted_params = []
         if params:
             model = DataScienceModel.from_id(model_id)
-            try:
-                container_type_key = model.custom_metadata_list.get(
-                    AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME
-                ).value
-            except ValueError as err:
-                message = (
-                    f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field "
-                    f"for model {model_id}."
-                )
-                logger.debug(message)
-
-                if not container_family:
-                    raise AquaValueError(
-                        f"{message}. For unverified Aqua models, container_family parameter should be "
-                        f"set and value can be one of {', '.join(InferenceContainerTypeFamily.values())}."
-                    ) from err
-                container_type_key = container_family
+            container_type_key = self._get_container_type_key(
+                model=model, container_family=container_family
+            )
 
             container_config = get_container_config()
             container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
@@ -709,9 +763,9 @@ class AquaDeploymentApp(AquaApp):
 
     @staticmethod
     def _find_restricted_params(
-            default_params: Union[str, List[str]],
-            user_params: Union[str, List[str]],
-            container_family: str,
+        default_params: Union[str, List[str]],
+        user_params: Union[str, List[str]],
+        container_family: str,
     ) -> List[str]:
         """Returns a list of restricted params that user chooses to override when creating an Aqua deployment.
         The default parameters coming from the container index json file cannot be overridden.

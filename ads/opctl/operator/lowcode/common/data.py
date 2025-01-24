@@ -1,22 +1,21 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import time
-from .transformations import Transformations
+from abc import ABC
+
+import pandas as pd
+
 from ads.opctl import logger
 from ads.opctl.operator.lowcode.common.const import DataColumns
-from ads.opctl.operator.lowcode.common.utils import load_data
 from ads.opctl.operator.lowcode.common.errors import (
-    InputDataError,
     InvalidParameterError,
-    PermissionsError,
-    DataMismatchError,
 )
-from abc import ABC
-import pandas as pd
+from ads.opctl.operator.lowcode.common.utils import load_data
+
+from .transformations import Transformations
 
 
 class AbstractData(ABC):
@@ -35,11 +34,14 @@ class AbstractData(ABC):
         condition = pd.Series(True, index=self.raw_data.index)
         if category in mapping:
             for col, val in mapping[category].items():
-                condition &= (self.raw_data[col] == val)
+                condition &= self.raw_data[col] == val
         data_by_cat = self.raw_data[condition].reset_index(drop=True)
-        data_by_cat = self._data_transformer._format_datetime_col(data_by_cat) if self.spec.datetime_column else data_by_cat
+        data_by_cat = (
+            self._data_transformer._format_datetime_col(data_by_cat)
+            if self.spec.datetime_column
+            else data_by_cat
+        )
         return data_by_cat
-
 
     def get_dict_by_series(self):
         if not self._data_dict:

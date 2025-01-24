@@ -26,7 +26,6 @@ from ads.jobs.ads_job import Job
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import ModelCustomMetadata
 from ads.aqua.common.errors import AquaValueError
-from ads.aqua.config.config import get_finetuning_config_defaults
 
 
 class FineTuningTestCase(TestCase):
@@ -91,6 +90,10 @@ class FineTuningTestCase(TestCase):
         ft_source.compartment_id = self.SERVICE_COMPARTMENT_ID
         ft_source.display_name = "test_ft_source_model"
         ft_source.custom_metadata_list = custom_metadata_list
+        ft_source.freeform_tags = {
+            "license": "Some license text",
+            "aqua_custom_base_model": "base_model_info",
+        }
         mock_get_source.return_value = ft_source
 
         mock_mvs_create.return_value = ("test_experiment_id", "test_experiment_name")
@@ -120,6 +123,9 @@ class FineTuningTestCase(TestCase):
         self.app.ds_client.update_model = MagicMock()
         self.app.ds_client.update_model_provenance = MagicMock()
 
+        ft_model_freeform_tags = {"ftag1": "fvalue1", "ftag2": "fvalue2"}
+        ft_model_defined_tags = {"dtag1": "dvalue1", "dtag2": "dvalue2"}
+
         create_aqua_ft_details = dict(
             ft_source_id="ocid1.datasciencemodel.oc1.iad.<OCID>",
             ft_name="test_ft_name",
@@ -135,6 +141,8 @@ class FineTuningTestCase(TestCase):
             validation_set_size=0.2,
             block_storage_size=1,
             experiment_name="test_experiment_name",
+            freeform_tags=ft_model_freeform_tags,
+            defined_tags=ft_model_defined_tags,
         )
 
         aqua_ft_summary = self.app.create(**create_aqua_ft_details)
@@ -168,10 +176,17 @@ class FineTuningTestCase(TestCase):
                 "url": f"https://cloud.oracle.com/data-science/models/{ft_source.id}?region={self.app.region}",
             },
             "tags": {
-                "aqua_finetuning": "aqua_finetuning",
-                "finetuning_experiment_id": f"{mock_mvs_create.return_value[0]}",
-                "finetuning_job_id": f"{mock_job_id.return_value}",
-                "finetuning_source": f"{ft_source.id}",
+                **{
+                    "aqua_finetuning": "aqua_finetuning",
+                    "finetuning_experiment_id": f"{mock_mvs_create.return_value[0]}",
+                    "finetuning_job_id": f"{mock_job_id.return_value}",
+                    "finetuning_source": f"{ft_source.id}",
+                    "ready_to_fine_tune": "false",
+                    "OCI_AQUA": "",
+                    "aqua_fine_tuned_model": f"{ft_source.id}#{ft_source.display_name}",
+                },
+                **ft_model_freeform_tags,
+                **ft_model_defined_tags,
             },
             "time_created": f"{ft_model.time_created}",
         }
@@ -245,10 +260,6 @@ class FineTuningTestCase(TestCase):
         self.app.get_config = MagicMock(return_value=config)
         result = self.app.get_finetuning_config(model_id="test-model-id")
         assert result == config
-
-        self.app.get_config = MagicMock(return_value=None)
-        result = self.app.get_finetuning_config(model_id="test-model-id")
-        assert result == get_finetuning_config_defaults()
 
     def test_get_finetuning_default_params(self):
         """Test for fetching finetuning config params for a given model."""
