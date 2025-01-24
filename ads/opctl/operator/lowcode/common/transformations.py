@@ -60,7 +60,8 @@ class Transformations(ABC):
 
         """
         clean_df = self._remove_trailing_whitespace(data)
-        clean_df = self._clean_column_names(clean_df)
+        if self.dataset_info.horizon:
+            clean_df = self._clean_column_names(clean_df)
         if self.name == "historical_data":
             self._check_historical_dataset(clean_df)
         clean_df = self._set_series_id_column(clean_df)
