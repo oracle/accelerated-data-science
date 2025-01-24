@@ -33,6 +33,7 @@ class Transformations(ABC):
         self.dataset_info = dataset_info
         self.target_category_columns = dataset_info.target_category_columns
         self.target_column_name = dataset_info.target_column
+        self.raw_column_names = None
         self.dt_column_name = (
             dataset_info.datetime_column.name if dataset_info.datetime_column else None
         )
@@ -59,7 +60,7 @@ class Transformations(ABC):
 
         """
         clean_df = self._remove_trailing_whitespace(data)
-        # clean_df = self._normalize_column_names(clean_df)
+        clean_df = self._clean_column_names(clean_df)
         if self.name == "historical_data":
             self._check_historical_dataset(clean_df)
         clean_df = self._set_series_id_column(clean_df)
@@ -97,8 +98,31 @@ class Transformations(ABC):
     def _remove_trailing_whitespace(self, df):
         return df.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
 
-    # def _normalize_column_names(self, df):
-    #     return df.rename(columns=lambda x: re.sub("[^A-Za-z0-9_]+", "", x))
+    def _clean_column_names(self, df):
+        """
+        Remove all whitespaces from column names in a DataFrame and store the original names.
+
+        Parameters:
+        df (pd.DataFrame): The DataFrame whose column names need to be cleaned.
+
+        Returns:
+        pd.DataFrame: The DataFrame with cleaned column names.
+        """
+        self.raw_column_names = {
+            col: col.replace(" ", "") for col in df.columns if " " in col
+        }
+
+        self.target_column_name = self.raw_column_names.get(
+            self.target_column_name, self.target_column_name
+        )
+        self.dt_column_name = self.raw_column_names.get(
+            self.dt_column_name, self.dt_column_name
+        )
+        self.target_category_columns = [
+            self.raw_column_names.get(col, col) for col in self.target_category_columns
+        ]
+        df.columns = df.columns.str.replace(" ", "")
+        return df
 
     def _set_series_id_column(self, df):
         self._target_category_columns_map = {}
@@ -226,6 +250,10 @@ class Transformations(ABC):
         expected_names = [self.target_column_name, self.dt_column_name] + (
             self.target_category_columns if self.target_category_columns else []
         )
+
+        if self.raw_column_names:
+            expected_names.extend(list(self.raw_column_names.values()))
+
         if set(df.columns) != set(expected_names):
             raise DataMismatchError(
                 f"Expected {self.name} to have columns: {expected_names}, but instead found column names: {df.columns}. Is the {self.name} path correct?"
