@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from __future__ import annotations
 
@@ -21,10 +20,22 @@ import fsspec
 import oci
 import oci.data_science
 import oci.util as oci_util
-from oci.data_science.models import JobInfrastructureConfigurationDetails
-from oci.exceptions import ServiceError
 import yaml
+from oci.data_science.models import (
+    JobCustomNetworkConfiguration,
+    JobDefaultNetworkConfiguration,
+    JobInfrastructureConfigurationDetails,
+    MultiNodeJobInfrastructureConfigurationDetails,
+)
+from oci.exceptions import ServiceError
+
 from ads.common import utils
+from ads.common.decorator.utils import class_or_instance_method
+from ads.common.dsc_file_system import (
+    DSCFileSystemManager,
+    OCIFileStorage,
+    OCIObjectStorage,
+)
 from ads.common.oci_datascience import DSCNotebookSession, OCIDataScienceMixin
 from ads.common.oci_logging import OCILog
 from ads.common.oci_resource import ResourceNotFoundError
@@ -35,15 +46,9 @@ from ads.jobs.builders.infrastructure.dsc_job_runtime import (
 )
 from ads.jobs.builders.infrastructure.utils import get_value
 from ads.jobs.builders.runtimes.artifact import Artifact
+from ads.jobs.builders.runtimes.base import MultiNodeRuntime
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.jobs.builders.runtimes.python_runtime import GitPythonRuntime
-
-from ads.common.dsc_file_system import (
-    OCIFileStorage,
-    DSCFileSystemManager,
-    OCIObjectStorage,
-)
-from ads.common.decorator.utils import class_or_instance_method
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +57,12 @@ WAIT_SECONDS_AFTER_FINISHED = 90
 MAXIMUM_MOUNT_COUNT = 5
 FILE_STORAGE_TYPE = "FILE_STORAGE"
 OBJECT_STORAGE_TYPE = "OBJECT_STORAGE"
+
+
+if hasattr(oci.data_science.models, "MultiNodeJobInfrastructureConfigurationDetails"):
+    MULTI_NODE_JOB_SUPPORT = True
+else:
+    MULTI_NODE_JOB_SUPPORT = False
 
 
 class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
@@ -284,11 +295,15 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
 
     def load_defaults(self) -> DSCJob:
         self.load_properties_from_env()
+        if getattr(self, "job_node_configuration_details", None):
+            return self
+        # Following are for single node job run only
         if not self.job_infrastructure_configuration_details:
             self.job_infrastructure_configuration_details = {}
+
         # Convert the dict to JobInfrastructureConfigurationDetails object
         if isinstance(self.job_infrastructure_configuration_details, dict):
-            # Default networking
+
             if not self.job_infrastructure_configuration_details.get(
                 "jobInfrastructureType"
             ):
@@ -352,6 +367,7 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             raise ValueError("Specify compartment ID for data science job.")
         if not self.project_id:
             raise ValueError("Specify project ID for data science job.")
+
         self._create_with_oci_api()
         return self
 
@@ -756,13 +772,11 @@ class DataScienceJobRun(
                 return True
             # Stop only if time_finished is over 2 minute ago.
             # This is for the time delay between job run stopped and the logs appear in oci logging.
-            if (
+            return (
                 datetime.datetime.now(self.time_finished.tzinfo)
                 - datetime.timedelta(seconds=wait)
                 > self.time_finished
-            ):
-                return True
-            return False
+            )
 
         if not self.log_id and not self.log_group_id:
             print(
@@ -1557,15 +1571,6 @@ class DataScienceJob(Infrastructure):
             if value:
                 dsc_job.job_infrastructure_configuration_details[camel_attr] = value
 
-        if not dsc_job.job_infrastructure_configuration_details.get(
-            "shapeName", ""
-        ).endswith("Flex") and dsc_job.job_infrastructure_configuration_details.get(
-            "jobShapeConfigDetails"
-        ):
-            raise ValueError(
-                "Shape config is not required for non flex shape from user end."
-            )
-
         if dsc_job.job_infrastructure_configuration_details.get("subnetId"):
             dsc_job.job_infrastructure_configuration_details[
                 "jobInfrastructureType"
@@ -1583,7 +1588,6 @@ class DataScienceJob(Infrastructure):
         return self
 
     def build(self) -> DataScienceJob:
-        self.dsc_job.load_defaults()
 
         try:
             self.dsc_job.load_defaults()
@@ -1611,6 +1615,46 @@ class DataScienceJob(Infrastructure):
             )
         )
 
+    def _config_multi_node(self, runtime: MultiNodeRuntime):
+        """Configure the payload for multi-node job run."""
+        infra_config: dict = self.dsc_job.job_infrastructure_configuration_details
+        job_config: dict = self.dsc_job.job_configuration_details
+        env_config = self.dsc_job.job_environment_configuration_details
+        # Fr multi-node jobs,
+        # the job_infrastructure_configuration_details and job_configuration_details
+        # should be the special EMPTY class.
+        # The job_environment_configuration_details should be None.
+        # The configs will be specified in each node group.
+        self.dsc_job.job_infrastructure_configuration_details = None
+        self.dsc_job.job_configuration_details = None
+        self.dsc_job.job_environment_configuration_details = None
+
+        subnet_id = infra_config.pop("subnet_id", None)
+        infra_config["jobInfrastructureType"] = (
+            MultiNodeJobInfrastructureConfigurationDetails.JOB_INFRASTRUCTURE_TYPE_MULTI_NODE
+        )
+
+        if subnet_id:
+            network_config = JobCustomNetworkConfiguration(subnet_id=subnet_id)
+        else:
+            network_config = JobDefaultNetworkConfiguration()
+
+        node_group_config: dict = {
+            "name": "multi-node",
+            "replicas": runtime.replica,
+            "minimumSuccessReplicas": runtime.replica,
+            "jobInfrastructureConfigurationDetails": infra_config,
+            "jobConfigurationDetails": job_config,
+            "jobEnvironmentConfigurationDetails": env_config,
+        }
+
+        self.dsc_job.job_node_configuration_details = {
+            "jobNodeType": "MULTI_NODE",
+            "startupOrder": "IN_PARALLEL",
+            "jobNetworkConfiguration": network_config,
+            "jobNodeGroupConfigurationDetailsList": [node_group_config],
+        }
+
     def create(self, runtime, **kwargs) -> DataScienceJob:
         """Creates a job with runtime.
 
@@ -1635,9 +1679,7 @@ class DataScienceJob(Infrastructure):
 
         if self.name:
             display_name = Template(self.name).safe_substitute(runtime.envs)
-        elif isinstance(runtime, GitPythonRuntime) or isinstance(
-            runtime, ContainerRuntime
-        ):
+        elif isinstance(runtime, (GitPythonRuntime, ContainerRuntime)):
             display_name = utils.get_random_name_for_resource()
         else:
             display_name = None
@@ -1652,6 +1694,12 @@ class DataScienceJob(Infrastructure):
         self.dsc_job = DSCJob(**payload, **self.auth)
         # Set Job infra to user values after DSCJob initialized the defaults
         self._update_job_infra(self.dsc_job)
+        if (
+            MULTI_NODE_JOB_SUPPORT
+            and isinstance(runtime, MultiNodeRuntime)
+            and runtime.replica > 1
+        ):
+            self._config_multi_node(runtime=runtime)
         self.dsc_job.create()
         # Update the model from infra after job creation.
         self._update_from_dsc_model(self.dsc_job)
