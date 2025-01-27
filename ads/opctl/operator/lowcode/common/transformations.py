@@ -60,7 +60,7 @@ class Transformations(ABC):
 
         """
         clean_df = self._remove_trailing_whitespace(data)
-        if self.dataset_info.horizon:
+        if hasattr(self.dataset_info, 'horizon'):
             clean_df = self._clean_column_names(clean_df)
         if self.name == "historical_data":
             self._check_historical_dataset(clean_df)
@@ -113,15 +113,18 @@ class Transformations(ABC):
             col: col.replace(" ", "") for col in df.columns if " " in col
         }
 
-        self.target_column_name = self.raw_column_names.get(
-            self.target_column_name, self.target_column_name
-        )
+        if self.target_column_name:
+            self.target_column_name = self.raw_column_names.get(
+                self.target_column_name, self.target_column_name
+            )
         self.dt_column_name = self.raw_column_names.get(
             self.dt_column_name, self.dt_column_name
         )
-        self.target_category_columns = [
-            self.raw_column_names.get(col, col) for col in self.target_category_columns
-        ]
+
+        if self.target_category_columns:
+            self.target_category_columns = [
+                self.raw_column_names.get(col, col) for col in self.target_category_columns
+            ]
         df.columns = df.columns.str.replace(" ", "")
         return df
 
