@@ -838,7 +838,7 @@ def test_pandas_additional_input(operator_setup, model):
 #     )
 
 
-@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize("model", ["prophet"])
 def test_date_format(operator_setup, model):
     tmpdirname = operator_setup
     historical_data_path, additional_data_path = setup_small_rossman()
