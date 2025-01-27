@@ -33,6 +33,7 @@ from huggingface_hub.utils import (
 )
 from oci.data_science.models import JobRun, Model
 from oci.object_storage.models import ObjectSummary
+from pydantic import ValidationError
 
 from ads.aqua.common.enums import (
     InferenceContainerParamType,
@@ -1196,3 +1197,15 @@ def validate_cmd_var(cmd_var: List[str], overrides: List[str]) -> List[str]:
 
     combined_cmd_var = cmd_var + overrides
     return combined_cmd_var
+
+
+def build_pydantic_error_message(ex: ValidationError):
+    """Added to handle error messages from pydantic model validator.
+    Combine both loc and msg for errors where loc (field) is present in error details, else only build error
+    message using msg field."""
+
+    return {
+        ".".join(map(str, e["loc"])): e["msg"]
+        for e in ex.errors()
+        if "loc" in e and e["loc"]
+    } or "; ".join(e["msg"] for e in ex.errors())
