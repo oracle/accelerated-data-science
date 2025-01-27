@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional
 import requests
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.llms import create_base_retry_decorator
-from langchain_core.pydantic_v1 import BaseModel, Field
+from pydantic import BaseModel, Field
 
 DEFAULT_HEADER = {
     "Content-Type": "application/json",
