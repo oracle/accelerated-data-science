@@ -1328,7 +1328,9 @@ class AquaModelApp(AquaApp):
         if local_dir:
             local_dir = os.path.join(local_dir, model_name)
             os.makedirs(local_dir, exist_ok=True)
-        snapshot_download(
+
+        # if local_dir is not set, the return value points to the cached data folder
+        local_dir = snapshot_download(
             repo_id=model_name,
             local_dir=local_dir,
             allow_patterns=allow_patterns,

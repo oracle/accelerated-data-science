@@ -743,6 +743,7 @@ class TestAquaModel:
         app = AquaModelApp()
         if download_from_hf:
             with tempfile.TemporaryDirectory() as tmpdir:
+                mock_snapshot_download.return_value = f"{str(tmpdir)}/{model_name}"
                 model: AquaModel = app.register(
                     model=model_name,
                     os_path=os_path,
