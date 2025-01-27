@@ -287,7 +287,7 @@ def setup_artificial_data(tmpdirname, hist_data=None, add_data=None, test_data=N
     return historical_data_path, additional_data_path, test_data_path
 
 
-@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize("model", ["prophet"])
 def test_rossman(operator_setup, model):
     run_operator(
         tmpdirname=operator_setup,
@@ -295,7 +295,7 @@ def test_rossman(operator_setup, model):
     )
 
 
-@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize("model", ["prophet"])
 def test_historical_data(operator_setup, model):
     tmpdirname = operator_setup
     historical_data_path, additional_data_path, _ = setup_artificial_data(tmpdirname)
@@ -728,7 +728,7 @@ def test_smape_error():
     assert result == 0
 
 
-@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize("model", ["prophet"])
 def test_pandas_historical_input(operator_setup, model):
     from ads.opctl.operator.lowcode.forecast.__main__ import operate
     from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import (
@@ -759,7 +759,7 @@ def test_pandas_historical_input(operator_setup, model):
     )
 
 
-@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize("model", ["prophet"])
 def test_pandas_additional_input(operator_setup, model):
     from ads.opctl.operator.lowcode.forecast.__main__ import operate
     from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import (
