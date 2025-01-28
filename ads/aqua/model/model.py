@@ -663,7 +663,7 @@ class AquaModelApp(AquaApp):
         """
 
         models = []
-        if compartment_id:
+        if compartment_id and kwargs["category"] != "SERVICE" :
             # tracks number of times custom model listing was called
             self.telemetry.record_event_async(
                 category="aqua/custom/model", action="list"
