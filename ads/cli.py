@@ -88,7 +88,6 @@ def serialize(data):
                 print(json.dumps(item.dict(), indent=4))
             else:
                 print(str(item))
-        [print(str(item)) for item in data]
     elif isinstance(data, BaseModel):
         print(json.dumps(data.dict(), indent=4))
     else:
