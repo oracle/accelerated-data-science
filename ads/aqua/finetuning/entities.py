@@ -122,6 +122,8 @@ class CreateFineTuningDetails(Serializable):
         The log group id for fine tuning job infrastructure.
     log_id: (str, optional). Defaults to `None`.
         The log id for fine tuning job infrastructure.
+    watch_logs: (bool, optional). Defaults to `False`.
+        The flag to watch the job run logs when a fine-tuning job is created.
     force_overwrite: (bool, optional). Defaults to `False`.
         Whether to force overwrite the existing file in object storage.
     freeform_tags: (dict, optional)
@@ -148,6 +150,7 @@ class CreateFineTuningDetails(Serializable):
     subnet_id: Optional[str] = None
     log_id: Optional[str] = None
     log_group_id: Optional[str] = None
+    watch_logs: Optional[bool] = False
     force_overwrite: Optional[bool] = False
     freeform_tags: Optional[dict] = None
     defined_tags: Optional[dict] = None
