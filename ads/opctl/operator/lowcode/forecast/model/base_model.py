@@ -44,6 +44,7 @@ from ads.opctl.operator.lowcode.forecast.utils import (
 
 from ..const import (
     AUTO_SELECT,
+    BACKTEST_REPORT_NAME,
     SUMMARY_METRICS_HORIZON_LIMIT,
     SpeedAccuracyMode,
     SupportedMetrics,
@@ -321,7 +322,14 @@ class ForecastOperatorBaseModel(ABC):
                         forecast_plots = [forecast_text, forecast_sec]
 
                 yaml_appendix_title = rc.Heading("Reference: YAML File", level=2)
-                yaml_appendix = rc.Yaml(self.config.to_dict())
+                config_dict = self.config.to_dict()
+                # pop the data incase it isn't json serializable
+                config_dict["spec"]["historical_data"].pop("data")
+                if config_dict["spec"].get("additional_data"):
+                    config_dict["spec"]["additional_data"].pop("data")
+                if config_dict["spec"].get("test_data"):
+                    config_dict["spec"]["test_data"].pop("data")
+                yaml_appendix = rc.Yaml(config_dict)
                 report_sections = (
                     [summary]
                     + backtest_sections

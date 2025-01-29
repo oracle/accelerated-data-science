@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA utils and constants."""
 
@@ -30,6 +30,7 @@ from huggingface_hub.utils import (
 )
 from oci.data_science.models import JobRun, Model
 from oci.object_storage.models import ObjectSummary
+from pydantic import ValidationError
 
 from ads.aqua.common.enums import (
     InferenceContainerParamType,
@@ -788,7 +789,9 @@ def get_ocid_substring(ocid: str, key_len: int) -> str:
     return ocid[-key_len:] if ocid and len(ocid) > key_len else ""
 
 
-def upload_folder(os_path: str, local_dir: str, model_name: str, exclude_pattern: str = None) -> str:
+def upload_folder(
+    os_path: str, local_dir: str, model_name: str, exclude_pattern: str = None
+) -> str:
     """Upload the local folder to the object storage
 
     Args:
@@ -1159,3 +1162,15 @@ def validate_cmd_var(cmd_var: List[str], overrides: List[str]) -> List[str]:
 
     combined_cmd_var = cmd_var + overrides
     return combined_cmd_var
+
+
+def build_pydantic_error_message(ex: ValidationError):
+    """Added to handle error messages from pydantic model validator.
+    Combine both loc and msg for errors where loc (field) is present in error details, else only build error
+    message using msg field."""
+
+    return {
+        ".".join(map(str, e["loc"])): e["msg"]
+        for e in ex.errors()
+        if "loc" in e and e["loc"]
+    } or "; ".join(e["msg"] for e in ex.errors())
