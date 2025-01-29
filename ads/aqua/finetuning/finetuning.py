@@ -427,25 +427,17 @@ class AquaFineTuningApp(AquaApp):
         )
 
         if create_fine_tuning_details.watch_logs:
-            if (
-                create_fine_tuning_details.log_id
-                and create_fine_tuning_details.log_group_id
-            ):
-                logger.info(
-                    f"Watching fine-tuning job run logs for {ft_job_run.id}. Press Ctrl+C stop watching logs.\n"
-                )
-                try:
-                    ft_job_run.watch()
-                except KeyboardInterrupt:
-                    logger.info(f"\nStopped watching logs for {ft_job_run.id}.\n")
-                    time.sleep(2)
-                except Exception as ex:
-                    logger.debug(
-                        f"Something unexpected occurred while watching logs.\n{str(ex)}"
-                    )
-            else:
-                logger.info(
-                    "Logging details are not provided, set `log_id` and `log_group_id` to watch logs."
+            logger.info(
+                f"Watching fine-tuning job run logs for {ft_job_run.id}. Press Ctrl+C stop watching logs.\n"
+            )
+            try:
+                ft_job_run.watch()
+            except KeyboardInterrupt:
+                logger.info(f"\nStopped watching logs for {ft_job_run.id}.\n")
+                time.sleep(1)
+            except Exception as ex:
+                logger.debug(
+                    f"Something unexpected occurred while watching logs.\n{str(ex)}"
                 )
 
         return AquaFineTuningSummary(
