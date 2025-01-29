@@ -13,6 +13,7 @@ import logging
 import ads
 from ads.opctl.operator.lowcode.common.utils import load_data
 from ads.opctl.operator.common.operator_config import InputData
+from ads.opctl.operator.lowcode.forecast.const import SupportedModels
 
 ads.set_auth("resource_principal")
 
@@ -25,12 +26,6 @@ logger_feat.setLevel(logging.INFO)
 """
    Inference script. This script is used for prediction by scoring server when schema is known.
 """
-
-AUTOTS = "autots"
-ARIMA = "arima"
-PROPHET = "prophet"
-NEURALPROPHET = "neuralprophet"
-AUTOMLX = "automlx"
 
 
 @lru_cache(maxsize=10)
@@ -142,7 +137,7 @@ def get_forecast(future_df, model_name, series_id, model_object, date_col, targe
     future_df[date_col_name] = pd.to_datetime(
         future_df[date_col_name], format=date_col_format
     )
-    if model_name == AUTOTS:
+    if model_name == SupportedModels.AutoTS:
         series_id_col = "Series"
         full_data_indexed = future_df.rename(columns={target_cat_col: series_id_col})
         additional_regressors = list(
@@ -155,12 +150,12 @@ def get_forecast(future_df, model_name, series_id, model_object, date_col, targe
         )
         pred_obj = model_object.predict(future_regressor=future_reg)
         return pred_obj.forecast[series_id].tolist()
-    elif model_name == PROPHET and series_id in model_object:
+    elif model_name == SupportedModels.Prophet and series_id in model_object:
         model = model_object[series_id]
         processed = future_df.rename(columns={date_col_name: 'ds', target_column: 'y'})
         forecast = model.predict(processed)
         return forecast['yhat'].tolist()
-    elif model_name == NEURALPROPHET and series_id in model_object:
+    elif model_name == SupportedModels.NeuralProphet and series_id in model_object:
         model = model_object[series_id]
         model.restore_trainer()
         accepted_regressors = list(model.config_regressors.regressors.keys())
@@ -169,7 +164,7 @@ def get_forecast(future_df, model_name, series_id, model_object, date_col, targe
         future["y"] = None
         forecast = model.predict(future)
         return forecast['yhat1'].tolist()
-    elif model_name == ARIMA and series_id in model_object:
+    elif model_name == SupportedModels.Arima and series_id in model_object:
         model = model_object[series_id]
         future_df = future_df.set_index(date_col_name)
         x_pred = future_df.drop(target_cat_col, axis=1)
@@ -180,7 +175,7 @@ def get_forecast(future_df, model_name, series_id, model_object, date_col, targe
         )
         yhat_clean = pd.DataFrame(yhat, index=yhat.index, columns=["yhat"])
         return yhat_clean['yhat'].tolist()
-    elif model_name == AUTOMLX and series_id in model_object:
+    elif model_name == SupportedModels.AutoMLX and series_id in model_object:
         # automlx model
         model = model_object[series_id]
         x_pred = future_df.drop(target_cat_col, axis=1)

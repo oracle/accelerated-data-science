@@ -53,22 +53,30 @@ class ModelDeploymentManager:
         """
         Function perform sanity test for saved artifact
         """
-        sys.path.insert(0, f"{self.path_to_artifact}")
-        from score import load_model, predict
-        _ = load_model()
+        org_sys_path = sys.path[:]
+        try:
+            sys.path.insert(0, f"{self.path_to_artifact}")
+            from score import load_model, predict
+            _ = load_model()
 
-        # Write additional data to tmp file and perform sanity check
-        with tempfile.NamedTemporaryFile(suffix='.csv') as temp_file:
-            one_series = next(iter(self.additional_data))
-            sample_prediction_data = self.additional_data[one_series].tail(self.horizon)
-            sample_prediction_data[self.spec.target_category_columns[0]] = one_series
-            date_col_name = self.spec.datetime_column.name
-            date_col_format = self.spec.datetime_column.format
-            sample_prediction_data[date_col_name] = sample_prediction_data[date_col_name].dt.strftime(date_col_format)
-            sample_prediction_data.to_csv(temp_file.name, index=False)
-            input_data = {"additional_data": {"url": temp_file.name}}
-            prediction_test = predict(input_data, _)
-            logger.info(f"prediction test completed with result :{prediction_test}")
+            # Write additional data to tmp file and perform sanity check
+            with tempfile.NamedTemporaryFile(suffix='.csv') as temp_file:
+                one_series = next(iter(self.additional_data))
+                sample_prediction_data = self.additional_data[one_series].tail(self.horizon)
+                sample_prediction_data[self.spec.target_category_columns[0]] = one_series
+                date_col_name = self.spec.datetime_column.name
+                date_col_format = self.spec.datetime_column.format
+                sample_prediction_data[date_col_name] = sample_prediction_data[date_col_name].dt.strftime(
+                    date_col_format)
+                sample_prediction_data.to_csv(temp_file.name, index=False)
+                input_data = {"additional_data": {"url": temp_file.name}}
+                prediction_test = predict(input_data, _)
+                logger.info(f"prediction test completed with result :{prediction_test}")
+        except Exception as e:
+            logger.error(f"An error occurred during the sanity test: {e}")
+            raise
+        finally:
+            sys.path = org_sys_path
 
     def _copy_score_file(self):
         """
