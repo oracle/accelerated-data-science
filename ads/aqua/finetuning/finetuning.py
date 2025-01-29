@@ -150,6 +150,15 @@ class AquaFineTuningApp(AquaApp):
                 f"Logging is required for fine tuning if replica is larger than {DEFAULT_FT_REPLICA}."
             )
 
+        if create_fine_tuning_details.watch_logs and not (
+            create_fine_tuning_details.log_id
+            and create_fine_tuning_details.log_group_id
+        ):
+            raise AquaValueError(
+                "Logging is required for fine tuning if watch_logs is set to True. "
+                "Please provide log_id and log_group_id with the request parameters."
+            )
+
         ft_parameters = self._get_finetuning_params(
             create_fine_tuning_details.ft_parameters
         )
