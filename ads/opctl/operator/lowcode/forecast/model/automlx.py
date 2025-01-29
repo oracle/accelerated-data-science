@@ -105,7 +105,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             engine_opts = (
                 None
                 if engine_type == "local"
-                else ({"ray_setup": {"_temp_dir": "/tmp/ray-temp"}},)
+                else {"ray_setup": {"_temp_dir": "/tmp/ray-temp"}}
             )
             init(
                 engine=engine_type,
