@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
 # Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -11,20 +10,21 @@ import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Dict, List, Tuple, Union, Optional, Any
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-import ads.dataset.factory as factory
 import fsspec
 import git
 import oci.data_science.models
 import pandas as pd
 import yaml
+from oci.util import to_dict
+
 from ads.common import logger
 from ads.common.error import ChangesNotCommitted
 from ads.common.extended_enum import ExtendedEnumMeta
-from ads.common.serializer import DataClassSerializable
 from ads.common.object_storage_details import ObjectStorageDetails
-from oci.util import to_dict
+from ads.common.serializer import DataClassSerializable
+from ads.dataset import factory
 
 try:
     from yaml import CDumper as dumper
@@ -173,6 +173,7 @@ class Framework(str, metaclass=ExtendedEnumMeta):
     WORD2VEC = "word2vec"
     ENSEMBLE = "ensemble"
     SPARK = "pyspark"
+    EMBEDDING_ONNX = "embedding_onnx"
     OTHER = "other"
 
 
@@ -1398,7 +1399,7 @@ class ModelCustomMetadata(ModelMetadata):
         if (
             not data
             or not isinstance(data, Dict)
-            or not "data" in data
+            or "data" not in data
             or not isinstance(data["data"], List)
         ):
             raise ValueError(
@@ -1550,7 +1551,7 @@ class ModelTaxonomyMetadata(ModelMetadata):
         if (
             not data
             or not isinstance(data, Dict)
-            or not "data" in data
+            or "data" not in data
             or not isinstance(data["data"], List)
         ):
             raise ValueError(
