@@ -14,6 +14,7 @@ from ads.opctl.operator.lowcode.common.errors import (
     InvalidParameterError,
 )
 from ads.opctl.operator.lowcode.common.utils import merge_category_columns
+from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorSpec
 
 
 class Transformations(ABC):
@@ -60,7 +61,7 @@ class Transformations(ABC):
 
         """
         clean_df = self._remove_trailing_whitespace(data)
-        if hasattr(self.dataset_info, 'horizon'):
+        if isinstance(self.dataset_info, ForecastOperatorSpec):
             clean_df = self._clean_column_names(clean_df)
         if self.name == "historical_data":
             self._check_historical_dataset(clean_df)
@@ -109,9 +110,11 @@ class Transformations(ABC):
         Returns:
         pd.DataFrame: The DataFrame with cleaned column names.
         """
+
         self.raw_column_names = {
             col: col.replace(" ", "") for col in df.columns if " " in col
         }
+        df.columns = [self.raw_column_names.get(col, col) for col in df.columns]
 
         if self.target_column_name:
             self.target_column_name = self.raw_column_names.get(
@@ -123,9 +126,9 @@ class Transformations(ABC):
 
         if self.target_category_columns:
             self.target_category_columns = [
-                self.raw_column_names.get(col, col) for col in self.target_category_columns
+                self.raw_column_names.get(col, col)
+                for col in self.target_category_columns
             ]
-        df.columns = df.columns.str.replace(" ", "")
         return df
 
     def _set_series_id_column(self, df):
