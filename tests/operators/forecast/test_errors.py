@@ -869,17 +869,22 @@ def test_what_if_analysis(operator_setup, model):
         pytest.skip("Skipping what-if scenario for auto-select")
     tmpdirname = operator_setup
     historical_data_path, additional_data_path = setup_small_rossman()
-    additional_path = f'{tmpdirname}/additional_data.csv'
-    additional_data = pd.read_csv(additional_data_path)
-    numeric_columns = additional_data.select_dtypes(include=['number', 'object'])
+    additional_test_path = f'{tmpdirname}/additional_data.csv'
+    historical_test_path = f'{tmpdirname}/historical_data.csv'
+    historical_data = pd.read_csv(historical_data_path, parse_dates=["Date"])
+    historical_filtered = historical_data[historical_data['Date'] > "2013-03-01"]
+    additional_data = pd.read_csv(additional_data_path, parse_dates=["Date"])
+    add_filtered = additional_data[additional_data['Date'] > "2013-03-01"]
+    numeric_columns = add_filtered.select_dtypes(include=['number', 'object', 'datetime64'])
     non_constant_columns = numeric_columns.columns[(numeric_columns != numeric_columns.iloc[0]).any()]
     df_non_constant = numeric_columns[non_constant_columns.union(['Store'])]
-    df_non_constant.to_csv(f'{additional_path}', index=False)
+    df_non_constant.to_csv(f'{additional_test_path}', index=False)
+    historical_filtered.to_csv(f'{historical_test_path}', index=False)
 
     yaml_i, output_data_path = populate_yaml(
         tmpdirname=tmpdirname,
-        historical_data_path=historical_data_path,
-        additional_data_path=additional_path,
+        historical_data_path=historical_test_path,
+        additional_data_path=additional_test_path,
         output_data_path=f"{tmpdirname}/{model}/results"
     )
     yaml_i["spec"]["horizon"] = 10
