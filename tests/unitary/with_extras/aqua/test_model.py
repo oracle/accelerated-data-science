@@ -1282,7 +1282,7 @@ class TestAquaModel:
                     "inference_container": "odsc-vllm-serving",
                     "ignore_model_artifact_check": True,
                 },
-                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --inference_container odsc-vllm-serving --ignore_model_artifact_check True",
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache True --inference_container odsc-vllm-serving --ignore_model_artifact_check True",
             ),
         ],
     )
