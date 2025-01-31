@@ -159,13 +159,12 @@ forecast = [
   "oci-cli",
   "py-cpuinfo",
   "rich",
-  "autots[additional]",
+  "autots",
   "mlforecast",
   "neuralprophet>=0.7.0",
   "numpy<2.0.0",
   "oci-cli",
   "optuna",
-  "oracle-ads",
   "pmdarima",
   "prophet",
   "shap",
@@ -173,13 +172,13 @@ forecast = [
   "statsmodels",
   "plotly",
   "oracledb",
-  "report-creator==1.0.28",
+  "report-creator==1.0.32",
 ]
 anomaly  = [
   "oracle_ads[opctl]",
   "autots",
   "oracledb",
-  "report-creator==1.0.28",
+  "report-creator==1.0.32",
   "rrcf==0.4.4",
   "scikit-learn<1.6.0",
   "salesforce-merlion[all]==2.0.4"
@@ -188,7 +187,7 @@ recommender = [
   "oracle_ads[opctl]",
   "scikit-surprise",
   "plotly",
-  "report-creator==1.0.28",
+  "report-creator==1.0.32",
 ]
 feature-store-marketplace = [
     "oracle-ads[opctl]",
@@ -204,7 +203,7 @@ pii = [
   "scrubadub_spacy",
   "spacy-transformers==1.2.5",
   "spacy==3.6.1",
-  "report-creator==1.0.28",
+  "report-creator==1.0.32",
 ]
 llm = ["langchain>=0.2", "langchain-community", "langchain_openai", "pydantic>=2,<3", "evaluate>=0.4.0"]
 aqua = ["jupyter_server"]

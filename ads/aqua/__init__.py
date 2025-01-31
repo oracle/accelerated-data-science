@@ -4,6 +4,7 @@
 
 
 import os
+from logging import getLogger
 
 from ads import logger, set_auth
 from ads.aqua.client.client import AsyncClient, Client
@@ -19,6 +20,7 @@ def get_logger_level():
     return level
 
 
+logger = getLogger(__name__)
 logger.setLevel(get_logger_level())
 
 
@@ -27,7 +29,6 @@ def set_log_level(log_level: str):
 
     log_level = log_level.upper()
     logger.setLevel(log_level.upper())
-    logger.handlers[0].setLevel(log_level)
 
 
 if OCI_RESOURCE_PRINCIPAL_VERSION:
