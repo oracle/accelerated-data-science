@@ -283,7 +283,7 @@ class ImportModelDetails(CLIBuilderMixin):
     os_path: str
     download_from_hf: Optional[bool] = True
     local_dir: Optional[str] = None
-    cleanup_model_cache: Optional[bool] = True
+    cleanup_model_cache: Optional[bool] = False
     inference_container: Optional[str] = None
     finetuning_container: Optional[str] = None
     compartment_id: Optional[str] = None
