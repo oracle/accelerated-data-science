@@ -92,3 +92,21 @@ Below is an example of a ``forecast.yaml`` file with every parameter specified:
     * **global_explanation_filename**: (Optional) The name of the global explanation file. It is saved in the output directory, with a default name of ``global_explanations.csv``.
 
     * **local_explanation_filename**: (Optional) The name of the local explanation file. It is saved in the output directory, with a default name of ``local_explanations.csv``.
+
+    * **what_if_analysis**: (Optional) This dictionary defines the configuration for saving the model to the model store and setting up a model deployment server to enable real-time predictions and what-if analysis, with the following parameters:
+        * **project_id**: The OCID of the data science project where the resources will be created.
+        * **compartment_id**: The OCID of the compartment
+        * **model_display_name**: The display name of the model used to save the model in the model store.
+        * **model_deployment**: This dictionary describing the model deployment configuration. It includes:
+            * **display_name**: The display name for the model deployment.
+            * **initial_shape**: The compute shape for the initial model deployment.
+            * **description**: A brief description of the model deployment.
+            * **log_group**: The OCID of the log group where the logs are organized.
+            * **log_id**: The OCID of the log where deployment logs are stored.
+            * **auto_scaling**: (Optional) A dictionary specifying the auto-scaling configuration for the deployment. It includes:
+                * **minimum_instance**: The minimum number of instances to maintain during auto-scaling.
+                * **maximum_instance**: The maximum number of instances to scale up to during peak demand.
+                * **cool_down_in_seconds**: The cooldown period (in seconds) to wait before performing another scaling action.
+                * **scaling_metric**: The metric used for scaling actions. e.g. ``CPU_UTILIZATION`` or  ``MEMORY_UTILIZATION``
+                * **scale_in_threshold**: The utilization percentage below which the instances will scale in (reduce).
+                * **scale_out_threshold**: The utilization percentage above which the instances will scale out (increase).

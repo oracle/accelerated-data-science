@@ -18,6 +18,35 @@ from ads.opctl.operator.lowcode.common.utils import find_output_dirname
 
 from .const import SpeedAccuracyMode, SupportedMetrics, SupportedModels
 
+@dataclass
+class AutoScaling(DataClassSerializable):
+    """Class representing simple autoscaling policy"""
+    minimum_instance: int = 1
+    maximum_instance: int = None
+    cool_down_in_seconds: int = 600
+    scale_in_threshold: int = 10
+    scale_out_threshold: int = 80
+    scaling_metric: str = "CPU_UTILIZATION"
+
+@dataclass(repr=True)
+class ModelDeploymentServer(DataClassSerializable):
+    """Class representing model deployment server specification for whatif-analysis."""
+    display_name: str = None
+    initial_shape: str = None
+    description: str = None
+    log_group: str = None
+    log_id: str = None
+    auto_scaling: AutoScaling = field(default_factory=AutoScaling)
+
+
+@dataclass(repr=True)
+class WhatIfAnalysis(DataClassSerializable):
+    """Class representing operator specification for whatif-analysis."""
+    model_display_name: str = None
+    compartment_id: str = None
+    project_id: str = None
+    model_deployment: ModelDeploymentServer = field(default_factory=ModelDeploymentServer)
+
 
 @dataclass(repr=True)
 class TestData(InputData):
@@ -90,12 +119,14 @@ class ForecastOperatorSpec(DataClassSerializable):
     confidence_interval_width: float = None
     metric: str = None
     tuning: Tuning = field(default_factory=Tuning)
+    what_if_analysis: WhatIfAnalysis = field(default_factory=WhatIfAnalysis)
 
     def __post_init__(self):
         """Adjusts the specification details."""
         self.output_directory = self.output_directory or OutputDirectory(
             url=find_output_dirname(self.output_directory)
         )
+        self.generate_model_pickle = True if self.generate_model_pickle or self.what_if_analysis else False
         self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE.lower()
         self.model = self.model or SupportedModels.Prophet
         self.confidence_interval_width = self.confidence_interval_width or 0.80

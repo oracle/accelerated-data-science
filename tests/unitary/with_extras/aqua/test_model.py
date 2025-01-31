@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -653,12 +653,12 @@ class TestAquaModel:
         }
 
     @pytest.mark.parametrize(
-        ("artifact_location_set", "download_from_hf"),
+        ("artifact_location_set", "download_from_hf", "cleanup_model_cache"),
         [
-            (True, True),
-            (True, False),
-            (False, True),
-            (False, False),
+            (True, True, True),
+            (True, False, True),
+            (False, True, False),
+            (False, False, True),
         ],
     )
     @patch("ads.model.service.oci_datascience_model.OCIDataScienceModel.create")
@@ -683,6 +683,7 @@ class TestAquaModel:
         mock_ocidsc_create,
         artifact_location_set,
         download_from_hf,
+        cleanup_model_cache,
         mock_get_hf_model_info,
         mock_init_client,
     ):
@@ -742,11 +743,13 @@ class TestAquaModel:
         app = AquaModelApp()
         if download_from_hf:
             with tempfile.TemporaryDirectory() as tmpdir:
+                mock_snapshot_download.return_value = f"{str(tmpdir)}/{model_name}"
                 model: AquaModel = app.register(
                     model=model_name,
                     os_path=os_path,
                     local_dir=str(tmpdir),
                     download_from_hf=True,
+                    cleanup_model_cache=cleanup_model_cache,
                     allow_patterns=["*.json"],
                     ignore_patterns=["test.json"],
                 )
@@ -761,6 +764,20 @@ class TestAquaModel:
                         f"oci os object bulk-upload --src-dir {str(tmpdir)}/{model_name} --prefix prefix/path/{model_name}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT --no-overwrite --exclude {HF_METADATA_FOLDER}*"
                     )
                 )
+                if cleanup_model_cache:
+                    cache_dir = os.path.join(
+                        os.path.expanduser("~"),
+                        ".cache",
+                        "huggingface",
+                        "hub",
+                        "models--oracle--aqua-1t-mega-model",
+                    )
+                    assert (
+                        os.path.exists(f"{str(tmpdir)}/{os.path.dirname(model_name)}")
+                        is False
+                    )
+                    assert os.path.exists(cache_dir) is False
+
         else:
             model: AquaModel = app.register(
                 model="ocid1.datasciencemodel.xxx.xxxx.",
@@ -1211,14 +1228,14 @@ class TestAquaModel:
                     "model": "oracle/oracle-1it",
                     "inference_container": "odsc-vllm-serving",
                 },
-                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --inference_container odsc-vllm-serving",
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache True --inference_container odsc-vllm-serving",
             ),
             (
                 {
                     "os_path": "oci://aqua-bkt@aqua-ns/path",
                     "model": "ocid1.datasciencemodel.oc1.iad.<OCID>",
                 },
-                "ads aqua model register --model ocid1.datasciencemodel.oc1.iad.<OCID> --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True",
+                "ads aqua model register --model ocid1.datasciencemodel.oc1.iad.<OCID> --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache True",
             ),
             (
                 {
@@ -1226,7 +1243,7 @@ class TestAquaModel:
                     "model": "oracle/oracle-1it",
                     "download_from_hf": False,
                 },
-                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf False",
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf False --cleanup_model_cache True",
             ),
             (
                 {
@@ -1235,7 +1252,7 @@ class TestAquaModel:
                     "download_from_hf": True,
                     "model_file": "test_model_file",
                 },
-                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --model_file test_model_file",
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache True --model_file test_model_file",
             ),
             (
                 {
@@ -1244,7 +1261,7 @@ class TestAquaModel:
                     "inference_container": "odsc-tei-serving",
                     "inference_container_uri": "<region>.ocir.io/<your_tenancy>/<your_image>",
                 },
-                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --inference_container odsc-tei-serving --inference_container_uri <region>.ocir.io/<your_tenancy>/<your_image>",
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache True --inference_container odsc-tei-serving --inference_container_uri <region>.ocir.io/<your_tenancy>/<your_image>",
             ),
             (
                 {
@@ -1255,7 +1272,7 @@ class TestAquaModel:
                     "defined_tags": {"dtag1": "dvalue1", "dtag2": "dvalue2"},
                 },
                 "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path "
-                "--download_from_hf True --inference_container odsc-vllm-serving --freeform_tags "
+                "--download_from_hf True --cleanup_model_cache True --inference_container odsc-vllm-serving --freeform_tags "
                 '{"ftag1": "fvalue1", "ftag2": "fvalue2"} --defined_tags {"dtag1": "dvalue1", "dtag2": "dvalue2"}',
             ),
             (

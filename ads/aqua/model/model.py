@@ -15,6 +15,7 @@ from oci.data_science.models import JobRun, Metadata, Model, UpdateModelDetails
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import (
+    CustomInferenceContainerTypeFamily,
     FineTuningContainerTypeFamily,
     InferenceContainerTypeFamily,
     Tags,
@@ -27,6 +28,7 @@ from ads.aqua.common.errors import (
 from ads.aqua.common.utils import (
     LifecycleStatus,
     _build_resource_identifier,
+    cleanup_local_hf_model_artifact,
     copy_model_config,
     create_word_icon,
     generate_tei_cmd_var,
@@ -398,8 +400,10 @@ class AquaModelApp(AquaApp):
                 f"Failed to delete model:{model_id}. Only registered models or finetuned model can be deleted."
             )
 
-    @telemetry(entry_point="plugin=model&action=delete", name="aqua")
-    def edit_registered_model(self, id, inference_container, enable_finetuning, task):
+    @telemetry(entry_point="plugin=model&action=edit", name="aqua")
+    def edit_registered_model(
+        self, id, inference_container, inference_container_uri, enable_finetuning, task
+    ):
         """Edits the default config of unverified registered model.
 
         Parameters
@@ -408,6 +412,8 @@ class AquaModelApp(AquaApp):
             The model OCID.
         inference_container: str.
             The inference container family name
+        inference_container_uri: str
+            The inference container uri for embedding models
         enable_finetuning: str
             Flag to enable or disable finetuning over the model. Defaults to None
         task:
@@ -423,19 +429,44 @@ class AquaModelApp(AquaApp):
         if ds_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None):
             if ds_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, None):
                 raise AquaRuntimeError(
-                    f"Failed to edit model:{id}. Only registered unverified models can be edited."
+                    "Only registered unverified models can be edited."
                 )
             else:
                 custom_metadata_list = ds_model.custom_metadata_list
                 freeform_tags = ds_model.freeform_tags
                 if inference_container:
-                    custom_metadata_list.add(
-                        key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
-                        value=inference_container,
-                        category=MetadataCustomCategory.OTHER,
-                        description="Deployment container mapping for SMC",
-                        replace=True,
-                    )
+                    if (
+                        inference_container in CustomInferenceContainerTypeFamily
+                        and inference_container_uri is None
+                    ):
+                        raise AquaRuntimeError(
+                            "Inference container URI must be provided."
+                        )
+                    else:
+                        custom_metadata_list.add(
+                            key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
+                            value=inference_container,
+                            category=MetadataCustomCategory.OTHER,
+                            description="Deployment container mapping for SMC",
+                            replace=True,
+                        )
+                if inference_container_uri:
+                    if (
+                        inference_container in CustomInferenceContainerTypeFamily
+                        or inference_container is None
+                    ):
+                        custom_metadata_list.add(
+                            key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER_URI,
+                            value=inference_container_uri,
+                            category=MetadataCustomCategory.OTHER,
+                            description=f"Inference container URI for {ds_model.display_name}",
+                            replace=True,
+                        )
+                    else:
+                        raise AquaRuntimeError(
+                            f"Inference container URI can be edited only with container values: {CustomInferenceContainerTypeFamily.values()}"
+                        )
+
                 if enable_finetuning is not None:
                     if enable_finetuning.lower() == "true":
                         custom_metadata_list.add(
@@ -471,9 +502,7 @@ class AquaModelApp(AquaApp):
                 AquaApp().update_model(id, update_model_details)
                 logger.info(f"Updated model details for the model {id}.")
         else:
-            raise AquaRuntimeError(
-                f"Failed to edit model:{id}. Only registered unverified models can be edited."
-            )
+            raise AquaRuntimeError("Only registered unverified models can be edited.")
 
     def _fetch_metric_from_metadata(
         self,
@@ -895,8 +924,7 @@ class AquaModelApp(AquaApp):
             # only add cmd vars if inference container is not an SMC
             if (
                 inference_container not in smc_container_set
-                and inference_container
-                == InferenceContainerTypeFamily.AQUA_TEI_CONTAINER_FAMILY
+                and inference_container in CustomInferenceContainerTypeFamily.values()
             ):
                 cmd_vars = generate_tei_cmd_var(os_path)
                 metadata.add(
@@ -1391,17 +1419,14 @@ class AquaModelApp(AquaApp):
         Returns
         -------
         model_artifact_path (str): Location where the model artifacts are downloaded.
-
         """
         # Download the model from hub
-        if not local_dir:
-            local_dir = os.path.join(os.path.expanduser("~"), "cached-model")
-        local_dir = os.path.join(local_dir, model_name)
-        os.makedirs(local_dir, exist_ok=True)
-        logger.debug(
-            f"Downloading artifacts from Hugging Face to local directory {local_dir}."
-        )
-        snapshot_download(
+        if local_dir:
+            local_dir = os.path.join(local_dir, model_name)
+            os.makedirs(local_dir, exist_ok=True)
+
+        # if local_dir is not set, the return value points to the cached data folder
+        local_dir = snapshot_download(
             repo_id=model_name,
             local_dir=local_dir,
             allow_patterns=allow_patterns,
@@ -1411,6 +1436,7 @@ class AquaModelApp(AquaApp):
         logger.debug(
             f"Uploading local artifacts from local directory {local_dir} to {os_path}."
         )
+        # Upload to object storage
         model_artifact_path = upload_folder(
             os_path=os_path,
             local_dir=local_dir,
@@ -1440,6 +1466,8 @@ class AquaModelApp(AquaApp):
                 ignore_patterns (list): Model files matching any of the patterns are not downloaded.
                     Example: ["*.json"] will ignore all .json files. ["folder/*"] will ignore all files under `folder`.
                     Patterns are Standard Wildcards (globbing patterns) and rules can be found here: https://docs.python.org/3/library/fnmatch.html
+                cleanup_model_cache (bool): Deletes downloaded files from local machine after model is successfully
+                registered. Set to True by default.
 
         Returns:
             AquaModel:
@@ -1548,6 +1576,14 @@ class AquaModelApp(AquaApp):
             action="register",
             detail=validation_result.telemetry_model_name,
         )
+
+        if (
+            import_model_details.download_from_hf
+            and import_model_details.cleanup_model_cache
+        ):
+            cleanup_local_hf_model_artifact(
+                model_name=model_name, local_dir=import_model_details.local_dir
+            )
 
         return AquaModel(**aqua_model_attributes)
 
