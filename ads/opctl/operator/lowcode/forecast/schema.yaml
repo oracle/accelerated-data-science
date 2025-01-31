@@ -353,6 +353,69 @@ spec:
       meta:
         description: "Report file generation can be enabled using this flag. Defaults to true."
 
+    what_if_analysis:
+      type: dict
+      required: false
+      schema:
+        model_deployment:
+          type: dict
+          required: false
+          meta: "If model_deployment id is not specified, a new model deployment is created; otherwise, the model is linked to the specified model deployment."
+          schema:
+            id:
+              type: string
+              required: false
+            display_name:
+              type: string
+              required: false
+            initial_shape:
+              type: string
+              required: false
+            description:
+              type: string
+              required: false
+            log_group:
+              type: string
+              required: true
+            log_id:
+              type: string
+              required: true
+            auto_scaling:
+              type: dict
+              required: false
+              schema:
+                minimum_instance:
+                  type: integer
+                  required: true
+                maximum_instance:
+                  type: integer
+                  required: true
+                scale_in_threshold:
+                  type: integer
+                  required: true
+                scale_out_threshold:
+                  type: integer
+                  required: true
+                scaling_metric:
+                  type: string
+                  required: true
+                cool_down_in_seconds:
+                  type: integer
+                  required: true
+        model_display_name:
+          type: string
+          required: true
+        project_id:
+          type: string
+          required: false
+          meta: "If not provided, The project OCID from config.PROJECT_OCID is used"
+        compartment_id:
+          type: string
+          required: false
+          meta: "If not provided, The compartment OCID from config.NB_SESSION_COMPARTMENT_OCID is used."
+      meta:
+        description: "When enabled, the models are saved to the model catalog. Defaults to false."
+
     generate_metrics:
       type: boolean
       required: false
