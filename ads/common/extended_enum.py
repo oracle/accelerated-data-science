@@ -43,6 +43,10 @@ class ExtendedEnumMeta(ABCMeta):
             # For non-string items (e.g., int), do a direct membership check
             return item in attr_values
 
+    def __iter__(cls):
+        # Make the class iterable by returning an iterator over its values
+        return iter(cls.values())
+
     def values(cls) -> tuple:
         """
         Gets the tuple of class attribute values, excluding private or special

@@ -144,10 +144,7 @@ class ModelBackupSetting:
         return cls(
             is_backup_enabled=data.get("is_backup_enabled"),
             backup_region=data.get("backup_region"),
-            customer_notification_type=CustomerNotificationType(
-                data.get("customer_notification_type")
-            )
-            or None,
+            customer_notification_type=data.get("customer_notification_type") or None,
         )
 
     def to_json(self) -> str:
@@ -227,10 +224,7 @@ class ModelRetentionSetting:
         return cls(
             archive_after_days=data.get("archive_after_days"),
             delete_after_days=data.get("delete_after_days"),
-            customer_notification_type=CustomerNotificationType(
-                data.get("customer_notification_type")
-            )
-            or None,
+            customer_notification_type=data.get("customer_notification_type") or None,
         )
 
     def to_json(self) -> str:
@@ -322,9 +316,9 @@ class ModelRetentionOperationDetails:
     def from_dict(cls, data: Dict) -> "ModelRetentionOperationDetails":
         """Constructs retention operation details from a dictionary."""
         return cls(
-            archive_state=SettingStatus(data.get("archive_state")) or None,
+            archive_state=data.get("archive_state") or None,
             archive_state_details=data.get("archive_state_details"),
-            delete_state=SettingStatus(data.get("delete_state")) or None,
+            delete_state=data.get("delete_state") or None,
             delete_state_details=data.get("delete_state_details"),
             time_archival_scheduled=data.get("time_archival_scheduled"),
             time_deletion_scheduled=data.get("time_deletion_scheduled"),
@@ -405,7 +399,7 @@ class ModelBackupOperationDetails:
     def from_dict(cls, data: Dict) -> "ModelBackupOperationDetails":
         """Constructs backup operation details from a dictionary."""
         return cls(
-            backup_state=SettingStatus(data.get("backup_state")) or None,
+            backup_state=data.get("backup_state") or None,
             backup_state_details=data.get("backup_state_details"),
             time_last_backup=data.get("time_last_backup"),
         )
