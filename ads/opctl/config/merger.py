@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -190,11 +190,11 @@ class ConfigMerger(ConfigProcessor):
     def _get_service_config(self, oci_profile: str, ads_config_folder: str) -> Dict:
         backend = self.config["execution"].get("backend", None)
         backend_config = {
-            BACKEND_NAME.JOB.value: ADS_JOBS_CONFIG_FILE_NAME,
-            BACKEND_NAME.DATAFLOW.value: ADS_DATAFLOW_CONFIG_FILE_NAME,
-            BACKEND_NAME.PIPELINE.value: ADS_ML_PIPELINE_CONFIG_FILE_NAME,
-            BACKEND_NAME.LOCAL.value: ADS_LOCAL_BACKEND_CONFIG_FILE_NAME,
-            BACKEND_NAME.MODEL_DEPLOYMENT.value: ADS_MODEL_DEPLOYMENT_CONFIG_FILE_NAME,
+            BACKEND_NAME.JOB: ADS_JOBS_CONFIG_FILE_NAME,
+            BACKEND_NAME.DATAFLOW: ADS_DATAFLOW_CONFIG_FILE_NAME,
+            BACKEND_NAME.PIPELINE: ADS_ML_PIPELINE_CONFIG_FILE_NAME,
+            BACKEND_NAME.LOCAL: ADS_LOCAL_BACKEND_CONFIG_FILE_NAME,
+            BACKEND_NAME.MODEL_DEPLOYMENT: ADS_MODEL_DEPLOYMENT_CONFIG_FILE_NAME,
         }
         config_file = backend_config.get(backend, ADS_JOBS_CONFIG_FILE_NAME)
 
@@ -213,10 +213,7 @@ class ConfigMerger(ConfigProcessor):
     def _config_flex_shape_details(self):
         infrastructure = self.config["infrastructure"]
         backend = self.config["execution"].get("backend", None)
-        if (
-            backend == BACKEND_NAME.JOB.value
-            or backend == BACKEND_NAME.MODEL_DEPLOYMENT.value
-        ):
+        if backend == BACKEND_NAME.JOB or backend == BACKEND_NAME.MODEL_DEPLOYMENT:
             shape_name = infrastructure.get("shape_name", "")
             if shape_name.endswith(".Flex"):
                 if (
@@ -231,7 +228,7 @@ class ConfigMerger(ConfigProcessor):
                     "ocpus": infrastructure.pop("ocpus"),
                     "memory_in_gbs": infrastructure.pop("memory_in_gbs"),
                 }
-        elif backend == BACKEND_NAME.DATAFLOW.value:
+        elif backend == BACKEND_NAME.DATAFLOW:
             executor_shape = infrastructure.get("executor_shape", "")
             driver_shape = infrastructure.get("driver_shape", "")
             data_flow_shape_config_details = [

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import configparser
@@ -11,13 +10,10 @@ from typing import Dict, List, Union
 import click
 import fsspec
 import yaml
-from ads.opctl.backend.marketplace.local_marketplace import (
-    LocalMarketplaceOperatorBackend,
-)
 
 import ads
 from ads.common.auth import AuthContext, AuthType
-from ads.common.extended_enum import ExtendedEnumMeta
+from ads.common.extended_enum import ExtendedEnum
 from ads.common.oci_datascience import DSCNotebookSession
 from ads.opctl.backend.ads_dataflow import DataFlowBackend
 from ads.opctl.backend.ads_ml_job import MLJobBackend, MLJobDistributedBackend
@@ -29,6 +25,9 @@ from ads.opctl.backend.local import (
     LocalModelDeploymentBackend,
     LocalOperatorBackend,
     LocalPipelineBackend,
+)
+from ads.opctl.backend.marketplace.local_marketplace import (
+    LocalMarketplaceOperatorBackend,
 )
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
@@ -64,7 +63,7 @@ from ads.opctl.operator.common.backend_factory import (
 from ads.opctl.utils import get_service_pack_prefix, is_in_notebook_session
 
 
-class DataScienceResource(str, metaclass=ExtendedEnumMeta):
+class DataScienceResource(ExtendedEnum):
     JOB = "datasciencejob"
     DATAFLOW = "dataflowapplication"
     PIPELINE = "datasciencepipeline"
@@ -72,7 +71,7 @@ class DataScienceResource(str, metaclass=ExtendedEnumMeta):
     MODEL = "datasciencemodel"
 
 
-class DataScienceResourceRun(str, metaclass=ExtendedEnumMeta):
+class DataScienceResourceRun(ExtendedEnum):
     JOB_RUN = "datasciencejobrun"
     DATAFLOW_RUN = "dataflowrun"
     PIPELINE_RUN = "datasciencepipelinerun"
@@ -100,18 +99,18 @@ DATA_SCIENCE_RESOURCE_RUN_BACKEND_MAP = {
 
 class _BackendFactory:
     BACKENDS_MAP = {
-        BACKEND_NAME.JOB.value: MLJobBackend,
-        BACKEND_NAME.DATAFLOW.value: DataFlowBackend,
-        BACKEND_NAME.PIPELINE.value: PipelineBackend,
-        BACKEND_NAME.MODEL_DEPLOYMENT.value: ModelDeploymentBackend,
-        BACKEND_NAME.OPERATOR_LOCAL.value: LocalOperatorBackend,
-        BACKEND_NAME.MARKETPLACE.value: LocalMarketplaceOperatorBackend,
+        BACKEND_NAME.JOB: MLJobBackend,
+        BACKEND_NAME.DATAFLOW: DataFlowBackend,
+        BACKEND_NAME.PIPELINE: PipelineBackend,
+        BACKEND_NAME.MODEL_DEPLOYMENT: ModelDeploymentBackend,
+        BACKEND_NAME.OPERATOR_LOCAL: LocalOperatorBackend,
+        BACKEND_NAME.MARKETPLACE: LocalMarketplaceOperatorBackend,
     }
 
     LOCAL_BACKENDS_MAP = {
-        BACKEND_NAME.JOB.value: LocalBackend,
-        BACKEND_NAME.PIPELINE.value: LocalPipelineBackend,
-        BACKEND_NAME.MODEL_DEPLOYMENT.value: LocalModelDeploymentBackend,
+        BACKEND_NAME.JOB: LocalBackend,
+        BACKEND_NAME.PIPELINE: LocalPipelineBackend,
+        BACKEND_NAME.MODEL_DEPLOYMENT: LocalModelDeploymentBackend,
     }
 
     def __init__(self, config: Dict):
@@ -120,14 +119,14 @@ class _BackendFactory:
         if self._backend is None:
             raise RuntimeError("Please specify backend.")
         elif (
-            self._backend != BACKEND_NAME.LOCAL.value
+            self._backend != BACKEND_NAME.LOCAL
             and self._backend not in self.BACKENDS_MAP
         ):
             raise NotImplementedError(f"backend {self._backend} is not implemented.")
 
     @property
     def backend(self):
-        if self._backend == BACKEND_NAME.LOCAL.value:
+        if self._backend == BACKEND_NAME.LOCAL:
             kind = self.config.get("kind") or self.config["execution"].get("kind")
             if kind not in self.LOCAL_BACKENDS_MAP:
                 options = [backend for backend in self.LOCAL_BACKENDS_MAP.keys()]
@@ -194,10 +193,7 @@ def run(config: Dict, **kwargs) -> Dict:
         except RuntimeError:
             pass
 
-        if (
-            p.config["kind"] != BACKEND_NAME.LOCAL.value
-            and p.config["kind"] != "distributed"
-        ):
+        if p.config["kind"] != BACKEND_NAME.LOCAL and p.config["kind"] != "distributed":
             p.config["execution"]["backend"] = p.config["kind"]
             return _BackendFactory(p.config).backend.apply()
     else:
@@ -226,9 +222,9 @@ def run(config: Dict, **kwargs) -> Dict:
             docker_build_cmd(ini)
         config = update_image(config, ini)
 
-        if mode == BACKEND_NAME.LOCAL.value:
+        if mode == BACKEND_NAME.LOCAL:
             print(
-                "\u26A0 Docker Image: "
+                "\u26a0 Docker Image: "
                 + ini.get("main", "registry")
                 + ":"
                 + ini.get("main", "tag")
@@ -238,7 +234,7 @@ def run(config: Dict, **kwargs) -> Dict:
 
             backend = LocalBackendDistributed(config)
             backend.run()
-        elif mode == BACKEND_NAME.DATAFLOW.value:
+        elif mode == BACKEND_NAME.DATAFLOW:
             raise RuntimeError(
                 "backend operator for distributed training can either be local or job"
             )
@@ -283,7 +279,7 @@ def run(config: Dict, **kwargs) -> Dict:
             }
             for r, b in resource_to_backend.items():
                 if r in p.config["execution"]["ocid"]:
-                    p.config["execution"]["backend"] = b.value
+                    p.config["execution"]["backend"] = b
         else:
             p.step(ConfigResolver).step(ConfigValidator)
             # spec may have changed during validation step (e.g. defaults filled in)
@@ -592,7 +588,7 @@ def configure() -> None:
 
     print("==== Setting configuration for Data Science Jobs ====")
     if click.confirm(
-        f"Do you want to set up or update Data Science Jobs configuration?",
+        "Do you want to set up or update Data Science Jobs configuration?",
         default=True,
     ):
         required_fields = [
@@ -622,7 +618,7 @@ def configure() -> None:
 
     print("==== Setting configuration for OCI Data Flow ====")
     if click.confirm(
-        f"Do you want to set up or update OCI Data Flow configuration?", default=True
+        "Do you want to set up or update OCI Data Flow configuration?", default=True
     ):
         required_fields = [
             ("compartment_id", ""),
@@ -652,7 +648,7 @@ def configure() -> None:
 
     print("==== Setting configuration for OCI ML Pipeline ====")
     if click.confirm(
-        f"Do you want to set up or update OCI ML Pipeline configuration?", default=True
+        "Do you want to set up or update OCI ML Pipeline configuration?", default=True
     ):
         required_fields = [
             ("compartment_id", ""),
@@ -674,7 +670,7 @@ def configure() -> None:
 
     print("==== Setting configuration for Data Science Model Deployment ====")
     if click.confirm(
-        f"Do you want to set up or update Data Science Model Deployment configuration?",
+        "Do you want to set up or update Data Science Model Deployment configuration?",
         default=True,
     ):
         required_fields = [
@@ -704,7 +700,7 @@ def configure() -> None:
 
     print("==== Setting configuration for local backend ====")
     if click.confirm(
-        f"Do you want to set up or update local backend configuration?", default=True
+        "Do you want to set up or update local backend configuration?", default=True
     ):
         required_fields = [
             ("max_parallel_containers", str(min(os.cpu_count(), 4))),
