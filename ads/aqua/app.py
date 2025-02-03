@@ -296,7 +296,21 @@ class AquaApp:
             raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
 
         config = {}
-        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+        # if the current model has a service model tag, then
+        if Tags.AQUA_SERVICE_MODEL_TAG in oci_model.freeform_tags:
+            base_model_ocid = oci_model.freeform_tags[Tags.AQUA_SERVICE_MODEL_TAG]
+            logger.info(
+                f"Base model found for the model: {oci_model.id}. "
+                f"Loading {config_file_name} for base model {base_model_ocid}."
+            )
+            base_model = self.ds_client.get_model(base_model_ocid).data
+            artifact_path = get_artifact_path(base_model.custom_metadata_list)
+            config_path = f"{os.path.dirname(artifact_path)}/config/"
+        else:
+            logger.info(f"Loading {config_file_name} for model {oci_model.id}...")
+            artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+            config_path = f"{artifact_path.rstrip('/')}/config/"
+
         if not artifact_path:
             logger.debug(
                 f"Failed to get artifact path from custom metadata for the model: {model_id}"
@@ -304,25 +318,21 @@ class AquaApp:
             return config
 
         try:
-            config_path = f"{os.path.dirname(artifact_path)}/config/"
             config = load_config(
                 config_path,
                 config_file_name=config_file_name,
             )
         except Exception:
-            # todo: temp fix for issue related to config load for byom models, update logic to choose the right path
-            try:
-                config_path = f"{artifact_path.rstrip('/')}/config/"
-                config = load_config(
-                    config_path,
-                    config_file_name=config_file_name,
-                )
-            except Exception:
-                pass
+            logger.debug(
+                f"Error loading the {config_file_name} at path {config_path}.",
+                exc_info=True,
+            )
+            pass
 
         if not config:
             logger.error(
-                f"{config_file_name} is not available for the model: {model_id}. Check if the custom metadata has the artifact path set."
+                f"{config_file_name} is not available for the model: {model_id}. "
+                f"Check if the custom metadata has the artifact path set."
             )
             return config
 
