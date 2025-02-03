@@ -228,7 +228,7 @@ def get_artifact_path(custom_metadata_list: List) -> str:
     return UNKNOWN
 
 
-def read_file(file_path: str, **kwargs) -> Union[str, dict]:
+def read_file(file_path: str, **kwargs) -> str:
     try:
         with fsspec.open(file_path, "r", **kwargs.get("auth", {})) as f:
             return f.read()
