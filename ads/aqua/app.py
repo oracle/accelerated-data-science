@@ -19,7 +19,6 @@ from ads.aqua.common.utils import (
     get_artifact_path,
     is_valid_ocid,
     load_config,
-    read_file,
 )
 from ads.aqua.constants import UNKNOWN
 from ads.common import oci_client as oc
@@ -363,18 +362,20 @@ class AquaApp:
             return chat_template
 
         try:
-            tokenizer_path = f"{os.path.dirname(artifact_path)}/tokenizer_config.json"
-            chat_template = read_file(tokenizer_path)
+            tokenizer_path = f"{os.path.dirname(artifact_path)}/artifact"
+            chat_template = load_config(
+                file_path=tokenizer_path, config_file_name="tokenizer_config.json"
+            )
         except Exception:
-            pass
+            logger.error(
+                f"Error reading tokenizer_config.json file for the model: {model_id}"
+            )
 
         if not chat_template:
             logger.error(
                 f"No default chat template is available for the model: {model_id}."
             )
-            return chat_template
-
-        return chat_template
+        return {"chat_template": chat_template.get("chat_template")}
 
     @property
     def telemetry(self):

@@ -228,7 +228,7 @@ def get_artifact_path(custom_metadata_list: List) -> str:
     return UNKNOWN
 
 
-def read_file(file_path: str, **kwargs) -> str:
+def read_file(file_path: str, **kwargs) -> Union[str, dict]:
     try:
         with fsspec.open(file_path, "r", **kwargs.get("auth", {})) as f:
             return f.read()
@@ -239,10 +239,7 @@ def read_file(file_path: str, **kwargs) -> str:
 
 @threaded()
 def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
-    if config_file_name:
-        artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
-    else:
-        artifact_path = f"{file_path.rstrip('/')}"
+    artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
     signer = default_signer() if artifact_path.startswith("oci://") else {}
     config = json.loads(
         read_file(file_path=artifact_path, auth=signer, **kwargs) or UNKNOWN_JSON_STR

@@ -14,6 +14,7 @@ from ads.aqua.common.enums import (
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     get_hf_model_info,
+    is_valid_ocid,
     list_hf_models,
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
@@ -35,7 +36,6 @@ class AquaModelHandler(AquaAPIhandler):
         url_parse = urlparse(self.request.path)
         paths = url_parse.path.strip("/")
         path_list = paths.split("/")
-        print(path_list)
         if paths.startswith("aqua/model/files"):
             os_path = self.get_argument("os_path", None)
             model_name = self.get_argument("model_name", None)
@@ -329,10 +329,9 @@ class AquaModelChatTemplateHandler(AquaAPIhandler):
         url_parse = urlparse(self.request.path)
         paths = url_parse.path.strip("/")
         path_list = paths.split("/")
-        print(path_list)
         if (
             len(path_list) == 4
-            and path_list[2].startswith("ocid1.datasciencemodel")
+            and is_valid_ocid(path_list[2])
             and path_list[3] == "chat_template"
         ):
             return self.finish(AquaModelApp().get_chat_template(model_id))
