@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -298,7 +298,7 @@ class AquaApp:
         config = {}
         artifact_path = get_artifact_path(oci_model.custom_metadata_list)
         if not artifact_path:
-            logger.error(
+            logger.debug(
                 f"Failed to get artifact path from custom metadata for the model: {model_id}"
             )
             return config
