@@ -1228,14 +1228,14 @@ class TestAquaModel:
                     "model": "oracle/oracle-1it",
                     "inference_container": "odsc-vllm-serving",
                 },
-                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache True --inference_container odsc-vllm-serving",
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache False --inference_container odsc-vllm-serving",
             ),
             (
                 {
                     "os_path": "oci://aqua-bkt@aqua-ns/path",
                     "model": "ocid1.datasciencemodel.oc1.iad.<OCID>",
                 },
-                "ads aqua model register --model ocid1.datasciencemodel.oc1.iad.<OCID> --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache True",
+                "ads aqua model register --model ocid1.datasciencemodel.oc1.iad.<OCID> --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache False",
             ),
             (
                 {
@@ -1243,7 +1243,7 @@ class TestAquaModel:
                     "model": "oracle/oracle-1it",
                     "download_from_hf": False,
                 },
-                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf False --cleanup_model_cache True",
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf False --cleanup_model_cache False",
             ),
             (
                 {
@@ -1252,7 +1252,7 @@ class TestAquaModel:
                     "download_from_hf": True,
                     "model_file": "test_model_file",
                 },
-                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache True --model_file test_model_file",
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache False --model_file test_model_file",
             ),
             (
                 {
@@ -1261,7 +1261,7 @@ class TestAquaModel:
                     "inference_container": "odsc-tei-serving",
                     "inference_container_uri": "<region>.ocir.io/<your_tenancy>/<your_image>",
                 },
-                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache True --inference_container odsc-tei-serving --inference_container_uri <region>.ocir.io/<your_tenancy>/<your_image>",
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache False --inference_container odsc-tei-serving --inference_container_uri <region>.ocir.io/<your_tenancy>/<your_image>",
             ),
             (
                 {
@@ -1272,7 +1272,7 @@ class TestAquaModel:
                     "defined_tags": {"dtag1": "dvalue1", "dtag2": "dvalue2"},
                 },
                 "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path "
-                "--download_from_hf True --cleanup_model_cache True --inference_container odsc-vllm-serving --freeform_tags "
+                "--download_from_hf True --cleanup_model_cache False --inference_container odsc-vllm-serving --freeform_tags "
                 '{"ftag1": "fvalue1", "ftag2": "fvalue2"} --defined_tags {"dtag1": "dvalue1", "dtag2": "dvalue2"}',
             ),
             (
@@ -1281,6 +1281,7 @@ class TestAquaModel:
                     "model": "oracle/oracle-1it",
                     "inference_container": "odsc-vllm-serving",
                     "ignore_model_artifact_check": True,
+                    "cleanup_model_cache": True,
                 },
                 "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache True --inference_container odsc-vllm-serving --ignore_model_artifact_check True",
             ),
