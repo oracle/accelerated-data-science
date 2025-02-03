@@ -22,6 +22,7 @@ import psutil
 import torch
 
 from ads import set_auth
+from ads.aqua.training import exceptions
 from ads.jobs import DataScienceJob, DataScienceJobRun
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     PythonRuntimeHandler,
@@ -30,13 +31,12 @@ from ads.opctl.distributed.common import cluster_config_helper
 
 try:
     # This is used by ADS and testing
-    from . import driver_utils, exceptions
+    from . import driver_utils
     from .driver_oci import GitManager, GitSSHKey
     from .oci_metrics import METRIC_NAMESPACE, collect_metrics
 except ImportError:
     # This is used when the script is in a job run.
     import driver_utils
-    import exceptions
     from driver_oci import GitManager, GitSSHKey
     from oci_metrics import METRIC_NAMESPACE, collect_metrics
 
