@@ -392,12 +392,18 @@ class AquaFineTuningApp(AquaApp):
                 defined_tags=model_defined_tags,
             ),
         )
+        logger.debug(
+            f"Successfully updated model custom metadata list and freeform tags for the model {ft_model.id}."
+        )
 
         self.update_model_provenance(
             model_id=ft_model.id,
             update_model_provenance_details=UpdateModelProvenanceDetails(
                 training_id=ft_job_run.id
             ),
+        )
+        logger.debug(
+            f"Successfully updated model provenance for the model {ft_model.id}."
         )
 
         # tracks the shape and replica used for fine-tuning the service models
@@ -588,7 +594,7 @@ class AquaFineTuningApp(AquaApp):
         config = self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG)
         if not config:
             logger.debug(
-                f"Fine-tuning config for custom model: {model_id} is not available."
+                f"Fine-tuning config for custom model: {model_id} is not available. Use defaults."
             )
         return config
 

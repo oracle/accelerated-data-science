@@ -17,6 +17,7 @@ from ads.opctl.operator.common.utils import _parse_input_args
 
 from .operator_config import ForecastOperatorConfig
 from .model.forecast_datasets import ForecastDatasets
+from .whatifserve import ModelDeploymentManager
 
 
 def operate(operator_config: ForecastOperatorConfig) -> None:
@@ -27,6 +28,15 @@ def operate(operator_config: ForecastOperatorConfig) -> None:
     ForecastOperatorModelFactory.get_model(
         operator_config, datasets
     ).generate_report()
+    # saving to model catalog
+    spec = operator_config.spec
+    if spec.what_if_analysis and datasets.additional_data:
+        mdm = ModelDeploymentManager(spec, datasets.additional_data)
+        mdm.save_to_catalog()
+        if spec.what_if_analysis.model_deployment:
+            mdm.create_deployment()
+        mdm.save_deployment_info()
+
 
 def verify(spec: Dict, **kwargs: Dict) -> bool:
     """Verifies the forecasting operator config."""
