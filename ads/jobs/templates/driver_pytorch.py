@@ -1,26 +1,28 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-"""This module requires oracle-ads>=2.6.8
+"""This module requires oracle-ads>=2.6.8 and python>=3.8
 """
 import getpass
+import glob
 import ipaddress
 import logging
 import multiprocessing
 import os
-import time
 import shlex
 import socket
 import sys
+import time
 import traceback
 
+import fsspec
 import oci
 import psutil
 import torch
+
 from ads import set_auth
-from ads.jobs import DataScienceJobRun
+from ads.jobs import DataScienceJob, DataScienceJobRun
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     PythonRuntimeHandler,
 )
@@ -28,14 +30,15 @@ from ads.opctl.distributed.common import cluster_config_helper
 
 try:
     # This is used by ADS and testing
-    from . import driver_utils
-    from .driver_oci import GitSSHKey, GitManager
-    from .oci_metrics import collect_metrics, METRIC_NAMESPACE
+    from . import driver_utils, exceptions
+    from .driver_oci import GitManager, GitSSHKey
+    from .oci_metrics import METRIC_NAMESPACE, collect_metrics
 except ImportError:
     # This is used when the script is in a job run.
     import driver_utils
-    from driver_oci import GitSSHKey, GitManager
-    from oci_metrics import collect_metrics, METRIC_NAMESPACE
+    import exceptions
+    from driver_oci import GitManager, GitSSHKey
+    from oci_metrics import METRIC_NAMESPACE, collect_metrics
 
 logger = logging.getLogger(__name__)
 logger = driver_utils.set_log_level(logger)
@@ -50,10 +53,12 @@ CONST_ENV_NODE_RANK = "NODE_RANK"
 CONST_ENV_NODE_COUNT = "NODE_COUNT"
 CONST_ENV_LAUNCH_CMD = "OCI__LAUNCH_CMD"
 CONST_ENV_DEEPSPEED = "OCI__DEEPSPEED"
+CONST_ENV_LOG_OUTPUT = "OCI__LOG_OUTPUT"
 # Envs set by this module
 CONST_ENV_WORLD_SIZE = "WORLD_SIZE"
 CONST_ENV_LD_PRELOAD = "LD_PRELOAD"
 # Envs for debugging only
+CONST_ENV_SET_SOCKET_IFNAME = "SET_SOCKET_IFNAME"
 # OCI_ODSC_SERVICE_ENDPOINT is used for all processes in the job run
 CONST_ENV_ODSC_SERVICE_ENDPOINT = "OCI_ODSC_SERVICE_ENDPOINT"
 # OCI_DS_SERVICE_ENDPOINT is used only by the training process
@@ -63,7 +68,6 @@ CONST_ENV_DS_SERVICE_ENDPOINT = "OCI_DS_SERVICE_ENDPOINT"
 LOG_PREFIX_HOST_IP = "Distributed Training HOST IP: "
 LOG_PREFIX_NODE_IP = "Node IP: "
 LOG_PREFIX_PUBLIC_KEY = "HOST PUBLIC KEY: "
-# Other constants used within this script
 # Other constants used within this script
 USER_HOME = os.environ.get("HOME", f"/home/{getpass.getuser()}")
 SSH_DIR = os.environ.get("OCI__SSH_DIR", os.path.join(USER_HOME, ".ssh"))
@@ -122,31 +126,6 @@ class Runner(driver_utils.JobRunner):
         super().__init__(code_dir)
         self.launch_cmd = os.environ.get(CONST_ENV_LAUNCH_CMD, "")
 
-        self.ds_client = driver_utils.OCIHelper.init_oci_client(
-            oci.data_science.DataScienceClient
-        )
-        self.ip = self.find_self_ip()
-        # IP address of other nodes as a list
-        self.node_ip_list = []
-        # DataScienceJobRun objects of other nodes as a list
-        self.node_runs = []
-
-        if CONST_ENV_HOST_JOB_RUN_OCID in os.environ:
-            # Print the node IP address to logs so that it can be obtained by the host.
-            print(f"{LOG_PREFIX_NODE_IP}{self.ip}")
-            self.host_ocid = os.environ[CONST_ENV_HOST_JOB_RUN_OCID]
-            logger.debug("Host job run OCID: %s", self.host_ocid)
-            self.host_ip = None
-            self.is_host = False
-        else:
-            # Print the host IP address to logs so that it can be obtained by the nodes.
-            print(f"{LOG_PREFIX_HOST_IP}{self.ip}")
-            self.host_ocid = os.environ.get(CONST_ENV_JOB_RUN_OCID)
-            self.host_ip = self.ip
-            self.is_host = True
-
-        self.host_job_run = DataScienceJobRun.from_ocid(self.host_ocid)
-        self.entrypoint_env = PythonRuntimeHandler.CONST_CODE_ENTRYPOINT
         # The total number of nodes is OCI__WORKER_COUNT + 1
         if CONST_ENV_NODE_COUNT in os.environ:
             self.node_count = int(os.environ[CONST_ENV_NODE_COUNT])
@@ -155,6 +134,33 @@ class Runner(driver_utils.JobRunner):
         logger.debug("Node count: %s", self.node_count)
         self.gpu_count = torch.cuda.device_count()
         logger.debug("GPU count on this node: %s", self.gpu_count)
+        if self.gpu_count > 0:
+            logger.debug("GPU name: %s", torch.cuda.get_device_name())
+
+        self.ip = self.find_self_ip()
+        # IP address of other nodes as a list
+        self.node_ip_list = []
+        # DataScienceJobRun objects of other nodes as a list
+        self.node_runs = []
+
+        if CONST_ENV_HOST_JOB_RUN_OCID in os.environ:
+            # Print the node IP address to logs so that it can be obtained by the host.
+            print(f"{LOG_PREFIX_NODE_IP}{self.ip}", flush=True)
+            self.host_ocid = os.environ[CONST_ENV_HOST_JOB_RUN_OCID]
+            logger.debug("Host job run OCID: %s", self.host_ocid)
+            self.host_ip = None
+            self.is_host = False
+        else:
+            # Print the host IP address to logs so that it can be obtained by the nodes.
+            print(f"{LOG_PREFIX_HOST_IP}{self.ip}", flush=True)
+            self.host_ocid = os.environ.get(CONST_ENV_JOB_RUN_OCID)
+            self.host_ip = self.ip
+            self.is_host = True
+
+        # host_job_run will be None for local testing.
+        if self.host_ocid and self.node_count > 1:
+            self.host_job_run = DataScienceJobRun.from_ocid(self.host_ocid)
+        self.entrypoint_env = PythonRuntimeHandler.CONST_CODE_ENTRYPOINT
 
         logger.debug("Runner initialized.")
 
@@ -223,7 +229,7 @@ class Runner(driver_utils.JobRunner):
 
         Raises
         ------
-        TimeoutError
+        LoggingError
             Failed to obtain the log message within the specific timeout.
         """
         logger.debug(
@@ -236,8 +242,11 @@ class Runner(driver_utils.JobRunner):
             if log:
                 break
             if time.time() - second_started > timeout:
-                raise TimeoutError(
-                    f"Failed to obtain log with prefix {log_prefix} for {job_run.id} in {timeout} seconds."
+                logs = job_run.logs()
+                last_log = logs[-1]["message"] if len(logs) > 0 else ""
+                raise exceptions.LoggingError(
+                    f"Failed to obtain log with prefix {log_prefix} for {job_run.id} in {timeout} seconds.\n"
+                    f"Last log obtained: {last_log}"
                 )
             time.sleep(60)
         return log
@@ -276,23 +285,40 @@ class Runner(driver_utils.JobRunner):
             "Get Host by Addr: %s", LazyEvaluate(socket.gethostbyaddr, hostname)
         )
         logger.debug("FQDN: %s", LazyEvaluate(socket.getfqdn, hostname))
-        if os.environ.get("JOB_OCID"):
-            subnet_id = self.ds_client.get_job(
-                os.environ["JOB_OCID"]
-            ).data.job_infrastructure_configuration_details.subnet_id
+        if os.environ.get("JOB_OCID") and self.node_count > 1:
+            subnet_id = DataScienceJob.from_id(os.environ["JOB_OCID"]).subnet_id
             core_client = driver_utils.OCIHelper.init_oci_client(
                 oci.core.VirtualNetworkClient
             )
             cidr = core_client.get_subnet(subnet_id).data.cidr_block
 
+            self_ip = None
             for interface, snics in psutil.net_if_addrs().items():
                 ip = snics[0].address
+                logger.debug("IFNAME: %s, IP: %s", interface, ip)
                 if ipaddress.ip_address(ip) in ipaddress.ip_network(cidr):
+                    self_ip = ip
                     logger.info("Node IP address: %s", ip)
+
                     # Specify the network interface for NCCL/GLOO
-                    os.environ["GLOO_SOCKET_IFNAME"] = interface
-                    os.environ["NCCL_SOCKET_IFNAME"] = interface
-                    return ip
+                    # if "SET_SOCKET_IFNAME" is found in env var.
+                    if CONST_ENV_SET_SOCKET_IFNAME in os.environ:
+                        if os.environ[CONST_ENV_SET_SOCKET_IFNAME]:
+                            interface = os.environ[CONST_ENV_SET_SOCKET_IFNAME]
+                        # The value should be the prefix of the expected network interface name
+                        # https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-socket-ifname
+                        os.environ["GLOO_SOCKET_IFNAME"] = interface
+                        os.environ["NCCL_SOCKET_IFNAME"] = interface
+                    elif interface.startswith("ens"):
+                        # Set the env vars only if user has not set it already
+                        os.environ["GLOO_SOCKET_IFNAME"] = os.environ.get(
+                            "GLOO_SOCKET_IFNAME", "ens"
+                        )
+                        os.environ["NCCL_SOCKET_IFNAME"] = os.environ.get(
+                            "NCCL_SOCKET_IFNAME", "ens"
+                        )
+            if self_ip:
+                return self_ip
             raise EnvironmentError("Unable to determine node IP address.")
         else:
             ip = socket.gethostbyname(hostname)
@@ -383,8 +409,16 @@ class Runner(driver_utils.JobRunner):
         self.run_command("pwd", level=logging.DEBUG)
         # Show all environment variables
         self.run_command("printenv", level=logging.DEBUG)
+        if CONST_ENV_DS_SERVICE_ENDPOINT in os.environ:
+            envs = {
+                CONST_ENV_ODSC_SERVICE_ENDPOINT: os.environ[
+                    CONST_ENV_DS_SERVICE_ENDPOINT
+                ]
+            }
+        else:
+            envs = None
         training_start_time = time.time()
-        self.run_command(cmd, conda_prefix=self.conda_prefix, check=True)
+        self.run_command(cmd, conda_prefix=self.conda_prefix, check=True, envs=envs)
         logger.info("Time: %s seconds.", time.time() - training_start_time)
 
     def run(self):
@@ -471,34 +505,61 @@ class DeepSpeedRunner(Runner):
     HOST_FILE = "/home/datascience/hostfile"
     ENV_FILE = os.path.expanduser("~/.deepspeed_env")
     LAUNCHER = "deepspeed"
+    TMPDIR = os.environ.get("TMPDIR")
 
     def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
         super().__init__(code_dir)
+        # Create the temp dir if one does not exist.
+        # This is needed for JIT
+        if self.TMPDIR and not os.path.isdir(self.TMPDIR):
+            logger.info("Creating temp directory: %s", self.TMPDIR)
+            os.makedirs(self.TMPDIR, exist_ok=True)
         self.update_os()
 
     def update_os(self):
         # Generate SSH host keys for SSH server
-        self.run_command("sudo ssh-keygen -A", level=logging.DEBUG, check=True)
-        # Install SSH server to accept SSH connections
-        # DeepSpeed uses "hostname -I" to determine the IP address
-        # pdsh is required for default multi node training
-        # torch cpp extension uses which command to find compiler
-        # DeepSpeed async_io requires libaio-devel
-        self.run_command(
-            "sudo --preserve-env yum install -y openssh-server hostname pdsh which libaio-devel",
-            level=logging.DEBUG,
-            check=True,
-        )
+        if self.node_count > 1:
+            # Check if host keys exist
+            host_keys = glob.glob("/etc/ssh/ssh_host*")
+            if host_keys:
+                logger.debug(
+                    "Skipped SSH host key generation.\nHost keys found: %s", host_keys
+                )
+            else:
+                self.run_command("sudo ssh-keygen -A", level=logging.DEBUG, check=True)
+        else:
+            logger.debug("Skipped SSH host key generation for single node training.")
+        if self.run_command("which yum", level=logging.DEBUG) == 0:
+            # Install "openssh-server" to accept SSH connections
+            # DeepSpeed uses "hostname -I" to determine the IP address
+            # "pdsh" is required for default multi node training
+            # torch cpp extension uses "which" command to find compiler
+            # DeepSpeed async_io requires "libaio-devel"
+            self.run_command(
+                "sudo --preserve-env yum install -y openssh-server hostname pdsh which libaio-devel",
+                level=logging.DEBUG,
+                check=True,
+            )
+        elif (
+            self.run_command("which pdsh", level=logging.DEBUG) != 0
+            and self.run_command("which microdnf", level=logging.DEBUG) == 0
+        ):
+            self.run_command(
+                "sudo --preserve-env microdnf install -y openssh-server hostname pdsh which libaio-devel pdsh-rcmd-ssh",
+                level=logging.DEBUG,
+                check=True,
+            )
         # Start SSH service
-        self.run_command("sudo /usr/sbin/sshd", level=logging.DEBUG, check=True)
+        if self.node_count > 1:
+            self.run_command("sudo /usr/sbin/sshd", level=logging.DEBUG, check=True)
 
     def generate_key_pair(self):
         self.run_command(
             "ssh-keygen -q -t rsa -N '' <<< $'\ny'", level=logging.DEBUG, check=True
         )
-        with open(os.path.join(SSH_DIR, "id_rsa.pub"), "r", encoding="utf-8") as f:
+        with open(os.path.join(SSH_DIR, "id_rsa.pub"), encoding="utf-8") as f:
             public_key = f.read()
-        print(f"{LOG_PREFIX_PUBLIC_KEY}{public_key}")
+        print(f"{LOG_PREFIX_PUBLIC_KEY}{public_key}", flush=True)
         self.add_authoried_key(public_key)
         self.run_command(
             f"ssh-keyscan -H {self.host_ip} >> {SSH_DIR}/known_hosts",
@@ -523,7 +584,7 @@ class DeepSpeedRunner(Runner):
 
     def fetch_host_public_key(self):
         public_key = self.wait_for_log(self.host_job_run, LOG_PREFIX_PUBLIC_KEY)
-        print(f"{LOG_PREFIX_PUBLIC_KEY}{public_key}")
+        print(f"{LOG_PREFIX_PUBLIC_KEY}{public_key}", flush=True)
         # logger.debug("%s", LOG_PREFIX_PUBLIC_KEY + public_key)
         self.add_authoried_key(public_key)
 
@@ -600,7 +661,8 @@ class DeepSpeedRunner(Runner):
                 if not v or "\n" in v:
                     continue
                 # Ignore variables that are node specific
-                # The network interface name for each job run is a unique string, e.g. ens300f0v1604
+                # The network interface name for each job run could be a unique string, e.g. ens300f0v1604
+                # Deepspeed will copy the SOCKET_IFNAME values to all nodes if they are set.
                 if k in ["NCCL_SOCKET_IFNAME", "GLOO_SOCKET_IFNAME", "JOB_RUN_OCID"]:
                     continue
                 # Quote the value if it contains space
@@ -610,11 +672,6 @@ class DeepSpeedRunner(Runner):
                     v = shlex.quote(v)
 
                 f.write(f"{k}={v}\n")
-            # The following are required for specifying the network interface to be used by NCCL/GLOO
-            # The value should be the prefix of the expected network interface name
-            # https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-socket-ifname
-            f.write("NCCL_SOCKET_IFNAME=ens\n")
-            f.write("GLOO_SOCKET_IFNAME=ens\n")
         logger.debug("Environment variables saved to %s", self.ENV_FILE)
         self.run_command(f"cat {self.ENV_FILE}")
 
@@ -706,10 +763,12 @@ class GenericRunner(TorchRunner, DeepSpeedRunner):
     def set_env_var(self):
         """Set default environment variables."""
         defaults = {
-            "WORLD_SIZE": self.node_count * self.gpu_count,
+            CONST_ENV_WORLD_SIZE: self.node_count * self.gpu_count,
             "MASTER_ADDR": self.host_ip,
             "MASTER_PORT": self.RDZV_PORT,
         }
+        if self.node_count == 1:
+            defaults["RANK"] = 0
         for k, v in defaults.items():
             if k not in os.environ:
                 os.environ[k] = str(v)
@@ -757,7 +816,8 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
         # --multi_gpu will be set automatically if there is more than 1 GPU
         # self.multi_gpu = bool(self.node_count > 1 or self.gpu_count > 1)
         self.num_machines = self.node_count
-        self.machine_rank = os.environ["NODE_RANK"]
+        # Machine rank is needed for accelerate launch to work correctly
+        self.machine_rank = os.environ.get(CONST_ENV_NODE_RANK, "0")
         # Total number of processes across all nodes
         # Here we assume all nodes are having the same shape
         self.num_processes = (self.gpu_count if self.gpu_count else 1) * self.node_count
@@ -769,11 +829,11 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
     def use_deepspeed(self):
         """Indicate if DeepSpeed is used."""
         # Accelerate support using DeepSpeed by adding the "--use_deepspeed" argument.
-        if os.environ.get(CONST_ENV_DEEPSPEED) or self.launch_cmd_contains(
-            "use_deepspeed"
-        ):
-            return True
-        return False
+        return (
+            os.environ.get(CONST_ENV_DEEPSPEED)
+            or self.launch_cmd_contains("use_deepspeed")
+            or self.launch_cmd_contains("deepspeed")
+        )
 
     def accelerate_args(self):
         """Gets the default arguments for the accelerate command.
@@ -787,6 +847,9 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
                 args.append(f"--{arg}")
             elif arg_val:
                 args.extend([f"--{arg}", str(arg_val)])
+        # --use_deepspeed is needed for deepspeed to work on single GPU
+        if self.use_deepspeed() and not self.launch_cmd_contains("use_deepspeed"):
+            args.append("--use_deepspeed")
         return args
 
     def run_with_torchrun(self):
@@ -822,6 +885,23 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
 
 
 def main():
+    # Collect GPU metrics only if GPU is available and user defined METRIC_NAMESPACE
+    if METRIC_NAMESPACE and torch.cuda.device_count():
+        p = multiprocessing.Process(target=collect_metrics)
+        p.daemon = True
+        p.start()
+
+    # Merge the CLI Arguments with CMD specified in env var
+    if len(sys.argv) > 1:
+        # Expand the environment variables before shlex.join
+        # as it will quote the arg with single quotes.
+        argv = [os.path.expandvars(arg) for arg in sys.argv[1:]]
+        if os.environ.get(CONST_ENV_LAUNCH_CMD):
+            os.environ[CONST_ENV_LAUNCH_CMD] = (
+                shlex.join(argv) + " " + os.environ.get(CONST_ENV_LAUNCH_CMD)
+            )
+        else:
+            os.environ[CONST_ENV_LAUNCH_CMD] = shlex.join(argv)
     launch_cmd = os.environ.get(CONST_ENV_LAUNCH_CMD)
     if not launch_cmd or launch_cmd.startswith("torchrun "):
         # Use torchrun as default if launch cmd is not provided
@@ -833,20 +913,44 @@ def main():
     else:
         runner_class = GenericRunner
 
-    runner = runner_class()
+    try:
+        runner = runner_class()
+    except oci.exceptions.ServiceError as ex:
+        raise exceptions.ServiceErrorExit from ex
+
     runner: Runner
     runner.fetch_code().set_working_dir().setup_python_path().install_dependencies()
 
     driver_utils.OCIHelper.copy_inputs()
 
-    runner.wait_for_host_ip_address().run()
+    runner.wait_for_host_ip_address()
+    runner.run()
     driver_utils.OCIHelper.copy_outputs()
+    logger.info("Job finished with exit code 0")
+    sys.exit(0)
+
+
+def save_job_run_logs(output_uri=os.environ.get(CONST_ENV_LOG_OUTPUT)):
+    """Saves the job run logs to a file in output_uri."""
+    if not output_uri:
+        return
+    if CONST_ENV_HOST_JOB_RUN_OCID not in os.environ:
+        return
+
+    job_run_ocid = os.environ[CONST_ENV_HOST_JOB_RUN_OCID]
+    log_uri = os.path.join(output_uri, job_run_ocid + ".log")
+    # Wait for the job logs to be available in logging service
+    logger.debug("Saving job run logs to %s", log_uri)
+    time.sleep(60)
+    try:
+        job_run = DataScienceJobRun.from_ocid(job_run_ocid)
+        with fsspec.open(log_uri, "w") as f:
+            for log in job_run.logs():
+                f.write(f"{log.get('message', '')}\n")
+    except Exception:
+        logger.error("Failed to save the job run logs to %s", log_uri)
+        logger.debug(traceback.format_exc())
 
 
 if __name__ == "__main__":
-    # Collect GPU metrics only if GPU is available and user defined METRIC_NAMESPACE
-    if METRIC_NAMESPACE and torch.cuda.device_count():
-        p = multiprocessing.Process(target=collect_metrics)
-        p.daemon = True
-        p.start()
     main()
