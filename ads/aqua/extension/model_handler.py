@@ -35,7 +35,6 @@ class AquaModelHandler(AquaAPIhandler):
         """Handle GET request."""
         url_parse = urlparse(self.request.path)
         paths = url_parse.path.strip("/")
-        path_list = paths.split("/")
         if paths.startswith("aqua/model/files"):
             os_path = self.get_argument("os_path", None)
             model_name = self.get_argument("model_name", None)
@@ -65,12 +64,6 @@ class AquaModelHandler(AquaAPIhandler):
                             "os_path", "model_name"
                         ),
                     )
-        elif (
-            len(path_list) == 4
-            and path_list[2].startswith("ocid1.datasciencemodel")
-            and path_list[3] == "chat_templates"
-        ):
-            return self.get_chat_template(model_id)
         elif not model_id:
             return self.list()
 
