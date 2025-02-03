@@ -34,6 +34,8 @@ class AquaModelHandler(AquaAPIhandler):
         """Handle GET request."""
         url_parse = urlparse(self.request.path)
         paths = url_parse.path.strip("/")
+        path_list = paths.split("/")
+        print(path_list)
         if paths.startswith("aqua/model/files"):
             os_path = self.get_argument("os_path", None)
             model_name = self.get_argument("model_name", None)
@@ -63,6 +65,12 @@ class AquaModelHandler(AquaAPIhandler):
                             "os_path", "model_name"
                         ),
                     )
+        elif (
+            len(path_list) == 4
+            and path_list[2].startswith("ocid1.datasciencemodel")
+            and path_list[3] == "chat_templates"
+        ):
+            return self.get_chat_template(model_id)
         elif not model_id:
             return self.list()
 
@@ -316,8 +324,25 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
         )
 
 
+class AquaModelChatTemplateHandler(AquaAPIhandler):
+    def get(self, model_id):
+        url_parse = urlparse(self.request.path)
+        paths = url_parse.path.strip("/")
+        path_list = paths.split("/")
+        print(path_list)
+        if (
+            len(path_list) == 4
+            and path_list[2].startswith("ocid1.datasciencemodel")
+            and path_list[3] == "chat_template"
+        ):
+            return self.finish(AquaModelApp().get_chat_template(model_id))
+        else:
+            raise HTTPError(400, f"The request {self.request.path} is invalid.")
+
+
 __handlers__ = [
     ("model/?([^/]*)", AquaModelHandler),
     ("model/?([^/]*)/license", AquaModelLicenseHandler),
+    ("model/?([^/]*)/chat_template", AquaModelChatTemplateHandler),
     ("model/hf/search/?([^/]*)", AquaHuggingFaceHandler),
 ]

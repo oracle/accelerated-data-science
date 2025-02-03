@@ -19,6 +19,7 @@ from ads.aqua.common.utils import (
     get_artifact_path,
     is_valid_ocid,
     load_config,
+    read_file,
 )
 from ads.aqua.constants import UNKNOWN
 from ads.common import oci_client as oc
@@ -327,6 +328,53 @@ class AquaApp:
             return config
 
         return config
+
+    def get_chat_template(self, model_id):
+        """Gets the default chat template for the given Aqua model.
+
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the Aqua model.
+
+        Returns
+        -------
+        str:
+            Chat template string.
+        """
+        chat_template = ""
+        oci_model = self.ds_client.get_model(model_id).data
+        oci_aqua = (
+            (
+                Tags.AQUA_TAG in oci_model.freeform_tags
+                or Tags.AQUA_TAG.lower() in oci_model.freeform_tags
+            )
+            if oci_model.freeform_tags
+            else False
+        )
+
+        if not oci_aqua:
+            raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
+        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+        if not artifact_path:
+            logger.debug(
+                f"Failed to get artifact path from custom metadata for the model: {model_id}"
+            )
+            return chat_template
+
+        try:
+            tokenizer_path = f"{os.path.dirname(artifact_path)}/tokenizer_config.json"
+            chat_template = read_file(tokenizer_path)
+        except Exception:
+            pass
+
+        if not chat_template:
+            logger.error(
+                f"No default chat template is available for the model: {model_id}."
+            )
+            return chat_template
+
+        return chat_template
 
     @property
     def telemetry(self):
