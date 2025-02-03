@@ -23,7 +23,7 @@ from ads.aqua.common.utils import (
 from ads.aqua.constants import UNKNOWN
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
-from ads.common.utils import extract_region
+from ads.common.utils import extract_region, is_path_exists
 from ads.config import (
     AQUA_TELEMETRY_BUCKET,
     AQUA_TELEMETRY_BUCKET_NS,
@@ -317,17 +317,19 @@ class AquaApp:
             )
             return config
 
-        try:
-            config = load_config(
-                config_path,
-                config_file_name=config_file_name,
-            )
-        except Exception:
-            logger.debug(
-                f"Error loading the {config_file_name} at path {config_path}.",
-                exc_info=True,
-            )
-            pass
+        config_file_path = f"{config_path}{config_file_name}"
+        if is_path_exists(config_file_path):
+            try:
+                config = load_config(
+                    config_path,
+                    config_file_name=config_file_name,
+                )
+            except Exception:
+                logger.debug(
+                    f"Error loading the {config_file_name} at path {config_path}.",
+                    exc_info=True,
+                )
+                pass
 
         if not config:
             logger.error(
