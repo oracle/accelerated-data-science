@@ -21,12 +21,8 @@ import oci
 import oci.data_science
 import oci.util as oci_util
 import yaml
-from oci.data_science.models import (
-    JobCustomNetworkConfiguration,
-    JobDefaultNetworkConfiguration,
-    JobInfrastructureConfigurationDetails,
-    MultiNodeJobInfrastructureConfigurationDetails,
-)
+from oci.data_science import models
+from oci.data_science.models import JobInfrastructureConfigurationDetails
 from oci.exceptions import ServiceError
 
 from ads.common import utils
@@ -1631,13 +1627,13 @@ class DataScienceJob(Infrastructure):
 
         subnet_id = infra_config.pop("subnet_id", None)
         infra_config["jobInfrastructureType"] = (
-            MultiNodeJobInfrastructureConfigurationDetails.JOB_INFRASTRUCTURE_TYPE_MULTI_NODE
+            models.MultiNodeJobInfrastructureConfigurationDetails.JOB_INFRASTRUCTURE_TYPE_MULTI_NODE
         )
 
         if subnet_id:
-            network_config = JobCustomNetworkConfiguration(subnet_id=subnet_id)
+            network_config = models.JobCustomNetworkConfiguration(subnet_id=subnet_id)
         else:
-            network_config = JobDefaultNetworkConfiguration()
+            network_config = models.JobDefaultNetworkConfiguration()
 
         node_group_config: dict = {
             "name": "multi-node",
