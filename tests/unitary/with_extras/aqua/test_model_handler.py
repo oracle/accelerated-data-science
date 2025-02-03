@@ -219,7 +219,7 @@ class ModelHandlerTestCase(TestCase):
             model_file=model_file,
             download_from_hf=download_from_hf,
             local_dir=None,
-            cleanup_model_cache=True,
+            cleanup_model_cache=False,
             inference_container_uri=inference_container_uri,
             allow_patterns=allow_patterns,
             ignore_patterns=ignore_patterns,
