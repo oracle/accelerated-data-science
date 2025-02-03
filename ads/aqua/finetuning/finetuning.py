@@ -5,6 +5,7 @@
 import json
 import os
 import time
+import traceback
 from typing import Dict
 
 from oci.data_science.models import (
@@ -434,16 +435,16 @@ class AquaFineTuningApp(AquaApp):
 
         if create_fine_tuning_details.watch_logs:
             logger.info(
-                f"Watching fine-tuning job run logs for {ft_job_run.id}. Press Ctrl+C stop watching logs.\n"
+                f"Watching fine-tuning job run logs for {ft_job_run.id}. Press Ctrl+C to stop watching logs.\n"
             )
             try:
                 ft_job_run.watch()
             except KeyboardInterrupt:
                 logger.info(f"\nStopped watching logs for {ft_job_run.id}.\n")
                 time.sleep(1)
-            except Exception as ex:
+            except Exception:
                 logger.debug(
-                    f"Something unexpected occurred while watching logs.\n{str(ex)}"
+                    f"Something unexpected occurred while watching logs.\n{traceback.format_exc()}"
                 )
 
         return AquaFineTuningSummary(
