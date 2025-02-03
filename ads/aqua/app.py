@@ -4,6 +4,7 @@
 
 import json
 import os
+import traceback
 from dataclasses import fields
 from typing import Dict, Union
 
@@ -326,13 +327,12 @@ class AquaApp:
                 )
             except Exception:
                 logger.debug(
-                    f"Error loading the {config_file_name} at path {config_path}.",
-                    exc_info=True,
+                    f"Error loading the {config_file_name} at path {config_path}.\n"
+                    f"{traceback.format_exc()}"
                 )
-                pass
 
         if not config:
-            logger.error(
+            logger.debug(
                 f"{config_file_name} is not available for the model: {model_id}. "
                 f"Check if the custom metadata has the artifact path set."
             )
