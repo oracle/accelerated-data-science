@@ -12,6 +12,7 @@ from typing import List, Union
 
 import fsspec
 import oracledb
+import json
 import pandas as pd
 
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -125,7 +126,7 @@ def load_data(data_spec, storage_options=None, **kwargs):
     return data
 
 
-def write_data(data, filename, format, storage_options, index=False, **kwargs):
+def write_data(data, filename, format, storage_options=None, index=False, **kwargs):
     disable_print()
     if not format:
         _, format = os.path.splitext(filename)
@@ -139,6 +140,15 @@ def write_data(data, filename, format, storage_options, index=False, **kwargs):
     raise InvalidParameterError(
         f"The format {format} is not currently supported for writing data. Please change the format parameter for the data output: {filename} ."
     )
+
+
+def write_simple_json(data, path):
+    if ObjectStorageDetails.is_oci_path(path):
+        storage_options = default_signer()
+    else:
+        storage_options = {}
+    with fsspec.open(path, mode="w", **storage_options) as f:
+        json.dump(data, f, indent=4)
 
 
 def merge_category_columns(data, target_category_columns):
