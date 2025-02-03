@@ -11,6 +11,8 @@ Release date: Feb 5th, 2024
 * Expand allowable parameters for fine-tuning operation in AI Quick Actions.
 * Allow local model cache delete while registering models in AI Quick Actions.
 * Add validation flag ``ignore-model-artifact-check`` to ignore ``config.json`` check while registering model in AI Quick Actions.
+* Allow user to watch fine-tuning job run logs in AI Quick Actions when using CLI mode.
+* Load base model configuration files by default for verified models in AI Quick Actions.
 * Added a framework to support embedding onnx models.
 * Added headers parameters for ADS Langchain.
 * Addition of ``SessionLogger`` and ``MetricLogger`` AutoGen loggers for logging and reporting.
