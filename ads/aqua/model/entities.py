@@ -294,6 +294,7 @@ class ImportModelDetails(CLIBuilderMixin):
     ignore_patterns: Optional[List[str]] = None
     freeform_tags: Optional[dict] = None
     defined_tags: Optional[dict] = None
+    ignore_model_artifact_check: Optional[bool] = None
 
     def __post_init__(self):
         self._command = "model register"
