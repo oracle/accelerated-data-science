@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import inspect
@@ -63,7 +63,7 @@ from ads.model.model_introspect import (
     ModelIntrospect,
 )
 from ads.model.model_metadata import (
-    ExtendedEnumMeta,
+    ExtendedEnum,
     Framework,
     MetadataCustomCategory,
     ModelCustomMetadata,
@@ -146,7 +146,7 @@ class ModelDeploymentRuntimeType:
     CONTAINER = "container"
 
 
-class DataScienceModelType(str, metaclass=ExtendedEnumMeta):
+class DataScienceModelType(ExtendedEnum):
     MODEL_DEPLOYMENT = "datasciencemodeldeployment"
     MODEL = "datasciencemodel"
 
