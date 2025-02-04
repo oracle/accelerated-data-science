@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from huggingface_hub.hf_api import HfApi, ModelInfo
 from huggingface_hub.utils import GatedRepoError
-from notebook.base.handlers import IPythonHandler
+from notebook.base.handlers import IPythonHandler, HTTPError
 from parameterized import parameterized
 
 from ads.aqua.common.errors import AquaRuntimeError
@@ -18,6 +18,7 @@ from ads.aqua.extension.model_handler import (
     AquaHuggingFaceHandler,
     AquaModelHandler,
     AquaModelLicenseHandler,
+    AquaModelTokenizerConfigHandler,
 )
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import AquaModel, AquaModelSummary, HFModelSummary
@@ -248,6 +249,41 @@ class ModelLicenseHandlerTestCase(TestCase):
             mock_load_license.return_value
         )
         mock_load_license.assert_called_with("test_model_id")
+
+
+class ModelTokenizerConfigHandlerTestCase(TestCase):
+    @patch.object(IPythonHandler, "__init__")
+    def setUp(self, ipython_init_mock) -> None:
+        ipython_init_mock.return_value = None
+        self.model_tokenizer_config_handler = AquaModelTokenizerConfigHandler(
+            MagicMock(), MagicMock()
+        )
+        self.model_tokenizer_config_handler.finish = MagicMock()
+        self.model_tokenizer_config_handler.request = MagicMock()
+
+    @patch.object(AquaModelApp, "get_hf_tokenizer_config")
+    @patch("ads.aqua.extension.model_handler.urlparse")
+    def test_get(self, mock_urlparse, mock_get_hf_tokenizer_config):
+        request_path = MagicMock(path="aqua/model/ocid1.xx./chat_template")
+        mock_urlparse.return_value = request_path
+        self.model_tokenizer_config_handler.get(model_id="test_model_id")
+        self.model_tokenizer_config_handler.finish.assert_called_with(
+            mock_get_hf_tokenizer_config.return_value
+        )
+        mock_get_hf_tokenizer_config.assert_called_with("test_model_id")
+
+    @patch.object(AquaModelApp, "get_hf_tokenizer_config")
+    @patch("ads.aqua.extension.model_handler.urlparse")
+    def test_get_invalid_path(self, mock_urlparse, mock_get_hf_tokenizer_config):
+        """Test invalid request path should raise HTTPError(400)"""
+        request_path = MagicMock(path="/invalid/path")
+        mock_urlparse.return_value = request_path
+
+        with self.assertRaises(HTTPError) as context:
+            self.model_tokenizer_config_handler.get(model_id="test_model_id")
+        self.assertEqual(context.exception.status_code, 400)
+        self.model_tokenizer_config_handler.finish.assert_not_called()
+        mock_get_hf_tokenizer_config.assert_not_called()
 
 
 class TestAquaHuggingFaceHandler:

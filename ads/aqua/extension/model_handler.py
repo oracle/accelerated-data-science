@@ -317,7 +317,7 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
         )
 
 
-class AquaModelChatTemplateHandler(AquaAPIhandler):
+class AquaModelTokenizerConfigHandler(AquaAPIhandler):
     def get(self, model_id):
         url_parse = urlparse(self.request.path)
         paths = url_parse.path.strip("/")
@@ -327,7 +327,7 @@ class AquaModelChatTemplateHandler(AquaAPIhandler):
             and is_valid_ocid(path_list[2])
             and path_list[3] == "chat_template"
         ):
-            return self.finish(AquaModelApp().get_chat_template(model_id))
+            return self.finish(AquaModelApp().get_hf_tokenizer_config(model_id))
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
@@ -335,6 +335,6 @@ class AquaModelChatTemplateHandler(AquaAPIhandler):
 __handlers__ = [
     ("model/?([^/]*)", AquaModelHandler),
     ("model/?([^/]*)/license", AquaModelLicenseHandler),
-    ("model/?([^/]*)/chat_template", AquaModelChatTemplateHandler),
+    ("model/?([^/]*)/chat_template", AquaModelTokenizerConfigHandler),
     ("model/hf/search/?([^/]*)", AquaHuggingFaceHandler),
 ]

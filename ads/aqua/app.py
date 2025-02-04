@@ -6,7 +6,7 @@ import json
 import os
 import traceback
 from dataclasses import fields
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 import oci
 from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDetails
@@ -268,7 +268,12 @@ class AquaApp:
                 logger.info(f"Artifact not found in model {model_id}.")
                 return False
 
-    def get_config(self, model_id: str, config_file_name: str) -> Dict:
+    def get_config(
+        self,
+        model_id: str,
+        config_file_name: str,
+        config_folder: Optional[str] = "config",
+    ) -> Dict:
         """Gets the config for the given Aqua model.
 
         Parameters
@@ -277,6 +282,9 @@ class AquaApp:
             The OCID of the Aqua model.
         config_file_name: str
             name of the config file
+        config_folder: Optional[str]
+            subfolder path where config_file_name needs to be searched
+            default value: config
 
         Returns
         -------
@@ -306,11 +314,11 @@ class AquaApp:
             )
             base_model = self.ds_client.get_model(base_model_ocid).data
             artifact_path = get_artifact_path(base_model.custom_metadata_list)
-            config_path = f"{os.path.dirname(artifact_path)}/config/"
+            config_path = f"{os.path.dirname(artifact_path)}/{config_folder}/"
         else:
             logger.info(f"Loading {config_file_name} for model {oci_model.id}...")
             artifact_path = get_artifact_path(oci_model.custom_metadata_list)
-            config_path = f"{artifact_path.rstrip('/')}/config/"
+            config_path = f"{artifact_path.rstrip('/')}/{config_folder}/"
 
         if not artifact_path:
             logger.debug(
@@ -339,55 +347,6 @@ class AquaApp:
             return config
 
         return config
-
-    def get_chat_template(self, model_id):
-        """Gets the default chat template for the given Aqua model.
-
-        Parameters
-        ----------
-        model_id: str
-            The OCID of the Aqua model.
-
-        Returns
-        -------
-        str:
-            Chat template string.
-        """
-        chat_template = ""
-        oci_model = self.ds_client.get_model(model_id).data
-        oci_aqua = (
-            (
-                Tags.AQUA_TAG in oci_model.freeform_tags
-                or Tags.AQUA_TAG.lower() in oci_model.freeform_tags
-            )
-            if oci_model.freeform_tags
-            else False
-        )
-
-        if not oci_aqua:
-            raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
-        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
-        if not artifact_path:
-            logger.debug(
-                f"Failed to get artifact path from custom metadata for the model: {model_id}"
-            )
-            return chat_template
-
-        try:
-            tokenizer_path = f"{os.path.dirname(artifact_path)}/artifact"
-            chat_template = load_config(
-                file_path=tokenizer_path, config_file_name="tokenizer_config.json"
-            )
-        except Exception:
-            logger.error(
-                f"Error reading tokenizer_config.json file for the model: {model_id}"
-            )
-
-        if not chat_template:
-            logger.error(
-                f"No default chat template is available for the model: {model_id}."
-            )
-        return {"chat_template": chat_template.get("chat_template")}
 
     @property
     def telemetry(self):
