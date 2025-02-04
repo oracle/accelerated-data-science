@@ -1,7 +1,7 @@
 LlamaIndex Integration
 **********************
 
-.. versionadded:: 2.12.8
+.. versionadded:: 2.12.12
 
 The integrations for LlamaIndex described here allow you to invoke LLMs deployed on OCI Data Science model deployments. With `AI Quick Actions <https://docs.oracle.com/en-us/iaas/data-science/using/ai-quick-actions.htm>`_, deploying and serving large language models becomes straightforward.
 
@@ -16,7 +16,7 @@ For comprehensive guidance on deploying LLM models in OCI Data Science using AI 
 
 .. code-block:: bash
 
-    pip install llama-index-llms-oci-data-science
+    pip install oracle-ads llama-index-llms-oci-data-science
 
 
 Authentication
