@@ -297,7 +297,7 @@ class AquaApp:
 
         config = {}
         try:
-            config = self.ds_client.get_model_defined_metadatum_artifact_content(model_id,config_file_name)
+            config = self.ds_client.get_model_defined_metadatum_artifact_content(model_id,config_file_name).data.content
         except Exception:
             pass
 

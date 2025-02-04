@@ -246,7 +246,7 @@ class AquaModelApp(AquaApp):
             )
             if artifact_path != UNKNOWN:
                 model_card = str(
-                    self.ds_client.get_model_defined_metadatum_artifact_content(model_id,LICENSE)
+                    self.ds_client.get_model_defined_metadatum_artifact_content(model_id,LICENSE).data.content
                 )
 
         inference_container = ds_model.custom_metadata_list.get(
@@ -663,7 +663,7 @@ class AquaModelApp(AquaApp):
         """
 
         models = []
-        if compartment_id and kwargs["category"] != "SERVICE" :
+        if compartment_id and kwargs["category"] != "SERVICE":
             # tracks number of times custom model listing was called
             self.telemetry.record_event_async(
                 category="aqua/custom/model", action="list"
@@ -1450,10 +1450,7 @@ class AquaModelApp(AquaApp):
             **self._process_model(ds_model, self.region),
             project_id=ds_model.project_id,
             model_card=str(
-                read_file(
-                    file_path=f"{artifact_path}/{README}",
-                    auth=default_signer(),
-                )
+                self.ds_client.get_model_defined_metadatum_artifact_content(verified_model.id,README).data.content
             ),
             inference_container=inference_container,
             inference_container_uri=inference_container_uri,
@@ -1538,7 +1535,7 @@ class AquaModelApp(AquaApp):
             raise AquaRuntimeError("Failed to get artifact path from custom metadata.")
 
         content = str(
-            self.ds_client.get_model_defined_metadatum_artifact_content(model_id,LICENSE)
+            self.ds_client.get_model_defined_metadatum_artifact_content(model_id,LICENSE).data.content
         )
 
         return AquaModelLicense(id=model_id, license=content)
