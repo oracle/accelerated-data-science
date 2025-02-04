@@ -314,18 +314,23 @@ class AquaApp:
             )
             base_model = self.ds_client.get_model(base_model_ocid).data
             artifact_path = get_artifact_path(base_model.custom_metadata_list)
-            config_path = f"{os.path.dirname(artifact_path)}/{config_folder}/"
+            if config_folder == "artifact":
+                artifact_path = get_artifact_path(oci_model.custom_metadata_list)
         else:
             logger.info(f"Loading {config_file_name} for model {oci_model.id}...")
             artifact_path = get_artifact_path(oci_model.custom_metadata_list)
-            config_path = f"{artifact_path.rstrip('/')}/{config_folder}/"
         if not artifact_path:
             logger.debug(
                 f"Failed to get artifact path from custom metadata for the model: {model_id}"
             )
             return config
 
-        config_file_path = f"{config_path.rstrip('/')}/{config_file_name}"
+        config_path = f"{os.path.dirname(artifact_path)}/{config_folder}/"
+        if not is_path_exists(config_path):
+            config_path = f"{artifact_path.rstrip('/')}/{config_folder}/"
+            if not is_path_exists(config_path):
+                config_path = f"{artifact_path.rstrip('/')}/"
+        config_file_path = f"{config_path}{config_file_name}"
         if is_path_exists(config_file_path):
             try:
                 config = load_config(

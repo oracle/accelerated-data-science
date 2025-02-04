@@ -582,7 +582,7 @@ class AquaModelApp(AquaApp):
         str:
             Chat template string.
         """
-        config = self.get_config(model_id, AQUA_MODEL_TOKENIZER_CONFIG, "/")
+        config = self.get_config(model_id, AQUA_MODEL_TOKENIZER_CONFIG, "artifact")
         if not config:
             logger.debug(f"Tokenizer config for model: {model_id} is not available.")
         return config
