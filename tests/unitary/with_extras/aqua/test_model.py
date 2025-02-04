@@ -665,7 +665,6 @@ class TestAquaModel:
     @patch("ads.model.datascience_model.DataScienceModel.sync")
     @patch("ads.model.datascience_model.DataScienceModel.upload_artifact")
     @patch.object(AquaModelApp, "_find_matching_aqua_model")
-    @patch("ads.aqua.common.utils.copy_file")
     @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
     @patch("ads.aqua.common.utils.load_config", return_value={})
     @patch("huggingface_hub.snapshot_download")
@@ -676,7 +675,6 @@ class TestAquaModel:
         mock_snapshot_download,
         mock_load_config,
         mock_list_objects,
-        mock_copy_file,
         mock__find_matching_aqua_model,
         mock_upload_artifact,
         mock_sync,
@@ -788,8 +786,6 @@ class TestAquaModel:
             mock_subprocess.assert_not_called()
             mock_load_config.assert_called()
 
-        if not artifact_location_set:
-            mock_copy_file.assert_called()
         ds_freeform_tags.pop(
             "ready_to_import"
         )  # The imported model should not have this tag
