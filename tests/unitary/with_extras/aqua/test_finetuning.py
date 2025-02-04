@@ -22,6 +22,7 @@ from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.finetuning.constants import FineTuneCustomMetadata
 from ads.aqua.finetuning.entities import AquaFineTuningParams
 from ads.jobs.ads_job import Job
+from ads.jobs.builders.infrastructure.dsc_job import DataScienceJobRun
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import ModelCustomMetadata
 from ads.aqua.common.errors import AquaValueError
@@ -49,6 +50,12 @@ class FineTuningTestCase(TestCase):
         reload(ads.aqua)
         reload(ads.aqua.finetuning.finetuning)
 
+    @parameterized.expand(
+        [
+            ("watch_logs", True),
+            ("watch_logs", False),
+        ]
+    )
     @patch.object(Job, "run")
     @patch("ads.jobs.ads_job.Job.name", new_callable=PropertyMock)
     @patch("ads.jobs.ads_job.Job.id", new_callable=PropertyMock)
@@ -60,6 +67,8 @@ class FineTuningTestCase(TestCase):
     @patch.object(AquaApp, "get_source")
     def test_create_fine_tuning(
         self,
+        mock_watch_logs,
+        mock_watch_logs_called,
         mock_get_source,
         mock_mvs_create,
         mock_ds_model_create,
@@ -117,6 +126,7 @@ class FineTuningTestCase(TestCase):
         ft_job_run.id = "test_ft_job_run_id"
         ft_job_run.lifecycle_details = "Job run artifact execution in progress."
         ft_job_run.lifecycle_state = "IN_PROGRESS"
+        ft_job_run.watch = MagicMock()
         mock_job_run.return_value = ft_job_run
 
         self.app.ds_client.update_model = MagicMock()
@@ -144,7 +154,20 @@ class FineTuningTestCase(TestCase):
             defined_tags=ft_model_defined_tags,
         )
 
-        aqua_ft_summary = self.app.create(**create_aqua_ft_details)
+        inputs = {
+            **create_aqua_ft_details,
+            **{
+                mock_watch_logs: mock_watch_logs_called,
+                "log_id": "test_log_id",
+                "log_group_id": "test_log_group_id",
+            },
+        }
+        aqua_ft_summary = self.app.create(**inputs)
+
+        if mock_watch_logs_called:
+            ft_job_run.watch.assert_called()
+        else:
+            ft_job_run.watch.assert_not_called()
 
         assert aqua_ft_summary.to_dict() == {
             "console_url": f"https://cloud.oracle.com/data-science/models/{ft_model.id}?region={self.app.region}",
