@@ -142,6 +142,9 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             dt_column=self.spec.datetime_column.name,
         )
 
+        # if os.environ["OCI__IS_SPARK"]:
+        #     pass
+        # else:
         Parallel(n_jobs=-1, require="sharedmem")(
             delayed(ProphetOperatorModel._train_model)(
                 self, i, series_id, df, model_kwargs.copy()
@@ -253,6 +256,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                     self.outputs[s_id], include_legend=True
                 ),
                 series_ids=series_ids,
+                target_category_column=self.target_cat_col
             )
             section_1 = rc.Block(
                 rc.Heading("Forecast Overview", level=2),
@@ -265,6 +269,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             sec2 = _select_plot_list(
                 lambda s_id: self.models[s_id].plot_components(self.outputs[s_id]),
                 series_ids=series_ids,
+                target_category_column=self.target_cat_col
             )
             section_2 = rc.Block(
                 rc.Heading("Forecast Broken Down by Trend Component", level=2), sec2
@@ -278,7 +283,9 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                     sec3_figs[s_id].gca(), self.models[s_id], self.outputs[s_id]
                 )
             sec3 = _select_plot_list(
-                lambda s_id: sec3_figs[s_id], series_ids=series_ids
+                lambda s_id: sec3_figs[s_id],
+                series_ids=series_ids,
+                target_category_column=self.target_cat_col
             )
             section_3 = rc.Block(rc.Heading("Forecast Changepoints", level=2), sec3)
 
@@ -292,7 +299,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                     pd.Series(
                         m.seasonalities,
                         index=pd.Index(m.seasonalities.keys(), dtype="object"),
-                        name=s_id,
+                        name=s_id if self.target_cat_col else self.original_target_column,
                         dtype="object",
                     )
                 )
@@ -313,15 +320,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                     global_explanation_df / global_explanation_df.sum(axis=0) * 100
                 )
 
-                # Create a markdown section for the global explainability
-                global_explanation_section = rc.Block(
-                    rc.Heading("Global Explanation of Models", level=2),
-                    rc.Text(
-                        "The following tables provide the feature attribution for the global explainability."
-                    ),
-                    rc.DataTable(self.formatted_global_explanation, index=True),
-                )
-
                 aggregate_local_explanations = pd.DataFrame()
                 for s_id, local_ex_df in self.local_explanation.items():
                     local_ex_df_copy = local_ex_df.copy()
@@ -331,17 +329,33 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                     )
                 self.formatted_local_explanation = aggregate_local_explanations
 
+                if not self.target_cat_col:
+                    self.formatted_global_explanation = self.formatted_global_explanation.rename(
+                        {"Series 1": self.original_target_column},
+                        axis=1,
+                    )
+                    self.formatted_local_explanation.drop("Series", axis=1, inplace=True)
+
+                # Create a markdown section for the global explainability
+                global_explanation_section = rc.Block(
+                    rc.Heading("Global Explanation of Models", level=2),
+                    rc.Text(
+                        "The following tables provide the feature attribution for the global explainability."
+                    ),
+                    rc.DataTable(self.formatted_global_explanation, index=True),
+                )
+
                 blocks = [
                     rc.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                        label=s_id,
+                        label=s_id if self.target_cat_col else None,
                         index=True,
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]
                 local_explanation_section = rc.Block(
                     rc.Heading("Local Explanation of Models", level=2),
-                    rc.Select(blocks=blocks),
+                    rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0],
                 )
 
                 # Append the global explanation text and section to the "all_sections" list
@@ -354,12 +368,8 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 logger.warn(f"Failed to generate Explanations with error: {e}.")
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
 
-        model_description = (
-            "Prophet is a procedure for forecasting time series data based on an additive "
-            "model where non-linear trends are fit with yearly, weekly, and daily seasonality, "
-            "plus holiday effects. It works best with time series that have strong seasonal "
-            "effects and several seasons of historical data. Prophet is robust to missing "
-            "data and shifts in the trend, and typically handles outliers well."
+        model_description = rc.Text(
+            """Prophet is a procedure for forecasting time series data based on an additive model where non-linear trends are fit with yearly, weekly, and daily seasonality, plus holiday effects. It works best with time series that have strong seasonal effects and several seasons of historical data. Prophet is robust to missing data and shifts in the trend, and typically handles outliers well."""
         )
         other_sections = all_sections
 

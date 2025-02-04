@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from unittest import TestCase
@@ -132,10 +132,41 @@ class ModelHandlerTestCase(TestCase):
 
     @parameterized.expand(
         [
-            (None, None, False, None, None, None),
-            ("odsc-llm-fine-tuning", None, False, None, None, ["test.json"]),
-            (None, "test.gguf", True, None, ["*.json"], None),
-            (None, None, True, "iad.ocir.io/<namespace>/<image>:<tag>", ["*.json"], ["test.json"]),
+            (None, None, False, None, None, None, None, None, True),
+            (
+                "odsc-llm-fine-tuning",
+                None,
+                False,
+                None,
+                None,
+                ["test.json"],
+                None,
+                None,
+                False,
+            ),
+            (None, "test.gguf", True, None, ["*.json"], None, None, None, False),
+            (
+                None,
+                None,
+                True,
+                "iad.ocir.io/<namespace>/<image>:<tag>",
+                ["*.json"],
+                ["test.json"],
+                None,
+                None,
+                False,
+            ),
+            (
+                None,
+                None,
+                False,
+                None,
+                None,
+                None,
+                {"ftag1": "fvalue1"},
+                {"dtag1": "dvalue1"},
+                False,
+            ),
         ],
     )
     @patch("notebook.base.handlers.APIHandler.finish")
@@ -148,6 +179,9 @@ class ModelHandlerTestCase(TestCase):
         inference_container_uri,
         allow_patterns,
         ignore_patterns,
+        freeform_tags,
+        defined_tags,
+        ignore_model_artifact_check,
         mock_register,
         mock_finish,
     ):
@@ -168,7 +202,10 @@ class ModelHandlerTestCase(TestCase):
                 download_from_hf=download_from_hf,
                 inference_container_uri=inference_container_uri,
                 allow_patterns=allow_patterns,
-                ignore_patterns=ignore_patterns
+                ignore_patterns=ignore_patterns,
+                freeform_tags=freeform_tags,
+                defined_tags=defined_tags,
+                ignore_model_artifact_check=ignore_model_artifact_check,
             )
         )
         result = self.model_handler.post()
@@ -181,9 +218,14 @@ class ModelHandlerTestCase(TestCase):
             project_id=None,
             model_file=model_file,
             download_from_hf=download_from_hf,
+            local_dir=None,
+            cleanup_model_cache=False,
             inference_container_uri=inference_container_uri,
             allow_patterns=allow_patterns,
-            ignore_patterns=ignore_patterns
+            ignore_patterns=ignore_patterns,
+            freeform_tags=freeform_tags,
+            defined_tags=defined_tags,
+            ignore_model_artifact_check=ignore_model_artifact_check,
         )
         assert result["id"] == "test_id"
         assert result["inference_container"] == "odsc-tgi-serving"

@@ -253,7 +253,7 @@ class TestDataset:
         "created_on": "2024-01-01T00:00:00.000000+00:00",
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
-        "private_endpoint_id": "",
+        "private_endpoint_id": null,
         "environment_variables": {
             "BASE_MODEL": "service_models/model-name/artifact",
             "MODEL_DEPLOY_ENABLE_STREAMING": "true",
@@ -469,6 +469,9 @@ class TestAquaDeployment(unittest.TestCase):
 
         self.app.get_deployment_config = MagicMock(return_value=config)
 
+        freeform_tags = {"ftag1": "fvalue1", "ftag2": "fvalue2"}
+        defined_tags = {"dtag1": "dvalue1", "dtag2": "dvalue2"}
+
         container_index_json = os.path.join(
             self.curr_dir, "test_data/ui/container_index.json"
         )
@@ -483,6 +486,8 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj = ModelDeployment.from_yaml(uri=aqua_deployment)
         model_deployment_dsc_obj = copy.deepcopy(TestDataset.model_deployment_object[0])
         model_deployment_dsc_obj["lifecycle_state"] = "CREATING"
+        model_deployment_dsc_obj["defined_tags"] = defined_tags
+        model_deployment_dsc_obj["freeform_tags"].update(freeform_tags)
         model_deployment_obj.dsc_model_deployment = (
             oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
         )
@@ -495,10 +500,16 @@ class TestAquaDeployment(unittest.TestCase):
             log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
             access_log_id="ocid1.log.oc1.<region>.<OCID>",
             predict_log_id="ocid1.log.oc1.<region>.<OCID>",
+            freeform_tags=freeform_tags,
+            defined_tags=defined_tags,
         )
 
         mock_create.assert_called_with(
-            model_id=TestDataset.MODEL_ID, compartment_id=None, project_id=None
+            model_id=TestDataset.MODEL_ID,
+            compartment_id=None,
+            project_id=None,
+            freeform_tags=freeform_tags,
+            defined_tags=defined_tags,
         )
         mock_get_container_image.assert_called()
         mock_deploy.assert_called()
@@ -508,6 +519,8 @@ class TestAquaDeployment(unittest.TestCase):
         assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
         expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
         expected_result["state"] = "CREATING"
+        expected_result["tags"].update(freeform_tags)
+        expected_result["tags"].update(defined_tags)
         assert actual_attributes == expected_result
 
     @patch("ads.aqua.modeldeployment.deployment.get_container_config")
@@ -566,7 +579,11 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
         mock_create.assert_called_with(
-            model_id=TestDataset.MODEL_ID, compartment_id=None, project_id=None
+            model_id=TestDataset.MODEL_ID,
+            compartment_id=None,
+            project_id=None,
+            freeform_tags=None,
+            defined_tags=None,
         )
         mock_get_container_image.assert_called()
         mock_deploy.assert_called()
@@ -638,7 +655,11 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
         mock_create.assert_called_with(
-            model_id=TestDataset.MODEL_ID, compartment_id=None, project_id=None
+            model_id=TestDataset.MODEL_ID,
+            compartment_id=None,
+            project_id=None,
+            freeform_tags=None,
+            defined_tags=None,
         )
         mock_get_container_image.assert_called()
         mock_deploy.assert_called()
@@ -654,83 +675,87 @@ class TestAquaDeployment(unittest.TestCase):
         )
         assert actual_attributes == expected_result
 
-    # @patch("ads.aqua.modeldeployment.deployment.get_container_config")
-    # @patch("ads.aqua.model.AquaModelApp.create")
-    # @patch("ads.aqua.modeldeployment.deployment.get_container_image")
-    # @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
-    # def test_create_deployment_for_tei_byoc_embedding_model(
-    #     self,
-    #     mock_deploy,
-    #     mock_get_container_image,
-    #     mock_create,
-    #     mock_get_container_config,
-    # ):
-    #     """Test to create a deployment for fine-tuned model"""
-    #     aqua_model = os.path.join(
-    #         self.curr_dir, "test_data/deployment/aqua_tei_byoc_embedding_model.yaml"
-    #     )
-    #     datascience_model = DataScienceModel.from_yaml(uri=aqua_model)
-    #     mock_create.return_value = datascience_model
-    #
-    #     config_json = os.path.join(
-    #         self.curr_dir, "test_data/deployment/deployment_config.json"
-    #     )
-    #     with open(config_json, "r") as _file:
-    #         config = json.load(_file)
-    #
-    #     self.app.get_deployment_config = MagicMock(return_value=config)
-    #
-    #     container_index_json = os.path.join(
-    #         self.curr_dir, "test_data/ui/container_index.json"
-    #     )
-    #     with open(container_index_json, "r") as _file:
-    #         container_index_config = json.load(_file)
-    #     mock_get_container_config.return_value = container_index_config
-    #
-    #     mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
-    #     aqua_deployment = os.path.join(
-    #         self.curr_dir, "test_data/deployment/aqua_create_embedding_deployment.yaml"
-    #     )
-    #     model_deployment_obj = ModelDeployment.from_yaml(uri=aqua_deployment)
-    #     model_deployment_dsc_obj = copy.deepcopy(
-    #         TestDataset.model_deployment_object_tei_byoc[0]
-    #     )
-    #     model_deployment_dsc_obj["lifecycle_state"] = "CREATING"
-    #     model_deployment_obj.dsc_model_deployment = (
-    #         oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
-    #     )
-    #     mock_deploy.return_value = model_deployment_obj
-    #
-    #     result = self.app.create(
-    #         model_id=TestDataset.MODEL_ID,
-    #         instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
-    #         display_name="model-deployment-name",
-    #         log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
-    #         access_log_id="ocid1.log.oc1.<region>.<OCID>",
-    #         predict_log_id="ocid1.log.oc1.<region>.<OCID>",
-    #         container_family="odsc-tei-serving",
-    #         cmd_var=[],
-    #     )
-    #
-    #     mock_create.assert_called_with(
-    #         model_id=TestDataset.MODEL_ID, compartment_id=None, project_id=None
-    #     )
-    #     mock_get_container_image.assert_called()
-    #     mock_deploy.assert_called()
-    #
-    #     expected_attributes = set(AquaDeployment.__annotations__.keys())
-    #     actual_attributes = asdict(result)
-    #     assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
-    #     expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
-    #     expected_result["state"] = "CREATING"
-    #     expected_result["shape_info"] = (
-    #         TestDataset.aqua_deployment_tei_byoc_embeddings_shape_info
-    #     )
-    #     expected_result["cmd"] = TestDataset.aqua_deployment_tei_byoc_embeddings_cmd
-    #     expected_result["environment_variables"] = (
-    #         TestDataset.aqua_deployment_tei_byoc_embeddings_env_vars
-    #     )
-    #     assert actual_attributes == expected_result
+    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
+    @patch("ads.aqua.model.AquaModelApp.create")
+    @patch("ads.aqua.modeldeployment.deployment.get_container_image")
+    @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
+    def test_create_deployment_for_tei_byoc_embedding_model(
+        self,
+        mock_deploy,
+        mock_get_container_image,
+        mock_create,
+        mock_get_container_config,
+    ):
+        """Test to create a deployment for fine-tuned model"""
+        aqua_model = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_tei_byoc_embedding_model.yaml"
+        )
+        datascience_model = DataScienceModel.from_yaml(uri=aqua_model)
+        mock_create.return_value = datascience_model
+
+        config_json = os.path.join(
+            self.curr_dir, "test_data/deployment/deployment_config.json"
+        )
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        self.app.get_deployment_config = MagicMock(return_value=config)
+
+        container_index_json = os.path.join(
+            self.curr_dir, "test_data/ui/container_index.json"
+        )
+        with open(container_index_json, "r") as _file:
+            container_index_config = json.load(_file)
+        mock_get_container_config.return_value = container_index_config
+
+        mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
+        aqua_deployment = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_create_embedding_deployment.yaml"
+        )
+        model_deployment_obj = ModelDeployment.from_yaml(uri=aqua_deployment)
+        model_deployment_dsc_obj = copy.deepcopy(
+            TestDataset.model_deployment_object_tei_byoc[0]
+        )
+        model_deployment_dsc_obj["lifecycle_state"] = "CREATING"
+        model_deployment_obj.dsc_model_deployment = (
+            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+        )
+        mock_deploy.return_value = model_deployment_obj
+
+        result = self.app.create(
+            model_id=TestDataset.MODEL_ID,
+            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
+            display_name="model-deployment-name",
+            log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
+            access_log_id="ocid1.log.oc1.<region>.<OCID>",
+            predict_log_id="ocid1.log.oc1.<region>.<OCID>",
+            container_family="odsc-tei-serving",
+            cmd_var=[],
+        )
+
+        mock_create.assert_called_with(
+            model_id=TestDataset.MODEL_ID,
+            compartment_id=None,
+            project_id=None,
+            freeform_tags=None,
+            defined_tags=None,
+        )
+        mock_get_container_image.assert_called()
+        mock_deploy.assert_called()
+
+        expected_attributes = set(AquaDeployment.__annotations__.keys())
+        actual_attributes = asdict(result)
+        assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
+        expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
+        expected_result["state"] = "CREATING"
+        expected_result["shape_info"] = (
+            TestDataset.aqua_deployment_tei_byoc_embeddings_shape_info
+        )
+        expected_result["cmd"] = TestDataset.aqua_deployment_tei_byoc_embeddings_cmd
+        expected_result["environment_variables"] = (
+            TestDataset.aqua_deployment_tei_byoc_embeddings_env_vars
+        )
+        assert actual_attributes == expected_result
 
     @parameterized.expand(
         [

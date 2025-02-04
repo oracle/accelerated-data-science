@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -11,7 +11,6 @@ from parameterized import parameterized
 from unittest import TestCase
 from unittest.mock import MagicMock, PropertyMock
 from mock import patch
-from dataclasses import asdict
 from importlib import reload
 
 import ads.aqua
@@ -23,6 +22,7 @@ from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.finetuning.constants import FineTuneCustomMetadata
 from ads.aqua.finetuning.entities import AquaFineTuningParams
 from ads.jobs.ads_job import Job
+from ads.jobs.builders.infrastructure.dsc_job import DataScienceJobRun
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import ModelCustomMetadata
 from ads.aqua.common.errors import AquaValueError
@@ -50,6 +50,12 @@ class FineTuningTestCase(TestCase):
         reload(ads.aqua)
         reload(ads.aqua.finetuning.finetuning)
 
+    @parameterized.expand(
+        [
+            ("watch_logs", True),
+            ("watch_logs", False),
+        ]
+    )
     @patch.object(Job, "run")
     @patch("ads.jobs.ads_job.Job.name", new_callable=PropertyMock)
     @patch("ads.jobs.ads_job.Job.id", new_callable=PropertyMock)
@@ -61,6 +67,8 @@ class FineTuningTestCase(TestCase):
     @patch.object(AquaApp, "get_source")
     def test_create_fine_tuning(
         self,
+        mock_watch_logs,
+        mock_watch_logs_called,
         mock_get_source,
         mock_mvs_create,
         mock_ds_model_create,
@@ -90,6 +98,10 @@ class FineTuningTestCase(TestCase):
         ft_source.compartment_id = self.SERVICE_COMPARTMENT_ID
         ft_source.display_name = "test_ft_source_model"
         ft_source.custom_metadata_list = custom_metadata_list
+        ft_source.freeform_tags = {
+            "license": "Some license text",
+            "aqua_custom_base_model": "base_model_info",
+        }
         mock_get_source.return_value = ft_source
 
         mock_mvs_create.return_value = ("test_experiment_id", "test_experiment_name")
@@ -114,10 +126,14 @@ class FineTuningTestCase(TestCase):
         ft_job_run.id = "test_ft_job_run_id"
         ft_job_run.lifecycle_details = "Job run artifact execution in progress."
         ft_job_run.lifecycle_state = "IN_PROGRESS"
+        ft_job_run.watch = MagicMock()
         mock_job_run.return_value = ft_job_run
 
         self.app.ds_client.update_model = MagicMock()
         self.app.ds_client.update_model_provenance = MagicMock()
+
+        ft_model_freeform_tags = {"ftag1": "fvalue1", "ftag2": "fvalue2"}
+        ft_model_defined_tags = {"dtag1": "dvalue1", "dtag2": "dvalue2"}
 
         create_aqua_ft_details = dict(
             ft_source_id="ocid1.datasciencemodel.oc1.iad.<OCID>",
@@ -134,11 +150,26 @@ class FineTuningTestCase(TestCase):
             validation_set_size=0.2,
             block_storage_size=1,
             experiment_name="test_experiment_name",
+            freeform_tags=ft_model_freeform_tags,
+            defined_tags=ft_model_defined_tags,
         )
 
-        aqua_ft_summary = self.app.create(**create_aqua_ft_details)
+        inputs = {
+            **create_aqua_ft_details,
+            **{
+                mock_watch_logs: mock_watch_logs_called,
+                "log_id": "test_log_id",
+                "log_group_id": "test_log_group_id",
+            },
+        }
+        aqua_ft_summary = self.app.create(**inputs)
 
-        assert asdict(aqua_ft_summary) == {
+        if mock_watch_logs_called:
+            ft_job_run.watch.assert_called()
+        else:
+            ft_job_run.watch.assert_not_called()
+
+        assert aqua_ft_summary.to_dict() == {
             "console_url": f"https://cloud.oracle.com/data-science/models/{ft_model.id}?region={self.app.region}",
             "experiment": {
                 "id": f"{mock_mvs_create.return_value[0]}",
@@ -167,10 +198,17 @@ class FineTuningTestCase(TestCase):
                 "url": f"https://cloud.oracle.com/data-science/models/{ft_source.id}?region={self.app.region}",
             },
             "tags": {
-                "aqua_finetuning": "aqua_finetuning",
-                "finetuning_experiment_id": f"{mock_mvs_create.return_value[0]}",
-                "finetuning_job_id": f"{mock_job_id.return_value}",
-                "finetuning_source": f"{ft_source.id}",
+                **{
+                    "aqua_finetuning": "aqua_finetuning",
+                    "finetuning_experiment_id": f"{mock_mvs_create.return_value[0]}",
+                    "finetuning_job_id": f"{mock_job_id.return_value}",
+                    "finetuning_source": f"{ft_source.id}",
+                    "ready_to_fine_tune": "false",
+                    "OCI_AQUA": "",
+                    "aqua_fine_tuned_model": f"{ft_source.id}#{ft_source.display_name}",
+                },
+                **ft_model_freeform_tags,
+                **ft_model_defined_tags,
             },
             "time_created": f"{ft_model.time_created}",
         }
@@ -251,15 +289,14 @@ class FineTuningTestCase(TestCase):
         params_dict = {
             "params": {
                 "batch_size": 1,
+                "val_set_size": 0.1,
                 "sequence_len": 2048,
-                "sample_packing": True,
                 "pad_to_sequence_len": True,
                 "learning_rate": 0.0002,
                 "lora_r": 32,
                 "lora_alpha": 16,
                 "lora_dropout": 0.05,
                 "lora_target_linear": True,
-                "lora_target_modules": ["q_proj", "k_proj"],
             }
         }
         config_json = os.path.join(self.curr_dir, "test_data/finetuning/ft_config.json")
@@ -293,14 +330,22 @@ class FineTuningTestCase(TestCase):
                 True,
             ),
             (
+                {"optimizer": "adamw_torch"},
+                False,
+            ),
+            (
                 {
-                    "micro_batch_size": 1,
-                    "max_sequence_len": 2048,
-                    "flash_attention": True,
-                    "pad_to_sequence_len": True,
-                    "lr_scheduler": "cosine",
+                    "epochs": [2],
                 },
                 False,
+            ),
+            (
+                {
+                    "epochs": 2,
+                    "load_best_model_at_end": True,
+                    "metric_for_best_model": "accuracy",
+                },
+                True,
             ),
         ]
     )

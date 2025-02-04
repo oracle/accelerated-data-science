@@ -1,8 +1,10 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 import os
+import traceback
 from dataclasses import fields
 from typing import Dict, Union
 
@@ -22,7 +24,7 @@ from ads.aqua.common.utils import (
 from ads.aqua.constants import UNKNOWN
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
-from ads.common.utils import extract_region
+from ads.common.utils import extract_region, is_path_exists
 from ads.config import (
     AQUA_TELEMETRY_BUCKET,
     AQUA_TELEMETRY_BUCKET_NS,
@@ -135,6 +137,8 @@ class AquaApp:
         description: str = None,
         compartment_id: str = None,
         project_id: str = None,
+        freeform_tags: dict = None,
+        defined_tags: dict = None,
         **kwargs,
     ) -> tuple:
         """Creates ModelVersionSet from given ID or Name.
@@ -153,7 +157,10 @@ class AquaApp:
             Project OCID.
         tag: (str, optional)
             calling tag, can be Tags.AQUA_FINE_TUNING or Tags.AQUA_EVALUATION
-
+        freeform_tags: (dict, optional)
+            Freeform tags for the model version set
+        defined_tags: (dict, optional)
+            Defined tags for the model version set
         Returns
         -------
         tuple: (model_version_set_id, model_version_set_name)
@@ -182,6 +189,7 @@ class AquaApp:
                 mvs_freeform_tags = {
                     tag: tag,
                 }
+                mvs_freeform_tags = {**mvs_freeform_tags, **(freeform_tags or {})}
                 model_version_set = (
                     ModelVersionSet()
                     .with_compartment_id(compartment_id)
@@ -189,6 +197,7 @@ class AquaApp:
                     .with_name(model_version_set_name)
                     .with_description(description)
                     .with_freeform_tags(**mvs_freeform_tags)
+                    .with_defined_tags(**(defined_tags or {}))
                     # TODO: decide what parameters will be needed
                     # when refactor eval to use this method, we need to pass tag here.
                     .create(**kwargs)
@@ -288,33 +297,46 @@ class AquaApp:
             raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
 
         config = {}
-        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+        # if the current model has a service model tag, then
+        if Tags.AQUA_SERVICE_MODEL_TAG in oci_model.freeform_tags:
+            base_model_ocid = oci_model.freeform_tags[Tags.AQUA_SERVICE_MODEL_TAG]
+            logger.info(
+                f"Base model found for the model: {oci_model.id}. "
+                f"Loading {config_file_name} for base model {base_model_ocid}."
+            )
+            base_model = self.ds_client.get_model(base_model_ocid).data
+            artifact_path = get_artifact_path(base_model.custom_metadata_list)
+        else:
+            logger.info(f"Loading {config_file_name} for model {oci_model.id}...")
+            artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+
         if not artifact_path:
-            logger.error(
+            logger.debug(
                 f"Failed to get artifact path from custom metadata for the model: {model_id}"
             )
             return config
 
-        try:
-            config_path = f"{os.path.dirname(artifact_path)}/config/"
-            config = load_config(
-                config_path,
-                config_file_name=config_file_name,
-            )
-        except Exception:
-            # todo: temp fix for issue related to config load for byom models, update logic to choose the right path
+        config_path = f"{os.path.dirname(artifact_path)}/config/"
+        if not is_path_exists(config_path):
+            config_path = f"{artifact_path.rstrip('/')}/config/"
+
+        config_file_path = f"{config_path}{config_file_name}"
+        if is_path_exists(config_file_path):
             try:
-                config_path = f"{artifact_path.rstrip('/')}/config/"
                 config = load_config(
                     config_path,
                     config_file_name=config_file_name,
                 )
             except Exception:
-                pass
+                logger.debug(
+                    f"Error loading the {config_file_name} at path {config_path}.\n"
+                    f"{traceback.format_exc()}"
+                )
 
         if not config:
-            logger.error(
-                f"{config_file_name} is not available for the model: {model_id}. Check if the custom metadata has the artifact path set."
+            logger.debug(
+                f"{config_file_name} is not available for the model: {model_id}. "
+                f"Check if the custom metadata has the artifact path set."
             )
             return config
 
@@ -340,7 +362,9 @@ class CLIBuilderMixin:
         """
         cmd = f"ads aqua {self._command}"
         params = [
-            f"--{field.name} {getattr(self,field.name)}"
+            f"--{field.name} {json.dumps(getattr(self, field.name))}"
+            if isinstance(getattr(self, field.name), dict)
+            else f"--{field.name} {getattr(self, field.name)}"
             for field in fields(self.__class__)
             if getattr(self, field.name) is not None
         ]

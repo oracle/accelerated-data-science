@@ -27,10 +27,12 @@ class SpeedAccuracyMode(str, metaclass=ExtendedEnumMeta):
     HIGH_ACCURACY = "HIGH_ACCURACY"
     BALANCED = "BALANCED"
     FAST_APPROXIMATE = "FAST_APPROXIMATE"
+    AUTOMLX = "AUTOMLX"
     ratio = {}
     ratio[HIGH_ACCURACY] = 1  # 100 % data used for generating explanations
     ratio[BALANCED] = 0.5  # 50 % data used for generating explanations
     ratio[FAST_APPROXIMATE] = 0  # constant
+    ratio[AUTOMLX] = 0  # constant
 
 
 class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
@@ -87,3 +89,4 @@ SUMMARY_METRICS_HORIZON_LIMIT = 10
 PROPHET_INTERNAL_DATE_COL = "ds"
 RENDER_LIMIT = 5000
 AUTO_SELECT = "auto-select"
+BACKTEST_REPORT_NAME = "back_test.csv"

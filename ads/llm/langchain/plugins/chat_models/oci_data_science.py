@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """Chat model for OCI data science model deployment endpoint."""
 
@@ -50,6 +49,7 @@ from ads.llm.langchain.plugins.llms.oci_data_science_model_deployment_endpoint i
 )
 
 logger = logging.getLogger(__name__)
+DEFAULT_INFERENCE_ENDPOINT_CHAT = "/v1/chat/completions"
 
 
 def _is_pydantic_class(obj: Any) -> bool:
@@ -93,6 +93,8 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
     Key init args — client params:
         auth: dict
             ADS auth dictionary for OCI authentication.
+        default_headers: Optional[Dict]
+            The headers to be added to the Model Deployment request.
 
     Instantiate:
         .. code-block:: python
@@ -108,6 +110,10 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
                     "max_token": 512,
                     "temperature": 0.2,
                     # other model parameters ...
+                },
+                default_headers={
+                    "route": "/v1/chat/completions",
+                    # other request headers ...
                 },
             )
 
@@ -289,6 +295,25 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
             "model": self.model,
             "stop": self.stop,
             "stream": self.streaming,
+        }
+
+    def _headers(
+        self, is_async: Optional[bool] = False, body: Optional[dict] = None
+    ) -> Dict:
+        """Construct and return the headers for a request.
+
+        Args:
+            is_async (bool, optional): Indicates if the request is asynchronous.
+                Defaults to `False`.
+            body (optional): The request body to be included in the headers if
+                the request is asynchronous.
+
+        Returns:
+            Dict: A dictionary containing the appropriate headers for the request.
+        """
+        return {
+            "route": DEFAULT_INFERENCE_ENDPOINT_CHAT,
+            **super()._headers(is_async=is_async, body=body),
         }
 
     def _generate(
@@ -704,7 +729,7 @@ class ChatOCIModelDeployment(BaseChatModel, BaseOCIModelDeployment):
 
         for choice in choices:
             message = _convert_dict_to_message(choice["message"])
-            generation_info = dict(finish_reason=choice.get("finish_reason"))
+            generation_info = {"finish_reason": choice.get("finish_reason")}
             if "logprobs" in choice:
                 generation_info["logprobs"] = choice["logprobs"]
 
@@ -744,6 +769,8 @@ class ChatOCIModelDeploymentVLLM(ChatOCIModelDeployment):
     Science Model Deployment endpoint. See:
     https://docs.oracle.com/en-us/iaas/data-science/using/model-dep-policies-auth.htm#model_dep_policies_auth__predict-endpoint
 
+    See https://docs.vllm.ai/en/latest/api/inference_params.html for the defaults of the parameters.
+
     Example:
 
         .. code-block:: python
@@ -761,7 +788,7 @@ class ChatOCIModelDeploymentVLLM(ChatOCIModelDeployment):
 
     """  # noqa: E501
 
-    frequency_penalty: float = 0.0
+    frequency_penalty: Optional[float] = None
     """Penalizes repeated tokens according to frequency. Between 0 and 1."""
 
     logit_bias: Optional[Dict[str, float]] = None
@@ -773,7 +800,7 @@ class ChatOCIModelDeploymentVLLM(ChatOCIModelDeployment):
     n: int = 1
     """Number of output sequences to return for the given prompt."""
 
-    presence_penalty: float = 0.0
+    presence_penalty: Optional[float] = None
     """Penalizes repeated tokens. Between 0 and 1."""
 
     temperature: float = 0.2
@@ -787,25 +814,25 @@ class ChatOCIModelDeploymentVLLM(ChatOCIModelDeployment):
     (the one with the highest log probability per token).
     """
 
-    use_beam_search: Optional[bool] = False
+    use_beam_search: Optional[bool] = None
     """Whether to use beam search instead of sampling."""
 
     top_k: Optional[int] = -1
     """Number of most likely tokens to consider at each step."""
 
     min_p: Optional[float] = 0.0
-    """Float that represents the minimum probability for a token to be considered. 
+    """Float that represents the minimum probability for a token to be considered.
     Must be in [0,1]. 0 to disable this."""
 
-    repetition_penalty: Optional[float] = 1.0
+    repetition_penalty: Optional[float] = None
     """Float that penalizes new tokens based on their frequency in the
     generated text. Values > 1 encourage the model to use new tokens."""
 
-    length_penalty: Optional[float] = 1.0
+    length_penalty: Optional[float] = None
     """Float that penalizes sequences based on their length. Used only
     when `use_beam_search` is True."""
 
-    early_stopping: Optional[bool] = False
+    early_stopping: Optional[bool] = None
     """Controls the stopping condition for beam search. It accepts the
     following values: `True`, where the generation stops as soon as there
     are `best_of` complete candidates; `False`, where a heuristic is applied
@@ -817,8 +844,8 @@ class ChatOCIModelDeploymentVLLM(ChatOCIModelDeployment):
     """Whether to ignore the EOS token and continue generating tokens after
     the EOS token is generated."""
 
-    min_tokens: Optional[int] = 0
-    """Minimum number of tokens to generate per output sequence before 
+    min_tokens: Optional[int] = None
+    """Minimum number of tokens to generate per output sequence before
     EOS or stop_token_ids can be generated"""
 
     stop_token_ids: Optional[List[int]] = None
@@ -826,17 +853,16 @@ class ChatOCIModelDeploymentVLLM(ChatOCIModelDeployment):
     The returned output will contain the stop tokens unless the stop tokens
     are special tokens."""
 
-    skip_special_tokens: Optional[bool] = True
+    skip_special_tokens: Optional[bool] = None
     """Whether to skip special tokens in the output. Defaults to True."""
 
-    spaces_between_special_tokens: Optional[bool] = True
-    """Whether to add spaces between special tokens in the output.
-    Defaults to True."""
+    spaces_between_special_tokens: Optional[bool] = None
+    """Whether to add spaces between special tokens in the output."""
 
     tool_choice: Optional[str] = None
     """Whether to use tool calling.
     Defaults to None, tool calling is disabled.
-    Tool calling requires model support and the vLLM to be configured 
+    Tool calling requires model support and the vLLM to be configured
     with `--tool-call-parser`.
     Set this to `auto` for the model to make tool calls automatically.
     Set this to `required` to force the model to always call one or more tools.
@@ -956,9 +982,9 @@ class ChatOCIModelDeploymentTGI(ChatOCIModelDeployment):
     """Total probability mass of tokens to consider at each step."""
 
     top_logprobs: Optional[int] = None
-    """An integer between 0 and 5 specifying the number of most 
-    likely tokens to return at each token position, each with an 
-    associated log probability. logprobs must be set to true if 
+    """An integer between 0 and 5 specifying the number of most
+    likely tokens to return at each token position, each with an
+    associated log probability. logprobs must be set to true if
     this parameter is used."""
 
     @property

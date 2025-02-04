@@ -104,3 +104,81 @@ Following is an example LLM config for the OCI Generative AI service:
         },
     }
 
+Logging And Reporting
+=====================
+
+ADS offers enhanced utilities integrating with OCI to log data for debugging and analysis:
+* The ``SessionLogger`` saves events to a log file and generates report to for you to profile and debug the application.
+* The ``MetricLogger`` sends the metrics to OCI monitoring service, allowing you to build dashboards to gain more insights about the application usage.
+
+Session Logger and Report
+-------------------------
+
+To use the session logger, you need to specify a local directory or an OCI object storage location for saving the log files.
+A unique session ID will be generated for each session. Each session will be logged into one file.
+Optionally, you can specify the ``report_dir`` to generate a report at the end of each session.
+If you are using an object storage location as ``report_dir``, you can also have a pre-authenticated link generated automatically for viewing and sharing the report.
+
+.. code-block:: python3
+
+    from ads.llm.autogen.v02.loggers import SessionLogger
+
+    session_logger = SessionLogger(
+        # log_dir can be local dir or OCI object storage location in the form of oci://bucket@namespace/prefix
+        log_dir="<AUTOGEN_LOG_DIR>",
+        # Location for saving the report. Can be local path or object storage location.
+        report_dir="<AUTOGEN_REPORT_DIR>",
+        # Specify session ID if you would like to resume a previous session or use your own session ID.
+        session_id=session_id,
+        # Set report_par_uri to True when using object storage to auto-generate PAR link.
+        report_par_uri=True,
+    )
+
+    # You may get the auto-generated session id once the logger is initialized
+    print(session_logger.session_id)
+
+    # It is recommended to run your application with the context manager.
+    with session_logger:
+        # Create and run your AutoGen application
+        ...
+        
+    # Access the log file path
+    print(session_logger.log_file)
+
+    # Report file path or pre-authenticated link
+    print(session_logger.report)
+
+The session report provides a comprehensive overview of the timeline, invocations, chat interactions, and logs in HTML format. It effectively visualizes the application's flow, facilitating efficient debugging and analysis.
+
+.. figure:: figures/autogen_report.png
+  :width: 800
+
+Metric Logger
+-------------
+The agent metric logger emits agent metrics to `OCI Monitoring <https://docs.oracle.com/en-us/iaas/Content/Monitoring/Concepts/monitoringoverview.htm>`_,
+allowing you to integrate AutoGen application with OCI monitoring service to `build queries <https://docs.oracle.com/en-us/iaas/Content/Monitoring/Tasks/buildingqueries.htm>`_ and `dashboards <https://docs.oracle.com/en-us/iaas/Content/Dashboards/Concepts/dashboardsoverview.htm>`_, as well as `managing alarms <https://docs.oracle.com/en-us/iaas/Content/Monitoring/Tasks/managingalarms.htm>`_.
+
+.. code-block:: python3
+
+    from ads.llm.autogen.v02 import runtime_logging
+    from ads.llm.autogen.v02.loggers import MetricLogger
+
+    monitoring_logger = MetricLogger(
+        # Metric namespace required by OCI monitoring.
+        namespace="<MY_NAMESPACE>",
+        # Optional application name, which will be a metric dimension if specified.
+        app_name="order_support",
+        # Compartment OCID for posting the metric
+        compartment_id="<COMPARTMENT_OCID>",
+        # Optional session ID to be saved as a metric dimension.
+        session_id="<SESSION_ID>"
+        # Whether to log agent name as a metric dimension.
+        log_agent_name=False,
+        # Whether to log tool name as a metric dimension.
+        log_model_name=False,
+        # Whether to log model name as a metric dimension.
+        log_tool_name=False,
+    )
+    # Start logging metrics
+    runtime_logging.start(monitoring_logger)
+
