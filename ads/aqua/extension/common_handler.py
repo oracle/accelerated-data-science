@@ -1,24 +1,32 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
+import concurrent.futures
+import sys
+import traceback
 from importlib import metadata
 
 import huggingface_hub
+import oci
 import requests
 from huggingface_hub import HfApi
 from huggingface_hub.utils import LocalTokenNotFoundError
 from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
-from ads.aqua.common.errors import AquaResourceAccessError, AquaRuntimeError
+from ads.aqua.common.errors import (
+    AquaResourceAccessError,
+    AquaRuntimeError,
+)
 from ads.aqua.common.utils import (
     get_huggingface_login_timeout,
     known_realm,
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
+from ads.aqua.extension.models.ws_models import CompatibilityCheckResponseData
 from ads.aqua.extension.utils import ui_compatability_check
 
 
@@ -50,10 +58,42 @@ class CompatibilityCheckHandler(AquaAPIhandler):
             AquaResourceAccessError: raised when aqua is not accessible in the given session/region.
 
         """
-        if ui_compatability_check():
-            return self.finish({"status": "ok"})
-        elif known_realm():
-            return self.finish({"status": "compatible"})
+        service_compartment = None
+        response = None
+        extension_status = "compatible" if known_realm() else "incompatible"
+        try:
+            service_compartment = ui_compatability_check()
+        except (concurrent.futures.TimeoutError, oci.exceptions.ConnectTimeout) as ex:
+            response = CompatibilityCheckResponseData(
+                status=extension_status,
+                msg="If you are using custom networking in your notebook session, "
+                "please check if the subnet has service gateway configured.",
+                payload={
+                    "status_code": 408,
+                    "reason": f"{type(ex).__name__}: {str(ex)}",
+                    "exc_info": "".join(traceback.format_exception(*sys.exc_info())),
+                },
+            ).to_dict()
+        except Exception as ex:
+            response = CompatibilityCheckResponseData(
+                status=extension_status,
+                msg="Unable to load AI Quick Actions configuration. "
+                "Please check if you have set up the policies to enable the extension.",
+                payload={
+                    "status_code": 404,
+                    "reason": f"{type(ex).__name__}: {str(ex)}",
+                    "exc_info": "".join(traceback.format_exception(*sys.exc_info())),
+                },
+            ).to_dict()
+        if service_compartment:
+            response = CompatibilityCheckResponseData(
+                status="ok",
+                msg="Successfully retrieved service compartment id.",
+                payload={"ODSC_MODEL_COMPARTMENT_OCID": service_compartment},
+            ).to_dict()
+            return self.finish(response)
+        elif extension_status == "compatible" and response is not None:
+            return self.finish(response)
         else:
             raise AquaResourceAccessError(
                 "The AI Quick actions extension is not compatible in the given region."
@@ -73,7 +113,7 @@ class HFLoginHandler(AquaAPIhandler):
     """Handler to login to HF."""
 
     @handle_exceptions
-    def post(self, *args, **kwargs):
+    def post(self, *args, **kwargs):  # noqa: ARG002
         """Handles post request for the HF login.
 
         Raises

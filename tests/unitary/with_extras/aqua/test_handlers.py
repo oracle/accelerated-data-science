@@ -270,7 +270,11 @@ class TestHandlers(unittest.TestCase):
                 None,
                 None,
                 None,
-                dict(status="ok"),
+                dict(
+                    status="ok",
+                    payload={"ODSC_MODEL_COMPARTMENT_OCID": "mytemp"},
+                    msg="Successfully retrieved service compartment id.",
+                ),
                 "/aqua/hello",
             ),
             (

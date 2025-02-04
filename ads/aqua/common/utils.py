@@ -230,24 +230,33 @@ def get_artifact_path(custom_metadata_list: List) -> str:
 
 def read_file(file_path: str, **kwargs) -> str:
     try:
-        with fsspec.open(file_path, "r", **kwargs.get("auth", {})) as f:
+        with fsspec.open(
+            file_path, "r", **kwargs.get("auth", {}), **kwargs.get("config_kwargs", {})
+        ) as f:
             return f.read()
-    except Exception as e:
-        logger.debug(f"Failed to read file {file_path}. {e}")
+    except Exception as ex:
+        logger.debug(f"Failed to read file {file_path}.\n Error:{ex}")
+        if kwargs.get("raise_error", False):
+            raise ex
         return UNKNOWN
 
 
 @threaded()
 def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
     artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
-    signer = default_signer() if artifact_path.startswith("oci://") else {}
+
+    signer = (
+        kwargs.get("auth", default_signer())
+        if artifact_path.startswith("oci://")
+        else {}
+    )
     config = json.loads(
         read_file(file_path=artifact_path, auth=signer, **kwargs) or UNKNOWN_JSON_STR
     )
     if not config:
         raise AquaFileNotFoundError(
             f"Config file `{config_file_name}` is either empty or missing at {artifact_path}",
-            500,
+            404,
         )
     return config
 
@@ -604,7 +613,7 @@ def get_container_image(
     return container_image
 
 
-def fetch_service_compartment() -> Union[str, None]:
+def fetch_service_compartment(**kwargs) -> Union[str, None]:
     """
     Loads the compartment mapping json from service bucket.
     This json file has a service-model-compartment key which contains a dictionary of namespaces
@@ -618,13 +627,19 @@ def fetch_service_compartment() -> Union[str, None]:
         config = load_config(
             file_path=config_file_name,
             config_file_name=CONTAINER_INDEX,
+            **kwargs,
         )
     except Exception as e:
-        logger.debug(
+        message = (
             f"Config file {config_file_name}/{CONTAINER_INDEX} to fetch service compartment OCID "
             f"could not be found. \n{str(e)}."
         )
-        return
+        logger.debug(message)
+        if kwargs.get("raise_error", False):
+            raise e
+        else:
+            return UNKNOWN
+
     compartment_mapping = config.get(COMPARTMENT_MAPPING_KEY)
     if compartment_mapping:
         return compartment_mapping.get(CONDA_BUCKET_NS)
