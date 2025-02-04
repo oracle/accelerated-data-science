@@ -325,7 +325,7 @@ class AquaModelTokenizerConfigHandler(AquaAPIhandler):
         if (
             len(path_list) == 4
             and is_valid_ocid(path_list[2])
-            and path_list[3] == "chat_template"
+            and path_list[3] == "tokenizer"
         ):
             return self.finish(AquaModelApp().get_hf_tokenizer_config(model_id))
         else:
@@ -335,6 +335,6 @@ class AquaModelTokenizerConfigHandler(AquaAPIhandler):
 __handlers__ = [
     ("model/?([^/]*)", AquaModelHandler),
     ("model/?([^/]*)/license", AquaModelLicenseHandler),
-    ("model/?([^/]*)/chat_template", AquaModelTokenizerConfigHandler),
+    ("model/?([^/]*)/tokenizer", AquaModelTokenizerConfigHandler),
     ("model/hf/search/?([^/]*)", AquaHuggingFaceHandler),
 ]

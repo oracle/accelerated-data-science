@@ -264,7 +264,7 @@ class ModelTokenizerConfigHandlerTestCase(TestCase):
     @patch.object(AquaModelApp, "get_hf_tokenizer_config")
     @patch("ads.aqua.extension.model_handler.urlparse")
     def test_get(self, mock_urlparse, mock_get_hf_tokenizer_config):
-        request_path = MagicMock(path="aqua/model/ocid1.xx./chat_template")
+        request_path = MagicMock(path="aqua/model/ocid1.xx./tokenizer")
         mock_urlparse.return_value = request_path
         self.model_tokenizer_config_handler.get(model_id="test_model_id")
         self.model_tokenizer_config_handler.finish.assert_called_with(
