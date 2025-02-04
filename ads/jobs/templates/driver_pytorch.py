@@ -155,13 +155,18 @@ class Runner(driver_utils.JobRunner):
 
         self.node_rank = int(os.environ.get(CONST_ENV_NODE_RANK, 0))
 
+        # Read metadata file for DTv2
         self.rank_to_ip = self.read_metadata()
         if self.rank_to_ip:
+            # DTv2
             self.ip = self.rank_to_ip[self.node_rank]
             self.host_ip = self.rank_to_ip[0]
             self.is_host = self.node_rank == 0
             self.node_ip_list = list(self.rank_to_ip.values())
+            # DeepSpeed worker will check job logs to determine the public SSH key.
+            self.host_ocid = os.environ.get(CONST_ENV_JOB_RUN_OCID)
         else:
+            # DTv1
             self.ip = self.find_self_ip()
             if CONST_ENV_HOST_JOB_RUN_OCID in os.environ:
                 # Print the node IP address to logs so that it can be obtained by the host.
@@ -971,8 +976,8 @@ def main():
     runner.fetch_code().set_working_dir().setup_python_path().install_dependencies()
 
     driver_utils.OCIHelper.copy_inputs()
-
-    runner.wait_for_host_ip_address()
+    if not runner.host_ip:
+        runner.wait_for_host_ip_address()
     runner.run()
     driver_utils.OCIHelper.copy_outputs()
     logger.info("Job finished with exit code 0")
