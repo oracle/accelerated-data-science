@@ -1,14 +1,15 @@
 #!/usr/bin/env python
-
 # Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 import logging
 import sys
 import traceback
 import uuid
 
 import fire
+from pydantic import BaseModel
 
 from ads.common import logger
 
@@ -84,7 +85,13 @@ def serialize(data):
         The string representation of each dataclass object.
     """
     if isinstance(data, list):
-        [print(str(item)) for item in data]
+        for item in data:
+            if isinstance(item, BaseModel):
+                print(json.dumps(item.dict(), indent=4))
+            else:
+                print(str(item))
+    elif isinstance(data, BaseModel):
+        print(json.dumps(data.dict(), indent=4))
     else:
         print(str(data))
 
