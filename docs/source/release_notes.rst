@@ -2,6 +2,13 @@
 Release Notes
 =============
 
+2.12.11
+-------
+Release date: Feb 5th, 2024
+
+* Fixed bug while loading model configuration in AI Quick Actions.
+
+
 2.12.10
 -------
 Release date: Feb 5th, 2024
