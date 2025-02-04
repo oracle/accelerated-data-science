@@ -53,6 +53,7 @@ WAIT_SECONDS_AFTER_FINISHED = 90
 MAXIMUM_MOUNT_COUNT = 5
 FILE_STORAGE_TYPE = "FILE_STORAGE"
 OBJECT_STORAGE_TYPE = "OBJECT_STORAGE"
+DEFAULT_NODE_GROUP_NAME = "node-group"
 
 
 if hasattr(oci.data_science.models, "MultiNodeJobInfrastructureConfigurationDetails"):
@@ -510,7 +511,9 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
         keys = list(kwargs.keys())
         for key in keys:
             if key in config_swagger_types:
-                config_kwargs[key] = kwargs.pop(key)
+                val = kwargs.pop(key)
+                if val is not None:
+                    config_kwargs[key] = val
             elif key in env_config_swagger_types:
                 value = kwargs.pop(key)
                 if key in [
@@ -556,6 +559,25 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             kwargs["job_environment_configuration_override_details"] = (
                 env_config_override
             )
+
+        if getattr(self, "job_node_configuration_details", None):
+            job_config_override = kwargs.pop("job_configuration_override_details", None)
+            env_config_override = kwargs.pop(
+                "job_environment_configuration_override_details", None
+            )
+            if job_config_override or env_config_override:
+                node_config = {
+                    "jobNodeType": "MULTI_NODE",
+                    "jobNodeGroupConfigurationDetailsList": [
+                        {
+                            # Node group name must match the node group name in the job.
+                            "name": DEFAULT_NODE_GROUP_NAME,
+                            "JobConfigurationDetails": job_config_override,
+                            "JobEnvironmentConfigurationDetails": env_config_override,
+                        }
+                    ],
+                }
+                kwargs["job_node_configuration_override_details"] = node_config
 
         wait = kwargs.pop("wait", False)
         run = DataScienceJobRun(**kwargs, **self.auth).create()
@@ -1636,7 +1658,7 @@ class DataScienceJob(Infrastructure):
             network_config = models.JobDefaultNetworkConfiguration()
 
         node_group_config: dict = {
-            "name": "multi-node",
+            "name": DEFAULT_NODE_GROUP_NAME,
             "replicas": runtime.replica,
             "minimumSuccessReplicas": runtime.replica,
             "jobInfrastructureConfigurationDetails": infra_config,
@@ -1690,16 +1712,21 @@ class DataScienceJob(Infrastructure):
         self.dsc_job = DSCJob(**payload, **self.auth)
         # Set Job infra to user values after DSCJob initialized the defaults
         self._update_job_infra(self.dsc_job)
-        if (
-            MULTI_NODE_JOB_SUPPORT
-            and isinstance(runtime, MultiNodeRuntime)
-            and runtime.replica > 1
-        ):
+        if self.is_multi_node_job(runtime):
             self._config_multi_node(runtime=runtime)
         self.dsc_job.create()
         # Update the model from infra after job creation.
         self._update_from_dsc_model(self.dsc_job)
         return self
+
+    @staticmethod
+    def is_multi_node_job(runtime):
+        """Check if the job is multi-node job."""
+        return (
+            MULTI_NODE_JOB_SUPPORT
+            and isinstance(runtime, MultiNodeRuntime)
+            and runtime.replica > 1
+        )
 
     def run(
         self,
