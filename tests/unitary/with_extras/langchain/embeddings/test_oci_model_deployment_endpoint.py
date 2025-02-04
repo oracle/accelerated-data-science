@@ -6,8 +6,13 @@
 
 """Test OCI Data Science Model Deployment Endpoint."""
 
+import pytest
+import sys
 from unittest.mock import MagicMock, patch
 from ads.llm import OCIDataScienceEmbedding
+
+if sys.version_info < (3, 9):
+    pytest.skip(allow_module_level=True)
 
 
 @patch("ads.llm.OCIDataScienceEmbedding._embed_with_retry")
