@@ -29,7 +29,6 @@ from ads.aqua.common.utils import (
     LifecycleStatus,
     _build_resource_identifier,
     cleanup_local_hf_model_artifact,
-    copy_model_config,
     create_word_icon,
     generate_tei_cmd_var,
     get_artifact_path,
@@ -969,24 +968,6 @@ class AquaModelApp(AquaApp):
                 )
                 tags[Tags.LICENSE] = validation_result.tags.get(Tags.LICENSE, UNKNOWN)
 
-        try:
-            # If verified model already has a artifact json, use that.
-            artifact_path = metadata.get(MODEL_BY_REFERENCE_OSS_PATH_KEY).value
-            logger.info(
-                f"Found model artifact in the service bucket. "
-                f"Using artifact from service bucket instead of {os_path}."
-            )
-
-            # todo: implement generic copy_folder method
-            # copy model config from artifact path to user bucket
-            copy_model_config(
-                artifact_path=artifact_path, os_path=os_path, auth=default_signer()
-            )
-        except Exception:
-            logger.debug(
-                f"Proceeding with model registration without copying model config files at {os_path}. "
-                f"Default configuration will be used for deployment and fine-tuning."
-            )
         # Set artifact location to user bucket, and replace existing key if present.
         metadata.add(
             key=MODEL_BY_REFERENCE_OSS_PATH_KEY,
