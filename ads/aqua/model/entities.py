@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -283,6 +283,7 @@ class ImportModelDetails(CLIBuilderMixin):
     os_path: str
     download_from_hf: Optional[bool] = True
     local_dir: Optional[str] = None
+    cleanup_model_cache: Optional[bool] = False
     inference_container: Optional[str] = None
     finetuning_container: Optional[str] = None
     compartment_id: Optional[str] = None
@@ -293,6 +294,7 @@ class ImportModelDetails(CLIBuilderMixin):
     ignore_patterns: Optional[List[str]] = None
     freeform_tags: Optional[dict] = None
     defined_tags: Optional[dict] = None
+    ignore_model_artifact_check: Optional[bool] = None
 
     def __post_init__(self):
         self._command = "model register"
