@@ -381,6 +381,13 @@ class TestDataset:
         },
     }
 
+    model_gpu_dict = {"model_a": [2, 4], "model_b": [1, 2, 4], "model_c": [1, 2, 8]}
+    incompatible_model_gpu_dict = {
+        "model_a": [1, 2],
+        "model_b": [1, 2],
+        "model_c": [1, 2, 8],
+    }
+
 
 class TestAquaDeployment(unittest.TestCase):
     def setUp(self):
@@ -513,6 +520,32 @@ class TestAquaDeployment(unittest.TestCase):
             result.model_dump()
             == TestDataset.aqua_deployment_multi_model_config_summary
         )
+
+    def test_verify_compatibility(self):
+        result = self.app._verify_compatibility(TestDataset.model_gpu_dict)
+
+        assert result[0] == True
+        assert result[1] == 8
+        assert len(result[2]) == 3
+
+        result = self.app._verify_compatibility(
+            model_gpu_dict=TestDataset.model_gpu_dict, primary_model_id="model_b"
+        )
+
+        assert result[0] == True
+        assert result[1] == 8
+        assert len(result[2]) == 3
+
+        for item in result[2]:
+            if item.ocid == "model_b":
+                # model_b gets the maximum gpu count
+                assert item.gpu_count == 4
+
+        result = self.app._verify_compatibility(TestDataset.incompatible_model_gpu_dict)
+
+        assert result[0] == False
+        assert result[1] == 0
+        assert result[2] == []
 
     @patch("ads.aqua.modeldeployment.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")

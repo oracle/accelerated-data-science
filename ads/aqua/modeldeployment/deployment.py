@@ -805,7 +805,7 @@ class AquaDeploymentApp(AquaApp):
         tuple:
             A tuple of gpu count allocation result.
         """
-        maximum_gpu_count = max([gpus[-1] for gpus in model_gpu_dict.values()])
+        maximum_gpu_count = max([sorted(gpus)[-1] for gpus in model_gpu_dict.values()])
         model_gpu_dict_copy = copy.deepcopy(model_gpu_dict)
         if primary_model_id:
             primary_model_gpu_list = sorted(model_gpu_dict_copy.pop(primary_model_id))
