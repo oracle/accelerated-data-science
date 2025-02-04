@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -86,6 +86,21 @@ class TestAquaDeploymentHandler(unittest.TestCase):
         result = self.deployment_handler.get(id="")
         mock_error.assert_called_once()
         assert result["status"] == 400
+
+    @patch(
+        "ads.aqua.modeldeployment.AquaDeploymentApp.get_multimodel_compatible_shapes"
+    )
+    def test_get_multimodel_compatible_shapes(
+        self, mock_get_multimodel_compatible_shapes
+    ):
+        """Test get method to return multi model deployment config"""
+        self.deployment_handler.request.path = "aqua/deployments/modelconfig"
+        self.deployment_handler.get(
+            model_ids=["mock-model-id-one", "mock-model-id-two"]
+        )
+        mock_get_multimodel_compatible_shapes.assert_called_with(
+            model_ids=["mock-model-id-one", "mock-model-id-two"]
+        )
 
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get")
     def test_get_deployment(self, mock_get):

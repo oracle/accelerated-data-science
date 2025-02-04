@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
@@ -328,6 +328,59 @@ class TestDataset:
         "8080",
     ]
 
+    aqua_deployment_multi_model_config_summary = {
+        "deployment_config": {
+            "model_a": {
+                "shape": [
+                    "VM.GPU.A10.2",
+                    "VM.GPU.A10.4",
+                    "BM.GPU.A100-v2.8",
+                    "BM.GPU.H100.8",
+                ],
+                "configuration": {
+                    "VM.GPU.A10.2": {
+                        "parameters": {
+                            "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
+                        }
+                    },
+                    "VM.GPU.A10.4": {
+                        "parameters": {
+                            "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
+                        }
+                    },
+                    "BM.GPU.A100-v2.8": {
+                        "parameters": {
+                            "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
+                        }
+                    },
+                    "BM.GPU.H100.8": {
+                        "parameters": {
+                            "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
+                        }
+                    },
+                },
+            }
+        },
+        "gpu_allocation": {
+            "VM.GPU.A10.2": {
+                "models": [{"ocid": "model_a", "gpu_count": 2}],
+                "total_gpus_available": 2,
+            },
+            "VM.GPU.A10.4": {
+                "models": [{"ocid": "model_a", "gpu_count": 4}],
+                "total_gpus_available": 4,
+            },
+            "BM.GPU.A100-v2.8": {
+                "models": [{"ocid": "model_a", "gpu_count": 8}],
+                "total_gpus_available": 8,
+            },
+            "BM.GPU.H100.8": {
+                "models": [{"ocid": "model_a", "gpu_count": 8}],
+                "total_gpus_available": 8,
+            },
+        },
+    }
+
 
 class TestAquaDeployment(unittest.TestCase):
     def setUp(self):
@@ -444,6 +497,22 @@ class TestAquaDeployment(unittest.TestCase):
         self.app.get_config = MagicMock(return_value=None)
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
         assert result == None
+
+    def test_get_multimodel_compatible_shapes(self):
+        config_json = os.path.join(
+            self.curr_dir,
+            "test_data/deployment/aqua_multi_model_deployment_config.json",
+        )
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        self.app.get_deployment_config = MagicMock(return_value=config)
+        result = self.app.get_multimodel_compatible_shapes(["model_a"])
+
+        assert (
+            result.model_dump()
+            == TestDataset.aqua_deployment_multi_model_config_summary
+        )
 
     @patch("ads.aqua.modeldeployment.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")

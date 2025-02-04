@@ -5,6 +5,7 @@
 
 import asyncio
 import base64
+import itertools
 import json
 import logging
 import os
@@ -1219,3 +1220,9 @@ def build_pydantic_error_message(ex: ValidationError):
         for e in ex.errors()
         if "loc" in e and e["loc"]
     } or "; ".join(e["msg"] for e in ex.errors())
+
+
+def get_combinations(input_dict: dict):
+    """Finds all combinations within input dict."""
+    keys, values = zip(*input_dict.items())
+    return [dict(zip(keys, v)) for v in itertools.product(*values)]

@@ -1,7 +1,8 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import copy
 import logging
 import shlex
 from typing import Dict, List, Optional, Union
@@ -14,6 +15,7 @@ from ads.aqua.common.enums import (
 )
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
+    get_combinations,
     get_combined_params,
     get_container_config,
     get_container_image,
@@ -39,7 +41,12 @@ from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
 from ads.aqua.model import AquaModelApp
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
+    AquaDeploymentConfig,
     AquaDeploymentDetail,
+    AquaDeploymentModelShapeInfoSummary,
+    AquaDeploymentMultiModelConfigSummary,
+    AquaDeploymentMultiModelGPUAllocation,
+    AquaDeploymentMultiModelResponse,
 )
 from ads.aqua.ui import ModelFormat
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -655,6 +662,191 @@ class AquaDeploymentApp(AquaApp):
                 f"Deployment config for custom model: {model_id} is not available."
             )
         return config
+
+    @telemetry(
+        entry_point="plugin=deployment&action=get_multimodel_compatible_shapes",
+        name="aqua",
+    )
+    def get_multimodel_compatible_shapes(
+        self, model_ids: List[str], primary_model_id: str = None
+    ) -> AquaDeploymentMultiModelConfigSummary:
+        """Gets the deployment config of multiple Aqua models and calculate the gpu allocations for all compatible shapes.
+        If no primary Aqua model id provided, gpu count for each compatible shape will be evenly allocated.
+        If provided, gpu count for each compatible shape will be prioritized for primary model.
+
+        For example, there is one compatible shape "BM.GPU.H100.8" for three models A, B, C, and each model has a gpu count as below:
+
+        A - BM.GPU.H100.8 - 1, 2, 4, 8
+        B - BM.GPU.H100.8 - 1, 2, 4, 8
+        C - BM.GPU.H100.8 - 1, 2, 4, 8
+
+        If no primary model is provided, the gpu allocation for A, B, C could be [2, 4, 2], [2, 2, 4] or [4, 2, 2]
+        If B is the primary model, the gpu allocation is [2, 4, 2] as B always gets the maximum gpu count.
+
+        Parameters
+        ----------
+        model_ids: List[str]
+            A list of OCID of the Aqua model.
+        primary_model_id: str
+            The OCID of the primary Aqua model
+
+        Returns
+        -------
+        AquaDeploymentMultiModelSummary:
+            An instance of AquaDeploymentMultiModelSummary.
+        """
+        deployment = {}
+        model_shape_gpu = {}
+        for model_id in model_ids:
+            deployment_config = AquaDeploymentConfig(
+                **self.get_deployment_config(model_id=model_id)
+            )
+            model_shape_gpu[model_id] = {
+                shape: [
+                    item.gpu_count
+                    for item in deployment_config.configuration[
+                        shape
+                    ].multi_model_deployment
+                ]
+                for shape in deployment_config.shape
+            }
+
+            deployment.update(
+                {
+                    model_id: {
+                        "shape": deployment_config.shape,
+                        "configuration": {
+                            shape: AquaDeploymentModelShapeInfoSummary(
+                                parameters=deployment_config.configuration[
+                                    shape
+                                ].parameters
+                            )
+                            for shape in deployment_config.shape
+                        },
+                    }
+                }
+            )
+
+        common_shapes = []
+        for shape_gpu in model_shape_gpu.values():
+            if not common_shapes:
+                common_shapes = list(shape_gpu.keys())
+            else:
+                common_shapes = [
+                    shape for shape in common_shapes if shape in list(shape_gpu.keys())
+                ]
+
+        if not common_shapes:
+            raise ValueError(
+                "There are no available shapes for models selected at this moment, please select different model to deploy."
+            )
+
+        gpu_allocation = {}
+        for common_shape in common_shapes:
+            model_gpu = {
+                model: shape_gpu[common_shape]
+                for model, shape_gpu in model_shape_gpu.items()
+            }
+            is_compatible, maximum_gpu_count, combination = self._verify_compatibility(
+                model_gpu, primary_model_id
+            )
+            if is_compatible:
+                gpu_allocation[common_shape] = AquaDeploymentMultiModelResponse(
+                    models=combination, total_gpus_available=maximum_gpu_count
+                )
+
+        if not gpu_allocation:
+            raise ValueError(
+                "There are no available gpu allocations for models selected at this moment, please select different model to deploy."
+            )
+
+        return AquaDeploymentMultiModelConfigSummary(
+            deployment_config=deployment, gpu_allocation=gpu_allocation
+        )
+
+    @staticmethod
+    def _verify_compatibility(
+        model_gpu_dict: Dict, primary_model_id: str = None
+    ) -> tuple:
+        """Calculates the gpu allocations for all compatible shapes.
+        If no primary Aqua model id provided, gpu count for each compatible shape will be evenly allocated.
+        If provided, gpu count for each compatible shape will be prioritized for primary model.
+
+        For example, there is one compatible shape "BM.GPU.H100.8" for three models A, B, C, and each model has a gpu count as below:
+
+        A - BM.GPU.H100.8 - 1, 2, 4, 8
+        B - BM.GPU.H100.8 - 1, 2, 4, 8
+        C - BM.GPU.H100.8 - 1, 2, 4, 8
+
+        If no primary model is provided, the gpu allocation for A, B, C could be [2, 4, 2], [2, 2, 4] or [4, 2, 2]
+        If B is the primary model, the gpu allocation is [2, 4, 2] as B always gets the maximum gpu count.
+
+        Parameters
+        ----------
+        model_gpu_dict: Dict
+            A dict of Aqua model and its gpu counts.
+        primary_model_id: str
+            The OCID of the primary Aqua model
+
+        Returns
+        -------
+        tuple:
+            A tuple of gpu count allocation result.
+        """
+        maximum_gpu_count = max([gpus[-1] for gpus in model_gpu_dict.values()])
+        model_gpu_dict_copy = copy.deepcopy(model_gpu_dict)
+        if primary_model_id:
+            primary_model_gpu_list = sorted(model_gpu_dict_copy.pop(primary_model_id))
+            for gpu_count in reversed(primary_model_gpu_list):
+                combinations = get_combinations(model_gpu_dict_copy)
+                for combination in combinations:
+                    if (
+                        len(combination) == len(model_gpu_dict_copy)
+                        and sum(combination.values()) == maximum_gpu_count - gpu_count
+                    ):
+                        combination[primary_model_id] = gpu_count
+                        return (
+                            True,
+                            maximum_gpu_count,
+                            [
+                                AquaDeploymentMultiModelGPUAllocation(
+                                    ocid=ocid, gpu_count=gpu_count
+                                )
+                                for ocid, gpu_count in combination.items()
+                            ],
+                        )
+
+        else:
+            combinations = get_combinations(model_gpu_dict_copy)
+            minimal_difference = float("inf")  # gets the positive infinity
+            optimal_combination = []
+            for combination in combinations:
+                if (
+                    len(combination) == len(model_gpu_dict_copy)
+                    and sum(combination.values()) == maximum_gpu_count
+                ):
+                    difference = max(combination.values()) - min(combination.values())
+                    if difference < minimal_difference:
+                        minimal_difference = difference
+                        optimal_combination = combination
+
+                        # find the optimal combination, no need to continue
+                        if minimal_difference == 0:
+                            break
+
+            if optimal_combination:
+                return (
+                    True,
+                    maximum_gpu_count,
+                    [
+                        AquaDeploymentMultiModelGPUAllocation(
+                            ocid=ocid, gpu_count=gpu_count
+                        )
+                        for ocid, gpu_count in optimal_combination.items()
+                    ],
+                )
+
+        return (False, 0, [])
 
     def get_deployment_default_params(
         self,

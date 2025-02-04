@@ -1,16 +1,18 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from oci.data_science.models import (
     ModelDeployment,
     ModelDeploymentSummary,
 )
+from pydantic import Field
 
 from ads.aqua.common.enums import Tags
+from ads.aqua.config.utils.serializer import Serializable
 from ads.aqua.constants import UNKNOWN, UNKNOWN_DICT
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.serializer import DataClassSerializable
@@ -140,3 +142,66 @@ class AquaDeploymentDetail(AquaDeployment, DataClassSerializable):
 
     log_group: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
     log: AquaResourceIdentifier = field(default_factory=AquaResourceIdentifier)
+
+
+class AquaDeploymentMultiModelConfig(Serializable):
+    gpu_count: int
+    parameters: dict
+
+    class Config:
+        extra = "ignore"
+
+
+class AquaDeploymentModelShapeInfoSummary(Serializable):
+    parameters: dict
+
+    class Config:
+        extra = "ignore"
+
+
+class AquaDeploymentModelShapeInfo(AquaDeploymentModelShapeInfoSummary):
+    multi_model_deployment: Optional[List[AquaDeploymentMultiModelConfig]] = Field(
+        default_factory=list
+    )
+
+
+class AquaDeploymentConfigSummary(Serializable):
+    shape: List[str]
+    configuration: Dict[str, AquaDeploymentModelShapeInfoSummary] = Field(
+        default_factory=dict
+    )
+
+    class Config:
+        extra = "ignore"
+
+
+class AquaDeploymentConfig(AquaDeploymentConfigSummary):
+    configuration: Dict[str, AquaDeploymentModelShapeInfo] = Field(default_factory=dict)
+
+
+class AquaDeploymentMultiModelGPUAllocation(Serializable):
+    ocid: str
+    gpu_count: int
+
+    class Config:
+        extra = "ignore"
+
+
+class AquaDeploymentMultiModelResponse(Serializable):
+    models: List[AquaDeploymentMultiModelGPUAllocation] = Field(default_factory=list)
+    total_gpus_available: int
+
+    class Config:
+        extra = "ignore"
+
+
+class AquaDeploymentMultiModelConfigSummary(Serializable):
+    deployment_config: Dict[str, AquaDeploymentConfigSummary] = Field(
+        default_factory=dict
+    )
+    gpu_allocation: Dict[str, AquaDeploymentMultiModelResponse] = Field(
+        default_factory=dict
+    )
+
+    class Config:
+        extra = "ignore"

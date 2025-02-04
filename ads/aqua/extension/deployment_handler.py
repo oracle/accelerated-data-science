@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from urllib.parse import urlparse
@@ -37,7 +37,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
     """
 
     @handle_exceptions
-    def get(self, id=""):
+    def get(self, id="", model_ids=None):
         """Handle GET request."""
         url_parse = urlparse(self.request.path)
         paths = url_parse.path.strip("/")
@@ -47,6 +47,13 @@ class AquaDeploymentHandler(AquaAPIhandler):
                     400, f"The request {self.request.path} requires model id."
                 )
             return self.get_deployment_config(id)
+        elif paths.startswith("aqua/deployments/modelconfig"):
+            if not model_ids:
+                raise HTTPError(
+                    400,
+                    f"The request {self.request.path} requires a list of model ids.",
+                )
+            return self.get_multimodel_compatible_shapes(model_ids)
         elif paths.startswith("aqua/deployments"):
             if not id:
                 return self.list()
@@ -185,6 +192,15 @@ class AquaDeploymentHandler(AquaAPIhandler):
         """Gets the deployment config for Aqua model."""
         return self.finish(AquaDeploymentApp().get_deployment_config(model_id=model_id))
 
+    def get_multimodel_compatible_shapes(self, model_ids):
+        """Gets the multi model deployment config and optimal GPU allocations for Aqua models."""
+        primary_model_id = self.get_argument("primary_model_id", default=None)
+        return self.finish(
+            AquaDeploymentApp().get_multimodel_compatible_shapes(
+                model_ids=model_ids, primary_model_id=primary_model_id
+            )
+        )
+
 
 class AquaDeploymentInferenceHandler(AquaAPIhandler):
     @staticmethod
@@ -300,6 +316,7 @@ class AquaDeploymentParamsHandler(AquaAPIhandler):
 __handlers__ = [
     ("deployments/?([^/]*)/params", AquaDeploymentParamsHandler),
     ("deployments/config/?([^/]*)", AquaDeploymentHandler),
+    ("deployments/modelconfig/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)/activate", AquaDeploymentHandler),
     ("deployments/?([^/]*)/deactivate", AquaDeploymentHandler),
