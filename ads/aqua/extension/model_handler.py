@@ -133,13 +133,17 @@ class AquaModelHandler(AquaAPIhandler):
         )
         local_dir = input_data.get("local_dir")
         cleanup_model_cache = (
-            str(input_data.get("cleanup_model_cache", "true")).lower() == "true"
+            str(input_data.get("cleanup_model_cache", "false")).lower() == "true"
         )
         inference_container_uri = input_data.get("inference_container_uri")
         allow_patterns = input_data.get("allow_patterns")
         ignore_patterns = input_data.get("ignore_patterns")
         freeform_tags = input_data.get("freeform_tags")
         defined_tags = input_data.get("defined_tags")
+        ignore_model_artifact_check = (
+            str(input_data.get("ignore_model_artifact_check", "false")).lower()
+            == "true"
+        )
 
         return self.finish(
             AquaModelApp().register(
@@ -158,6 +162,7 @@ class AquaModelHandler(AquaAPIhandler):
                 ignore_patterns=ignore_patterns,
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
+                ignore_model_artifact_check=ignore_model_artifact_check,
             )
         )
 
