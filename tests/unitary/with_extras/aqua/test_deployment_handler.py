@@ -99,7 +99,7 @@ class TestAquaDeploymentHandler(unittest.TestCase):
             model_ids=["mock-model-id-one", "mock-model-id-two"]
         )
         mock_get_multimodel_compatible_shapes.assert_called_with(
-            model_ids=["mock-model-id-one", "mock-model-id-two"]
+            model_ids=["mock-model-id-one", "mock-model-id-two"], primary_model_id=None
         )
 
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get")
