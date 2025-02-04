@@ -586,7 +586,7 @@ class DeepSpeedRunner(Runner):
             if self.run_command("which microdnf", level=logging.DEBUG) == 0:
                 self.install_epel()
                 self.run_command(
-                    "sudo --preserve-env microdnf install -y openssh-server hostname sudo pdsh pdsh-rcmd-ssh libaio-devel",
+                    "sudo --preserve-env microdnf install -y openssh-server hostname pdsh pdsh-rcmd-ssh libaio-devel",
                     level=logging.DEBUG,
                     check=True,
                 )
@@ -894,7 +894,7 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
             logger.debug("%s=%s", arg, arg_val)
             if arg_val is True:
                 args.append(f"--{arg}")
-            elif arg_val:
+            elif arg_val is not None:
                 args.extend([f"--{arg}", str(arg_val)])
         # --use_deepspeed is needed for deepspeed to work on single GPU
         if self.use_deepspeed() and not self.launch_cmd_contains("use_deepspeed"):
