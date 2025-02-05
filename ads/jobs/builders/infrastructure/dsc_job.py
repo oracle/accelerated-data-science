@@ -1647,7 +1647,7 @@ class DataScienceJob(Infrastructure):
         self.dsc_job.job_configuration_details = None
         self.dsc_job.job_environment_configuration_details = None
 
-        subnet_id = infra_config.pop("subnet_id", None)
+        subnet_id = infra_config.pop("subnetId", None)
         infra_config["jobInfrastructureType"] = (
             models.MultiNodeJobInfrastructureConfigurationDetails.JOB_INFRASTRUCTURE_TYPE_MULTI_NODE
         )
