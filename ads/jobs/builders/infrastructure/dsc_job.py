@@ -1503,6 +1503,23 @@ class DataScienceJob(Infrastructure):
         }
         self.dsc_job = dsc_job
 
+        # Process multi-node infrastructure config
+        node_groups = get_value(
+            dsc_job,
+            "job_node_configuration_details.job_node_group_configuration_details_list",
+        )
+        if node_groups and len(node_groups) == 1:
+            node_group = node_groups[0]
+            dsc_job.job_infrastructure_configuration_details = (
+                node_group.job_infrastructure_configuration_details
+            )
+            subnet_id = get_value(
+                dsc_job,
+                "job_node_configuration_details.job_network_configuration.subnet_id",
+            )
+            if subnet_id:
+                self.set_spec(self.CONST_SUBNET_ID, subnet_id)
+
         for infra_attr, dsc_attr in self.payload_attribute_map.items():
             value = get_value(dsc_job, dsc_attr)
             if not value:

@@ -285,7 +285,7 @@ class RuntimeHandler:
         * _extract_artifact()
         * _extract_runtime_minutes()
         Each of these method returns a dict for specifying the runtime.
-        The dictionaries are combined before initalizing the runtime.
+        The dictionaries are combined before initializing the runtime.
         A sub-class can modify one of more of these methods.
 
         Parameters
@@ -362,7 +362,16 @@ class RuntimeHandler:
         dict
             A runtime specification dictionary for initializing a runtime.
         """
-        envs = get_value(dsc_job, "job_configuration_details.environment_variables")
+        env_attr = "job_configuration_details.environment_variables"
+        node_groups = get_value(
+            dsc_job,
+            "job_node_configuration_details.job_node_group_configuration_details_list",
+        )
+        if node_groups and len(node_groups) == 1:
+            node_group = node_groups[0]
+            envs = get_value(node_group, env_attr)
+        else:
+            envs = get_value(dsc_job, env_attr)
         if envs:
             return {Runtime.CONST_ENV_VAR: envs}
         return {}
