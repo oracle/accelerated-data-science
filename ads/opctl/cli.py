@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -173,7 +172,7 @@ _options = [
     click.option(
         "--backend",
         "-b",
-        type=click.Choice([backend.value for backend in BACKEND_NAME]),
+        type=click.Choice([backend for backend in BACKEND_NAME]),
         help="backend to run the operator",
         required=False,
         default=None,
@@ -405,7 +404,7 @@ def check(file, **kwargs):
     debug = kwargs["debug"]
     if file:
         if os.path.exists(file):
-            with open(file, "r") as f:
+            with open(file) as f:
                 config = suppress_traceback(debug)(yaml.safe_load)(f.read())
         else:
             raise FileNotFoundError(f"{file} is not found")
@@ -586,7 +585,7 @@ def deactivate(**kwargs):
 )
 @click.option(
     "--output",
-    help=f"The filename to save the resulting specification template YAML",
+    help="The filename to save the resulting specification template YAML",
     required=False,
     default=None,
 )

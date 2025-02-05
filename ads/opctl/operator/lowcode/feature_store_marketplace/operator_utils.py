@@ -1,71 +1,66 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import ast
 import base64
-from typing import Optional, List, Dict
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import oci
 import requests
-from typing import TYPE_CHECKING
 
 try:
     from kubernetes.client import (
-        V1ServiceStatus,
-        V1Service,
-        V1LoadBalancerStatus,
         V1LoadBalancerIngress,
+        V1LoadBalancerStatus,
+        V1Service,
+        V1ServiceStatus,
     )
 except ImportError:
     if TYPE_CHECKING:
         from kubernetes.client import (
-            V1ServiceStatus,
-            V1Service,
-            V1LoadBalancerStatus,
             V1LoadBalancerIngress,
+            V1LoadBalancerStatus,
+            V1Service,
+            V1ServiceStatus,
         )
 
-from oci.resource_manager.models import StackSummary, AssociatedResourceSummary
-
-from ads.opctl.operator.lowcode.feature_store_marketplace.models.apigw_config import (
-    APIGatewayConfig,
-)
-
-from ads.common.oci_client import OCIClientFactory
-from ads.opctl.operator.lowcode.feature_store_marketplace.const import (
-    LISTING_ID,
-    APIGW_STACK_NAME,
-    STACK_URL,
-    NLB_RULES_ADDRESS,
-    NODES_RULES_ADDRESS,
-)
-from ads import logger
 import click
-from ads.opctl import logger
+from oci.resource_manager.models import AssociatedResourceSummary, StackSummary
 
+from ads import logger
+from ads.common import auth as authutil
+from ads.common.oci_client import OCIClientFactory
+from ads.opctl import logger
 from ads.opctl.backend.marketplace.marketplace_utils import (
     Color,
     print_heading,
     print_ticker,
 )
-from ads.opctl.operator.lowcode.feature_store_marketplace.models.mysql_config import (
-    MySqlConfig,
+from ads.opctl.operator.lowcode.feature_store_marketplace.const import (
+    APIGW_STACK_NAME,
+    LISTING_ID,
+    NLB_RULES_ADDRESS,
+    NODES_RULES_ADDRESS,
+    STACK_URL,
 )
-
+from ads.opctl.operator.lowcode.feature_store_marketplace.models.apigw_config import (
+    APIGatewayConfig,
+)
 from ads.opctl.operator.lowcode.feature_store_marketplace.models.db_config import (
     DBConfig,
 )
-from ads.common import auth as authutil
+from ads.opctl.operator.lowcode.feature_store_marketplace.models.mysql_config import (
+    MySqlConfig,
+)
 
 
 def get_db_details() -> DBConfig:
     jdbc_url = "jdbc:mysql://{}/{}?createDatabaseIfNotExist=true"
     mysql_db_config = MySqlConfig()
     print_heading(
-        f"MySQL database configuration",
+        "MySQL database configuration",
         colors=[Color.BOLD, Color.BLUE],
         prefix_newline_count=2,
     )
@@ -76,12 +71,12 @@ def get_db_details() -> DBConfig:
             "Is password provided as plain-text or via a Vault secret?\n"
             "(https://docs.oracle.com/en-us/iaas/Content/KeyManagement/Concepts/keyoverview.htm)",
             type=click.Choice(MySqlConfig.MySQLAuthType.values()),
-            default=MySqlConfig.MySQLAuthType.BASIC.value,
+            default=MySqlConfig.MySQLAuthType.BASIC,
         )
     )
     if mysql_db_config.auth_type == MySqlConfig.MySQLAuthType.BASIC:
         basic_auth_config = MySqlConfig.BasicConfig()
-        basic_auth_config.password = click.prompt(f"Password", hide_input=True)
+        basic_auth_config.password = click.prompt("Password", hide_input=True)
         mysql_db_config.basic_config = basic_auth_config
 
     elif mysql_db_config.auth_type == MySqlConfig.MySQLAuthType.VAULT:
@@ -176,12 +171,12 @@ def detect_or_create_stack(apigw_config: APIGatewayConfig):
     ).data
 
     if len(stacks) >= 1:
-        print(f"Auto-detected feature store stack(s) in tenancy:")
+        print("Auto-detected feature store stack(s) in tenancy:")
         for stack in stacks:
             _print_stack_detail(stack)
     choices = {"1": "new", "2": "existing"}
     stack_provision_method = click.prompt(
-        f"Select stack provisioning method:\n1.Create new stack\n2.Existing stack\n",
+        "Select stack provisioning method:\n1.Create new stack\n2.Existing stack\n",
         type=click.Choice(list(choices.keys())),
         show_choices=False,
     )
@@ -240,20 +235,20 @@ def get_api_gw_details(compartment_id: str) -> APIGatewayConfig:
 
 
 def get_nlb_id_from_service(service: "V1Service", apigw_config: APIGatewayConfig):
-    status: "V1ServiceStatus" = service.status
-    lb_status: "V1LoadBalancerStatus" = status.load_balancer
-    lb_ingress: "V1LoadBalancerIngress" = lb_status.ingress[0]
+    status: V1ServiceStatus = service.status
+    lb_status: V1LoadBalancerStatus = status.load_balancer
+    lb_ingress: V1LoadBalancerIngress = lb_status.ingress[0]
     resource_client = OCIClientFactory(**authutil.default_signer()).create_client(
         oci.resource_search.ResourceSearchClient
     )
     search_details = oci.resource_search.models.FreeTextSearchDetails()
     search_details.matching_context_type = "NONE"
     search_details.text = lb_ingress.ip
-    resources: List[
-        oci.resource_search.models.ResourceSummary
-    ] = resource_client.search_resources(
-        search_details, tenant_id=apigw_config.root_compartment_id
-    ).data.items
+    resources: List[oci.resource_search.models.ResourceSummary] = (
+        resource_client.search_resources(
+            search_details, tenant_id=apigw_config.root_compartment_id
+        ).data.items
+    )
     private_ips = list(filter(lambda obj: obj.resource_type == "PrivateIp", resources))
     if len(private_ips) != 1:
         return click.prompt(
@@ -264,12 +259,12 @@ def get_nlb_id_from_service(service: "V1Service", apigw_config: APIGatewayConfig
         nlb_client = OCIClientFactory(**authutil.default_signer()).create_client(
             oci.network_load_balancer.NetworkLoadBalancerClient
         )
-        nlbs: List[
-            oci.network_load_balancer.models.NetworkLoadBalancerSummary
-        ] = nlb_client.list_network_load_balancers(
-            compartment_id=nlb_private_ip.compartment_id,
-            display_name=nlb_private_ip.display_name,
-        ).data.items
+        nlbs: List[oci.network_load_balancer.models.NetworkLoadBalancerSummary] = (
+            nlb_client.list_network_load_balancers(
+                compartment_id=nlb_private_ip.compartment_id,
+                display_name=nlb_private_ip.display_name,
+            ).data.items
+        )
         if len(nlbs) != 1:
             return click.prompt(
                 f"Please enter OCID of load balancer associated with ip: {lb_ingress.ip}"

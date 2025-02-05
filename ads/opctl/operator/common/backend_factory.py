@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -12,11 +11,6 @@ The factory validates the backend type and runtime type before creating the back
 from typing import Dict, List, Tuple, Union
 
 import yaml
-from ads.opctl.operator.common.utils import print_traceback
-
-from ads.opctl.backend.marketplace.local_marketplace import (
-    LocalMarketplaceOperatorBackend,
-)
 
 from ads.opctl import logger
 from ads.opctl.backend.ads_dataflow import DataFlowOperatorBackend
@@ -24,6 +18,9 @@ from ads.opctl.backend.ads_ml_job import MLJobOperatorBackend
 from ads.opctl.backend.base import Backend
 from ads.opctl.backend.local import (
     LocalOperatorBackend,
+)
+from ads.opctl.backend.marketplace.local_marketplace import (
+    LocalMarketplaceOperatorBackend,
 )
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
@@ -34,9 +31,10 @@ from ads.opctl.constants import (
     RESOURCE_TYPE,
     RUNTIME_TYPE,
 )
-from ads.opctl.operator.common.const import PACK_TYPE, OPERATOR_BACKEND_SECTION_NAME
+from ads.opctl.operator.common.const import OPERATOR_BACKEND_SECTION_NAME, PACK_TYPE
 from ads.opctl.operator.common.dictionary_merger import DictionaryMerger
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
+from ads.opctl.operator.common.utils import print_traceback
 
 
 class BackendFactory:
@@ -46,57 +44,57 @@ class BackendFactory:
     """
 
     BACKENDS = (
-        BACKEND_NAME.JOB.value,
-        BACKEND_NAME.DATAFLOW.value,
-        BACKEND_NAME.MARKETPLACE.value,
+        BACKEND_NAME.JOB,
+        BACKEND_NAME.DATAFLOW,
+        BACKEND_NAME.MARKETPLACE,
     )
 
     LOCAL_BACKENDS = (
-        BACKEND_NAME.OPERATOR_LOCAL.value,
-        BACKEND_NAME.LOCAL.value,
+        BACKEND_NAME.OPERATOR_LOCAL,
+        BACKEND_NAME.LOCAL,
     )
 
     BACKEND_RUNTIME_MAP = {
-        BACKEND_NAME.JOB.value.lower(): {
-            RUNTIME_TYPE.PYTHON.value.lower(): (
-                BACKEND_NAME.JOB.value.lower(),
-                RUNTIME_TYPE.PYTHON.value.lower(),
+        BACKEND_NAME.JOB.lower(): {
+            RUNTIME_TYPE.PYTHON.lower(): (
+                BACKEND_NAME.JOB.lower(),
+                RUNTIME_TYPE.PYTHON.lower(),
             ),
-            RUNTIME_TYPE.CONTAINER.value.lower(): (
-                BACKEND_NAME.JOB.value.lower(),
-                RUNTIME_TYPE.CONTAINER.value.lower(),
+            RUNTIME_TYPE.CONTAINER.lower(): (
+                BACKEND_NAME.JOB.lower(),
+                RUNTIME_TYPE.CONTAINER.lower(),
             ),
         },
-        BACKEND_NAME.DATAFLOW.value.lower(): {
-            RUNTIME_TYPE.DATAFLOW.value.lower(): (
-                BACKEND_NAME.DATAFLOW.value.lower(),
-                RUNTIME_TYPE.DATAFLOW.value.lower(),
+        BACKEND_NAME.DATAFLOW.lower(): {
+            RUNTIME_TYPE.DATAFLOW.lower(): (
+                BACKEND_NAME.DATAFLOW.lower(),
+                RUNTIME_TYPE.DATAFLOW.lower(),
             )
         },
-        BACKEND_NAME.OPERATOR_LOCAL.value.lower(): {
-            RUNTIME_TYPE.PYTHON.value.lower(): (
-                BACKEND_NAME.OPERATOR_LOCAL.value.lower(),
-                RUNTIME_TYPE.PYTHON.value.lower(),
+        BACKEND_NAME.OPERATOR_LOCAL.lower(): {
+            RUNTIME_TYPE.PYTHON.lower(): (
+                BACKEND_NAME.OPERATOR_LOCAL.lower(),
+                RUNTIME_TYPE.PYTHON.lower(),
             ),
-            RUNTIME_TYPE.CONTAINER.value.lower(): (
-                BACKEND_NAME.OPERATOR_LOCAL.value.lower(),
-                RUNTIME_TYPE.CONTAINER.value.lower(),
+            RUNTIME_TYPE.CONTAINER.lower(): (
+                BACKEND_NAME.OPERATOR_LOCAL.lower(),
+                RUNTIME_TYPE.CONTAINER.lower(),
             ),
         },
-        BACKEND_NAME.MARKETPLACE.value.lower(): {
-            RUNTIME_TYPE.PYTHON.value.lower(): (
-                BACKEND_NAME.MARKETPLACE.value.lower(),
-                RUNTIME_TYPE.PYTHON.value.lower(),
+        BACKEND_NAME.MARKETPLACE.lower(): {
+            RUNTIME_TYPE.PYTHON.lower(): (
+                BACKEND_NAME.MARKETPLACE.lower(),
+                RUNTIME_TYPE.PYTHON.lower(),
             )
         },
     }
 
     BACKEND_MAP = {
-        BACKEND_NAME.JOB.value.lower(): MLJobOperatorBackend,
-        BACKEND_NAME.DATAFLOW.value.lower(): DataFlowOperatorBackend,
-        BACKEND_NAME.OPERATOR_LOCAL.value.lower(): LocalOperatorBackend,
-        BACKEND_NAME.LOCAL.value.lower(): LocalOperatorBackend,
-        BACKEND_NAME.MARKETPLACE.value.lower(): LocalMarketplaceOperatorBackend,
+        BACKEND_NAME.JOB.lower(): MLJobOperatorBackend,
+        BACKEND_NAME.DATAFLOW.lower(): DataFlowOperatorBackend,
+        BACKEND_NAME.OPERATOR_LOCAL.lower(): LocalOperatorBackend,
+        BACKEND_NAME.LOCAL.lower(): LocalOperatorBackend,
+        BACKEND_NAME.MARKETPLACE.lower(): LocalMarketplaceOperatorBackend,
     }
 
     @classmethod
@@ -135,15 +133,15 @@ class BackendFactory:
         # validation
         if not operator_type:
             raise RuntimeError(
-                f"The `type` attribute must be specified in the operator's config."
+                "The `type` attribute must be specified in the operator's config."
             )
 
         if not backend and not config.config.get(OPERATOR_BACKEND_SECTION_NAME):
             logger.info(
-                f"Backend config is not provided, the {BACKEND_NAME.LOCAL.value} "
+                f"Backend config is not provided, the {BACKEND_NAME.LOCAL} "
                 "will be used by default. "
             )
-            backend = BACKEND_NAME.LOCAL.value
+            backend = BACKEND_NAME.LOCAL
         elif not backend:
             backend = config.config.get(OPERATOR_BACKEND_SECTION_NAME)
 
@@ -164,8 +162,8 @@ class BackendFactory:
             backend = {"kind": backend_kind}
 
         backend_kind = (
-            BACKEND_NAME.OPERATOR_LOCAL.value
-            if backend.get("kind").lower() == BACKEND_NAME.LOCAL.value
+            BACKEND_NAME.OPERATOR_LOCAL
+            if backend.get("kind").lower() == BACKEND_NAME.LOCAL
             else backend.get("kind").lower()
         )
         backend["kind"] = backend_kind
@@ -174,11 +172,11 @@ class BackendFactory:
         # This is necessary, because Jobs and DataFlow have similar kind,
         # The only difference would be in the infrastructure kind.
         # This is a temporary solution, the logic needs to be placed in the ConfigMerger instead.
-        if backend_kind == BACKEND_NAME.JOB.value:
+        if backend_kind == BACKEND_NAME.JOB:
             if (backend.get("spec", {}) or {}).get("infrastructure", {}).get(
                 "type", ""
-            ).lower() == BACKEND_NAME.DATAFLOW.value:
-                backend_kind = BACKEND_NAME.DATAFLOW.value
+            ).lower() == BACKEND_NAME.DATAFLOW:
+                backend_kind = BACKEND_NAME.DATAFLOW
 
         runtime_type = runtime_type or (
             backend.get("type")
@@ -247,17 +245,17 @@ class BackendFactory:
             If the backend type is not supported.
         """
         supported_backends = supported_backends or (cls.BACKENDS + cls.LOCAL_BACKENDS)
-        backend = (backend or BACKEND_NAME.OPERATOR_LOCAL.value).lower()
+        backend = (backend or BACKEND_NAME.OPERATOR_LOCAL).lower()
         backend_kind, runtime_type = backend, None
 
-        if backend.lower() != BACKEND_NAME.OPERATOR_LOCAL.value and "." in backend:
+        if backend.lower() != BACKEND_NAME.OPERATOR_LOCAL and "." in backend:
             backend_kind, runtime_type = backend.split(".")
         else:
             backend_kind = backend
 
         backend_kind = (
-            BACKEND_NAME.OPERATOR_LOCAL.value
-            if backend_kind == BACKEND_NAME.LOCAL.value
+            BACKEND_NAME.OPERATOR_LOCAL
+            if backend_kind == BACKEND_NAME.LOCAL
             else backend_kind
         )
 
@@ -357,7 +355,7 @@ class BackendFactory:
 
         # generate supported backend specifications templates YAML
         RUNTIME_TYPE_MAP = {
-            RESOURCE_TYPE.JOB.value: [
+            RESOURCE_TYPE.JOB: [
                 {
                     RUNTIME_TYPE.PYTHON: {
                         "conda_slug": operator_info.conda
@@ -373,7 +371,7 @@ class BackendFactory:
                     }
                 },
             ],
-            RESOURCE_TYPE.DATAFLOW.value: [
+            RESOURCE_TYPE.DATAFLOW: [
                 {
                     RUNTIME_TYPE.DATAFLOW: {
                         "conda_slug": operator_info.conda_prefix,
@@ -381,7 +379,7 @@ class BackendFactory:
                     }
                 }
             ],
-            BACKEND_NAME.OPERATOR_LOCAL.value: [
+            BACKEND_NAME.OPERATOR_LOCAL: [
                 {
                     RUNTIME_TYPE.CONTAINER: {
                         "kind": "operator",
@@ -397,7 +395,7 @@ class BackendFactory:
                     }
                 },
             ],
-            BACKEND_NAME.MARKETPLACE.value: [
+            BACKEND_NAME.MARKETPLACE: [
                 {
                     RUNTIME_TYPE.PYTHON: {
                         "kind": "marketplace",
@@ -445,11 +443,9 @@ class BackendFactory:
                     )
 
                     # generate YAML specification template
-                    result[
-                        (resource_type.lower(), runtime_type.value.lower())
-                    ] = yaml.load(
+                    result[(resource_type.lower(), runtime_type.lower())] = yaml.load(
                         _BackendFactory(p.config).backend.init(
-                            runtime_type=runtime_type.value,
+                            runtime_type=runtime_type,
                             **{**kwargs, **runtime_kwargs},
                         ),
                         Loader=yaml.FullLoader,
