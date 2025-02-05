@@ -1,6 +1,10 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+from typing import Optional
+
+from ads.aqua.config.utils.serializer import Serializable
 
 
 class ContainerSpec:
@@ -15,3 +19,13 @@ class ContainerSpec:
     ENV_VARS = "envVars"
     RESTRICTED_PARAMS = "restrictedParams"
     EVALUATION_CONFIGURATION = "evaluationConfiguration"
+
+
+class ShapeInfo(Serializable):
+    instance_shape: Optional[str] = None
+    instance_count: Optional[int] = None
+    ocpus: Optional[float] = None
+    memory_in_gbs: Optional[float] = None
+
+    class Config:
+        extra = "ignore"

@@ -66,7 +66,7 @@ from ads.aqua.constants import (
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.auth import AuthState, default_signer
 from ads.common.decorator.threaded import threaded
-from ads.common.extended_enum import ExtendedEnumMeta
+from ads.common.extended_enum import ExtendedEnum
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import copy_file, get_console_link, upload_to_os
@@ -81,7 +81,7 @@ from ads.model import DataScienceModel, ModelVersionSet
 logger = logging.getLogger("ads.aqua")
 
 
-class LifecycleStatus(str, metaclass=ExtendedEnumMeta):
+class LifecycleStatus(ExtendedEnum):
     UNKNOWN = ""
 
     @property

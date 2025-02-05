@@ -8,7 +8,6 @@ import copy
 import json
 import os
 import unittest
-from dataclasses import asdict
 from importlib import reload
 from unittest.mock import MagicMock, patch
 
@@ -35,6 +34,7 @@ null = None
 class TestDataset:
     SERVICE_COMPARTMENT_ID = "ocid1.compartment.oc1..<OCID>"
     USER_COMPARTMENT_ID = "ocid1.compartment.oc1..<USER_COMPARTMENT_OCID>"
+    USER_PROJECT_ID = "ocid1.project.oc1..<USER_PROJECT_OCID>"
     COMPARTMENT_ID = "ocid1.compartment.oc1..<UNIQUE_OCID>"
     MODEL_DEPLOYMENT_ID = "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>"
     MODEL_DEPLOYMENT_URL = "https://modeldeployment.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>"
@@ -107,7 +107,7 @@ class TestDataset:
                 }
             ),
             "model_deployment_url": MODEL_DEPLOYMENT_URL,
-            "project_id": "ocid1.datascienceproject.oc1.<region>.<OCID>",
+            "project_id": USER_PROJECT_ID,
             "time_created": "2024-01-01T00:00:00.000000+00:00",
         }
     ]
@@ -166,7 +166,7 @@ class TestDataset:
                 }
             ),
             "model_deployment_url": MODEL_DEPLOYMENT_URL,
-            "project_id": "ocid1.datascienceproject.oc1.<region>.<OCID>",
+            "project_id": USER_PROJECT_ID,
             "time_created": "2024-01-01T00:00:00.000000+00:00",
         }
     ]
@@ -238,7 +238,7 @@ class TestDataset:
                 }
             ),
             "model_deployment_url": MODEL_DEPLOYMENT_URL,
-            "project_id": "ocid1.datascienceproject.oc1.<region>.<OCID>",
+            "project_id": USER_PROJECT_ID,
             "time_created": "2024-01-01T00:00:00.000000+00:00",
         }
     ]
@@ -288,7 +288,7 @@ class TestDataset:
     }
 
     aqua_deployment_detail = {
-        **vars(AquaDeployment(**aqua_deployment_object)),
+        **(AquaDeployment(**aqua_deployment_object).to_dict()),
         "log_group": {
             "id": "ocid1.loggroup.oc1.<region>.<OCID>",
             "name": "log-group-name",
@@ -396,6 +396,7 @@ class TestAquaDeployment(unittest.TestCase):
         os.environ["CONDA_BUCKET_NS"] = "test-namespace"
         os.environ["ODSC_MODEL_COMPARTMENT_OCID"] = TestDataset.SERVICE_COMPARTMENT_ID
         os.environ["PROJECT_COMPARTMENT_OCID"] = TestDataset.USER_COMPARTMENT_ID
+        os.environ["PROJECT_OCID"] = TestDataset.USER_PROJECT_ID
         reload(ads.config)
         reload(ads.aqua)
         reload(ads.aqua.modeldeployment.deployment)
@@ -406,6 +407,7 @@ class TestAquaDeployment(unittest.TestCase):
         os.environ.pop("CONDA_BUCKET_NS", None)
         os.environ.pop("ODSC_MODEL_COMPARTMENT_OCID", None)
         os.environ.pop("PROJECT_COMPARTMENT_OCID", None)
+        os.environ.pop("PROJECT_OCID", None)
         reload(ads.config)
         reload(ads.aqua)
         reload(ads.aqua.modeldeployment.deployment)
@@ -426,7 +428,7 @@ class TestAquaDeployment(unittest.TestCase):
         assert len(results) == 1
         expected_attributes = AquaDeployment.__annotations__.keys()
         for r in results:
-            actual_attributes = asdict(r)
+            actual_attributes = r.to_dict()
             assert set(actual_attributes) == set(
                 expected_attributes
             ), "Attributes mismatch"
@@ -457,7 +459,9 @@ class TestAquaDeployment(unittest.TestCase):
         expected_attributes = set(AquaDeploymentDetail.__annotations__.keys()) | set(
             AquaDeployment.__annotations__.keys()
         )
-        actual_attributes = asdict(result)
+        actual_attributes = result.to_dict()
+        # print(actual_attributes)
+        print(TestDataset.aqua_deployment_detail)
         assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
         assert actual_attributes == TestDataset.aqua_deployment_detail
         assert result.log.name == "log-name"
@@ -604,8 +608,8 @@ class TestAquaDeployment(unittest.TestCase):
 
         mock_create.assert_called_with(
             model_id=TestDataset.MODEL_ID,
-            compartment_id=None,
-            project_id=None,
+            compartment_id=TestDataset.USER_COMPARTMENT_ID,
+            project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=freeform_tags,
             defined_tags=defined_tags,
         )
@@ -613,7 +617,7 @@ class TestAquaDeployment(unittest.TestCase):
         mock_deploy.assert_called()
 
         expected_attributes = set(AquaDeployment.__annotations__.keys())
-        actual_attributes = asdict(result)
+        actual_attributes = result.to_dict()
         assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
         expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
         expected_result["state"] = "CREATING"
@@ -678,8 +682,8 @@ class TestAquaDeployment(unittest.TestCase):
 
         mock_create.assert_called_with(
             model_id=TestDataset.MODEL_ID,
-            compartment_id=None,
-            project_id=None,
+            compartment_id=TestDataset.USER_COMPARTMENT_ID,
+            project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
             defined_tags=None,
         )
@@ -687,7 +691,7 @@ class TestAquaDeployment(unittest.TestCase):
         mock_deploy.assert_called()
 
         expected_attributes = set(AquaDeployment.__annotations__.keys())
-        actual_attributes = asdict(result)
+        actual_attributes = result.to_dict()
         assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
         expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
         expected_result["state"] = "CREATING"
@@ -754,8 +758,8 @@ class TestAquaDeployment(unittest.TestCase):
 
         mock_create.assert_called_with(
             model_id=TestDataset.MODEL_ID,
-            compartment_id=None,
-            project_id=None,
+            compartment_id=TestDataset.USER_COMPARTMENT_ID,
+            project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
             defined_tags=None,
         )
@@ -763,7 +767,7 @@ class TestAquaDeployment(unittest.TestCase):
         mock_deploy.assert_called()
 
         expected_attributes = set(AquaDeployment.__annotations__.keys())
-        actual_attributes = asdict(result)
+        actual_attributes = result.to_dict()
         assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
         expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
         expected_result["state"] = "CREATING"
@@ -833,8 +837,8 @@ class TestAquaDeployment(unittest.TestCase):
 
         mock_create.assert_called_with(
             model_id=TestDataset.MODEL_ID,
-            compartment_id=None,
-            project_id=None,
+            compartment_id=TestDataset.USER_COMPARTMENT_ID,
+            project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
             defined_tags=None,
         )
@@ -842,7 +846,7 @@ class TestAquaDeployment(unittest.TestCase):
         mock_deploy.assert_called()
 
         expected_attributes = set(AquaDeployment.__annotations__.keys())
-        actual_attributes = asdict(result)
+        actual_attributes = result.to_dict()
         assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
         expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
         expected_result["state"] = "CREATING"
