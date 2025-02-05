@@ -31,7 +31,6 @@ from ads.aqua.common.utils import (
     get_hf_model_info,
     list_os_files_with_extension,
     load_config,
-    read_file,
     upload_folder,
 )
 from ads.aqua.constants import (
@@ -41,6 +40,7 @@ from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_FILE,
     AQUA_MODEL_TYPE_CUSTOM,
     HF_METADATA_FOLDER,
+    LICENSE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     README,
     READY_TO_DEPLOY_STATUS,
@@ -50,7 +50,7 @@ from ads.aqua.constants import (
     TRINING_METRICS,
     UNKNOWN,
     VALIDATION_METRICS,
-    VALIDATION_METRICS_FINAL, LICENSE,
+    VALIDATION_METRICS_FINAL,
 )
 from ads.aqua.model.constants import (
     FineTuningCustomMetadata,
@@ -246,7 +246,9 @@ class AquaModelApp(AquaApp):
             )
             if artifact_path != UNKNOWN:
                 model_card = str(
-                    self.ds_client.get_model_defined_metadatum_artifact_content(model_id,LICENSE).data.content
+                    self.ds_client.get_model_defined_metadatum_artifact_content(
+                        model_id, LICENSE
+                    ).data.content
                 )
 
         inference_container = ds_model.custom_metadata_list.get(
@@ -683,9 +685,7 @@ class AquaModelApp(AquaApp):
                     f"Returning service models list in {ODSC_MODEL_COMPARTMENT_OCID} from cache."
                 )
                 return self._service_models_cache.get(ODSC_MODEL_COMPARTMENT_OCID)
-            logger.info(
-                f"Fetching service models."
-            )
+            logger.info("Fetching service models.")
             lifecycle_state = kwargs.pop(
                 "lifecycle_state", Model.LIFECYCLE_STATE_ACTIVE
             )
@@ -694,8 +694,6 @@ class AquaModelApp(AquaApp):
                 self.ds_client.list_models,
                 compartment_id=ODSC_MODEL_COMPARTMENT_OCID,
                 lifecycle_state=lifecycle_state,
-                # TODO: Update to constant
-                category="SERVICE",
                 **kwargs,
             )
 
@@ -1450,7 +1448,9 @@ class AquaModelApp(AquaApp):
             **self._process_model(ds_model, self.region),
             project_id=ds_model.project_id,
             model_card=str(
-                self.ds_client.get_model_defined_metadatum_artifact_content(verified_model.id,README).data.content
+                self.ds_client.get_model_defined_metadatum_artifact_content(
+                    verified_model.id, README
+                ).data.content
             ),
             inference_container=inference_container,
             inference_container_uri=inference_container_uri,
@@ -1535,7 +1535,9 @@ class AquaModelApp(AquaApp):
             raise AquaRuntimeError("Failed to get artifact path from custom metadata.")
 
         content = str(
-            self.ds_client.get_model_defined_metadatum_artifact_content(model_id,LICENSE).data.content
+            self.ds_client.get_model_defined_metadatum_artifact_content(
+                model_id, LICENSE
+            ).data.content
         )
 
         return AquaModelLicense(id=model_id, license=content)
