@@ -40,7 +40,9 @@ class TestDataset:
     MODEL_DEPLOYMENT_URL = "https://modeldeployment.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>"
     MODEL_ID = "ocid1.datasciencemodeldeployment.oc1.<region>.<MODEL_OCID>"
     DEPLOYMENT_IMAGE_NAME = "dsmc://image-name:1.0.0.0"
-    DEPLOYMENT_SHAPE_NAME = "VM.GPU.A10.1"
+    DEPLOYMENT_SHAPE_NAME = "VM.GPU.A10.4"
+    DEPLOYMENT_GPU_COUNT = 1
+    DEPLOYMENT_GPU_COUNT_B = 2
     DEPLOYMENT_SHAPE_NAME_CPU = "VM.Standard.A1.Flex"
 
     model_deployment_object = [
@@ -818,10 +820,83 @@ class TestAquaDeployment(unittest.TestCase):
         result = self.app.get_deployment_default_params(
             TestDataset.MODEL_ID, TestDataset.DEPLOYMENT_SHAPE_NAME
         )
+
         if container_params_field == "CUSTOM_PARAMS":
             assert result == []
         else:
             assert result == allowed_params
+
+
+    # @parameterized.expand(
+    #     [
+    #         (
+    #             "VLLM_PARAMS",
+    #             "odsc-vllm-serving",
+    #             1,
+    #             ["--max-model-len 4096"],
+    #             ["--max-model-len 4096"],
+    #         ),
+    #         (
+    #             "TGI_PARAMS",
+    #             "odsc-tgi-serving",
+    #             1,
+    #             [],
+    #             [],
+    #         ),
+    #         (
+    #             "CUSTOM_PARAMS",
+    #             "custom-container-key",
+    #             None,
+    #             ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
+    #             ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
+    #         ),
+    #     ]
+    # )
+    @patch("ads.model.datascience_model.DataScienceModel.from_id")
+    def test_get_deployment_default_params_multimodel(
+            self,
+            # container_params_field,
+            # container_type_key,
+            # gpu_count,
+            # params,
+            # allowed_params,
+            mock_from_id,
+        ):
+        """Test for fetching config details for a given deployment."""
+
+        config_json = os.path.join(
+            self.curr_dir, "test_data/deployment/deployment_gpu_config2.json"
+        )
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+        # update config params for testing
+        # config["configuration"][TestDataset.DEPLOYMENT_SHAPE_NAME]["multi_model_deployment"] = [{"gpu_count": gpu_count, "parameters": {container_params_field: " ".join(params)}}]
+
+        mock_model = MagicMock()
+        custom_metadata_list = ModelCustomMetadata()
+        custom_metadata_list.add(
+            **{"key": "deployment-container", "value": "odsc-vllm-serving"}
+        )
+        mock_model.custom_metadata_list = custom_metadata_list
+        mock_from_id.return_value = mock_model
+
+        self.app.get_deployment_config = MagicMock(return_value=config)
+        # result = self.app.get_deployment_default_params(
+        #     TestDataset.MODEL_ID, TestDataset.DEPLOYMENT_SHAPE_NAME, gpu_count
+        # )
+
+        result = self.app.get_deployment_default_params(
+            TestDataset.MODEL_ID, TestDataset.DEPLOYMENT_SHAPE_NAME, TestDataset.DEPLOYMENT_GPU_COUNT_B
+        )
+
+        assert result == []
+        # if container_params_field in ("CUSTOM_PARAMS", "TGI_PARAMS"):
+        #     assert result == []
+        # else:
+        #     assert result == allowed_params
+
+
+
 
     @parameterized.expand(
         [
@@ -851,6 +926,7 @@ class TestAquaDeployment(unittest.TestCase):
             ),
         ]
     )
+
     @patch("ads.model.datascience_model.DataScienceModel.from_id")
     @patch("ads.aqua.modeldeployment.deployment.get_container_config")
     def test_validate_deployment_params(

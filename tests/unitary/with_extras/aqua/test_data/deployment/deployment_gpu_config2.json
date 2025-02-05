@@ -1,0 +1,34 @@
+{
+    "shape": [
+        "VM.GPU.A10.1",
+        "VM.GPU.A10.2",
+        "BM.GPU.A10.4",
+        "BM.GPU.L40S-NC.4"
+    ],
+    "configuration": {
+        "VM.GPU.A10.2": {
+            "multi_model_deployment": [
+                {
+                    "gpu_count": 1
+                }
+            ]
+        },
+        "VM.GPU.A10.4": {
+            "multi_model_deployment": [
+                {
+                    "gpu_count": 1
+                },
+                {
+                    "gpu_count": 2
+                }
+            ]
+        },
+        "BM.GPU.L40S-NC.4": {
+            "multi_model_deployment": [
+                {
+                    "gpu_count": 2
+                }
+            ]
+        }
+    }
+}
