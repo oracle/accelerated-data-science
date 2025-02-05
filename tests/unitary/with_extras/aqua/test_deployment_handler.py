@@ -97,9 +97,7 @@ class TestAquaDeploymentHandler(unittest.TestCase):
     ):
         """Test get method to return multi model deployment config"""
         self.deployment_handler.request.path = "aqua/deployments/modelconfig"
-        self.deployment_handler.get(
-            model_ids=["mock-model-id-one", "mock-model-id-two"]
-        )
+        self.deployment_handler.get(id=["mock-model-id-one", "mock-model-id-two"])
         mock_get_multimodel_compatible_shapes.assert_called_with(
             model_ids=["mock-model-id-one", "mock-model-id-two"], primary_model_id=None
         )

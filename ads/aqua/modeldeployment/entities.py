@@ -282,27 +282,19 @@ class ConfigurationItem(Serializable):
     Attributes:
         parameters (Dict[str, str], optional): A dictionary of parameters (e.g., VLLM_PARAMS) to
             configure the behavior of a particular GPU shape.
+        multi_model_deployment (List[MultiModelConfig], optional): A list of multi model configuration details.
     """
 
     parameters: Optional[Dict[str, str]] = Field(
         default_factory=dict,
         description="Key-value pairs for GPU shape parameters (e.g., VLLM_PARAMS).",
     )
-
-    class Config:
-        extra = "ignore"
-
-
-class MultiModelConfigurationItem(ConfigurationItem):
-    """Holds a list of multi model configuration.
-
-    Attributes:
-        multi_model_deployment (List[MultiModelConfig]): A list of multi model configuration details.
-    """
-
     multi_model_deployment: Optional[List[MultiModelConfig]] = Field(
         default_factory=list, description="A list of multi model configuration details."
     )
+
+    class Config:
+        extra = "ignore"
 
 
 class ModelDeploymentConfig(Serializable):
@@ -329,10 +321,10 @@ class AquaDeploymentConfig(ModelDeploymentConfig):
 
     Attributes:
         shape (List[str]): A list of shape names (e.g., BM.GPU.A10.4).
-        configuration (Dict[str, MultiModelConfigurationItem]): Maps each shape to its configuration details.
+        configuration (Dict[str, ConfigurationItem]): Maps each shape to its configuration details.
     """
 
-    configuration: Dict[str, MultiModelConfigurationItem] = Field(
+    configuration: Dict[str, ConfigurationItem] = Field(
         default_factory=dict, description="Configuration details keyed by shape."
     )
 

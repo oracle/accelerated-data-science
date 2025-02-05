@@ -338,21 +338,65 @@ class TestDataset:
                     "BM.GPU.H100.8",
                 ],
                 "configuration": {
-                    "VM.GPU.A10.2": {"parameters": {}},
+                    "VM.GPU.A10.2": {
+                        "parameters": {},
+                        "multi_model_deployment": [
+                            {
+                                "gpu_count": 2,
+                                "parameters": {
+                                    "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
+                                },
+                            }
+                        ],
+                    },
                     "VM.GPU.A10.4": {
                         "parameters": {
                             "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
-                        }
+                        },
+                        "multi_model_deployment": [
+                            {
+                                "gpu_count": 2,
+                                "parameters": {
+                                    "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
+                                },
+                            },
+                            {"gpu_count": 4, "parameters": {}},
+                        ],
                     },
                     "BM.GPU.A100-v2.8": {
                         "parameters": {
                             "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
-                        }
+                        },
+                        "multi_model_deployment": [
+                            {
+                                "gpu_count": 1,
+                                "parameters": {
+                                    "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
+                                },
+                            },
+                            {
+                                "gpu_count": 2,
+                                "parameters": {
+                                    "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
+                                },
+                            },
+                            {
+                                "gpu_count": 8,
+                                "parameters": {
+                                    "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
+                                },
+                            },
+                        ],
                     },
                     "BM.GPU.H100.8": {
                         "parameters": {
                             "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
-                        }
+                        },
+                        "multi_model_deployment": [
+                            {"gpu_count": 1, "parameters": {}},
+                            {"gpu_count": 2, "parameters": {}},
+                            {"gpu_count": 8, "parameters": {}},
+                        ],
                     },
                 },
             }

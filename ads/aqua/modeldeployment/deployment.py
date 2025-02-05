@@ -17,7 +17,6 @@ from ads.aqua.common.enums import (
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     build_pydantic_error_message,
-    get_combinations,
     get_combined_params,
     get_container_config,
     get_container_image,
@@ -45,12 +44,12 @@ from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentConfig,
     AquaDeploymentDetail,
-    ConfigurationItem,
     CreateModelDeploymentDetails,
     GPUModelAllocation,
     GPUShapeAllocation,
     ModelDeploymentConfigSummary,
 )
+from ads.aqua.modeldeployment.utils import get_combinations
 from ads.aqua.ui import ModelFormat
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
@@ -681,11 +680,7 @@ class AquaDeploymentApp(AquaApp):
                     model_id: {
                         "shape": deployment_config.shape,
                         "configuration": {
-                            shape: ConfigurationItem(
-                                parameters=deployment_config.configuration[
-                                    shape
-                                ].parameters
-                            )
+                            shape: deployment_config.configuration[shape]
                             for shape in deployment_config.shape
                         },
                     }
