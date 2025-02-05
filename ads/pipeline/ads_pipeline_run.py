@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import copy
 import logging
@@ -10,11 +9,12 @@ from typing import List, Optional
 
 import oci
 import yaml
+
 from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
     runtime_dependency,
 )
-from ads.common.extended_enum import ExtendedEnumMeta
+from ads.common.extended_enum import ExtendedEnum
 from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.oci_logging import ConsolidatedLog, OCILog
 from ads.jobs.builders.infrastructure.base import RunInstance
@@ -56,22 +56,22 @@ ALLOWED_WAITER_KWARGS = [
 logger = logging.getLogger(__name__)
 
 
-class LogType(str, metaclass=ExtendedEnumMeta):
+class LogType(ExtendedEnum):
     CUSTOM_LOG = "custom_log"
     SERVICE_LOG = "service_log"
 
 
-class ShowMode(str, metaclass=ExtendedEnumMeta):
+class ShowMode(ExtendedEnum):
     GRAPH = "graph"
     TEXT = "text"
 
 
-class StepType(str, metaclass=ExtendedEnumMeta):
+class StepType(ExtendedEnum):
     ML_JOB = "ML_JOB"
     CUSTOM_SCRIPT = "CUSTOM_SCRIPT"
 
 
-class LogNotConfiguredError(Exception):   # pragma: no cover
+class LogNotConfiguredError(Exception):  # pragma: no cover
     pass
 
 
@@ -416,30 +416,18 @@ class PipelineRun(
                                     "stepConfigurationDetails"
                                 ] = {}
 
-                            if (
-                                override_step.step_configuration_details.maximum_runtime_in_minutes
-                            ):
+                            if override_step.step_configuration_details.maximum_runtime_in_minutes:
                                 updated_step_detail["spec"]["stepConfigurationDetails"][
                                     "maximumRuntimeInMinutes"
-                                ] = (
-                                    override_step.step_configuration_details.maximum_runtime_in_minutes
-                                )
-                            if (
-                                override_step.step_configuration_details.environment_variables
-                            ):
+                                ] = override_step.step_configuration_details.maximum_runtime_in_minutes
+                            if override_step.step_configuration_details.environment_variables:
                                 updated_step_detail["spec"]["stepConfigurationDetails"][
                                     "environmentVariables"
-                                ] = (
-                                    override_step.step_configuration_details.environment_variables
-                                )
-                            if (
-                                override_step.step_configuration_details.command_line_arguments
-                            ):
+                                ] = override_step.step_configuration_details.environment_variables
+                            if override_step.step_configuration_details.command_line_arguments:
                                 updated_step_detail["spec"]["stepConfigurationDetails"][
                                     "commandLineArguments"
-                                ] = (
-                                    override_step.step_configuration_details.command_line_arguments
-                                )
+                                ] = override_step.step_configuration_details.command_line_arguments
 
             updated_step_details.append(PipelineStep.from_dict(updated_step_detail))
         self._pipeline.with_step_details(updated_step_details)

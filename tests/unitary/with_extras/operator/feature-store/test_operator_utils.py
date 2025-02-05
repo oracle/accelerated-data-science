@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import base64
@@ -39,7 +39,7 @@ def test_get_db_basic_details(prompt_mock: Mock):
     DATABASE_NAME = "featurestore"
     expected_db_config = MySqlConfig()
     expected_db_config.username = "username"
-    expected_db_config.auth_type = MySqlConfig.MySQLAuthType.BASIC.value
+    expected_db_config.auth_type = MySqlConfig.MySQLAuthType.BASIC
     expected_db_config.basic_config = MySqlConfig.BasicConfig()
     expected_db_config.basic_config.password = "password"
     expected_db_config.url = (
@@ -69,7 +69,7 @@ def test_get_db_vault_details(prompt_mock: Mock):
     DATABASE_NAME = "featurestore"
     expected_db_config = MySqlConfig()
     expected_db_config.username = "username"
-    expected_db_config.auth_type = MySqlConfig.MySQLAuthType.VAULT.value
+    expected_db_config.auth_type = MySqlConfig.MySQLAuthType.VAULT
     expected_db_config.vault_config = MySqlConfig.VaultConfig()
     expected_db_config.vault_config.vault_ocid = "vaultocid"
     expected_db_config.vault_config.secret_name = "secretname"
