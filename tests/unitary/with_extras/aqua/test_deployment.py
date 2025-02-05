@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2025 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
@@ -338,11 +338,7 @@ class TestDataset:
                     "BM.GPU.H100.8",
                 ],
                 "configuration": {
-                    "VM.GPU.A10.2": {
-                        "parameters": {
-                            "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
-                        }
-                    },
+                    "VM.GPU.A10.2": {"parameters": {}},
                     "VM.GPU.A10.4": {
                         "parameters": {
                             "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"

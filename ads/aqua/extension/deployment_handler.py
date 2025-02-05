@@ -1,7 +1,8 @@
 #!/usr/bin/env python
-# Copyright (c) 2025 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from typing import List, Union
 from urllib.parse import urlparse
 
 from tornado.web import HTTPError
@@ -20,7 +21,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
 
     Methods
     -------
-    get(self, id="")
+    get(self, id: Union[str, List[str]])
         Retrieves a list of AQUA deployments or model info or logs by ID.
     post(self, *args, **kwargs)
         Creates a new AQUA deployment.
@@ -37,7 +38,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
     """
 
     @handle_exceptions
-    def get(self, id="", model_ids=None):
+    def get(self, id: Union[str, List[str]] = None):
         """Handle GET request."""
         url_parse = urlparse(self.request.path)
         paths = url_parse.path.strip("/")
@@ -48,12 +49,15 @@ class AquaDeploymentHandler(AquaAPIhandler):
                 )
             return self.get_deployment_config(id)
         elif paths.startswith("aqua/deployments/modelconfig"):
-            if not model_ids:
+            if isinstance(id, list):
+                return self.get_multimodel_compatible_shapes(id)
+            elif isinstance(id, str):
+                return self.get_deployment_config(id)
+            else:
                 raise HTTPError(
                     400,
-                    f"The request {self.request.path} requires a list of model ids.",
+                    f"The request {self.request.path} requires either a model id or a list of model ids.",
                 )
-            return self.get_multimodel_compatible_shapes(model_ids)
         elif paths.startswith("aqua/deployments"):
             if not id:
                 return self.list()
@@ -192,7 +196,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
         """Gets the deployment config for Aqua model."""
         return self.finish(AquaDeploymentApp().get_deployment_config(model_id=model_id))
 
-    def get_multimodel_compatible_shapes(self, model_ids):
+    def get_multimodel_compatible_shapes(self, model_ids: List[str]):
         """Gets the multi model deployment config and optimal GPU allocations for Aqua models."""
         primary_model_id = self.get_argument("primary_model_id", default=None)
         return self.finish(

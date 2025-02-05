@@ -42,10 +42,10 @@ from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentConfig,
     AquaDeploymentDetail,
-    AquaDeploymentModelShapeInfoSummary,
-    AquaDeploymentMultiModelConfigSummary,
-    AquaDeploymentMultiModelGPUAllocation,
-    AquaDeploymentMultiModelResponse,
+    ConfigurationItem,
+    GPUModelAllocation,
+    GPUShapeAllocation,
+    ModelDeploymentConfigSummary,
 )
 from ads.aqua.ui import ModelFormat
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -681,7 +681,7 @@ class AquaDeploymentApp(AquaApp):
     )
     def get_multimodel_compatible_shapes(
         self, model_ids: List[str], primary_model_id: str = None
-    ) -> AquaDeploymentMultiModelConfigSummary:
+    ) -> ModelDeploymentConfigSummary:
         """Gets the deployment config of multiple Aqua models and calculate the gpu allocations for all compatible shapes.
         If no primary Aqua model id provided, gpu count for each compatible shape will be evenly allocated.
         If provided, gpu count for each compatible shape will be prioritized for primary model.
@@ -704,8 +704,8 @@ class AquaDeploymentApp(AquaApp):
 
         Returns
         -------
-        AquaDeploymentMultiModelSummary:
-            An instance of AquaDeploymentMultiModelSummary.
+        ModelDeploymentConfigSummary:
+            An instance of ModelDeploymentConfigSummary.
         """
         deployment = {}
         model_shape_gpu = {}
@@ -728,7 +728,7 @@ class AquaDeploymentApp(AquaApp):
                     model_id: {
                         "shape": deployment_config.shape,
                         "configuration": {
-                            shape: AquaDeploymentModelShapeInfoSummary(
+                            shape: ConfigurationItem(
                                 parameters=deployment_config.configuration[
                                     shape
                                 ].parameters
@@ -763,7 +763,7 @@ class AquaDeploymentApp(AquaApp):
                 model_gpu, primary_model_id
             )
             if is_compatible:
-                gpu_allocation[common_shape] = AquaDeploymentMultiModelResponse(
+                gpu_allocation[common_shape] = GPUShapeAllocation(
                     models=combination, total_gpus_available=maximum_gpu_count
                 )
 
@@ -772,7 +772,7 @@ class AquaDeploymentApp(AquaApp):
                 "There are no available gpu allocations for models selected at this moment, please select different model to deploy."
             )
 
-        return AquaDeploymentMultiModelConfigSummary(
+        return ModelDeploymentConfigSummary(
             deployment_config=deployment, gpu_allocation=gpu_allocation
         )
 
@@ -821,9 +821,7 @@ class AquaDeploymentApp(AquaApp):
                             True,
                             maximum_gpu_count,
                             [
-                                AquaDeploymentMultiModelGPUAllocation(
-                                    ocid=ocid, gpu_count=gpu_count
-                                )
+                                GPUModelAllocation(ocid=ocid, gpu_count=gpu_count)
                                 for ocid, gpu_count in combination.items()
                             ],
                         )
@@ -851,9 +849,7 @@ class AquaDeploymentApp(AquaApp):
                     True,
                     maximum_gpu_count,
                     [
-                        AquaDeploymentMultiModelGPUAllocation(
-                            ocid=ocid, gpu_count=gpu_count
-                        )
+                        GPUModelAllocation(ocid=ocid, gpu_count=gpu_count)
                         for ocid, gpu_count in optimal_combination.items()
                     ],
                 )
