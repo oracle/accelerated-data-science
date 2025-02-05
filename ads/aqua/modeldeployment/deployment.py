@@ -749,7 +749,7 @@ class AquaDeploymentApp(AquaApp):
                 ]
 
         if not common_shapes:
-            raise ValueError(
+            raise AquaValueError(
                 "There are no available shapes for models selected at this moment, please select different model to deploy."
             )
 
@@ -768,7 +768,7 @@ class AquaDeploymentApp(AquaApp):
                 )
 
         if not gpu_allocation:
-            raise ValueError(
+            raise AquaValueError(
                 "There are no available gpu allocations for models selected at this moment, please select different model to deploy."
             )
 
