@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """Contains classes for conversion between ADS runtime and OCI Data Science Job implementation.
 This module is for ADS developers only.
@@ -19,29 +18,37 @@ import os
 import shlex
 from typing import Optional
 from urllib import parse
+
+import oci
+
 from ads.common.utils import extract_region
-from ads.jobs.builders.runtimes.base import Runtime
-from ads.jobs.builders.runtimes.python_runtime import (
-    CondaRuntime,
-    ScriptRuntime,
-    PythonRuntime,
-    NotebookRuntime,
-    GitPythonRuntime,
-)
-from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
-from ads.jobs.builders.runtimes.pytorch_runtime import (
-    PyTorchDistributedRuntime,
-    PyTorchDistributedArtifact,
-)
+from ads.jobs.builders.infrastructure.utils import get_value
 from ads.jobs.builders.runtimes.artifact import (
-    ScriptArtifact,
+    GitPythonArtifact,
     NotebookArtifact,
     PythonArtifact,
-    GitPythonArtifact,
+    ScriptArtifact,
 )
-from ads.opctl.distributed.common import cluster_config_helper
-from ads.jobs.builders.infrastructure.utils import get_value
+from ads.jobs.builders.runtimes.base import Runtime
+from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
+from ads.jobs.builders.runtimes.python_runtime import (
+    CondaRuntime,
+    GitPythonRuntime,
+    NotebookRuntime,
+    PythonRuntime,
+    ScriptRuntime,
+)
+from ads.jobs.builders.runtimes.pytorch_runtime import (
+    PyTorchDistributedArtifact,
+    PyTorchDistributedRuntime,
+)
 from ads.jobs.templates import driver_utils
+from ads.opctl.distributed.common import cluster_config_helper
+
+if hasattr(oci.data_science.models, "MultiNodeJobInfrastructureConfigurationDetails"):
+    MULTI_NODE_JOB_SUPPORT = True
+else:
+    MULTI_NODE_JOB_SUPPORT = False
 
 
 class IncompatibleRuntime(Exception):  # pragma: no cover
@@ -349,6 +356,16 @@ class RuntimeHandler:
             return {Runtime.CONST_ARGS: shlex.split(args_string)}
         return {}
 
+    def _get_node_group(self, dsc_job):
+        """Gets the node group for multi-node job with single node group."""
+        node_groups = get_value(
+            dsc_job,
+            "job_node_configuration_details.job_node_group_configuration_details_list",
+        )
+        if node_groups and len(node_groups) == 1:
+            return node_groups[0]
+        return None
+
     def _extract_envs(self, dsc_job):
         """Extract the environment variables from data science job.
 
@@ -363,12 +380,8 @@ class RuntimeHandler:
             A runtime specification dictionary for initializing a runtime.
         """
         env_attr = "job_configuration_details.environment_variables"
-        node_groups = get_value(
-            dsc_job,
-            "job_node_configuration_details.job_node_group_configuration_details_list",
-        )
-        if node_groups and len(node_groups) == 1:
-            node_group = node_groups[0]
+        node_group = self._get_node_group(dsc_job)
+        if node_group:
             envs = get_value(node_group, env_attr)
         else:
             envs = get_value(dsc_job, env_attr)
@@ -1114,8 +1127,9 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
     def _translate_env(self, runtime: PyTorchDistributedRuntime) -> dict:
         envs = super()._translate_env(runtime)
         replica = runtime.replica if runtime.replica else 1
-        # WORKER_COUNT = REPLICA - 1 so that it will be same as distributed training
-        envs[self.CONST_WORKER_COUNT] = str(replica - 1)
+        if not MULTI_NODE_JOB_SUPPORT:
+            # WORKER_COUNT = REPLICA - 1 so that it will be same as distributed training
+            envs[self.CONST_WORKER_COUNT] = str(replica - 1)
         envs[self.CONST_JOB_ENTRYPOINT] = PyTorchDistributedArtifact.CONST_DRIVER_SCRIPT
         if runtime.inputs:
             envs[driver_utils.CONST_ENV_INPUT_MAPPINGS] = json.dumps(runtime.inputs)
@@ -1140,12 +1154,15 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
     def _extract_envs(self, dsc_job) -> dict:
         spec = super()._extract_envs(dsc_job)
         envs = spec.pop(PythonRuntime.CONST_ENV_VAR, {})
-        if self.CONST_WORKER_COUNT not in envs:
+        node_group = self._get_node_group(dsc_job)
+        if node_group:
+            replica = get_value(node_group, "replicas")
+        elif self.CONST_WORKER_COUNT in envs:
+            replica = int(envs.pop(self.CONST_WORKER_COUNT)) + 1
+        else:
             raise IncompatibleRuntime()
         # Replicas
-        spec[PyTorchDistributedRuntime.CONST_REPLICA] = (
-            int(envs.pop(self.CONST_WORKER_COUNT)) + 1
-        )
+        spec[PyTorchDistributedRuntime.CONST_REPLICA] = replica
         # Git
         if cluster_config_helper.OCI__RUNTIME_URI in envs:
             git_spec = {}

@@ -37,6 +37,7 @@ from ads.common.oci_logging import OCILog
 from ads.common.oci_resource import ResourceNotFoundError
 from ads.jobs.builders.infrastructure.base import Infrastructure, RunInstance
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
+    MULTI_NODE_JOB_SUPPORT,
     ContainerRuntimeHandler,
     DataScienceJobRuntimeManager,
 )
@@ -54,12 +55,6 @@ MAXIMUM_MOUNT_COUNT = 5
 FILE_STORAGE_TYPE = "FILE_STORAGE"
 OBJECT_STORAGE_TYPE = "OBJECT_STORAGE"
 DEFAULT_NODE_GROUP_NAME = "node-group"
-
-
-if hasattr(oci.data_science.models, "MultiNodeJobInfrastructureConfigurationDetails"):
-    MULTI_NODE_JOB_SUPPORT = True
-else:
-    MULTI_NODE_JOB_SUPPORT = False
 
 
 class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
