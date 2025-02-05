@@ -313,10 +313,11 @@ class AquaApp:
                 f"Base model found for the model: {oci_model.id}. "
                 f"Loading {config_file_name} for base model {base_model_ocid}."
             )
-            base_model = self.ds_client.get_model(base_model_ocid).data
-            artifact_path = get_artifact_path(base_model.custom_metadata_list)
             if config_folder == ConfigFolder.ARTIFACT:
                 artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+            else:
+                base_model = self.ds_client.get_model(base_model_ocid).data
+                artifact_path = get_artifact_path(base_model.custom_metadata_list)
         else:
             logger.info(f"Loading {config_file_name} for model {oci_model.id}...")
             artifact_path = get_artifact_path(oci_model.custom_metadata_list)
