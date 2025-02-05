@@ -31,7 +31,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.todo",
     "sphinx.ext.extlinks",
-    "sphinx.ext.intersphinx",    
+    "sphinx.ext.intersphinx",
     "sphinx.ext.graphviz",
     "nbsphinx",
     "sphinx_code_tabs",
@@ -80,12 +80,12 @@ html_use_modindex = False
 html_use_index = False
 
 # html_css_files = [
-#     'pied-piper-admonition.css',     
+#     'pied-piper-admonition.css',
 # ]
 
 html_theme_options = {
     "light_logo": "logo-light-mode.png",
-    "dark_logo": "logo-dark-mode.png",     
+    "dark_logo": "logo-dark-mode.png",
 }
 
 
@@ -165,7 +165,10 @@ epub_exclude_files = ["search.html"]
 # -- Options for intersphinx extension ---------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {"https://docs.python.org/": None}
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3/", None),
+    "sphinx": ("https://www.sphinx-doc.org/en/master/", None),
+}
 
 # -- Options for todo extension ----------------------------------------------
 
