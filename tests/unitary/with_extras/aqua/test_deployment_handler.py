@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -31,6 +31,8 @@ class TestDataset:
         "display_name": "test-deployment-name",
         "freeform_tags": {"ftag1": "fvalue1", "ftag2": "fvalue2"},
         "defined_tags": {"dtag1": "dvalue1", "dtag2": "dvalue2"},
+        "project_id": USER_PROJECT_ID,
+        "compartment_id": USER_COMPARTMENT_ID,
     }
     inference_request = {
         "prompt": "What is 1+1?",
@@ -140,24 +142,7 @@ class TestAquaDeploymentHandler(unittest.TestCase):
             project_id=TestDataset.USER_PROJECT_ID,
             model_id=TestDataset.deployment_request["model_id"],
             display_name=TestDataset.deployment_request["display_name"],
-            description=None,
-            instance_count=None,
             instance_shape=TestDataset.deployment_request["instance_shape"],
-            log_group_id=None,
-            access_log_id=None,
-            predict_log_id=None,
-            bandwidth_mbps=None,
-            web_concurrency=None,
-            server_port=None,
-            health_check_port=None,
-            env_var=None,
-            container_family=None,
-            memory_in_gbs=None,
-            ocpus=None,
-            model_file=None,
-            private_endpoint_id=None,
-            container_image_uri=None,
-            cmd_var=None,
             freeform_tags=TestDataset.deployment_request["freeform_tags"],
             defined_tags=TestDataset.deployment_request["defined_tags"],
         )
