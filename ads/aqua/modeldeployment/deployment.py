@@ -162,16 +162,8 @@ class AquaDeploymentApp(AquaApp):
                 ) from err
 
         # set up env and cmd var
-        env_var = (
-            create_deployment_details.env_var
-            if create_deployment_details.env_var
-            else {}
-        )
-        cmd_var = (
-            create_deployment_details.cmd_var
-            if create_deployment_details.cmd_var
-            else []
-        )
+        env_var = create_deployment_details.env_var or {}
+        cmd_var = create_deployment_details.cmd_var or []
 
         try:
             model_path_prefix = aqua_model.custom_metadata_list.get(
