@@ -10,6 +10,7 @@ from oci.data_science.models import (
 )
 from pydantic import Field, model_validator
 
+from ads.aqua.common.entities import ShapeInfo
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaValueError
 from ads.aqua.config.utils.serializer import Serializable
@@ -27,18 +28,8 @@ class ModelParams(Serializable):
     model: Optional[str] = None
 
     class Config:
-        extra = "ignore"
+        extra = "allow"
         protected_namespaces = ()
-
-
-class ShapeInfo(Serializable):
-    instance_shape: Optional[str] = None
-    instance_count: Optional[int] = None
-    ocpus: Optional[float] = None
-    memory_in_gbs: Optional[float] = None
-
-    class Config:
-        extra = "ignore"
 
 
 class AquaDeployment(Serializable):
