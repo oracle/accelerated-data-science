@@ -117,7 +117,7 @@ class AquaDeploymentApp(AquaApp):
             except ValidationError as ex:
                 custom_errors = build_pydantic_error_message(ex)
                 raise AquaValueError(
-                    f"Invalid parameters for creating a model deployment. \nError details: {custom_errors}."
+                    f"Invalid parameters for creating a model deployment. Error details: {custom_errors}."
                 ) from ex
 
         # Create a model catalog entry in the user compartment
