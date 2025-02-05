@@ -285,6 +285,7 @@ class AquaApp:
         config_folder: (str, optional):
             subfolder path where config_file_name needs to be searched
              Defaults to `ConfigFolder.CONFIG`.
+             When searching inside model artifact directory , the value is ConfigFolder.ARTIFACT`
 
         Returns
         -------
