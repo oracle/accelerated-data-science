@@ -322,6 +322,8 @@ class AquaModelTokenizerConfigHandler(AquaAPIhandler):
         url_parse = urlparse(self.request.path)
         paths = url_parse.path.strip("/")
         path_list = paths.split("/")
+        # Path should be /aqua/models/ocid1.iad.ahdxxx/tokenizer
+        # path_list=['aqua','models','<model-ocid>','tokenizer']
         if (
             len(path_list) == 4
             and is_valid_ocid(path_list[2])

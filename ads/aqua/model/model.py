@@ -15,6 +15,7 @@ from oci.data_science.models import JobRun, Metadata, Model, UpdateModelDetails
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import (
+    ConfigFolder,
     CustomInferenceContainerTypeFamily,
     FineTuningContainerTypeFamily,
     InferenceContainerTypeFamily,
@@ -582,7 +583,9 @@ class AquaModelApp(AquaApp):
         str:
             Chat template string.
         """
-        config = self.get_config(model_id, AQUA_MODEL_TOKENIZER_CONFIG, "artifact")
+        config = self.get_config(
+            model_id, AQUA_MODEL_TOKENIZER_CONFIG, ConfigFolder.ARTIFACT
+        )
         if not config:
             logger.debug(f"Tokenizer config for model: {model_id} is not available.")
         return config

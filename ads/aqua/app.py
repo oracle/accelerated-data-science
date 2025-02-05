@@ -13,7 +13,7 @@ from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDet
 
 from ads import set_auth
 from ads.aqua import logger
-from ads.aqua.common.enums import Tags
+from ads.aqua.common.enums import ConfigFolder, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     _is_valid_mvs,
@@ -272,7 +272,7 @@ class AquaApp:
         self,
         model_id: str,
         config_file_name: str,
-        config_folder: Optional[str] = "config",
+        config_folder: Optional[str] = ConfigFolder.CONFIG,
     ) -> Dict:
         """Gets the config for the given Aqua model.
 
@@ -282,15 +282,16 @@ class AquaApp:
             The OCID of the Aqua model.
         config_file_name: str
             name of the config file
-        config_folder: Optional[str]
+        config_folder: (str, optional):
             subfolder path where config_file_name needs to be searched
-            default value: config
+             Defaults to `ConfigFolder.CONFIG`.
 
         Returns
         -------
         Dict:
             A dict of allowed configs.
         """
+        config_folder = config_folder or ConfigFolder.CONFIG
         oci_model = self.ds_client.get_model(model_id).data
         oci_aqua = (
             (
@@ -314,7 +315,7 @@ class AquaApp:
             )
             base_model = self.ds_client.get_model(base_model_ocid).data
             artifact_path = get_artifact_path(base_model.custom_metadata_list)
-            if config_folder == "artifact":
+            if config_folder == ConfigFolder.ARTIFACT:
                 artifact_path = get_artifact_path(oci_model.custom_metadata_list)
         else:
             logger.info(f"Loading {config_file_name} for model {oci_model.id}...")
