@@ -94,6 +94,6 @@ class TextEmbeddingInferenceContainerParams(ExtendedEnum):
     PORT = "port"
 
 
-class ConfigFolder(str, metaclass=ExtendedEnumMeta):
+class ConfigFolder(ExtendedEnum):
     CONFIG = "config"
     ARTIFACT = "artifact"
