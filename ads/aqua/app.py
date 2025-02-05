@@ -326,9 +326,9 @@ class AquaApp:
             )
             return config
 
-        config_path = f"{os.path.dirname(artifact_path)}/{config_folder}/"
+        config_path = os.path.join(os.path.dirname(artifact_path), config_folder)
         if not is_path_exists(config_path):
-            config_path = f"{artifact_path.rstrip('/')}/{config_folder}/"
+            config_path = os.path.join(artifact_path.rstrip("/"), config_folder)
             if not is_path_exists(config_path):
                 config_path = f"{artifact_path.rstrip('/')}/"
         config_file_path = f"{config_path}{config_file_name}"
