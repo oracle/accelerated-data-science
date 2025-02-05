@@ -21,7 +21,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads" # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.12.9"
+version = "2.12.11"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -75,6 +75,8 @@ dependencies = [
   "tabulate>=0.8.9",
   "tqdm>=4.59.0",
   "pydantic>=2.6.3",
+  "tenacity",
+  "httpx",
 ]
 
 [project.optional-dependencies]

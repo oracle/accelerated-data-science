@@ -4,6 +4,8 @@
 
 import json
 import os
+import time
+import traceback
 from typing import Dict
 
 from oci.data_science.models import (
@@ -147,6 +149,15 @@ class AquaFineTuningApp(AquaApp):
         ):
             raise AquaValueError(
                 f"Logging is required for fine tuning if replica is larger than {DEFAULT_FT_REPLICA}."
+            )
+
+        if create_fine_tuning_details.watch_logs and not (
+            create_fine_tuning_details.log_id
+            and create_fine_tuning_details.log_group_id
+        ):
+            raise AquaValueError(
+                "Logging is required for fine tuning if watch_logs is set to True. "
+                "Please provide log_id and log_group_id with the request parameters."
             )
 
         ft_parameters = self._get_finetuning_params(
@@ -382,12 +393,18 @@ class AquaFineTuningApp(AquaApp):
                 defined_tags=model_defined_tags,
             ),
         )
+        logger.debug(
+            f"Successfully updated model custom metadata list and freeform tags for the model {ft_model.id}."
+        )
 
         self.update_model_provenance(
             model_id=ft_model.id,
             update_model_provenance_details=UpdateModelProvenanceDetails(
                 training_id=ft_job_run.id
             ),
+        )
+        logger.debug(
+            f"Successfully updated model provenance for the model {ft_model.id}."
         )
 
         # tracks the shape and replica used for fine-tuning the service models
@@ -415,6 +432,20 @@ class AquaFineTuningApp(AquaApp):
             detail=f"{create_fine_tuning_details.shape_name}x{create_fine_tuning_details.replica}",
             value=source.display_name,
         )
+
+        if create_fine_tuning_details.watch_logs:
+            logger.info(
+                f"Watching fine-tuning job run logs for {ft_job_run.id}. Press Ctrl+C to stop watching logs.\n"
+            )
+            try:
+                ft_job_run.watch()
+            except KeyboardInterrupt:
+                logger.info(f"\nStopped watching logs for {ft_job_run.id}.\n")
+                time.sleep(1)
+            except Exception:
+                logger.debug(
+                    f"Something unexpected occurred while watching logs.\n{traceback.format_exc()}"
+                )
 
         return AquaFineTuningSummary(
             id=ft_model.id,
@@ -564,7 +595,7 @@ class AquaFineTuningApp(AquaApp):
         config = self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG)
         if not config:
             logger.debug(
-                f"Fine-tuning config for custom model: {model_id} is not available."
+                f"Fine-tuning config for custom model: {model_id} is not available. Use defaults."
             )
         return config
 

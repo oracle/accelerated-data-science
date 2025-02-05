@@ -1,18 +1,17 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-from ads.common.extended_enum import ExtendedEnumMeta
+from ads.common.extended_enum import ExtendedEnum
 
 
-class FineTuningDefinedMetadata(str, metaclass=ExtendedEnumMeta):
+class FineTuningDefinedMetadata(ExtendedEnum):
     """Represents the defined metadata keys used in Fine Tuning."""
 
     VAL_SET_SIZE = "val_set_size"
     TRAINING_DATA = "training_data"
 
 
-class FineTuningCustomMetadata(str, metaclass=ExtendedEnumMeta):
+class FineTuningCustomMetadata(ExtendedEnum):
     """Represents the custom metadata keys used in Fine Tuning."""
 
     FT_SOURCE = "fine_tune_source"

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -68,9 +68,9 @@ class TestBackendFactory:
             conda_type=PACK_TYPE.CUSTOM,
             path="/fake/path/to/operator",
             backends=[
-                BACKEND_NAME.JOB.value,
-                BACKEND_NAME.DATAFLOW.value,
-                BACKEND_NAME.OPERATOR_LOCAL.value,
+                BACKEND_NAME.JOB,
+                BACKEND_NAME.DATAFLOW,
+                BACKEND_NAME.OPERATOR_LOCAL,
             ],
         )
 

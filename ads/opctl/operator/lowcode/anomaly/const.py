@@ -1,14 +1,13 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from ads.common.extended_enum import ExtendedEnumMeta
+from ads.common.extended_enum import ExtendedEnum
 from ads.opctl.operator.lowcode.common.const import DataColumns
 
 
-class SupportedModels(str, metaclass=ExtendedEnumMeta):
+class SupportedModels(ExtendedEnum):
     """Supported anomaly models."""
 
     AutoTS = "autots"
@@ -38,7 +37,7 @@ class SupportedModels(str, metaclass=ExtendedEnumMeta):
     BOCPD = "bocpd"
 
 
-class NonTimeADSupportedModels(str, metaclass=ExtendedEnumMeta):
+class NonTimeADSupportedModels(ExtendedEnum):
     """Supported non time-based anomaly detection models."""
 
     OneClassSVM = "oneclasssvm"
@@ -48,7 +47,7 @@ class NonTimeADSupportedModels(str, metaclass=ExtendedEnumMeta):
     # DBScan = "dbscan"
 
 
-class TODSSubModels(str, metaclass=ExtendedEnumMeta):
+class TODSSubModels(ExtendedEnum):
     """Supported TODS sub models."""
 
     OCSVM = "ocsvm"
@@ -78,7 +77,7 @@ TODS_MODEL_MAP = {
 }
 
 
-class MerlionADModels(str, metaclass=ExtendedEnumMeta):
+class MerlionADModels(ExtendedEnum):
     """Supported Merlion AD sub models."""
 
     # point anomaly
@@ -126,7 +125,7 @@ MERLIONAD_MODEL_MAP = {
 }
 
 
-class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
+class SupportedMetrics(ExtendedEnum):
     UNSUPERVISED_UNIFY95 = "unsupervised_unify95"
     UNSUPERVISED_UNIFY95_LOG_LOSS = "unsupervised_unify95_log_loss"
     UNSUPERVISED_N1_EXPERTS = "unsupervised_n-1_experts"
@@ -158,7 +157,7 @@ class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
     ELAPSED_TIME = "Elapsed Time"
 
 
-class OutputColumns(str, metaclass=ExtendedEnumMeta):
+class OutputColumns(ExtendedEnum):
     ANOMALY_COL = "anomaly"
     SCORE_COL = "score"
     Series = DataColumns.Series

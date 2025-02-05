@@ -10,4 +10,5 @@ pip
 pytest
 pytest-cov
 pytest-xdist
+pytest-asyncio
 ruff
