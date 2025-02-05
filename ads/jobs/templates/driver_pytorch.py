@@ -68,6 +68,10 @@ CONST_ENV_DS_SERVICE_ENDPOINT = "OCI_DS_SERVICE_ENDPOINT"
 # DTv2 environment variables
 CONST_ENV_INITIAL_CLUSTER_SIZE = "INITIAL_CLUSTER_SIZE"
 CONST_ENV_META_FILE = "CLUSTER_NODES_METADATA_FILE"
+# DTv2 metadata variables
+CONST_IP_ADDRESS = "IPAddress"
+CONST_RANK = "Rank"
+
 
 CONST_ENCODING = "utf-8"
 
@@ -133,6 +137,8 @@ class Runner(driver_utils.JobRunner):
         super().__init__(code_dir)
         self.launch_cmd = os.environ.get(CONST_ENV_LAUNCH_CMD, "")
 
+        logger.debug(os.environ)
+
         # Node count
         if CONST_ENV_INITIAL_CLUSTER_SIZE in os.environ:
             self.node_count = int(os.environ[CONST_ENV_INITIAL_CLUSTER_SIZE])
@@ -155,14 +161,23 @@ class Runner(driver_utils.JobRunner):
 
         self.node_rank = int(os.environ.get(CONST_ENV_NODE_RANK, 0))
 
+        hostname = socket.gethostname()
+        logger.debug("Hostname: %s", hostname)
+        logger.debug(
+            "Get Host by Addr: %s", LazyEvaluate(socket.gethostbyaddr, hostname)
+        )
+        logger.debug("FQDN: %s", LazyEvaluate(socket.getfqdn, hostname))
+
         # Read metadata file for DTv2
         self.rank_to_ip = self.read_metadata()
         if self.rank_to_ip:
+            logger.debug(self.rank_to_ip)
             # DTv2
             self.ip = self.rank_to_ip[self.node_rank]
             self.host_ip = self.rank_to_ip[0]
             self.is_host = self.node_rank == 0
             self.node_ip_list = list(self.rank_to_ip.values())
+            self._set_socket_interface(self._get_interface_name())
             # DeepSpeed worker will check job logs to determine the public SSH key.
             self.host_ocid = os.environ.get(CONST_ENV_JOB_RUN_OCID)
         else:
@@ -306,12 +321,6 @@ class Runner(driver_utils.JobRunner):
         Identify IP address by finding which of the host IP intersects with the CIDR block of the subnet
         associated with the JOB_OCID
         """
-        hostname = socket.gethostname()
-        logger.debug("Hostname: %s", hostname)
-        logger.debug(
-            "Get Host by Addr: %s", LazyEvaluate(socket.gethostbyaddr, hostname)
-        )
-        logger.debug("FQDN: %s", LazyEvaluate(socket.getfqdn, hostname))
         if os.environ.get("JOB_OCID") and self.node_count > 1:
             subnet_id = DataScienceJob.from_id(os.environ["JOB_OCID"]).subnet_id
             core_client = driver_utils.OCIHelper.init_oci_client(
@@ -327,48 +336,81 @@ class Runner(driver_utils.JobRunner):
                     self_ip = ip
                     logger.info("Node IP address: %s", ip)
 
-                    # Specify the network interface for NCCL/GLOO
-                    # if "SET_SOCKET_IFNAME" is found in env var.
-                    if CONST_ENV_SET_SOCKET_IFNAME in os.environ:
-                        if os.environ[CONST_ENV_SET_SOCKET_IFNAME]:
-                            interface = os.environ[CONST_ENV_SET_SOCKET_IFNAME]
-                        # The value should be the prefix of the expected network interface name
-                        # https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-socket-ifname
-                        os.environ["GLOO_SOCKET_IFNAME"] = interface
-                        os.environ["NCCL_SOCKET_IFNAME"] = interface
-                    elif interface.startswith("ens"):
-                        # Set the env vars only if user has not set it already
-                        os.environ["GLOO_SOCKET_IFNAME"] = os.environ.get(
-                            "GLOO_SOCKET_IFNAME", "ens"
-                        )
-                        os.environ["NCCL_SOCKET_IFNAME"] = os.environ.get(
-                            "NCCL_SOCKET_IFNAME", "ens"
-                        )
+                    self._set_socket_interface(interface)
             if self_ip:
                 return self_ip
-            raise EnvironmentError("Unable to determine node IP address.")
+            raise OSError("Unable to determine node IP address.")
         else:
-            ip = socket.gethostbyname(hostname)
+            ip = socket.gethostbyname(socket.gethostname())
             logger.info("Node IP address: %s", ip)
             return ip
 
+    def _set_socket_interface(self, interface: str):
+        """Sets the socket interface environment variables,
+        NCCL_SOCKET_IFNAME and GLOO_SOCKET_IFNAME.
+
+        When `SET_SOCKET_IFNAME` is found in env var:
+        * If the value is not empty, it will be used and the `interface` argument will be ignored.
+        * If the value is empty, the `interface` argument will be used.
+
+        When `SET_SOCKET_IFNAME` is not in env var,
+        and NCCL_SOCKET_IFNAME/GLOO_SOCKET_IFNAME is not set in the env var,
+        the first 3 letter prefix of the `interface` will be set.
+        NCCL/GLOO will match the interface using prefix.
+        https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-socket-ifname
+
+        """
+        # Specify the network interface for NCCL/GLOO
+        if CONST_ENV_SET_SOCKET_IFNAME in os.environ:
+            if os.environ[CONST_ENV_SET_SOCKET_IFNAME]:
+                interface = os.environ[CONST_ENV_SET_SOCKET_IFNAME]
+        else:
+            # Set the env vars only if user has not set it already
+            interface = os.environ.get("GLOO_SOCKET_IFNAME", interface[:3])
+            interface = os.environ.get("NCCL_SOCKET_IFNAME", interface[:3])
+        logger.debug("Setting NCCL_SOCKET_IFNAME/GLOO_SOCKET_IFNAME to %s", interface)
+        os.environ["GLOO_SOCKET_IFNAME"] = interface
+        os.environ["NCCL_SOCKET_IFNAME"] = interface
+
+    def _get_interface_name(self):
+        node_interface = None
+        for interface, snics in psutil.net_if_addrs().items():
+            ip = snics[0].address
+            logger.debug("IFNAME: %s, IP: %s", interface, ip)
+            if ip == self.ip:
+                node_interface = interface
+        return node_interface
+
     def read_metadata(self):
-        if not os.environ.get(CONST_ENV_META_FILE):
+        """Reads the metadata for DTv2 to get the rank and IP address mapping."""
+        if CONST_ENV_META_FILE not in os.environ:
             return None
+        metadata_file = os.environ.get(CONST_ENV_META_FILE)
         while True:
-            if not os.path.exists(CONST_ENV_META_FILE):
-                logger.debug(
-                    "Waiting for file %s to be available...", CONST_ENV_META_FILE
-                )
+            if not os.path.exists(metadata_file):
+                logger.debug("Waiting for file %s to be available...", metadata_file)
+                time.sleep(20)
                 continue
-            with open(CONST_ENV_META_FILE, encoding=CONST_ENCODING) as f:
-                node_list = json.load(f)
-            if not len(node_list) < self.node_count:
+            logger.debug("Reading %s...", metadata_file)
+            with open(metadata_file, encoding=CONST_ENCODING) as f:
+                try:
+                    node_list = json.load(f)
+                except Exception as ex:
+                    # log the content of the file for debugging purpose.
+                    logger.debug("Error occurred when reading metadata file:")
+                    f.seek(0)
+                    logger.debug(f.read())
+                    raise ex
+
+            if len(node_list) < self.node_count:
                 logger.debug(
-                    "Waiting for nodes...%s of %s", len(node_list), self.node_count
+                    "Waiting for nodes... found %s of %s",
+                    len(node_list),
+                    self.node_count,
                 )
+                time.sleep(20)
                 continue
-            return {int(meta["Rank"]): meta["ClusterIP"] for meta in node_list}
+            return {int(meta[CONST_RANK]): meta[CONST_IP_ADDRESS] for meta in node_list}
 
     def fetch_code(self):
         """Fetches source code from Git if repo uri is specified."""
