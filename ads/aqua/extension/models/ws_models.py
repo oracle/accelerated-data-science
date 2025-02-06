@@ -1,20 +1,19 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from dataclasses import dataclass
 from typing import List, Optional
 
-from ads.aqua.evaluation.entities import AquaEvaluationSummary, AquaEvaluationDetail
-from ads.aqua.model.entities import AquaModelSummary, AquaModel
+from ads.aqua.evaluation.entities import AquaEvaluationDetail, AquaEvaluationSummary
+from ads.aqua.model.entities import AquaModel, AquaModelSummary
 from ads.aqua.modeldeployment.entities import AquaDeployment, AquaDeploymentDetail
-from ads.common.extended_enum import ExtendedEnumMeta
+from ads.common.extended_enum import ExtendedEnum
 from ads.common.serializer import DataClassSerializable
 
 
-class RequestResponseType(str, metaclass=ExtendedEnumMeta):
+class RequestResponseType(ExtendedEnum):
     ListEvaluations = "ListEvaluations"
     EvaluationDetails = "EvaluationDetails"
     ListDeployments = "ListDeployments"

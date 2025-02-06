@@ -1,9 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-from ads.common.extended_enum import ExtendedEnumMeta
+from ads.common.extended_enum import ExtendedEnum
 
 DEFAULT_SHOW_ROWS = 25
 DEFAULT_TIME_OUT = 5
@@ -12,7 +11,7 @@ DEFAULT_REPORT_FILENAME = "report.html"
 DEFAULT_TARGET_COLUMN = "target"
 
 
-class SupportedAction(str, metaclass=ExtendedEnumMeta):
+class SupportedAction(ExtendedEnum):
     """Supported action to process detected entities."""
 
     MASK = "mask"
@@ -20,19 +19,19 @@ class SupportedAction(str, metaclass=ExtendedEnumMeta):
     ANONYMIZE = "anonymize"
 
 
-class SupportedDetector(str, metaclass=ExtendedEnumMeta):
+class SupportedDetector(ExtendedEnum):
     """Supported pii detectors."""
 
     DEFAULT = "default"
     SPACY = "spacy"
 
 
-class DataFrameColumn(str, metaclass=ExtendedEnumMeta):
+class DataFrameColumn(ExtendedEnum):
     REDACTED_TEXT: str = "redacted_text"
     ENTITIES: str = "entities_cols"
 
 
-class YamlKey(str, metaclass=ExtendedEnumMeta):
+class YamlKey(ExtendedEnum):
     """Yaml key used in pii.yaml."""
 
     pass
