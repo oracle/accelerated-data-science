@@ -215,9 +215,10 @@ class AquaDeploymentParamsHandler(AquaAPIhandler):
     def get(self, model_id):
         """Handle GET request."""
         instance_shape = self.get_argument("instance_shape")
+        gpu_count = self.get_argument("gpu_count", default=None)
         return self.finish(
             AquaDeploymentApp().get_deployment_default_params(
-                model_id=model_id, instance_shape=instance_shape
+                model_id=model_id, instance_shape=instance_shape, gpu_count=gpu_count
             )
         )
 
