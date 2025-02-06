@@ -621,7 +621,10 @@ class DeepSpeedRunner(Runner):
     def install_dependencies(self):
         """Installs extra dependencies and start SSH service."""
         if self.node_count == 1:
-            logger.debug("Skipped installing extra dependencies for single node training.")
+            logger.debug(
+                "Skipped installing extra dependencies for single node training."
+            )
+            return
         # Generate SSH host keys for SSH server
 
         # Check if host keys exist
@@ -916,7 +919,7 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
     LAUNCHER = "accelerate launch"
 
     def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
-        TorchRunner.__init__(code_dir)
+        TorchRunner.__init__(self, code_dir)
         if self.use_deepspeed():
             self.deepspeed_setup()
         # For "accelerate launch", only one of the following options can be used at one time
