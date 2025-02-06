@@ -589,17 +589,22 @@ class DeepSpeedRunner(Runner):
 
     def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
         super().__init__(code_dir)
+        self.deepspeed_setup()
+
+    def deepspeed_setup(self):
+        """Setup for DeepSpeed."""
         # Create the temp dir if one does not exist.
         # This is needed for JIT
         if self.TMPDIR and not os.path.isdir(self.TMPDIR):
             logger.info("Creating temp directory: %s", self.TMPDIR)
             os.makedirs(self.TMPDIR, exist_ok=True)
-        self.update_os()
+        self.install_dependencies()
         # host_job_run is needed for DeepSpeed to fetch the public SSH key from the logs.
         if self.host_ocid and self.node_count > 1:
             self.host_job_run = DataScienceJobRun.from_ocid(self.host_ocid)
 
     def install_epel(self):
+        """Installs oracle-epel-release."""
         for ol_version in ["8", "9"]:
             if (
                 self.run_command(
@@ -613,19 +618,21 @@ class DeepSpeedRunner(Runner):
                 )
                 break
 
-    def update_os(self):
+    def install_dependencies(self):
+        """Installs extra dependencies and start SSH service."""
+        if self.node_count == 1:
+            logger.debug("Skipped installing extra dependencies for single node training.")
         # Generate SSH host keys for SSH server
-        if self.node_count > 1:
-            # Check if host keys exist
-            host_keys = glob.glob("/etc/ssh/ssh_host*")
-            if host_keys:
-                logger.debug(
-                    "Skipped SSH host key generation.\nHost keys found: %s", host_keys
-                )
-            else:
-                self.run_command("sudo ssh-keygen -A", level=logging.DEBUG, check=True)
+
+        # Check if host keys exist
+        host_keys = glob.glob("/etc/ssh/ssh_host*")
+        if host_keys:
+            logger.debug(
+                "Skipped SSH host key generation.\nHost keys found: %s", host_keys
+            )
         else:
-            logger.debug("Skipped SSH host key generation for single node training.")
+            self.run_command("sudo ssh-keygen -A", level=logging.DEBUG, check=True)
+
         if self.run_command("which pdsh", level=logging.DEBUG) != 0:
             # Install "openssh-server" to accept SSH connections
             # DeepSpeed uses "hostname -I" to determine the IP address
@@ -646,8 +653,7 @@ class DeepSpeedRunner(Runner):
                     check=True,
                 )
         # Start SSH service
-        if self.node_count > 1:
-            self.run_command("sudo /usr/sbin/sshd", level=logging.DEBUG, check=True)
+        self.run_command("sudo /usr/sbin/sshd", level=logging.DEBUG, check=True)
 
     def generate_key_pair(self):
         self.run_command(
@@ -910,7 +916,9 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
     LAUNCHER = "accelerate launch"
 
     def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
-        super().__init__(code_dir)
+        TorchRunner.__init__(code_dir)
+        if self.use_deepspeed():
+            self.deepspeed_setup()
         # For "accelerate launch", only one of the following options can be used at one time
         # `--cpu`, `--multi_gpu`, `--tpu`, `--use_deepspeed`, `--use_fsdp`.
         # When a config file is not provided,
