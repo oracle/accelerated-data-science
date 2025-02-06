@@ -625,6 +625,7 @@ class AquaDeploymentApp(AquaApp):
         self,
         model_id: str,
         instance_shape: str,
+        gpu_count: int = None,
     ) -> List[str]:
         """Gets the default params set in the deployment configs for the given model and instance shape.
 
@@ -636,6 +637,9 @@ class AquaDeploymentApp(AquaApp):
         instance_shape: (str).
             The shape of the instance used for deployment.
 
+        gpu_count: (int, optional).
+            The number of GPUs used by the Aqua model. Defaults to None.
+
         Returns
         -------
         List[str]:
@@ -644,6 +648,7 @@ class AquaDeploymentApp(AquaApp):
 
         """
         default_params = []
+        config_params = {}
         model = DataScienceModel.from_id(model_id)
         try:
             container_type_key = model.custom_metadata_list.get(
@@ -660,12 +665,31 @@ class AquaDeploymentApp(AquaApp):
             and container_type_key in InferenceContainerTypeFamily.values()
         ):
             deployment_config = self.get_deployment_config(model_id)
-            config_params = (
-                deployment_config.get("configuration", UNKNOWN_DICT)
-                .get(instance_shape, UNKNOWN_DICT)
-                .get("parameters", UNKNOWN_DICT)
-                .get(get_container_params_type(container_type_key), UNKNOWN)
-            )
+
+            instance_shape_config = deployment_config.get(
+                "configuration", UNKNOWN_DICT
+            ).get(instance_shape, UNKNOWN_DICT)
+
+            if "multi_model_deployment" in instance_shape_config and gpu_count:
+                gpu_params = (
+                    instance_shape_config
+                    .get("multi_model_deployment", UNKNOWN_DICT)
+                )
+
+                for gpu_config in gpu_params:
+                    if gpu_config["gpu_count"] == gpu_count:
+                        config_params = gpu_config.get("parameters", UNKNOWN_DICT).get(
+                            get_container_params_type(container_type_key), UNKNOWN
+                        )
+                        break
+
+            else:
+                config_params = (
+                    instance_shape_config
+                    .get("parameters", UNKNOWN_DICT)
+                    .get(get_container_params_type(container_type_key), UNKNOWN)
+                )
+
             if config_params:
                 params_list = get_params_list(config_params)
                 restricted_params_set = get_restricted_params_by_container(
