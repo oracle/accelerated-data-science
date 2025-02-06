@@ -319,9 +319,13 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
 
 class AquaModelTokenizerConfigHandler(AquaAPIhandler):
     def get(self, model_id):
-        url_parse = urlparse(self.request.path)
-        paths = url_parse.path.strip("/")
-        path_list = paths.split("/")
+        """
+        Handles requests for retrieving the Hugging Face tokenizer configuration of a specified model.
+        Expected request format: GET /aqua/models/<model-ocid>/tokenizer
+
+        """
+
+        path_list = urlparse(self.request.path).path.strip("/").split("/")
         # Path should be /aqua/models/ocid1.iad.ahdxxx/tokenizer
         # path_list=['aqua','models','<model-ocid>','tokenizer']
         if (
@@ -330,8 +334,8 @@ class AquaModelTokenizerConfigHandler(AquaAPIhandler):
             and path_list[3] == "tokenizer"
         ):
             return self.finish(AquaModelApp().get_hf_tokenizer_config(model_id))
-        else:
-            raise HTTPError(400, f"The request {self.request.path} is invalid.")
+
+        raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
 
 __handlers__ = [
