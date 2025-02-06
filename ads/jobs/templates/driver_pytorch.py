@@ -158,6 +158,7 @@ class Runner(driver_utils.JobRunner):
         self.node_ip_list = []
         self.node_runs = []
         self.host_ocid = None
+        self.host_job_run = None
 
         self.node_rank = int(os.environ.get(CONST_ENV_NODE_RANK, 0))
 
@@ -197,11 +198,9 @@ class Runner(driver_utils.JobRunner):
                 self.host_ip = self.ip
                 self.is_host = True
 
-        # host_job_run will be None for local testing.
-        if self.host_ocid and self.node_count > 1:
-            self.host_job_run = DataScienceJobRun.from_ocid(self.host_ocid)
-        else:
-            self.host_job_run = None
+            # host_job_run is needed for DTv1 to fetch the IP addresses from logs.
+            if self.host_ocid and self.node_count > 1:
+                self.host_job_run = DataScienceJobRun.from_ocid(self.host_ocid)
         self.entrypoint_env = PythonRuntimeHandler.CONST_CODE_ENTRYPOINT
 
         logger.debug("Runner initialized.")
@@ -596,6 +595,9 @@ class DeepSpeedRunner(Runner):
             logger.info("Creating temp directory: %s", self.TMPDIR)
             os.makedirs(self.TMPDIR, exist_ok=True)
         self.update_os()
+        # host_job_run is needed for DeepSpeed to fetch the public SSH key from the logs.
+        if self.host_ocid and self.node_count > 1:
+            self.host_job_run = DataScienceJobRun.from_ocid(self.host_ocid)
 
     def install_epel(self):
         for ol_version in ["8", "9"]:
@@ -818,6 +820,9 @@ class DeepSpeedRunner(Runner):
             if os.path.exists(self.ERROR_FILE):
                 logger.error("There is an error in the host job run.")
                 sys.exit(1)
+            # Check host job run only if it is not None
+            if self.host_job_run is None:
+                continue
             # Stop the node if the host job run is CANCELLED or in unexpected state.
             try:
                 self.host_job_run.sync()

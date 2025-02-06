@@ -1650,7 +1650,7 @@ class DataScienceJob(Infrastructure):
         infra_config: dict = self.dsc_job.job_infrastructure_configuration_details
         job_config: dict = self.dsc_job.job_configuration_details
         env_config = self.dsc_job.job_environment_configuration_details
-        # Fr multi-node jobs,
+        # For multi-node jobs,
         # the job_infrastructure_configuration_details and job_configuration_details
         # should be the special EMPTY class.
         # The job_environment_configuration_details should be None.
