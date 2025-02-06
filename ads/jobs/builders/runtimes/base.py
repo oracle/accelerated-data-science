@@ -284,6 +284,7 @@ class MultiNodeRuntime(Runtime):
 
     def run(self, dsc_job, **kwargs):
         """Starts the job runs"""
+        # For multi-node job, there is no need to create multiple job run.
         if getattr(dsc_job, "job_node_configuration_details", None):
             return dsc_job.run(**kwargs)
         replicas = self.replica if self.replica else 1

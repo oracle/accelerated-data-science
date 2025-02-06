@@ -1648,7 +1648,7 @@ class DataScienceJob(Infrastructure):
     def _config_multi_node(self, runtime: MultiNodeRuntime):
         """Configure the payload for multi-node job run."""
         infra_config: dict = self.dsc_job.job_infrastructure_configuration_details
-        job_config: dict = self.dsc_job.job_configuration_details
+        job_config: models.DefaultJobConfigurationDetails = self.dsc_job.job_configuration_details
         env_config = self.dsc_job.job_environment_configuration_details
         # For multi-node jobs,
         # the job_infrastructure_configuration_details and job_configuration_details

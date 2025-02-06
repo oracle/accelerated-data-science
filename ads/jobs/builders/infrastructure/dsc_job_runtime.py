@@ -84,6 +84,9 @@ class RuntimeHandler:
     # Defines the class of the runtime to be handled.
     RUNTIME_CLASS = Runtime
 
+    CONST_WORKER_COUNT = "OCI__WORKER_COUNT"
+    CONST_NODE_COUNT = "NODE_COUNT"
+
     def __init__(self, data_science_job) -> None:
         """Initialize the runtime handler.
 
@@ -365,6 +368,20 @@ class RuntimeHandler:
         if node_groups and len(node_groups) == 1:
             return node_groups[0]
         return None
+
+    def _get_replica(self, dsc_job, envs):
+        node_group = self._get_node_group(dsc_job)
+        if node_group:
+            replica = get_value(node_group, "replicas")
+        elif not envs:
+            replica = None
+        elif self.CONST_WORKER_COUNT in envs:
+            replica = int(envs.pop(self.CONST_WORKER_COUNT)) + 1
+        elif self.CONST_NODE_COUNT in envs:
+            replica = int(envs.pop(self.CONST_NODE_COUNT))
+        else:
+            replica = None
+        return replica
 
     def _extract_envs(self, dsc_job):
         """Extract the environment variables from data science job.
@@ -990,6 +1007,12 @@ class ContainerRuntimeHandler(RuntimeHandler):
         payload["job_environment_configuration_details"] = job_env_config
         return payload
 
+    def _translate_env(self, runtime):
+        envs = super()._translate_env(runtime)
+        if runtime.replica:
+            envs[self.CONST_NODE_COUNT] = str(runtime.replica)
+        return envs
+
     def _translate_artifact(self, runtime: ContainerRuntime):
         """Additional artifact for the container"""
         if runtime.artifact_uri:
@@ -1071,6 +1094,10 @@ class ContainerRuntimeHandler(RuntimeHandler):
         if envs:
             spec[ContainerRuntime.CONST_ENV_VAR] = envs
 
+        replica = self._get_replica(dsc_job=dsc_job, envs=envs)
+        if replica:
+            spec[ContainerRuntime.CONST_REPLICA] = replica
+
         return spec
 
     def _extract_properties(self, dsc_job) -> dict:
@@ -1103,7 +1130,6 @@ class ContainerRuntimeHandler(RuntimeHandler):
 
 class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
     RUNTIME_CLASS = PyTorchDistributedRuntime
-    CONST_WORKER_COUNT = "OCI__WORKER_COUNT"
     CONST_COMMAND = "OCI__LAUNCH_CMD"
     CONST_DEEPSPEED = "OCI__DEEPSPEED"
 
@@ -1127,9 +1153,7 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
     def _translate_env(self, runtime: PyTorchDistributedRuntime) -> dict:
         envs = super()._translate_env(runtime)
         replica = runtime.replica if runtime.replica else 1
-        if not MULTI_NODE_JOB_SUPPORT:
-            # WORKER_COUNT = REPLICA - 1 so that it will be same as distributed training
-            envs[self.CONST_WORKER_COUNT] = str(replica - 1)
+        envs[self.CONST_NODE_COUNT] = str(replica)
         envs[self.CONST_JOB_ENTRYPOINT] = PyTorchDistributedArtifact.CONST_DRIVER_SCRIPT
         if runtime.inputs:
             envs[driver_utils.CONST_ENV_INPUT_MAPPINGS] = json.dumps(runtime.inputs)
@@ -1154,12 +1178,9 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
     def _extract_envs(self, dsc_job) -> dict:
         spec = super()._extract_envs(dsc_job)
         envs = spec.pop(PythonRuntime.CONST_ENV_VAR, {})
-        node_group = self._get_node_group(dsc_job)
-        if node_group:
-            replica = get_value(node_group, "replicas")
-        elif self.CONST_WORKER_COUNT in envs:
-            replica = int(envs.pop(self.CONST_WORKER_COUNT)) + 1
-        else:
+        replica = self._get_replica(dsc_job, envs=envs)
+
+        if not replica:
             raise IncompatibleRuntime()
         # Replicas
         spec[PyTorchDistributedRuntime.CONST_REPLICA] = replica
