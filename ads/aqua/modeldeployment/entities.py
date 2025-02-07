@@ -10,7 +10,7 @@ from oci.data_science.models import (
 )
 from pydantic import Field, model_validator
 
-from ads.aqua.common.entities import ShapeInfo
+from ads.aqua.common.entities import ModelInfo, ShapeInfo
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaValueError
 from ads.aqua.config.utils.serializer import Serializable
@@ -139,17 +139,6 @@ class AquaDeploymentDetail(AquaDeployment, DataClassSerializable):
 
     log_group: AquaResourceIdentifier = Field(default_factory=AquaResourceIdentifier)
     log: AquaResourceIdentifier = Field(default_factory=AquaResourceIdentifier)
-
-    class Config:
-        extra = "ignore"
-
-
-class ModelInfo(Serializable):
-    """Class for maintaining details of model to be deployed, usually for multi-model deployment."""
-
-    model_id: str
-    gpu_count: Optional[int] = None
-    env_var: Optional[dict] = None
 
     class Config:
         extra = "ignore"

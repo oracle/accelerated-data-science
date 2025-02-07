@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import builtins
 import os
 import pathlib
 from datetime import datetime, timedelta
@@ -14,6 +15,7 @@ from oci.data_science.models import JobRun, Metadata, Model, UpdateModelDetails
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
+from ads.aqua.common.entities import ModelInfo
 from ads.aqua.common.enums import (
     CustomInferenceContainerTypeFamily,
     FineTuningContainerTypeFamily,
@@ -133,7 +135,7 @@ class AquaModelApp(AquaApp):
     @telemetry(entry_point="plugin=model&action=create", name="aqua")
     def create(
         self,
-        model_id: str,
+        model_id: Union[str, List[ModelInfo]],
         project_id: str,
         compartment_id: str = None,
         freeform_tags: Optional[dict] = None,
@@ -144,8 +146,8 @@ class AquaModelApp(AquaApp):
 
         Parameters
         ----------
-        model_id: str
-            The service model id.
+        model_id: Union[str, List[ModelInfo]]
+            The model id to be deployed, or a list of model ids for multi-model deployment
         project_id: str
             The project id for custom model.
         compartment_id: str
@@ -160,54 +162,194 @@ class AquaModelApp(AquaApp):
         DataScienceModel:
             The instance of DataScienceModel.
         """
-        service_model = DataScienceModel.from_id(model_id)
+
         target_project = project_id or PROJECT_OCID
         target_compartment = compartment_id or COMPARTMENT_OCID
 
-        if service_model.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
-            logger.info(
-                f"Aqua Model {model_id} already exists in user's compartment."
-                "Skipped copying."
+        if isinstance(model_id, builtins.list):
+            return self._create_multimodel_group(
+                model_info=model_id,
+                project_id=target_project,
+                compartment_id=target_compartment,
+                freeform_tags=freeform_tags,
+                defined_tags=defined_tags,
             )
-            return service_model
+        else:
+            service_model = DataScienceModel.from_id(model_id)
 
-        # combine tags
-        combined_freeform_tags = {
-            **(service_model.freeform_tags or {}),
-            **(freeform_tags or {}),
-        }
-        combined_defined_tags = {
-            **(service_model.defined_tags or {}),
-            **(defined_tags or {}),
-        }
+            if service_model.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
+                logger.info(
+                    f"Aqua Model {model_id} already exists in user's compartment."
+                    "Skipped copying."
+                )
+                return service_model
 
-        custom_model = (
-            DataScienceModel()
-            .with_compartment_id(target_compartment)
-            .with_project_id(target_project)
-            .with_model_file_description(json_dict=service_model.model_file_description)
-            .with_display_name(service_model.display_name)
-            .with_description(service_model.description)
-            .with_freeform_tags(**combined_freeform_tags)
-            .with_defined_tags(**combined_defined_tags)
-            .with_custom_metadata_list(service_model.custom_metadata_list)
-            .with_defined_metadata_list(service_model.defined_metadata_list)
-            .with_provenance_metadata(service_model.provenance_metadata)
-            # TODO: decide what kwargs will be needed.
-            .create(model_by_reference=True, **kwargs)
+            # combine tags
+            combined_freeform_tags = {
+                **(service_model.freeform_tags or {}),
+                **(freeform_tags or {}),
+            }
+            combined_defined_tags = {
+                **(service_model.defined_tags or {}),
+                **(defined_tags or {}),
+            }
+
+            custom_model = (
+                DataScienceModel()
+                .with_compartment_id(target_compartment)
+                .with_project_id(target_project)
+                .with_model_file_description(
+                    json_dict=service_model.model_file_description
+                )
+                .with_display_name(service_model.display_name)
+                .with_description(service_model.description)
+                .with_freeform_tags(**combined_freeform_tags)
+                .with_defined_tags(**combined_defined_tags)
+                .with_custom_metadata_list(service_model.custom_metadata_list)
+                .with_defined_metadata_list(service_model.defined_metadata_list)
+                .with_provenance_metadata(service_model.provenance_metadata)
+                # TODO: decide what kwargs will be needed.
+                .create(model_by_reference=True, **kwargs)
+            )
+            logger.info(
+                f"Aqua Model {custom_model.id} created with the service model {model_id}."
+            )
+
+            # tracks unique models that were created in the user compartment
+            self.telemetry.record_event_async(
+                category="aqua/service/model",
+                action="create",
+                detail=service_model.display_name,
+            )
+
+            return custom_model
+
+    def _create_multimodel_group(
+        self,
+        model_info: List[ModelInfo],
+        project_id: str,
+        compartment_id: str = None,
+        freeform_tags: Optional[dict] = None,
+        defined_tags: Optional[dict] = None,
+    ) -> DataScienceModel:
+        """
+        Create a multimodel grouping using the model list.
+        Parameters
+        ----------
+        model_info: List[ModelInfo]
+            List of model ids for creating a multimodel group.
+        project_id: str
+            The project id for multimodel group.
+        compartment_id: str
+            The compartment id for multimodel group.
+        freeform_tags: dict
+            Freeform tags for the model
+        defined_tags: dict
+            Defined tags for the model
+
+        Returns
+        -------
+        DataScienceModel
+            Instance of DataScienceModel object
+
+        """
+        artifact_list = []
+        display_name_list = []
+        default_deployment_container = None
+        model_info_dict = {"models": []}
+        model_custom_metadata = ModelCustomMetadata()
+
+        # gather individual model details for grouping
+        for model_idx, model in enumerate(model_info):
+            source_model = DataScienceModel.from_id(model.model_id)
+            display_name_list.append(source_model.display_name)
+
+            model_artifact_path = source_model.artifact
+            if not model_artifact_path:
+                raise AquaValueError(
+                    f"The selected model {source_model.display_name} does not have "
+                    f"any artifacts associated with it. Please register the model first before "
+                    f"continuing to group the model."
+                )
+            artifact_list.append(model_artifact_path)
+
+            model_info_dict["models"].append(model.to_json())
+            deployment_container = source_model.custom_metadata_list.get(
+                ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
+                ModelCustomMetadataItem(
+                    key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER
+                ),
+            ).value
+            if model_idx == 0:
+                default_deployment_container = deployment_container
+            elif deployment_container != default_deployment_container:
+                # todo: replace this error with a logger statement once we verify that the models with default
+                #   as TGI works with the vLLM container.
+                raise AquaValueError(
+                    "Unable to proceed with deployment. "
+                    "Deployment container for the models selected should be the same."
+                )
+
+            model_custom_metadata.add(
+                key=f"model-id-{model_idx}",
+                value=source_model.id,
+                description=f"Model id for {source_model.display_name} model in the multimodel group.",
+                category="Other",
+            )
+
+        model_group_display_name = f"model_group_{datetime.now().strftime('%Y%m%d')}"
+        combined_models = ", ".join(display_name_list)
+        model_group_description = (
+            f"Model grouping creating using {combined_models} models."
         )
+
+        model_custom_metadata.add(
+            key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
+            value=default_deployment_container,
+            description=f"Inference container mapping for {model_group_display_name}",
+            category="Other",
+        )
+        model_custom_metadata.add(
+            key=ModelCustomMetadataFields.MULTIMODEL_COUNT,
+            value=str(len(model_info)),
+            description="Count of models grouped to create the multimodel catalog entry.",
+            category="Other",
+        )
+
+        tags = {
+            Tags.AQUA_TAG: "active",
+            Tags.MULTIMODEL_TYPE_TAG: "true",
+        }
+
+        tags = {**tags, **(freeform_tags or {})}
+
+        multi_model_group = (
+            DataScienceModel()
+            .with_compartment_id(compartment_id)
+            .with_project_id(project_id)
+            .with_display_name(model_group_display_name)
+            .with_description(model_group_description)
+            .with_freeform_tags(**tags)
+            .with_defined_tags(**(defined_tags or {}))
+            .with_custom_metadata_list(model_custom_metadata)
+        )
+
+        for artifact in artifact_list:
+            multi_model_group.add_artifact(uri=artifact)
+
+        multi_model_group.create(model_by_reference=True)
+
         logger.info(
-            f"Aqua Model {custom_model.id} created with the service model {model_id}."
+            f"Aqua Model {multi_model_group.id} created with the verified models {','.join(display_name_list)}."
         )
 
         # tracks unique models that were created in the user compartment
         self.telemetry.record_event_async(
-            category="aqua/service/model",
+            category="aqua/multimodel",
             action="create",
-            detail=service_model.display_name,
+            detail=combined_models,
         )
-
-        return custom_model
+        return multi_model_group
 
     @telemetry(entry_point="plugin=model&action=get", name="aqua")
     def get(self, model_id: str, load_model_card: Optional[bool] = True) -> "AquaModel":
@@ -1592,6 +1734,8 @@ class AquaModelApp(AquaApp):
             filter_tag = Tags.AQUA_FINE_TUNED_MODEL_TAG
         elif model_type == ModelType.BASE:
             filter_tag = Tags.BASE_MODEL_CUSTOM
+        elif model_type == ModelType.MULTIMODEL:
+            filter_tag = Tags.MULTIMODEL_TYPE_TAG
         else:
             raise AquaValueError(
                 f"Model of type {model_type} is unknown. The values should be in {ModelType.values()}"

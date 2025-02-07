@@ -29,3 +29,15 @@ class ShapeInfo(Serializable):
 
     class Config:
         extra = "ignore"
+
+
+class ModelInfo(Serializable):
+    """Class for maintaining details of model to be deployed, usually for multi-model deployment."""
+
+    model_id: str
+    gpu_count: Optional[int] = None
+    env_var: Optional[dict] = None
+
+    class Config:
+        extra = "ignore"
+        protected_namespaces = ()

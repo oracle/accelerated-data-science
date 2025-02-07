@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -18,6 +18,7 @@ class ModelCustomMetadataFields(str, metaclass=ExtendedEnumMeta):
     EVALUATION_CONTAINER = "evaluation-container"
     FINETUNE_CONTAINER = "finetune-container"
     DEPLOYMENT_CONTAINER_URI = "deployment-container-uri"
+    MULTIMODEL_COUNT = "model-group-count"
 
 
 class ModelTask(str, metaclass=ExtendedEnumMeta):
@@ -34,6 +35,7 @@ class FineTuningMetricCategories(str, metaclass=ExtendedEnumMeta):
 class ModelType(str, metaclass=ExtendedEnumMeta):
     FT = "FT"  # Fine Tuned Model
     BASE = "BASE"  # Base model
+    MULTIMODEL = "MULTIMODEL"
 
 
 # TODO: merge metadata key used in create FT
