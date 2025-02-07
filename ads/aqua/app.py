@@ -333,7 +333,7 @@ class AquaApp:
             config_path = os.path.join(artifact_path.rstrip("/"), config_folder)
             if not is_path_exists(config_path):
                 config_path = f"{artifact_path.rstrip('/')}/"
-        config_file_path = f"{config_path}{config_file_name}"
+        config_file_path = f"{config_path.rstrip('/')}/{config_file_name}"
         if is_path_exists(config_file_path):
             try:
                 config = load_config(
