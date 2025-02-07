@@ -50,7 +50,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
             return self.get_deployment_config(id)
         elif paths.startswith("aqua/deployments/modelconfig"):
             if isinstance(id, list):
-                return self.get_multimodel_compatible_shapes(id)
+                return self.get_multimodel_deployment_config(id)
             elif isinstance(id, str):
                 return self.get_deployment_config(id)
             else:
@@ -132,11 +132,11 @@ class AquaDeploymentHandler(AquaAPIhandler):
         """Gets the deployment config for Aqua model."""
         return self.finish(AquaDeploymentApp().get_deployment_config(model_id=model_id))
 
-    def get_multimodel_compatible_shapes(self, model_ids: List[str]):
+    def get_multimodel_deployment_config(self, model_ids: List[str]):
         """Gets the multi model deployment config and optimal GPU allocations for Aqua models."""
         primary_model_id = self.get_argument("primary_model_id", default=None)
         return self.finish(
-            AquaDeploymentApp().get_multimodel_compatible_shapes(
+            AquaDeploymentApp().get_multimodel_deployment_config(
                 model_ids=model_ids, primary_model_id=primary_model_id
             )
         )

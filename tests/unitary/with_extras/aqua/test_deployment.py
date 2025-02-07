@@ -551,7 +551,7 @@ class TestAquaDeployment(unittest.TestCase):
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
         assert result == None
 
-    def test_get_multimodel_compatible_shapes(self):
+    def test_get_multimodel_deployment_config(self):
         config_json = os.path.join(
             self.curr_dir,
             "test_data/deployment/aqua_multi_model_deployment_config.json",
@@ -560,7 +560,7 @@ class TestAquaDeployment(unittest.TestCase):
             config = json.load(_file)
 
         self.app.get_deployment_config = MagicMock(return_value=config)
-        result = self.app.get_multimodel_compatible_shapes(["model_a"])
+        result = self.app.get_multimodel_deployment_config(["model_a"])
 
         assert (
             result.model_dump()
