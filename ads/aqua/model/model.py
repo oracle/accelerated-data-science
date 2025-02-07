@@ -296,6 +296,12 @@ class AquaModelApp(AquaApp):
                 description=f"Model id for {source_model.display_name} model in the multimodel group.",
                 category="Other",
             )
+            model_custom_metadata.add(
+                key=f"{ModelCustomMetadataFields.ARTIFACT_LOCATION}-{model_idx}",
+                value=model_artifact_path,
+                description=f"Model path for {source_model.display_name} model in the multimodel group.",
+                category="Other",
+            )
 
         model_group_display_name = f"model_group_{datetime.now().strftime('%Y%m%d')}"
         combined_models = ", ".join(display_name_list)
@@ -310,7 +316,7 @@ class AquaModelApp(AquaApp):
             category="Other",
         )
         model_custom_metadata.add(
-            key=ModelCustomMetadataFields.MULTIMODEL_COUNT,
+            key=ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT,
             value=str(len(model_info)),
             description="Count of models grouped to create the multimodel catalog entry.",
             category="Other",

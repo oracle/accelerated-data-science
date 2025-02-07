@@ -18,7 +18,7 @@ class ModelCustomMetadataFields(str, metaclass=ExtendedEnumMeta):
     EVALUATION_CONTAINER = "evaluation-container"
     FINETUNE_CONTAINER = "finetune-container"
     DEPLOYMENT_CONTAINER_URI = "deployment-container-uri"
-    MULTIMODEL_COUNT = "model-group-count"
+    MULTIMODEL_GROUP_COUNT = "model_group_count"
 
 
 class ModelTask(str, metaclass=ExtendedEnumMeta):
