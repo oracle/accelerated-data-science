@@ -42,6 +42,7 @@ from ads.aqua.common.errors import (
     AquaFileNotFoundError,
     AquaValueError,
 )
+from ads.aqua.common.entities import ModelInfo as MultiModelInfo
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
 
 
@@ -352,6 +353,65 @@ class TestAquaModel:
             == "test_metadata_item_value"
         )
         assert model.provenance_metadata.training_id == "test_training_id"
+
+    @patch.object(DataScienceModel, "add_artifact")
+    @patch.object(DataScienceModel, "create")
+    @patch("ads.model.datascience_model.validate")
+    @patch.object(DataScienceModel, "from_id")
+    def test_create_multimodel(
+        self, mock_from_id, mock_validate, mock_create, mock_add_artifact
+    ):
+        mock_model = MagicMock()
+        mock_model.model_file_description = {"test_key": "test_value"}
+        mock_model.display_name = "test_display_name"
+        mock_model.description = "test_description"
+        mock_model.freeform_tags = {
+            "OCI_AQUA": "ACTIVE",
+        }
+        mock_model.id = "mock_model_id"
+        mock_model.artifact = "mock_artifact_path"
+        custom_metadata_list = ModelCustomMetadata()
+        custom_metadata_list.add(
+            **{"key": "deployment-container", "value": "odsc-vllm-serving"}
+        )
+
+        mock_model.custom_metadata_list = custom_metadata_list
+        mock_from_id.return_value = mock_model
+
+        model_info_1 = MultiModelInfo(
+            model_id="test_model_id_1",
+            gpu_count=2,
+            env_var={"params": "--trust-remote-code --max-model-len 60000"},
+        )
+
+        model_info_2 = MultiModelInfo(
+            model_id="test_model_id_2",
+            gpu_count=2,
+            env_var={"params": "--trust-remote-code --max-model-len 32000"},
+        )
+
+        # will create a multi-model group
+        model = self.app.create(
+            model_id=[model_info_1, model_info_2],
+            project_id="test_project_id",
+            compartment_id="test_compartment_id",
+        )
+
+        mock_add_artifact.assert_called()
+        mock_from_id.assert_called()
+        mock_validate.assert_not_called()
+        mock_create.assert_called_with(model_by_reference=True)
+
+        mock_model.compartment_id = TestDataset.SERVICE_COMPARTMENT_ID
+        mock_from_id.return_value = mock_model
+        mock_create.return_value = mock_model
+
+        assert model.freeform_tags == {"OCI_AQUA": "active", "multimodel": "true"}
+        assert model.custom_metadata_list.get("model_group_count").value == "2"
+        assert (
+            model.custom_metadata_list.get("deployment-container").value
+            == "odsc-vllm-serving"
+        )
 
     @pytest.mark.parametrize(
         "foundation_model_type",

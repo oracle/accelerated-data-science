@@ -136,7 +136,7 @@ class AquaModelApp(AquaApp):
     def create(
         self,
         model_id: Union[str, List[ModelInfo]],
-        project_id: str,
+        project_id: str = None,
         compartment_id: str = None,
         freeform_tags: Optional[dict] = None,
         defined_tags: Optional[dict] = None,
@@ -294,6 +294,12 @@ class AquaModelApp(AquaApp):
                 key=f"model-id-{model_idx}",
                 value=source_model.id,
                 description=f"Model id for {source_model.display_name} model in the multimodel group.",
+                category="Other",
+            )
+            model_custom_metadata.add(
+                key=f"model-name-{model_idx}",
+                value=source_model.display_name,
+                description=f"Model name for {source_model.display_name} model in the multimodel group.",
                 category="Other",
             )
             model_custom_metadata.add(

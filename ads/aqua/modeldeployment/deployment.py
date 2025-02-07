@@ -122,12 +122,19 @@ class AquaDeploymentApp(AquaApp):
 
         # Create a model catalog entry in the user compartment
         aqua_model = AquaModelApp().create(
-            model_id=create_deployment_details.model_id,
+            model_id=create_deployment_details.model_id
+            or create_deployment_details.model_info,
             compartment_id=create_deployment_details.compartment_id or COMPARTMENT_OCID,
             project_id=create_deployment_details.project_id or PROJECT_OCID,
             freeform_tags=create_deployment_details.freeform_tags,
             defined_tags=create_deployment_details.defined_tags,
         )
+
+        # todo: remove this once deployment support is added
+        if create_deployment_details.model_info:
+            raise AquaValueError(
+                "Deployment support for multimodel info is in progress."
+            )
 
         tags = {}
         for tag in [
