@@ -23,7 +23,6 @@ import psutil
 import torch
 
 from ads import set_auth
-from ads.aqua.training import exceptions
 from ads.jobs import DataScienceJob, DataScienceJobRun
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     PythonRuntimeHandler,
@@ -285,7 +284,7 @@ class Runner(driver_utils.JobRunner):
             if time.time() - second_started > timeout:
                 logs = job_run.logs()
                 last_log = logs[-1]["message"] if len(logs) > 0 else ""
-                raise exceptions.LoggingError(
+                raise Exception(
                     f"Failed to obtain log with prefix {log_prefix} for {job_run.id} in {timeout} seconds.\n"
                     f"Last log obtained: {last_log}"
                 )
@@ -1025,10 +1024,7 @@ def main():
     else:
         runner_class = GenericRunner
 
-    try:
-        runner = runner_class()
-    except oci.exceptions.ServiceError as ex:
-        raise exceptions.ServiceErrorExit from ex
+    runner = runner_class()
 
     runner: Runner
     runner.fetch_code().set_working_dir().setup_python_path().install_dependencies()
