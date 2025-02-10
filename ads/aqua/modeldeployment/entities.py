@@ -258,7 +258,7 @@ class ShapeInfoConfig(Serializable):
         extra = "allow"
 
 
-class ShapeInfo(Serializable):
+class DeploymentShapeInfo(Serializable):
     """Describes the shape information to this model for specific shape.
 
     Attributes:
@@ -306,7 +306,7 @@ class ConfigurationItem(Serializable):
         parameters (Dict[str, str], optional): A dictionary of parameters (e.g., VLLM_PARAMS) to
             configure the behavior of a particular GPU shape.
         multi_model_deployment (List[MultiModelConfig], optional): A list of multi model configuration details.
-        shape_info (ShapeInfo, optional): The shape information to this model for specific CPU shape.
+        shape_info (DeploymentShapeInfo, optional): The shape information to this model for specific CPU shape.
     """
 
     parameters: Optional[Dict[str, str]] = Field(
@@ -316,8 +316,8 @@ class ConfigurationItem(Serializable):
     multi_model_deployment: Optional[List[MultiModelConfig]] = Field(
         default_factory=list, description="A list of multi model configuration details."
     )
-    shape_info: Optional[ShapeInfo] = Field(
-        default_factory=ShapeInfo,
+    shape_info: Optional[DeploymentShapeInfo] = Field(
+        default_factory=DeploymentShapeInfo,
         description="The shape information to this model for specific shape",
     )
 
