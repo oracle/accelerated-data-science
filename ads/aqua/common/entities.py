@@ -29,3 +29,30 @@ class ShapeInfo(Serializable):
 
     class Config:
         extra = "ignore"
+
+
+class AquaMultiModelRef(Serializable):
+    """
+    Lightweight model descriptor used for multi-model deployment.
+
+    This class only contains essential details
+    required to fetch complete model metadata and deploy models.
+
+    Attributes
+    ----------
+    model_id : str
+        The unique identifier of the model.
+    gpu_count : Optional[int]
+        Number of GPUs required for deployment.
+    env_var : Optional[Dict[str, Any]]
+        Optional environment variables to override during deployment.
+    """
+
+    model_id: str
+    model_name: Optional[str] = None
+    gpu_count: Optional[int] = None
+    env_var: Optional[dict] = None
+
+    class Config:
+        extra = "ignore"
+        protected_namespaces = ()

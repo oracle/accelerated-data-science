@@ -40,6 +40,7 @@ class Tags(ExtendedEnum):
     AQUA_EVALUATION_MODEL_ID = "evaluation_model_id"
     MODEL_FORMAT = "model_format"
     MODEL_ARTIFACT_FILE = "model_file"
+    MULTIMODEL_TYPE_TAG = "multimodel"
 
 
 class InferenceContainerType(ExtendedEnum):
