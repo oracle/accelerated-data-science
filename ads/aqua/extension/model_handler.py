@@ -14,6 +14,7 @@ from ads.aqua.common.enums import (
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     get_hf_model_info,
+    is_valid_ocid,
     list_hf_models,
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
@@ -316,8 +317,30 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
         )
 
 
+class AquaModelTokenizerConfigHandler(AquaAPIhandler):
+    def get(self, model_id):
+        """
+        Handles requests for retrieving the Hugging Face tokenizer configuration of a specified model.
+        Expected request format: GET /aqua/models/<model-ocid>/tokenizer
+
+        """
+
+        path_list = urlparse(self.request.path).path.strip("/").split("/")
+        # Path should be /aqua/models/ocid1.iad.ahdxxx/tokenizer
+        # path_list=['aqua','models','<model-ocid>','tokenizer']
+        if (
+            len(path_list) == 4
+            and is_valid_ocid(path_list[2])
+            and path_list[3] == "tokenizer"
+        ):
+            return self.finish(AquaModelApp().get_hf_tokenizer_config(model_id))
+
+        raise HTTPError(400, f"The request {self.request.path} is invalid.")
+
+
 __handlers__ = [
     ("model/?([^/]*)", AquaModelHandler),
     ("model/?([^/]*)/license", AquaModelLicenseHandler),
+    ("model/?([^/]*)/tokenizer", AquaModelTokenizerConfigHandler),
     ("model/hf/search/?([^/]*)", AquaHuggingFaceHandler),
 ]

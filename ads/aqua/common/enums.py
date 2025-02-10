@@ -92,3 +92,8 @@ class TextEmbeddingInferenceContainerParams(ExtendedEnum):
 
     MODEL_ID = "model-id"
     PORT = "port"
+
+
+class ConfigFolder(ExtendedEnum):
+    CONFIG = "config"
+    ARTIFACT = "artifact"

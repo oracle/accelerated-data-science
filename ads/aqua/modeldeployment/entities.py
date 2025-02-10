@@ -38,6 +38,7 @@ class AquaDeployment(Serializable):
     id: Optional[str] = None
     display_name: Optional[str] = None
     aqua_service_model: Optional[bool] = None
+    model_id: str = None
     aqua_model_name: Optional[str] = None
     state: Optional[str] = None
     description: Optional[str] = None
@@ -94,7 +95,7 @@ class AquaDeployment(Serializable):
                 else None
             ),
         )
-
+        model_id = oci_model_deployment._model_deployment_configuration_details.model_configuration_details.model_id
         tags = {}
         tags.update(oci_model_deployment.freeform_tags or UNKNOWN_DICT)
         tags.update(oci_model_deployment.defined_tags or UNKNOWN_DICT)
@@ -107,6 +108,7 @@ class AquaDeployment(Serializable):
 
         return AquaDeployment(
             id=oci_model_deployment.id,
+            model_id=model_id,
             display_name=oci_model_deployment.display_name,
             aqua_service_model=aqua_service_model_tag is not None,
             aqua_model_name=aqua_model_name,
