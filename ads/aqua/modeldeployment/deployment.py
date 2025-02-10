@@ -3,16 +3,13 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import shlex
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 from pydantic import ValidationError
 
 from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.entities import ContainerSpec
-from ads.aqua.common.enums import (
-    InferenceContainerTypeFamily,
-    Tags,
-)
+from ads.aqua.common.enums import InferenceContainerTypeFamily, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     build_pydantic_error_message,
@@ -91,27 +88,29 @@ class AquaDeploymentApp(AquaApp):
 
     @telemetry(entry_point="plugin=deployment&action=create", name="aqua")
     def create(
-        self, create_deployment_details: CreateModelDeploymentDetails = None, **kwargs
+        self,
+        create_deployment_details: Optional[CreateModelDeploymentDetails] = None,
+        **kwargs,
     ) -> "AquaDeployment":
         """
-        Creates a new Aqua model deployment
+        Creates a new Aqua model deployment.
 
         Parameters
         ----------
-        create_deployment_details: CreateModelDeploymentDetails
-            The CreateModelDeploymentDetails data class which contains all
-            required and optional fields to create a model deployment via Aqua.
-        kwargs:
-            The kwargs for creating CreateModelDeploymentDetails instance if
-            no create_deployment_details is provided.
+        create_deployment_details : CreateModelDeploymentDetails, optional
+            An instance of CreateModelDeploymentDetails containing all required and optional
+            fields for creating a model deployment via Aqua.
+        **kwargs:
+            Keyword arguments used to construct a CreateModelDeploymentDetails instance if one
+            is not provided.
 
         Returns
         -------
         AquaDeployment
-            An Aqua deployment instance
-
+            An Aqua deployment instance.
         """
-        if not create_deployment_details:
+        # Build deployment details from kwargs if not explicitly provided.
+        if create_deployment_details is None:
             try:
                 create_deployment_details = CreateModelDeploymentDetails(**kwargs)
             except ValidationError as ex:
@@ -120,18 +119,49 @@ class AquaDeploymentApp(AquaApp):
                     f"Invalid parameters for creating a model deployment. Error details: {custom_errors}."
                 ) from ex
 
-        # Create a model catalog entry in the user compartment
-        aqua_model = AquaModelApp().create(
-            model_id=create_deployment_details.model_id
-            or create_deployment_details.model_info,
-            compartment_id=create_deployment_details.compartment_id or COMPARTMENT_OCID,
-            project_id=create_deployment_details.project_id or PROJECT_OCID,
-            freeform_tags=create_deployment_details.freeform_tags,
-            defined_tags=create_deployment_details.defined_tags,
-        )
+        # Extract model_id from the provided deployment details.
+        model_id = create_deployment_details.model_id
+
+        # If a single model is provided, delegate to `create` method
+        if (
+            not model_id
+            and create_deployment_details.models
+            and len(create_deployment_details.models) == 1
+        ):
+            single_model = create_deployment_details.models[0]
+            logger.info(
+                f"Single model ({single_model.model_id}) provided. "
+                "Delegating to single model creation method."
+            )
+            model_id = single_model.model_id
+
+        # Set defaults for compartment and project if not provided.
+        compartment_id = create_deployment_details.compartment_id or COMPARTMENT_OCID
+        project_id = create_deployment_details.project_id or PROJECT_OCID
+        freeform_tags = create_deployment_details.freeform_tags
+        defined_tags = create_deployment_details.defined_tags
+
+        # Create an AquaModelApp instance once to perform the deployment creation.
+        model_app = AquaModelApp()
+        if model_id:
+            aqua_model = model_app.create(
+                model_id=model_id,
+                compartment_id=compartment_id,
+                project_id=project_id,
+                freeform_tags=freeform_tags,
+                defined_tags=defined_tags,
+            )
+        else:
+            aqua_model = model_app.create_multi(
+                models=create_deployment_details.models,
+                compartment_id=compartment_id,
+                project_id=project_id,
+                freeform_tags=freeform_tags,
+                defined_tags=defined_tags,
+            )
 
         # todo: remove this once deployment support is added
-        if create_deployment_details.model_info:
+        if create_deployment_details.models:
             raise AquaValueError(
                 "Deployment support for multimodel info is in progress."
             )
