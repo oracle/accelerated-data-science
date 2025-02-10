@@ -56,8 +56,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         )
         return model_kwargs_cleaned, time_budget
 
-    def preprocess(self, data):  # TODO: re-use self.le for explanations
-        _, df_encoded = _label_encode_dataframe(
+    def preprocess(self, data, series_id):  # TODO: re-use self.le for explanations
+        self.le[series_id], df_encoded = _label_encode_dataframe(
             data,
             no_encode={self.spec.datetime_column.name, self.original_target_column},
         )
@@ -125,7 +125,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 self.forecast_output.init_series_output(
                     series_id=s_id, data_at_series=df
                 )
-                data = self.preprocess(df)
+                data = self.preprocess(df, s_id)
                 data_i = self.drop_horizon(data)
                 X_pred = self.get_horizon(data).drop(target, axis=1)
 
@@ -157,7 +157,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     target
                 ].values
 
-                self.models[s_id] = model
+                self.models[s_id] = {}
+                self.models[s_id]["model"] = model
+                self.models[s_id]["le"] = self.le[s_id]
 
                 # In case of Naive model, model.forecast function call does not return confidence intervals.
                 if f"{target}_ci_upper" not in summary_frame:
@@ -218,7 +220,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         other_sections = []
 
         if len(self.models) > 0:
-            for s_id, m in models.items():
+            for s_id, artifacts in models.items():
+                m = artifacts["model"]
                 selected_models[s_id] = {
                     "series_id": s_id,
                     "selected_model": m.selected_model_,
@@ -320,7 +323,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         )
 
     def get_explain_predict_fn(self, series_id):
-        selected_model = self.models[series_id]
+        selected_model = self.models[series_id]["model"]
 
         # If training date, use method below. If future date, use forecast!
         def _custom_predict_fn(
@@ -338,12 +341,12 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             data[dt_column_name] = seconds_to_datetime(
                 data[dt_column_name], dt_format=self.spec.datetime_column.format
             )
-            data = self.preprocess(data)
+            data = self.preprocess(data, series_id)
             horizon_data = horizon_data.drop(target_col, axis=1)
             horizon_data[dt_column_name] = seconds_to_datetime(
                 horizon_data[dt_column_name], dt_format=self.spec.datetime_column.format
             )
-            horizon_data = self.preprocess(horizon_data)
+            horizon_data = self.preprocess(horizon_data, series_id)
 
             rows = []
             for i in range(data.shape[0]):
@@ -421,7 +424,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 if self.spec.explanations_accuracy_mode == SpeedAccuracyMode.AUTOMLX:
                     # Use the MLExplainer class from AutoMLx to generate explanations
                     explainer = automlx.MLExplainer(
-                        self.models[s_id],
+                        self.models[s_id]["model"],
                         self.datasets.additional_data.get_data_for_series(series_id=s_id)
                         .drop(self.spec.datetime_column.name, axis=1)
                         .head(-self.spec.horizon)
