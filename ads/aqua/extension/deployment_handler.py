@@ -48,10 +48,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
                     400,
                     f"The request to {self.request.path} must include either a single model ID or a list of model IDs.",
                 )
-            if isinstance(id, list):
-                return self.get_multimodel_deployment_config(id)
-            else:
-                return self.get_deployment_config(id)
+            return self.get_deployment_config(id)
         elif paths.startswith("aqua/deployments"):
             if not id:
                 return self.list()

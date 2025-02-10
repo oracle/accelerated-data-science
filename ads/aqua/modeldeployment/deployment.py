@@ -38,7 +38,9 @@ from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
 from ads.aqua.model import AquaModelApp
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
+    AquaDeploymentConfig,
     AquaDeploymentDetail,
+    ConfigurationItem,
     CreateModelDeploymentDetails,
     ModelDeploymentConfigSummary,
 )
@@ -78,7 +80,7 @@ class AquaDeploymentApp(AquaApp):
         Retrieves details of an Aqua model deployment by its unique identifier.
     list(**kwargs) -> List[AquaModelSummary]:
         Lists all Aqua deployments within a specified compartment and/or project.
-    get_deployment_config(self, model_id: str) -> Dict:
+    get_deployment_config(self, model_id: str) -> AquaDeploymentConfig:
         Gets the deployment config of given Aqua model.
 
     Note:
@@ -327,12 +329,9 @@ class AquaDeploymentApp(AquaApp):
 
         deployment_config = self.get_deployment_config(config_source_id)
 
-        config_params = (
-            deployment_config.get("configuration", UNKNOWN_DICT)
-            .get(create_deployment_details.instance_shape, UNKNOWN_DICT)
-            .get("parameters", UNKNOWN_DICT)
-            .get(get_container_params_type(container_type_key), UNKNOWN)
-        )
+        config_params = deployment_config.configuration.get(
+            create_deployment_details.instance_shape, ConfigurationItem()
+        ).parameters.get(get_container_params_type(container_type_key), UNKNOWN)
 
         # validate user provided params
         user_params = env_var.get("PARAMS", UNKNOWN)
@@ -640,7 +639,7 @@ class AquaDeploymentApp(AquaApp):
     @telemetry(
         entry_point="plugin=deployment&action=get_deployment_config", name="aqua"
     )
-    def get_deployment_config(self, model_id: str) -> Dict:
+    def get_deployment_config(self, model_id: str) -> AquaDeploymentConfig:
         """Gets the deployment config of given Aqua model.
 
         Parameters
@@ -650,15 +649,15 @@ class AquaDeploymentApp(AquaApp):
 
         Returns
         -------
-        Dict:
-            A dict of allowed deployment configs.
+        AquaDeploymentConfig:
+            An instance of AquaDeploymentConfig.
         """
         config = self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG)
         if not config:
             logger.debug(
                 f"Deployment config for custom model: {model_id} is not available. Use defaults."
             )
-        return config
+        return AquaDeploymentConfig(**(config or UNKNOWN_DICT))
 
     @telemetry(
         entry_point="plugin=deployment&action=get_multimodel_deployment_config",
@@ -744,26 +743,24 @@ class AquaDeploymentApp(AquaApp):
         ):
             deployment_config = self.get_deployment_config(model_id)
 
-            instance_shape_config = deployment_config.get(
-                "configuration", UNKNOWN_DICT
-            ).get(instance_shape, UNKNOWN_DICT)
+            instance_shape_config = deployment_config.configuration.get(
+                instance_shape, ConfigurationItem()
+            )
 
-            if "multi_model_deployment" in instance_shape_config and gpu_count:
-                gpu_params = instance_shape_config.get(
-                    "multi_model_deployment", UNKNOWN_DICT
-                )
+            if instance_shape_config.multi_model_deployment and gpu_count:
+                gpu_params = instance_shape_config.multi_model_deployment
 
                 for gpu_config in gpu_params:
-                    if gpu_config["gpu_count"] == gpu_count:
-                        config_params = gpu_config.get("parameters", UNKNOWN_DICT).get(
+                    if gpu_config.gpu_count == gpu_count:
+                        config_params = gpu_config.parameters.get(
                             get_container_params_type(container_type_key), UNKNOWN
                         )
                         break
 
             else:
-                config_params = instance_shape_config.get(
-                    "parameters", UNKNOWN_DICT
-                ).get(get_container_params_type(container_type_key), UNKNOWN)
+                config_params = instance_shape_config.parameters.get(
+                    get_container_params_type(container_type_key), UNKNOWN
+                )
 
             if config_params:
                 params_list = get_params_list(config_params)
