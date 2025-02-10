@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import oci
 import pytest
+from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
 from parameterized import parameterized
 
 import ads.aqua.modeldeployment.deployment
@@ -616,13 +617,15 @@ class TestAquaDeployment(unittest.TestCase):
             self.app.get_multimodel_deployment_config(["model_a"])
 
     def test_verify_compatibility(self):
-        result = self.app._verify_compatibility(TestDataset.model_gpu_dict)
+        result = MultiModelDeploymentConfigLoader(self.app)._verify_compatibility(
+            TestDataset.model_gpu_dict
+        )
 
         assert result[0] == True
         assert result[1] == 8
         assert len(result[2]) == 3
 
-        result = self.app._verify_compatibility(
+        result = MultiModelDeploymentConfigLoader(self.app)._verify_compatibility(
             model_gpu_dict=TestDataset.model_gpu_dict, primary_model_id="model_b"
         )
 
@@ -635,7 +638,9 @@ class TestAquaDeployment(unittest.TestCase):
                 # model_b gets the maximum gpu count
                 assert item.gpu_count == 4
 
-        result = self.app._verify_compatibility(TestDataset.incompatible_model_gpu_dict)
+        result = MultiModelDeploymentConfigLoader(self.app)._verify_compatibility(
+            TestDataset.incompatible_model_gpu_dict
+        )
 
         assert result[0] == False
         assert result[1] == 0
