@@ -20,6 +20,7 @@ import ads.config
 from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
+    AquaDeploymentConfig,
     AquaDeploymentDetail,
     ModelParams,
 )
@@ -350,6 +351,7 @@ class TestDataset:
                                 },
                             }
                         ],
+                        "shape_info": {"configs": [], "type": ""},
                     },
                     "VM.GPU.A10.4": {
                         "parameters": {
@@ -364,6 +366,7 @@ class TestDataset:
                             },
                             {"gpu_count": 4, "parameters": {}},
                         ],
+                        "shape_info": {"configs": [], "type": ""},
                     },
                     "BM.GPU.A100-v2.8": {
                         "parameters": {
@@ -389,6 +392,7 @@ class TestDataset:
                                 },
                             },
                         ],
+                        "shape_info": {"configs": [], "type": ""},
                     },
                     "BM.GPU.H100.8": {
                         "parameters": {
@@ -399,6 +403,7 @@ class TestDataset:
                             {"gpu_count": 2, "parameters": {}},
                             {"gpu_count": 8, "parameters": {}},
                         ],
+                        "shape_info": {"configs": [], "type": ""},
                     },
                 },
             }
@@ -545,11 +550,13 @@ class TestAquaDeployment(unittest.TestCase):
 
         self.app.get_config = MagicMock(return_value=config)
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
-        assert result == config
+        expected_config = AquaDeploymentConfig(**config)
+        assert result == expected_config
 
         self.app.get_config = MagicMock(return_value=None)
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
-        assert result == None
+        expected_config = AquaDeploymentConfig(**{})
+        assert result == expected_config
 
     def test_get_multimodel_compatible_shapes(self):
         config_json = os.path.join(
@@ -559,13 +566,43 @@ class TestAquaDeployment(unittest.TestCase):
         with open(config_json, "r") as _file:
             config = json.load(_file)
 
-        self.app.get_deployment_config = MagicMock(return_value=config)
+        self.app.get_deployment_config = MagicMock(
+            return_value=AquaDeploymentConfig(**config)
+        )
         result = self.app.get_multimodel_compatible_shapes(["model_a"])
 
         assert (
             result.model_dump()
             == TestDataset.aqua_deployment_multi_model_config_summary
         )
+
+    @parameterized.expand(
+        [
+            [
+                "shape",
+                "There are no available shapes for model model_a, please select different model to deploy.",
+            ],
+            [
+                "configuration",
+                "There are no available gpu allocations for models selected at this moment, please select different model to deploy.",
+            ],
+        ]
+    )
+    def test_get_multimodel_compatible_shapes_invalid_config(self, missing_key, error):
+        config_json = os.path.join(
+            self.curr_dir,
+            "test_data/deployment/aqua_multi_model_deployment_config.json",
+        )
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        config.pop(missing_key)
+
+        self.app.get_deployment_config = MagicMock(
+            return_value=AquaDeploymentConfig(**config)
+        )
+        with pytest.raises(AquaValueError, match=error):
+            self.app.get_multimodel_compatible_shapes(["model_a"])
 
     def test_verify_compatibility(self):
         result = self.app._verify_compatibility(TestDataset.model_gpu_dict)
@@ -615,7 +652,9 @@ class TestAquaDeployment(unittest.TestCase):
         with open(config_json, "r") as _file:
             config = json.load(_file)
 
-        self.app.get_deployment_config = MagicMock(return_value=config)
+        self.app.get_deployment_config = MagicMock(
+            return_value=AquaDeploymentConfig(**config)
+        )
 
         freeform_tags = {"ftag1": "fvalue1", "ftag2": "fvalue2"}
         defined_tags = {"dtag1": "dvalue1", "dtag2": "dvalue2"}
@@ -696,7 +735,9 @@ class TestAquaDeployment(unittest.TestCase):
         with open(config_json, "r") as _file:
             config = json.load(_file)
 
-        self.app.get_deployment_config = MagicMock(return_value=config)
+        self.app.get_deployment_config = MagicMock(
+            return_value=AquaDeploymentConfig(**config)
+        )
 
         container_index_json = os.path.join(
             self.curr_dir, "test_data/ui/container_index.json"
@@ -768,7 +809,9 @@ class TestAquaDeployment(unittest.TestCase):
         with open(config_json, "r") as _file:
             config = json.load(_file)
 
-        self.app.get_deployment_config = MagicMock(return_value=config)
+        self.app.get_deployment_config = MagicMock(
+            return_value=AquaDeploymentConfig(**config)
+        )
 
         container_index_json = os.path.join(
             self.curr_dir, "test_data/ui/container_index.json"
@@ -847,7 +890,9 @@ class TestAquaDeployment(unittest.TestCase):
         with open(config_json, "r") as _file:
             config = json.load(_file)
 
-        self.app.get_deployment_config = MagicMock(return_value=config)
+        self.app.get_deployment_config = MagicMock(
+            return_value=AquaDeploymentConfig(**config)
+        )
 
         container_index_json = os.path.join(
             self.curr_dir, "test_data/ui/container_index.json"
@@ -979,7 +1024,9 @@ class TestAquaDeployment(unittest.TestCase):
         mock_model.custom_metadata_list = custom_metadata_list
         mock_from_id.return_value = mock_model
 
-        self.app.get_deployment_config = MagicMock(return_value=config)
+        self.app.get_deployment_config = MagicMock(
+            return_value=AquaDeploymentConfig(**config)
+        )
 
         result = self.app.get_deployment_default_params(
             TestDataset.MODEL_ID, TestDataset.DEPLOYMENT_SHAPE_NAME, gpu_count

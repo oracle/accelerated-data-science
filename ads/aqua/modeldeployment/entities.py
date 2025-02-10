@@ -255,16 +255,57 @@ class CreateModelDeploymentDetails(Serializable):
         extra = "ignore"
 
 
+class ShapeInfoConfig(Serializable):
+    """Describes how many memory and cpu to this model for specific shape.
+
+    Attributes:
+        memory_in_gbs (int, optional): The number of memory in gbs to this model of the shape.
+        ocpu (int, optional): The number of ocpus to this model of the shape.
+    """
+
+    memory_in_gbs: Optional[int] = Field(
+        default_factory=int,
+        description="The number of memory in gbs to this model of the shape.",
+    )
+    ocpu: Optional[int] = Field(
+        default_factory=int,
+        description="The number of ocpus to this model of the shape.",
+    )
+
+    class Config:
+        extra = "allow"
+
+
+class ShapeInfo(Serializable):
+    """Describes the shape information to this model for specific shape.
+
+    Attributes:
+        configs (List[ShapeInfoConfig], optional): A list of memory and cpu number details to this model of the shape.
+        type (str, optional): The type of the shape.
+    """
+
+    configs: Optional[List[ShapeInfoConfig]] = Field(
+        default_factory=list,
+        description="A list of memory and cpu number details to this model of the shape.",
+    )
+    type: Optional[str] = Field(
+        default_factory=str, description="The type of the shape."
+    )
+
+    class Config:
+        extra = "allow"
+
+
 class MultiModelConfig(Serializable):
     """Describes how many GPUs and the parameters of specific shape for multi model deployment.
 
     Attributes:
-        gpu_count (int): Number of GPUs count to this model of this shape.
+        gpu_count (int, optional): Number of GPUs count to this model of this shape.
         parameters (Dict[str, str], optional): A dictionary of parameters (e.g., VLLM_PARAMS) to
             configure the behavior of a particular GPU shape.
     """
 
-    gpu_count: int = Field(
+    gpu_count: Optional[int] = Field(
         default_factory=int, description="The number of GPUs allocated to the model."
     )
     parameters: Optional[Dict[str, str]] = Field(
@@ -273,115 +314,109 @@ class MultiModelConfig(Serializable):
     )
 
     class Config:
-        extra = "ignore"
+        extra = "allow"
 
 
 class ConfigurationItem(Serializable):
-    """Holds key-value parameter pairs for a specific GPU shape.
+    """Holds key-value parameter pairs for a specific GPU or CPU shape.
 
     Attributes:
         parameters (Dict[str, str], optional): A dictionary of parameters (e.g., VLLM_PARAMS) to
             configure the behavior of a particular GPU shape.
         multi_model_deployment (List[MultiModelConfig], optional): A list of multi model configuration details.
+        shape_info (ShapeInfo, optional): The shape information to this model for specific CPU shape.
     """
 
     parameters: Optional[Dict[str, str]] = Field(
         default_factory=dict,
-        description="Key-value pairs for GPU shape parameters (e.g., VLLM_PARAMS).",
+        description="Key-value pairs for shape parameters.",
     )
     multi_model_deployment: Optional[List[MultiModelConfig]] = Field(
         default_factory=list, description="A list of multi model configuration details."
     )
-
-    class Config:
-        extra = "ignore"
-
-
-class ModelDeploymentConfig(Serializable):
-    """Represents one model's shape list and detailed configuration.
-
-    Attributes:
-        shape (List[str]): A list of shape names (e.g., BM.GPU.A10.4).
-        configuration (Dict[str, ConfigurationItem]): Maps each shape to its configuration details.
-    """
-
-    shape: List[str] = Field(
-        default_factory=list, description="List of supported shapes for the model."
-    )
-    configuration: Dict[str, ConfigurationItem] = Field(
-        default_factory=dict, description="Configuration details keyed by shape."
+    shape_info: Optional[ShapeInfo] = Field(
+        default_factory=ShapeInfo,
+        description="The shape information to this model for specific shape",
     )
 
     class Config:
-        extra = "ignore"
+        extra = "allow"
 
 
-class AquaDeploymentConfig(ModelDeploymentConfig):
+class AquaDeploymentConfig(Serializable):
     """Represents multi model's shape list and detailed configuration.
 
     Attributes:
-        shape (List[str]): A list of shape names (e.g., BM.GPU.A10.4).
-        configuration (Dict[str, ConfigurationItem]): Maps each shape to its configuration details.
+        shape (List[str], optional): A list of shape names (e.g., BM.GPU.A10.4).
+        configuration (Dict[str, ConfigurationItem], optional): Maps each shape to its configuration details.
     """
 
-    configuration: Dict[str, ConfigurationItem] = Field(
+    shape: Optional[List[str]] = Field(
+        default_factory=list, description="List of supported shapes for the model."
+    )
+    configuration: Optional[Dict[str, ConfigurationItem]] = Field(
         default_factory=dict, description="Configuration details keyed by shape."
     )
+
+    class Config:
+        extra = "allow"
 
 
 class GPUModelAllocation(Serializable):
     """Describes how many GPUs are allocated to a particular model.
 
     Attributes:
-        ocid (str): The unique identifier of the model.
-        gpu_count (int): Number of GPUs allocated to this model.
+        ocid (str, optional): The unique identifier of the model.
+        gpu_count (int, optional): Number of GPUs allocated to this model.
     """
 
-    ocid: str = Field(default_factory=str, description="The unique model OCID.")
-    gpu_count: int = Field(
+    ocid: Optional[str] = Field(
+        default_factory=str, description="The unique model OCID."
+    )
+    gpu_count: Optional[int] = Field(
         default_factory=int, description="The number of GPUs allocated to the model."
     )
 
     class Config:
-        extra = "ignore"
+        extra = "allow"
 
 
 class GPUShapeAllocation(Serializable):
     """Allocation details for a specific GPU shape.
 
     Attributes:
-        models (List[GPUModelAllocation]): List of model GPU allocations for this shape.
-        total_gpus_available (int): The total number of GPUs available for this shape.
+        models (List[GPUModelAllocation], optional): List of model GPU allocations for this shape.
+        total_gpus_available (int, optional): The total number of GPUs available for this shape.
     """
 
-    models: List[GPUModelAllocation] = Field(
+    models: Optional[List[GPUModelAllocation]] = Field(
         default_factory=list, description="List of model allocations for this shape."
     )
-    total_gpus_available: int = Field(
+    total_gpus_available: Optional[int] = Field(
         default_factory=int, description="Total GPUs available for this shape."
     )
 
     class Config:
-        extra = "ignore"
+        extra = "allow"
 
 
 class ModelDeploymentConfigSummary(Serializable):
     """Top-level configuration model for OCI-based deployments.
 
     Attributes:
-        deployment_config (Dict[str, ModelDeploymentConfig]): Deployment configurations
+        deployment_config (Dict[str, AquaDeploymentConfig], optional): Deployment configurations
             keyed by model OCID.
-        gpu_allocation (Dict[str, GPUShapeAllocation]): GPU allocations keyed by GPU shape.
+        gpu_allocation (Dict[str, GPUShapeAllocation], optional): GPU allocations keyed by GPU shape.
     """
 
-    deployment_config: Dict[str, ModelDeploymentConfig] = Field(
+    deployment_config: Optional[Dict[str, AquaDeploymentConfig]] = Field(
         default_factory=dict,
         description=(
             "Deployment configuration details for each model, including supported shapes "
             "and shape-specific parameters."
         ),
     )
-    gpu_allocation: Dict[str, GPUShapeAllocation] = Field(
+    gpu_allocation: Optional[Dict[str, GPUShapeAllocation]] = Field(
         default_factory=dict,
         description=(
             "Details on how GPUs are allocated per shape, including the total "
@@ -390,4 +425,4 @@ class ModelDeploymentConfigSummary(Serializable):
     )
 
     class Config:
-        extra = "ignore"
+        extra = "allow"
