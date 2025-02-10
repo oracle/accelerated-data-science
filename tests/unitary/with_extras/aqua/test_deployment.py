@@ -257,6 +257,7 @@ class TestDataset:
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
         "private_endpoint_id": null,
+        "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
             "BASE_MODEL": "service_models/model-name/artifact",
             "MODEL_DEPLOY_ENABLE_STREAMING": "true",
@@ -558,7 +559,7 @@ class TestAquaDeployment(unittest.TestCase):
         expected_config = AquaDeploymentConfig(**{})
         assert result == expected_config
 
-    def test_get_multimodel_compatible_shapes(self):
+    def test_get_multimodel_deployment_config(self):
         config_json = os.path.join(
             self.curr_dir,
             "test_data/deployment/aqua_multi_model_deployment_config.json",
@@ -569,7 +570,7 @@ class TestAquaDeployment(unittest.TestCase):
         self.app.get_deployment_config = MagicMock(
             return_value=AquaDeploymentConfig(**config)
         )
-        result = self.app.get_multimodel_compatible_shapes(["model_a"])
+        result = self.app.get_multimodel_deployment_config(["model_a"])
 
         assert (
             result.model_dump()

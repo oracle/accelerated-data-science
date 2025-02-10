@@ -2,17 +2,13 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
-from oci.data_science.models import (
-    ModelDeployment,
-    ModelDeploymentSummary,
-)
-from pydantic import Field, model_validator
+from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
+from pydantic import BaseModel, Field, model_validator
 
-from ads.aqua.common.entities import ShapeInfo
+from ads.aqua.common.entities import AquaMultiModelRef, ShapeInfo
 from ads.aqua.common.enums import Tags
-from ads.aqua.common.errors import AquaValueError
 from ads.aqua.config.utils.serializer import Serializable
 from ads.aqua.constants import UNKNOWN, UNKNOWN_DICT
 from ads.aqua.data import AquaResourceIdentifier
@@ -38,6 +34,7 @@ class AquaDeployment(Serializable):
     id: Optional[str] = None
     display_name: Optional[str] = None
     aqua_service_model: Optional[bool] = None
+    model_id: str = None
     aqua_model_name: Optional[str] = None
     state: Optional[str] = None
     description: Optional[str] = None
@@ -94,7 +91,7 @@ class AquaDeployment(Serializable):
                 else None
             ),
         )
-
+        model_id = oci_model_deployment._model_deployment_configuration_details.model_configuration_details.model_id
         tags = {}
         tags.update(oci_model_deployment.freeform_tags or UNKNOWN_DICT)
         tags.update(oci_model_deployment.defined_tags or UNKNOWN_DICT)
@@ -107,6 +104,7 @@ class AquaDeployment(Serializable):
 
         return AquaDeployment(
             id=oci_model_deployment.id,
+            model_id=model_id,
             display_name=oci_model_deployment.display_name,
             aqua_service_model=aqua_service_model_tag is not None,
             aqua_model_name=aqua_model_name,
@@ -144,110 +142,94 @@ class AquaDeploymentDetail(AquaDeployment, DataClassSerializable):
         extra = "ignore"
 
 
-class ModelInfo(Serializable):
-    """Class for maintaining details of model to be deployed, usually for multi-model deployment."""
+class CreateModelDeploymentDetails(BaseModel):
+    """Class for creating Aqua model deployments."""
 
-    model_id: str
-    gpu_count: Optional[int] = None
-    env_var: Optional[dict] = None
-
-    class Config:
-        extra = "ignore"
-
-
-class CreateModelDeploymentDetails(Serializable):
-    """Class for creating aqua model deployment.
-
-    Properties
-    ----------
-    compartment_id: str
-        The compartment OCID
-    project_id: str
-        Target project to list deployments from.
-    display_name: str
-        The name of model deployment.
-    description: str
-        The description of the deployment.
-    model_id: (str, optional)
-        The model OCID to deploy. Either model_id or model_info should be set.
-    model_info: (List[ModelInfo], optional)
-        The model info to deploy, used for multimodel deployment. Either model_id or model_info should be set.
-    instance_count: (int, optional). Defaults to 1.
-        The number of instance used for deployment.
-    instance_shape: (str).
-        The shape of the instance used for deployment.
-    log_group_id: (str)
-        The oci logging group id. The access log and predict log share the same log group.
-    access_log_id: (str).
-        The access log OCID for the access logs. https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm
-    predict_log_id: (str).
-        The predict log OCID for the predict logs. https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm
-    bandwidth_mbps: (int). Defaults to 10.
-        The bandwidth limit on the load balancer in Mbps.
-    web_concurrency: str
-        The number of worker processes/threads to handle incoming requests
-    with_bucket_uri(bucket_uri)
-        Sets the bucket uri when uploading large size model.
-    server_port: (int).
-        The server port for docker container image.
-    health_check_port: (int).
-        The health check port for docker container image.
-    env_var : dict, optional
-        Environment variable for the deployment, by default None.
-    container_family: str
-        The image family of model deployment container runtime.
-    memory_in_gbs: float
-        The memory in gbs for the shape selected.
-    ocpus: float
-        The ocpu count for the shape selected.
-    model_file: str
-        The file used for model deployment.
-    private_endpoint_id: str
-        The private endpoint id of model deployment.
-    container_image_uri: str
-        The image of model deployment container runtime, ignored for service managed containers.
-        Required parameter for BYOC based deployments if this parameter was not set during model registration.
-    cmd_var: List[str]
-        The cmd of model deployment container runtime.
-    freeform_tags: dict
-        Freeform tags for the model deployment
-    defined_tags: dict
-        Defined tags for the model deployment
-    """
-
-    instance_shape: str
-    display_name: str
-    model_id: Optional[str] = None
-    model_info: Optional[List[ModelInfo]] = None
-    instance_count: Optional[int] = None
-    log_group_id: Optional[str] = None
-    access_log_id: Optional[str] = None
-    predict_log_id: Optional[str] = None
-    compartment_id: Optional[str] = None
-    project_id: Optional[str] = None
-    description: Optional[str] = None
-    bandwidth_mbps: Optional[int] = None
-    web_concurrency: Optional[int] = None
-    server_port: Optional[int] = None
-    health_check_port: Optional[int] = None
-    env_var: Optional[dict] = None
-    container_family: Optional[str] = None
-    memory_in_gbs: Optional[float] = None
-    ocpus: Optional[float] = None
-    model_file: Optional[str] = None
-    private_endpoint_id: Optional[str] = None
-    container_image_uri: Optional[None] = None
-    cmd_var: Optional[List[str]] = None
-    freeform_tags: Optional[dict] = None
-    defined_tags: Optional[dict] = None
+    instance_shape: str = Field(
+        ..., description="The instance shape used for deployment."
+    )
+    display_name: str = Field(..., description="The name of the model deployment.")
+    compartment_id: Optional[str] = Field(None, description="The compartment OCID.")
+    project_id: Optional[str] = Field(None, description="The project OCID.")
+    description: Optional[str] = Field(
+        None, description="The description of the deployment."
+    )
+    model_id: Optional[str] = Field(None, description="The model OCID to deploy.")
+    models: Optional[List[AquaMultiModelRef]] = Field(
+        None, description="List of models for multimodel deployment."
+    )
+    instance_count: int = Field(
+        None, description="Number of instances used for deployment."
+    )
+    log_group_id: Optional[str] = Field(
+        None, description="OCI logging group ID for logs."
+    )
+    access_log_id: Optional[str] = Field(
+        None,
+        description="OCID for access logs. "
+        "https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm",
+    )
+    predict_log_id: Optional[str] = Field(
+        None,
+        description="OCID for prediction logs."
+        "https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm",
+    )
+    bandwidth_mbps: Optional[int] = Field(
+        None, description="Bandwidth limit on the load balancer in Mbps."
+    )
+    web_concurrency: Optional[int] = Field(
+        None, description="Number of worker processes/threads for handling requests."
+    )
+    server_port: Optional[int] = Field(
+        None, description="Server port for the Docker container image."
+    )
+    health_check_port: Optional[int] = Field(
+        None, description="Health check port for the Docker container image."
+    )
+    env_var: Optional[Dict[str, str]] = Field(
+        default_factory=dict, description="Environment variables for deployment."
+    )
+    container_family: Optional[str] = Field(
+        None, description="Image family of the model deployment container runtime."
+    )
+    memory_in_gbs: Optional[float] = Field(
+        None, description="Memory (in GB) for the selected shape."
+    )
+    ocpus: Optional[float] = Field(
+        None, description="OCPU count for the selected shape."
+    )
+    model_file: Optional[str] = Field(
+        None, description="File used for model deployment."
+    )
+    private_endpoint_id: Optional[str] = Field(
+        None, description="Private endpoint ID for model deployment."
+    )
+    container_image_uri: Optional[str] = Field(
+        None,
+        description="Image URI for model deployment container runtime "
+        "(ignored for service-managed containers). "
+        "Required parameter for BYOC based deployments if this parameter was not set during "
+        "model registration.",
+    )
+    cmd_var: Optional[List[str]] = Field(
+        default_factory=list, description="Command variables for the container runtime."
+    )
+    freeform_tags: Optional[Dict[str, str]] = Field(
+        default_factory=dict, description="Freeform tags for model deployment."
+    )
+    defined_tags: Optional[Dict[str, Dict[str, str]]] = Field(
+        default_factory=dict, description="Defined tags for model deployment."
+    )
 
     @model_validator(mode="before")
     @classmethod
-    def validate_model_fields(cls, values):
-        model_id, model_info = values.get("model_id"), values.get("model_info")
-        if bool(model_id) == bool(model_info):  # either both are set or unset
-            raise AquaValueError(
-                "Exactly one of `model_id` or `model_info` must be set to create a model deployment"
+    def validate(cls, values: Any) -> Any:
+        """Ensures exactly one of `model_id` or `models` is provided."""
+        model_id = values.get("model_id")
+        models = values.get("models")
+        if bool(model_id) == bool(models):  # Both set or both unset
+            raise ValueError(
+                "Exactly one of `model_id` or `models` must be provided to create a model deployment."
             )
         return values
 
