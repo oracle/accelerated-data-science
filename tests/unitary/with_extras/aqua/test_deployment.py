@@ -559,7 +559,12 @@ class TestAquaDeployment(unittest.TestCase):
         expected_config = AquaDeploymentConfig(**{})
         assert result == expected_config
 
-    def test_get_multimodel_deployment_config(self):
+    @patch(
+        "ads.aqua.modeldeployment.utils.MultiModelDeploymentConfigLoader._fetch_deployment_configs_concurrently"
+    )
+    def test_get_multimodel_deployment_config(
+        self, mock_fetch_deployment_configs_concurrently
+    ):
         config_json = os.path.join(
             self.curr_dir,
             "test_data/deployment/aqua_multi_model_deployment_config.json",
@@ -567,9 +572,9 @@ class TestAquaDeployment(unittest.TestCase):
         with open(config_json, "r") as _file:
             config = json.load(_file)
 
-        self.app.get_deployment_config = MagicMock(
-            return_value=AquaDeploymentConfig(**config)
-        )
+        mock_fetch_deployment_configs_concurrently.return_value = {
+            "model_a": AquaDeploymentConfig(**config)
+        }
         result = self.app.get_multimodel_deployment_config(["model_a"])
 
         assert (
@@ -585,11 +590,16 @@ class TestAquaDeployment(unittest.TestCase):
             ],
             [
                 "configuration",
-                "There are no available gpu allocations for models selected at this moment, please select different model to deploy.",
+                "No available GPU allocations. Choose a different model.",
             ],
         ]
     )
-    def test_get_multimodel_compatible_shapes_invalid_config(self, missing_key, error):
+    @patch(
+        "ads.aqua.modeldeployment.utils.MultiModelDeploymentConfigLoader._fetch_deployment_configs_concurrently"
+    )
+    def test_get_multimodel_compatible_shapes_invalid_config(
+        self, missing_key, error, mock_fetch_deployment_configs_concurrently
+    ):
         config_json = os.path.join(
             self.curr_dir,
             "test_data/deployment/aqua_multi_model_deployment_config.json",
@@ -599,11 +609,11 @@ class TestAquaDeployment(unittest.TestCase):
 
         config.pop(missing_key)
 
-        self.app.get_deployment_config = MagicMock(
-            return_value=AquaDeploymentConfig(**config)
-        )
+        mock_fetch_deployment_configs_concurrently.return_value = {
+            "model_a": AquaDeploymentConfig(**config)
+        }
         with pytest.raises(AquaValueError, match=error):
-            self.app.get_multimodel_compatible_shapes(["model_a"])
+            self.app.get_multimodel_deployment_config(["model_a"])
 
     def test_verify_compatibility(self):
         result = self.app._verify_compatibility(TestDataset.model_gpu_dict)

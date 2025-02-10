@@ -12,6 +12,7 @@ from ads.aqua.app import AquaApp
 from ads.aqua.common.errors import AquaValueError
 from ads.aqua.modeldeployment.entities import (
     AquaDeploymentConfig,
+    ConfigurationItem,
     GPUModelAllocation,
     GPUShapeAllocation,
     ModelDeploymentConfigSummary,
@@ -65,6 +66,12 @@ class MultiModelDeploymentConfigLoader:
         deployment_configs = self._fetch_deployment_configs_concurrently(model_ids)
         model_shape_gpu, deployment = self._extract_model_shape_gpu(deployment_configs)
 
+        for model, shape_gpu in model_shape_gpu.items():
+            if not shape_gpu:
+                raise AquaValueError(
+                    f"There are no available shapes for model {model}, please select different model to deploy."
+                )
+
         common_shapes = self._get_common_shapes(model_shape_gpu)
         if not common_shapes:
             raise AquaValueError(
@@ -111,14 +118,17 @@ class MultiModelDeploymentConfigLoader:
             model_shape_gpu[model_id] = {
                 shape: [
                     item.gpu_count
-                    for item in config.configuration[shape].multi_model_deployment
+                    for item in config.configuration.get(
+                        shape, ConfigurationItem()
+                    ).multi_model_deployment
                 ]
                 for shape in config.shape
             }
             deployment[model_id] = {
                 "shape": config.shape,
                 "configuration": {
-                    shape: config.configuration[shape] for shape in config.shape
+                    shape: config.configuration.get(shape, ConfigurationItem())
+                    for shape in config.shape
                 },
             }
 
@@ -147,7 +157,12 @@ class MultiModelDeploymentConfigLoader:
             model_gpu = {
                 model: shape_gpu[common_shape]
                 for model, shape_gpu in model_shape_gpu.items()
+                if shape_gpu[common_shape]
             }
+
+            if len(model_gpu) != len(model_shape_gpu):
+                continue
+
             is_compatible, max_gpu_count, combination = self._verify_compatibility(
                 model_gpu, primary_model_id
             )
