@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -62,7 +62,7 @@ class TestLocalOperatorBackend:
             conda="example_v1",
             conda_type=PACK_TYPE.CUSTOM,
             path=os.path.join(self.TEST_FILES_DIR, "test_operator"),
-            backends=[BACKEND_NAME.JOB.value, BACKEND_NAME.DATAFLOW.value],
+            backends=[BACKEND_NAME.JOB, BACKEND_NAME.DATAFLOW],
         )
 
         # mock operator backend
@@ -252,7 +252,7 @@ class TestMLJobOperatorBackend:
             conda="example_v1",
             conda_type=PACK_TYPE.CUSTOM,
             path=os.path.join(self.TEST_FILES_DIR, "test_operator"),
-            backends=[BACKEND_NAME.JOB.value, BACKEND_NAME.DATAFLOW.value],
+            backends=[BACKEND_NAME.JOB, BACKEND_NAME.DATAFLOW],
         )
 
         # mock operator backend

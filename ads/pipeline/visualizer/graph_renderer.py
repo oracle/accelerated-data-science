@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import itertools
@@ -11,7 +10,7 @@ from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
     runtime_dependency,
 )
-from ads.common.extended_enum import ExtendedEnumMeta
+from ads.common.extended_enum import ExtendedEnum
 from ads.pipeline.visualizer.base import (
     COMPLETE_STATUS,
     FAIL_STATUS,
@@ -29,7 +28,7 @@ from ads.pipeline.visualizer.base import (
 GRAPH_BOX_COLOR = "#DEDEDE"
 
 
-class RenderTo(str, metaclass=ExtendedEnumMeta):
+class RenderTo(ExtendedEnum):
     SVG = "svg"
     JPEG = "jpeg"
     PNG = "png"

@@ -3,7 +3,6 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from typing import Any, Dict, List, Optional, Union
-
 from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 from pydantic import BaseModel, Field, model_validator
 
@@ -34,6 +33,7 @@ class AquaDeployment(Serializable):
     id: Optional[str] = None
     display_name: Optional[str] = None
     aqua_service_model: Optional[bool] = None
+    model_id: str = None
     aqua_model_name: Optional[str] = None
     state: Optional[str] = None
     description: Optional[str] = None
@@ -90,7 +90,7 @@ class AquaDeployment(Serializable):
                 else None
             ),
         )
-
+        model_id = oci_model_deployment._model_deployment_configuration_details.model_configuration_details.model_id
         tags = {}
         tags.update(oci_model_deployment.freeform_tags or UNKNOWN_DICT)
         tags.update(oci_model_deployment.defined_tags or UNKNOWN_DICT)
@@ -103,6 +103,7 @@ class AquaDeployment(Serializable):
 
         return AquaDeployment(
             id=oci_model_deployment.id,
+            model_id=model_id,
             display_name=oci_model_deployment.display_name,
             aqua_service_model=aqua_service_model_tag is not None,
             aqua_model_name=aqua_model_name,
@@ -230,6 +231,144 @@ class CreateModelDeploymentDetails(BaseModel):
                 "Exactly one of `model_id` or `models` must be provided to create a model deployment."
             )
         return values
+
+    class Config:
+        extra = "ignore"
+
+
+class MultiModelConfig(Serializable):
+    """Describes how many GPUs and the parameters of specific shape for multi model deployment.
+
+    Attributes:
+        gpu_count (int): Number of GPUs count to this model of this shape.
+        parameters (Dict[str, str], optional): A dictionary of parameters (e.g., VLLM_PARAMS) to
+            configure the behavior of a particular GPU shape.
+    """
+
+    gpu_count: int = Field(
+        default_factory=int, description="The number of GPUs allocated to the model."
+    )
+    parameters: Optional[Dict[str, str]] = Field(
+        default_factory=dict,
+        description="Key-value pairs for GPU shape parameters (e.g., VLLM_PARAMS).",
+    )
+
+    class Config:
+        extra = "ignore"
+
+
+class ConfigurationItem(Serializable):
+    """Holds key-value parameter pairs for a specific GPU shape.
+
+    Attributes:
+        parameters (Dict[str, str], optional): A dictionary of parameters (e.g., VLLM_PARAMS) to
+            configure the behavior of a particular GPU shape.
+        multi_model_deployment (List[MultiModelConfig], optional): A list of multi model configuration details.
+    """
+
+    parameters: Optional[Dict[str, str]] = Field(
+        default_factory=dict,
+        description="Key-value pairs for GPU shape parameters (e.g., VLLM_PARAMS).",
+    )
+    multi_model_deployment: Optional[List[MultiModelConfig]] = Field(
+        default_factory=list, description="A list of multi model configuration details."
+    )
+
+    class Config:
+        extra = "ignore"
+
+
+class ModelDeploymentConfig(Serializable):
+    """Represents one model's shape list and detailed configuration.
+
+    Attributes:
+        shape (List[str]): A list of shape names (e.g., BM.GPU.A10.4).
+        configuration (Dict[str, ConfigurationItem]): Maps each shape to its configuration details.
+    """
+
+    shape: List[str] = Field(
+        default_factory=list, description="List of supported shapes for the model."
+    )
+    configuration: Dict[str, ConfigurationItem] = Field(
+        default_factory=dict, description="Configuration details keyed by shape."
+    )
+
+    class Config:
+        extra = "ignore"
+
+
+class AquaDeploymentConfig(ModelDeploymentConfig):
+    """Represents multi model's shape list and detailed configuration.
+
+    Attributes:
+        shape (List[str]): A list of shape names (e.g., BM.GPU.A10.4).
+        configuration (Dict[str, ConfigurationItem]): Maps each shape to its configuration details.
+    """
+
+    configuration: Dict[str, ConfigurationItem] = Field(
+        default_factory=dict, description="Configuration details keyed by shape."
+    )
+
+
+class GPUModelAllocation(Serializable):
+    """Describes how many GPUs are allocated to a particular model.
+
+    Attributes:
+        ocid (str): The unique identifier of the model.
+        gpu_count (int): Number of GPUs allocated to this model.
+    """
+
+    ocid: str = Field(default_factory=str, description="The unique model OCID.")
+    gpu_count: int = Field(
+        default_factory=int, description="The number of GPUs allocated to the model."
+    )
+
+    class Config:
+        extra = "ignore"
+
+
+class GPUShapeAllocation(Serializable):
+    """Allocation details for a specific GPU shape.
+
+    Attributes:
+        models (List[GPUModelAllocation]): List of model GPU allocations for this shape.
+        total_gpus_available (int): The total number of GPUs available for this shape.
+    """
+
+    models: List[GPUModelAllocation] = Field(
+        default_factory=list, description="List of model allocations for this shape."
+    )
+    total_gpus_available: int = Field(
+        default_factory=int, description="Total GPUs available for this shape."
+    )
+
+    class Config:
+        extra = "ignore"
+
+
+class ModelDeploymentConfigSummary(Serializable):
+    """Top-level configuration model for OCI-based deployments.
+
+    Attributes:
+        deployment_config (Dict[str, ModelDeploymentConfig]): Deployment configurations
+            keyed by model OCID.
+        gpu_allocation (Dict[str, GPUShapeAllocation]): GPU allocations keyed by GPU shape.
+    """
+
+    deployment_config: Dict[str, ModelDeploymentConfig] = Field(
+        default_factory=dict,
+        description=(
+            "Deployment configuration details for each model, including supported shapes "
+            "and shape-specific parameters."
+        ),
+    )
+    gpu_allocation: Dict[str, GPUShapeAllocation] = Field(
+        default_factory=dict,
+        description=(
+            "Details on how GPUs are allocated per shape, including the total "
+            "GPUs available for each shape."
+        ),
+    )
 
     class Config:
         extra = "ignore"

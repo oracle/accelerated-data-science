@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """
 aqua.evaluation.errors
@@ -9,10 +8,10 @@ aqua.evaluation.errors
 This module contains errors in Aqua Evaluation.
 """
 
-from ads.common.extended_enum import ExtendedEnumMeta
+from ads.common.extended_enum import ExtendedEnum
 
 
-class EvaluationJobExitCode(str, metaclass=ExtendedEnumMeta):
+class EvaluationJobExitCode(ExtendedEnum):
     SUCCESS = 0
     COMMON_ERROR = 1
 

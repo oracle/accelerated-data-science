@@ -40,7 +40,9 @@ from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
     CreateModelDeploymentDetails,
+    ModelDeploymentConfigSummary,
 )
+from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
 from ads.aqua.ui import ModelFormat
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
@@ -658,10 +660,50 @@ class AquaDeploymentApp(AquaApp):
             )
         return config
 
+    @telemetry(
+        entry_point="plugin=deployment&action=get_multimodel_deployment_config",
+        name="aqua",
+    )
+    def get_multimodel_deployment_config(
+        self, model_ids: List[str], primary_model_id: Optional[str] = None
+    ) -> ModelDeploymentConfigSummary:
+        """
+        Retrieves the deployment configuration for multiple Aqua models and calculates
+        the GPU allocations for all compatible shapes.
+
+        If no primary Aqua model id provided, gpu count for each compatible shape will be evenly allocated.
+        If provided, gpu count for each compatible shape will be prioritized for primary model.
+
+        For example, there is one compatible shape "BM.GPU.H100.8" for three models A, B, C, and each model has a gpu count as below:
+
+        A - BM.GPU.H100.8 - 1, 2, 4, 8
+        B - BM.GPU.H100.8 - 1, 2, 4, 8
+        C - BM.GPU.H100.8 - 1, 2, 4, 8
+
+        If no primary model is provided, the gpu allocation for A, B, C could be [2, 4, 2], [2, 2, 4] or [4, 2, 2]
+        If B is the primary model, the gpu allocation is [2, 4, 2] as B always gets the maximum gpu count.
+
+        Parameters
+        ----------
+        model_ids : List[str]
+            A list of OCIDs for the Aqua models.
+        primary_model_id : Optional[str]
+            The OCID of the primary Aqua model. If provided, GPU allocation will prioritize
+            this model. Otherwise, GPUs will be evenly allocated.
+
+        Returns
+        -------
+        ModelDeploymentConfigSummary
+            A summary of the model deployment configurations and GPU allocations.
+        """
+
+        return MultiModelDeploymentConfigLoader(self).load(model_ids, primary_model_id)
+
     def get_deployment_default_params(
         self,
         model_id: str,
         instance_shape: str,
+        gpu_count: int = None,
     ) -> List[str]:
         """Gets the default params set in the deployment configs for the given model and instance shape.
 
@@ -673,6 +715,9 @@ class AquaDeploymentApp(AquaApp):
         instance_shape: (str).
             The shape of the instance used for deployment.
 
+        gpu_count: (int, optional).
+            The number of GPUs used by the Aqua model. Defaults to None.
+
         Returns
         -------
         List[str]:
@@ -681,6 +726,7 @@ class AquaDeploymentApp(AquaApp):
 
         """
         default_params = []
+        config_params = {}
         model = DataScienceModel.from_id(model_id)
         try:
             container_type_key = model.custom_metadata_list.get(
@@ -697,12 +743,28 @@ class AquaDeploymentApp(AquaApp):
             and container_type_key in InferenceContainerTypeFamily.values()
         ):
             deployment_config = self.get_deployment_config(model_id)
-            config_params = (
-                deployment_config.get("configuration", UNKNOWN_DICT)
-                .get(instance_shape, UNKNOWN_DICT)
-                .get("parameters", UNKNOWN_DICT)
-                .get(get_container_params_type(container_type_key), UNKNOWN)
-            )
+
+            instance_shape_config = deployment_config.get(
+                "configuration", UNKNOWN_DICT
+            ).get(instance_shape, UNKNOWN_DICT)
+
+            if "multi_model_deployment" in instance_shape_config and gpu_count:
+                gpu_params = instance_shape_config.get(
+                    "multi_model_deployment", UNKNOWN_DICT
+                )
+
+                for gpu_config in gpu_params:
+                    if gpu_config["gpu_count"] == gpu_count:
+                        config_params = gpu_config.get("parameters", UNKNOWN_DICT).get(
+                            get_container_params_type(container_type_key), UNKNOWN
+                        )
+                        break
+
+            else:
+                config_params = instance_shape_config.get(
+                    "parameters", UNKNOWN_DICT
+                ).get(get_container_params_type(container_type_key), UNKNOWN)
+
             if config_params:
                 params_list = get_params_list(config_params)
                 restricted_params_set = get_restricted_params_by_container(

@@ -9,10 +9,10 @@ aqua.model.constants
 This module contains constants/enums used in Aqua Model.
 """
 
-from ads.common.extended_enum import ExtendedEnumMeta
+from ads.common.extended_enum import ExtendedEnum
 
 
-class ModelCustomMetadataFields(str, metaclass=ExtendedEnumMeta):
+class ModelCustomMetadataFields(ExtendedEnum):
     ARTIFACT_LOCATION = "artifact_location"
     DEPLOYMENT_CONTAINER = "deployment-container"
     EVALUATION_CONTAINER = "evaluation-container"
@@ -21,25 +21,25 @@ class ModelCustomMetadataFields(str, metaclass=ExtendedEnumMeta):
     MULTIMODEL_GROUP_COUNT = "model_group_count"
 
 
-class ModelTask(str, metaclass=ExtendedEnumMeta):
+class ModelTask(ExtendedEnum):
     TEXT_GENERATION = "text-generation"
     IMAGE_TEXT_TO_TEXT = "image-text-to-text"
     IMAGE_TO_TEXT = "image-to-text"
 
 
-class FineTuningMetricCategories(str, metaclass=ExtendedEnumMeta):
+class FineTuningMetricCategories(ExtendedEnum):
     VALIDATION = "validation"
     TRAINING = "training"
 
 
-class ModelType(str, metaclass=ExtendedEnumMeta):
+class ModelType(ExtendedEnum):
     FT = "FT"  # Fine Tuned Model
     BASE = "BASE"  # Base model
     MULTIMODEL = "MULTIMODEL"
 
 
 # TODO: merge metadata key used in create FT
-class FineTuningCustomMetadata(str, metaclass=ExtendedEnumMeta):
+class FineTuningCustomMetadata(ExtendedEnum):
     FT_SOURCE = "fine_tune_source"
     FT_SOURCE_NAME = "fine_tune_source_name"
     FT_OUTPUT_PATH = "fine_tune_output_path"

@@ -2,6 +2,7 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from typing import List, Union
 from urllib.parse import urlparse
 
 from tornado.web import HTTPError
@@ -20,7 +21,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
 
     Methods
     -------
-    get(self, id="")
+    get(self, id: Union[str, List[str]])
         Retrieves a list of AQUA deployments or model info or logs by ID.
     post(self, *args, **kwargs)
         Creates a new AQUA deployment.
@@ -37,16 +38,20 @@ class AquaDeploymentHandler(AquaAPIhandler):
     """
 
     @handle_exceptions
-    def get(self, id=""):
+    def get(self, id: Union[str, List[str]] = None):
         """Handle GET request."""
         url_parse = urlparse(self.request.path)
         paths = url_parse.path.strip("/")
         if paths.startswith("aqua/deployments/config"):
-            if not id:
+            if not id or not isinstance(id, (list, str)):
                 raise HTTPError(
-                    400, f"The request {self.request.path} requires model id."
+                    400,
+                    f"The request to {self.request.path} must include either a single model ID or a list of model IDs.",
                 )
-            return self.get_deployment_config(id)
+            if isinstance(id, list):
+                return self.get_multimodel_deployment_config(id)
+            else:
+                return self.get_deployment_config(id)
         elif paths.startswith("aqua/deployments"):
             if not id:
                 return self.list()
@@ -117,9 +122,33 @@ class AquaDeploymentHandler(AquaAPIhandler):
             )
         )
 
-    def get_deployment_config(self, model_id):
-        """Gets the deployment config for Aqua model."""
-        return self.finish(AquaDeploymentApp().get_deployment_config(model_id=model_id))
+    def get_deployment_config(self, model_id: Union[str, List[str]]):
+        """
+        Retrieves the deployment configuration for one or more Aqua models.
+
+        Parameters
+        ----------
+        model_id : Union[str, List[str]]
+            A single model ID (str) or a list of model IDs (List[str]).
+
+        Returns
+        -------
+        None
+            The function sends the deployment configuration as a response.
+        """
+        app = AquaDeploymentApp()
+
+        if isinstance(model_id, list):
+            # Handle multiple model deployment
+            primary_model_id = self.get_argument("primary_model_id", default=None)
+            deployment_config = app.get_multimodel_deployment_config(
+                model_ids=model_id, primary_model_id=primary_model_id
+            )
+        else:
+            # Handle single model deployment
+            deployment_config = app.get_deployment_config(model_id=model_id)
+
+        return self.finish(deployment_config)
 
 
 class AquaDeploymentInferenceHandler(AquaAPIhandler):
@@ -195,9 +224,10 @@ class AquaDeploymentParamsHandler(AquaAPIhandler):
     def get(self, model_id):
         """Handle GET request."""
         instance_shape = self.get_argument("instance_shape")
+        gpu_count = self.get_argument("gpu_count", default=None)
         return self.finish(
             AquaDeploymentApp().get_deployment_default_params(
-                model_id=model_id, instance_shape=instance_shape
+                model_id=model_id, instance_shape=instance_shape, gpu_count=gpu_count
             )
         )
 

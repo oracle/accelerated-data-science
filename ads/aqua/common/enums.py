@@ -8,15 +8,15 @@ aqua.common.enums
 This module contains the set of enums used in AQUA.
 """
 
-from ads.common.extended_enum import ExtendedEnumMeta
+from ads.common.extended_enum import ExtendedEnum
 
 
-class DataScienceResource(str, metaclass=ExtendedEnumMeta):
+class DataScienceResource(ExtendedEnum):
     MODEL_DEPLOYMENT = "datasciencemodeldeployment"
     MODEL = "datasciencemodel"
 
 
-class Resource(str, metaclass=ExtendedEnumMeta):
+class Resource(ExtendedEnum):
     JOB = "jobs"
     JOBRUN = "jobruns"
     MODEL = "models"
@@ -24,7 +24,7 @@ class Resource(str, metaclass=ExtendedEnumMeta):
     MODEL_VERSION_SET = "model-version-sets"
 
 
-class Tags(str, metaclass=ExtendedEnumMeta):
+class Tags(ExtendedEnum):
     TASK = "task"
     LICENSE = "license"
     ORGANIZATION = "organization"
@@ -43,41 +43,41 @@ class Tags(str, metaclass=ExtendedEnumMeta):
     MULTIMODEL_TYPE_TAG = "multimodel"
 
 
-class InferenceContainerType(str, metaclass=ExtendedEnumMeta):
+class InferenceContainerType(ExtendedEnum):
     CONTAINER_TYPE_VLLM = "vllm"
     CONTAINER_TYPE_TGI = "tgi"
     CONTAINER_TYPE_LLAMA_CPP = "llama-cpp"
 
 
-class InferenceContainerTypeFamily(str, metaclass=ExtendedEnumMeta):
+class InferenceContainerTypeFamily(ExtendedEnum):
     AQUA_VLLM_CONTAINER_FAMILY = "odsc-vllm-serving"
     AQUA_TGI_CONTAINER_FAMILY = "odsc-tgi-serving"
     AQUA_LLAMA_CPP_CONTAINER_FAMILY = "odsc-llama-cpp-serving"
 
 
-class CustomInferenceContainerTypeFamily(str, metaclass=ExtendedEnumMeta):
+class CustomInferenceContainerTypeFamily(ExtendedEnum):
     AQUA_TEI_CONTAINER_FAMILY = "odsc-tei-serving"
 
 
-class InferenceContainerParamType(str, metaclass=ExtendedEnumMeta):
+class InferenceContainerParamType(ExtendedEnum):
     PARAM_TYPE_VLLM = "VLLM_PARAMS"
     PARAM_TYPE_TGI = "TGI_PARAMS"
     PARAM_TYPE_LLAMA_CPP = "LLAMA_CPP_PARAMS"
 
 
-class EvaluationContainerTypeFamily(str, metaclass=ExtendedEnumMeta):
+class EvaluationContainerTypeFamily(ExtendedEnum):
     AQUA_EVALUATION_CONTAINER_FAMILY = "odsc-llm-evaluate"
 
 
-class FineTuningContainerTypeFamily(str, metaclass=ExtendedEnumMeta):
+class FineTuningContainerTypeFamily(ExtendedEnum):
     AQUA_FINETUNING_CONTAINER_FAMILY = "odsc-llm-fine-tuning"
 
 
-class HuggingFaceTags(str, metaclass=ExtendedEnumMeta):
+class HuggingFaceTags(ExtendedEnum):
     TEXT_GENERATION_INFERENCE = "text-generation-inference"
 
 
-class RqsAdditionalDetails(str, metaclass=ExtendedEnumMeta):
+class RqsAdditionalDetails(ExtendedEnum):
     METADATA = "metadata"
     CREATED_BY = "createdBy"
     DESCRIPTION = "description"
@@ -87,9 +87,14 @@ class RqsAdditionalDetails(str, metaclass=ExtendedEnumMeta):
     VERSION_LABEL = "versionLabel"
 
 
-class TextEmbeddingInferenceContainerParams(str, metaclass=ExtendedEnumMeta):
+class TextEmbeddingInferenceContainerParams(ExtendedEnum):
     """Contains a subset of params that are required for enabling model deployment in OCI Data Science. More options
     are available at https://huggingface.co/docs/text-embeddings-inference/en/cli_arguments"""
 
     MODEL_ID = "model-id"
     PORT = "port"
+
+
+class ConfigFolder(ExtendedEnum):
+    CONFIG = "config"
+    ARTIFACT = "artifact"
