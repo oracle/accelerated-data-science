@@ -15,6 +15,7 @@ from oci.data_science.models import JobRun, Metadata, Model, UpdateModelDetails
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import (
+    ConfigFolder,
     CustomInferenceContainerTypeFamily,
     FineTuningContainerTypeFamily,
     InferenceContainerTypeFamily,
@@ -44,6 +45,7 @@ from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME,
     AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE,
     AQUA_MODEL_ARTIFACT_FILE,
+    AQUA_MODEL_TOKENIZER_CONFIG,
     AQUA_MODEL_TYPE_CUSTOM,
     HF_METADATA_FOLDER,
     LICENSE_TXT,
@@ -567,6 +569,26 @@ class AquaModelApp(AquaApp):
             validation_final,
             training_final,
         ]
+
+    def get_hf_tokenizer_config(self, model_id):
+        """Gets the default chat template for the given Aqua model.
+
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the Aqua model.
+
+        Returns
+        -------
+        str:
+            Chat template string.
+        """
+        config = self.get_config(
+            model_id, AQUA_MODEL_TOKENIZER_CONFIG, ConfigFolder.ARTIFACT
+        )
+        if not config:
+            logger.debug(f"Tokenizer config for model: {model_id} is not available.")
+        return config
 
     @staticmethod
     def to_aqua_model(
