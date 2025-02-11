@@ -66,16 +66,18 @@ class MultiModelDeploymentConfigLoader:
         deployment_configs = self._fetch_deployment_configs_concurrently(model_ids)
         model_shape_gpu, deployment = self._extract_model_shape_gpu(deployment_configs)
 
-        for model, shape_gpu in model_shape_gpu.items():
+        for _, shape_gpu in model_shape_gpu.items():
             if not shape_gpu:
                 raise AquaValueError(
-                    f"There are no available shapes for model {model}, please select different model to deploy."
+                    "Unable to determine a valid GPU allocation for the selected models based on "
+                    "their current configurations. Please try to select a different set of models."
                 )
 
         common_shapes = self._get_common_shapes(model_shape_gpu)
         if not common_shapes:
             raise AquaValueError(
-                "No available shapes for selected models. Choose a different model."
+                "The selected models do not share any common deployment shapes. "
+                "Please ensure that all chosen models are compatible for multi-model deployment."
             )
 
         gpu_allocation = self._compute_gpu_allocation(
@@ -83,7 +85,8 @@ class MultiModelDeploymentConfigLoader:
         )
         if not gpu_allocation:
             raise AquaValueError(
-                "No available GPU allocations. Choose a different model."
+                "Unable to determine a valid GPU allocation for the selected models based on "
+                "their current configurations. Please select a different set of models."
             )
 
         return ModelDeploymentConfigSummary(
