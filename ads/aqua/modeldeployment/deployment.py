@@ -154,6 +154,13 @@ class AquaDeploymentApp(AquaApp):
                 defined_tags=defined_tags,
             )
         else:
+            model_ids = [model.model_id for model in create_deployment_details.models]
+
+            try:
+                CreateModelDeploymentDetails.validate_config(self.get_multimodel_deployment_config(model_ids = model_ids))
+            except ValidationError as e:
+                print(e)
+
             aqua_model = model_app.create_multi(
                 models=create_deployment_details.models,
                 compartment_id=compartment_id,

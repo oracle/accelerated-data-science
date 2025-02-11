@@ -77,6 +77,9 @@ from ads.aqua.model.entities import (
     ModelFormat,
     ModelValidationResult,
 )
+
+from ads.aqua.modeldeployment.deployment import AquaDeploymentApp
+
 from ads.aqua.ui import AquaContainerConfig, AquaContainerConfigItem
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
