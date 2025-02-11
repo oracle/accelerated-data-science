@@ -3,6 +3,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from typing import Any, Dict, List, Optional, Union
+
 from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 from pydantic import BaseModel, Field, model_validator
 
@@ -130,143 +131,6 @@ class AquaDeployment(Serializable):
         extra = "ignore"
 
 
-class MultiModelConfig(Serializable):
-    """Describes how many GPUs and the parameters of specific shape for multi model deployment.
-
-    Attributes:
-        gpu_count (int): Number of GPUs count to this model of this shape.
-        parameters (Dict[str, str], optional): A dictionary of parameters (e.g., VLLM_PARAMS) to
-            configure the behavior of a particular GPU shape.
-    """
-
-    gpu_count: int = Field(
-        default_factory=int, description="The number of GPUs allocated to the model."
-    )
-    parameters: Optional[Dict[str, str]] = Field(
-        default_factory=dict,
-        description="Key-value pairs for GPU shape parameters (e.g., VLLM_PARAMS).",
-    )
-
-    class Config:
-        extra = "ignore"
-
-
-class ConfigurationItem(Serializable):
-    """Holds key-value parameter pairs for a specific GPU shape.
-
-    Attributes:
-        parameters (Dict[str, str], optional): A dictionary of parameters (e.g., VLLM_PARAMS) to
-            configure the behavior of a particular GPU shape.
-        multi_model_deployment (List[MultiModelConfig], optional): A list of multi model configuration details.
-    """
-
-    parameters: Optional[Dict[str, str]] = Field(
-        default_factory=dict,
-        description="Key-value pairs for GPU shape parameters (e.g., VLLM_PARAMS).",
-    )
-    multi_model_deployment: Optional[List[MultiModelConfig]] = Field(
-        default_factory=list, description="A list of multi model configuration details."
-    )
-
-    class Config:
-        extra = "ignore"
-
-
-class ModelDeploymentConfig(Serializable):
-    """Represents one model's shape list and detailed configuration.
-
-    Attributes:
-        shape (List[str]): A list of shape names (e.g., BM.GPU.A10.4).
-        configuration (Dict[str, ConfigurationItem]): Maps each shape to its configuration details.
-    """
-
-    shape: List[str] = Field(
-        default_factory=list, description="List of supported shapes for the model."
-    )
-    configuration: Dict[str, ConfigurationItem] = Field(
-        default_factory=dict, description="Configuration details keyed by shape."
-    )
-
-    class Config:
-        extra = "ignore"
-
-
-class AquaDeploymentConfig(ModelDeploymentConfig):
-    """Represents multi model's shape list and detailed configuration.
-
-    Attributes:
-        shape (List[str]): A list of shape names (e.g., BM.GPU.A10.4).
-        configuration (Dict[str, ConfigurationItem]): Maps each shape to its configuration details.
-    """
-
-    configuration: Dict[str, ConfigurationItem] = Field(
-        default_factory=dict, description="Configuration details keyed by shape."
-    )
-
-
-class GPUModelAllocation(Serializable):
-    """Describes how many GPUs are allocated to a particular model.
-
-    Attributes:
-        ocid (str): The unique identifier of the model.
-        gpu_count (int): Number of GPUs allocated to this model.
-    """
-
-    ocid: str = Field(default_factory=str, description="The unique model OCID.")
-    gpu_count: int = Field(
-        default_factory=int, description="The number of GPUs allocated to the model."
-    )
-
-    class Config:
-        extra = "ignore"
-
-
-class GPUShapeAllocation(Serializable):
-    """Allocation details for a specific GPU shape.
-
-    Attributes:
-        models (List[GPUModelAllocation]): List of model GPU allocations for this shape.
-        total_gpus_available (int): The total number of GPUs available for this shape.
-    """
-
-    models: List[GPUModelAllocation] = Field(
-        default_factory=list, description="List of model allocations for this shape."
-    )
-    total_gpus_available: int = Field(
-        default_factory=int, description="Total GPUs available for this shape."
-    )
-
-    class Config:
-        extra = "ignore"
-
-
-class ModelDeploymentConfigSummary(Serializable):
-    """Top-level configuration model for OCI-based deployments.
-
-    Attributes:
-        deployment_config (Dict[str, ModelDeploymentConfig]): Deployment configurations
-            keyed by model OCID.
-        gpu_allocation (Dict[str, GPUShapeAllocation]): GPU allocations keyed by GPU shape.
-    """
-
-    deployment_config: Dict[str, ModelDeploymentConfig] = Field(
-        default_factory=dict,
-        description=(
-            "Deployment configuration details for each model, including supported shapes "
-            "and shape-specific parameters."
-        ),
-    )
-    gpu_allocation: Dict[str, GPUShapeAllocation] = Field(
-        default_factory=dict,
-        description=(
-            "Details on how GPUs are allocated per shape, including the total "
-            "GPUs available for each shape."
-        ),
-    )
-
-    class Config:
-        extra = "ignore"
-
 class AquaDeploymentDetail(AquaDeployment, DataClassSerializable):
     """Represents a details of Aqua deployment."""
 
@@ -275,6 +139,178 @@ class AquaDeploymentDetail(AquaDeployment, DataClassSerializable):
 
     class Config:
         extra = "ignore"
+
+class ShapeInfoConfig(Serializable):
+    """Describes how many memory and cpu to this model for specific shape.
+
+    Attributes:
+        memory_in_gbs (int, optional): The number of memory in gbs to this model of the shape.
+        ocpu (int, optional): The number of ocpus to this model of the shape.
+    """
+
+    memory_in_gbs: Optional[int] = Field(
+        default_factory=int,
+        description="The number of memory in gbs to this model of the shape.",
+    )
+    ocpu: Optional[int] = Field(
+        default_factory=int,
+        description="The number of ocpus to this model of the shape.",
+    )
+
+    class Config:
+        extra = "allow"
+
+
+class DeploymentShapeInfo(Serializable):
+    """Describes the shape information to this model for specific shape.
+
+    Attributes:
+        configs (List[ShapeInfoConfig], optional): A list of memory and cpu number details to this model of the shape.
+        type (str, optional): The type of the shape.
+    """
+
+    configs: Optional[List[ShapeInfoConfig]] = Field(
+        default_factory=list,
+        description="A list of memory and cpu number details to this model of the shape.",
+    )
+    type: Optional[str] = Field(
+        default_factory=str, description="The type of the shape."
+    )
+
+    class Config:
+        extra = "allow"
+
+
+class MultiModelConfig(Serializable):
+    """Describes how many GPUs and the parameters of specific shape for multi model deployment.
+
+    Attributes:
+        gpu_count (int, optional): Number of GPUs count to this model of this shape.
+        parameters (Dict[str, str], optional): A dictionary of parameters (e.g., VLLM_PARAMS) to
+            configure the behavior of a particular GPU shape.
+    """
+
+    gpu_count: Optional[int] = Field(
+        default_factory=int, description="The number of GPUs allocated to the model."
+    )
+    parameters: Optional[Dict[str, str]] = Field(
+        default_factory=dict,
+        description="Key-value pairs for GPU shape parameters (e.g., VLLM_PARAMS).",
+    )
+
+    class Config:
+        extra = "allow"
+
+
+class ConfigurationItem(Serializable):
+    """Holds key-value parameter pairs for a specific GPU or CPU shape.
+
+    Attributes:
+        parameters (Dict[str, str], optional): A dictionary of parameters (e.g., VLLM_PARAMS) to
+            configure the behavior of a particular GPU shape.
+        multi_model_deployment (List[MultiModelConfig], optional): A list of multi model configuration details.
+        shape_info (DeploymentShapeInfo, optional): The shape information to this model for specific CPU shape.
+    """
+
+    parameters: Optional[Dict[str, str]] = Field(
+        default_factory=dict,
+        description="Key-value pairs for shape parameters.",
+    )
+    multi_model_deployment: Optional[List[MultiModelConfig]] = Field(
+        default_factory=list, description="A list of multi model configuration details."
+    )
+    shape_info: Optional[DeploymentShapeInfo] = Field(
+        default_factory=DeploymentShapeInfo,
+        description="The shape information to this model for specific shape",
+    )
+
+    class Config:
+        extra = "allow"
+
+
+class AquaDeploymentConfig(Serializable):
+    """Represents multi model's shape list and detailed configuration.
+
+    Attributes:
+        shape (List[str], optional): A list of shape names (e.g., BM.GPU.A10.4).
+        configuration (Dict[str, ConfigurationItem], optional): Maps each shape to its configuration details.
+    """
+
+    shape: Optional[List[str]] = Field(
+        default_factory=list, description="List of supported shapes for the model."
+    )
+    configuration: Optional[Dict[str, ConfigurationItem]] = Field(
+        default_factory=dict, description="Configuration details keyed by shape."
+    )
+
+    class Config:
+        extra = "allow"
+
+
+class GPUModelAllocation(Serializable):
+    """Describes how many GPUs are allocated to a particular model.
+
+    Attributes:
+        ocid (str, optional): The unique identifier of the model.
+        gpu_count (int, optional): Number of GPUs allocated to this model.
+    """
+
+    ocid: Optional[str] = Field(
+        default_factory=str, description="The unique model OCID."
+    )
+    gpu_count: Optional[int] = Field(
+        default_factory=int, description="The number of GPUs allocated to the model."
+    )
+
+    class Config:
+        extra = "allow"
+
+
+class GPUShapeAllocation(Serializable):
+    """Allocation details for a specific GPU shape.
+
+    Attributes:
+        models (List[GPUModelAllocation], optional): List of model GPU allocations for this shape.
+        total_gpus_available (int, optional): The total number of GPUs available for this shape.
+    """
+
+    models: Optional[List[GPUModelAllocation]] = Field(
+        default_factory=list, description="List of model allocations for this shape."
+    )
+    total_gpus_available: Optional[int] = Field(
+        default_factory=int, description="Total GPUs available for this shape."
+    )
+
+    class Config:
+        extra = "allow"
+
+
+class ModelDeploymentConfigSummary(Serializable):
+    """Top-level configuration model for OCI-based deployments.
+
+    Attributes:
+        deployment_config (Dict[str, AquaDeploymentConfig], optional): Deployment configurations
+            keyed by model OCID.
+        gpu_allocation (Dict[str, GPUShapeAllocation], optional): GPU allocations keyed by GPU shape.
+    """
+
+    deployment_config: Optional[Dict[str, AquaDeploymentConfig]] = Field(
+        default_factory=dict,
+        description=(
+            "Deployment configuration details for each model, including supported shapes "
+            "and shape-specific parameters."
+        ),
+    )
+    gpu_allocation: Optional[Dict[str, GPUShapeAllocation]] = Field(
+        default_factory=dict,
+        description=(
+            "Details on how GPUs are allocated per shape, including the total "
+            "GPUs available for each shape."
+        ),
+    )
+
+    class Config:
+        extra = "allow"
 
 
 class CreateModelDeploymentDetails(BaseModel):
@@ -368,11 +404,8 @@ class CreateModelDeploymentDetails(BaseModel):
             )
         return values
 
-    class Config:
-        extra = "ignore"
-
     def validate_config(self,
-                        models_config_summary: ModelDeploymentConfigSummary):
+                    models_config_summary: ModelDeploymentConfigSummary):
         """In a Multi-Model Deployment, validates the following:
             - checks if deployment is a multi-model deployment
             - assigned GPU allocations per model are within the number of GPUs available in the shape, instance_shape
@@ -411,3 +444,6 @@ class CreateModelDeploymentDetails(BaseModel):
             raise ValueError(
                     "Model group is not a multi model deployment"
                     )
+
+    class Config:
+        extra = "ignore"
