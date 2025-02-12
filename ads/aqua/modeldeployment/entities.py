@@ -212,13 +212,13 @@ class CreateModelDeploymentDetails(BaseModel):
         "model registration.",
     )
     cmd_var: Optional[List[str]] = Field(
-        default_factory=list, description="Command variables for the container runtime."
+        None, description="Command variables for the container runtime."
     )
-    freeform_tags: Optional[Dict[str, str]] = Field(
-        default_factory=dict, description="Freeform tags for model deployment."
+    freeform_tags: Optional[Dict] = Field(
+        None, description="Freeform tags for model deployment."
     )
-    defined_tags: Optional[Dict[str, Dict[str, str]]] = Field(
-        default_factory=dict, description="Defined tags for model deployment."
+    defined_tags: Optional[Dict] = Field(
+        None, description="Defined tags for model deployment."
     )
 
     @model_validator(mode="before")
@@ -364,7 +364,8 @@ class GPUModelAllocation(Serializable):
 
 
 class GPUShapeAllocation(Serializable):
-    """Allocation details for a specific GPU shape.
+    """
+    Allocation details for a specific GPU shape.
 
     Attributes:
         models (List[GPUModelAllocation], optional): List of model GPU allocations for this shape.
@@ -389,6 +390,7 @@ class ModelDeploymentConfigSummary(Serializable):
         deployment_config (Dict[str, AquaDeploymentConfig], optional): Deployment configurations
             keyed by model OCID.
         gpu_allocation (Dict[str, GPUShapeAllocation], optional): GPU allocations keyed by GPU shape.
+        error_message (str, optional): Error message if GPU allocation is not possible.
     """
 
     deployment_config: Optional[Dict[str, AquaDeploymentConfig]] = Field(
@@ -404,6 +406,9 @@ class ModelDeploymentConfigSummary(Serializable):
             "Details on how GPUs are allocated per shape, including the total "
             "GPUs available for each shape."
         ),
+    )
+    error_message: Optional[str] = Field(
+        default=None, description="Error message if GPU allocation is not possible."
     )
 
     class Config:
