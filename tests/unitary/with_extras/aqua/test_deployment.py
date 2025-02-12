@@ -13,11 +13,11 @@ from unittest.mock import MagicMock, patch
 
 import oci
 import pytest
-from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
 from parameterized import parameterized
 
 import ads.aqua.modeldeployment.deployment
 import ads.config
+from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
@@ -25,12 +25,45 @@ from ads.aqua.modeldeployment.entities import (
     AquaDeploymentDetail,
     ModelParams,
 )
-from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
+from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import ModelCustomMetadata
 
 null = None
+
+
+@pytest.fixture(scope="module", autouse=True)
+def set_env():
+    os.environ["SERVICE_COMPARTMENT_ID"] = "ocid1.compartment.oc1..<OCID>"
+    os.environ["USER_COMPARTMENT_ID"] = "ocid1.compartment.oc1..<USER_COMPARTMENT_OCID>"
+    os.environ["USER_PROJECT_ID"] = "ocid1.project.oc1..<USER_PROJECT_OCID>"
+    os.environ["COMPARTMENT_ID"] = "ocid1.compartment.oc1..<USER_COMPARTMENT_OCID>"
+
+    os.environ["PROJECT_COMPARTMENT_OCID"] = (
+        "ocid1.compartment.oc1..<USER_COMPARTMENT_OCID>"
+    )
+    os.environ["NB_SESSION_COMPARTMENT_OCID"] = (
+        "ocid1.compartment.oc1..<USER_COMPARTMENT_OCID>"
+    )
+    os.environ["ODSC_MODEL_COMPARTMENT_OCID"] = (
+        "ocid1.compartment.oc1..<USER_COMPARTMENT_OCID>"
+    )
+
+    os.environ["MODEL_DEPLOYMENT_ID"] = (
+        "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>"
+    )
+    os.environ["MODEL_DEPLOYMENT_URL"] = (
+        "https://modeldeployment.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>"
+    )
+    os.environ["MODEL_ID"] = (
+        "ocid1.datasciencemodeldeployment.oc1.<region>.<MODEL_OCID>"
+    )
+    os.environ["DEPLOYMENT_IMAGE_NAME"] = "dsmc://image-name:1.0.0.0"
+    os.environ["DEPLOYMENT_SHAPE_NAME"] = "BM.GPU.A10.4"
+    os.environ["DEPLOYMENT_GPU_COUNT"] = "1"
+    os.environ["DEPLOYMENT_GPU_COUNT_B"] = "2"
+    os.environ["DEPLOYMENT_SHAPE_NAME_CPU"] = "VM.Standard.A1.Flex"
 
 
 class TestDataset:
@@ -257,7 +290,7 @@ class TestDataset:
         "created_on": "2024-01-01T00:00:00.000000+00:00",
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
-        "private_endpoint_id": null,
+        "private_endpoint_id": "",
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
             "BASE_MODEL": "service_models/model-name/artifact",
@@ -428,6 +461,7 @@ class TestDataset:
                 "total_gpus_available": 8,
             },
         },
+        "error_message": None,
     }
 
     model_gpu_dict = {"model_a": [2, 4], "model_b": [1, 2, 4], "model_c": [1, 2, 8]}
@@ -587,11 +621,11 @@ class TestAquaDeployment(unittest.TestCase):
         [
             [
                 "shape",
-                "There are no available shapes for model model_a, please select different model to deploy.",
+                "Unable to determine a valid GPU allocation for the selected models based on their current configurations. Please try selecting a different set of models.",
             ],
             [
                 "configuration",
-                "No available GPU allocations. Choose a different model.",
+                "Unable to determine a valid GPU allocation for the selected models based on their current configurations. Please select a different set of models.",
             ],
         ]
     )
@@ -613,8 +647,10 @@ class TestAquaDeployment(unittest.TestCase):
         mock_fetch_deployment_configs_concurrently.return_value = {
             "model_a": AquaDeploymentConfig(**config)
         }
-        with pytest.raises(AquaValueError, match=error):
-            self.app.get_multimodel_deployment_config(["model_a"])
+
+        test_config = self.app.get_multimodel_deployment_config(["model_a"])
+
+        assert test_config.error_message == error
 
     def test_verify_compatibility(self):
         result = MultiModelDeploymentConfigLoader(self.app)._verify_compatibility(
