@@ -646,6 +646,39 @@ class TestAquaDeployment(unittest.TestCase):
         assert result[1] == 0
         assert result[2] == []
 
+    @parameterized.expand(
+        [
+            [
+                "shape",
+                "There are no available shapes for model model_a, please select different model to deploy.",
+            ],
+            [
+                "configuration",
+                "No available GPU allocations. Choose a different model.",
+            ],
+        ]
+    )
+    @patch(
+        "ads.aqua.modeldeployment.utils.MultiModelDeploymentConfigLoader._fetch_deployment_configs_concurrently"
+    )
+    def test_multi_model_validate_config(
+        self, missing_key, error, mock_fetch_deployment_configs_concurrently
+    ):
+        config_json = os.path.join(
+            self.curr_dir,
+            "test_data/deployment/aqua_multi_model_deployment_config.json",
+        )
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        config.pop(missing_key)
+
+        mock_fetch_deployment_configs_concurrently.return_value = {
+            "model_a": AquaDeploymentConfig(**config)
+        }
+        with pytest.raises(AquaValueError, match=error):
+            self.app.get_multimodel_deployment_config(["model_a"])
+
     @patch("ads.aqua.modeldeployment.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")
     @patch("ads.aqua.modeldeployment.deployment.get_container_image")
