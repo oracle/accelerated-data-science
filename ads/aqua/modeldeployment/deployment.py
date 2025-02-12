@@ -159,7 +159,9 @@ class AquaDeploymentApp(AquaApp):
             model_ids = [model.model_id for model in create_deployment_details.models]
 
             try:
-                CreateModelDeploymentDetails.validate_config(self.get_multimodel_deployment_config(model_ids = model_ids))
+                model_deployment_details = CreateModelDeploymentDetails()
+                model_deployment_details.validate_config(models_config_summary=
+                                                             self.get_multimodel_deployment_config(model_ids = model_ids))
             except ValidationError as e:
                 print(e)
 
