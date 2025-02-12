@@ -418,8 +418,9 @@ class CreateModelDeploymentDetails(BaseModel):
             if not isinstance(total_available_gpus, int):
                 raise ValueError(f"Missing total GPU allocation for the selected shape {selected_shape}")
 
-            if not isinstance(models_allocated_gpus, List[GPUModelAllocation]):
-                raise ValueError("Missing GPU allocations by GPU shape")
+            if not all(isinstance(item, GPUModelAllocation) for item in models_allocated_gpus):
+                raise ValueError("GPU allocations must be instances of GPUModelAllocation")
+
 
             sum_model_gpus = 0
 
