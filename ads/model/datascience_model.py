@@ -2235,10 +2235,6 @@ class DataScienceModel(Builder):
 
         Parameters
         ----------
-        model_ocid: str
-            The `OCID`__ of the model.
-            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
-
         metadata_key_name: str
             The name of the model metadatum in the metadata.
 
@@ -2304,10 +2300,6 @@ class DataScienceModel(Builder):
 
         Parameters
         ----------
-        model_ocid: str
-            The `OCID`__ of the model.
-            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
-
         metadata_key_name: str
             The name of the model metadatum in the metadata.
 
@@ -2341,10 +2333,6 @@ class DataScienceModel(Builder):
 
         Parameters
         ----------
-        model_ocid: str
-            The `OCID`__ of the model.
-            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
-
         metadata_key_name: str
             The name of the model metadatum in the metadata.
 
@@ -2378,10 +2366,6 @@ class DataScienceModel(Builder):
 
         Parameters
         ----------
-        model_ocid: str
-            The `OCID`__ of the model.
-            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
-
         metadata_key_name: str
             The name of the model metadatum in the metadata.
         target_dir: str
@@ -2415,10 +2399,6 @@ class DataScienceModel(Builder):
 
         Parameters
         ----------
-        model_ocid: str
-            The `OCID`__ of the model.
-            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
-
         metadata_key_name: str
             The name of the model metadatum in the metadata.
         target_dir: str
@@ -2452,10 +2432,6 @@ class DataScienceModel(Builder):
 
         Parameters
         ----------
-        model_ocid: str
-            The `OCID`__ of the model.
-            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
-
         metadata_key_name: str
             The name of the model metadatum in the metadata.
         Returns
@@ -2484,10 +2460,6 @@ class DataScienceModel(Builder):
 
         Parameters
         ----------
-        model_ocid: str
-            The `OCID`__ of the model.
-            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
-
         metadata_key_name: str
             The name of the model metadatum in the metadata.
         Returns
