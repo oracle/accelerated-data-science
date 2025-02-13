@@ -442,7 +442,7 @@ class AquaDeploymentApp(AquaApp):
                         f"Select other parameters for model {model.model_id}."
                     )
 
-            params = ""
+            params = container_params
             deployment_config = self.get_deployment_config(model.model_id)
             multi_model_deployment = deployment_config.configuration.get(
                 create_deployment_details.instance_shape, ConfigurationItem()
@@ -453,10 +453,10 @@ class AquaDeploymentApp(AquaApp):
                     and item.gpu_count
                     and item.gpu_count == model.gpu_count
                 ):
-                    config_parameters = item.parameters.get(container_type_key, UNKNOWN)
-                    if config_parameters:
-                        params = f"{container_params} {get_combined_params(config_parameters, user_params)}"
-                        break
+                    config_parameters = item.parameters.get(
+                        get_container_params_type(container_type_key), UNKNOWN
+                    )
+                    params = f"{params} {get_combined_params(config_parameters, user_params)}"
 
             artifact_location_key = (
                 f"{ModelCustomMetadataFields.ARTIFACT_LOCATION}-{idx}"
