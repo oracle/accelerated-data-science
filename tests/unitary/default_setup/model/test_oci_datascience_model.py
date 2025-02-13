@@ -12,7 +12,7 @@ from oci.data_science.models import (
     ExportModelArtifactDetails,
     ImportModelArtifactDetails,
     Model,
-    ModelProvenance,
+    ModelProvenance, RegisterModelArtifactReferenceDetails, OSSModelArtifactReferenceDetails,
 )
 from oci.exceptions import ServiceError
 from oci.response import Response
@@ -136,6 +136,12 @@ class TestOCIDataScienceModel:
             headers={"opc-work-request-id": "work_request_id"},
             request=None,
         )
+        cls.mock_register_model_artifact_reference_response = Response(
+            data=None,
+            status=None,
+            headers={"opc-work-request-id": "work_request_id"},
+            request=None,
+        )
 
     def setup_method(self):
         self.mock_model = OCIDataScienceModel(**OCI_MODEL_PAYLOAD)
@@ -172,6 +178,9 @@ class TestOCIDataScienceModel:
         )
         mock_client.export_model_artifact = MagicMock(
             return_value=self.mock_export_artifact_response
+        )
+        mock_client.register_model_artifact_reference = MagicMock(
+            return_value=self.mock_register_model_artifact_reference_response
         )
         return mock_client
 
@@ -461,6 +470,62 @@ class TestOCIDataScienceModel:
             mock_data_science_work_request.assert_called_with("work_request_id")
             mock_wait_work_request.assert_called_with(
                 progress_bar_description="Exporting model artifacts."
+            )
+
+    @patch(
+        "ads.model.service.oci_datascience_model.DataScienceWorkRequest.wait_work_request"
+    )
+    @patch("ads.model.service.oci_datascience_model.DataScienceWorkRequest.__init__")
+    def test_register_model_artifact_reference(
+            self,
+            mock_data_science_work_request,
+            mock_wait_work_request,
+            mock_client,
+    ):
+        """Tests register model artifact reference for a model in model catalog."""
+        test_bucket_uri_1 = "oci://bucket1@namespace1/prefix1/"
+        test_bucket_uri_2 = "oci://bucket2@namespace2/prefix2/subPrefix2"
+        test_bucket_uri_3 = "oci://bucket3@namespace3/"
+        test_bucket_uri_4 = "oci://bucket4@namespace4"
+
+        model_artifact_reference_details_1 = OSSModelArtifactReferenceDetails()
+        model_artifact_reference_details_1.namespace = 'namespace1'
+        model_artifact_reference_details_1.bucket_name = 'bucket1'
+        model_artifact_reference_details_1.prefix = 'prefix1'
+
+        model_artifact_reference_details_2 = OSSModelArtifactReferenceDetails()
+        model_artifact_reference_details_2.namespace = 'namespace2'
+        model_artifact_reference_details_2.bucket_name = 'bucket2'
+        model_artifact_reference_details_2.prefix = 'prefix2/subPrefix2'
+
+        model_artifact_reference_details_3 = OSSModelArtifactReferenceDetails()
+        model_artifact_reference_details_3.namespace = 'namespace3'
+        model_artifact_reference_details_3.bucket_name = 'bucket3'
+        model_artifact_reference_details_3.prefix = None
+
+        model_artifact_reference_details_4 = OSSModelArtifactReferenceDetails()
+        model_artifact_reference_details_4.namespace = 'namespace4'
+        model_artifact_reference_details_4.bucket_name = 'bucket4'
+        model_artifact_reference_details_4.prefix = None
+
+        model_artifact_reference_details_list = [model_artifact_reference_details_1, model_artifact_reference_details_2,
+                                                 model_artifact_reference_details_3, model_artifact_reference_details_4]
+
+        register_model_artifact_reference_details = RegisterModelArtifactReferenceDetails()
+        register_model_artifact_reference_details.model_artifact_references = model_artifact_reference_details_list
+
+        mock_data_science_work_request.return_value = None
+        with patch.object(OCIDataScienceModel, "client", mock_client):
+            self.mock_model.register_model_artifact_reference(
+                bucket_uri_list=[test_bucket_uri_1, test_bucket_uri_2, test_bucket_uri_3, test_bucket_uri_4]
+            )
+            mock_client.register_model_artifact_reference.assert_called_with(
+                model_id=self.mock_model.id,
+                register_model_artifact_reference_details=register_model_artifact_reference_details
+            )
+            mock_data_science_work_request.assert_called_with("work_request_id")
+            mock_wait_work_request.assert_called_with(
+                progress_bar_description="Registering model artifact references."
             )
 
     def test_is_model_by_reference(self):
