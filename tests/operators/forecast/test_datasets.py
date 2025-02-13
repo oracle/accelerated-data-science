@@ -212,6 +212,33 @@ def test_pandas_to_historical_test(model):
         print(test_metrics)
 
 
+# CostAD
+@pytest.mark.parametrize("model", ["prophet", "neuralprophet"])
+def test_pandas_to_historical_test(model):
+    df = pd.read_csv(f"{DATASET_PREFIX}dataset5.csv")
+    df_train = df[:-1]
+    df_test = df[-1:]
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        output_data_path = f"{tmpdirname}/results"
+        yaml_i = deepcopy(TEMPLATE_YAML)
+        yaml_i["spec"]["model"] = model
+        yaml_i["spec"]["historical_data"].pop("url")
+        yaml_i["spec"]["historical_data"]["data"] = df_train
+        yaml_i["spec"]["test_data"] = {"data": df_test}
+        yaml_i["spec"]["target_column"] = "Y"
+        yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COL
+        yaml_i["spec"]["horizon"] = 1
+        yaml_i["spec"]["output_directory"]["url"] = output_data_path
+        if model == "automlx":
+            yaml_i["spec"]["model_kwargs"] = {"time_budget": 2}
+        operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+        forecast_operate(operator_config)
+        check_output_for_errors(output_data_path)
+        test_metrics = pd.read_csv(f"{output_data_path}/metrics.csv")
+        print(test_metrics)
+
+
 def check_output_for_errors(output_data_path):
     # try:
     # List files in the directory
