@@ -5,11 +5,11 @@
 
 import copy
 import itertools
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional
 
 from ads.aqua.app import AquaApp
-from ads.aqua.common.errors import AquaValueError
 from ads.aqua.modeldeployment.entities import (
     AquaDeploymentConfig,
     ConfigurationItem,
@@ -19,6 +19,8 @@ from ads.aqua.modeldeployment.entities import (
 )
 from ads.config import AQUA_MODEL_DEPLOYMENT_CONFIG
 
+logger = logging.getLogger("ads.aqua")
+
 
 class MultiModelDeploymentConfigLoader:
     """
@@ -26,7 +28,7 @@ class MultiModelDeploymentConfigLoader:
     and calculate optimal GPU allocations.
     """
 
-    MAX_WORKERS = 10
+    MAX_WORKERS = 10  # Number of workers for asynchronous models detail loading
 
     def __init__(self, deployment_app: AquaApp):
         """
@@ -56,39 +58,54 @@ class MultiModelDeploymentConfigLoader:
         Returns
         -------
         ModelDeploymentConfigSummary
-            A summary of the deployment configurations and GPU allocations.
-
-        Raises
-        ------
-        AquaValueError
-            If no compatible shapes or GPU allocations are available.
+            A summary of the deployment configurations and GPU allocations. If GPU allocation
+            cannot be determined, an appropriate error message is included in the summary.
         """
+        # Fetch deployment configurations concurrently.
         deployment_configs = self._fetch_deployment_configs_concurrently(model_ids)
         model_shape_gpu, deployment = self._extract_model_shape_gpu(deployment_configs)
 
+        # Initialize the summary result with the deployment configurations.
+        summary = ModelDeploymentConfigSummary(deployment_config=deployment)
+
+        # Ensure every model has at least one valid GPU configuration.
         for model, shape_gpu in model_shape_gpu.items():
             if not shape_gpu:
-                raise AquaValueError(
-                    f"There are no available shapes for model {model}, please select different model to deploy."
+                summary.error_message = (
+                    "Unable to determine a valid GPU allocation for the selected models based on their current configurations. "
+                    "Please try selecting a different set of models."
                 )
+                logger.debug(f"No valid GPU configuration found for model `{model}`")
+                return summary
 
+        # Identify common deployment shapes among all models.
         common_shapes = self._get_common_shapes(model_shape_gpu)
         if not common_shapes:
-            raise AquaValueError(
-                "No available shapes for selected models. Choose a different model."
+            summary.error_message = (
+                "The selected models do not share any common deployment shapes. "
+                "Please ensure that all chosen models are compatible for multi-model deployment."
             )
+            logger.debug(
+                f"No common deployment shapes found among selected models: {model_ids}"
+            )
+            return summary
 
+        # Compute GPU allocations based on the common shapes and optionally prioritize a primary model.
         gpu_allocation = self._compute_gpu_allocation(
             common_shapes, model_shape_gpu, primary_model_id
         )
         if not gpu_allocation:
-            raise AquaValueError(
-                "No available GPU allocations. Choose a different model."
+            summary.error_message = (
+                "Unable to determine a valid GPU allocation for the selected models based on their current configurations. "
+                "Please select a different set of models."
             )
+            logger.debug(
+                f"GPU allocation computation failed for selected models: {model_ids}"
+            )
+            return summary
 
-        return ModelDeploymentConfigSummary(
-            deployment_config=deployment, gpu_allocation=gpu_allocation
-        )
+        summary.gpu_allocation = gpu_allocation
+        return summary
 
     def _fetch_deployment_configs_concurrently(
         self, model_ids: List[str]
