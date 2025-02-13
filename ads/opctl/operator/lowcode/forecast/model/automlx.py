@@ -79,7 +79,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     def _build_model(self) -> pd.DataFrame:
         import logging
 
-        from automlx import Pipeline, init, shutdown
+        from automlx import Pipeline, init
 
         full_data_dict = self.datasets.get_data_by_series()
 
@@ -192,7 +192,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
         logger.debug("===========Forecast Generated===========")
 
-        shutdown()
         return self.forecast_output.get_forecast_long()
 
     def _generate_report(self):
