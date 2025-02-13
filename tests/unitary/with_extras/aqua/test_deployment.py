@@ -254,6 +254,7 @@ class TestDataset:
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
         "private_endpoint_id": null,
+        "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
             "BASE_MODEL": "service_models/model-name/artifact",
             "MODEL_DEPLOY_ENABLE_STREAMING": "true",

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import cgi
@@ -18,7 +18,7 @@ from jsonschema import ValidationError, validate
 
 from ads.common import oci_client as oc
 from ads.common import utils
-from ads.common.extended_enum import ExtendedEnumMeta
+from ads.common.extended_enum import ExtendedEnum
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import (
     AQUA_SERVICE_MODELS_BUCKET as SERVICE_MODELS_BUCKET,
@@ -83,14 +83,14 @@ class InvalidArtifactType(Exception):  # pragma: no cover
     pass
 
 
-class CustomerNotificationType(str, metaclass=ExtendedEnumMeta):
+class CustomerNotificationType(ExtendedEnum):
     NONE = "NONE"
     ALL = "ALL"
     ON_FAILURE = "ON_FAILURE"
     ON_SUCCESS = "ON_SUCCESS"
 
 
-class SettingStatus(str, metaclass=ExtendedEnumMeta):
+class SettingStatus(ExtendedEnum):
     """Enum to represent the status of retention settings."""
 
     PENDING = "PENDING"
@@ -146,10 +146,7 @@ class ModelBackupSetting:
         return cls(
             is_backup_enabled=data.get("is_backup_enabled"),
             backup_region=data.get("backup_region"),
-            customer_notification_type=CustomerNotificationType(
-                data.get("customer_notification_type")
-            )
-            or None,
+            customer_notification_type=data.get("customer_notification_type") or None,
         )
 
     def to_json(self) -> str:
@@ -229,10 +226,7 @@ class ModelRetentionSetting:
         return cls(
             archive_after_days=data.get("archive_after_days"),
             delete_after_days=data.get("delete_after_days"),
-            customer_notification_type=CustomerNotificationType(
-                data.get("customer_notification_type")
-            )
-            or None,
+            customer_notification_type=data.get("customer_notification_type") or None,
         )
 
     def to_json(self) -> str:
@@ -324,9 +318,9 @@ class ModelRetentionOperationDetails:
     def from_dict(cls, data: Dict) -> "ModelRetentionOperationDetails":
         """Constructs retention operation details from a dictionary."""
         return cls(
-            archive_state=SettingStatus(data.get("archive_state")) or None,
+            archive_state=data.get("archive_state") or None,
             archive_state_details=data.get("archive_state_details"),
-            delete_state=SettingStatus(data.get("delete_state")) or None,
+            delete_state=data.get("delete_state") or None,
             delete_state_details=data.get("delete_state_details"),
             time_archival_scheduled=data.get("time_archival_scheduled"),
             time_deletion_scheduled=data.get("time_deletion_scheduled"),
@@ -407,7 +401,7 @@ class ModelBackupOperationDetails:
     def from_dict(cls, data: Dict) -> "ModelBackupOperationDetails":
         """Constructs backup operation details from a dictionary."""
         return cls(
-            backup_state=SettingStatus(data.get("backup_state")) or None,
+            backup_state=data.get("backup_state") or None,
             backup_state_details=data.get("backup_state_details"),
             time_last_backup=data.get("time_last_backup"),
         )

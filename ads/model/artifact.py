@@ -1,28 +1,28 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import fnmatch
 import importlib
 import os
-import sys
 import shutil
+import sys
 import tempfile
 import uuid
-import fsspec
+from datetime import datetime
 from typing import Dict, Optional, Tuple
+
+import fsspec
+from jinja2 import Environment, PackageLoader
+
+from ads import __version__
 from ads.common import auth as authutil
 from ads.common import logger, utils
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import CONDA_BUCKET_NAME, CONDA_BUCKET_NS
 from ads.model.runtime.env_info import EnvInfo, InferenceEnvInfo, TrainingEnvInfo
 from ads.model.runtime.runtime_info import RuntimeInfo
-from jinja2 import Environment, PackageLoader
-import warnings
-from ads import __version__
-from datetime import datetime
 
 MODEL_ARTIFACT_VERSION = "3.0"
 REQUIRED_ARTIFACT_FILES = ("runtime.yaml", "score.py")
@@ -377,6 +377,45 @@ class ModelArtifact:
             os.path.join(self.artifact_dir, "score.py"), "w", **storage_options
         ) as f:
             f.write(scorefn_template.render(context))
+
+    def prepare_schema(self, schema_name: str):
+        """Copies schema to artifact directory.
+
+        Parameters
+        ----------
+        schema_name: str
+            The schema name
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        FileExistsError
+            If `schema_name` doesn't exist.
+        """
+        uri_src = os.path.join(
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..")),
+            "templates",
+            "schemas",
+            f"{schema_name}",
+        )
+
+        if not os.path.exists(uri_src):
+            raise FileExistsError(
+                f"{schema_name} does not exists. "
+                "Ensure the schema name is valid or specify a different one."
+            )
+
+        uri_dst = os.path.join(self.artifact_dir, os.path.basename(uri_src))
+
+        utils.copy_file(
+            uri_src=uri_src,
+            uri_dst=uri_dst,
+            force_overwrite=True,
+            auth=self.auth,
+        )
 
     def reload(self):
         """Syncs the `score.py` to reload the model and predict function.

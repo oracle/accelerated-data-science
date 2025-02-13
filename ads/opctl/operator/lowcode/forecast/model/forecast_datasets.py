@@ -167,7 +167,7 @@ class ForecastDatasets:
                 self.historical_data.data,
                 self.additional_data.data,
             ],
-            axis=1,
+            axis=1
         )
 
     def get_data_by_series(self, include_horizon=True):
