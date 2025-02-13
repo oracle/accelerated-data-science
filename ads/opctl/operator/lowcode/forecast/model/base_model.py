@@ -19,6 +19,7 @@ import report_creator as rc
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
+from ads.opctl.operator.lowcode.common.const import DataColumns
 from ads.opctl.operator.lowcode.common.utils import (
     datetime_to_seconds,
     disable_print,
@@ -28,7 +29,6 @@ from ads.opctl.operator.lowcode.common.utils import (
     seconds_to_datetime,
     write_data,
 )
-from ads.opctl.operator.lowcode.common.const import DataColumns
 from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import TestData
 from ads.opctl.operator.lowcode.forecast.utils import (
     _build_metrics_df,
@@ -49,7 +49,6 @@ from ..const import (
     SpeedAccuracyMode,
     SupportedMetrics,
     SupportedModels,
-    BACKTEST_REPORT_NAME,
 )
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 from .forecast_datasets import ForecastDatasets
@@ -127,8 +126,9 @@ class ForecastOperatorBaseModel(ABC):
             if self.spec.generate_report or self.spec.generate_metrics:
                 self.eval_metrics = self.generate_train_metrics()
                 if not self.target_cat_col:
-                    self.eval_metrics.rename({"Series 1": self.original_target_column},
-                                             axis=1, inplace=True)
+                    self.eval_metrics.rename(
+                        {"Series 1": self.original_target_column}, axis=1, inplace=True
+                    )
 
                 if self.spec.test_data:
                     try:
@@ -140,8 +140,11 @@ class ForecastOperatorBaseModel(ABC):
                             elapsed_time=elapsed_time,
                         )
                         if not self.target_cat_col:
-                            self.test_eval_metrics.rename({"Series 1": self.original_target_column},
-                                                     axis=1, inplace=True)
+                            self.test_eval_metrics.rename(
+                                {"Series 1": self.original_target_column},
+                                axis=1,
+                                inplace=True,
+                            )
                     except Exception:
                         logger.warn("Unable to generate Test Metrics.")
                         logger.debug(f"Full Traceback: {traceback.format_exc()}")
@@ -223,17 +226,23 @@ class ForecastOperatorBaseModel(ABC):
                     rc.Block(
                         first_10_title,
                         # series_subtext,
-                        rc.Select(blocks=first_5_rows_blocks) if self.target_cat_col else first_5_rows_blocks[0],
+                        rc.Select(blocks=first_5_rows_blocks)
+                        if self.target_cat_col
+                        else first_5_rows_blocks[0],
                     ),
                     rc.Block(
                         last_10_title,
                         # series_subtext,
-                        rc.Select(blocks=last_5_rows_blocks) if self.target_cat_col else last_5_rows_blocks[0],
+                        rc.Select(blocks=last_5_rows_blocks)
+                        if self.target_cat_col
+                        else last_5_rows_blocks[0],
                     ),
                     rc.Block(
                         summary_title,
                         # series_subtext,
-                        rc.Select(blocks=data_summary_blocks) if self.target_cat_col else data_summary_blocks[0],
+                        rc.Select(blocks=data_summary_blocks)
+                        if self.target_cat_col
+                        else data_summary_blocks[0],
                     ),
                     rc.Separator(),
                 )
@@ -308,7 +317,7 @@ class ForecastOperatorBaseModel(ABC):
                         horizon=self.spec.horizon,
                         test_data=test_data,
                         ci_interval_width=self.spec.confidence_interval_width,
-                        target_category_column=self.target_cat_col
+                        target_category_column=self.target_cat_col,
                     )
                     if (
                         series_name is not None
@@ -491,7 +500,11 @@ class ForecastOperatorBaseModel(ABC):
                         f2.write(f1.read())
 
         # forecast csv report
-        result_df = result_df if self.target_cat_col else result_df.drop(DataColumns.Series, axis=1)
+        result_df = (
+            result_df
+            if self.target_cat_col
+            else result_df.drop(DataColumns.Series, axis=1)
+        )
         write_data(
             data=result_df,
             filename=os.path.join(unique_output_dir, self.spec.forecast_filename),
@@ -667,7 +680,10 @@ class ForecastOperatorBaseModel(ABC):
         )
 
     def _validate_automlx_explanation_mode(self):
-        if self.spec.model != SupportedModels.AutoMLX and self.spec.explanations_accuracy_mode == SpeedAccuracyMode.AUTOMLX:
+        if (
+            self.spec.model != SupportedModels.AutoMLX
+            and self.spec.explanations_accuracy_mode == SpeedAccuracyMode.AUTOMLX
+        ):
             raise ValueError(
                 "AUTOMLX explanation accuracy mode is only supported for AutoMLX models. "
                 "Please select mode other than AUTOMLX from the available explanations_accuracy_mode options"
@@ -738,14 +754,14 @@ class ForecastOperatorBaseModel(ABC):
                     logger.warn(
                         "No explanations generated. Ensure that additional data has been provided."
                     )
-                elif (
-                    self.spec.model == SupportedModels.AutoMLX
-                    and self.spec.explanations_accuracy_mode
-                    == SpeedAccuracyMode.AUTOMLX
-                ):
-                    logger.warning(
-                        "Global explanations not available for AutoMLX models with inherent explainability"
-                    )
+                # elif (
+                #     self.spec.model == SupportedModels.AutoMLX
+                #     and self.spec.explanations_accuracy_mode
+                #     == SpeedAccuracyMode.AUTOMLX
+                # ):
+                #     logger.warning(
+                #         "Global explanations not available for AutoMLX models with inherent explainability"
+                #     )
                 else:
                     self.global_explanation[s_id] = dict(
                         zip(

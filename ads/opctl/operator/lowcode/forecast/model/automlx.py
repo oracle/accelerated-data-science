@@ -453,6 +453,12 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
                     # Store the explanations in the local_explanation dictionary
                     self.local_explanation[s_id] = explanations_df
+
+                    self.global_explanation[s_id] = dict(zip(
+                            data_i.columns[1:],
+                            np.average(np.absolute(explanations_df[:, 1:]), axis=0),
+                        )
+                    )
                 else:
                     # Fall back to the default explanation generation method
                     super().explain_model()
