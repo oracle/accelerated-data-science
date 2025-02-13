@@ -2,16 +2,23 @@
 Release Notes
 =============
 
+2.13.0
+-------
+Release date: Feb 13th, 2025
+
+* Fixed bug in DataScienceModel defined metadata where non-predefined metadata keys caused errors.
+
+
 2.12.11
 -------
-Release date: Feb 5th, 2024
+Release date: Feb 5th, 2025
 
 * Fixed bug while loading model configuration in AI Quick Actions.
 
 
 2.12.10
 -------
-Release date: Feb 5th, 2024
+Release date: Feb 5th, 2025
 
 * Support inference container URI to be edited for unverified models in AI Quick Actions.
 * Logging improvements for all CRUD operations in AI Quick Actions.
