@@ -457,6 +457,7 @@ class AquaDeploymentApp(AquaApp):
                         get_container_params_type(container_type_key), UNKNOWN
                     )
                     params = f"{params} {get_combined_params(config_parameters, user_params)}"
+                    break
 
             artifact_location_key = (
                 f"{ModelCustomMetadataFields.ARTIFACT_LOCATION}-{idx}"
