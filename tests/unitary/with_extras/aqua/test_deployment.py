@@ -17,12 +17,16 @@ from parameterized import parameterized
 
 import ads.aqua.modeldeployment.deployment
 import ads.config
+from ads.aqua.common.entities import AquaMultiModelRef
+from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentConfig,
     AquaDeploymentDetail,
+    CreateModelDeploymentDetails,
+    ModelDeploymentConfigSummary,
     ModelParams,
 )
 from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
@@ -1265,3 +1269,132 @@ class TestMDInferenceResponse(unittest.TestCase):
 
         result = self.app.get_model_deployment_response(endpoint)
         assert result["choices"][0]["text"] == " The answer is 2"
+
+
+class TestCreateModelDeploymentDetails:
+    curr_dir = os.path.dirname(__file__)  # Define curr_dir
+
+    def validate_config_helper(self, models, instance_shape, display_name, total_gpus, multi_model="true"):
+        config_json = os.path.join(self.curr_dir, "test_data/deployment/aqua_summary_multi_model.json")
+
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        config['gpu_allocation'] = {
+            instance_shape: {
+                "models": models,
+                "total_gpus_available": total_gpus
+            }
+        }
+
+        aqua_models = [AquaMultiModelRef(model_id=x["ocid"], gpu_count=x["gpu_count"]) for x in models]
+
+        mock_create_deployment_details = CreateModelDeploymentDetails(
+            models=aqua_models,
+            instance_shape=instance_shape,
+            display_name=display_name,
+            freeform_tags={Tags.MULTIMODEL_TYPE_TAG: multi_model}
+        )
+
+        mock_models_config_summary = ModelDeploymentConfigSummary(
+            **(config)
+        )
+
+        mock_create_deployment_details.validate_config(
+            models_config_summary=mock_models_config_summary
+        )
+
+    @pytest.mark.parametrize(
+        "models, instance_shape, display_name, total_gpus",
+        [
+            (
+                [
+                    {"ocid": "model_a", "gpu_count": 2},
+                    {"ocid": "model_b", "gpu_count": 2},
+                    {"ocid": "model_c", "gpu_count": 2}
+                ],
+                "BM.GPU.H100.8",
+                "test_a",
+                8
+            ),
+            (
+                [
+                    {"ocid": "model_a", "gpu_count": 2},
+                    {"ocid": "model_b", "gpu_count": 2},
+                ],
+                "BM.GPU.A10.4",
+                "test_a",
+                4
+            )
+
+        ]
+    )
+    def test_validate_config_positive(self, models, instance_shape, display_name, total_gpus):
+        self.validate_config_helper(models, instance_shape, display_name, total_gpus)
+
+    @pytest.mark.parametrize(
+        "models, instance_shape, display_name, total_gpus, multi_model, value_error",
+        [   (
+                [
+                {"ocid": "model_a", "gpu_count" : 2},
+                {"ocid": "model_b", "gpu_count" : 2},
+                {"ocid": "model_c", "gpu_count" : 4}],
+                "BM.GPU.H100.8",
+                'test_a',
+                None,
+                'true',
+                "Missing total GPU allocation for the selected shape BM.GPU.H100.8"
+
+            ),
+            (
+                [
+                {"ocid": "model_a", "gpu_count" : 2},
+                {"ocid": "model_b", "gpu_count" : 2},
+                {"ocid": "model_c", "gpu_count" : 4}],
+                "invalid_shape",
+                'test_a',
+                8,
+                'true',
+                "Selected shape invalid_shape is not supported by all models in model group."
+
+            ),
+            (
+                [
+                {"ocid": "model_a", "gpu_count" : 2},
+                {"ocid": "model_b", "gpu_count" : 4}, # model_b lacks this entry in loaded config
+                {"ocid": "model_c", "gpu_count" : 2}],
+                "BM.GPU.H100.8",
+                'test_a',
+                8,
+                'true',
+                "The GPU allocation is not valid for all models in the selected shape BM.GPU.H100.8."
+
+            ),
+            (
+                [
+                {"ocid": "model_a", "gpu_count" : 4},
+                {"ocid": "model_b", "gpu_count" : 2},
+                {"ocid": "model_c", "gpu_count" : 4}],
+                "BM.GPU.H100.8",
+                'test_a',
+                8,
+                'true',
+                "Select an instance shape with a higher number of GPUs or use less GPUs within model group."
+
+            ),
+            (
+                [
+                {"ocid": "model_a", "gpu_count" : 2},
+                {"ocid": "model_b", "gpu_count" : 2},
+                {"ocid": "model_c", "gpu_count" : 4}],
+                "BM.GPU.H100.8",
+                'test_a',
+                8,
+                'false',
+                "Model group is not a multi model deployment"
+            )
+        ]
+    )
+    def test_validate_config_negative(self, models, instance_shape, display_name, total_gpus, multi_model, value_error):
+        with pytest.raises(ValueError, match=value_error):
+            self.validate_config_helper(models, instance_shape, display_name, total_gpus, multi_model)

@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 from pydantic import BaseModel, Field, model_validator
 
+from ads.aqua import logger
 from ads.aqua.common.entities import AquaMultiModelRef, ShapeInfo
 from ads.aqua.common.enums import Tags
 from ads.aqua.config.utils.serializer import Serializable
@@ -14,6 +15,7 @@ from ads.aqua.constants import UNKNOWN, UNKNOWN_DICT
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
+
 
 class ModelParams(Serializable):
     max_tokens: Optional[int] = None
@@ -139,6 +141,7 @@ class AquaDeploymentDetail(AquaDeployment, DataClassSerializable):
 
     class Config:
         extra = "ignore"
+
 
 class ShapeInfoConfig(Serializable):
     """Describes how many memory and cpu to this model for specific shape.
@@ -409,47 +412,80 @@ class CreateModelDeploymentDetails(BaseModel):
             )
         return values
 
-    def validate_config(self,
-                    models_config_summary: ModelDeploymentConfigSummary):
-        """In a Multi-Model Deployment, validates the following:
-            - checks if deployment is a multi-model deployment
-            - assigned GPU allocations per model are within the number of GPUs available in the shape, instance_shape
-            - validate if all models in model group can be deployed on the selected shape, instance_shape"""
+    def validate_config(self, models_config_summary: ModelDeploymentConfigSummary):
+        """
+        Validates the model configuration for multi model deployments.
+
+        Parameters
+        ----------
+        models_config_summary : ModelDeploymentConfigSummary, optional
+            An instance of ModelDeploymentConfigSummary containing all required
+            fields (GPU Allocation, Deployment Configuration) for creating a multi model deployment via Aqua.
+
+        Raises
+        -------
+        ValueError:
+            When the deployment is NOT a multi model deployment
+            When assigned GPU Allocations per model are NOT within the number of GPUs available in the instance shape
+            When all models in model group can NOT be deployed on the instance shape with the selected GPU count
+        """
         if self.freeform_tags.get(Tags.MULTIMODEL_TYPE_TAG) == "true":
             selected_shape = self.instance_shape
-            total_available_gpus = getattr(models_config_summary.gpu_allocation.get(selected_shape), "total_gpus_available", None)
-            models_allocated_gpus = getattr(models_config_summary.gpu_allocation.get(selected_shape), "models", None)
+            total_available_gpus = getattr(
+                models_config_summary.gpu_allocation.get(selected_shape),
+                "total_gpus_available",
+                None,
+            )
+            models_allocated_gpus = getattr(
+                models_config_summary.gpu_allocation.get(selected_shape), "models", None
+            )
 
             if not isinstance(total_available_gpus, int):
-                raise ValueError(f"Missing total GPU allocation for the selected shape {selected_shape}")
+                raise ValueError(
+                    f"Missing total GPU allocation for the selected shape {selected_shape}"
+                )
 
-            if not all(isinstance(item, GPUModelAllocation) for item in models_allocated_gpus):
-                raise ValueError("GPU allocations must be instances of GPUModelAllocation")
+            if not all(
+                isinstance(item, GPUModelAllocation) for item in models_allocated_gpus
+            ):
+                raise ValueError(
+                    "GPU allocations must be instances of GPUModelAllocation"
+                )
 
+            model_deployment_config = models_config_summary.deployment_config
 
             sum_model_gpus = 0
 
             for model in models_allocated_gpus:
                 sum_model_gpus += model.gpu_count
 
-            # check if total_gpus_available should be = to the sum (yes)
-            if sum_model_gpus > total_available_gpus:
-                raise ValueError(
-                    f"""selected shape {selected_shape} has {total_available_gpus} GPUs while model group has {sum_model_gpus} GPUs.
-                    Select a shape with a higher number of GPUs or use less GPUs within model group"""
-                )
-            model_deployment_config = models_config_summary.deployment_config
+                aqua_deployment_config = model_deployment_config[model.ocid]
 
-            for ocid, model_config in model_deployment_config.items():
-                if selected_shape not in model_config.shape:
+                if selected_shape not in aqua_deployment_config.shape:
+                    logger.error(f"Selected shape {selected_shape} is not supported by model with OCID {model.ocid}")
                     raise ValueError(
-                    f"""selected shape {selected_shape} is not supported by model with OCID {ocid}"""
+                        f"Selected shape {selected_shape} is not supported by all models in model group."
                     )
+
+                multi_model_configs = aqua_deployment_config.configuration.get(
+                    selected_shape
+                ).multi_model_deployment
+
+                if not any(
+                    gpu_shape_config.gpu_count == model.gpu_count
+                    for gpu_shape_config in multi_model_configs
+                ):
+                    logger.error(f"MultiModelConfig with user assigned gpu_count={model.gpu_count} was not found for {model.ocid}")
+                    raise ValueError(f"The GPU allocation is not valid for all models in the selected shape {selected_shape}.")
+
+            if sum_model_gpus > total_available_gpus:
+                logger.error(f"Selected shape {selected_shape} has {total_available_gpus} GPUs while model group has {sum_model_gpus} GPUs.")
+                raise ValueError(
+                    "Select an instance shape with a higher number of GPUs or use less GPUs within model group."
+                )
 
         else:
-            raise ValueError(
-                    "Model group is not a multi model deployment"
-                    )
+            raise ValueError("Model group is not a multi model deployment")
 
     class Config:
         extra = "ignore"
