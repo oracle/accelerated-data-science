@@ -615,7 +615,7 @@ class TestDataScienceModel:
             True,
         ],
     )
-    @patch.object(OCIDataScienceModel, "is_model_by_reference")
+    @patch.object(OCIDataScienceModel, "_is_model_by_reference")
     @patch.object(OCIDataScienceModel, "get_artifact_info")
     @patch.object(OCIDataScienceModel, "get_model_provenance")
     @patch.object(DataScienceModel, "_download_file_description_artifact")

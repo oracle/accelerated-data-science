@@ -475,7 +475,7 @@ class TestOCIDataScienceModel:
             category="Other",
         )
         self.mock_model.custom_metadata_list = [metadata_item]
-        assert not self.mock_model.is_model_by_reference()
+        assert not self.mock_model._is_model_by_reference()
 
         metadata_item = ModelCustomMetadataItem(
             key="modelDescription",
@@ -485,7 +485,7 @@ class TestOCIDataScienceModel:
         )
         self.mock_model.custom_metadata_list = [metadata_item]
 
-        assert self.mock_model.is_model_by_reference()
+        assert self.mock_model._is_model_by_reference()
 
     @patch.object(OCIDataScienceModel, "client")
     def test_create_defined_metadata_artifact(self, mock_client):
@@ -495,10 +495,10 @@ class TestOCIDataScienceModel:
         )
         response = Response(headers={}, status=204, data=None, request=None)
         mock_client.create_model_defined_metadatum_artifact.return_value = response
-        data = self.mock_model.create_defined_metadata_artifact("MODEL_OCID", "metadata_key_name",
-                                                                self.mock_artifact_file_path)
-        assert data.status == '204'
-
+        data = self.mock_model.create_defined_metadata_artifact(
+            "metadata_key_name", self.mock_artifact_file_path
+        )
+        assert data.status == "204"
 
     @patch.object(OCIDataScienceModel, "client")
     def test_create_custom_metadata_artifact(self, mock_client):
@@ -508,9 +508,10 @@ class TestOCIDataScienceModel:
         )
         response = Response(headers={}, status=204, data=None, request=None)
         mock_client.create_model_defined_metadatum_artifact.return_value = response
-        data = self.mock_model.create_defined_metadata_artifact("MODEL_OCID", "metadata_key_name",
-                                                                self.mock_artifact_file_path)
-        assert data.status == '204'
+        data = self.mock_model.create_defined_metadata_artifact(
+            "metadata_key_name", self.mock_artifact_file_path
+        )
+        assert data.status == "204"
 
     @patch.object(OCIDataScienceModel, "client")
     def test_update_defined_metadata_artifact(self, mock_client):
@@ -520,9 +521,10 @@ class TestOCIDataScienceModel:
         )
         response = Response(headers={}, status=204, data=None, request=None)
         mock_client.update_model_defined_metadatum_artifact.return_value = response
-        data = self.mock_model.update_defined_metadata_artifact("MODEL_OCID", "metadata_key_name",
-                                                                self.mock_artifact_file_path)
-        assert data.status == '204'
+        data = self.mock_model.update_defined_metadata_artifact(
+            "metadata_key_name", self.mock_artifact_file_path
+        )
+        assert data.status == "204"
 
     @patch.object(OCIDataScienceModel, "client")
     def test_update_custom_metadata_artifact(self, mock_client):
@@ -532,39 +534,37 @@ class TestOCIDataScienceModel:
         )
         response = Response(headers={}, status=204, data=None, request=None)
         mock_client.update_model_custom_metadatum_artifact.return_value = response
-        data = self.mock_model.update_custom_metadata_artifact("MODEL_OCID", "metadata_key_name",
-                                                               self.mock_artifact_file_path)
-        assert data.status == '204'
+        data = self.mock_model.update_custom_metadata_artifact(
+            "metadata_key_name", self.mock_artifact_file_path
+        )
+        assert data.status == "204"
 
     @patch.object(OCIDataScienceModel, "client")
     def test_delete_defined_metadata_artifact(self, mock_client):
         """Tests delete defined metadata artifact for specified model."""
         response = Response(headers={}, status=204, data=None, request=None)
         mock_client.delete_model_defined_metadatum_artifact.return_value = response
-        data = self.mock_model.delete_defined_metadata_artifact("MODEL_OCID", "metadata_key_name")
-        assert data.status == '204'
+        data = self.mock_model.delete_defined_metadata_artifact("metadata_key_name")
+        assert data.status == "204"
 
     @patch.object(OCIDataScienceModel, "client")
     def test_delete_custom_metadata_artifact(self, mock_client):
         """Tests delete defined metadata artifact for specified model."""
-        response = Response(headers={}, status=204,data=None,request=None)
+        response = Response(headers={}, status=204, data=None, request=None)
         mock_client.delete_model_custom_metadatum_artifact.return_value = response
-        data = self.mock_model.delete_custom_metadata_artifact("MODEL_OCID", "metadata_key_name")
-        assert data.status == '204'
+        data = self.mock_model.delete_custom_metadata_artifact("metadata_key_name")
+        assert data.status == "204"
 
     @patch.object(OCIDataScienceModel, "client")
     def test_get_custom_metadata_artifact(self, mock_client):
         """Tests gets defined metadata artifact for specified model."""
         mock_client.get_model_custom_metadatum_artifact_content.return_value.data.content = b"some file"
-        data = self.mock_model.get_custom_metadata_artifact("MODEL_OCID", "metadata_key_name")
+        data = self.mock_model.get_custom_metadata_artifact("metadata_key_name")
         assert data == b"some file"
 
     @patch.object(OCIDataScienceModel, "client")
     def test_get_defined_metadata_artifact(self, mock_client):
         """Tests gets defined metadata artifact for specified model."""
         mock_client.get_model_defined_metadatum_artifact_content.return_value.data.content = b"some file"
-        data = self.mock_model.get_defined_metadata_artifact("MODEL_OCID", "metadata_key_name")
+        data = self.mock_model.get_defined_metadata_artifact("metadata_key_name")
         assert data == b"some file"
-
-
-
