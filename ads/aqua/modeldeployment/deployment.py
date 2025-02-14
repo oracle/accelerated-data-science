@@ -2,6 +2,7 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 import shlex
 from typing import Dict, List, Optional, Union
 
@@ -423,7 +424,7 @@ class AquaDeploymentApp(AquaApp):
             ContainerSpec.CONTAINER_SPEC, UNKNOWN_DICT
         ).get(container_type_key, UNKNOWN_DICT)
 
-        container_params = container_spec.get(ContainerSpec.CLI_PARM, UNKNOWN)
+        container_params = container_spec.get(ContainerSpec.CLI_PARM, UNKNOWN).strip()
 
         for idx, model in enumerate(create_deployment_details.models):
             user_params = (
@@ -456,7 +457,7 @@ class AquaDeploymentApp(AquaApp):
                     config_parameters = item.parameters.get(
                         get_container_params_type(container_type_key), UNKNOWN
                     )
-                    params = f"{params} {get_combined_params(config_parameters, user_params)}"
+                    params = f"{params} {get_combined_params(config_parameters, user_params)}".strip()
                     break
 
             artifact_location_key = (
@@ -476,7 +477,7 @@ class AquaDeploymentApp(AquaApp):
                 aqua_model.custom_metadata_list.get(model_name_key).value
             )
 
-        env_var.update({AQUA_MULTI_MODEL_CONFIG: {"models": model_config}})
+        env_var.update({AQUA_MULTI_MODEL_CONFIG: json.dumps({"models": model_config})})
         logger.info(f"Env vars used for deploying {aqua_model.id} : {env_var}.")
 
         container_image_uri = (

@@ -25,14 +25,7 @@ spec:
     spec:
       env:
         MODEL_DEPLOY_PREDICT_ENDPOINT: /v1/completions
-        MULTI_MODEL_CONFIG:
-          models:
-            - params: --served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096
-              model_path: models/model_one/5be6479/artifact/
-            - params: --served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096
-              model_path: models/model_two/83e9aa1/artifact/
-            - params: --served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096
-              model_path: models/model_three/83e9aa1/artifact/
+        MULTI_MODEL_CONFIG: '{"models": [{"params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/"}'
       healthCheckPort: 8080
       image: "dsmc://image-name:1.0.0.0"
       modelUri: "ocid1.datasciencemodeldeployment.oc1.<region>.<MODEL_OCID>"

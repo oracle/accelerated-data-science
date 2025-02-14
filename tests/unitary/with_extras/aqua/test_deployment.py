@@ -189,22 +189,7 @@ class TestDataset:
                         "environment_configuration_type": "OCIR_CONTAINER",
                         "environment_variables": {
                             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
-                            "MULTI_MODEL_CONFIG": {
-                                "models": [
-                                    {
-                                        "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096",
-                                        "model_path": "models/model_one/5be6479/artifact/",
-                                    },
-                                    {
-                                        "params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096",
-                                        "model_path": "models/model_two/83e9aa1/artifact/",
-                                    },
-                                    {
-                                        "params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096",
-                                        "model_path": "models/model_three/83e9aa1/artifact/",
-                                    },
-                                ]
-                            },
+                            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/"}]}',
                         },
                         "health_check_port": 8080,
                         "image": "dsmc://image-name:1.0.0.0",
@@ -410,22 +395,7 @@ class TestDataset:
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
-            "MULTI_MODEL_CONFIG": {
-                "models": [
-                    {
-                        "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096",
-                        "model_path": "models/model_one/5be6479/artifact/",
-                    },
-                    {
-                        "params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096",
-                        "model_path": "models/model_two/83e9aa1/artifact/",
-                    },
-                    {
-                        "params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096",
-                        "model_path": "models/model_three/83e9aa1/artifact/",
-                    },
-                ]
-            },
+            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/"}]}',
         },
         "cmd": [],
         "console_link": "https://cloud.oracle.com/data-science/model-deployments/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>?region=region-name",
@@ -1139,8 +1109,10 @@ class TestAquaDeployment(unittest.TestCase):
     @patch("ads.aqua.model.AquaModelApp.create_multi")
     @patch("ads.aqua.modeldeployment.deployment.get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_deployment_config")
     def test_create_deployment_for_multi_model(
         self,
+        mock_get_deployment_config,
         mock_deploy,
         mock_get_container_image,
         mock_create_multi,
@@ -1170,6 +1142,11 @@ class TestAquaDeployment(unittest.TestCase):
         with open(container_index_json, "r") as _file:
             container_index_config = json.load(_file)
         mock_get_container_config.return_value = container_index_config
+
+        deployment_config_json = os.path.join(
+            self.curr_dir, "test_data/deployment/deployment_gpu_config.json"
+        )
+        mock_get_deployment_config.return_value = deployment_config_json
 
         mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
         aqua_deployment = os.path.join(

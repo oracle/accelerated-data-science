@@ -42,6 +42,8 @@ class AquaMultiModelRef(Serializable):
     ----------
     model_id : str
         The unique identifier of the model.
+    model_name : Optional[str]
+        The name of the model.
     gpu_count : Optional[int]
         Number of GPUs required for deployment.
     env_var : Optional[Dict[str, Any]]
