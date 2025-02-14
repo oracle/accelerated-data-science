@@ -28,21 +28,8 @@ from ads.aqua.modeldeployment.entities import (
     CreateModelDeploymentDetails,
     ModelDeploymentConfigSummary,
     ModelParams,
-    CreateModelDeploymentDetails,
-    ModelDeploymentConfigSummary,
-    AquaMultiModelRef,
-    MultiModelConfig,
-    ConfigurationItem,
-    DeploymentShapeInfo,
 )
-<<<<<<< HEAD
 from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
-=======
-
-
-from ads.aqua.common.enums import Tags
-from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
->>>>>>> c26cd283 (wip- fixing gpu count validation)
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import ModelCustomMetadata
