@@ -2,6 +2,12 @@
 Release Notes
 =============
 
+2.12.12
+-------
+Release date: Feb 14th, 2024
+
+* Fixed bug to address recurssion issue with to be released OCI SDK version.
+
 2.12.11
 -------
 Release date: Feb 5th, 2024
