@@ -28,8 +28,21 @@ from ads.aqua.modeldeployment.entities import (
     CreateModelDeploymentDetails,
     ModelDeploymentConfigSummary,
     ModelParams,
+    CreateModelDeploymentDetails,
+    ModelDeploymentConfigSummary,
+    AquaMultiModelRef,
+    MultiModelConfig,
+    ConfigurationItem,
+    DeploymentShapeInfo,
 )
+<<<<<<< HEAD
 from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
+=======
+
+
+from ads.aqua.common.enums import Tags
+from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
+>>>>>>> c26cd283 (wip- fixing gpu count validation)
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import ModelCustomMetadata
@@ -520,9 +533,9 @@ class TestAquaDeployment(unittest.TestCase):
         expected_attributes = AquaDeployment.__annotations__.keys()
         for r in results:
             actual_attributes = r.to_dict()
-            assert set(actual_attributes) == set(
-                expected_attributes
-            ), "Attributes mismatch"
+            assert set(actual_attributes) == set(expected_attributes), (
+                "Attributes mismatch"
+            )
 
     @patch("ads.aqua.modeldeployment.deployment.get_resource_name")
     def test_get_deployment(self, mock_get_resource_name):
@@ -689,7 +702,8 @@ class TestAquaDeployment(unittest.TestCase):
     @parameterized.expand(
         [
             [
-                "shape",
+                [2, 2, 2],
+                "BM.GPU.H100.8",
                 "There are no available shapes for model model_a, please select different model to deploy.",
             ],
             [
@@ -698,26 +712,62 @@ class TestAquaDeployment(unittest.TestCase):
             ],
         ]
     )
-    @patch(
-        "ads.aqua.modeldeployment.utils.MultiModelDeploymentConfigLoader._fetch_deployment_configs_concurrently"
-    )
+    @patch("ads.aqua.modeldeployment.deployment.AquaDeploymentApp.create")
     def test_multi_model_validate_config(
-        self, missing_key, error, mock_fetch_deployment_configs_concurrently
+        self,
+        gpu_counts,
+        user_instance_shape,
+        config_instance_shape,
+        total_gpus_available,
+        expected_validation
     ):
-        config_json = os.path.join(
-            self.curr_dir,
-            "test_data/deployment/aqua_multi_model_deployment_config.json",
-        )
-        with open(config_json, "r") as _file:
-            config = json.load(_file)
 
-        config.pop(missing_key)
+        mock_multi_model_ref = []
+        mock_deployment_config = {}
+        mock_gpu_allocation = {}
 
-        mock_fetch_deployment_configs_concurrently.return_value = {
-            "model_a": AquaDeploymentConfig(**config)
+        for index, model_gpu in enumerate(gpu_counts):
+            mock_model = MagicMock(spec=AquaMultiModelRef)
+            mock_model.gpu_count = model_gpu
+            mock_multi_model_ref.append(mock_model)
+
+            curr_key = f"model_id_{index}"
+            mock_deployment_config[curr_key] = MagicMock(spec=AquaDeploymentConfig)
+
+        # change instance shape
+        gpu_allocation = {
+            config_instance_shape: {
+                "total_gpus_available": total_gpus_available,
+                "models": [{"gpu_count": x} for x in gpu_counts],
+            }
         }
-        with pytest.raises(AquaValueError, match=error):
-            self.app.get_multimodel_deployment_config(["model_a"])
+
+        mock_aqua_deployment_config = MagicMock(spec=ModelDeploymentConfigSummary)
+        mock_aqua_deployment_config.configure_mock(
+            **{
+                "deployment_config": mock_deployment_config,
+                "gpu_allocation": gpu_allocation,
+            }
+        )
+
+        mock_models_config_summary = AquaDeploymentApp().get_multimodel_deployment_config = MagicMock(
+            return_value=ModelDeploymentConfigSummary(
+                deployment_config=mock_deployment_config,
+                gpu_allocation=mock_gpu_allocation,
+            )
+        )
+
+        model_deployment_config = CreateModelDeploymentDetails(
+            models=mock_multi_model_ref,
+            instance_shape=user_instance_shape,
+            freeform_tags={Tags.MULTIMODEL_TYPE_TAG: "true"},
+        )
+
+        obtained_validation = model_deployment_config.validate_config(
+            models_config_summary=mock_models_config_summary
+        )
+
+        assert obtained_validation == expected_validation
 
     @patch("ads.aqua.modeldeployment.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")
