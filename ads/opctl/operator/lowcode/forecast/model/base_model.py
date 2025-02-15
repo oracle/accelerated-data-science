@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -19,6 +19,7 @@ import report_creator as rc
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
+from ads.opctl.operator.lowcode.common.const import DataColumns
 from ads.opctl.operator.lowcode.common.utils import (
     datetime_to_seconds,
     disable_print,
@@ -28,7 +29,6 @@ from ads.opctl.operator.lowcode.common.utils import (
     seconds_to_datetime,
     write_data,
 )
-from ads.opctl.operator.lowcode.common.const import DataColumns
 from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import TestData
 from ads.opctl.operator.lowcode.forecast.utils import (
     _build_metrics_df,
@@ -49,10 +49,9 @@ from ..const import (
     SpeedAccuracyMode,
     SupportedMetrics,
     SupportedModels,
-    BACKTEST_REPORT_NAME,
 )
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
-from .forecast_datasets import ForecastDatasets
+from .forecast_datasets import ForecastDatasets, ForecastResults
 
 logging.getLogger("report_creator").setLevel(logging.WARNING)
 
@@ -127,8 +126,9 @@ class ForecastOperatorBaseModel(ABC):
             if self.spec.generate_report or self.spec.generate_metrics:
                 self.eval_metrics = self.generate_train_metrics()
                 if not self.target_cat_col:
-                    self.eval_metrics.rename({"Series 1": self.original_target_column},
-                                             axis=1, inplace=True)
+                    self.eval_metrics.rename(
+                        {"Series 1": self.original_target_column}, axis=1, inplace=True
+                    )
 
                 if self.spec.test_data:
                     try:
@@ -140,8 +140,11 @@ class ForecastOperatorBaseModel(ABC):
                             elapsed_time=elapsed_time,
                         )
                         if not self.target_cat_col:
-                            self.test_eval_metrics.rename({"Series 1": self.original_target_column},
-                                                     axis=1, inplace=True)
+                            self.test_eval_metrics.rename(
+                                {"Series 1": self.original_target_column},
+                                axis=1,
+                                inplace=True,
+                            )
                     except Exception:
                         logger.warn("Unable to generate Test Metrics.")
                         logger.debug(f"Full Traceback: {traceback.format_exc()}")
@@ -223,17 +226,23 @@ class ForecastOperatorBaseModel(ABC):
                     rc.Block(
                         first_10_title,
                         # series_subtext,
-                        rc.Select(blocks=first_5_rows_blocks) if self.target_cat_col else first_5_rows_blocks[0],
+                        rc.Select(blocks=first_5_rows_blocks)
+                        if self.target_cat_col
+                        else first_5_rows_blocks[0],
                     ),
                     rc.Block(
                         last_10_title,
                         # series_subtext,
-                        rc.Select(blocks=last_5_rows_blocks) if self.target_cat_col else last_5_rows_blocks[0],
+                        rc.Select(blocks=last_5_rows_blocks)
+                        if self.target_cat_col
+                        else last_5_rows_blocks[0],
                     ),
                     rc.Block(
                         summary_title,
                         # series_subtext,
-                        rc.Select(blocks=data_summary_blocks) if self.target_cat_col else data_summary_blocks[0],
+                        rc.Select(blocks=data_summary_blocks)
+                        if self.target_cat_col
+                        else data_summary_blocks[0],
                     ),
                     rc.Separator(),
                 )
@@ -308,7 +317,7 @@ class ForecastOperatorBaseModel(ABC):
                         horizon=self.spec.horizon,
                         test_data=test_data,
                         ci_interval_width=self.spec.confidence_interval_width,
-                        target_category_column=self.target_cat_col
+                        target_category_column=self.target_cat_col,
                     )
                     if (
                         series_name is not None
@@ -341,11 +350,12 @@ class ForecastOperatorBaseModel(ABC):
                 )
 
             # save the report and result CSV
-            self._save_report(
+            return self._save_report(
                 report_sections=report_sections,
                 result_df=result_df,
                 metrics_df=self.eval_metrics,
                 test_metrics_df=self.test_eval_metrics,
+                test_data=test_data,
             )
 
     def _test_evaluate_metrics(self, elapsed_time=0):
@@ -462,10 +472,12 @@ class ForecastOperatorBaseModel(ABC):
         result_df: pd.DataFrame,
         metrics_df: pd.DataFrame,
         test_metrics_df: pd.DataFrame,
+        test_data: pd.DataFrame,
     ):
         """Saves resulting reports to the given folder."""
 
         unique_output_dir = self.spec.output_directory.url
+        results = ForecastResults()
 
         if ObjectStorageDetails.is_oci_path(unique_output_dir):
             storage_options = default_signer()
@@ -491,13 +503,22 @@ class ForecastOperatorBaseModel(ABC):
                         f2.write(f1.read())
 
         # forecast csv report
-        result_df = result_df if self.target_cat_col else result_df.drop(DataColumns.Series, axis=1)
+        # if self.spec.test_data is not None:
+        #     test_data_dict = test_data.get_dict_by_series()
+        #     for series_id, test_data_values in test_data_dict.items():
+        #         result_df[DataColumns.Series] = test_data_values[]
+        result_df = (
+            result_df
+            if self.target_cat_col
+            else result_df.drop(DataColumns.Series, axis=1)
+        )
         write_data(
             data=result_df,
             filename=os.path.join(unique_output_dir, self.spec.forecast_filename),
             format="csv",
             storage_options=storage_options,
         )
+        results.set_forecast(result_df)
 
         # metrics csv report
         if self.spec.generate_metrics:
@@ -507,10 +528,11 @@ class ForecastOperatorBaseModel(ABC):
                 else "Series 1"
             )
             if metrics_df is not None:
+                metrics_df_formatted = metrics_df.reset_index().rename(
+                    {"index": "metrics", "Series 1": metrics_col_name}, axis=1
+                )
                 write_data(
-                    data=metrics_df.reset_index().rename(
-                        {"index": "metrics", "Series 1": metrics_col_name}, axis=1
-                    ),
+                    data=metrics_df_formatted,
                     filename=os.path.join(
                         unique_output_dir, self.spec.metrics_filename
                     ),
@@ -518,6 +540,7 @@ class ForecastOperatorBaseModel(ABC):
                     storage_options=storage_options,
                     index=False,
                 )
+                results.set_metrics(metrics_df_formatted)
             else:
                 logger.warn(
                     f"Attempted to generate the {self.spec.metrics_filename} file with the training metrics, however the training metrics could not be properly generated."
@@ -526,10 +549,11 @@ class ForecastOperatorBaseModel(ABC):
             # test_metrics csv report
             if self.spec.test_data is not None:
                 if test_metrics_df is not None:
+                    test_metrics_df_formatted = test_metrics_df.reset_index().rename(
+                        {"index": "metrics", "Series 1": metrics_col_name}, axis=1
+                    )
                     write_data(
-                        data=test_metrics_df.reset_index().rename(
-                            {"index": "metrics", "Series 1": metrics_col_name}, axis=1
-                        ),
+                        data=test_metrics_df_formatted,
                         filename=os.path.join(
                             unique_output_dir, self.spec.test_metrics_filename
                         ),
@@ -537,6 +561,7 @@ class ForecastOperatorBaseModel(ABC):
                         storage_options=storage_options,
                         index=False,
                     )
+                    results.set_test_metrics(test_metrics_df_formatted)
                 else:
                     logger.warn(
                         f"Attempted to generate the {self.spec.test_metrics_filename} file with the test metrics, however the test metrics could not be properly generated."
@@ -554,6 +579,7 @@ class ForecastOperatorBaseModel(ABC):
                         storage_options=storage_options,
                         index=True,
                     )
+                    results.set_global_explanations(self.formatted_global_explanation)
                 else:
                     logger.warn(
                         f"Attempted to generate global explanations for the {self.spec.global_explanation_filename} file, but an issue occured in formatting the explanations."
@@ -569,6 +595,7 @@ class ForecastOperatorBaseModel(ABC):
                         storage_options=storage_options,
                         index=True,
                     )
+                    results.set_local_explanations(self.formatted_local_explanation)
                 else:
                     logger.warn(
                         f"Attempted to generate local explanations for the {self.spec.local_explanation_filename} file, but an issue occured in formatting the explanations."
@@ -589,10 +616,12 @@ class ForecastOperatorBaseModel(ABC):
                 index=True,
                 indent=4,
             )
+            results.set_model_parameters(self.model_parameters)
 
         # model pickle
         if self.spec.generate_model_pickle:
             self._save_model(unique_output_dir, storage_options)
+            results.set_models(self.models)
 
         logger.info(
             f"The outputs have been successfully "
@@ -612,8 +641,10 @@ class ForecastOperatorBaseModel(ABC):
                 index=True,
                 indent=4,
             )
+            results.set_errors_dict(self.errors_dict)
         else:
             logger.info("All modeling completed successfully.")
+        return results
 
     def preprocess(self, df, series_id):
         """The method that needs to be implemented on the particular model level."""
@@ -667,7 +698,10 @@ class ForecastOperatorBaseModel(ABC):
         )
 
     def _validate_automlx_explanation_mode(self):
-        if self.spec.model != SupportedModels.AutoMLX and self.spec.explanations_accuracy_mode == SpeedAccuracyMode.AUTOMLX:
+        if (
+            self.spec.model != SupportedModels.AutoMLX
+            and self.spec.explanations_accuracy_mode == SpeedAccuracyMode.AUTOMLX
+        ):
             raise ValueError(
                 "AUTOMLX explanation accuracy mode is only supported for AutoMLX models. "
                 "Please select mode other than AUTOMLX from the available explanations_accuracy_mode options"
