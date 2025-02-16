@@ -214,7 +214,7 @@ def test_pandas_to_historical_test(model):
 
 # CostAD
 @pytest.mark.parametrize("model", ["prophet", "neuralprophet"])
-def test_pandas_to_historical_test(model):
+def test_pandas_to_historical_test2(model):
     df = pd.read_csv(f"{DATASET_PREFIX}dataset5.csv")
     df_train = df[:-1]
     df_test = df[-1:]
@@ -238,7 +238,7 @@ def test_pandas_to_historical_test(model):
         results = forecast_operate(operator_config)
         # check_output_for_errors(output_data_path)
         test_metrics = pd.read_csv(f"{output_data_path}/metrics.csv")
-        df1 = results.get_test_data()
+        df1 = results.get_test_metrics()
         df2 = results.get_forecast()
 
 
