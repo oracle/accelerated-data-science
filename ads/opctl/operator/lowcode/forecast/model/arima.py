@@ -116,7 +116,10 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                 lower_bound=self.get_horizon(forecast["yhat_lower"]).values,
             )
 
-            self.models[s_id] = model
+            self.models[s_id] = {}
+            self.models[s_id]["model"] = model
+            self.models[s_id]["le"] = self.le[s_id]
+            self.models[s_id]["predict_component_cols"] = X_pred.columns
 
             params = vars(model).copy()
             for param in ["arima_res_", "endog_index_"]:
@@ -163,7 +166,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             sec5_text = rc.Heading("ARIMA Model Parameters", level=2)
             blocks = [
                 rc.Html(
-                    m.summary().as_html(),
+                    m['model'].summary().as_html(),
                     label=s_id if self.target_cat_col else None,
                 )
                 for i, (s_id, m) in enumerate(self.models.items())
@@ -251,7 +254,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
     def get_explain_predict_fn(self, series_id):
         def _custom_predict(
             data,
-            model=self.models[series_id],
+            model=self.models[series_id]["model"],
             dt_column_name=self.datasets._datetime_column_name,
             target_col=self.original_target_column,
         ):

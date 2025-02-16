@@ -151,34 +151,42 @@ def get_forecast(future_df, model_name, series_id, model_object, date_col, targe
         pred_obj = model_object.predict(future_regressor=future_reg)
         return pred_obj.forecast[series_id].tolist()
     elif model_name == SupportedModels.Prophet and series_id in model_object:
-        model = model_object[series_id]
+        model = model_object[series_id]['model']
+        label_encoder = model_object[series_id]['le']
         processed = future_df.rename(columns={date_col_name: 'ds', target_column: 'y'})
-        forecast = model.predict(processed)
+        encoded_df = label_encoder.transform(processed)
+        forecast = model.predict(encoded_df)
         return forecast['yhat'].tolist()
     elif model_name == SupportedModels.NeuralProphet and series_id in model_object:
-        model = model_object[series_id]
+        model = model_object[series_id]['model']
+        label_encoder = model_object[series_id]['le']
         model.restore_trainer()
         accepted_regressors = list(model.config_regressors.regressors.keys())
         data = future_df.rename(columns={date_col_name: 'ds', target_column: 'y'})
-        future = data[accepted_regressors + ["ds"]].reset_index(drop=True)
+        encoded_df = label_encoder.transform(data)
+        future = encoded_df[accepted_regressors + ["ds"]].reset_index(drop=True)
         future["y"] = None
         forecast = model.predict(future)
         return forecast['yhat1'].tolist()
     elif model_name == SupportedModels.Arima and series_id in model_object:
-        model = model_object[series_id]
-        future_df = future_df.set_index(date_col_name)
-        x_pred = future_df.drop(target_cat_col, axis=1)
+        model = model_object[series_id]['model']
+        label_encoder = model_object[series_id]['le']
+        predict_cols = model_object[series_id]["predict_component_cols"]
+        encoded_df = label_encoder.transform(future_df)
+        x_pred = encoded_df.set_index(date_col_name)
+        x_pred = x_pred.drop(target_cat_col, axis=1)
         yhat, conf_int = model.predict(
             n_periods=horizon,
-            X=x_pred,
+            X=x_pred[predict_cols],
             return_conf_int=True
         )
         yhat_clean = pd.DataFrame(yhat, index=yhat.index, columns=["yhat"])
         return yhat_clean['yhat'].tolist()
     elif model_name == SupportedModels.AutoMLX and series_id in model_object:
-        # automlx model
-        model = model_object[series_id]
-        x_pred = future_df.drop(target_cat_col, axis=1)
+        model = model_object[series_id]['model']
+        label_encoder = model_object[series_id]['le']
+        encoded_df = label_encoder.transform(future_df)
+        x_pred = encoded_df.drop(target_cat_col, axis=1)
         x_pred = x_pred.set_index(date_col_name)
         forecast = model.forecast(
             X=x_pred,
