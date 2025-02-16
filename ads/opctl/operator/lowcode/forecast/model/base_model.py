@@ -802,7 +802,7 @@ class ForecastOperatorBaseModel(ABC):
     def get_explain_predict_fn(self, series_id, fcst_col_name="yhat"):
         def _custom_predict(
             data,
-            model=self.models[series_id],
+            model=self.models[series_id]["model"],
             dt_column_name=self.datasets._datetime_column_name,
         ):
             """
