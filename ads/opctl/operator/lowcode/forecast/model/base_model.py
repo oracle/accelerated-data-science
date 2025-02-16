@@ -754,14 +754,6 @@ class ForecastOperatorBaseModel(ABC):
                     logger.warn(
                         "No explanations generated. Ensure that additional data has been provided."
                     )
-                # elif (
-                #     self.spec.model == SupportedModels.AutoMLX
-                #     and self.spec.explanations_accuracy_mode
-                #     == SpeedAccuracyMode.AUTOMLX
-                # ):
-                #     logger.warning(
-                #         "Global explanations not available for AutoMLX models with inherent explainability"
-                #     )
                 else:
                     self.global_explanation[s_id] = dict(
                         zip(
