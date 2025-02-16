@@ -6,14 +6,14 @@ import json
 import os
 import traceback
 from dataclasses import fields
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 import oci
 from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDetails
 
 from ads import set_auth
 from ads.aqua import logger
-from ads.aqua.common.enums import Tags
+from ads.aqua.common.enums import ConfigFolder, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     _is_valid_mvs,
@@ -268,7 +268,12 @@ class AquaApp:
                 logger.info(f"Artifact not found in model {model_id}.")
                 return False
 
-    def get_config(self, model_id: str, config_file_name: str) -> Dict:
+    def get_config(
+        self,
+        model_id: str,
+        config_file_name: str,
+        config_folder: Optional[str] = ConfigFolder.CONFIG,
+    ) -> Dict:
         """Gets the config for the given Aqua model.
 
         Parameters
@@ -277,12 +282,17 @@ class AquaApp:
             The OCID of the Aqua model.
         config_file_name: str
             name of the config file
+        config_folder: (str, optional):
+            subfolder path where config_file_name needs to be searched
+             Defaults to `ConfigFolder.CONFIG`.
+             When searching inside model artifact directory , the value is ConfigFolder.ARTIFACT`
 
         Returns
         -------
         Dict:
             A dict of allowed configs.
         """
+        config_folder = config_folder or ConfigFolder.CONFIG
         oci_model = self.ds_client.get_model(model_id).data
         oci_aqua = (
             (
@@ -304,23 +314,26 @@ class AquaApp:
                 f"Base model found for the model: {oci_model.id}. "
                 f"Loading {config_file_name} for base model {base_model_ocid}."
             )
-            base_model = self.ds_client.get_model(base_model_ocid).data
-            artifact_path = get_artifact_path(base_model.custom_metadata_list)
+            if config_folder == ConfigFolder.ARTIFACT:
+                artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+            else:
+                base_model = self.ds_client.get_model(base_model_ocid).data
+                artifact_path = get_artifact_path(base_model.custom_metadata_list)
         else:
             logger.info(f"Loading {config_file_name} for model {oci_model.id}...")
             artifact_path = get_artifact_path(oci_model.custom_metadata_list)
-
         if not artifact_path:
             logger.debug(
                 f"Failed to get artifact path from custom metadata for the model: {model_id}"
             )
             return config
 
-        config_path = f"{os.path.dirname(artifact_path)}/config/"
+        config_path = os.path.join(os.path.dirname(artifact_path), config_folder)
         if not is_path_exists(config_path):
-            config_path = f"{artifact_path.rstrip('/')}/config/"
-
-        config_file_path = f"{config_path}{config_file_name}"
+            config_path = os.path.join(artifact_path.rstrip("/"), config_folder)
+            if not is_path_exists(config_path):
+                config_path = f"{artifact_path.rstrip('/')}/"
+        config_file_path = os.path.join(config_path, config_file_name)
         if is_path_exists(config_file_path):
             try:
                 config = load_config(
