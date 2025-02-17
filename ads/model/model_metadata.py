@@ -100,6 +100,8 @@ class MetadataTaxonomyKeys(ExtendedEnum):
     ALGORITHM = "Algorithm"
     HYPERPARAMETERS = "Hyperparameters"
     ARTIFACT_TEST_RESULT = "ArtifactTestResults"
+    README = "readme"
+    LICENSE = "license"
 
 
 class MetadataCustomKeys(ExtendedEnum):
