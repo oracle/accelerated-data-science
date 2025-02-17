@@ -257,11 +257,10 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 self.formatted_global_explanation = (
                     global_explanation_df / global_explanation_df.sum(axis=0) * 100
                 )
-                self.formatted_global_explanation = (
-                    self.formatted_global_explanation.rename(
-                        {self.spec.datetime_column.name: ForecastOutputColumns.DATE},
-                        axis=1,
-                    )
+
+                self.formatted_global_explanation.rename(
+                    columns={self.spec.datetime_column.name: ForecastOutputColumns.DATE},
+                    inplace=True,
                 )
 
                 aggregate_local_explanations = pd.DataFrame()
@@ -430,7 +429,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 if self.spec.explanations_accuracy_mode == SpeedAccuracyMode.AUTOMLX:
                     # Use the MLExplainer class from AutoMLx to generate explanations
                     explainer = automlx.MLExplainer(
-                        self.models[s_id],
+                        self.models[s_id]["model"],
                         self.datasets.additional_data.get_data_for_series(
                             series_id=s_id
                         )
