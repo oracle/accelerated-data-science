@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -43,7 +43,11 @@ def _add_unit(num, unit):
 def _fit_model(data, params, additional_regressors):
     from prophet import Prophet
 
+    monthly_seasonality = params.pop("monthly_seasonality", False)
     model = Prophet(**params)
+    if monthly_seasonality:
+        model.add_seasonality(name="monthly", period=30.5, fourier_order=5)
+        params["monthly_seasonality"] = monthly_seasonality
     for add_reg in additional_regressors:
         model.add_regressor(add_reg)
     model.fit(data)
@@ -259,7 +263,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                     self.outputs[s_id], include_legend=True
                 ),
                 series_ids=series_ids,
-                target_category_column=self.target_cat_col
+                target_category_column=self.target_cat_col,
             )
             section_1 = rc.Block(
                 rc.Heading("Forecast Overview", level=2),
@@ -272,7 +276,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             sec2 = _select_plot_list(
                 lambda s_id: self.models[s_id]["model"].plot_components(self.outputs[s_id]),
                 series_ids=series_ids,
-                target_category_column=self.target_cat_col
+                target_category_column=self.target_cat_col,
             )
             section_2 = rc.Block(
                 rc.Heading("Forecast Broken Down by Trend Component", level=2), sec2
@@ -288,7 +292,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             sec3 = _select_plot_list(
                 lambda s_id: sec3_figs[s_id],
                 series_ids=series_ids,
-                target_category_column=self.target_cat_col
+                target_category_column=self.target_cat_col,
             )
             section_3 = rc.Block(rc.Heading("Forecast Changepoints", level=2), sec3)
 
@@ -302,7 +306,9 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                     pd.Series(
                         m.seasonalities,
                         index=pd.Index(m.seasonalities.keys(), dtype="object"),
-                        name=s_id if self.target_cat_col else self.original_target_column,
+                        name=s_id
+                        if self.target_cat_col
+                        else self.original_target_column,
                         dtype="object",
                     )
                 )
@@ -333,11 +339,15 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 self.formatted_local_explanation = aggregate_local_explanations
 
                 if not self.target_cat_col:
-                    self.formatted_global_explanation = self.formatted_global_explanation.rename(
-                        {"Series 1": self.original_target_column},
-                        axis=1,
+                    self.formatted_global_explanation = (
+                        self.formatted_global_explanation.rename(
+                            {"Series 1": self.original_target_column},
+                            axis=1,
+                        )
                     )
-                    self.formatted_local_explanation.drop("Series", axis=1, inplace=True)
+                    self.formatted_local_explanation.drop(
+                        "Series", axis=1, inplace=True
+                    )
 
                 # Create a markdown section for the global explainability
                 global_explanation_section = rc.Block(
