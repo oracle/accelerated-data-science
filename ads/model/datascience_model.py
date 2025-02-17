@@ -2229,7 +2229,10 @@ class DataScienceModel(Builder):
             self.model_file_description["models"].pop(modelSearchIdx)
 
     def create_custom_metadata_artifact(
-        self, metadata_key_name: str, artifact_path: str
+        self,
+        metadata_key_name: str,
+        artifact_path_or_content: str,
+        path_type: str = utils.MetadataArtifactPathType.LOCAL,
     ) -> ModelMetadataArtifactDetails:
         """Creates model custom metadata artifact for specified model.
 
@@ -2258,11 +2261,16 @@ class DataScienceModel(Builder):
 
         """
         return self.dsc_model.create_custom_metadata_artifact(
-            metadata_key_name=metadata_key_name, artifact_path=artifact_path
+            metadata_key_name=metadata_key_name,
+            artifact_path=artifact_path_or_content,
+            path_type=path_type,
         )
 
     def create_defined_metadata_artifact(
-        self, metadata_key_name: str, artifact_path: str
+        self,
+        metadata_key_name: str,
+        artifact_path_or_content: str,
+        path_type: str = utils.MetadataArtifactPathType.LOCAL,
     ) -> ModelMetadataArtifactDetails:
         """Creates model defined metadata artifact for specified model.
 
@@ -2290,11 +2298,16 @@ class DataScienceModel(Builder):
 
         """
         return self.dsc_model.create_defined_metadata_artifact(
-            metadata_key_name=metadata_key_name, artifact_path=artifact_path
+            metadata_key_name=metadata_key_name,
+            artifact_path=artifact_path_or_content,
+            path_type=path_type,
         )
 
     def update_custom_metadata_artifact(
-        self, metadata_key_name: str, artifact_path: str
+        self,
+        metadata_key_name: str,
+        artifact_path_or_content: str,
+        path_type: str = utils.MetadataArtifactPathType.LOCAL,
     ) -> ModelMetadataArtifactDetails:
         """Update model custom metadata artifact for specified model.
 
@@ -2323,11 +2336,16 @@ class DataScienceModel(Builder):
 
         """
         return self.dsc_model.update_custom_metadata_artifact(
-            metadata_key_name=metadata_key_name, artifact_path=artifact_path
+            metadata_key_name=metadata_key_name,
+            artifact_path=artifact_path_or_content,
+            path_type=path_type,
         )
 
     def update_defined_metadata_artifact(
-        self, metadata_key_name: str, artifact_path: str
+        self,
+        metadata_key_name: str,
+        artifact_path_or_content: str,
+        path_type: str = utils.MetadataArtifactPathType.LOCAL,
     ) -> ModelMetadataArtifactDetails:
         """Update model defined metadata artifact for specified model.
 
@@ -2356,7 +2374,9 @@ class DataScienceModel(Builder):
 
         """
         return self.dsc_model.update_defined_metadata_artifact(
-            metadata_key_name=metadata_key_name, artifact_path=artifact_path
+            metadata_key_name=metadata_key_name,
+            artifact_path=artifact_path_or_content,
+            path_type=path_type,
         )
 
     def get_custom_metadata_artifact(

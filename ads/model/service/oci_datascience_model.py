@@ -30,6 +30,7 @@ from ads.common.serializer import DataClassSerializable
 from ads.common.utils import extract_region
 from ads.common.work_request import DataScienceWorkRequest
 from ads.model.deployment import ModelDeployment
+from ads.opctl.operator.common.utils import default_signer
 
 logger = logging.getLogger(__name__)
 
@@ -669,11 +670,32 @@ class OCIDataScienceModel(
         )
         return response_data
 
+    def get_metadata_content(self, artifact_path_or_content: str, path_type):
+        if path_type == utils.MetadataArtifactPathType.CONTENT:
+            return artifact_path_or_content
+        elif path_type == utils.MetadataArtifactPathType.LOCAL:
+            if not utils.is_path_exists(artifact_path_or_content):
+                raise FileNotFoundError(
+                    f"File not found:  {artifact_path_or_content} . "
+                )
+            with open(artifact_path_or_content, "rb") as f:
+                contents = f.read()
+                logger.info(f"The metadata artifact content - {contents}")
+            return contents
+        elif path_type == utils.MetadataArtifactPathType.OSS:
+            from ads.aqua.common.utils import read_file
+
+            if not utils.is_path_exists(artifact_path_or_content):
+                raise FileNotFoundError(f"File not found: {artifact_path_or_content}")
+            contents = str(read_file(artifact_path_or_content, default_signer()))
+            logger.info(f"The metadata artifact content - {contents}")
+            return contents
+
     @check_for_model_id(
         msg="Model needs to be saved to the Model Catalog before creating defined metadata artifact corresponding to that model"
     )
     def create_defined_metadata_artifact(
-        self, metadata_key_name: str, artifact_path: str
+        self, metadata_key_name: str, artifact_path: str, path_type: str
     ) -> ModelMetadataArtifactDetails:
         """Creates model defined metadata artifact for specified model.
 
@@ -701,11 +723,7 @@ class OCIDataScienceModel(
             }
 
         """
-        if not utils.is_path_exists(artifact_path):
-            raise FileNotFoundError(f"File not found:  {artifact_path} . ")
-        with open(artifact_path, "rb") as f:
-            contents = f.read()
-            logger.info(f"The metadata artifact content - {contents}")
+        contents = self.get_metadata_content(artifact_path, path_type)
         response = self.client.create_model_defined_metadatum_artifact(
             self.id,
             metadata_key_name,
@@ -721,7 +739,7 @@ class OCIDataScienceModel(
         msg="Model needs to be saved to the Model Catalog before updating defined metadata artifact corresponding to that model"
     )
     def update_defined_metadata_artifact(
-        self, metadata_key_name: str, artifact_path: str
+        self, metadata_key_name: str, artifact_path: str, path_type: str
     ) -> ModelMetadataArtifactDetails:
         """Update model defined metadata artifact for specified model.
 
@@ -749,13 +767,7 @@ class OCIDataScienceModel(
             }
 
         """
-        if not utils.is_path_exists(artifact_path):
-            raise FileNotFoundError(f"File not found:  {artifact_path} . ")
-        with open(artifact_path, "rb") as f:
-            contents = f.read()
-            logger.info(
-                f"The content of metadata with key {metadata_key_name} - {contents}"
-            )
+        contents = self.get_metadata_content(artifact_path, path_type)
         response = self.client.update_model_defined_metadatum_artifact(
             self.id,
             metadata_key_name,
@@ -771,7 +783,7 @@ class OCIDataScienceModel(
         msg="Model needs to be saved to the Model Catalog before updating custom metadata artifact corresponding to that model"
     )
     def update_custom_metadata_artifact(
-        self, metadata_key_name: str, artifact_path: str
+        self, metadata_key_name: str, artifact_path: str, path_type: str
     ) -> ModelMetadataArtifactDetails:
         """Update model custom metadata artifact for specified model.
 
@@ -799,13 +811,7 @@ class OCIDataScienceModel(
             }
 
         """
-        if not utils.is_path_exists(artifact_path):
-            raise FileNotFoundError(f"File not found:  {artifact_path} . ")
-        with open(artifact_path, "rb") as f:
-            contents = f.read()
-            logger.info(
-                f"The content of metadata with key {metadata_key_name} - {contents}"
-            )
+        contents = self.get_metadata_content(artifact_path, path_type)
         response = self.client.update_model_custom_metadatum_artifact(
             self.id,
             metadata_key_name,

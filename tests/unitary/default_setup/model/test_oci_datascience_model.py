@@ -21,6 +21,7 @@ from oci.response import Response
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_mixin import OCIModelMixin
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
+from ads.common.utils import MetadataArtifactPathType
 from ads.model.datascience_model import _MAX_ARTIFACT_SIZE_IN_BYTES
 from ads.model.service.oci_datascience_model import (
     ModelArtifactNotFoundError,
@@ -496,7 +497,9 @@ class TestOCIDataScienceModel:
         response = Response(headers={}, status=204, data=None, request=None)
         mock_client.create_model_defined_metadatum_artifact.return_value = response
         data = self.mock_model.create_defined_metadata_artifact(
-            "metadata_key_name", self.mock_artifact_file_path
+            "metadata_key_name",
+            self.mock_artifact_file_path,
+            MetadataArtifactPathType.LOCAL,
         )
         assert data.status == "204"
 
@@ -509,7 +512,9 @@ class TestOCIDataScienceModel:
         response = Response(headers={}, status=204, data=None, request=None)
         mock_client.create_model_defined_metadatum_artifact.return_value = response
         data = self.mock_model.create_defined_metadata_artifact(
-            "metadata_key_name", self.mock_artifact_file_path
+            "metadata_key_name",
+            self.mock_artifact_file_path,
+            MetadataArtifactPathType.LOCAL,
         )
         assert data.status == "204"
 
@@ -522,7 +527,9 @@ class TestOCIDataScienceModel:
         response = Response(headers={}, status=204, data=None, request=None)
         mock_client.update_model_defined_metadatum_artifact.return_value = response
         data = self.mock_model.update_defined_metadata_artifact(
-            "metadata_key_name", self.mock_artifact_file_path
+            "metadata_key_name",
+            self.mock_artifact_file_path,
+            MetadataArtifactPathType.LOCAL,
         )
         assert data.status == "204"
 
@@ -535,7 +542,9 @@ class TestOCIDataScienceModel:
         response = Response(headers={}, status=204, data=None, request=None)
         mock_client.update_model_custom_metadatum_artifact.return_value = response
         data = self.mock_model.update_custom_metadata_artifact(
-            "metadata_key_name", self.mock_artifact_file_path
+            "metadata_key_name",
+            self.mock_artifact_file_path,
+            MetadataArtifactPathType.LOCAL,
         )
         assert data.status == "204"
 
