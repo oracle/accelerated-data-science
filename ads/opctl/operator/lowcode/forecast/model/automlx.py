@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import logging
 import os
@@ -66,8 +66,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     @runtime_dependency(
         module="automlx",
         err_msg=(
-            "Please run `pip3 install oracle-automlx>=23.4.1` and "
-            "`pip3 install oracle-automlx[forecasting]>=23.4.1` "
+            "Please run `pip3 install oracle-automlx[forecasting]>=25.1.1` "
             "to install the required dependencies for automlx."
         ),
     )
@@ -105,7 +104,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             engine_opts = (
                 None
                 if engine_type == "local"
-                else ({"ray_setup": {"_temp_dir": "/tmp/ray-temp"}},)
+                else {"ray_setup": {"_temp_dir": "/tmp/ray-temp"}}
             )
             init(
                 engine=engine_type,

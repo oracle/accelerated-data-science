@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -51,7 +51,7 @@ from ..const import (
     SupportedModels,
 )
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
-from .forecast_datasets import ForecastDatasets
+from .forecast_datasets import ForecastDatasets, ForecastResults
 
 logging.getLogger("report_creator").setLevel(logging.WARNING)
 
@@ -350,11 +350,12 @@ class ForecastOperatorBaseModel(ABC):
                 )
 
             # save the report and result CSV
-            self._save_report(
+            return self._save_report(
                 report_sections=report_sections,
                 result_df=result_df,
                 metrics_df=self.eval_metrics,
                 test_metrics_df=self.test_eval_metrics,
+                test_data=test_data,
             )
 
     def _test_evaluate_metrics(self, elapsed_time=0):
@@ -471,10 +472,12 @@ class ForecastOperatorBaseModel(ABC):
         result_df: pd.DataFrame,
         metrics_df: pd.DataFrame,
         test_metrics_df: pd.DataFrame,
+        test_data: pd.DataFrame,
     ):
         """Saves resulting reports to the given folder."""
 
         unique_output_dir = self.spec.output_directory.url
+        results = ForecastResults()
 
         if ObjectStorageDetails.is_oci_path(unique_output_dir):
             storage_options = default_signer()
@@ -500,6 +503,11 @@ class ForecastOperatorBaseModel(ABC):
                         f2.write(f1.read())
 
         # forecast csv report
+        # todo: add test data into forecast.csv
+        # if self.spec.test_data is not None:
+        #     test_data_dict = test_data.get_dict_by_series()
+        #     for series_id, test_data_values in test_data_dict.items():
+        #         result_df[DataColumns.Series] = test_data_values[]
         result_df = (
             result_df
             if self.target_cat_col
@@ -511,6 +519,7 @@ class ForecastOperatorBaseModel(ABC):
             format="csv",
             storage_options=storage_options,
         )
+        results.set_forecast(result_df)
 
         # metrics csv report
         if self.spec.generate_metrics:
@@ -520,10 +529,11 @@ class ForecastOperatorBaseModel(ABC):
                 else "Series 1"
             )
             if metrics_df is not None:
+                metrics_df_formatted = metrics_df.reset_index().rename(
+                    {"index": "metrics", "Series 1": metrics_col_name}, axis=1
+                )
                 write_data(
-                    data=metrics_df.reset_index().rename(
-                        {"index": "metrics", "Series 1": metrics_col_name}, axis=1
-                    ),
+                    data=metrics_df_formatted,
                     filename=os.path.join(
                         unique_output_dir, self.spec.metrics_filename
                     ),
@@ -531,6 +541,7 @@ class ForecastOperatorBaseModel(ABC):
                     storage_options=storage_options,
                     index=False,
                 )
+                results.set_metrics(metrics_df_formatted)
             else:
                 logger.warn(
                     f"Attempted to generate the {self.spec.metrics_filename} file with the training metrics, however the training metrics could not be properly generated."
@@ -539,10 +550,11 @@ class ForecastOperatorBaseModel(ABC):
             # test_metrics csv report
             if self.spec.test_data is not None:
                 if test_metrics_df is not None:
+                    test_metrics_df_formatted = test_metrics_df.reset_index().rename(
+                        {"index": "metrics", "Series 1": metrics_col_name}, axis=1
+                    )
                     write_data(
-                        data=test_metrics_df.reset_index().rename(
-                            {"index": "metrics", "Series 1": metrics_col_name}, axis=1
-                        ),
+                        data=test_metrics_df_formatted,
                         filename=os.path.join(
                             unique_output_dir, self.spec.test_metrics_filename
                         ),
@@ -550,6 +562,7 @@ class ForecastOperatorBaseModel(ABC):
                         storage_options=storage_options,
                         index=False,
                     )
+                    results.set_test_metrics(test_metrics_df_formatted)
                 else:
                     logger.warn(
                         f"Attempted to generate the {self.spec.test_metrics_filename} file with the test metrics, however the test metrics could not be properly generated."
@@ -567,6 +580,7 @@ class ForecastOperatorBaseModel(ABC):
                         storage_options=storage_options,
                         index=True,
                     )
+                    results.set_global_explanations(self.formatted_global_explanation)
                 else:
                     logger.warn(
                         f"Attempted to generate global explanations for the {self.spec.global_explanation_filename} file, but an issue occured in formatting the explanations."
@@ -582,6 +596,7 @@ class ForecastOperatorBaseModel(ABC):
                         storage_options=storage_options,
                         index=True,
                     )
+                    results.set_local_explanations(self.formatted_local_explanation)
                 else:
                     logger.warn(
                         f"Attempted to generate local explanations for the {self.spec.local_explanation_filename} file, but an issue occured in formatting the explanations."
@@ -602,10 +617,12 @@ class ForecastOperatorBaseModel(ABC):
                 index=True,
                 indent=4,
             )
+            results.set_model_parameters(self.model_parameters)
 
         # model pickle
         if self.spec.generate_model_pickle:
             self._save_model(unique_output_dir, storage_options)
+            results.set_models(self.models)
 
         logger.info(
             f"The outputs have been successfully "
@@ -625,8 +642,10 @@ class ForecastOperatorBaseModel(ABC):
                 index=True,
                 indent=4,
             )
+            results.set_errors_dict(self.errors_dict)
         else:
             logger.info("All modeling completed successfully.")
+        return results
 
     def preprocess(self, df, series_id):
         """The method that needs to be implemented on the particular model level."""
