@@ -74,6 +74,8 @@ OCI_MODEL_PAYLOAD = {
         {"key": "Hyperparameters"},
         {"key": "ArtifactTestResults"},
         {"key": "UnexpectedKey", "value": "unexpected_value"},
+        {"key": "license"},
+        {"key": "readme"},
     ],
     "backup_setting": {
         "is_backup_enabled": True,
@@ -152,6 +154,8 @@ DSC_MODEL_PAYLOAD = {
             {"key": "Hyperparameters", "value": None},
             {"key": "ArtifactTestResults", "value": None},
             {"key": "UnexpectedKey", "value": "unexpected_value"},
+            {"key": "license", "value": None},
+            {"key": "readme", "value": None},
         ]
     },
     "provenanceMetadata": {
@@ -650,6 +654,8 @@ class TestDataScienceModel:
                 {"key": "UseCaseType", "value": "multinomial_classification"},
                 {"key": "Hyperparameters", "value": "new test"},
                 {"key": "ArtifactTestResults", "value": "new test"},
+                {"key": "license", "value": None},
+                {"key": "readme", "value": None},
             ],
             "backup_setting": {
                 "is_backup_enabled": True,
