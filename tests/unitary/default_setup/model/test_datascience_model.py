@@ -729,6 +729,8 @@ class TestDataScienceModel:
                     {"key": "UseCaseType", "value": "multinomial_classification"},
                     {"key": "Hyperparameters", "value": "new test"},
                     {"key": "ArtifactTestResults", "value": "new test"},
+                    {"key": "readme", "value": None},
+                    {"key": "license", "value": None},
                 ]
             },
             "backupSetting": {
