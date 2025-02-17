@@ -1509,7 +1509,10 @@ class ModelTaxonomyMetadata(ModelMetadata):
         metadata = cls()
         for oci_item in metadata_list:
             item = ModelTaxonomyMetadataItem._from_oci_metadata(oci_item)
-            metadata[item.key].update(value=item.value)
+            if item.key in metadata.keys:
+                metadata[item.key].update(value=item.value)
+            else:
+                metadata._items.add(item)
         return metadata
 
     def to_dataframe(self) -> pd.DataFrame:
@@ -1562,7 +1565,10 @@ class ModelTaxonomyMetadata(ModelMetadata):
         metadata = cls()
         for item in data["data"]:
             item = ModelTaxonomyMetadataItem.from_dict(item)
-            metadata[item.key].update(value=item.value)
+            if item.key in metadata.keys:
+                metadata[item.key].update(value=item.value)
+            else:
+                metadata._items.add(item)
         return metadata
 
 

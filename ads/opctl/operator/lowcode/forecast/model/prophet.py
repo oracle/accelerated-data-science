@@ -108,7 +108,10 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 upper_bound=self.get_horizon(forecast["yhat_upper"]).values,
                 lower_bound=self.get_horizon(forecast["yhat_lower"]).values,
             )
-            self.models[series_id] = model
+
+            self.models[series_id] = {}
+            self.models[series_id]["model"] = model
+            self.models[series_id]["le"] = self.le[series_id]
 
             params = vars(model).copy()
             for param in ["history", "history_dates", "stan_fit"]:
@@ -252,7 +255,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         all_sections = []
         if len(series_ids) > 0:
             sec1 = _select_plot_list(
-                lambda s_id: self.models[s_id].plot(
+                lambda s_id: self.models[s_id]["model"].plot(
                     self.outputs[s_id], include_legend=True
                 ),
                 series_ids=series_ids,
@@ -267,7 +270,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             )
 
             sec2 = _select_plot_list(
-                lambda s_id: self.models[s_id].plot_components(self.outputs[s_id]),
+                lambda s_id: self.models[s_id]["model"].plot_components(self.outputs[s_id]),
                 series_ids=series_ids,
                 target_category_column=self.target_cat_col
             )
@@ -276,11 +279,11 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             )
 
             sec3_figs = {
-                s_id: self.models[s_id].plot(self.outputs[s_id]) for s_id in series_ids
+                s_id: self.models[s_id]["model"].plot(self.outputs[s_id]) for s_id in series_ids
             }
             for s_id in series_ids:
                 add_changepoints_to_plot(
-                    sec3_figs[s_id].gca(), self.models[s_id], self.outputs[s_id]
+                    sec3_figs[s_id].gca(), self.models[s_id]["model"], self.outputs[s_id]
                 )
             sec3 = _select_plot_list(
                 lambda s_id: sec3_figs[s_id],
@@ -294,7 +297,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             sec5_text = rc.Heading("Prophet Model Seasonality Components", level=2)
             model_states = []
             for s_id in series_ids:
-                m = self.models[s_id]
+                m = self.models[s_id]["model"]
                 model_states.append(
                     pd.Series(
                         m.seasonalities,
