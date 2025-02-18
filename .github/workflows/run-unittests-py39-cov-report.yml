@@ -1,4 +1,4 @@
-name: "[Py3.8][COV REPORT] - All Unit Tests"
+name: "[Py3.9][COV REPORT] - All Unit Tests"
 
 on:
   workflow_dispatch:
@@ -26,7 +26,7 @@ env:
 
 jobs:
   test:
-    name: python 3.8, ${{ matrix.name }}
+    name: python 3.9, ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
@@ -58,7 +58,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: "3.9"
           cache: "pip"
           cache-dependency-path: |
             pyproject.toml
@@ -71,7 +71,7 @@ jobs:
         name: "Test env setup"
         timeout-minutes: 30
 
-      # Installing pii deps for python3.8 test setup only, it will not work with python3.9/3.10, because
+      # Installing pii deps for python3.9 test setup only, it will not work with python3.9/3.10, because
       # 'datapane' library conflicts with pandas>2.2.0, which used in py3.9/3.10 setup
       - name: "Install PII dependencies"
         run: |
