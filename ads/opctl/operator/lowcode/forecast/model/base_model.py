@@ -503,6 +503,7 @@ class ForecastOperatorBaseModel(ABC):
                         f2.write(f1.read())
 
         # forecast csv report
+        # todo: add test data into forecast.csv
         # if self.spec.test_data is not None:
         #     test_data_dict = test_data.get_dict_by_series()
         #     for series_id, test_data_values in test_data_dict.items():
@@ -771,14 +772,6 @@ class ForecastOperatorBaseModel(ABC):
                 if not len(kernel_explnr_vals):
                     logger.warn(
                         "No explanations generated. Ensure that additional data has been provided."
-                    )
-                elif (
-                    self.spec.model == SupportedModels.AutoMLX
-                    and self.spec.explanations_accuracy_mode
-                    == SpeedAccuracyMode.AUTOMLX
-                ):
-                    logger.warning(
-                        "Global explanations not available for AutoMLX models with inherent explainability"
                     )
                 else:
                     self.global_explanation[s_id] = dict(
