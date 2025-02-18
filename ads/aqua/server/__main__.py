@@ -1,0 +1,25 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*--
+
+# Copyright (c) 2025 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+import os
+from logging import getLogger
+
+from dotenv import load_dotenv
+
+from ads.aqua.server.app import start_server
+
+logger = getLogger(__name__)
+config_location = os.path.join(os.getcwd(), ".env")
+if os.path.exists(config_location):
+    logger.info(f"Loading environment variables from {config_location}")
+    load_dotenv(dotenv_path=config_location)
+    logger.info("Environment variables loaded successfully")
+else:
+    logger.info(
+        f"{config_location} not found. Conside using `.env` file to setup defalut environment variables"
+    )
+
+start_server()

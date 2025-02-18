@@ -207,6 +207,14 @@ pii = [
 ]
 llm = ["langchain>=0.2", "langchain-community", "langchain_openai", "pydantic>=2,<3", "evaluate>=0.4.0"]
 aqua = ["jupyter_server"]
+aquaapi = [
+  "tornado",
+  "notebook~=6.5",
+  "fire",
+  "cachetools",
+  "huggingface_hub",
+  "python-dotenv"
+]
 
 # To reduce backtracking (decrese deps install time) during test/dev env setup reducing number of versions pip is
 # trying to use. Ref - https://pip.pypa.io/en/stable/topics/dependency-resolution/#possible-ways-to-reduce-backtracking.
