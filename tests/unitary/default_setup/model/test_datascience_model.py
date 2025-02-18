@@ -74,8 +74,10 @@ OCI_MODEL_PAYLOAD = {
         {"key": "Hyperparameters"},
         {"key": "ArtifactTestResults"},
         {"key": "UnexpectedKey", "value": "unexpected_value"},
-        {"key": "license"},
-        {"key": "readme"},
+        {"key": "License"},
+        {"key": "Readme"},
+        {"key": "FineTuneConfiguration"},
+        {"key": "DeploymentConfiguration"},
     ],
     "backup_setting": {
         "is_backup_enabled": True,
@@ -154,8 +156,10 @@ DSC_MODEL_PAYLOAD = {
             {"key": "Hyperparameters", "value": None},
             {"key": "ArtifactTestResults", "value": None},
             {"key": "UnexpectedKey", "value": "unexpected_value"},
-            {"key": "license", "value": None},
-            {"key": "readme", "value": None},
+            {"key": "License", "value": None},
+            {"key": "Readme", "value": None},
+            {"key": "FineTuneConfiguration", "value": None},
+            {"key": "DeploymentConfiguration", "value": None},
         ]
     },
     "provenanceMetadata": {
@@ -654,8 +658,10 @@ class TestDataScienceModel:
                 {"key": "UseCaseType", "value": "multinomial_classification"},
                 {"key": "Hyperparameters", "value": "new test"},
                 {"key": "ArtifactTestResults", "value": "new test"},
-                {"key": "license", "value": None},
-                {"key": "readme", "value": None},
+                {"key": "License", "value": None},
+                {"key": "Readme", "value": None},
+                {"key": "FineTuneConfiguration", "value": None},
+                {"key": "DeploymentConfiguration", "value": None},
             ],
             "backup_setting": {
                 "is_backup_enabled": True,
@@ -729,8 +735,10 @@ class TestDataScienceModel:
                     {"key": "UseCaseType", "value": "multinomial_classification"},
                     {"key": "Hyperparameters", "value": "new test"},
                     {"key": "ArtifactTestResults", "value": "new test"},
-                    {"key": "readme", "value": None},
-                    {"key": "license", "value": None},
+                    {"key": "License", "value": None},
+                    {"key": "Readme", "value": None},
+                    {"key": "FineTuneConfiguration", "value": None},
+                    {"key": "DeploymentConfiguration", "value": None},
                 ]
             },
             "backupSetting": {
