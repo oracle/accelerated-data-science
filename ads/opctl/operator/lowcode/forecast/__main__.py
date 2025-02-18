@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -15,17 +14,17 @@ from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
 
+from .model.forecast_datasets import ForecastDatasets, ForecastResults
 from .operator_config import ForecastOperatorConfig
-from .model.forecast_datasets import ForecastDatasets
 from .whatifserve import ModelDeploymentManager
 
 
-def operate(operator_config: ForecastOperatorConfig) -> None:
+def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
     """Runs the forecasting operator."""
     from .model.factory import ForecastOperatorModelFactory
 
     datasets = ForecastDatasets(operator_config)
-    ForecastOperatorModelFactory.get_model(
+    results = ForecastOperatorModelFactory.get_model(
         operator_config, datasets
     ).generate_report()
     # saving to model catalog
@@ -36,6 +35,7 @@ def operate(operator_config: ForecastOperatorConfig) -> None:
         if spec.what_if_analysis.model_deployment:
             mdm.create_deployment()
         mdm.save_deployment_info()
+    return results
 
 
 def verify(spec: Dict, **kwargs: Dict) -> bool:
