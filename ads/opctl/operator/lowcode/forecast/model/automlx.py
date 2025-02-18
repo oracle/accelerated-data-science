@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import logging
 import os
@@ -66,8 +66,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     @runtime_dependency(
         module="automlx",
         err_msg=(
-            "Please run `pip3 install oracle-automlx>=23.4.1` and "
-            "`pip3 install oracle-automlx[forecasting]>=23.4.1` "
+            "Please run `pip3 install oracle-automlx[forecasting]>=25.1.1` "
             "to install the required dependencies for automlx."
         ),
     )
@@ -105,7 +104,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             engine_opts = (
                 None
                 if engine_type == "local"
-                else ({"ray_setup": {"_temp_dir": "/tmp/ray-temp"}},)
+                else {"ray_setup": {"_temp_dir": "/tmp/ray-temp"}}
             )
             init(
                 engine=engine_type,
@@ -272,11 +271,15 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 self.formatted_local_explanation = aggregate_local_explanations
 
                 if not self.target_cat_col:
-                    self.formatted_global_explanation = self.formatted_global_explanation.rename(
-                        {"Series 1": self.original_target_column},
-                        axis=1,
+                    self.formatted_global_explanation = (
+                        self.formatted_global_explanation.rename(
+                            {"Series 1": self.original_target_column},
+                            axis=1,
+                        )
                     )
-                    self.formatted_local_explanation.drop("Series", axis=1, inplace=True)
+                    self.formatted_local_explanation.drop(
+                        "Series", axis=1, inplace=True
+                    )
 
                 # Create a markdown section for the global explainability
                 global_explanation_section = rc.Block(
@@ -436,7 +439,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
                     # Generate explanations for the forecast
                     explanations = explainer.explain_prediction(
-                        X=self.datasets.additional_data.get_data_for_series(series_id=s_id)
+                        X=self.datasets.additional_data.get_data_for_series(
+                            series_id=s_id
+                        )
                         .drop(self.spec.datetime_column.name, axis=1)
                         .tail(self.spec.horizon)
                         if self.spec.additional_data
@@ -448,7 +453,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     explanations_df = pd.concat(
                         [exp.to_dataframe() for exp in explanations]
                     )
-                    explanations_df["row"] = explanations_df.groupby("Feature").cumcount()
+                    explanations_df["row"] = explanations_df.groupby(
+                        "Feature"
+                    ).cumcount()
                     explanations_df = explanations_df.pivot(
                         index="row", columns="Feature", values="Attribution"
                     )
@@ -460,5 +467,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     # Fall back to the default explanation generation method
                     super().explain_model()
             except Exception as e:
-                logger.warning(f"Failed to generate explanations for series {s_id} with error: {e}.")
+                logger.warning(
+                    f"Failed to generate explanations for series {s_id} with error: {e}."
+                )
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
