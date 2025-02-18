@@ -372,7 +372,7 @@ class TestAquaModel:
         mock_model.artifact = "mock_artifact_path"
         custom_metadata_list = ModelCustomMetadata()
         custom_metadata_list.add(
-            **{"key": "deployment-container", "value": "odsc-vllm-serving"}
+            **{"key": "deployment-container", "value": "odsc-tgi-serving"}
         )
 
         mock_model.custom_metadata_list = custom_metadata_list
@@ -389,6 +389,24 @@ class TestAquaModel:
             gpu_count=2,
             env_var={"params": "--trust-remote-code --max-model-len 32000"},
         )
+
+        with pytest.raises(
+            AquaValueError,
+            match="Unsopported deployment container odsc-tgi-serving detected for model mock_model_id. Currently only odsc-vllm-serving container is supported for multi model deployment.",
+        ):
+            model = self.app.create_multi(
+                models=[model_info_1, model_info_2],
+                project_id="test_project_id",
+                compartment_id="test_compartment_id",
+            )
+
+        custom_metadata_list = ModelCustomMetadata()
+        custom_metadata_list.add(
+            **{"key": "deployment-container", "value": "odsc-vllm-serving"}
+        )
+
+        mock_model.custom_metadata_list = custom_metadata_list
+        mock_from_id.return_value = mock_model
 
         # will create a multi-model group
         model = self.app.create_multi(

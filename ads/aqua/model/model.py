@@ -254,7 +254,10 @@ class AquaModelApp(AquaApp):
         artifact_list = []
         display_name_list = []
         model_custom_metadata = ModelCustomMetadata()
-        default_deployment_container = None
+        # TODO: update it when more deployment containers are supported
+        default_deployment_container = (
+            InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY
+        )
 
         # Process each model
         for idx, model in enumerate(models):
@@ -280,12 +283,10 @@ class AquaModelApp(AquaApp):
                 ),
             ).value
 
-            if idx == 0:
-                default_deployment_container = deployment_container
-            elif deployment_container != default_deployment_container:
+            if default_deployment_container != deployment_container:
                 raise AquaValueError(
-                    "Deployment container mismatch detected. "
-                    "All selected models must use the same deployment container."
+                    f"Unsopported deployment container {deployment_container} detected for model {source_model.id}. "
+                    f"Currently only {InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY} container is supported for multi model deployment."
                 )
 
             # Add model-specific metadata
