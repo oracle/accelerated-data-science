@@ -1,36 +1,34 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import base64
+import glob
 import json
 import os
-from typing import Dict
-from typing import Tuple
+from typing import Dict, Tuple
 
 import yaml
-import glob
 
 from ads.common.auth import create_signer
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 from ads.opctl import logger
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.utils import NotSupportedError, convert_notebook
 from ads.opctl.constants import (
+    BACKEND_NAME,
     ML_JOB_GPU_IMAGE,
     ML_JOB_IMAGE,
-    BACKEND_NAME,
 )
 from ads.opctl.utils import (
+    get_namespace,
+    get_region_key,
     list_ads_operators,
     parse_conda_uri,
-    get_region_key,
-    get_namespace,
-)
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
 )
 
 
@@ -91,7 +89,7 @@ class ConfigResolver(ConfigProcessor):
         if not (
             self.config["execution"].get("conda_slug")
             or self.config["execution"].get("image")
-            or self.config["execution"]["backend"] == BACKEND_NAME.DATAFLOW.value
+            or self.config["execution"]["backend"] == BACKEND_NAME.DATAFLOW
         ):
             raise ValueError(
                 "If not running an operator, conda pack info or image name needs to be given."
@@ -134,21 +132,18 @@ class ConfigResolver(ConfigProcessor):
                 raise FileNotFoundError(
                     f"{self.config['execution']['source_folder']} is not found."
                 )
-        else:
-            if self._is_ads_operator():
-                curr_dir = os.path.dirname(os.path.abspath(__file__))
-                self.config["execution"]["source_folder"] = os.path.normpath(
-                    os.path.join(
-                        curr_dir,
-                        "..",
-                        "operators",
-                        inflection.underscore(
-                            self.config["execution"]["operator_name"]
-                        ),
-                    )
+        elif self._is_ads_operator():
+            curr_dir = os.path.dirname(os.path.abspath(__file__))
+            self.config["execution"]["source_folder"] = os.path.normpath(
+                os.path.join(
+                    curr_dir,
+                    "..",
+                    "operators",
+                    inflection.underscore(self.config["execution"]["operator_name"]),
                 )
-            else:
-                self.config["execution"]["source_folder"] = None
+            )
+        else:
+            self.config["execution"]["source_folder"] = None
 
     def _resolve_entry_script(self) -> None:
         # this should be run after _resolve_source_folder_path
@@ -263,9 +258,9 @@ class ConfigResolver(ConfigProcessor):
                     self.config["infrastructure"]["docker_registry"], image
                 )
             else:
-                self.config["execution"][
-                    "image"
-                ] = f"{region_key}.ocir.io/{namespace}/{image}"
+                self.config["execution"]["image"] = (
+                    f"{region_key}.ocir.io/{namespace}/{image}"
+                )
 
     def _resolve_env_vars(self) -> None:
         env_vars = self.config["execution"].get("env_vars", {})

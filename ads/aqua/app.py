@@ -1,9 +1,8 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
-import os
 from dataclasses import fields
 from typing import Dict, Union
 
@@ -16,9 +15,7 @@ from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     _is_valid_mvs,
-    get_artifact_path,
     is_valid_ocid,
-    load_config,
 )
 from ads.aqua.constants import UNKNOWN
 from ads.common import oci_client as oc
@@ -297,7 +294,9 @@ class AquaApp:
 
         config = {}
         try:
-            config = self.ds_client.get_model_defined_metadatum_artifact_content(model_id,config_file_name).data.content
+            config = self.ds_client.get_model_defined_metadatum_artifact_content(
+                model_id, config_file_name
+            ).data.content
         except Exception:
             pass
 

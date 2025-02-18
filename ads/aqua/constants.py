@@ -8,6 +8,7 @@ UNKNOWN_VALUE = ""
 READY_TO_IMPORT_STATUS = "TRUE"
 UNKNOWN_DICT = {}
 DEPLOYMENT_CONFIG = "deployment_config.json"
+AQUA_MODEL_TOKENIZER_CONFIG = "tokenizer_config.json"
 COMPARTMENT_MAPPING_KEY = "service-model-compartment"
 CONTAINER_INDEX = "container_index.json"
 EVALUATION_REPORT_JSON = "report.json"

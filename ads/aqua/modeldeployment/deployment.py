@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import logging
 import shlex
 from typing import Dict, List, Optional, Union
 
@@ -30,9 +29,10 @@ from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_FILE,
     AQUA_MODEL_TYPE_CUSTOM,
     AQUA_MODEL_TYPE_SERVICE,
+    DEPLOYMENT_CONFIGURATION,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     UNKNOWN,
-    UNKNOWN_DICT, DEPLOYMENT_CONFIGURATION,
+    UNKNOWN_DICT,
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
@@ -48,7 +48,6 @@ from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
-    AQUA_MODEL_DEPLOYMENT_CONFIG,
     COMPARTMENT_OCID,
 )
 from ads.model.datascience_model import DataScienceModel
@@ -271,7 +270,7 @@ class AquaDeploymentApp(AquaApp):
                     f"field. Either re-register the model with custom container URI, or set container_image_uri "
                     f"parameter when creating this deployment."
                 ) from err
-        logging.info(
+        logger.info(
             f"Aqua Image used for deploying {aqua_model.id} : {container_image_uri}"
         )
 
@@ -282,14 +281,14 @@ class AquaDeploymentApp(AquaApp):
             default_cmd_var = shlex.split(cmd_var_string)
             if default_cmd_var:
                 cmd_var = validate_cmd_var(default_cmd_var, cmd_var)
-            logging.info(f"CMD used for deploying {aqua_model.id} :{cmd_var}")
+            logger.info(f"CMD used for deploying {aqua_model.id} :{cmd_var}")
         except ValueError:
-            logging.debug(
+            logger.debug(
                 f"CMD will be ignored for this deployment as {AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME} "
                 f"key is not available in the custom metadata field for this model."
             )
         except Exception as e:
-            logging.error(
+            logger.error(
                 f"There was an issue processing CMD arguments. Error: {str(e)}"
             )
 
@@ -385,7 +384,7 @@ class AquaDeploymentApp(AquaApp):
                     if key not in env_var:
                         env_var.update(env)
 
-        logging.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
+        logger.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
 
         # Start model deployment
         # configure model deployment infrastructure
@@ -440,10 +439,14 @@ class AquaDeploymentApp(AquaApp):
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
 
+        deployment_id = deployment.dsc_model_deployment.id
+        logger.info(
+            f"Aqua model deployment {deployment_id} created for model {aqua_model.id}."
+        )
         model_type = (
             AQUA_MODEL_TYPE_CUSTOM if is_fine_tuned_model else AQUA_MODEL_TYPE_SERVICE
         )
-        deployment_id = deployment.dsc_model_deployment.id
+
         # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
         telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
 
@@ -539,6 +542,9 @@ class AquaDeploymentApp(AquaApp):
                         value=state,
                     )
 
+        logger.info(
+            f"Fetched {len(results)} model deployments from compartment_id={compartment_id}."
+        )
         # tracks number of times deployment listing was called
         self.telemetry.record_event_async(category="aqua/deployment", action="list")
 
@@ -546,18 +552,21 @@ class AquaDeploymentApp(AquaApp):
 
     @telemetry(entry_point="plugin=deployment&action=delete", name="aqua")
     def delete(self, model_deployment_id: str):
+        logger.info(f"Deleting model deployment {model_deployment_id}.")
         return self.ds_client.delete_model_deployment(
             model_deployment_id=model_deployment_id
         ).data
 
     @telemetry(entry_point="plugin=deployment&action=deactivate", name="aqua")
     def deactivate(self, model_deployment_id: str):
+        logger.info(f"Deactivating model deployment {model_deployment_id}.")
         return self.ds_client.deactivate_model_deployment(
             model_deployment_id=model_deployment_id
         ).data
 
     @telemetry(entry_point="plugin=deployment&action=activate", name="aqua")
     def activate(self, model_deployment_id: str):
+        logger.info(f"Activating model deployment {model_deployment_id}.")
         return self.ds_client.activate_model_deployment(
             model_deployment_id=model_deployment_id
         ).data
@@ -579,6 +588,8 @@ class AquaDeploymentApp(AquaApp):
         AquaDeploymentDetail:
             The instance of the Aqua model deployment details.
         """
+        logger.info(f"Fetching model deployment details for {model_deployment_id}.")
+
         model_deployment = self.ds_client.get_model_deployment(
             model_deployment_id=model_deployment_id, **kwargs
         ).data
@@ -594,7 +605,8 @@ class AquaDeploymentApp(AquaApp):
 
         if not oci_aqua:
             raise AquaRuntimeError(
-                f"Target deployment {model_deployment_id} is not Aqua deployment."
+                f"Target deployment {model_deployment_id} is not Aqua deployment as it does not contain "
+                f"{Tags.AQUA_TAG} tag."
             )
 
         log_id = ""
@@ -652,7 +664,7 @@ class AquaDeploymentApp(AquaApp):
         config = self.get_config(model_id, DEPLOYMENT_CONFIGURATION)
         if not config:
             logger.debug(
-                f"Deployment config for custom model: {model_id} is not available."
+                f"Deployment config for custom model: {model_id} is not available. Use defaults."
             )
         return config
 

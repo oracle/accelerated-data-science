@@ -26,7 +26,9 @@ from ads.model.datascience_model import (
     ModelArtifactSizeError,
     BucketNotVersionedError,
     ModelFileDescriptionError,
-    InvalidArtifactType, ModelRetentionSetting, ModelBackupSetting,
+    InvalidArtifactType,
+    ModelRetentionSetting,
+    ModelBackupSetting,
 )
 from ads.model.model_metadata import (
     ModelCustomMetadata,
@@ -44,7 +46,7 @@ from oci.object_storage.models.object_version_summary import ObjectVersionSummar
 from ads.config import AQUA_SERVICE_MODELS_BUCKET as SERVICE_MODELS_BUCKET
 
 MODEL_OCID = "ocid1.datasciencemodel.oc1.iad.<unique_ocid>"
- 
+
 OCI_MODEL_PAYLOAD = {
     "id": MODEL_OCID,
     "compartment_id": "ocid1.compartment.oc1..<unique_ocid>",
@@ -71,16 +73,21 @@ OCI_MODEL_PAYLOAD = {
         {"key": "UseCaseType", "value": "multinomial_classification"},
         {"key": "Hyperparameters"},
         {"key": "ArtifactTestResults"},
+        {"key": "UnexpectedKey", "value": "unexpected_value"},
+        {"key": "License"},
+        {"key": "Readme"},
+        {"key": "FineTuneConfiguration"},
+        {"key": "DeploymentConfiguration"},
     ],
     "backup_setting": {
         "is_backup_enabled": True,
         "backup_region": "us-phoenix-1",
-        "customer_notification_type": "ALL"
+        "customer_notification_type": "ALL",
     },
     "retention_setting": {
         "archive_after_days": 30,
         "delete_after_days": 90,
-        "customer_notification_type": "ALL"
+        "customer_notification_type": "ALL",
     },
     "input_schema": '{"schema": [{"dtype": "int64", "feature_type": "Integer", "name": 0, "domain": {"values": "", "stats": {}, "constraints": []}, "required": true, "description": "0", "order": 0}], "version": "1.1"}',
     "output_schema": '{"schema": [{"dtype": "int64", "feature_type": "Integer", "name": 0, "domain": {"values": "", "stats": {}, "constraints": []}, "required": true, "description": "0", "order": 0}], "version": "1.1"}',
@@ -148,6 +155,11 @@ DSC_MODEL_PAYLOAD = {
             {"key": "UseCaseType", "value": "multinomial_classification"},
             {"key": "Hyperparameters", "value": None},
             {"key": "ArtifactTestResults", "value": None},
+            {"key": "UnexpectedKey", "value": "unexpected_value"},
+            {"key": "License", "value": None},
+            {"key": "Readme", "value": None},
+            {"key": "FineTuneConfiguration", "value": None},
+            {"key": "DeploymentConfiguration", "value": None},
         ]
     },
     "provenanceMetadata": {
@@ -161,12 +173,12 @@ DSC_MODEL_PAYLOAD = {
     "backupSetting": {
         "is_backup_enabled": True,
         "backup_region": "us-phoenix-1",
-        "customer_notification_type": "ALL"
+        "customer_notification_type": "ALL",
     },
     "retentionSetting": {
         "archive_after_days": 30,
         "delete_after_days": 90,
-        "customer_notification_type": "ALL"
+        "customer_notification_type": "ALL",
     },
     "artifact": "ocid1.datasciencemodel.oc1.iad.<unique_ocid>.zip",
 }
@@ -327,8 +339,8 @@ class TestDataScienceModel:
             .with_defined_metadata_list(self.payload["definedMetadataList"])
             .with_provenance_metadata(self.payload["provenanceMetadata"])
             .with_artifact(self.payload["artifact"])
-            .with_backup_setting(self.payload['backupSetting'])
-            .with_retention_setting(self.payload['retentionSetting'])
+            .with_backup_setting(self.payload["backupSetting"])
+            .with_retention_setting(self.payload["retentionSetting"])
         )
         assert self.prepare_dict(dsc_model.to_dict()["spec"]) == self.prepare_dict(
             self.payload
@@ -356,8 +368,12 @@ class TestDataScienceModel:
                 ModelProvenanceMetadata.from_dict(self.payload["provenanceMetadata"])
             )
             .with_artifact(self.payload["artifact"])
-            .with_backup_setting(ModelBackupSetting.from_dict(self.payload['backupSetting']))
-            .with_retention_setting(ModelRetentionSetting.from_dict(self.payload['retentionSetting']))
+            .with_backup_setting(
+                ModelBackupSetting.from_dict(self.payload["backupSetting"])
+            )
+            .with_retention_setting(
+                ModelRetentionSetting.from_dict(self.payload["retentionSetting"])
+            )
         )
         assert self.prepare_dict(dsc_model.to_dict()["spec"]) == self.prepare_dict(
             self.payload
@@ -420,7 +436,7 @@ class TestDataScienceModel:
         mock_list_resource.assert_called_with(
             "test_compartment_id",
             project_id="test_project_id",
-            category='USER',
+            category="USER",
             **{"extra_tag": "test_cvalue"},
         )
         assert expected_result.equals(result)
@@ -607,7 +623,7 @@ class TestDataScienceModel:
             True,
         ],
     )
-    @patch.object(OCIDataScienceModel, "is_model_by_reference")
+    @patch.object(OCIDataScienceModel, "_is_model_by_reference")
     @patch.object(OCIDataScienceModel, "get_artifact_info")
     @patch.object(OCIDataScienceModel, "get_model_provenance")
     @patch.object(DataScienceModel, "_download_file_description_artifact")
@@ -642,6 +658,10 @@ class TestDataScienceModel:
                 {"key": "UseCaseType", "value": "multinomial_classification"},
                 {"key": "Hyperparameters", "value": "new test"},
                 {"key": "ArtifactTestResults", "value": "new test"},
+                {"key": "License", "value": None},
+                {"key": "Readme", "value": None},
+                {"key": "FineTuneConfiguration", "value": None},
+                {"key": "DeploymentConfiguration", "value": None},
             ],
             "backup_setting": {
                 "is_backup_enabled": True,
@@ -715,6 +735,10 @@ class TestDataScienceModel:
                     {"key": "UseCaseType", "value": "multinomial_classification"},
                     {"key": "Hyperparameters", "value": "new test"},
                     {"key": "ArtifactTestResults", "value": "new test"},
+                    {"key": "License", "value": None},
+                    {"key": "Readme", "value": None},
+                    {"key": "FineTuneConfiguration", "value": None},
+                    {"key": "DeploymentConfiguration", "value": None},
                 ]
             },
             "backupSetting": {

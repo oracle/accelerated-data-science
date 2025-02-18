@@ -1,25 +1,24 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import logging
 from typing import Any, Dict
 
 import click
 import fsspec
 import yaml
-import logging
-from ads.opctl.operator.common.utils import default_signer
+
 from ads.common.auth import AuthType
 from ads.common.object_storage_details import ObjectStorageDetails
+from ads.opctl import logger
 from ads.opctl.constants import BACKEND_NAME, RUNTIME_TYPE
 from ads.opctl.decorator.common import click_options, with_auth, with_click_unknown_args
+from ads.opctl.operator.common.utils import default_signer
 from ads.opctl.utils import suppress_traceback
-from ads.opctl import logger
 
 from .__init__ import __operators__
-from .cmd import run as cmd_run
 from .cmd import build_conda as cmd_build_conda
 from .cmd import build_image as cmd_build_image
 from .cmd import create as cmd_create
@@ -28,6 +27,7 @@ from .cmd import init as cmd_init
 from .cmd import list as cmd_list
 from .cmd import publish_conda as cmd_publish_conda
 from .cmd import publish_image as cmd_publish_image
+from .cmd import run as cmd_run
 from .cmd import verify as cmd_verify
 
 DEBUG_OPTION = (
@@ -113,7 +113,7 @@ def info(debug: bool, **kwargs: Dict[str, Any]) -> None:
 )
 @click.option(
     "--output",
-    help=f"The folder name to save the resulting specification templates.",
+    help="The folder name to save the resulting specification templates.",
     required=False,
     default=None,
 )
@@ -292,9 +292,9 @@ def publish_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
     "-b",
     help=(
         "Backend name or the path to the operator's backend config YAML file. "
-        f"\n\nExample 1:\n\n`ads operator run -f operator.yaml -b {BACKEND_NAME.LOCAL.value}`\n\n"
+        f"\n\nExample 1:\n\n`ads operator run -f operator.yaml -b {BACKEND_NAME.LOCAL}`\n\n"
         "Supported backend names: "
-        f"{(BACKEND_NAME.JOB.value,BACKEND_NAME.JOB.value + '.' + RUNTIME_TYPE.CONTAINER.value,BACKEND_NAME.DATAFLOW.value,BACKEND_NAME.LOCAL.value,BACKEND_NAME.LOCAL.value + '.'+ RUNTIME_TYPE.CONTAINER.value,)}. "
+        f"{(BACKEND_NAME.JOB,BACKEND_NAME.JOB + '.' + RUNTIME_TYPE.CONTAINER,BACKEND_NAME.DATAFLOW,BACKEND_NAME.LOCAL,BACKEND_NAME.LOCAL + '.'+ RUNTIME_TYPE.CONTAINER,)}. "
         "However some operators may support only a subset of these backends."
         "\n\nExample 2:\n\n`ads operator run -f operator.yaml -b backend.yaml`\n\n"
         "Use the `ads operator init --help` command to generate the operator's specification "

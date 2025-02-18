@@ -1,35 +1,33 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
 from string import Template
 from typing import Dict
-import json
 
 import yaml
 
 from ads.common.auth import AuthType, ResourcePrincipal
 from ads.opctl import logger
 from ads.opctl.config.base import ConfigProcessor
-from ads.opctl.config.utils import read_from_ini, _DefaultNoneDict
-from ads.opctl.utils import is_in_notebook_session, get_service_pack_prefix
+from ads.opctl.config.utils import _DefaultNoneDict, read_from_ini
 from ads.opctl.constants import (
-    DEFAULT_PROFILE,
-    DEFAULT_OCI_CONFIG_FILE,
-    DEFAULT_CONDA_PACK_FOLDER,
-    DEFAULT_ADS_CONFIG_FOLDER,
-    ADS_JOBS_CONFIG_FILE_NAME,
     ADS_CONFIG_FILE_NAME,
-    ADS_ML_PIPELINE_CONFIG_FILE_NAME,
     ADS_DATAFLOW_CONFIG_FILE_NAME,
+    ADS_JOBS_CONFIG_FILE_NAME,
     ADS_LOCAL_BACKEND_CONFIG_FILE_NAME,
+    ADS_ML_PIPELINE_CONFIG_FILE_NAME,
     ADS_MODEL_DEPLOYMENT_CONFIG_FILE_NAME,
-    DEFAULT_NOTEBOOK_SESSION_CONDA_DIR,
     BACKEND_NAME,
+    DEFAULT_ADS_CONFIG_FOLDER,
+    DEFAULT_CONDA_PACK_FOLDER,
+    DEFAULT_NOTEBOOK_SESSION_CONDA_DIR,
+    DEFAULT_OCI_CONFIG_FILE,
+    DEFAULT_PROFILE,
 )
+from ads.opctl.utils import get_service_pack_prefix, is_in_notebook_session
 
 
 class ConfigMerger(ConfigProcessor):
@@ -41,8 +39,9 @@ class ConfigMerger(ConfigProcessor):
     """
 
     def process(self, **kwargs) -> None:
-        config_string = Template(json.dumps(self.config)).safe_substitute(os.environ)
-        self.config = json.loads(config_string)
+        for key, value in self.config.items():
+            if isinstance(value, str):  # Substitute only if the value is a string
+                self.config[key] = Template(value).safe_substitute(os.environ)
 
         if "runtime" not in self.config:
             self.config["runtime"] = {}
@@ -191,11 +190,11 @@ class ConfigMerger(ConfigProcessor):
     def _get_service_config(self, oci_profile: str, ads_config_folder: str) -> Dict:
         backend = self.config["execution"].get("backend", None)
         backend_config = {
-            BACKEND_NAME.JOB.value: ADS_JOBS_CONFIG_FILE_NAME,
-            BACKEND_NAME.DATAFLOW.value: ADS_DATAFLOW_CONFIG_FILE_NAME,
-            BACKEND_NAME.PIPELINE.value: ADS_ML_PIPELINE_CONFIG_FILE_NAME,
-            BACKEND_NAME.LOCAL.value: ADS_LOCAL_BACKEND_CONFIG_FILE_NAME,
-            BACKEND_NAME.MODEL_DEPLOYMENT.value: ADS_MODEL_DEPLOYMENT_CONFIG_FILE_NAME,
+            BACKEND_NAME.JOB: ADS_JOBS_CONFIG_FILE_NAME,
+            BACKEND_NAME.DATAFLOW: ADS_DATAFLOW_CONFIG_FILE_NAME,
+            BACKEND_NAME.PIPELINE: ADS_ML_PIPELINE_CONFIG_FILE_NAME,
+            BACKEND_NAME.LOCAL: ADS_LOCAL_BACKEND_CONFIG_FILE_NAME,
+            BACKEND_NAME.MODEL_DEPLOYMENT: ADS_MODEL_DEPLOYMENT_CONFIG_FILE_NAME,
         }
         config_file = backend_config.get(backend, ADS_JOBS_CONFIG_FILE_NAME)
 
@@ -214,10 +213,7 @@ class ConfigMerger(ConfigProcessor):
     def _config_flex_shape_details(self):
         infrastructure = self.config["infrastructure"]
         backend = self.config["execution"].get("backend", None)
-        if (
-            backend == BACKEND_NAME.JOB.value
-            or backend == BACKEND_NAME.MODEL_DEPLOYMENT.value
-        ):
+        if backend == BACKEND_NAME.JOB or backend == BACKEND_NAME.MODEL_DEPLOYMENT:
             shape_name = infrastructure.get("shape_name", "")
             if shape_name.endswith(".Flex"):
                 if (
@@ -232,7 +228,7 @@ class ConfigMerger(ConfigProcessor):
                     "ocpus": infrastructure.pop("ocpus"),
                     "memory_in_gbs": infrastructure.pop("memory_in_gbs"),
                 }
-        elif backend == BACKEND_NAME.DATAFLOW.value:
+        elif backend == BACKEND_NAME.DATAFLOW:
             executor_shape = infrastructure.get("executor_shape", "")
             driver_shape = infrastructure.get("driver_shape", "")
             data_flow_shape_config_details = [

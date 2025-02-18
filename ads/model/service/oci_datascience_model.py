@@ -1,17 +1,24 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
 # Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
-import time
 from dataclasses import dataclass
 from functools import wraps
 from io import BytesIO
 from typing import Callable, Dict, List, Optional, Union
 
 import oci.data_science
+from oci.data_science.models import (
+    ArtifactExportDetailsObjectStorage,
+    ArtifactImportDetailsObjectStorage,
+    CreateModelDetails,
+    ExportModelArtifactDetails,
+    ImportModelArtifactDetails,
+    UpdateModelDetails,
+)
+from oci.exceptions import ServiceError
 from requests.structures import CaseInsensitiveDict
 
 from ads.common import utils
@@ -23,16 +30,7 @@ from ads.common.serializer import DataClassSerializable
 from ads.common.utils import extract_region
 from ads.common.work_request import DataScienceWorkRequest
 from ads.model.deployment import ModelDeployment
-from oci.data_science.models import (
-    ArtifactExportDetailsObjectStorage,
-    ArtifactImportDetailsObjectStorage,
-    CreateModelDetails,
-    ExportModelArtifactDetails,
-    ImportModelArtifactDetails,
-    UpdateModelDetails,
-    WorkRequest,
-)
-from oci.exceptions import ServiceError
+from ads.opctl.operator.common.utils import default_signer
 
 logger = logging.getLogger(__name__)
 
@@ -60,18 +58,21 @@ class ModelNotSavedError(Exception):  # pragma: no cover
 class ModelWithActiveDeploymentError(Exception):  # pragma: no cover
     pass
 
+
 class ModelMetadataArtifactNotFoundError(Exception):  # pragma: no cover
     def __init__(self, model_ocid, metadata_key: str):
         super().__init__(
             f"The model {model_ocid} does not contain the metadata with key {metadata_key}."
         )
+
     pass
+
 
 @dataclass(repr=False)
 class ModelMetadataArtifactDetails(DataClassSerializable):
     """Represents a details of Model Metadata ."""
 
-    headers: Union[Dict,CaseInsensitiveDict]
+    headers: Union[Dict, CaseInsensitiveDict]
     status: str
 
 
@@ -107,7 +108,9 @@ def check_for_model_id(msg: str = MODEL_NEEDS_TO_BE_SAVED):
     return decorator
 
 
-def convert_model_metadata_response(headers: Union[Dict,CaseInsensitiveDict], status: int) -> ModelMetadataArtifactDetails:
+def convert_model_metadata_response(
+    headers: Union[Dict, CaseInsensitiveDict], status: int
+) -> ModelMetadataArtifactDetails:
     return ModelMetadataArtifactDetails(headers=headers, status=str(status))
 
 
@@ -206,7 +209,7 @@ class OCIDataScienceModel(
         msg="Model needs to be saved to the Model Catalog before the provenance metadata can be created."
     )
     def create_model_provenance(
-            self, model_provenance: oci.data_science.models.ModelProvenance
+        self, model_provenance: oci.data_science.models.ModelProvenance
     ) -> oci.data_science.models.ModelProvenance:
         """Creates model provenance metadata.
 
@@ -226,7 +229,7 @@ class OCIDataScienceModel(
         msg="Model needs to be saved to the Model Catalog before the provenance metadata can be updated."
     )
     def update_model_provenance(
-            self, model_provenance: oci.data_science.models.ModelProvenance
+        self, model_provenance: oci.data_science.models.ModelProvenance
     ) -> oci.data_science.models.ModelProvenance:
         """Updates model provenance metadata.
 
@@ -304,7 +307,7 @@ class OCIDataScienceModel(
         msg="Model needs to be restored before the archived artifact content can be accessed."
     )
     def restore_archived_model_artifact(
-            self, restore_model_for_hours_specified: Optional[int] = None
+        self, restore_model_for_hours_specified: Optional[int] = None
     ) -> None:
         """Restores the archived model artifact.
 
@@ -326,7 +329,8 @@ class OCIDataScienceModel(
         """
         return self.client.restore_archived_model_artifact(
             model_id=self.id,
-            restore_model_for_hours_specified=restore_model_for_hours_specified).headers["opc-work-request-id"]
+            restore_model_for_hours_specified=restore_model_for_hours_specified,
+        ).headers["opc-work-request-id"]
 
     @check_for_model_id(
         msg="Model needs to be saved to the Model Catalog before the artifact content can be read."
@@ -553,8 +557,6 @@ class OCIDataScienceModel(
 
         Parameters
         ----------
-        model_id: str
-            The model ID.
         config: (Dict, optional). Defaults to `None`.
             Configuration keys and values as per SDK and Tool Configuration.
             The from_file() method can be used to load configuration from a file.
@@ -603,7 +605,7 @@ class OCIDataScienceModel(
             raise ValueError("Model OCID not provided.")
         return super().from_ocid(ocid)
 
-    def is_model_by_reference(self):
+    def _is_model_by_reference(self):
         """Checks if model is created by reference
         Returns
         -------
@@ -619,15 +621,16 @@ class OCIDataScienceModel(
                     return True
         return False
 
-    def create_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> ModelMetadataArtifactDetails:
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before the creating custom metadata artifact corresponding to that model"
+    )
+    def create_custom_metadata_artifact(
+        self, metadata_key_name: str, artifact_path: str
+    ) -> ModelMetadataArtifactDetails:
         """Creates model custom metadata artifact for specified model.
 
         Parameters
         ----------
-        model_ocid: str
-            The `OCID`__ of the model.
-            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
-
         metadata_key_name: str
             The name of the model metadatum in the metadata.
 
@@ -651,28 +654,53 @@ class OCIDataScienceModel(
 
         """
         if not utils.is_path_exists(artifact_path):
-            raise FileNotFoundError(
-                    f"File not found:  {artifact_path} . "
-                )
-        with open(artifact_path, 'rb') as f:
+            raise FileNotFoundError(f"File not found:  {artifact_path} . ")
+        with open(artifact_path, "rb") as f:
             contents = f.read()
             logger.info(f"The metadata artifact content - {contents}")
 
-        response = self.client.create_model_custom_metadatum_artifact(model_ocid, metadata_key_name, contents,
-                                                           content_disposition='form'
-                                                                               '-data; name="file"; filename="readme.*"')
-        response_data = convert_model_metadata_response(response.headers, response.status)
+        response = self.client.create_model_custom_metadatum_artifact(
+            self.id,
+            metadata_key_name,
+            contents,
+            content_disposition="form" '-data; name="file"; filename="readme.*"',
+        )
+        response_data = convert_model_metadata_response(
+            response.headers, response.status
+        )
         return response_data
 
-    def create_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> ModelMetadataArtifactDetails:
+    def get_metadata_content(self, artifact_path_or_content: str, path_type):
+        if path_type == utils.MetadataArtifactPathType.CONTENT:
+            return artifact_path_or_content
+        elif path_type == utils.MetadataArtifactPathType.LOCAL:
+            if not utils.is_path_exists(artifact_path_or_content):
+                raise FileNotFoundError(
+                    f"File not found:  {artifact_path_or_content} . "
+                )
+            with open(artifact_path_or_content, "rb") as f:
+                contents = f.read()
+                logger.info(f"The metadata artifact content - {contents}")
+            return contents
+        elif path_type == utils.MetadataArtifactPathType.OSS:
+            from ads.aqua.common.utils import read_file
+
+            if not utils.is_path_exists(artifact_path_or_content):
+                raise FileNotFoundError(f"File not found: {artifact_path_or_content}")
+            contents = str(read_file(artifact_path_or_content, default_signer()))
+            logger.info(f"The metadata artifact content - {contents}")
+            return contents
+
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before creating defined metadata artifact corresponding to that model"
+    )
+    def create_defined_metadata_artifact(
+        self, metadata_key_name: str, artifact_path: str, path_type: str
+    ) -> ModelMetadataArtifactDetails:
         """Creates model defined metadata artifact for specified model.
 
         Parameters
         ----------
-        model_ocid: str
-            The `OCID`__ of the model.
-            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
-
         metadata_key_name: str
             The name of the model metadatum in the metadata.
 
@@ -695,27 +723,28 @@ class OCIDataScienceModel(
             }
 
         """
-        if not utils.is_path_exists(artifact_path):
-            raise FileNotFoundError(
-                    f"File not found:  {artifact_path} . "
-                )
-        with open(artifact_path, 'rb') as f:
-            contents = f.read()
-            logger.info(f"The metadata artifact content - {contents}")
-        response = self.client.create_model_defined_metadatum_artifact(model_ocid, metadata_key_name, contents,
-                                                            content_disposition='form-data; name="file"; filename="readme.*"')
-        response_data = convert_model_metadata_response(response.headers, response.status)
+        contents = self.get_metadata_content(artifact_path, path_type)
+        response = self.client.create_model_defined_metadatum_artifact(
+            self.id,
+            metadata_key_name,
+            contents,
+            content_disposition='form-data; name="file"; filename="readme.*"',
+        )
+        response_data = convert_model_metadata_response(
+            response.headers, response.status
+        )
         return response_data
 
-    def update_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> ModelMetadataArtifactDetails:
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before updating defined metadata artifact corresponding to that model"
+    )
+    def update_defined_metadata_artifact(
+        self, metadata_key_name: str, artifact_path: str, path_type: str
+    ) -> ModelMetadataArtifactDetails:
         """Update model defined metadata artifact for specified model.
 
         Parameters
         ----------
-        model_ocid: str
-            The `OCID`__ of the model.
-            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
-
         metadata_key_name: str
             The name of the model metadatum in the metadata.
 
@@ -738,28 +767,28 @@ class OCIDataScienceModel(
             }
 
         """
-        if not utils.is_path_exists(artifact_path):
-            raise FileNotFoundError(
-                    f"File not found:  {artifact_path} . "
-                )
-        with open(artifact_path, 'rb') as f:
-            contents = f.read()
-            logger.info(f"The content of metadata with key {metadata_key_name} - {contents}")
-        response =  self.client.update_model_defined_metadatum_artifact(model_ocid, metadata_key_name, contents,
-                                                            content_disposition='form-data; name="file"; filename="readme.*"')
-        response_data = convert_model_metadata_response(response.headers, response.status)
+        contents = self.get_metadata_content(artifact_path, path_type)
+        response = self.client.update_model_defined_metadatum_artifact(
+            self.id,
+            metadata_key_name,
+            contents,
+            content_disposition='form-data; name="file"; filename="readme.*"',
+        )
+        response_data = convert_model_metadata_response(
+            response.headers, response.status
+        )
         return response_data
 
-
-    def update_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str, artifact_path: str) -> ModelMetadataArtifactDetails:
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before updating custom metadata artifact corresponding to that model"
+    )
+    def update_custom_metadata_artifact(
+        self, metadata_key_name: str, artifact_path: str, path_type: str
+    ) -> ModelMetadataArtifactDetails:
         """Update model custom metadata artifact for specified model.
 
         Parameters
         ----------
-        model_ocid: str
-            The `OCID`__ of the model.
-            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
-
         metadata_key_name: str
             The name of the model metadatum in the metadata.
 
@@ -782,28 +811,26 @@ class OCIDataScienceModel(
             }
 
         """
-        if not utils.is_path_exists(artifact_path):
-            raise FileNotFoundError(
-                    f"File not found:  {artifact_path} . "
-                )
-        with open(artifact_path, 'rb') as f:
-            contents = f.read()
-            logger.info(f"The content of metadata with key {metadata_key_name} - {contents}")
-        response =  self.client.update_model_custom_metadatum_artifact(model_ocid, metadata_key_name, contents,
-                                                           content_disposition='form'
-                                                                               '-data; name="file"; filename="readme.*"')
-        response_data = convert_model_metadata_response(response.headers, response.status)
+        contents = self.get_metadata_content(artifact_path, path_type)
+        response = self.client.update_model_custom_metadatum_artifact(
+            self.id,
+            metadata_key_name,
+            contents,
+            content_disposition="form" '-data; name="file"; filename="readme.*"',
+        )
+        response_data = convert_model_metadata_response(
+            response.headers, response.status
+        )
         return response_data
 
-    def get_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> BytesIO:
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before fetching custom metadata artifact corresponding to that model"
+    )
+    def get_custom_metadata_artifact(self, metadata_key_name: str) -> BytesIO:
         """Downloads model custom metadata artifact content for specified model metadata key.
 
         Parameters
         ----------
-        model_ocid: str
-            The `OCID`__ of the model.
-            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
-
         metadata_key_name: str
             The name of the model metadatum in the metadata.
         Returns
@@ -813,21 +840,21 @@ class OCIDataScienceModel(
 
         """
         try:
-            return self.client.get_model_custom_metadatum_artifact_content(model_ocid, metadata_key_name).data.content
+            return self.client.get_model_custom_metadatum_artifact_content(
+                self.id, metadata_key_name
+            ).data.content
         except ServiceError as ex:
             if ex.status == 404:
-                raise ModelMetadataArtifactNotFoundError(model_ocid,metadata_key_name)
+                raise ModelMetadataArtifactNotFoundError(self.id, metadata_key_name)
 
-
-    def get_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> BytesIO:
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before fetching defined metadata artifact corresponding to that model"
+    )
+    def get_defined_metadata_artifact(self, metadata_key_name: str) -> BytesIO:
         """Downloads model defined metadata artifact content for specified model metadata key.
 
         Parameters
         ----------
-        model_ocid: str
-            The `OCID`__ of the model.
-            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
-
         metadata_key_name: str
             The name of the model metadatum in the metadata.
         Returns
@@ -837,21 +864,23 @@ class OCIDataScienceModel(
 
         """
         try:
-            return self.client.get_model_defined_metadatum_artifact_content(model_ocid, metadata_key_name).data.content
+            return self.client.get_model_defined_metadatum_artifact_content(
+                self.id, metadata_key_name
+            ).data.content
         except ServiceError as ex:
             if ex.status == 404:
-                raise ModelMetadataArtifactNotFoundError(model_ocid,metadata_key_name)
+                raise ModelMetadataArtifactNotFoundError(self.id, metadata_key_name)
 
-
-    def head_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> ModelMetadataArtifactDetails:
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before fetching custom metadata artifact corresponding to that model"
+    )
+    def head_custom_metadata_artifact(
+        self, metadata_key_name: str
+    ) -> ModelMetadataArtifactDetails:
         """Gets custom metadata artifact metadata for specified model metadata key.
 
         Parameters
         ----------
-        model_ocid: str
-            The `OCID`__ of the model.
-            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
-
         metadata_key_name: str
             The name of the model metadatum in the metadata.
         Returns
@@ -871,19 +900,24 @@ class OCIDataScienceModel(
             }
 
         """
-        response = self.client.head_model_custom_metadatum_artifact(model_ocid, metadata_key_name)
-        response_data = convert_model_metadata_response(response.headers, response.status)
+        response = self.client.head_model_custom_metadatum_artifact(
+            self.id, metadata_key_name
+        )
+        response_data = convert_model_metadata_response(
+            response.headers, response.status
+        )
         return response_data
 
-    def head_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> ModelMetadataArtifactDetails:
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before fetching defined metadata artifact corresponding to that model"
+    )
+    def head_defined_metadata_artifact(
+        self, metadata_key_name: str
+    ) -> ModelMetadataArtifactDetails:
         """Gets defined metadata artifact metadata for specified model metadata key.
 
         Parameters
         ----------
-        model_ocid: str
-            The `OCID`__ of the model.
-            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
-
         metadata_key_name: str
             The name of the model metadatum in the metadata.
         Returns
@@ -903,19 +937,24 @@ class OCIDataScienceModel(
             }
 
         """
-        response = self.client.head_model_defined_metadatum_artifact(model_ocid, metadata_key_name)
-        response_data = convert_model_metadata_response(response.headers, response.status)
+        response = self.client.head_model_defined_metadatum_artifact(
+            self.id, metadata_key_name
+        )
+        response_data = convert_model_metadata_response(
+            response.headers, response.status
+        )
         return response_data
 
-    def delete_custom_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> ModelMetadataArtifactDetails:
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before the deleting custom metadata artifact corresponding to that model"
+    )
+    def delete_custom_metadata_artifact(
+        self, metadata_key_name: str
+    ) -> ModelMetadataArtifactDetails:
         """Deletes model custom metadata artifact for specified model metadata key.
 
         Parameters
         ----------
-        model_ocid: str
-            The `OCID`__ of the model.
-            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
-
         metadata_key_name: str
             The name of the model metadatum in the metadata.
         Returns
@@ -933,19 +972,24 @@ class OCIDataScienceModel(
             }
 
         """
-        response = self.client.delete_model_custom_metadatum_artifact(model_ocid, metadata_key_name)
-        response_data = convert_model_metadata_response(response.headers, response.status)
+        response = self.client.delete_model_custom_metadatum_artifact(
+            self.id, metadata_key_name
+        )
+        response_data = convert_model_metadata_response(
+            response.headers, response.status
+        )
         return response_data
 
-    def delete_defined_metadata_artifact(self, model_ocid: str, metadata_key_name: str) -> ModelMetadataArtifactDetails:
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before the deleting defined metadata artifact corresponding to that model"
+    )
+    def delete_defined_metadata_artifact(
+        self, metadata_key_name: str
+    ) -> ModelMetadataArtifactDetails:
         """Deletes model defined metadata artifact for specified model metadata key.
 
         Parameters
         ----------
-        model_ocid: str
-            The `OCID`__ of the model.
-            __ https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm
-
         metadata_key_name: str
             The name of the model metadatum in the metadata.
         Returns
@@ -963,6 +1007,10 @@ class OCIDataScienceModel(
             }
 
         """
-        response = self.client.delete_model_defined_metadatum_artifact(model_ocid, metadata_key_name)
-        response_data = convert_model_metadata_response(response.headers, response.status)
+        response = self.client.delete_model_defined_metadatum_artifact(
+            self.id, metadata_key_name
+        )
+        response_data = convert_model_metadata_response(
+            response.headers, response.status
+        )
         return response_data

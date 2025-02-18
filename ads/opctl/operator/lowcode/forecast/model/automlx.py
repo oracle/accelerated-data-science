@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import logging
 import os
@@ -56,8 +56,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         )
         return model_kwargs_cleaned, time_budget
 
-    def preprocess(self, data):  # TODO: re-use self.le for explanations
-        _, df_encoded = _label_encode_dataframe(
+    def preprocess(self, data, series_id):  # TODO: re-use self.le for explanations
+        self.le[series_id], df_encoded = _label_encode_dataframe(
             data,
             no_encode={self.spec.datetime_column.name, self.original_target_column},
         )
@@ -66,8 +66,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     @runtime_dependency(
         module="automlx",
         err_msg=(
-            "Please run `pip3 install oracle-automlx>=23.4.1` and "
-            "`pip3 install oracle-automlx[forecasting]>=23.4.1` "
+            "Please run `pip3 install oracle-automlx[forecasting]>=25.1.1` "
             "to install the required dependencies for automlx."
         ),
     )
@@ -81,22 +80,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         import logging
 
         from automlx import Pipeline, init
-
-        cpu_count = os.cpu_count()
-        try:
-            if cpu_count < 4:
-                engine = "local"
-                engine_opts = None
-            else:
-                engine = "ray"
-                engine_opts = ({"ray_setup": {"_temp_dir": "/tmp/ray-temp"}},)
-            init(
-                engine=engine,
-                engine_opts=engine_opts,
-                loglevel=logging.CRITICAL,
-            )
-        except Exception as e:
-            logger.info(f"Error. Has Ray already been initialized? Skipping. {e}")
 
         full_data_dict = self.datasets.get_data_by_series()
 
@@ -113,6 +96,26 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         # Clean up kwargs for pass through
         model_kwargs_cleaned, time_budget = self.set_kwargs()
 
+        cpu_count = os.cpu_count()
+        try:
+            engine_type = model_kwargs_cleaned.pop(
+                "engine", "local" if cpu_count <= 4 else "ray"
+            )
+            engine_opts = (
+                None
+                if engine_type == "local"
+                else {"ray_setup": {"_temp_dir": "/tmp/ray-temp"}}
+            )
+            init(
+                engine=engine_type,
+                engine_opts=engine_opts,
+                loglevel=logging.CRITICAL,
+            )
+        except Exception as e:
+            logger.info(
+                f"Error initializing automlx. Has Ray already been initialized? Skipping. {e}"
+            )
+
         for s_id, df in full_data_dict.items():
             try:
                 logger.debug(f"Running automlx on series {s_id}")
@@ -121,7 +124,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 self.forecast_output.init_series_output(
                     series_id=s_id, data_at_series=df
                 )
-                data = self.preprocess(df)
+                data = self.preprocess(df, s_id)
                 data_i = self.drop_horizon(data)
                 X_pred = self.get_horizon(data).drop(target, axis=1)
 
@@ -153,7 +156,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     target
                 ].values
 
-                self.models[s_id] = model
+                self.models[s_id] = {}
+                self.models[s_id]["model"] = model
+                self.models[s_id]["le"] = self.le[s_id]
 
                 # In case of Naive model, model.forecast function call does not return confidence intervals.
                 if f"{target}_ci_upper" not in summary_frame:
@@ -214,7 +219,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         other_sections = []
 
         if len(self.models) > 0:
-            for s_id, m in models.items():
+            for s_id, artifacts in models.items():
+                m = artifacts["model"]
                 selected_models[s_id] = {
                     "series_id": s_id,
                     "selected_model": m.selected_model_,
@@ -265,11 +271,15 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 self.formatted_local_explanation = aggregate_local_explanations
 
                 if not self.target_cat_col:
-                    self.formatted_global_explanation = self.formatted_global_explanation.rename(
-                        {"Series 1": self.original_target_column},
-                        axis=1,
+                    self.formatted_global_explanation = (
+                        self.formatted_global_explanation.rename(
+                            {"Series 1": self.original_target_column},
+                            axis=1,
+                        )
                     )
-                    self.formatted_local_explanation.drop("Series", axis=1, inplace=True)
+                    self.formatted_local_explanation.drop(
+                        "Series", axis=1, inplace=True
+                    )
 
                 # Create a markdown section for the global explainability
                 global_explanation_section = rc.Block(
@@ -316,7 +326,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         )
 
     def get_explain_predict_fn(self, series_id):
-        selected_model = self.models[series_id]
+        selected_model = self.models[series_id]["model"]
 
         # If training date, use method below. If future date, use forecast!
         def _custom_predict_fn(
@@ -334,12 +344,12 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             data[dt_column_name] = seconds_to_datetime(
                 data[dt_column_name], dt_format=self.spec.datetime_column.format
             )
-            data = self.preprocess(data)
+            data = self.preprocess(data, series_id)
             horizon_data = horizon_data.drop(target_col, axis=1)
             horizon_data[dt_column_name] = seconds_to_datetime(
                 horizon_data[dt_column_name], dt_format=self.spec.datetime_column.format
             )
-            horizon_data = self.preprocess(horizon_data)
+            horizon_data = self.preprocess(horizon_data, series_id)
 
             rows = []
             for i in range(data.shape[0]):
@@ -417,7 +427,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 if self.spec.explanations_accuracy_mode == SpeedAccuracyMode.AUTOMLX:
                     # Use the MLExplainer class from AutoMLx to generate explanations
                     explainer = automlx.MLExplainer(
-                        self.models[s_id],
+                        self.models[s_id]["model"],
                         self.datasets.additional_data.get_data_for_series(series_id=s_id)
                         .drop(self.spec.datetime_column.name, axis=1)
                         .head(-self.spec.horizon)
@@ -429,7 +439,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
                     # Generate explanations for the forecast
                     explanations = explainer.explain_prediction(
-                        X=self.datasets.additional_data.get_data_for_series(series_id=s_id)
+                        X=self.datasets.additional_data.get_data_for_series(
+                            series_id=s_id
+                        )
                         .drop(self.spec.datetime_column.name, axis=1)
                         .tail(self.spec.horizon)
                         if self.spec.additional_data
@@ -441,7 +453,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     explanations_df = pd.concat(
                         [exp.to_dataframe() for exp in explanations]
                     )
-                    explanations_df["row"] = explanations_df.groupby("Feature").cumcount()
+                    explanations_df["row"] = explanations_df.groupby(
+                        "Feature"
+                    ).cumcount()
                     explanations_df = explanations_df.pivot(
                         index="row", columns="Feature", values="Attribution"
                     )
@@ -453,5 +467,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     # Fall back to the default explanation generation method
                     super().explain_model()
             except Exception as e:
-                logger.warning(f"Failed to generate explanations for series {s_id} with error: {e}.")
+                logger.warning(
+                    f"Failed to generate explanations for series {s_id} with error: {e}."
+                )
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")

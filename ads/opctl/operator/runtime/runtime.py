@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -14,9 +13,8 @@ from cerberus import Validator
 
 from ads.common.extended_enum import ExtendedEnum
 from ads.common.serializer import DataClassSerializable
-from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.common.errors import InvalidParameterError
-
+from ads.opctl.operator.common.utils import _load_yaml_from_uri
 
 
 class OPERATOR_LOCAL_RUNTIME_TYPE(ExtendedEnum):
@@ -79,7 +77,7 @@ class ContainerRuntime(Runtime):
     """Represents a container operator runtime."""
 
     _schema: ClassVar[str] = "container_runtime_schema.yaml"
-    type: str = OPERATOR_LOCAL_RUNTIME_TYPE.CONTAINER.value
+    type: str = OPERATOR_LOCAL_RUNTIME_TYPE.CONTAINER
     version: str = "v1"
     kind: str = OPERATOR_LOCAL_RUNTIME_KIND
     spec: ContainerRuntimeSpec = field(default_factory=ContainerRuntimeSpec)
@@ -102,7 +100,7 @@ class PythonRuntime(Runtime):
 
     _schema: ClassVar[str] = "python_runtime_schema.yaml"
     kind: str = OPERATOR_LOCAL_RUNTIME_KIND
-    type: str = OPERATOR_LOCAL_RUNTIME_TYPE.PYTHON.value
+    type: str = OPERATOR_LOCAL_RUNTIME_TYPE.PYTHON
     version: str = "v1"
 
     @classmethod

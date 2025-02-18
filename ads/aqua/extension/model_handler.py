@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from typing import Optional
@@ -8,9 +8,13 @@ from urllib.parse import urlparse
 from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
+from ads.aqua.common.enums import (
+    CustomInferenceContainerTypeFamily,
+)
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     get_hf_model_info,
+    is_valid_ocid,
     list_hf_models,
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
@@ -130,17 +134,27 @@ class AquaModelHandler(AquaAPIhandler):
         download_from_hf = (
             str(input_data.get("download_from_hf", "false")).lower() == "true"
         )
+        local_dir = input_data.get("local_dir")
+        cleanup_model_cache = (
+            str(input_data.get("cleanup_model_cache", "false")).lower() == "true"
+        )
         inference_container_uri = input_data.get("inference_container_uri")
         allow_patterns = input_data.get("allow_patterns")
         ignore_patterns = input_data.get("ignore_patterns")
         freeform_tags = input_data.get("freeform_tags")
         defined_tags = input_data.get("defined_tags")
+        ignore_model_artifact_check = (
+            str(input_data.get("ignore_model_artifact_check", "false")).lower()
+            == "true"
+        )
 
         return self.finish(
             AquaModelApp().register(
                 model=model,
                 os_path=os_path,
                 download_from_hf=download_from_hf,
+                local_dir=local_dir,
+                cleanup_model_cache=cleanup_model_cache,
                 inference_container=inference_container,
                 finetuning_container=finetuning_container,
                 compartment_id=compartment_id,
@@ -151,6 +165,7 @@ class AquaModelHandler(AquaAPIhandler):
                 ignore_patterns=ignore_patterns,
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
+                ignore_model_artifact_check=ignore_model_artifact_check,
             )
         )
 
@@ -165,7 +180,9 @@ class AquaModelHandler(AquaAPIhandler):
             raise HTTPError(400, Errors.NO_INPUT_DATA)
 
         inference_container = input_data.get("inference_container")
+        inference_container_uri = input_data.get("inference_container_uri")
         inference_containers = AquaModelApp.list_valid_inference_containers()
+        inference_containers.extend(CustomInferenceContainerTypeFamily.values())
         if (
             inference_container is not None
             and inference_container not in inference_containers
@@ -178,7 +195,13 @@ class AquaModelHandler(AquaAPIhandler):
         task = input_data.get("task")
         app = AquaModelApp()
         self.finish(
-            app.edit_registered_model(id, inference_container, enable_finetuning, task)
+            app.edit_registered_model(
+                id,
+                inference_container,
+                inference_container_uri,
+                enable_finetuning,
+                task,
+            )
         )
         app.clear_model_details_cache(model_id=id)
 
@@ -296,8 +319,30 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
         )
 
 
+class AquaModelTokenizerConfigHandler(AquaAPIhandler):
+    def get(self, model_id):
+        """
+        Handles requests for retrieving the Hugging Face tokenizer configuration of a specified model.
+        Expected request format: GET /aqua/models/<model-ocid>/tokenizer
+
+        """
+
+        path_list = urlparse(self.request.path).path.strip("/").split("/")
+        # Path should be /aqua/models/ocid1.iad.ahdxxx/tokenizer
+        # path_list=['aqua','models','<model-ocid>','tokenizer']
+        if (
+            len(path_list) == 4
+            and is_valid_ocid(path_list[2])
+            and path_list[3] == "tokenizer"
+        ):
+            return self.finish(AquaModelApp().get_hf_tokenizer_config(model_id))
+
+        raise HTTPError(400, f"The request {self.request.path} is invalid.")
+
+
 __handlers__ = [
     ("model/?([^/]*)", AquaModelHandler),
     ("model/?([^/]*)/license", AquaModelLicenseHandler),
+    ("model/?([^/]*)/tokenizer", AquaModelTokenizerConfigHandler),
     ("model/hf/search/?([^/]*)", AquaHuggingFaceHandler),
 ]

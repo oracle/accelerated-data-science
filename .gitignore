@@ -86,7 +86,8 @@ celerybeat-schedule
 *.sage.py
 
 # dotenv
-.env
+.env*
+run_ads.sh
 
 # virtualenv
 .venv

@@ -1,18 +1,24 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-from dataclasses import dataclass, field
-from typing import List, Optional
 
-from ads.aqua.data import AquaJobSummary
-from ads.common.serializer import DataClassSerializable
+import json
+from typing import List, Literal, Optional, Union
+
+from pydantic import Field, model_validator
+
+from ads.aqua.common.errors import AquaValueError
+from ads.aqua.config.utils.serializer import Serializable
+from ads.aqua.data import AquaResourceIdentifier
+from ads.aqua.finetuning.constants import FineTuningRestrictedParams
 
 
-@dataclass(repr=False)
-class AquaFineTuningParams(DataClassSerializable):
-    epochs: int
+class AquaFineTuningParams(Serializable):
+    """Class for maintaining aqua fine-tuning model parameters"""
+
+    epochs: Optional[int] = None
     learning_rate: Optional[float] = None
-    sample_packing: Optional[bool] = "auto"
+    sample_packing: Union[bool, None, Literal["auto"]] = "auto"
     batch_size: Optional[int] = (
         None  # make it batch_size for user, but internally this is micro_batch_size
     )
@@ -22,21 +28,59 @@ class AquaFineTuningParams(DataClassSerializable):
     lora_alpha: Optional[int] = None
     lora_dropout: Optional[float] = None
     lora_target_linear: Optional[bool] = None
-    lora_target_modules: Optional[List] = None
+    lora_target_modules: Optional[List[str]] = None
     early_stopping_patience: Optional[int] = None
     early_stopping_threshold: Optional[float] = None
 
+    class Config:
+        extra = "allow"
 
-@dataclass(repr=False)
-class AquaFineTuningSummary(AquaJobSummary, DataClassSerializable):
-    parameters: AquaFineTuningParams = field(default_factory=AquaFineTuningParams)
+    def to_dict(self) -> dict:
+        return json.loads(super().to_json(exclude_none=True))
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_restricted_fields(cls, data: dict):
+        # we may want to skip validation if loading data from config files instead of user entered parameters
+        validate = data.pop("_validate", True)
+        if not (validate and isinstance(data, dict)):
+            return data
+        restricted_params = [
+            param for param in data if param in FineTuningRestrictedParams.values()
+        ]
+        if restricted_params:
+            raise AquaValueError(
+                f"Found restricted parameter name: {restricted_params}"
+            )
+        return data
 
 
-@dataclass(repr=False)
-class CreateFineTuningDetails(DataClassSerializable):
-    """Dataclass to create aqua model fine tuning.
+class AquaFineTuningSummary(Serializable):
+    """Represents a summary of Aqua Finetuning job."""
 
-    Fields
+    id: str
+    name: str
+    console_url: str
+    lifecycle_state: str
+    lifecycle_details: str
+    time_created: str
+    tags: dict
+    experiment: AquaResourceIdentifier = Field(default_factory=AquaResourceIdentifier)
+    source: AquaResourceIdentifier = Field(default_factory=AquaResourceIdentifier)
+    job: AquaResourceIdentifier = Field(default_factory=AquaResourceIdentifier)
+    parameters: AquaFineTuningParams = Field(default_factory=AquaFineTuningParams)
+
+    class Config:
+        extra = "ignore"
+
+    def to_dict(self) -> dict:
+        return json.loads(super().to_json(exclude_none=True))
+
+
+class CreateFineTuningDetails(Serializable):
+    """Class to create aqua model fine-tuning instance.
+
+    Properties
     ------
     ft_source_id: str
         The fine tuning source id. Must be model ocid.
@@ -78,6 +122,8 @@ class CreateFineTuningDetails(DataClassSerializable):
         The log group id for fine tuning job infrastructure.
     log_id: (str, optional). Defaults to `None`.
         The log id for fine tuning job infrastructure.
+    watch_logs: (bool, optional). Defaults to `False`.
+        The flag to watch the job run logs when a fine-tuning job is created.
     force_overwrite: (bool, optional). Defaults to `False`.
         Whether to force overwrite the existing file in object storage.
     freeform_tags: (dict, optional)
@@ -104,6 +150,10 @@ class CreateFineTuningDetails(DataClassSerializable):
     subnet_id: Optional[str] = None
     log_id: Optional[str] = None
     log_group_id: Optional[str] = None
+    watch_logs: Optional[bool] = False
     force_overwrite: Optional[bool] = False
     freeform_tags: Optional[dict] = None
     defined_tags: Optional[dict] = None
+
+    class Config:
+        extra = "ignore"

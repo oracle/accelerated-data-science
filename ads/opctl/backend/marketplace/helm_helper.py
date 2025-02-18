@@ -1,31 +1,30 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import io
 import subprocess
 from enum import Enum
 from typing import List
-import io
 
 import click
 import pandas as pd
+
+from ads.common.extended_enum import ExtendedEnum
+from ads.opctl import logger
+from ads.opctl.backend.marketplace.marketplace_utils import (
+    WARNING,
+    Color,
+    StatusIcons,
+    get_docker_bearer_token,
+)
 from ads.opctl.backend.marketplace.models.marketplace_type import (
     HelmMarketplaceListingDetails,
 )
 
-from ads.common.extended_enum import ExtendedEnumMeta
-from ads.opctl import logger
-from ads.opctl.backend.marketplace.marketplace_utils import (
-    StatusIcons,
-    get_docker_bearer_token,
-    WARNING,
-    Color,
-)
 
-
-class HelmCommand(str, metaclass=ExtendedEnumMeta):
+class HelmCommand(ExtendedEnum):
     """Supported Helm commands."""
 
     Install = "install"
@@ -63,7 +62,7 @@ def run_helm_install(
         "-i",
     ]
     print(f"\n{Color.BLUE}{' '.join(helm_cmd)}{Color.END}")
-    return subprocess.run(helm_cmd)
+    return subprocess.run(helm_cmd, check=False)
 
 
 def _get_as_flags_(**kwargs) -> List[str]:
@@ -125,7 +124,7 @@ def check_helm_pull(helm_chart_url: str, version: str) -> HelmPullStatus:
         *_get_as_flags_(version=f"{version}"),
     ]
     logger.debug(" ".join(helm_cmd))
-    result = subprocess.run(helm_cmd, capture_output=True)
+    result = subprocess.run(helm_cmd, capture_output=True, check=False)
     stderr = result.stderr.decode("utf-8")
     if result.returncode == 0:
         return HelmPullStatus.SUCCESS
@@ -146,7 +145,7 @@ def run_helm_login(ocir_repo: str, token: str):
         *_get_as_flags_(username="BEARER_TOKEN", password=token),
     ]
     logger.debug(" ".join(helm_cmd[:-1]))
-    result = subprocess.run(helm_cmd, capture_output=True)
+    result = subprocess.run(helm_cmd, capture_output=True, check=False)
     if result.returncode == 0:
         pass
     else:
@@ -162,7 +161,7 @@ def run_helm_list(namespace: str, **kwargs) -> pd.DataFrame:
         *_get_as_flags_(namespace=namespace, **kwargs),
     ]
     logger.debug(" ".join(helm_cmd))
-    result = subprocess.run(helm_cmd, capture_output=True)
+    result = subprocess.run(helm_cmd, capture_output=True, check=False)
     if result.returncode == 0:
         return pd.read_csv(
             io.BytesIO(result.stdout), delimiter=r"\s*\t\s*", engine="python"

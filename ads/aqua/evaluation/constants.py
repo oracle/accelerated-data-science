@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -9,9 +8,10 @@ aqua.evaluation.const
 
 This module contains constants/enums used in Aqua Evaluation.
 """
+
 from oci.data_science.models import JobRun
 
-from ads.common.extended_enum import ExtendedEnumMeta
+from ads.common.extended_enum import ExtendedEnum
 
 EVAL_TERMINATION_STATE = [
     JobRun.LIFECYCLE_STATE_SUCCEEDED,
@@ -19,7 +19,7 @@ EVAL_TERMINATION_STATE = [
 ]
 
 
-class EvaluationCustomMetadata(str, metaclass=ExtendedEnumMeta):
+class EvaluationCustomMetadata(ExtendedEnum):
     EVALUATION_SOURCE = "evaluation_source"
     EVALUATION_JOB_ID = "evaluation_job_id"
     EVALUATION_JOB_RUN_ID = "evaluation_job_run_id"
@@ -28,11 +28,11 @@ class EvaluationCustomMetadata(str, metaclass=ExtendedEnumMeta):
     EVALUATION_ERROR = "aqua_evaluate_error"
 
 
-class EvaluationConfig(str, metaclass=ExtendedEnumMeta):
+class EvaluationConfig(ExtendedEnum):
     PARAMS = "model_params"
 
 
-class EvaluationReportJson(str, metaclass=ExtendedEnumMeta):
+class EvaluationReportJson(ExtendedEnum):
     """Contains evaluation report.json fields name."""
 
     METRIC_SUMMARY_RESULT = "metric_summary_result"
@@ -43,7 +43,7 @@ class EvaluationReportJson(str, metaclass=ExtendedEnumMeta):
     DATASET = "dataset"
 
 
-class EvaluationMetricResult(str, metaclass=ExtendedEnumMeta):
+class EvaluationMetricResult(ExtendedEnum):
     """Contains metric result's fields name in report.json."""
 
     SHORT_NAME = "key"
