@@ -40,6 +40,7 @@ FINE_TUNING_CONFIGURATION = "FineTuneConfiguration"
 DEPLOYMENT_CONFIGURATION = "DeploymentConfiguration"
 README = "Readme"
 LICENSE = "License"
+REPORTS = "Reports"
 
 TRAINING_METRICS_FINAL = "training_metrics_final"
 VALIDATION_METRICS_FINAL = "validation_metrics_final"

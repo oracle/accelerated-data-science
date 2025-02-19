@@ -924,13 +924,16 @@ class AquaEvaluationApp(AquaApp):
         ]
 
     @telemetry(entry_point="plugin=evaluation&action=load_metrics", name="aqua")
-    def load_metrics(self, eval_id: str) -> AquaEvalMetrics:
+    def load_metrics(self, eval_id: str,eval_name: str = None) -> AquaEvalMetrics:
         """Loads evalution metrics markdown from artifacts.
 
         Parameters
         ----------
         eval_id: str
             The evaluation ocid.
+
+        eval_name: str
+            The evaluation name is the name eval report was saved in model metadata
 
         Returns
         -------
@@ -945,10 +948,14 @@ class AquaEvaluationApp(AquaApp):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Downloading evaluation artifact: {eval_id}.")
-            DataScienceModel.from_id(eval_id).download_artifact(
-                temp_dir,
-                auth=self._auth,
-            )
+
+            if eval_name:
+                DataScienceModel.get_custom_metadata_artifact(eval_id,eval_name,temp_dir)
+            else:
+                DataScienceModel.from_id(eval_id).download_artifact(
+                    temp_dir,
+                    auth=self._auth,
+                )
 
             files_in_artifact = get_files(temp_dir)
             md_report_content = self._read_from_artifact(
@@ -1028,13 +1035,17 @@ class AquaEvaluationApp(AquaApp):
         return content
 
     @telemetry(entry_point="plugin=evaluation&action=download_report", name="aqua")
-    def download_report(self, eval_id) -> AquaEvalReport:
+    def download_report(self, eval_id,
+                        eval_name: str = None) -> AquaEvalReport:
         """Downloads HTML report from model artifact.
 
         Parameters
         ----------
         eval_id: str
             The evaluation ocid.
+
+        eval_name: str
+            The evaluation name is the name eval report was saved in model metadata
 
         Returns
         -------
@@ -1054,10 +1065,14 @@ class AquaEvaluationApp(AquaApp):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Downloading evaluation artifact for {eval_id}.")
-            DataScienceModel.from_id(eval_id).download_artifact(
-                temp_dir,
-                auth=self._auth,
-            )
+            if eval_name:
+                DataScienceModel.get_custom_metadata_artifact(eval_id,eval_name,temp_dir)
+            else:
+                DataScienceModel.from_id(eval_id).download_artifact(
+                    temp_dir,
+                    auth=self._auth,
+                )
+
             content = self._read_from_artifact(
                 temp_dir, get_files(temp_dir), EVALUATION_REPORT
             )
