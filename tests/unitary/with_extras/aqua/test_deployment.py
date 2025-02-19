@@ -362,6 +362,7 @@ class TestDataset:
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
         "private_endpoint_id": "",
+        "models": [],
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
             "BASE_MODEL": "service_models/model-name/artifact",
@@ -392,6 +393,26 @@ class TestDataset:
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
         "private_endpoint_id": "",
+        "models": [
+            {
+                "env_var": {},
+                "gpu_count": 2,
+                "model_id": "test_model_id_1",
+                "model_name": None,
+            },
+            {
+                "env_var": {},
+                "gpu_count": 2,
+                "model_id": "test_model_id_2",
+                "model_name": None,
+            },
+            {
+                "env_var": {},
+                "gpu_count": 2,
+                "model_id": "test_model_id_3",
+                "model_name": None,
+            },
+        ],
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",

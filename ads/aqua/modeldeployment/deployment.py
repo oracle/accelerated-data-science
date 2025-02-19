@@ -500,7 +500,7 @@ class AquaDeploymentApp(AquaApp):
 
         model_name = ", ".join(model_name_list)
 
-        return self._create_deployment(
+        aqua_deployment = self._create_deployment(
             create_deployment_details=create_deployment_details,
             aqua_model_id=aqua_model.id,
             model_name=model_name,
@@ -511,6 +511,8 @@ class AquaDeploymentApp(AquaApp):
             env_var=env_var,
             tags=tags,
         )
+        aqua_deployment.models = create_deployment_details.models
+        return aqua_deployment
 
     def _create_deployment(
         self,

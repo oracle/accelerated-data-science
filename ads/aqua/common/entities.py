@@ -4,6 +4,8 @@
 
 from typing import Optional
 
+from pydantic import Field
+
 from ads.aqua.config.utils.serializer import Serializable
 
 
@@ -50,10 +52,14 @@ class AquaMultiModelRef(Serializable):
         Optional environment variables to override during deployment.
     """
 
-    model_id: str
-    model_name: Optional[str] = None
-    gpu_count: Optional[int] = None
-    env_var: Optional[dict] = None
+    model_id: str = Field(..., description="The model OCID to deploy.")
+    model_name: Optional[str] = Field(None, description="The name of model.")
+    gpu_count: Optional[int] = Field(
+        None, description="The gpu count allocation for the model."
+    )
+    env_var: Optional[dict] = Field(
+        default_factory=dict, description="The environment variables of the model."
+    )
 
     class Config:
         extra = "ignore"
