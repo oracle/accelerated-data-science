@@ -494,6 +494,7 @@ class AquaDeploymentApp(AquaApp):
         tags = {
             Tags.AQUA_MODEL_ID_TAG: aqua_model.id,
             Tags.MULTIMODEL_TYPE_TAG: "true",
+            Tags.AQUA_TAG: "active",
             **(create_deployment_details.freeform_tags or UNKNOWN_DICT),
         }
 
