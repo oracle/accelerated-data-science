@@ -31,6 +31,7 @@ There is no perfect model. A core feature of the Operator is the ability to sele
 
 - **Prophet**
 - **ARIMA**
+- **AutoMLx**
 - **MLForecast**
 - **NeuralProphet**
 - **AutoTS**
