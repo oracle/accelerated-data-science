@@ -392,7 +392,7 @@ class TestAquaModel:
 
         with pytest.raises(
             AquaValueError,
-            match="Unsopported deployment container odsc-tgi-serving detected for model mock_model_id. Currently only odsc-vllm-serving container is supported for multi model deployment.",
+            match="Unsupported deployment container 'odsc-tgi-serving' for model 'mock_model_id'. Only 'odsc-vllm-serving' is supported for multi-model deployments.",
         ):
             model = self.app.create_multi(
                 models=[model_info_1, model_info_2],

@@ -285,8 +285,8 @@ class AquaModelApp(AquaApp):
 
             if default_deployment_container != deployment_container:
                 raise AquaValueError(
-                    f"Unsopported deployment container {deployment_container} detected for model {source_model.id}. "
-                    f"Currently only {InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY} container is supported for multi model deployment."
+                    f"Unsupported deployment container '{deployment_container}' for model '{source_model.id}'. "
+                    f"Only '{InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY}' is supported for multi-model deployments."
                 )
 
             # Add model-specific metadata

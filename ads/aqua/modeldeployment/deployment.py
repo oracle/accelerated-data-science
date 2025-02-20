@@ -159,6 +159,10 @@ class AquaDeploymentApp(AquaApp):
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
             )
+            return self._create(
+                aqua_model=aqua_model,
+                create_deployment_details=create_deployment_details,
+            )
         else:
             aqua_model = model_app.create_multi(
                 models=create_deployment_details.models,
@@ -172,6 +176,26 @@ class AquaDeploymentApp(AquaApp):
                 create_deployment_details=create_deployment_details,
             )
 
+    def _create(
+        self,
+        aqua_model: DataScienceModel,
+        create_deployment_details: CreateModelDeploymentDetails,
+    ) -> AquaDeployment:
+        """Builds the configurations required by single model deployment and creates the deployment.
+
+        Parameters
+        ----------
+        aqua_model : DataScienceModel
+            An instance of Aqua data science model.
+        create_deployment_details : CreateModelDeploymentDetails
+            An instance of CreateModelDeploymentDetails containing all required and optional
+            fields for creating a model deployment via Aqua.
+
+        Returns
+        -------
+        AquaDeployment
+            An Aqua deployment instance.
+        """
         tags = {}
         for tag in [
             Tags.AQUA_SERVICE_MODEL_TAG,
@@ -395,7 +419,7 @@ class AquaDeploymentApp(AquaApp):
         self,
         aqua_model: DataScienceModel,
         create_deployment_details: CreateModelDeploymentDetails,
-    ) -> Dict:
+    ) -> AquaDeployment:
         """Builds the environment variables required by multi deployment container and creates the deployment.
 
         Parameters
@@ -428,7 +452,9 @@ class AquaDeploymentApp(AquaApp):
 
         for idx, model in enumerate(create_deployment_details.models):
             user_params = (
-                "".join(f"{name} {value}" for name, value in model.env_var.items())
+                " ".join(
+                    f"{name} {value}" for name, value in model.env_var.items()
+                ).strip()
                 if model.env_var
                 else UNKNOWN
             )
