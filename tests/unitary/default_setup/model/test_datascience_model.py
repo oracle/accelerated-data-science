@@ -74,6 +74,10 @@ OCI_MODEL_PAYLOAD = {
         {"key": "Hyperparameters"},
         {"key": "ArtifactTestResults"},
         {"key": "UnexpectedKey", "value": "unexpected_value"},
+        {"key": "License"},
+        {"key": "Readme"},
+        {"key": "FineTuneConfiguration"},
+        {"key": "DeploymentConfiguration"},
     ],
     "backup_setting": {
         "is_backup_enabled": True,
@@ -152,6 +156,10 @@ DSC_MODEL_PAYLOAD = {
             {"key": "Hyperparameters", "value": None},
             {"key": "ArtifactTestResults", "value": None},
             {"key": "UnexpectedKey", "value": "unexpected_value"},
+            {"key": "License", "value": None},
+            {"key": "Readme", "value": None},
+            {"key": "FineTuneConfiguration", "value": None},
+            {"key": "DeploymentConfiguration", "value": None},
         ]
     },
     "provenanceMetadata": {
@@ -393,6 +401,7 @@ class TestDataScienceModel:
         mock_list_resource.assert_called_with(
             "test_compartment_id",
             project_id="test_project_id",
+            category="USER",
             **{"extra_tag": "test_cvalue"},
         )
         assert len(result) == 1
@@ -427,6 +436,7 @@ class TestDataScienceModel:
         mock_list_resource.assert_called_with(
             "test_compartment_id",
             project_id="test_project_id",
+            category="USER",
             **{"extra_tag": "test_cvalue"},
         )
         assert expected_result.equals(result)
@@ -648,6 +658,10 @@ class TestDataScienceModel:
                 {"key": "UseCaseType", "value": "multinomial_classification"},
                 {"key": "Hyperparameters", "value": "new test"},
                 {"key": "ArtifactTestResults", "value": "new test"},
+                {"key": "License", "value": None},
+                {"key": "Readme", "value": None},
+                {"key": "FineTuneConfiguration", "value": None},
+                {"key": "DeploymentConfiguration", "value": None},
             ],
             "backup_setting": {
                 "is_backup_enabled": True,
@@ -721,6 +735,10 @@ class TestDataScienceModel:
                     {"key": "UseCaseType", "value": "multinomial_classification"},
                     {"key": "Hyperparameters", "value": "new test"},
                     {"key": "ArtifactTestResults", "value": "new test"},
+                    {"key": "License", "value": None},
+                    {"key": "Readme", "value": None},
+                    {"key": "FineTuneConfiguration", "value": None},
+                    {"key": "DeploymentConfiguration", "value": None},
                 ]
             },
             "backupSetting": {

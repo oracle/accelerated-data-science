@@ -1,10 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
 # Copyright (c) 2020, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from __future__ import absolute_import, print_function
 
 import collections
 import contextlib
@@ -23,7 +21,6 @@ import tempfile
 from datetime import datetime
 from enum import Enum
 from io import DEFAULT_BUFFER_SIZE
-from pathlib import Path
 from textwrap import fill
 from typing import Dict, Optional, Union
 from urllib import request
@@ -46,6 +43,7 @@ from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
     runtime_dependency,
 )
+from ads.common.extended_enum import ExtendedEnum
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_client import OCIClientFactory
 from ads.common.word_lists import adjectives, animals
@@ -84,6 +82,13 @@ mpl.rcParams["image.cmap"] = "BuGn"
 mpl.rcParams["axes.prop_cycle"] = cycler(
     color=["teal", "blueviolet", "forestgreen", "peru", "y", "dodgerblue", "r"]
 )
+
+
+class MetadataArtifactPathType(ExtendedEnum):
+    LOCAL = "local"
+    OSS = "oss"
+    CONTENT = "content"
+
 
 # sqlalchemy engines
 _engines = {}
@@ -501,13 +506,13 @@ def print_user_message(
     if is_documentation_mode() and is_notebook():
         if display_type.lower() == "tip":
             if "\n" in msg:
-                t = "<b>{}:</b>".format(title.upper().strip()) if title else ""
+                t = f"<b>{title.upper().strip()}:</b>" if title else ""
 
                 user_message = "{}{}".format(
                     t,
                     "".join(
                         [
-                            "<br>&nbsp;&nbsp;+&nbsp;{}".format(x.strip())
+                            f"<br>&nbsp;&nbsp;+&nbsp;{x.strip()}"
                             for x in msg.strip().split("\n")
                         ]
                     ),
@@ -646,7 +651,7 @@ def ellipsis_strings(raw, n=24):
         else:
             n2 = int(n) // 2 - 3
             n1 = n - n2 - 3
-            result.append("{0}...{1}".format(s[:n1], s[-n2:]))
+            result.append(f"{s[:n1]}...{s[-n2:]}")
 
     return result
 
@@ -942,9 +947,9 @@ def generate_requirement_file(
     with open(os.path.join(file_path, file_name), "w") as req_file:
         for lib in requirements:
             if requirements[lib]:
-                req_file.write("{}=={}\n".format(lib, requirements[lib]))
+                req_file.write(f"{lib}=={requirements[lib]}\n")
             else:
-                req_file.write("{}\n".format(lib))
+                req_file.write(f"{lib}\n")
 
 
 def _get_feature_type_and_dtype(column):
@@ -966,7 +971,7 @@ def to_dataframe(
         pd.Series,
         np.ndarray,
         pd.DataFrame,
-    ]
+    ],
 ):
     """
     Convert to pandas DataFrame.
@@ -1391,7 +1396,7 @@ def remove_file(file_path: str, auth: Optional[Dict] = None) -> None:
     fs = fsspec.filesystem(scheme, **auth)
     try:
         fs.rm(file_path)
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         raise FileNotFoundError(f"`{file_path}` not found.")
     except Exception as e:
         raise e
