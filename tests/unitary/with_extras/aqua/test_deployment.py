@@ -25,6 +25,7 @@ from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentConfig,
     AquaDeploymentDetail,
+    ConfigValidationError,
     CreateModelDeploymentDetails,
     ModelDeploymentConfigSummary,
     ModelParams,
@@ -1242,20 +1243,24 @@ class TestMDInferenceResponse(unittest.TestCase):
 class TestCreateModelDeploymentDetails:
     curr_dir = os.path.dirname(__file__)  # Define curr_dir
 
-    def validate_config_helper(self, models, instance_shape, display_name, total_gpus, multi_model="true"):
+    def validate_multimodel_deployment_feasibility_helper(self, models, instance_shape, display_name, total_gpus, multi_model="true"):
         config_json = os.path.join(self.curr_dir, "test_data/deployment/aqua_summary_multi_model.json")
 
         with open(config_json, "r") as _file:
             config = json.load(_file)
 
-        config['gpu_allocation'] = {
-            instance_shape: {
-                "models": models,
-                "total_gpus_available": total_gpus
-            }
-        }
+        # config['gpu_allocation'] = {
+        #     instance_shape: {
+        #         "models": [
+        #         ],
+        #         "total_gpus_available": total_gpus
+        #     }
+        # }
 
-        aqua_models = [AquaMultiModelRef(model_id=x["ocid"], gpu_count=x["gpu_count"]) for x in models]
+        if models:
+            aqua_models = [AquaMultiModelRef(model_id=x["ocid"], gpu_count=x["gpu_count"]) for x in models]
+        else:
+            aqua_models = None
 
         mock_create_deployment_details = CreateModelDeploymentDetails(
             models=aqua_models,
@@ -1268,7 +1273,7 @@ class TestCreateModelDeploymentDetails:
             **(config)
         )
 
-        mock_create_deployment_details.validate_config(
+        mock_create_deployment_details.validate_multimodel_deployment_feasibility(
             models_config_summary=mock_models_config_summary
         )
 
@@ -1288,32 +1293,40 @@ class TestCreateModelDeploymentDetails:
             (
                 [
                     {"ocid": "model_a", "gpu_count": 2},
-                    {"ocid": "model_b", "gpu_count": 2},
+                    {"ocid": "model_b", "gpu_count": 1},
+                    {"ocid": "model_c", "gpu_count": 4}
                 ],
-                "BM.GPU.A10.4",
+                "BM.GPU.H100.8",
                 "test_a",
-                4
-            )
+                8
+            ),
+            (
+                [
+                    {"ocid": "model_a", "gpu_count": 1},
+                    {"ocid": "model_b", "gpu_count": 1},
+                    {"ocid": "model_c", "gpu_count": 2}
+                ],
+                "BM.GPU.H100.8",
+                "test_a",
+                8
+            ),
 
         ]
     )
-    def test_validate_config_positive(self, models, instance_shape, display_name, total_gpus):
-        self.validate_config_helper(models, instance_shape, display_name, total_gpus)
+    def test_validate_multimodel_deployment_feasibility_positive(self, models, instance_shape, display_name, total_gpus):
+        self.validate_multimodel_deployment_feasibility_helper(models, instance_shape, display_name, total_gpus)
 
     @pytest.mark.parametrize(
-        "models, instance_shape, display_name, total_gpus, multi_model, value_error",
-        [   (
-                [
-                {"ocid": "model_a", "gpu_count" : 2},
-                {"ocid": "model_b", "gpu_count" : 2},
-                {"ocid": "model_c", "gpu_count" : 4}],
-                "BM.GPU.H100.8",
-                'test_a',
-                None,
-                'true',
-                "Missing total GPU allocation for the selected shape BM.GPU.H100.8"
+        "models, instance_shape, display_name, total_gpus, value_error",
+        [
+            # (
+            #     [{"ocid": "model_a", "gpu_count" : 2}],
+            #     "BM.GPU.H100.8",
+            #     'test_a',
+            #     8,
+            #     "Validation Failed: At least two models are required for multi-model deployment, but only none were provided. Add 2 or more models in the model group to proceed."
 
-            ),
+            # ),
             (
                 [
                 {"ocid": "model_a", "gpu_count" : 2},
@@ -1322,8 +1335,18 @@ class TestCreateModelDeploymentDetails:
                 "invalid_shape",
                 'test_a',
                 8,
-                'true',
-                "Selected shape invalid_shape is not supported by all models in model group."
+                "Validation Failed: Select a different instance shape. The selected instance shape is not supported."
+            ),
+            (
+                [
+                {"ocid": "model_a", "gpu_count" : 2},
+                {"ocid": "model_b", "gpu_count" : 2},
+                {"ocid": "model_c", "gpu_count" : 2},
+                {"ocid": "model_d", "gpu_count" : 2}],
+                "BM.GPU.H100.8",
+                'test_a',
+                8,
+                "Validation Failed: One or more selected models are missing from the configuration, preventing validation for deployment on the given shape."
 
             ),
             (
@@ -1334,9 +1357,18 @@ class TestCreateModelDeploymentDetails:
                 "BM.GPU.H100.8",
                 'test_a',
                 8,
-                'true',
-                "The GPU allocation is not valid for all models in the selected shape BM.GPU.H100.8."
+                "Validation Failed: Change the GPU count for one or more models in the model group. Adjust GPU allocations per model or choose a larger instance shape."
 
+            ),
+            (
+                [
+                {"ocid": "model_a", "gpu_count" : 2},
+                {"ocid": "model_b", "gpu_count" : 2},
+                {"ocid": "model_c", "gpu_count" : 2}], # model c is lacks BM.GPU.A100-v2.8
+                "BM.GPU.A100-v2.8",
+                'test_a',
+                8,
+                "Validation Failed: Select a different instance shape. One or more models in the group are incompatible with the selected instance shape."
             ),
             (
                 [
@@ -1346,23 +1378,11 @@ class TestCreateModelDeploymentDetails:
                 "BM.GPU.H100.8",
                 'test_a',
                 8,
-                'true',
-                "Select an instance shape with a higher number of GPUs or use less GPUs within model group."
+                "Validation Failed: Total requested GPU count exceeds the available GPU capacity for the selected instance shape. Adjust GPU allocations per model or choose a larger instance shape."
 
-            ),
-            (
-                [
-                {"ocid": "model_a", "gpu_count" : 2},
-                {"ocid": "model_b", "gpu_count" : 2},
-                {"ocid": "model_c", "gpu_count" : 4}],
-                "BM.GPU.H100.8",
-                'test_a',
-                8,
-                'false',
-                "Model group is not a multi model deployment"
             )
         ]
     )
-    def test_validate_config_negative(self, models, instance_shape, display_name, total_gpus, multi_model, value_error):
-        with pytest.raises(ValueError, match=value_error):
-            self.validate_config_helper(models, instance_shape, display_name, total_gpus, multi_model)
+    def test_validate_multimodel_deployment_feasibility_negative(self, models, instance_shape, display_name, total_gpus, value_error):
+        with pytest.raises(ConfigValidationError, match=value_error):
+            self.validate_multimodel_deployment_feasibility_helper(models, instance_shape, display_name, total_gpus)

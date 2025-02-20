@@ -41,6 +41,7 @@ from ads.aqua.modeldeployment.entities import (
     AquaDeploymentConfig,
     AquaDeploymentDetail,
     ConfigurationItem,
+    ConfigValidationError,
     CreateModelDeploymentDetails,
     ModelDeploymentConfigSummary,
 )
@@ -166,10 +167,10 @@ class AquaDeploymentApp(AquaApp):
                 if not model_config_summary.gpu_allocation:
                     raise AquaValueError(model_config_summary.error_message)
 
-                create_deployment_details.validate_config(
+                create_deployment_details.validate_multimodel_deployment_feasibility(
                     models_config_summary=model_config_summary
                 )
-            except ValueError as err:
+            except ConfigValidationError as err:
                 raise AquaValueError(f"Error: {err}") from err
 
             aqua_model = model_app.create_multi(

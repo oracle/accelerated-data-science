@@ -204,7 +204,6 @@
             "shape": [
                 "VM.GPU.A10.2",
                 "BM.GPU.A10.4",
-                "BM.GPU.A100-v2.8",
                 "BM.GPU.H100.8"
             ],
             "configuration": {
@@ -244,35 +243,6 @@
                         "type": ""
                     }
                 },
-                "BM.GPU.A100-v2.8": {
-                    "parameters": {
-                        "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
-                    },
-                    "multi_model_deployment": [
-                        {
-                            "gpu_count": 1,
-                            "parameters": {
-                                "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
-                            }
-                        },
-                        {
-                            "gpu_count": 2,
-                            "parameters": {
-                                "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
-                            }
-                        },
-                        {
-                            "gpu_count": 8,
-                            "parameters": {
-                                "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
-                            }
-                        }
-                    ],
-                    "shape_info": {
-                        "configs": [],
-                        "type": ""
-                    }
-                },
                 "BM.GPU.H100.8": {
                     "parameters": {
                         "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
@@ -303,6 +273,23 @@
             }
         }
     },
-    "gpu_allocation": {},
+    "gpu_allocation": {
+        "BM.GPU.H100.8" : {
+            "models": [
+                {"ocid": "model_a", "gpu_count" : 2},
+                {"ocid": "model_b", "gpu_count" : 2},
+                {"ocid": "model_c", "gpu_count" : 2}
+            ],
+            "total_gpus_available": 8
+        },
+        "BM.GPU.A100-v2.8" : {
+            "models": [
+                {"ocid": "model_a", "gpu_count" : 2},
+                {"ocid": "model_b", "gpu_count" : 2},
+                {"ocid": "model_c", "gpu_count" : 2}
+            ],
+            "total_gpus_available": 8
+        }
+    },
     "error_message": "None"
 }
