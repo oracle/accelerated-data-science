@@ -302,6 +302,25 @@ class AquaModelApp(AquaApp):
                 category="Other",
             )
             model_custom_metadata.add(
+                key=f"model-gpu-count-{idx}",
+                value=model.gpu_count,
+                description=f"GPU count of '{display_name}' in the multimodel group.",
+                category="Other",
+            )
+            user_params = (
+                " ".join(
+                    f"{name} {value}" for name, value in model.env_var.items()
+                ).strip()
+                if isinstance(model.env_var, dict)
+                else model.env_var
+            )
+            model_custom_metadata.add(
+                key=f"model-user-params-{idx}",
+                value=user_params,
+                description=f"User params of '{display_name}' in the multimodel group.",
+                category="Other",
+            )
+            model_custom_metadata.add(
                 key=f"{ModelCustomMetadataFields.ARTIFACT_LOCATION}-{idx}",
                 value=model_artifact_path,
                 description=f"Artifact path for '{display_name}' in the multimodel group.",
