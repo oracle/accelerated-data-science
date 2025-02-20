@@ -171,7 +171,7 @@ class AquaDeploymentApp(AquaApp):
                     models_config_summary=model_config_summary
                 )
             except ConfigValidationError as err:
-                raise AquaValueError(f"Error: {err}") from err
+                raise AquaValueError(f"{err}") from err
 
             aqua_model = model_app.create_multi(
                 models=create_deployment_details.models,
