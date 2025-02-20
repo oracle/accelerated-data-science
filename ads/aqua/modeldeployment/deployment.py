@@ -41,6 +41,7 @@ from ads.aqua.modeldeployment.entities import (
     AquaDeploymentConfig,
     AquaDeploymentDetail,
     ConfigurationItem,
+    ConfigValidationError,
     CreateModelDeploymentDetails,
     ModelDeploymentConfigSummary,
 )
@@ -156,6 +157,22 @@ class AquaDeploymentApp(AquaApp):
                 defined_tags=defined_tags,
             )
         else:
+            model_ids = [model.model_id for model in create_deployment_details.models]
+
+            try:
+                model_config_summary = self.get_multimodel_deployment_config(
+                    model_ids=model_ids
+                )
+
+                if not model_config_summary.gpu_allocation:
+                    raise AquaValueError(model_config_summary.error_message)
+
+                create_deployment_details.validate_multimodel_deployment_feasibility(
+                    models_config_summary=model_config_summary
+                )
+            except ConfigValidationError as err:
+                raise AquaValueError(f"{err}") from err
+
             aqua_model = model_app.create_multi(
                 models=create_deployment_details.models,
                 compartment_id=compartment_id,

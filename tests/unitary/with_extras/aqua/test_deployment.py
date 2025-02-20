@@ -17,12 +17,17 @@ from parameterized import parameterized
 
 import ads.aqua.modeldeployment.deployment
 import ads.config
+from ads.aqua.common.entities import AquaMultiModelRef
+from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentConfig,
     AquaDeploymentDetail,
+    ConfigValidationError,
+    CreateModelDeploymentDetails,
+    ModelDeploymentConfigSummary,
     ModelParams,
 )
 from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
@@ -516,9 +521,9 @@ class TestAquaDeployment(unittest.TestCase):
         expected_attributes = AquaDeployment.__annotations__.keys()
         for r in results:
             actual_attributes = r.to_dict()
-            assert set(actual_attributes) == set(
-                expected_attributes
-            ), "Attributes mismatch"
+            assert set(actual_attributes) == set(expected_attributes), (
+                "Attributes mismatch"
+            )
 
     @patch("ads.aqua.modeldeployment.deployment.get_resource_name")
     def test_get_deployment(self, mock_get_resource_name):
@@ -681,6 +686,7 @@ class TestAquaDeployment(unittest.TestCase):
         assert result[0] == False
         assert result[1] == 0
         assert result[2] == []
+
 
     @patch("ads.aqua.modeldeployment.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")
@@ -1232,3 +1238,149 @@ class TestMDInferenceResponse(unittest.TestCase):
 
         result = self.app.get_model_deployment_response(endpoint)
         assert result["choices"][0]["text"] == " The answer is 2"
+
+
+class TestCreateModelDeploymentDetails:
+    curr_dir = os.path.dirname(__file__)  # Define curr_dir
+
+    def validate_multimodel_deployment_feasibility_helper(self, models, instance_shape, display_name, total_gpus, multi_model="true"):
+        config_json = os.path.join(self.curr_dir, "test_data/deployment/aqua_summary_multi_model.json")
+
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        if models:
+            aqua_models = [AquaMultiModelRef(model_id=x["ocid"], gpu_count=x["gpu_count"]) for x in models]
+
+            mock_create_deployment_details = CreateModelDeploymentDetails(
+            models=aqua_models,
+            instance_shape=instance_shape,
+            display_name=display_name,
+            freeform_tags={Tags.MULTIMODEL_TYPE_TAG: multi_model}
+        )
+        else:
+            model_id = 'model_a'
+            mock_create_deployment_details = CreateModelDeploymentDetails(
+            model_id = model_id,
+            instance_shape=instance_shape,
+            display_name=display_name,
+            freeform_tags={Tags.MULTIMODEL_TYPE_TAG: multi_model}
+        )
+
+        mock_models_config_summary = ModelDeploymentConfigSummary(
+            **(config)
+        )
+
+        mock_create_deployment_details.validate_multimodel_deployment_feasibility(
+            models_config_summary=mock_models_config_summary
+        )
+
+    @pytest.mark.parametrize(
+        "models, instance_shape, display_name, total_gpus",
+        [
+            (
+                [
+                    {"ocid": "model_a", "gpu_count": 2},
+                    {"ocid": "model_b", "gpu_count": 2},
+                    {"ocid": "model_c", "gpu_count": 2}
+                ],
+                "BM.GPU.H100.8",
+                "test_a",
+                8
+            ),
+            (
+                [
+                    {"ocid": "model_a", "gpu_count": 2},
+                    {"ocid": "model_b", "gpu_count": 1},
+                    {"ocid": "model_c", "gpu_count": 4}
+                ],
+                "BM.GPU.H100.8",
+                "test_a",
+                8
+            ),
+            (
+                [
+                    {"ocid": "model_a", "gpu_count": 1},
+                    {"ocid": "model_b", "gpu_count": 1},
+                    {"ocid": "model_c", "gpu_count": 2}
+                ],
+                "BM.GPU.H100.8",
+                "test_a",
+                8
+            ),
+
+        ]
+    )
+    def test_validate_multimodel_deployment_feasibility_positive(self, models, instance_shape, display_name, total_gpus):
+        self.validate_multimodel_deployment_feasibility_helper(models, instance_shape, display_name, total_gpus)
+
+    @pytest.mark.parametrize(
+        "models, instance_shape, display_name, total_gpus, value_error",
+        [
+            (
+                None,
+                "BM.GPU.H100.8",
+                'test_a',
+                8,
+                "Multi-model deployment requires at least one model, but none were provided. Please add one or more models to the model group to proceed."
+
+            ),
+            (
+                [
+                {"ocid": "model_a", "gpu_count" : 2},
+                {"ocid": "model_b", "gpu_count" : 2},
+                {"ocid": "model_c", "gpu_count" : 4}],
+                "invalid_shape",
+                'test_a',
+                8,
+                "The model group is not compatible with the selected instance shape 'invalid_shape'. Select a different instance shape."
+            ),
+            (
+                [
+                {"ocid": "model_a", "gpu_count" : 2},
+                {"ocid": "model_b", "gpu_count" : 2},
+                {"ocid": "model_c", "gpu_count" : 2},
+                {"ocid": "model_d", "gpu_count" : 2}],
+                "BM.GPU.H100.8",
+                'test_a',
+                8,
+                "One or more selected models are missing from the configuration, preventing validation for deployment on the given shape."
+
+            ),
+            (
+                [
+                {"ocid": "model_a", "gpu_count" : 2},
+                {"ocid": "model_b", "gpu_count" : 4}, # model_b lacks this entry in loaded config
+                {"ocid": "model_c", "gpu_count" : 2}],
+                "BM.GPU.H100.8",
+                'test_a',
+                8,
+                "Change the GPU count for one or more models in the model group. Adjust GPU allocations per model or choose a larger instance shape."
+
+            ),
+            (
+                [
+                {"ocid": "model_a", "gpu_count" : 2},
+                {"ocid": "model_b", "gpu_count" : 2},
+                {"ocid": "model_c", "gpu_count" : 2}], # model c is lacks BM.GPU.A100-v2.8
+                "BM.GPU.A100-v2.8",
+                'test_a',
+                8,
+                "Select a different instance shape. One or more models in the group are incompatible with the selected instance shape."
+            ),
+            (
+                [
+                {"ocid": "model_a", "gpu_count" : 4},
+                {"ocid": "model_b", "gpu_count" : 2},
+                {"ocid": "model_c", "gpu_count" : 4}],
+                "BM.GPU.H100.8",
+                'test_a',
+                8,
+                "Total requested GPU count exceeds the available GPU capacity for the selected instance shape. Adjust GPU allocations per model or choose a larger instance shape."
+
+            )
+        ]
+    )
+    def test_validate_multimodel_deployment_feasibility_negative(self, models, instance_shape, display_name, total_gpus, value_error):
+        with pytest.raises(ConfigValidationError, match=value_error):
+            self.validate_multimodel_deployment_feasibility_helper(models, instance_shape, display_name, total_gpus)
