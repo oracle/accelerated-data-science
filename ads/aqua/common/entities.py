@@ -2,7 +2,7 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import Optional, Union
+from typing import Optional
 
 from ads.aqua.config.utils.serializer import Serializable
 
@@ -51,7 +51,7 @@ class AquaMultiModelRef(Serializable):
     model_id: str
     model_name: Optional[str] = None
     gpu_count: Optional[int] = None
-    env_var: Optional[Union[dict, str]] = None
+    env_var: Optional[dict] = None
 
     class Config:
         extra = "ignore"

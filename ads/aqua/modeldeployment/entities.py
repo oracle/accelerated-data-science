@@ -35,6 +35,7 @@ class AquaDeployment(Serializable):
     display_name: Optional[str] = None
     aqua_service_model: Optional[bool] = None
     model_id: str = None
+    models: Optional[AquaMultiModelRef] = None
     aqua_model_name: Optional[str] = None
     state: Optional[str] = None
     description: Optional[str] = None

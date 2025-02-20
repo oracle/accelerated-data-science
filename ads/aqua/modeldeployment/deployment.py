@@ -652,7 +652,9 @@ class AquaDeploymentApp(AquaApp):
                     model_id=custom_metadata_list.get(f"model-id-{idx}").value,
                     model_name=custom_metadata_list.get(f"model-name-{idx}").value,
                     gpu_count=custom_metadata_list.get(f"model-gpu-count-{idx}").value,
-                    env_var=custom_metadata_list.get(f"model-user-params-{idx}").value,
+                    env_var=get_params_dict(
+                        custom_metadata_list.get(f"model-user-params-{idx}").value
+                    ),
                 )
                 for idx in model_group_count
             ]
