@@ -307,13 +307,9 @@ class AquaModelApp(AquaApp):
                 description=f"GPU count of '{display_name}' in the multimodel group.",
                 category="Other",
             )
-            user_params = (
-                " ".join(
-                    f"{name} {value}" for name, value in model.env_var.items()
-                ).strip()
-                if isinstance(model.env_var, dict)
-                else model.env_var
-            )
+            user_params = " ".join(
+                f"{name} {value}" for name, value in model.env_var.items()
+            ).strip()
             model_custom_metadata.add(
                 key=f"model-user-params-{idx}",
                 value=user_params,
