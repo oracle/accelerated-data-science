@@ -75,6 +75,7 @@ from ads.aqua.model.entities import (
     ImportModelDetails,
     ModelFormat,
     ModelValidationResult,
+    TaskStatus,
 )
 from ads.aqua.model.utils import HFModelProgressTracker
 from ads.aqua.ui import AquaContainerConfig, AquaContainerConfigItem
@@ -1491,7 +1492,7 @@ class AquaModelApp(AquaApp):
         if not import_model_details:
             import_model_details = ImportModelDetails(**kwargs)
 
-        def publish_status(status):
+        def publish_status(status: TaskStatus):
             """Invoke callback with the status"""
             if import_model_details.callback:
                 import_model_details.callback(status=status)
@@ -1531,11 +1532,21 @@ class AquaModelApp(AquaApp):
             model_name=model_name,
             verified_model=verified_model,
         )
-        publish_status({"state": "Model validation complete"})
+        publish_status(
+            TaskStatus(
+                state="MODEL_VALIDATION_SUCCESSFUL",
+                message="Model information validated",
+            )
+        )
 
         # download model from hugginface if indicates
         if import_model_details.download_from_hf:
-            publish_status({"state": "Downloading model from huggingface"})
+            publish_status(
+                TaskStatus(
+                    state="MODEL_DOWNLOAD_BEGIN",
+                    message=f"Downloading {model_name} from Hugging Face",
+                )
+            )
             artifact_path = self._download_model_from_hf(
                 model_name=model_name,
                 os_path=import_model_details.os_path,
