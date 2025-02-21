@@ -831,6 +831,15 @@ class AquaModelApp(AquaApp):
         family_values = [item.family for item in containers]
         return family_values
 
+    def get_defined_metadata_artifact_content(
+        self, model_id: str, metadata_key: str, target_dir: str
+    ):
+        ds_model = DataScienceModel.from_id(model_id)
+        ds_model.get_defined_metadata_artifact(
+            metadata_key, target_dir=target_dir, override=True
+        )
+        return {f"{metadata_key} download status": "Success"}
+
     def _create_model_catalog_entry(
         self,
         os_path: str,

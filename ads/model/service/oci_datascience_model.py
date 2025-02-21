@@ -868,7 +868,7 @@ class OCIDataScienceModel(
                 self.id, metadata_key_name
             ).data.content
         except ServiceError as ex:
-            if ex.status == 404:
+            if ex.status == 404 or ex.status == 400:
                 raise ModelMetadataArtifactNotFoundError(self.id, metadata_key_name)
 
     @check_for_model_id(

@@ -340,9 +340,39 @@ class AquaModelTokenizerConfigHandler(AquaAPIhandler):
         raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
 
+class AquaModelDefinedMetadataArtifactHandler(AquaAPIhandler):
+    """
+    Handler for Model Defined metadata artifact content
+
+    Raises
+    ------
+    HTTPError
+        Raises HTTPError if inputs are missing or are invalid.
+    """
+
+    def get(self, model_id: str, metadata_key: str):
+        """
+        model_id: ocid of the model
+        metadata_key: the metadata key for which artifact content needs to be downloaded.
+        Can be any of Readme, License , FinetuneConfiguration , DeploymentConfiguration
+        """
+        target_dir = self.get_argument("target_dir")
+        if not target_dir:
+            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("target_dir"))
+        return self.finish(
+            AquaModelApp().get_defined_metadata_artifact_content(
+                model_id, metadata_key, target_dir
+            )
+        )
+
+
 __handlers__ = [
     ("model/?([^/]*)", AquaModelHandler),
     ("model/?([^/]*)/license", AquaModelLicenseHandler),
     ("model/?([^/]*)/tokenizer", AquaModelTokenizerConfigHandler),
     ("model/hf/search/?([^/]*)", AquaHuggingFaceHandler),
+    (
+        "model/?([^/]*)/definedMetadata/?([^/]*)",
+        AquaModelDefinedMetadataArtifactHandler,
+    ),
 ]
