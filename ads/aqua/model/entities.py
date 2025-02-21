@@ -299,3 +299,9 @@ class ImportModelDetails(CLIBuilderMixin):
 
     def __post_init__(self):
         self._command = "model register"
+
+
+@dataclass
+class TaskStatus(DataClassSerializable):
+    state: str
+    message: str

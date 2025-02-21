@@ -1133,12 +1133,10 @@ class AquaModelApp(AquaApp):
 
         hf_download_config_present = False
 
-        logger.info("Getting files from huggingface")
         if import_model_details.download_from_hf:
             safetensors_model_files = self.get_hf_model_files(
                 model_name, ModelFormat.SAFETENSORS
             )
-            logger.info(f"following files found {safetensors_model_files}")
             if (
                 safetensors_model_files
                 and AQUA_MODEL_ARTIFACT_CONFIG in safetensors_model_files
@@ -1452,7 +1450,7 @@ class AquaModelApp(AquaApp):
             f"Uploading local artifacts from local directory {local_dir} to {os_path}."
         )
         # Upload to object storage
-        callback({"status": "Object Storage upload started"})
+        callback({"state": "Object Storage upload started"})
         model_artifact_path = upload_folder(
             os_path=os_path,
             local_dir=local_dir,
