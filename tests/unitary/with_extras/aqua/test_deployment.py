@@ -600,6 +600,27 @@ class TestDataset:
         "model_c": [1, 2, 8],
     }
 
+    multi_model_deployment_model_attributes = [
+        {
+            "env_var": {"--test_key_one": "test_value_one"},
+            "gpu_count": 1,
+            "model_id": "ocid1.compartment.oc1..<OCID>",
+            "model_name": "model_one",
+        },
+        {
+            "env_var": {"--test_key_two": "test_value_two"},
+            "gpu_count": 1,
+            "model_id": "ocid1.compartment.oc1..<OCID>",
+            "model_name": "model_two",
+        },
+        {
+            "env_var": {"--test_key_three": "test_value_three"},
+            "gpu_count": 1,
+            "model_id": "ocid1.compartment.oc1..<OCID>",
+            "model_name": "model_three",
+        },
+    ]
+
 
 class TestAquaDeployment(unittest.TestCase):
     def setUp(self):
@@ -645,9 +666,9 @@ class TestAquaDeployment(unittest.TestCase):
         expected_attributes = AquaDeployment.__annotations__.keys()
         for r in results:
             actual_attributes = r.to_dict()
-            assert set(actual_attributes) == set(expected_attributes), (
-                "Attributes mismatch"
-            )
+            assert set(actual_attributes) == set(
+                expected_attributes
+            ), "Attributes mismatch"
 
     @patch("ads.aqua.modeldeployment.deployment.get_resource_name")
     def test_get_deployment(self, mock_get_resource_name):
@@ -682,6 +703,52 @@ class TestAquaDeployment(unittest.TestCase):
         assert actual_attributes == TestDataset.aqua_deployment_detail
         assert result.log.name == "log-name"
         assert result.log_group.name == "log-group-name"
+
+    @patch("ads.model.DataScienceModel.from_id")
+    @patch("ads.aqua.modeldeployment.deployment.get_resource_name")
+    def test_get_multi_model_deployment(
+        self, mock_get_resource_name, mock_model_from_id
+    ):
+        multi_model_deployment = copy.deepcopy(
+            TestDataset.multi_model_deployment_object
+        )
+        self.app.ds_client.get_model_deployment = MagicMock(
+            return_value=oci.response.Response(
+                status=200,
+                request=MagicMock(),
+                headers=MagicMock(),
+                data=oci.data_science.models.ModelDeploymentSummary(
+                    **multi_model_deployment
+                ),
+            )
+        )
+        mock_get_resource_name.side_effect = lambda param: (
+            "log-group-name"
+            if param.startswith("ocid1.loggroup")
+            else "log-name"
+            if param.startswith("ocid1.log")
+            else ""
+        )
+
+        aqua_multi_model = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_multi_model.yaml"
+        )
+
+        mock_model_from_id.return_value = DataScienceModel.from_yaml(
+            uri=aqua_multi_model
+        )
+
+        result = self.app.get(model_deployment_id=TestDataset.MODEL_DEPLOYMENT_ID)
+
+        expected_attributes = set(AquaDeploymentDetail.__annotations__.keys()) | set(
+            AquaDeployment.__annotations__.keys()
+        )
+        actual_attributes = result.to_dict()
+        assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
+        assert len(result.models) == 3
+        assert [
+            model.model_dump() for model in result.models
+        ] == TestDataset.multi_model_deployment_model_attributes
 
     def test_get_deployment_missing_tags(self):
         """Test for returning a runtime error if OCI_AQUA tag is missing."""
@@ -810,7 +877,6 @@ class TestAquaDeployment(unittest.TestCase):
         assert result[0] == False
         assert result[1] == 0
         assert result[2] == []
-
 
     @patch("ads.aqua.modeldeployment.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")
@@ -1137,8 +1203,12 @@ class TestAquaDeployment(unittest.TestCase):
     @patch("ads.aqua.modeldeployment.deployment.get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_deployment_config")
+    @patch(
+        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_multimodel_deployment_feasibility"
+    )
     def test_create_deployment_for_multi_model(
         self,
+        mock_validate_multimodel_deployment_feasibility,
         mock_get_deployment_config,
         mock_deploy,
         mock_get_container_image,
@@ -1146,6 +1216,12 @@ class TestAquaDeployment(unittest.TestCase):
         mock_get_container_config,
     ):
         """Test to create a deployment for multi models."""
+        mock_validate_multimodel_deployment_feasibility.return_value = MagicMock()
+        self.app.get_multimodel_deployment_config = MagicMock(
+            return_value=AquaDeploymentConfig(
+                **TestDataset.aqua_deployment_multi_model_config_summary
+            )
+        )
         aqua_multi_model = os.path.join(
             self.curr_dir, "test_data/deployment/aqua_multi_model.yaml"
         )
@@ -1465,33 +1541,38 @@ class TestMDInferenceResponse(unittest.TestCase):
 class TestCreateModelDeploymentDetails:
     curr_dir = os.path.dirname(__file__)  # Define curr_dir
 
-    def validate_multimodel_deployment_feasibility_helper(self, models, instance_shape, display_name, total_gpus, multi_model="true"):
-        config_json = os.path.join(self.curr_dir, "test_data/deployment/aqua_summary_multi_model.json")
+    def validate_multimodel_deployment_feasibility_helper(
+        self, models, instance_shape, display_name, total_gpus, multi_model="true"
+    ):
+        config_json = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_summary_multi_model.json"
+        )
 
         with open(config_json, "r") as _file:
             config = json.load(_file)
 
         if models:
-            aqua_models = [AquaMultiModelRef(model_id=x["ocid"], gpu_count=x["gpu_count"]) for x in models]
+            aqua_models = [
+                AquaMultiModelRef(model_id=x["ocid"], gpu_count=x["gpu_count"])
+                for x in models
+            ]
 
             mock_create_deployment_details = CreateModelDeploymentDetails(
-            models=aqua_models,
-            instance_shape=instance_shape,
-            display_name=display_name,
-            freeform_tags={Tags.MULTIMODEL_TYPE_TAG: multi_model}
-        )
+                models=aqua_models,
+                instance_shape=instance_shape,
+                display_name=display_name,
+                freeform_tags={Tags.MULTIMODEL_TYPE_TAG: multi_model},
+            )
         else:
-            model_id = 'model_a'
+            model_id = "model_a"
             mock_create_deployment_details = CreateModelDeploymentDetails(
-            model_id = model_id,
-            instance_shape=instance_shape,
-            display_name=display_name,
-            freeform_tags={Tags.MULTIMODEL_TYPE_TAG: multi_model}
-        )
+                model_id=model_id,
+                instance_shape=instance_shape,
+                display_name=display_name,
+                freeform_tags={Tags.MULTIMODEL_TYPE_TAG: multi_model},
+            )
 
-        mock_models_config_summary = ModelDeploymentConfigSummary(
-            **(config)
-        )
+        mock_models_config_summary = ModelDeploymentConfigSummary(**(config))
 
         mock_create_deployment_details.validate_multimodel_deployment_feasibility(
             models_config_summary=mock_models_config_summary
@@ -1504,37 +1585,40 @@ class TestCreateModelDeploymentDetails:
                 [
                     {"ocid": "model_a", "gpu_count": 2},
                     {"ocid": "model_b", "gpu_count": 2},
-                    {"ocid": "model_c", "gpu_count": 2}
+                    {"ocid": "model_c", "gpu_count": 2},
                 ],
                 "BM.GPU.H100.8",
                 "test_a",
-                8
+                8,
             ),
             (
                 [
                     {"ocid": "model_a", "gpu_count": 2},
                     {"ocid": "model_b", "gpu_count": 1},
-                    {"ocid": "model_c", "gpu_count": 4}
+                    {"ocid": "model_c", "gpu_count": 4},
                 ],
                 "BM.GPU.H100.8",
                 "test_a",
-                8
+                8,
             ),
             (
                 [
                     {"ocid": "model_a", "gpu_count": 1},
                     {"ocid": "model_b", "gpu_count": 1},
-                    {"ocid": "model_c", "gpu_count": 2}
+                    {"ocid": "model_c", "gpu_count": 2},
                 ],
                 "BM.GPU.H100.8",
                 "test_a",
-                8
+                8,
             ),
-
-        ]
+        ],
     )
-    def test_validate_multimodel_deployment_feasibility_positive(self, models, instance_shape, display_name, total_gpus):
-        self.validate_multimodel_deployment_feasibility_helper(models, instance_shape, display_name, total_gpus)
+    def test_validate_multimodel_deployment_feasibility_positive(
+        self, models, instance_shape, display_name, total_gpus
+    ):
+        self.validate_multimodel_deployment_feasibility_helper(
+            models, instance_shape, display_name, total_gpus
+        )
 
     @pytest.mark.parametrize(
         "models, instance_shape, display_name, total_gpus, value_error",
@@ -1542,67 +1626,75 @@ class TestCreateModelDeploymentDetails:
             (
                 None,
                 "BM.GPU.H100.8",
-                'test_a',
+                "test_a",
                 8,
-                "Multi-model deployment requires at least one model, but none were provided. Please add one or more models to the model group to proceed."
-
+                "Multi-model deployment requires at least one model, but none were provided. Please add one or more models to the model group to proceed.",
             ),
             (
                 [
-                {"ocid": "model_a", "gpu_count" : 2},
-                {"ocid": "model_b", "gpu_count" : 2},
-                {"ocid": "model_c", "gpu_count" : 4}],
+                    {"ocid": "model_a", "gpu_count": 2},
+                    {"ocid": "model_b", "gpu_count": 2},
+                    {"ocid": "model_c", "gpu_count": 4},
+                ],
                 "invalid_shape",
-                'test_a',
+                "test_a",
                 8,
-                "The model group is not compatible with the selected instance shape 'invalid_shape'. Select a different instance shape."
+                "The model group is not compatible with the selected instance shape 'invalid_shape'. Select a different instance shape.",
             ),
             (
                 [
-                {"ocid": "model_a", "gpu_count" : 2},
-                {"ocid": "model_b", "gpu_count" : 2},
-                {"ocid": "model_c", "gpu_count" : 2},
-                {"ocid": "model_d", "gpu_count" : 2}],
+                    {"ocid": "model_a", "gpu_count": 2},
+                    {"ocid": "model_b", "gpu_count": 2},
+                    {"ocid": "model_c", "gpu_count": 2},
+                    {"ocid": "model_d", "gpu_count": 2},
+                ],
                 "BM.GPU.H100.8",
-                'test_a',
+                "test_a",
                 8,
-                "One or more selected models are missing from the configuration, preventing validation for deployment on the given shape."
-
+                "One or more selected models are missing from the configuration, preventing validation for deployment on the given shape.",
             ),
             (
                 [
-                {"ocid": "model_a", "gpu_count" : 2},
-                {"ocid": "model_b", "gpu_count" : 4}, # model_b lacks this entry in loaded config
-                {"ocid": "model_c", "gpu_count" : 2}],
+                    {"ocid": "model_a", "gpu_count": 2},
+                    {
+                        "ocid": "model_b",
+                        "gpu_count": 4,
+                    },  # model_b lacks this entry in loaded config
+                    {"ocid": "model_c", "gpu_count": 2},
+                ],
                 "BM.GPU.H100.8",
-                'test_a',
+                "test_a",
                 8,
-                "Change the GPU count for one or more models in the model group. Adjust GPU allocations per model or choose a larger instance shape."
-
+                "Change the GPU count for one or more models in the model group. Adjust GPU allocations per model or choose a larger instance shape.",
             ),
             (
                 [
-                {"ocid": "model_a", "gpu_count" : 2},
-                {"ocid": "model_b", "gpu_count" : 2},
-                {"ocid": "model_c", "gpu_count" : 2}], # model c is lacks BM.GPU.A100-v2.8
+                    {"ocid": "model_a", "gpu_count": 2},
+                    {"ocid": "model_b", "gpu_count": 2},
+                    {"ocid": "model_c", "gpu_count": 2},
+                ],  # model c is lacks BM.GPU.A100-v2.8
                 "BM.GPU.A100-v2.8",
-                'test_a',
+                "test_a",
                 8,
-                "Select a different instance shape. One or more models in the group are incompatible with the selected instance shape."
+                "Select a different instance shape. One or more models in the group are incompatible with the selected instance shape.",
             ),
             (
                 [
-                {"ocid": "model_a", "gpu_count" : 4},
-                {"ocid": "model_b", "gpu_count" : 2},
-                {"ocid": "model_c", "gpu_count" : 4}],
+                    {"ocid": "model_a", "gpu_count": 4},
+                    {"ocid": "model_b", "gpu_count": 2},
+                    {"ocid": "model_c", "gpu_count": 4},
+                ],
                 "BM.GPU.H100.8",
-                'test_a',
+                "test_a",
                 8,
-                "Total requested GPU count exceeds the available GPU capacity for the selected instance shape. Adjust GPU allocations per model or choose a larger instance shape."
-
-            )
-        ]
+                "Total requested GPU count exceeds the available GPU capacity for the selected instance shape. Adjust GPU allocations per model or choose a larger instance shape.",
+            ),
+        ],
     )
-    def test_validate_multimodel_deployment_feasibility_negative(self, models, instance_shape, display_name, total_gpus, value_error):
+    def test_validate_multimodel_deployment_feasibility_negative(
+        self, models, instance_shape, display_name, total_gpus, value_error
+    ):
         with pytest.raises(ConfigValidationError, match=value_error):
-            self.validate_multimodel_deployment_feasibility_helper(models, instance_shape, display_name, total_gpus)
+            self.validate_multimodel_deployment_feasibility_helper(
+                models, instance_shape, display_name, total_gpus
+            )

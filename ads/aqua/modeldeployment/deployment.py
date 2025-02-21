@@ -69,6 +69,7 @@ from ads.model.deployment import (
     ModelDeploymentInfrastructure,
     ModelDeploymentMode,
 )
+from ads.model.model_metadata import ModelCustomMetadataItem
 from ads.telemetry import telemetry
 
 
@@ -881,12 +882,19 @@ class AquaDeploymentApp(AquaApp):
                 AquaMultiModelRef(
                     model_id=custom_metadata_list.get(f"model-id-{idx}").value,
                     model_name=custom_metadata_list.get(f"model-name-{idx}").value,
-                    gpu_count=custom_metadata_list.get(f"model-gpu-count-{idx}").value,
+                    gpu_count=custom_metadata_list.get(
+                        f"model-gpu-count-{idx}",
+                        ModelCustomMetadataItem(key=f"model-gpu-count-{idx}"),
+                    ).value,
                     env_var=get_params_dict(
-                        custom_metadata_list.get(f"model-user-params-{idx}").value
+                        custom_metadata_list.get(
+                            f"model-user-params-{idx}",
+                            ModelCustomMetadataItem(key=f"model-user-params-{idx}"),
+                        ).value
+                        or UNKNOWN_DICT
                     ),
                 )
-                for idx in model_group_count
+                for idx in range(model_group_count)
             ]
 
         return AquaDeploymentDetail(
