@@ -11,7 +11,7 @@ This module contains dataclasses for Aqua Model.
 
 import re
 from dataclasses import InitVar, dataclass, field
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 import oci
 from huggingface_hub import hf_api
@@ -295,6 +295,7 @@ class ImportModelDetails(CLIBuilderMixin):
     freeform_tags: Optional[dict] = None
     defined_tags: Optional[dict] = None
     ignore_model_artifact_check: Optional[bool] = None
+    callback: Optional[Callable] = None
 
     def __post_init__(self):
         self._command = "model register"

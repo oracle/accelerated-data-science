@@ -23,6 +23,7 @@ class RequestResponseType(ExtendedEnum):
     AdsVersion = "AdsVersion"
     CompatibilityCheck = "CompatibilityCheck"
     Error = "Error"
+    RegisterModelStatus = "RegisterModelStatus"
 
 
 @dataclass
@@ -141,3 +142,16 @@ class AquaWsError(DataClassSerializable):
 class ErrorResponse(BaseResponse):
     data: AquaWsError
     kind = RequestResponseType.Error
+
+
+@dataclass
+class RequestStatus(DataClassSerializable):
+    status: str
+    message: str
+
+
+@dataclass
+class ModelRegisterRequest(DataClassSerializable):
+    status: str
+    job_id: str
+    message: str = ""

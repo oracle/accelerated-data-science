@@ -4,7 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
-from logging import getLogger
+from logging import DEBUG, getLogger
 
 import tornado.ioloop
 import tornado.web
@@ -35,7 +35,20 @@ def make_app():
 
 
 def start_server():
+    access_log = getLogger("tornado.access")
+    # Set the logging level to DEBUG
+    access_log.setLevel(DEBUG)
     app = make_app()
+    logger.info("Endpoints:")
+    for rule in app.wildcard_router.rules:
+        # Depending on the rule type, the route may be stored in different properties.
+        # If the rule has a regex matcher, you can get its pattern.
+        regex = (
+            rule.matcher.regex.pattern
+            if hasattr(rule.matcher, "regex")
+            else str(rule.matcher)
+        )
+        print(f"\t\t{regex}")
     server = tornado.httpserver.HTTPServer(app)
     port = int(os.environ.get(AQUA_PORT, 8080))
     host = os.environ.get(AQUA_HOST, "0.0.0.0")

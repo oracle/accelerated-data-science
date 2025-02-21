@@ -2,10 +2,16 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import Optional
+import threading
+from functools import partial
+from logging import getLogger
+from typing import Dict, List, Optional
 from urllib.parse import urlparse
+from uuid import uuid4
 
+from tornado.ioloop import IOLoop
 from tornado.web import HTTPError
+from tornado.websocket import WebSocketHandler
 
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.enums import (
@@ -19,9 +25,15 @@ from ads.aqua.common.utils import (
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
+from ads.aqua.extension.models_ws_msg_handler import (
+    REGISTRATION_STATUS,
+    AquaModelWSMsgHandler,
+)
 from ads.aqua.model import AquaModelApp
-from ads.aqua.model.entities import AquaModelSummary, HFModelSummary
+from ads.aqua.model.entities import AquaModel, AquaModelSummary, HFModelSummary
 from ads.aqua.ui import ModelFormat
+
+logger = getLogger(__name__)
 
 
 class AquaModelHandler(AquaAPIhandler):
@@ -108,6 +120,7 @@ class AquaModelHandler(AquaAPIhandler):
         HTTPError
             Raises HTTPError if inputs are missing or are invalid
         """
+        job_id = str(uuid4())
         try:
             input_data = self.get_json_body()
         except Exception as ex:
@@ -145,27 +158,80 @@ class AquaModelHandler(AquaAPIhandler):
             str(input_data.get("ignore_model_artifact_check", "false")).lower()
             == "true"
         )
+        async_mode = input_data.get("async_mode", False)
 
-        return self.finish(
-            AquaModelApp().register(
-                model=model,
-                os_path=os_path,
-                download_from_hf=download_from_hf,
-                local_dir=local_dir,
-                cleanup_model_cache=cleanup_model_cache,
-                inference_container=inference_container,
-                finetuning_container=finetuning_container,
-                compartment_id=compartment_id,
-                project_id=project_id,
-                model_file=model_file,
-                inference_container_uri=inference_container_uri,
-                allow_patterns=allow_patterns,
-                ignore_patterns=ignore_patterns,
-                freeform_tags=freeform_tags,
-                defined_tags=defined_tags,
-                ignore_model_artifact_check=ignore_model_artifact_check,
+        def model_register_progress_callback(register_id: str, status: Dict[str, str]):
+            """Callback method to track the model register progress"""
+            logger.info(f"Progress for {register_id}: {status}")
+            subscribers: List[WebSocketHandler] = (
+                AquaModelWSMsgHandler.status_subscriber.get(REGISTRATION_STATUS, {})
+                .get(register_id, {})
+                .get("subscriber", [])
             )
-        )
+            for subscriber in subscribers:
+                if (
+                    subscriber
+                    and subscriber.ws_connection
+                    and subscriber.ws_connection.stream.socket
+                ):
+                    try:
+                        subscriber.write_message(status)
+                    except Exception as e:
+                        print(e)
+                        IOLoop.current().add_callback(
+                            lambda: subscriber.write_message(status)
+                        )
+            if len(subscribers) == 0:
+                AquaModelWSMsgHandler.register_status[register_id] = status
+
+        def register_model(callback=None) -> AquaModel:
+            """Wrapper method to help initialize callback in case of async mode"""
+            try:
+                registered_model = AquaModelApp().register(
+                    model=model,
+                    os_path=os_path,
+                    download_from_hf=download_from_hf,
+                    local_dir=local_dir,
+                    cleanup_model_cache=cleanup_model_cache,
+                    inference_container=inference_container,
+                    finetuning_container=finetuning_container,
+                    compartment_id=compartment_id,
+                    project_id=project_id,
+                    model_file=model_file,
+                    inference_container_uri=inference_container_uri,
+                    allow_patterns=allow_patterns,
+                    ignore_patterns=ignore_patterns,
+                    freeform_tags=freeform_tags,
+                    defined_tags=defined_tags,
+                    ignore_model_artifact_check=ignore_model_artifact_check,
+                    callback=callback,
+                )
+            except Exception as e:
+                if async_mode:
+                    model_register_progress_callback(
+                        register_id=job_id,
+                        status={"state": "FAILED", "message": str(e)},
+                    )
+                    raise
+                else:
+                    raise
+            return registered_model
+
+        if async_mode:
+            t = threading.Thread(
+                target=register_model,
+                args=(partial(model_register_progress_callback, register_id=job_id),),
+                daemon=True,
+            )
+            t.start()
+            output = {
+                "state": "ACCEPTED",
+                "job_id": job_id,
+                "progress_url": f"ws://host:port/aqua/ws/{job_id}",
+            }
+        else:
+            output = register_model()
+        return self.finish(output)
 
     @handle_exceptions
     def put(self, id):
