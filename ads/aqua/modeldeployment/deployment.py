@@ -2,6 +2,7 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 import shlex
 from typing import Dict, List, Optional, Union
 
@@ -28,14 +29,18 @@ from ads.aqua.common.utils import (
 from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_FILE,
     AQUA_MODEL_TYPE_CUSTOM,
+    AQUA_MODEL_TYPE_MULTI,
     AQUA_MODEL_TYPE_SERVICE,
+    AQUA_MULTI_MODEL_CONFIG,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
+    MODEL_NAME_DELIMITER,
     UNKNOWN,
     UNKNOWN_DICT,
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
 from ads.aqua.model import AquaModelApp
+from ads.aqua.model.constants import ModelCustomMetadataFields
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentConfig,
@@ -156,6 +161,10 @@ class AquaDeploymentApp(AquaApp):
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
             )
+            return self._create(
+                aqua_model=aqua_model,
+                create_deployment_details=create_deployment_details,
+            )
         else:
             model_ids = [model.model_id for model in create_deployment_details.models]
 
@@ -180,13 +189,31 @@ class AquaDeploymentApp(AquaApp):
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
             )
-
-        # todo: remove this once deployment support is added
-        if create_deployment_details.models:
-            raise AquaValueError(
-                "Deployment support for multimodel info is in progress."
+            return self._create_multi(
+                aqua_model=aqua_model,
+                create_deployment_details=create_deployment_details,
             )
 
+    def _create(
+        self,
+        aqua_model: DataScienceModel,
+        create_deployment_details: CreateModelDeploymentDetails,
+    ) -> AquaDeployment:
+        """Builds the configurations required by single model deployment and creates the deployment.
+
+        Parameters
+        ----------
+        aqua_model : DataScienceModel
+            An instance of Aqua data science model.
+        create_deployment_details : CreateModelDeploymentDetails
+            An instance of CreateModelDeploymentDetails containing all required and optional
+            fields for creating a model deployment via Aqua.
+
+        Returns
+        -------
+        AquaDeployment
+            An Aqua deployment instance.
+        """
         tags = {}
         for tag in [
             Tags.AQUA_SERVICE_MODEL_TAG,
@@ -382,12 +409,203 @@ class AquaDeploymentApp(AquaApp):
 
         for env in container_spec.get(ContainerSpec.ENV_VARS, []):
             if isinstance(env, dict):
-                for key, _items in env.items():
+                for key, _ in env.items():
                     if key not in env_var:
                         env_var.update(env)
 
         logger.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
 
+        tags = {**tags, **(create_deployment_details.freeform_tags or {})}
+        model_type = (
+            AQUA_MODEL_TYPE_CUSTOM if is_fine_tuned_model else AQUA_MODEL_TYPE_SERVICE
+        )
+
+        return self._create_deployment(
+            create_deployment_details=create_deployment_details,
+            aqua_model_id=aqua_model.id,
+            model_name=model_name,
+            model_type=model_type,
+            container_image_uri=container_image_uri,
+            server_port=server_port,
+            health_check_port=health_check_port,
+            env_var=env_var,
+            tags=tags,
+            cmd_var=cmd_var,
+        )
+
+    def _create_multi(
+        self,
+        aqua_model: DataScienceModel,
+        create_deployment_details: CreateModelDeploymentDetails,
+    ) -> AquaDeployment:
+        """Builds the environment variables required by multi deployment container and creates the deployment.
+
+        Parameters
+        ----------
+        aqua_model : DataScienceModel
+            An instance of Aqua data science model.
+        create_deployment_details : CreateModelDeploymentDetails
+            An instance of CreateModelDeploymentDetails containing all required and optional
+            fields for creating a model deployment via Aqua.
+
+        Returns
+        -------
+        AquaDeployment
+            An Aqua deployment instance.
+        """
+        model_config = []
+        model_name_list = []
+        env_var = {**(create_deployment_details.env_var or UNKNOWN_DICT)}
+
+        container_type_key = self._get_container_type_key(
+            model=aqua_model,
+            container_family=create_deployment_details.container_family,
+        )
+        container_config = get_container_config()
+        container_spec = container_config.get(
+            ContainerSpec.CONTAINER_SPEC, UNKNOWN_DICT
+        ).get(container_type_key, UNKNOWN_DICT)
+
+        container_params = container_spec.get(ContainerSpec.CLI_PARM, UNKNOWN).strip()
+
+        for idx, model in enumerate(create_deployment_details.models):
+            user_params = (
+                " ".join(
+                    f"{name} {value}" for name, value in model.env_var.items()
+                ).strip()
+                if model.env_var
+                else UNKNOWN
+            )
+            if user_params:
+                restricted_params = self._find_restricted_params(
+                    container_params, user_params, container_type_key
+                )
+                if restricted_params:
+                    selected_model = model.model_name or model.model_id
+                    raise AquaValueError(
+                        f"Parameters {restricted_params} are set by Aqua "
+                        f"and cannot be overridden or are invalid."
+                        f"Select other parameters for model {selected_model}."
+                    )
+
+            params = container_params
+            deployment_config = self.get_deployment_config(model.model_id)
+            multi_model_deployment = deployment_config.configuration.get(
+                create_deployment_details.instance_shape, ConfigurationItem()
+            ).multi_model_deployment
+            # finds the corresponding deployment parameters based on the gpu count
+            # and combines them with user's parameters. Existing deployment parameters
+            # will be overriden by user's parameters.
+            for item in multi_model_deployment:
+                if (
+                    model.gpu_count
+                    and item.gpu_count
+                    and item.gpu_count == model.gpu_count
+                ):
+                    config_parameters = item.parameters.get(
+                        get_container_params_type(container_type_key), UNKNOWN
+                    )
+                    params = f"{params} {get_combined_params(config_parameters, user_params)}".strip()
+                    break
+
+            artifact_location_key = (
+                f"{ModelCustomMetadataFields.ARTIFACT_LOCATION}-{idx}"
+            )
+            artifact_path_prefix = aqua_model.custom_metadata_list.get(
+                artifact_location_key
+            ).value.rstrip("/")
+            if ObjectStorageDetails.is_oci_path(artifact_path_prefix):
+                os_path = ObjectStorageDetails.from_path(artifact_path_prefix)
+                artifact_path_prefix = os_path.filepath.rstrip("/")
+
+            model_config.append({"params": params, "model_path": artifact_path_prefix})
+
+            model_name_key = f"model-name-{idx}"
+            model_name_list.append(
+                aqua_model.custom_metadata_list.get(model_name_key).value
+            )
+
+        env_var.update({AQUA_MULTI_MODEL_CONFIG: json.dumps({"models": model_config})})
+        logger.info(f"Env vars used for deploying {aqua_model.id} : {env_var}.")
+
+        container_image_uri = (
+            create_deployment_details.container_image_uri
+            or get_container_image(container_type=container_type_key)
+        )
+        server_port = create_deployment_details.server_port or container_spec.get(
+            ContainerSpec.SERVER_PORT
+        )
+        health_check_port = (
+            create_deployment_details.health_check_port
+            or container_spec.get(ContainerSpec.HEALTH_CHECK_PORT)
+        )
+        tags = {
+            Tags.AQUA_MODEL_ID_TAG: aqua_model.id,
+            Tags.MULTIMODEL_TYPE_TAG: "true",
+            Tags.AQUA_TAG: "active",
+            **(create_deployment_details.freeform_tags or UNKNOWN_DICT),
+        }
+
+        model_name = f"{MODEL_NAME_DELIMITER} ".join(model_name_list)
+
+        aqua_deployment = self._create_deployment(
+            create_deployment_details=create_deployment_details,
+            aqua_model_id=aqua_model.id,
+            model_name=model_name,
+            model_type=AQUA_MODEL_TYPE_MULTI,
+            container_image_uri=container_image_uri,
+            server_port=server_port,
+            health_check_port=health_check_port,
+            env_var=env_var,
+            tags=tags,
+        )
+        aqua_deployment.models = create_deployment_details.models
+        return aqua_deployment
+
+    def _create_deployment(
+        self,
+        create_deployment_details: CreateModelDeploymentDetails,
+        aqua_model_id: str,
+        model_name: str,
+        model_type: str,
+        container_image_uri: str,
+        server_port: str,
+        health_check_port: str,
+        env_var: dict,
+        tags: dict,
+        cmd_var: Optional[dict] = None,
+    ):
+        """Creates data science model deployment.
+
+        Parameters
+        ----------
+        create_deployment_details : CreateModelDeploymentDetails
+            An instance of CreateModelDeploymentDetails containing all required and optional
+            fields for creating a model deployment via Aqua.
+        aqua_model_id: str
+            The id of the aqua model to be deployed.
+        model_name: str
+            The name of the aqua model to be deployed. If it's multi model deployment, it is a list of model names.
+        model_type: str
+            The type of aqua model to be deployed. Allowed values are: `custom`, `service` and `multi_model`.
+        container_image_uri: str
+            The container image uri to deploy the model.
+        server_port: str
+            The service port of the container image.
+        health_check_port: str
+            The health check port of the container image.
+        env_var: dict
+            The environment variables input for the deployment.
+        tags: dict
+            The tags input for the deployment.
+        cmd_var: dict, optional
+            The cmd arguments input for the deployment.
+
+        Returns
+        -------
+        AquaDeployment
+            An Aqua deployment instance.
+        """
         # Start model deployment
         # configure model deployment infrastructure
         infrastructure = (
@@ -427,7 +645,7 @@ class AquaDeploymentApp(AquaApp):
             .with_health_check_port(health_check_port)
             .with_env(env_var)
             .with_deployment_mode(ModelDeploymentMode.HTTPS)
-            .with_model_uri(aqua_model.id)
+            .with_model_uri(aqua_model_id)
             .with_region(self.region)
             .with_overwrite_existing_artifact(True)
             .with_remove_existing_artifact(True)
@@ -435,7 +653,6 @@ class AquaDeploymentApp(AquaApp):
         if cmd_var:
             container_runtime.with_cmd(cmd_var)
 
-        tags = {**tags, **(create_deployment_details.freeform_tags or {})}
         # configure model deployment and deploy model on container runtime
         deployment = (
             ModelDeployment()
@@ -447,12 +664,9 @@ class AquaDeploymentApp(AquaApp):
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
 
-        deployment_id = deployment.dsc_model_deployment.id
+        deployment_id = deployment.id
         logger.info(
-            f"Aqua model deployment {deployment_id} created for model {aqua_model.id}."
-        )
-        model_type = (
-            AQUA_MODEL_TYPE_CUSTOM if is_fine_tuned_model else AQUA_MODEL_TYPE_SERVICE
+            f"Aqua model deployment {deployment_id} created for model {aqua_model_id}."
         )
 
         # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry

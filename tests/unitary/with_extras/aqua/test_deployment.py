@@ -15,6 +15,7 @@ import oci
 import pytest
 from parameterized import parameterized
 
+from ads.aqua.common.entities import AquaMultiModelRef
 import ads.aqua.modeldeployment.deployment
 import ads.config
 from ads.aqua.common.entities import AquaMultiModelRef
@@ -153,6 +154,76 @@ class TestDataset:
             "time_created": "2024-01-01T00:00:00.000000+00:00",
         }
     ]
+
+    multi_model_deployment_object = {
+        "category_log_details": oci.data_science.models.CategoryLogDetails(
+            **{
+                "access": oci.data_science.models.LogDetails(
+                    **{
+                        "log_group_id": "ocid1.loggroup.oc1.<region>.<OCID>",
+                        "log_id": "ocid1.log.oc1.<region>.<OCID>",
+                    }
+                ),
+                "predict": oci.data_science.models.LogDetails(
+                    **{
+                        "log_group_id": "ocid1.loggroup.oc1.<region>.<OCID>",
+                        "log_id": "ocid1.log.oc1.<region>.<OCID>",
+                    }
+                ),
+            }
+        ),
+        "compartment_id": "ocid1.compartment.oc1..<OCID>",
+        "created_by": "ocid1.user.oc1..<OCID>",
+        "defined_tags": {},
+        "description": "Mock description",
+        "display_name": "multi-model-deployment-name",
+        "freeform_tags": {
+            "OCI_AQUA": "active",
+            "aqua_model_id": "model-id",
+            "multimodel": "true",
+        },
+        "id": "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>",
+        "lifecycle_state": "ACTIVE",
+        "model_deployment_configuration_details": oci.data_science.models.SingleModelDeploymentConfigurationDetails(
+            **{
+                "deployment_type": "SINGLE_MODEL",
+                "environment_configuration_details": oci.data_science.models.OcirModelDeploymentEnvironmentConfigurationDetails(
+                    **{
+                        "cmd": [],
+                        "entrypoint": [],
+                        "environment_configuration_type": "OCIR_CONTAINER",
+                        "environment_variables": {
+                            "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
+                            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/"}]}',
+                        },
+                        "health_check_port": 8080,
+                        "image": "dsmc://image-name:1.0.0.0",
+                        "image_digest": "sha256:mock22373c16f2015f6f33c5c8553923cf8520217da0bd9504471c5e53cbc9d",
+                        "server_port": 8080,
+                    }
+                ),
+                "model_configuration_details": oci.data_science.models.ModelConfigurationDetails(
+                    **{
+                        "bandwidth_mbps": 10,
+                        "instance_configuration": oci.data_science.models.InstanceConfiguration(
+                            **{
+                                "instance_shape_name": DEPLOYMENT_SHAPE_NAME,
+                                "model_deployment_instance_shape_config_details": null,
+                            }
+                        ),
+                        "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
+                        "scaling_policy": oci.data_science.models.FixedSizeScalingPolicy(
+                            **{"instance_count": 1, "policy_type": "FIXED_SIZE"}
+                        ),
+                        "maximum_bandwidth_mbps": 10,
+                    }
+                ),
+            }
+        ),
+        "model_deployment_url": MODEL_DEPLOYMENT_URL,
+        "project_id": USER_PROJECT_ID,
+        "time_created": "2024-01-01T00:00:00.000000+00:00",
+    }
 
     model_deployment_object_gguf = [
         {
@@ -296,6 +367,7 @@ class TestDataset:
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
         "private_endpoint_id": "",
+        "models": [],
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
             "BASE_MODEL": "service_models/model-name/artifact",
@@ -313,6 +385,58 @@ class TestDataset:
             "memory_in_gbs": null,
         },
         "tags": {"OCI_AQUA": "active", "aqua_model_name": "model-name"},
+    }
+
+    aqua_multi_deployment_object = {
+        "id": "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>",
+        "display_name": "multi-model-deployment-name",
+        "aqua_service_model": False,
+        "aqua_model_name": "",
+        "state": "ACTIVE",
+        "description": "Mock description",
+        "created_on": "2024-01-01T00:00:00.000000+00:00",
+        "created_by": "ocid1.user.oc1..<OCID>",
+        "endpoint": MODEL_DEPLOYMENT_URL,
+        "private_endpoint_id": "",
+        "models": [
+            {
+                "env_var": {},
+                "gpu_count": 2,
+                "model_id": "test_model_id_1",
+                "model_name": None,
+            },
+            {
+                "env_var": {},
+                "gpu_count": 2,
+                "model_id": "test_model_id_2",
+                "model_name": None,
+            },
+            {
+                "env_var": {},
+                "gpu_count": 2,
+                "model_id": "test_model_id_3",
+                "model_name": None,
+            },
+        ],
+        "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
+        "environment_variables": {
+            "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
+            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/"}]}',
+        },
+        "cmd": [],
+        "console_link": "https://cloud.oracle.com/data-science/model-deployments/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>?region=region-name",
+        "lifecycle_details": "",
+        "shape_info": {
+            "instance_shape": DEPLOYMENT_SHAPE_NAME,
+            "instance_count": 1,
+            "ocpus": null,
+            "memory_in_gbs": null,
+        },
+        "tags": {
+            "OCI_AQUA": "active",
+            "aqua_model_id": "model-id",
+            "multimodel": "true",
+        },
     }
 
     aqua_deployment_gguf_env_vars = {
@@ -1006,6 +1130,104 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result["environment_variables"] = (
             TestDataset.aqua_deployment_tei_byoc_embeddings_env_vars
         )
+        assert actual_attributes == expected_result
+
+    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
+    @patch("ads.aqua.model.AquaModelApp.create_multi")
+    @patch("ads.aqua.modeldeployment.deployment.get_container_image")
+    @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_deployment_config")
+    def test_create_deployment_for_multi_model(
+        self,
+        mock_get_deployment_config,
+        mock_deploy,
+        mock_get_container_image,
+        mock_create_multi,
+        mock_get_container_config,
+    ):
+        """Test to create a deployment for multi models."""
+        aqua_multi_model = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_multi_model.yaml"
+        )
+        mock_create_multi.return_value = DataScienceModel.from_yaml(
+            uri=aqua_multi_model
+        )
+        config_json = os.path.join(
+            self.curr_dir,
+            "test_data/deployment/aqua_multi_model_deployment_config.json",
+        )
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        self.app.get_deployment_config = MagicMock(
+            return_value=AquaDeploymentConfig(**config)
+        )
+
+        container_index_json = os.path.join(
+            self.curr_dir, "test_data/ui/container_index.json"
+        )
+        with open(container_index_json, "r") as _file:
+            container_index_config = json.load(_file)
+        mock_get_container_config.return_value = container_index_config
+
+        deployment_config_json = os.path.join(
+            self.curr_dir, "test_data/deployment/deployment_gpu_config.json"
+        )
+        mock_get_deployment_config.return_value = deployment_config_json
+
+        mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
+        aqua_deployment = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_create_multi_deployment.yaml"
+        )
+        model_deployment_obj = ModelDeployment.from_yaml(uri=aqua_deployment)
+        model_deployment_dsc_obj = copy.deepcopy(
+            TestDataset.multi_model_deployment_object
+        )
+        model_deployment_dsc_obj["lifecycle_state"] = "CREATING"
+        model_deployment_obj.dsc_model_deployment = (
+            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+        )
+        mock_deploy.return_value = model_deployment_obj
+
+        model_info_1 = AquaMultiModelRef(
+            model_id="test_model_id_1",
+            gpu_count=2,
+        )
+
+        model_info_2 = AquaMultiModelRef(
+            model_id="test_model_id_2",
+            gpu_count=2,
+        )
+
+        model_info_3 = AquaMultiModelRef(
+            model_id="test_model_id_3",
+            gpu_count=2,
+        )
+
+        result = self.app.create(
+            models=[model_info_1, model_info_2, model_info_3],
+            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
+            display_name="multi-model-deployment-name",
+            log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
+            access_log_id="ocid1.log.oc1.<region>.<OCID>",
+            predict_log_id="ocid1.log.oc1.<region>.<OCID>",
+        )
+
+        mock_create_multi.assert_called_with(
+            models=[model_info_1, model_info_2, model_info_3],
+            compartment_id=TestDataset.USER_COMPARTMENT_ID,
+            project_id=TestDataset.USER_PROJECT_ID,
+            freeform_tags=None,
+            defined_tags=None,
+        )
+        mock_get_container_image.assert_called()
+        mock_deploy.assert_called()
+
+        expected_attributes = set(AquaDeployment.__annotations__.keys())
+        actual_attributes = result.to_dict()
+        assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
+        expected_result = copy.deepcopy(TestDataset.aqua_multi_deployment_object)
+        expected_result["state"] = "CREATING"
         assert actual_attributes == expected_result
 
     @parameterized.expand(

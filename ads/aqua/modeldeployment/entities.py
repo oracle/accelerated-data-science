@@ -32,23 +32,56 @@ class ModelParams(Serializable):
 class AquaDeployment(Serializable):
     """Represents an Aqua Model Deployment"""
 
-    id: Optional[str] = None
-    display_name: Optional[str] = None
-    aqua_service_model: Optional[bool] = None
-    model_id: str = None
-    aqua_model_name: Optional[str] = None
-    state: Optional[str] = None
-    description: Optional[str] = None
-    created_on: Optional[str] = None
-    created_by: Optional[str] = None
-    endpoint: Optional[str] = None
-    private_endpoint_id: Optional[str] = None
-    console_link: Optional[str] = None
-    lifecycle_details: Optional[str] = None
-    shape_info: Optional[ShapeInfo] = None
-    tags: Optional[dict] = None
-    environment_variables: Optional[dict] = None
-    cmd: Optional[List[str]] = None
+    id: Optional[str] = Field(None, description="The model deployment OCID.")
+    display_name: Optional[str] = Field(
+        None, description="The name of the model deployment."
+    )
+    aqua_service_model: Optional[bool] = Field(
+        False, description="The bool value to indicate if it's aqua service model."
+    )
+    model_id: str = Field(..., description="The model OCID to deploy.")
+    models: Optional[List[AquaMultiModelRef]] = Field(
+        default_factory=list, description="List of models for multi model deployment."
+    )
+    aqua_model_name: Optional[str] = Field(
+        None, description="The name of the aqua model."
+    )
+    state: Optional[str] = Field(None, description="The state of the model deployment.")
+    description: Optional[str] = Field(
+        None, description="The description of the model deployment."
+    )
+    created_on: Optional[str] = Field(
+        None, description="The creation time of the model deployment."
+    )
+    created_by: Optional[str] = Field(
+        None, description="The OCID that creates the model deployment."
+    )
+    endpoint: Optional[str] = Field(
+        None, description="The endpoint of the model deployment."
+    )
+    private_endpoint_id: Optional[str] = Field(
+        None, description="The private endpoint id of the model deployment."
+    )
+    console_link: Optional[str] = Field(
+        None, description="The console link of the model deployment."
+    )
+    lifecycle_details: Optional[str] = Field(
+        None, description="The lifecycle details of the model deployment."
+    )
+    shape_info: Optional[ShapeInfo] = Field(
+        default_factory=ShapeInfo,
+        description="The shape information of the model deployment.",
+    )
+    tags: Optional[dict] = Field(
+        default_factory=dict, description="The tags of the model deployment."
+    )
+    environment_variables: Optional[dict] = Field(
+        default_factory=dict,
+        description="The environment variables of the model deployment.",
+    )
+    cmd: Optional[List[str]] = Field(
+        default_factory=list, description="The cmd of the model deployment."
+    )
 
     @classmethod
     def from_oci_model_deployment(

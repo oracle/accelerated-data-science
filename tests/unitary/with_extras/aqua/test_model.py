@@ -225,6 +225,7 @@ class TestDataset:
 
     SERVICE_COMPARTMENT_ID = "ocid1.compartment.oc1..<OCID>"
     COMPARTMENT_ID = "ocid1.compartment.oc1..<UNIQUE_OCID>"
+    SERVICE_MODEL_ID = "ocid1.datasciencemodel.oc1.iad.<OCID>"
 
 
 @patch("ads.config.COMPARTMENT_OCID", "ocid1.compartment.oc1.<unique_ocid>")
@@ -372,7 +373,7 @@ class TestAquaModel:
         mock_model.artifact = "mock_artifact_path"
         custom_metadata_list = ModelCustomMetadata()
         custom_metadata_list.add(
-            **{"key": "deployment-container", "value": "odsc-vllm-serving"}
+            **{"key": "deployment-container", "value": "odsc-tgi-serving"}
         )
 
         mock_model.custom_metadata_list = custom_metadata_list
@@ -389,6 +390,48 @@ class TestAquaModel:
             gpu_count=2,
             env_var={"params": "--trust-remote-code --max-model-len 32000"},
         )
+
+        with pytest.raises(
+            AquaValueError,
+            match="Invalid selected model test_display_name. Currently only service models are supported for multi model deployment.",
+        ):
+            model = self.app.create_multi(
+                models=[model_info_1, model_info_2],
+                project_id="test_project_id",
+                compartment_id="test_compartment_id",
+            )
+
+        mock_model.freeform_tags["aqua_service_model"] = TestDataset.SERVICE_MODEL_ID
+
+        with pytest.raises(
+            AquaValueError,
+            match="Invalid or missing task tag for selected model test_display_name. Currently only text-generation models are support for multi model deployment.",
+        ):
+            model = self.app.create_multi(
+                models=[model_info_1, model_info_2],
+                project_id="test_project_id",
+                compartment_id="test_compartment_id",
+            )
+
+        mock_model.freeform_tags["task"] = "text-generation"
+
+        with pytest.raises(
+            AquaValueError,
+            match="Unsupported deployment container 'odsc-tgi-serving' for model 'mock_model_id'. Only 'odsc-vllm-serving' is supported for multi-model deployments.",
+        ):
+            model = self.app.create_multi(
+                models=[model_info_1, model_info_2],
+                project_id="test_project_id",
+                compartment_id="test_compartment_id",
+            )
+
+        custom_metadata_list = ModelCustomMetadata()
+        custom_metadata_list.add(
+            **{"key": "deployment-container", "value": "odsc-vllm-serving"}
+        )
+
+        mock_model.custom_metadata_list = custom_metadata_list
+        mock_from_id.return_value = mock_model
 
         # will create a multi-model group
         model = self.app.create_multi(

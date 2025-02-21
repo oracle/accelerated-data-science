@@ -65,6 +65,7 @@ from ads.aqua.model.constants import (
     FineTuningCustomMetadata,
     FineTuningMetricCategories,
     ModelCustomMetadataFields,
+    ModelTask,
     ModelType,
 )
 from ads.aqua.model.entities import (
@@ -254,12 +255,31 @@ class AquaModelApp(AquaApp):
         artifact_list = []
         display_name_list = []
         model_custom_metadata = ModelCustomMetadata()
-        default_deployment_container = None
+        # TODO: update it when more deployment containers are supported
+        default_deployment_container = (
+            InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY
+        )
 
         # Process each model
         for idx, model in enumerate(models):
             source_model = DataScienceModel.from_id(model.model_id)
             display_name = source_model.display_name
+
+            if not source_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, UNKNOWN):
+                raise AquaValueError(
+                    f"Invalid selected model {display_name}. "
+                    "Currently only service models are supported for multi model deployment."
+                )
+
+            if (
+                source_model.freeform_tags.get(Tags.TASK, UNKNOWN)
+                != ModelTask.TEXT_GENERATION
+            ):
+                raise AquaValueError(
+                    f"Invalid or missing {Tags.TASK} tag for selected model {display_name}. "
+                    f"Currently only {ModelTask.TEXT_GENERATION} models are support for multi model deployment."
+                )
+
             display_name_list.append(display_name)
 
             # Retrieve model artifact
@@ -280,12 +300,10 @@ class AquaModelApp(AquaApp):
                 ),
             ).value
 
-            if idx == 0:
-                default_deployment_container = deployment_container
-            elif deployment_container != default_deployment_container:
+            if default_deployment_container != deployment_container:
                 raise AquaValueError(
-                    "Deployment container mismatch detected. "
-                    "All selected models must use the same deployment container."
+                    f"Unsupported deployment container '{deployment_container}' for model '{source_model.id}'. "
+                    f"Only '{InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY}' is supported for multi-model deployments."
                 )
 
             # Add model-specific metadata
