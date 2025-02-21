@@ -319,6 +319,27 @@ class AquaModelApp(AquaApp):
                 description=f"Name of '{display_name}' in the multimodel group.",
                 category="Other",
             )
+            if model.gpu_count:
+                model_custom_metadata.add(
+                    key=f"model-gpu-count-{idx}",
+                    value=model.gpu_count,
+                    description=f"GPU count of '{display_name}' in the multimodel group.",
+                    category="Other",
+                )
+            user_params = (
+                " ".join(
+                    f"{name} {value}" for name, value in model.env_var.items()
+                ).strip()
+                if model.env_var
+                else UNKNOWN
+            )
+            if user_params:
+                model_custom_metadata.add(
+                    key=f"model-user-params-{idx}",
+                    value=user_params,
+                    description=f"User params of '{display_name}' in the multimodel group.",
+                    category="Other",
+                )
             model_custom_metadata.add(
                 key=f"{ModelCustomMetadataFields.ARTIFACT_LOCATION}-{idx}",
                 value=model_artifact_path,

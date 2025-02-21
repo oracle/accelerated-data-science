@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Union
 from pydantic import ValidationError
 
 from ads.aqua.app import AquaApp, logger
-from ads.aqua.common.entities import ContainerSpec
+from ads.aqua.common.entities import AquaMultiModelRef, ContainerSpec
 from ads.aqua.common.enums import InferenceContainerTypeFamily, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
@@ -69,6 +69,7 @@ from ads.model.deployment import (
     ModelDeploymentInfrastructure,
     ModelDeploymentMode,
 )
+from ads.model.model_metadata import ModelCustomMetadataItem
 from ads.telemetry import telemetry
 
 
@@ -857,10 +858,47 @@ class AquaDeploymentApp(AquaApp):
             source_id=model_deployment.id,
         )
 
+        aqua_deployment = AquaDeployment.from_oci_model_deployment(
+            model_deployment, self.region
+        )
+
+        if Tags.MULTIMODEL_TYPE_TAG in model_deployment.freeform_tags:
+            aqua_model_id = model_deployment.freeform_tags.get(
+                Tags.AQUA_MODEL_ID_TAG, UNKNOWN
+            )
+            if not aqua_model_id:
+                raise AquaRuntimeError(
+                    f"Invalid multi model deployment {model_deployment_id}."
+                    f"Make sure the {Tags.AQUA_MODEL_ID_TAG} tag is added to the deployment."
+                )
+            aqua_model = DataScienceModel.from_id(aqua_model_id)
+            custom_metadata_list = aqua_model.custom_metadata_list
+            model_group_count = int(
+                custom_metadata_list.get(
+                    ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT
+                ).value
+            )
+            aqua_deployment.models = [
+                AquaMultiModelRef(
+                    model_id=custom_metadata_list.get(f"model-id-{idx}").value,
+                    model_name=custom_metadata_list.get(f"model-name-{idx}").value,
+                    gpu_count=custom_metadata_list.get(
+                        f"model-gpu-count-{idx}",
+                        ModelCustomMetadataItem(key=f"model-gpu-count-{idx}"),
+                    ).value,
+                    env_var=get_params_dict(
+                        custom_metadata_list.get(
+                            f"model-user-params-{idx}",
+                            ModelCustomMetadataItem(key=f"model-user-params-{idx}"),
+                        ).value
+                        or UNKNOWN
+                    ),
+                )
+                for idx in range(model_group_count)
+            ]
+
         return AquaDeploymentDetail(
-            **vars(
-                AquaDeployment.from_oci_model_deployment(model_deployment, self.region)
-            ),
+            **vars(aqua_deployment),
             log_group=AquaResourceIdentifier(
                 log_group_id, log_group_name, log_group_url
             ),
