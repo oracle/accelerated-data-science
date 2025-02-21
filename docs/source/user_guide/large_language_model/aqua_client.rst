@@ -7,9 +7,8 @@ The AI Quick Actions client is a centralized, reusable component for interacting
 
 **Implementation Highlights:**
 
-- Offers both synchronous (Client) and asynchronous (AsyncClient) implementations using the ``httpx`` library.
-- Implements a custom OCIAuth authentication mechanism that integrates with OCI Signer for secure and compliant communications.
-- Utilizes the ``tenacity`` library to enable robust retry behavior when handling transient errors.
+- Offers both synchronous (Client) and asynchronous (AsyncClient)
+- Integrates with OCI Authentication patterns
 
 Authentication
 ==============
