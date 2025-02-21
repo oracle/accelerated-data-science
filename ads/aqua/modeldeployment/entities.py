@@ -425,7 +425,7 @@ class CreateModelDeploymentDetails(BaseModel):
 
     def validate_multimodel_deployment_feasibility(self, models_config_summary: ModelDeploymentConfigSummary):
         """
-        Validates whether the user input of a model group (List[AquaMultiModelRef], 2+ models with a specified gpu count per model)
+        Validates whether the user input of a model group (List[AquaMultiModelRef], 1+ model(s) with a specified gpu count per model)
         is feasible for a multi model deployment on the user's selected shape (instance_shape)
 
         Validation Criteria:
