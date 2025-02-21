@@ -7,6 +7,8 @@ from tqdm import tqdm
 
 
 class HFModelProgressTracker(tqdm):
+    hooks = []
+
     def __init__(self, *args, **kwargs):
         """
         A custom tqdm class that calls `callback` each time progress is updated.
@@ -14,11 +16,18 @@ class HFModelProgressTracker(tqdm):
         """
         super().__init__(*args, **kwargs)
 
-    def callback(self, *args, **kwargs):
-        pass
+    @staticmethod
+    def register_hooks(hook):
+        HFModelProgressTracker.hooks.append(hook)
 
     def update(self, n=1):
         # Perform the standard progress update
         super().update(n)
         # Invoke the callback with the current progress value (self.n)
-        self.callback({"status": f"{self.n} of {self.total} files downloaded"})
+        for hook in HFModelProgressTracker.hooks:
+            hook({"status": f"{self.n} of {self.total} files downloaded"})
+
+    def close(self):
+        for hook in HFModelProgressTracker.hooks:
+            hook({"status": f"{self.n} of {self.total} files downloaded"})
+        super().close()
