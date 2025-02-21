@@ -17,8 +17,8 @@ if os.path.exists(config_location):
     load_dotenv(dotenv_path=config_location)
     logger.info("Environment variables loaded successfully")
 else:
-    logger.info(
-        f"{config_location} not found. Conside using `.env` file to setup defalut environment variables"
+    logger.warning(
+        f"{config_location} not found. Consider using `.env` file to setup default environment variables"
     )
 
 start_server()
