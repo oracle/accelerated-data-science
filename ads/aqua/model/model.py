@@ -15,7 +15,6 @@ from oci.data_science.models import JobRun, Metadata, Model, UpdateModelDetails
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import (
-    ConfigFolder,
     CustomInferenceContainerTypeFamily,
     FineTuningContainerTypeFamily,
     InferenceContainerTypeFamily,
@@ -37,7 +36,6 @@ from ads.aqua.common.utils import (
     get_hf_model_info,
     list_os_files_with_extension,
     load_config,
-    read_file,
     upload_folder,
 )
 from ads.aqua.constants import (
@@ -45,10 +43,9 @@ from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME,
     AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE,
     AQUA_MODEL_ARTIFACT_FILE,
-    AQUA_MODEL_TOKENIZER_CONFIG,
     AQUA_MODEL_TYPE_CUSTOM,
     HF_METADATA_FOLDER,
-    LICENSE_TXT,
+    LICENSE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     README,
     READY_TO_DEPLOY_STATUS,
@@ -77,7 +74,6 @@ from ads.aqua.model.entities import (
     ModelValidationResult,
 )
 from ads.aqua.ui import AquaContainerConfig, AquaContainerConfigItem
-from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link
 from ads.config import (
@@ -258,21 +254,11 @@ class AquaModelApp(AquaApp):
                 ds_model.custom_metadata_list._to_oci_metadata()
             )
             if artifact_path != UNKNOWN:
-                model_card_path = (
-                    f"{artifact_path.rstrip('/')}/config/{README}"
-                    if is_verified_type
-                    else f"{artifact_path.rstrip('/')}/{README}"
-                )
                 model_card = str(
-                    read_file(
-                        file_path=model_card_path,
-                        auth=default_signer(),
-                    )
+                    self.ds_client.get_model_defined_metadatum_artifact_content(
+                        model_id, README
+                    ).data.content
                 )
-                if not model_card:
-                    logger.warn(
-                        f"Model card for {model_id} is empty or could not be loaded from {model_card_path}."
-                    )
 
         inference_container = ds_model.custom_metadata_list.get(
             ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
@@ -583,9 +569,7 @@ class AquaModelApp(AquaApp):
         str:
             Chat template string.
         """
-        config = self.get_config(
-            model_id, AQUA_MODEL_TOKENIZER_CONFIG, ConfigFolder.ARTIFACT
-        )
+        config = self.model_tokenizer_config(model_id)
         if not config:
             logger.debug(f"Tokenizer config for model: {model_id} is not available.")
         return config
@@ -744,7 +728,7 @@ class AquaModelApp(AquaApp):
         """
 
         models = []
-        if compartment_id:
+        if compartment_id and kwargs["category"] != "SERVICE":
             # tracks number of times custom model listing was called
             self.telemetry.record_event_async(
                 category="aqua/custom/model", action="list"
@@ -764,9 +748,7 @@ class AquaModelApp(AquaApp):
                     f"Returning service models list in {ODSC_MODEL_COMPARTMENT_OCID} from cache."
                 )
                 return self._service_models_cache.get(ODSC_MODEL_COMPARTMENT_OCID)
-            logger.info(
-                f"Fetching service models from compartment_id={ODSC_MODEL_COMPARTMENT_OCID}"
-            )
+            logger.info("Fetching service models.")
             lifecycle_state = kwargs.pop(
                 "lifecycle_state", Model.LIFECYCLE_STATE_ACTIVE
             )
@@ -848,6 +830,15 @@ class AquaModelApp(AquaApp):
         )
         family_values = [item.family for item in containers]
         return family_values
+
+    def get_defined_metadata_artifact_content(
+        self, model_id: str, metadata_key: str, target_dir: str
+    ):
+        ds_model = DataScienceModel.from_id(model_id)
+        ds_model.get_defined_metadata_artifact(
+            metadata_key, target_dir=target_dir, override=True
+        )
+        return {f"{metadata_key} download status": "Success"}
 
     def _create_model_catalog_entry(
         self,
@@ -1562,10 +1553,9 @@ class AquaModelApp(AquaApp):
             **self._process_model(ds_model, self.region),
             project_id=ds_model.project_id,
             model_card=str(
-                read_file(
-                    file_path=f"{artifact_path}/{README}",
-                    auth=default_signer(),
-                )
+                self.ds_client.get_model_defined_metadatum_artifact_content(
+                    verified_model.id, README
+                ).data.content
             ),
             inference_container=inference_container,
             inference_container_uri=inference_container_uri,
@@ -1661,10 +1651,9 @@ class AquaModelApp(AquaApp):
             )
 
         content = str(
-            read_file(
-                file_path=f"{os.path.dirname(artifact_path)}/{LICENSE_TXT}",
-                auth=default_signer(),
-            )
+            self.ds_client.get_model_defined_metadatum_artifact_content(
+                model_id, LICENSE
+            ).data.content
         )
 
         return AquaModelLicense(id=model_id, license=content)

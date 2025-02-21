@@ -29,6 +29,7 @@ from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_FILE,
     AQUA_MODEL_TYPE_CUSTOM,
     AQUA_MODEL_TYPE_SERVICE,
+    DEPLOYMENT_CONFIGURATION,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     UNKNOWN,
     UNKNOWN_DICT,
@@ -47,7 +48,6 @@ from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
-    AQUA_MODEL_DEPLOYMENT_CONFIG,
     COMPARTMENT_OCID,
 )
 from ads.model.datascience_model import DataScienceModel
@@ -661,7 +661,7 @@ class AquaDeploymentApp(AquaApp):
         Dict:
             A dict of allowed deployment configs.
         """
-        config = self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG)
+        config = self.get_config(model_id, DEPLOYMENT_CONFIGURATION)
         if not config:
             logger.debug(
                 f"Deployment config for custom model: {model_id} is not available. Use defaults."
