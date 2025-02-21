@@ -891,7 +891,7 @@ class AquaDeploymentApp(AquaApp):
                             f"model-user-params-{idx}",
                             ModelCustomMetadataItem(key=f"model-user-params-{idx}"),
                         ).value
-                        or UNKNOWN_DICT
+                        or UNKNOWN
                     ),
                 )
                 for idx in range(model_group_count)
