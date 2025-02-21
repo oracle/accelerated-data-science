@@ -38,6 +38,13 @@ Oracle Accelerated Data Science (ADS)
 .. toctree::
    :hidden:
    :maxdepth: 5
+   :caption: AI Quick Actions API Server
+
+   user_guide/aqua/apiserver
+
+.. toctree::
+   :hidden:
+   :maxdepth: 5
    :caption: Low-Code AI Operators
 
    user_guide/operators/index
