@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 from pydantic import BaseModel, Field, model_validator
 
+from ads.aqua import logger
 from ads.aqua.common.entities import AquaMultiModelRef, ShapeInfo
 from ads.aqua.common.enums import Tags
 from ads.aqua.config.utils.serializer import Serializable
@@ -31,24 +32,56 @@ class ModelParams(Serializable):
 class AquaDeployment(Serializable):
     """Represents an Aqua Model Deployment"""
 
-    id: Optional[str] = None
-    display_name: Optional[str] = None
-    aqua_service_model: Optional[bool] = None
-    model_id: str = None
-    models: Optional[AquaMultiModelRef] = None
-    aqua_model_name: Optional[str] = None
-    state: Optional[str] = None
-    description: Optional[str] = None
-    created_on: Optional[str] = None
-    created_by: Optional[str] = None
-    endpoint: Optional[str] = None
-    private_endpoint_id: Optional[str] = None
-    console_link: Optional[str] = None
-    lifecycle_details: Optional[str] = None
-    shape_info: Optional[ShapeInfo] = None
-    tags: Optional[dict] = None
-    environment_variables: Optional[dict] = None
-    cmd: Optional[List[str]] = None
+    id: Optional[str] = Field(None, description="The model deployment OCID.")
+    display_name: Optional[str] = Field(
+        None, description="The name of the model deployment."
+    )
+    aqua_service_model: Optional[bool] = Field(
+        False, description="The bool value to indicate if it's aqua service model."
+    )
+    model_id: str = Field(..., description="The model OCID to deploy.")
+    models: Optional[List[AquaMultiModelRef]] = Field(
+        default_factory=list, description="List of models for multi model deployment."
+    )
+    aqua_model_name: Optional[str] = Field(
+        None, description="The name of the aqua model."
+    )
+    state: Optional[str] = Field(None, description="The state of the model deployment.")
+    description: Optional[str] = Field(
+        None, description="The description of the model deployment."
+    )
+    created_on: Optional[str] = Field(
+        None, description="The creation time of the model deployment."
+    )
+    created_by: Optional[str] = Field(
+        None, description="The OCID that creates the model deployment."
+    )
+    endpoint: Optional[str] = Field(
+        None, description="The endpoint of the model deployment."
+    )
+    private_endpoint_id: Optional[str] = Field(
+        None, description="The private endpoint id of the model deployment."
+    )
+    console_link: Optional[str] = Field(
+        None, description="The console link of the model deployment."
+    )
+    lifecycle_details: Optional[str] = Field(
+        None, description="The lifecycle details of the model deployment."
+    )
+    shape_info: Optional[ShapeInfo] = Field(
+        default_factory=ShapeInfo,
+        description="The shape information of the model deployment.",
+    )
+    tags: Optional[dict] = Field(
+        default_factory=dict, description="The tags of the model deployment."
+    )
+    environment_variables: Optional[dict] = Field(
+        default_factory=dict,
+        description="The environment variables of the model deployment.",
+    )
+    cmd: Optional[List[str]] = Field(
+        default_factory=list, description="The cmd of the model deployment."
+    )
 
     @classmethod
     def from_oci_model_deployment(
@@ -138,101 +171,6 @@ class AquaDeploymentDetail(AquaDeployment, DataClassSerializable):
 
     log_group: AquaResourceIdentifier = Field(default_factory=AquaResourceIdentifier)
     log: AquaResourceIdentifier = Field(default_factory=AquaResourceIdentifier)
-
-    class Config:
-        extra = "ignore"
-
-
-class CreateModelDeploymentDetails(BaseModel):
-    """Class for creating Aqua model deployments."""
-
-    instance_shape: str = Field(
-        ..., description="The instance shape used for deployment."
-    )
-    display_name: str = Field(..., description="The name of the model deployment.")
-    compartment_id: Optional[str] = Field(None, description="The compartment OCID.")
-    project_id: Optional[str] = Field(None, description="The project OCID.")
-    description: Optional[str] = Field(
-        None, description="The description of the deployment."
-    )
-    model_id: Optional[str] = Field(None, description="The model OCID to deploy.")
-    models: Optional[List[AquaMultiModelRef]] = Field(
-        None, description="List of models for multimodel deployment."
-    )
-    instance_count: int = Field(
-        None, description="Number of instances used for deployment."
-    )
-    log_group_id: Optional[str] = Field(
-        None, description="OCI logging group ID for logs."
-    )
-    access_log_id: Optional[str] = Field(
-        None,
-        description="OCID for access logs. "
-        "https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm",
-    )
-    predict_log_id: Optional[str] = Field(
-        None,
-        description="OCID for prediction logs."
-        "https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm",
-    )
-    bandwidth_mbps: Optional[int] = Field(
-        None, description="Bandwidth limit on the load balancer in Mbps."
-    )
-    web_concurrency: Optional[int] = Field(
-        None, description="Number of worker processes/threads for handling requests."
-    )
-    server_port: Optional[int] = Field(
-        None, description="Server port for the Docker container image."
-    )
-    health_check_port: Optional[int] = Field(
-        None, description="Health check port for the Docker container image."
-    )
-    env_var: Optional[Dict[str, str]] = Field(
-        default_factory=dict, description="Environment variables for deployment."
-    )
-    container_family: Optional[str] = Field(
-        None, description="Image family of the model deployment container runtime."
-    )
-    memory_in_gbs: Optional[float] = Field(
-        None, description="Memory (in GB) for the selected shape."
-    )
-    ocpus: Optional[float] = Field(
-        None, description="OCPU count for the selected shape."
-    )
-    model_file: Optional[str] = Field(
-        None, description="File used for model deployment."
-    )
-    private_endpoint_id: Optional[str] = Field(
-        None, description="Private endpoint ID for model deployment."
-    )
-    container_image_uri: Optional[str] = Field(
-        None,
-        description="Image URI for model deployment container runtime "
-        "(ignored for service-managed containers). "
-        "Required parameter for BYOC based deployments if this parameter was not set during "
-        "model registration.",
-    )
-    cmd_var: Optional[List[str]] = Field(
-        None, description="Command variables for the container runtime."
-    )
-    freeform_tags: Optional[Dict] = Field(
-        None, description="Freeform tags for model deployment."
-    )
-    defined_tags: Optional[Dict] = Field(
-        None, description="Defined tags for model deployment."
-    )
-
-    @model_validator(mode="before")
-    @classmethod
-    def validate(cls, values: Any) -> Any:
-        """Ensures exactly one of `model_id` or `models` is provided."""
-        model_id = values.get("model_id")
-        models = values.get("models")
-        if bool(model_id) == bool(models):  # Both set or both unset
-            raise ValueError(
-                "Exactly one of `model_id` or `models` must be provided to create a model deployment."
-            )
-        return values
 
     class Config:
         extra = "ignore"
@@ -384,6 +322,17 @@ class GPUShapeAllocation(Serializable):
         extra = "allow"
 
 
+class ConfigValidationError(Exception):
+    """Exception raised for config validation."""
+
+    def __init__(
+        self,
+        message: str = """Validation failed: The provided model group configuration is incompatible with the selected instance shape.
+        Please verify the GPU count per model and ensure multi-model deployment is supported for the chosen instance shape.""",
+    ):
+        super().__init__(message)
+
+
 class ModelDeploymentConfigSummary(Serializable):
     """Top-level configuration model for OCI-based deployments.
 
@@ -414,3 +363,198 @@ class ModelDeploymentConfigSummary(Serializable):
 
     class Config:
         extra = "allow"
+
+
+class CreateModelDeploymentDetails(BaseModel):
+    """Class for creating Aqua model deployments."""
+
+    instance_shape: str = Field(
+        ..., description="The instance shape used for deployment."
+    )
+    display_name: str = Field(..., description="The name of the model deployment.")
+    compartment_id: Optional[str] = Field(None, description="The compartment OCID.")
+    project_id: Optional[str] = Field(None, description="The project OCID.")
+    description: Optional[str] = Field(
+        None, description="The description of the deployment."
+    )
+    model_id: Optional[str] = Field(None, description="The model OCID to deploy.")
+    models: Optional[List[AquaMultiModelRef]] = Field(
+        None, description="List of models for multimodel deployment."
+    )
+    instance_count: int = Field(
+        None, description="Number of instances used for deployment."
+    )
+    log_group_id: Optional[str] = Field(
+        None, description="OCI logging group ID for logs."
+    )
+    access_log_id: Optional[str] = Field(
+        None,
+        description="OCID for access logs. "
+        "https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm",
+    )
+    predict_log_id: Optional[str] = Field(
+        None,
+        description="OCID for prediction logs."
+        "https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm",
+    )
+    bandwidth_mbps: Optional[int] = Field(
+        None, description="Bandwidth limit on the load balancer in Mbps."
+    )
+    web_concurrency: Optional[int] = Field(
+        None, description="Number of worker processes/threads for handling requests."
+    )
+    server_port: Optional[int] = Field(
+        None, description="Server port for the Docker container image."
+    )
+    health_check_port: Optional[int] = Field(
+        None, description="Health check port for the Docker container image."
+    )
+    env_var: Optional[Dict[str, str]] = Field(
+        default_factory=dict, description="Environment variables for deployment."
+    )
+    container_family: Optional[str] = Field(
+        None, description="Image family of the model deployment container runtime."
+    )
+    memory_in_gbs: Optional[float] = Field(
+        None, description="Memory (in GB) for the selected shape."
+    )
+    ocpus: Optional[float] = Field(
+        None, description="OCPU count for the selected shape."
+    )
+    model_file: Optional[str] = Field(
+        None, description="File used for model deployment."
+    )
+    private_endpoint_id: Optional[str] = Field(
+        None, description="Private endpoint ID for model deployment."
+    )
+    container_image_uri: Optional[str] = Field(
+        None,
+        description="Image URI for model deployment container runtime "
+        "(ignored for service-managed containers). "
+        "Required parameter for BYOC based deployments if this parameter was not set during "
+        "model registration.",
+    )
+    cmd_var: Optional[List[str]] = Field(
+        None, description="Command variables for the container runtime."
+    )
+    freeform_tags: Optional[Dict] = Field(
+        None, description="Freeform tags for model deployment."
+    )
+    defined_tags: Optional[Dict] = Field(
+        None, description="Defined tags for model deployment."
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate(cls, values: Any) -> Any:
+        """Ensures exactly one of `model_id` or `models` is provided."""
+        model_id = values.get("model_id")
+        models = values.get("models")
+        if bool(model_id) == bool(models):  # Both set or both unset
+            raise ValueError(
+                "Exactly one of `model_id` or `models` must be provided to create a model deployment."
+            )
+        return values
+
+    def validate_multimodel_deployment_feasibility(
+        self, models_config_summary: ModelDeploymentConfigSummary
+    ):
+        """
+        Validates whether the user input of a model group (List[AquaMultiModelRef], 2+ models with a specified gpu count per model)
+        is feasible for a multi model deployment on the user's selected shape (instance_shape)
+
+        Validation Criteria:
+            - GPU Capacity: Ensures that the total number of GPUs requested by all models in the group does not exceed the GPU capacity of the selected instance shape.
+            - Verifies that all models in the group are compatible with the selected instance shape.
+            - Ensures that each model’s GPU allocation, as specified by the user, matches the requirements in the model's deployment configuration.
+            - Confirms that the selected instance shape supports multi-model deployment.
+            - Requires user input for the model group to be considered a valid multi-model deployment.
+
+
+        Parameters
+        ----------
+        models_config_summary : ModelDeploymentConfigSummary, optional
+            An instance of ModelDeploymentConfigSummary containing all required
+            fields (GPU Allocation, Deployment Configuration) for creating a multi model deployment via Aqua.
+
+        Raises
+        -------
+        ConfigValidationError:
+            When the deployment is NOT a multi model deployment
+            When assigned GPU Allocations per model are NOT within the number of GPUs available in the instance shape
+            When all models in model group can NOT be deployed on the instance shape with the selected GPU count
+        """
+        if not self.models:
+            logger.error("User defined model group (List[AquaMultiModelRef]) is None.")
+            raise ConfigValidationError(
+                "Multi-model deployment requires at least one model, but none were provided. Please add one or more models to the model group to proceed."
+            )
+
+        selected_shape = self.instance_shape
+
+        if selected_shape not in models_config_summary.gpu_allocation:
+            logger.error(
+                f"The model group is not compatible with the selected instance shape {selected_shape}"
+            )
+            raise ConfigValidationError(
+                f"The model group is not compatible with the selected instance shape '{selected_shape}'. Select a different instance shape."
+            )
+
+        total_available_gpus = models_config_summary.gpu_allocation[
+            selected_shape
+        ].total_gpus_available
+
+        model_deployment_config = models_config_summary.deployment_config
+
+        required_model_keys = [model.model_id for model in self.models]
+        missing_model_keys = required_model_keys - model_deployment_config.keys()
+
+        if len(missing_model_keys) > 0:
+            logger.error(
+                f"Missing the following model entry with key {missing_model_keys} in ModelDeploymentConfigSummary"
+            )
+            raise ConfigValidationError(
+                "One or more selected models are missing from the configuration, preventing validation for deployment on the given shape."
+            )
+
+        sum_model_gpus = 0
+
+        for model in self.models:
+            sum_model_gpus += model.gpu_count
+
+            aqua_deployment_config = model_deployment_config[model.model_id]
+
+            if selected_shape not in aqua_deployment_config.shape:
+                logger.error(
+                    f"Model with OCID {model.model_id} in the model group is not compatible with the selected instance shape: {selected_shape}"
+                )
+                raise ConfigValidationError(
+                    "Select a different instance shape. One or more models in the group are incompatible with the selected instance shape."
+                )
+
+            multi_model_configs = aqua_deployment_config.configuration.get(
+                selected_shape, ConfigurationItem()
+            ).multi_model_deployment
+
+            valid_gpu_configurations = [
+                gpu_shape_config.gpu_count for gpu_shape_config in multi_model_configs
+            ]
+            if model.gpu_count not in valid_gpu_configurations:
+                valid_gpu_str = ", ".join(map(str, valid_gpu_configurations))
+                logger.error(
+                    f"Model {model.model_id} allocated {model.gpu_count} GPUs by user, but its deployment configuration requires either {valid_gpu_str} GPUs."
+                )
+                raise ConfigValidationError(
+                    "Change the GPU count for one or more models in the model group. Adjust GPU allocations per model or choose a larger instance shape."
+                )
+
+        if sum_model_gpus > total_available_gpus:
+            logger.error(
+                f"Selected shape {selected_shape} has {total_available_gpus} GPUs while model group has {sum_model_gpus} GPUs."
+            )
+            raise ConfigValidationError(
+                "Total requested GPU count exceeds the available GPU capacity for the selected instance shape. Adjust GPU allocations per model or choose a larger instance shape."
+            )
+
+    class Config:
+        extra = "ignore"

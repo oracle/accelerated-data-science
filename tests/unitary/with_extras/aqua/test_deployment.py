@@ -15,14 +15,20 @@ import oci
 import pytest
 from parameterized import parameterized
 
+from ads.aqua.common.entities import AquaMultiModelRef
 import ads.aqua.modeldeployment.deployment
 import ads.config
+from ads.aqua.common.entities import AquaMultiModelRef
+from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentConfig,
     AquaDeploymentDetail,
+    ConfigValidationError,
+    CreateModelDeploymentDetails,
+    ModelDeploymentConfigSummary,
     ModelParams,
 )
 from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
@@ -148,6 +154,76 @@ class TestDataset:
             "time_created": "2024-01-01T00:00:00.000000+00:00",
         }
     ]
+
+    multi_model_deployment_object = {
+        "category_log_details": oci.data_science.models.CategoryLogDetails(
+            **{
+                "access": oci.data_science.models.LogDetails(
+                    **{
+                        "log_group_id": "ocid1.loggroup.oc1.<region>.<OCID>",
+                        "log_id": "ocid1.log.oc1.<region>.<OCID>",
+                    }
+                ),
+                "predict": oci.data_science.models.LogDetails(
+                    **{
+                        "log_group_id": "ocid1.loggroup.oc1.<region>.<OCID>",
+                        "log_id": "ocid1.log.oc1.<region>.<OCID>",
+                    }
+                ),
+            }
+        ),
+        "compartment_id": "ocid1.compartment.oc1..<OCID>",
+        "created_by": "ocid1.user.oc1..<OCID>",
+        "defined_tags": {},
+        "description": "Mock description",
+        "display_name": "multi-model-deployment-name",
+        "freeform_tags": {
+            "OCI_AQUA": "active",
+            "aqua_model_id": "model-id",
+            "multimodel": "true",
+        },
+        "id": "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>",
+        "lifecycle_state": "ACTIVE",
+        "model_deployment_configuration_details": oci.data_science.models.SingleModelDeploymentConfigurationDetails(
+            **{
+                "deployment_type": "SINGLE_MODEL",
+                "environment_configuration_details": oci.data_science.models.OcirModelDeploymentEnvironmentConfigurationDetails(
+                    **{
+                        "cmd": [],
+                        "entrypoint": [],
+                        "environment_configuration_type": "OCIR_CONTAINER",
+                        "environment_variables": {
+                            "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
+                            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/"}]}',
+                        },
+                        "health_check_port": 8080,
+                        "image": "dsmc://image-name:1.0.0.0",
+                        "image_digest": "sha256:mock22373c16f2015f6f33c5c8553923cf8520217da0bd9504471c5e53cbc9d",
+                        "server_port": 8080,
+                    }
+                ),
+                "model_configuration_details": oci.data_science.models.ModelConfigurationDetails(
+                    **{
+                        "bandwidth_mbps": 10,
+                        "instance_configuration": oci.data_science.models.InstanceConfiguration(
+                            **{
+                                "instance_shape_name": DEPLOYMENT_SHAPE_NAME,
+                                "model_deployment_instance_shape_config_details": null,
+                            }
+                        ),
+                        "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
+                        "scaling_policy": oci.data_science.models.FixedSizeScalingPolicy(
+                            **{"instance_count": 1, "policy_type": "FIXED_SIZE"}
+                        ),
+                        "maximum_bandwidth_mbps": 10,
+                    }
+                ),
+            }
+        ),
+        "model_deployment_url": MODEL_DEPLOYMENT_URL,
+        "project_id": USER_PROJECT_ID,
+        "time_created": "2024-01-01T00:00:00.000000+00:00",
+    }
 
     model_deployment_object_gguf = [
         {
@@ -291,6 +367,7 @@ class TestDataset:
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
         "private_endpoint_id": "",
+        "models": [],
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
             "BASE_MODEL": "service_models/model-name/artifact",
@@ -308,6 +385,58 @@ class TestDataset:
             "memory_in_gbs": null,
         },
         "tags": {"OCI_AQUA": "active", "aqua_model_name": "model-name"},
+    }
+
+    aqua_multi_deployment_object = {
+        "id": "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>",
+        "display_name": "multi-model-deployment-name",
+        "aqua_service_model": False,
+        "aqua_model_name": "",
+        "state": "ACTIVE",
+        "description": "Mock description",
+        "created_on": "2024-01-01T00:00:00.000000+00:00",
+        "created_by": "ocid1.user.oc1..<OCID>",
+        "endpoint": MODEL_DEPLOYMENT_URL,
+        "private_endpoint_id": "",
+        "models": [
+            {
+                "env_var": {},
+                "gpu_count": 2,
+                "model_id": "test_model_id_1",
+                "model_name": None,
+            },
+            {
+                "env_var": {},
+                "gpu_count": 2,
+                "model_id": "test_model_id_2",
+                "model_name": None,
+            },
+            {
+                "env_var": {},
+                "gpu_count": 2,
+                "model_id": "test_model_id_3",
+                "model_name": None,
+            },
+        ],
+        "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
+        "environment_variables": {
+            "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
+            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/"}]}',
+        },
+        "cmd": [],
+        "console_link": "https://cloud.oracle.com/data-science/model-deployments/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>?region=region-name",
+        "lifecycle_details": "",
+        "shape_info": {
+            "instance_shape": DEPLOYMENT_SHAPE_NAME,
+            "instance_count": 1,
+            "ocpus": null,
+            "memory_in_gbs": null,
+        },
+        "tags": {
+            "OCI_AQUA": "active",
+            "aqua_model_id": "model-id",
+            "multimodel": "true",
+        },
     }
 
     aqua_deployment_gguf_env_vars = {
@@ -516,9 +645,9 @@ class TestAquaDeployment(unittest.TestCase):
         expected_attributes = AquaDeployment.__annotations__.keys()
         for r in results:
             actual_attributes = r.to_dict()
-            assert set(actual_attributes) == set(
-                expected_attributes
-            ), "Attributes mismatch"
+            assert set(actual_attributes) == set(expected_attributes), (
+                "Attributes mismatch"
+            )
 
     @patch("ads.aqua.modeldeployment.deployment.get_resource_name")
     def test_get_deployment(self, mock_get_resource_name):
@@ -681,6 +810,7 @@ class TestAquaDeployment(unittest.TestCase):
         assert result[0] == False
         assert result[1] == 0
         assert result[2] == []
+
 
     @patch("ads.aqua.modeldeployment.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")
@@ -1002,6 +1132,104 @@ class TestAquaDeployment(unittest.TestCase):
         )
         assert actual_attributes == expected_result
 
+    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
+    @patch("ads.aqua.model.AquaModelApp.create_multi")
+    @patch("ads.aqua.modeldeployment.deployment.get_container_image")
+    @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_deployment_config")
+    def test_create_deployment_for_multi_model(
+        self,
+        mock_get_deployment_config,
+        mock_deploy,
+        mock_get_container_image,
+        mock_create_multi,
+        mock_get_container_config,
+    ):
+        """Test to create a deployment for multi models."""
+        aqua_multi_model = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_multi_model.yaml"
+        )
+        mock_create_multi.return_value = DataScienceModel.from_yaml(
+            uri=aqua_multi_model
+        )
+        config_json = os.path.join(
+            self.curr_dir,
+            "test_data/deployment/aqua_multi_model_deployment_config.json",
+        )
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        self.app.get_deployment_config = MagicMock(
+            return_value=AquaDeploymentConfig(**config)
+        )
+
+        container_index_json = os.path.join(
+            self.curr_dir, "test_data/ui/container_index.json"
+        )
+        with open(container_index_json, "r") as _file:
+            container_index_config = json.load(_file)
+        mock_get_container_config.return_value = container_index_config
+
+        deployment_config_json = os.path.join(
+            self.curr_dir, "test_data/deployment/deployment_gpu_config.json"
+        )
+        mock_get_deployment_config.return_value = deployment_config_json
+
+        mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
+        aqua_deployment = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_create_multi_deployment.yaml"
+        )
+        model_deployment_obj = ModelDeployment.from_yaml(uri=aqua_deployment)
+        model_deployment_dsc_obj = copy.deepcopy(
+            TestDataset.multi_model_deployment_object
+        )
+        model_deployment_dsc_obj["lifecycle_state"] = "CREATING"
+        model_deployment_obj.dsc_model_deployment = (
+            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+        )
+        mock_deploy.return_value = model_deployment_obj
+
+        model_info_1 = AquaMultiModelRef(
+            model_id="test_model_id_1",
+            gpu_count=2,
+        )
+
+        model_info_2 = AquaMultiModelRef(
+            model_id="test_model_id_2",
+            gpu_count=2,
+        )
+
+        model_info_3 = AquaMultiModelRef(
+            model_id="test_model_id_3",
+            gpu_count=2,
+        )
+
+        result = self.app.create(
+            models=[model_info_1, model_info_2, model_info_3],
+            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
+            display_name="multi-model-deployment-name",
+            log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
+            access_log_id="ocid1.log.oc1.<region>.<OCID>",
+            predict_log_id="ocid1.log.oc1.<region>.<OCID>",
+        )
+
+        mock_create_multi.assert_called_with(
+            models=[model_info_1, model_info_2, model_info_3],
+            compartment_id=TestDataset.USER_COMPARTMENT_ID,
+            project_id=TestDataset.USER_PROJECT_ID,
+            freeform_tags=None,
+            defined_tags=None,
+        )
+        mock_get_container_image.assert_called()
+        mock_deploy.assert_called()
+
+        expected_attributes = set(AquaDeployment.__annotations__.keys())
+        actual_attributes = result.to_dict()
+        assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
+        expected_result = copy.deepcopy(TestDataset.aqua_multi_deployment_object)
+        expected_result["state"] = "CREATING"
+        assert actual_attributes == expected_result
+
     @parameterized.expand(
         [
             (
@@ -1232,3 +1460,149 @@ class TestMDInferenceResponse(unittest.TestCase):
 
         result = self.app.get_model_deployment_response(endpoint)
         assert result["choices"][0]["text"] == " The answer is 2"
+
+
+class TestCreateModelDeploymentDetails:
+    curr_dir = os.path.dirname(__file__)  # Define curr_dir
+
+    def validate_multimodel_deployment_feasibility_helper(self, models, instance_shape, display_name, total_gpus, multi_model="true"):
+        config_json = os.path.join(self.curr_dir, "test_data/deployment/aqua_summary_multi_model.json")
+
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        if models:
+            aqua_models = [AquaMultiModelRef(model_id=x["ocid"], gpu_count=x["gpu_count"]) for x in models]
+
+            mock_create_deployment_details = CreateModelDeploymentDetails(
+            models=aqua_models,
+            instance_shape=instance_shape,
+            display_name=display_name,
+            freeform_tags={Tags.MULTIMODEL_TYPE_TAG: multi_model}
+        )
+        else:
+            model_id = 'model_a'
+            mock_create_deployment_details = CreateModelDeploymentDetails(
+            model_id = model_id,
+            instance_shape=instance_shape,
+            display_name=display_name,
+            freeform_tags={Tags.MULTIMODEL_TYPE_TAG: multi_model}
+        )
+
+        mock_models_config_summary = ModelDeploymentConfigSummary(
+            **(config)
+        )
+
+        mock_create_deployment_details.validate_multimodel_deployment_feasibility(
+            models_config_summary=mock_models_config_summary
+        )
+
+    @pytest.mark.parametrize(
+        "models, instance_shape, display_name, total_gpus",
+        [
+            (
+                [
+                    {"ocid": "model_a", "gpu_count": 2},
+                    {"ocid": "model_b", "gpu_count": 2},
+                    {"ocid": "model_c", "gpu_count": 2}
+                ],
+                "BM.GPU.H100.8",
+                "test_a",
+                8
+            ),
+            (
+                [
+                    {"ocid": "model_a", "gpu_count": 2},
+                    {"ocid": "model_b", "gpu_count": 1},
+                    {"ocid": "model_c", "gpu_count": 4}
+                ],
+                "BM.GPU.H100.8",
+                "test_a",
+                8
+            ),
+            (
+                [
+                    {"ocid": "model_a", "gpu_count": 1},
+                    {"ocid": "model_b", "gpu_count": 1},
+                    {"ocid": "model_c", "gpu_count": 2}
+                ],
+                "BM.GPU.H100.8",
+                "test_a",
+                8
+            ),
+
+        ]
+    )
+    def test_validate_multimodel_deployment_feasibility_positive(self, models, instance_shape, display_name, total_gpus):
+        self.validate_multimodel_deployment_feasibility_helper(models, instance_shape, display_name, total_gpus)
+
+    @pytest.mark.parametrize(
+        "models, instance_shape, display_name, total_gpus, value_error",
+        [
+            (
+                None,
+                "BM.GPU.H100.8",
+                'test_a',
+                8,
+                "Multi-model deployment requires at least one model, but none were provided. Please add one or more models to the model group to proceed."
+
+            ),
+            (
+                [
+                {"ocid": "model_a", "gpu_count" : 2},
+                {"ocid": "model_b", "gpu_count" : 2},
+                {"ocid": "model_c", "gpu_count" : 4}],
+                "invalid_shape",
+                'test_a',
+                8,
+                "The model group is not compatible with the selected instance shape 'invalid_shape'. Select a different instance shape."
+            ),
+            (
+                [
+                {"ocid": "model_a", "gpu_count" : 2},
+                {"ocid": "model_b", "gpu_count" : 2},
+                {"ocid": "model_c", "gpu_count" : 2},
+                {"ocid": "model_d", "gpu_count" : 2}],
+                "BM.GPU.H100.8",
+                'test_a',
+                8,
+                "One or more selected models are missing from the configuration, preventing validation for deployment on the given shape."
+
+            ),
+            (
+                [
+                {"ocid": "model_a", "gpu_count" : 2},
+                {"ocid": "model_b", "gpu_count" : 4}, # model_b lacks this entry in loaded config
+                {"ocid": "model_c", "gpu_count" : 2}],
+                "BM.GPU.H100.8",
+                'test_a',
+                8,
+                "Change the GPU count for one or more models in the model group. Adjust GPU allocations per model or choose a larger instance shape."
+
+            ),
+            (
+                [
+                {"ocid": "model_a", "gpu_count" : 2},
+                {"ocid": "model_b", "gpu_count" : 2},
+                {"ocid": "model_c", "gpu_count" : 2}], # model c is lacks BM.GPU.A100-v2.8
+                "BM.GPU.A100-v2.8",
+                'test_a',
+                8,
+                "Select a different instance shape. One or more models in the group are incompatible with the selected instance shape."
+            ),
+            (
+                [
+                {"ocid": "model_a", "gpu_count" : 4},
+                {"ocid": "model_b", "gpu_count" : 2},
+                {"ocid": "model_c", "gpu_count" : 4}],
+                "BM.GPU.H100.8",
+                'test_a',
+                8,
+                "Total requested GPU count exceeds the available GPU capacity for the selected instance shape. Adjust GPU allocations per model or choose a larger instance shape."
+
+            )
+        ]
+    )
+    def test_validate_multimodel_deployment_feasibility_negative(self, models, instance_shape, display_name, total_gpus, value_error):
+        with pytest.raises(ConfigValidationError, match=value_error):
+            self.validate_multimodel_deployment_feasibility_helper(models, instance_shape, display_name, total_gpus)
