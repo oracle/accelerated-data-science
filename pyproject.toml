@@ -205,6 +205,7 @@ pii = [
 ]
 llm = ["langchain>=0.2", "langchain-community", "langchain_openai", "pydantic>=2,<3", "evaluate>=0.4.0"]
 aqua = [
+  "jupyter_server",
   "tornado",
   "notebook~=6.5",
   "fire",
