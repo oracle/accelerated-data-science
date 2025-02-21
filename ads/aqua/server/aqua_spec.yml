@@ -1,0 +1,1291 @@
+openapi: '3.0.3'
+info:
+  title: AI Quick Actions
+  version: '1.0'
+servers:
+  - url: "http://localhost:8080/aqua"
+  - url: http://{host}:{port}/aqua
+paths:
+  /model:
+    get:
+      summary: "List Models"
+      description: "Returns array of AquaModel object. To fetch finetuned model set the compartment_id in the query param"
+      operationId: "listModels"
+      parameters:
+        - name: compartment_id
+          in: query
+          description: "compartment id where model exists. Set this for registered model or fine tuned model"
+          required: false
+          schema:
+            type: string
+        - name: model_type
+          in: query
+          description: "Type of the model"
+          required: false
+          schema:
+            type: string
+            enum:
+              - BASE
+              - FT
+            example: "FT"  # Only applicable if compartment_id is provided
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AquaModelList'
+        '404':
+          description: "Model not found"
+
+    post:
+      summary: "Register Model"
+      description: "Register model into data science service."
+      operationId: "registerModel"
+      requestBody:
+        description: "User object that needs to be added"
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportModelDetails'
+            examples:
+              verifiedModelOrCachedmodel:
+                summary: "Verfied or Cached Model"
+                description: "The inference container and finetuning container is automatically set"
+                value:
+                  model: "meta-llama/Llama-3.2-1B-Instruct"
+                  os_path: "oci://<bucketname>@<namespace>/models"
+                  download_from_hf: true
+                  cleanup_model_cache: true
+                  ignore_patterns: ["original/*"]
+              registerFromObjectStorageLocation:
+                summary: "Register from object storage"
+                description: "If the model is already available on the object storage, set the os_path to the model artifact path. Set the `download_from_hf` to false"
+                value:
+                  model: "meta-llama/Llama-3.2-1B-Instruct"
+                  os_path: "oci://<bucketname>@<namespace>/models/meta-llama/Llama-3.2-1B-Instruct"
+                  download_from_hf: false
+                  cleanup_model_cache: true
+                  ignore_patterns: ["original/*"]
+              unverifiedModel:
+                summary: "Unverfied models"
+                description: "In case of unverified model, explicity provide the inference container and the finetuning container"
+                value:
+                  model: "meta-llama/Llama-3.3-70B-Instruct"
+                  os_path: "oci://<bucketname>@<namespace>/models"
+                  download_from_hf: true
+                  cleanup_model_cache: true
+                  ignore_patterns: ["original/*"]
+                  inference_container: "dsmc://odsc-vllm-serving:0.6.4.post1.1"
+                  finetuning_container: "dsmc://odsc-llm-fine-tuning:2.2.62.70"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AquaModel'
+        '404':
+          description: "Model not found"
+  /model/{model_id}:
+     get:
+      summary: "Retrieve a model"
+      description: "Returns a AquaModel if model_id is base model. If it is fine tuned model it returns AquaFineTuneModel. To fetch finetuned model set the compartment_id in the query param"
+      operationId: "getModel"
+      parameters:
+        - name: model_id
+          in: path
+          description: "ID of the model to retrieve"
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: "Model object"
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AquaModel'
+                  - $ref: "#/components/schemas/AquaFineTuneModel"
+        '404':
+          description: "Model not found"
+  /finetuning:
+    post:
+      summary: "Create a fine-tuning job"
+      operationId: createFineTuningJob
+      requestBody:
+        description: "Input data for creating a fine-tuning job."
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFineTuningDetails"
+            example:
+              "ft_source_id": "ocid1.datasciencemodel.oc1..<UNIQUEID>"
+              "ft_name": "My FineTuning Job"
+              "dataset_path": "oci://bucket@namespace/path/to/my-data.jsonl"
+              "report_path": "oci://bucket@namespace/path/to/"
+              "ft_parameters":
+                "epochs": 10
+                "learning_rate": 0.001
+              "shape_name": "VM.GPU.A10.2"
+              "replica": 1
+              "validation_set_size": 0.2
+              "ft_description": "API Testing."
+              "compartment_id": "ocid1.compartment.oc1..<UNIQUEID>"
+              "experiment_name": "API Testing"
+              "experiment_description": "Testing API"
+              "log_group_id": "ocid1.loggroup.oc1..<UNIQUEID>"
+              "log_id": "ocid1.log.oc1..<UNIQUEID>"
+      responses:
+        "200":
+          description: "Fine-tuning job created successfully."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AquaFineTuneModel"
+        "400":
+          description: "Invalid input data."
+          content:
+            application/json:
+              schema:
+                type: object
+  /finetuning/config/{model_id}:
+    get:
+      summary: "Get fine-tuning configuration for a base model"
+      description: "Fetches the shapes and default replica and batch size for different supported shapes."
+      operationId: getFinetuningConfig
+      parameters:
+        - name: model_id
+          in: path
+          description: "The base model id for which to retrieve the fine-tuning configuration."
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Fine-tuning configuration retrieved successfully."
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          description: "Invalid request. Model id is required or the request is invalid."
+          content:
+            application/json:
+              schema:
+                type: object
+  /finetuning/{model_id}/params:
+    get:
+      summary: "Get default fine-tuning parameters for a model"
+      description: "Fetches the fine tuning parameter defaults set for fine tuning"
+      operationId: getFinetuningDefaultParams
+      parameters:
+        - name: model_id
+          in: path
+          description: "The base model id for which to get the default fine-tuning parameters."
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Default fine-tuning parameters retrieved successfully."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AquaFineTuneValidation"
+        "400":
+          description: "Invalid request or missing model id."
+          content:
+            application/json:
+              schema:
+                type: object
+    post:
+      summary: "Validate fine-tuning parameters for a model"
+      operationId: validateFineTuningParams
+      parameters:
+        - name: model_id
+          in: path
+          description: "The model id for which to validate fine-tuning parameters."
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: "JSON object containing the 'params' to be validated."
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                params:
+                  type: object
+                  description: "Fine-tuning parameters to validate."
+      responses:
+        "200":
+          description: "Fine-tuning parameters validated successfully."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AquaFineTuneValidation"
+        "400":
+          description: "Invalid input data."
+          content:
+            application/json:
+              schema:
+                type: object
+  /deployments:
+    get:
+      summary: "Lists all the AI Quick Actions deployment in the compartment"
+      description: "Lists all the deployments."
+      operationId: listDeployment
+      parameters:
+        - name: compartment_id
+          in: query
+          description: "If not provided, default compartment set at the API server will be used."
+          required: false
+          schema:
+            type: string
+            example: "ocid1.compartment.oc1..<UNIQUEID>"
+        - name: project_id
+          in: query
+          description: "If not provided, default project_id set at the API server will be used."
+          required: false
+          schema:
+            type: string
+            example: "ocid1.datascienceproject.oc1..<UNIQUEID>"
+      responses:
+        "200":
+          description: "Deployment details retrieved successfully."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AquaDeploymentList"
+        "400":
+          description: "Invalid deployment id provided."
+          content:
+            application/json:
+              schema:
+                type: object
+    post:
+      summary: "Create a new model deployment"
+      description: "Creates a new Aqua model deployment with the provided configuration."
+      operationId: createDeployment
+      requestBody:
+        required: true
+        description: "Deployment configuration parameters."
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AquaCreateDeployment"
+      responses:
+        "200":
+          description: "Deployment created successfully."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AquaDeployment"
+        "400":
+          description: "Invalid input data."
+          content:
+            application/json:
+              schema:
+                type: object
+  /deployments/{deployment_id}:
+    get:
+      summary: "Retrieve a model deployment"
+      description: "Retrieves the details of a specific Aqua model deployment by its deployment_id."
+      operationId: getDeployment
+      parameters:
+        - name: deployment_id
+          in: path
+          description: "The unique identifier of the deployment."
+          required: true
+          schema:
+            type: string
+            example: "ocid1.datasciencemodeldeployment.oc1..<UNIQUEID>"
+      responses:
+        "200":
+          description: "Deployment details retrieved successfully."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AquaDeploymentDetail"
+        "400":
+          description: "Invalid deployment id provided."
+          content:
+            application/json:
+              schema:
+                type: object
+  /deployment/delete/{deployment_id}:
+    delete:
+      summary: "Delete a model deployment"
+      description: "Deletes the Aqua model deployment specified by deployment_id."
+      operationId: deleteDeployment
+      parameters:
+        - name: deployment_id
+          in: path
+          description: "The unique identifier of the deployment to be deleted."
+          required: true
+          schema:
+            type: string
+            example: "deployment-ocid-001"
+      responses:
+        "200":
+          description: "Deployment deleted successfully."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Deployment deleted successfully."
+        "400":
+          description: "Invalid deployment id provided."
+          content:
+            application/json:
+              schema:
+                type: object
+  /evaluation/config:
+      get:
+        summary: "Retrieve evaluation configuration"
+        description: "Returns the evaluation configuration for a given evaluation id. If the evaluation id is missing, a 400 error is returned."
+        operationId: getEvaluationConfig
+        responses:
+          "200":
+            description: "Evaluation configuration retrieved successfully."
+            content:
+              application/json:
+                schema:
+                  type: object
+                  additionalProperties: true
+          "400":
+            description: "Invalid evaluation id provided."
+            content:
+              application/json:
+                schema:
+                  type: object
+  /evaluation/{eval_id}:
+    get:
+      summary: "Get Evaluation Run details"
+      operationId: getEvaluation
+      parameters:
+        - name: eval_id
+          in: path
+          description: "ID of the evaluation model to retrieve"
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: "Model object"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AquaEvaluationSummary'
+        '404':
+          description: "Model not found"
+
+  /evaluation:
+    get:
+      summary: "List Evaluation"
+      description: "Returns array of AquaEvaluationSummary object."
+      operationId: "listEvaluation"
+      parameters:
+        - name: compartment_id
+          in: query
+          description: "compartment id where evaluation run exists. If not set, will use the default set at the API server"
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AquaEvaluationSummary'
+        '404':
+          description: "Evaluation Run not found"
+    post:
+      summary: "Create evaluation job"
+      description: "Creates a new evaluation job using the provided evaluation details."
+      operationId: createEvaluationJob
+      requestBody:
+        description: "Payload for creating a new evaluation job."
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEvaluationDetails"
+      responses:
+        "200":
+          description: "Evaluation job created successfully."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AquaEvaluationSummary"
+        "400":
+          description: "Invalid input data."
+          content:
+            application/json:
+              schema:
+                type: object
+components:
+  schemas:
+    FineTuningShapeInfo:
+      type: object
+      properties:
+        instance_shape:
+          type: string
+          description: "Shape of the instance"
+        replica:
+          type: integer
+          description: "Replica count"
+      example:
+        instance_shape: "VM.Standard2.1"
+        replica: 1
+
+    AquaFineTuneValidation:
+      type: object
+      properties:
+        type:
+          type: string
+          default: "Automatic split"
+          description: "Type of validation used"
+        value:
+          type: string
+          description: "Validation value"
+      example:
+        type: "Automatic split"
+        value: "80:20"
+
+    ModelFormat:
+      type: string
+      description: "Model format enumeration (external type placeholder)"
+      example: "SAFETENSORS"
+
+    ModelValidationResult:
+      type: object
+      properties:
+        model_file:
+          type: string
+          description: "Path or identifier of the model file"
+        model_formats:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModelFormat'
+          description: "List of supported model formats"
+        telemetry_model_name:
+          type: string
+          description: "Telemetry name of the model"
+        tags:
+          type: object
+          description: "Arbitrary tags"
+          additionalProperties: true
+      example:
+        model_file: "model.pkl"
+        model_formats: ["ONNX"]
+        telemetry_model_name: "MyModelTelemetry"
+        tags:
+          environment: "production"
+
+    AquaFineTuningMetric:
+      type: object
+      properties:
+        name:
+          type: string
+          description: "Metric name"
+        category:
+          type: string
+          description: "Metric category"
+        scores:
+          type: array
+          items:
+            type: number
+          description: "List of metric scores"
+      example:
+        name: "accuracy"
+        category: "performance"
+        scores: [0.95, 0.96]
+
+    AquaModelLicense:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "License identifier"
+        license:
+          type: string
+          description: "License text or reference"
+      example:
+        id: "lic-123"
+        license: "Apache-2.0"
+
+    AquaModelSummary:
+      type: object
+      properties:
+        compartment_id:
+          type: string
+        icon:
+          type: string
+        id:
+          type: string
+        is_fine_tuned_model:
+          type: boolean
+        license:
+          type: string
+        name:
+          type: string
+        organization:
+          type: string
+        project_id:
+          type: string
+        tags:
+          type: object
+          additionalProperties: true
+        task:
+          type: string
+        time_created:
+          type: string
+        console_link:
+          type: string
+        search_text:
+          type: string
+        ready_to_deploy:
+          type: boolean
+          default: true
+        ready_to_finetune:
+          type: boolean
+          default: false
+        ready_to_import:
+          type: boolean
+          default: false
+        nvidia_gpu_supported:
+          type: boolean
+          default: false
+        arm_cpu_supported:
+          type: boolean
+          default: false
+        model_file:
+          type: string
+        model_formats:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModelFormat'
+      example:
+        compartment_id: "comp-123"
+        id: "model-456"
+        is_fine_tuned_model: false
+        name: "Example Model"
+        ready_to_deploy: true
+        model_formats: ["ONNX"]
+
+    AquaModel:
+      allOf:
+        - $ref: '#/components/schemas/AquaModelSummary'
+        - type: object
+          properties:
+            model_card:
+              type: string
+            inference_container:
+              type: string
+            inference_container_uri:
+              type: string
+            finetuning_container:
+              type: string
+            evaluation_container:
+              type: string
+            artifact_location:
+              type: string
+          example:
+            model_card: "http://example.com/model-card"
+            inference_container: "inference-container:latest"
+            inference_container_uri: "oci://inference_container_uri"
+            finetuning_container: "finetuning-container:latest"
+            evaluation_container: "evaluation-container:latest"
+            artifact_location: "/path/to/artifact"
+    AquaModelList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AquaModel"
+    HFModelContainerInfo:
+      type: object
+      properties:
+        inference_container:
+          type: string
+        finetuning_container:
+          type: string
+      example:
+        inference_container: "inference-container:latest"
+        finetuning_container: "finetuning-container:latest"
+
+    HFModelSummary:
+      type: object
+      properties:
+        model_info:
+          type: object
+          description: "Hugging Face ModelInfo object (external type placeholder)"
+          example:
+            modelId: "hf-model-001"
+        aqua_model_info:
+          $ref: '#/components/schemas/AquaModelSummary'
+      example:
+        model_info:
+          modelId: "hf-model-001"
+        aqua_model_info:
+          id: "model-456"
+          name: "Example Model"
+
+    AquaResourceIdentifier:
+      type: object
+      description: "A resource identifier containing id, name, and url."
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        url:
+          type: string
+      example:
+        id: "res-789"
+        name: "Resource Name"
+        url: "http://example.com/resource"
+
+    AquaEvalFTCommon:
+      type: object
+      properties:
+        lifecycle_state:
+          type: string
+        lifecycle_details:
+          type: string
+        job:
+          $ref: '#/components/schemas/AquaResourceIdentifier'
+        source:
+          $ref: '#/components/schemas/AquaResourceIdentifier'
+        experiment:
+          $ref: '#/components/schemas/AquaResourceIdentifier'
+        log_group:
+          $ref: '#/components/schemas/AquaResourceIdentifier'
+        log:
+          $ref: '#/components/schemas/AquaResourceIdentifier'
+      example:
+        lifecycle_state: "SUCCEEDED"
+        lifecycle_details: "Completed successfully"
+        job:
+          id: "job-001"
+          name: "Job One"
+          url: "http://example.com/job/001"
+        source:
+          id: "src-002"
+          name: "Source Two"
+          url: "http://example.com/src/002"
+        experiment:
+          id: "exp-003"
+          name: "Experiment Three"
+          url: "http://example.com/exp/003"
+        log_group:
+          id: "lg-004"
+          name: "Log Group Four"
+          url: "http://example.com/lg/004"
+        log:
+          id: "log-005"
+          name: "Log Five"
+          url: "http://example.com/log/005"
+
+    AquaFineTuneModel:
+      allOf:
+        - $ref: '#/components/schemas/AquaModel'
+        - $ref: '#/components/schemas/AquaEvalFTCommon'
+        - type: object
+          properties:
+            dataset:
+              type: string
+            validation:
+              $ref: '#/components/schemas/AquaFineTuneValidation'
+            shape_info:
+              $ref: '#/components/schemas/FineTuningShapeInfo'
+            metrics:
+              type: array
+              items:
+                $ref: '#/components/schemas/AquaFineTuningMetric'
+          example:
+            dataset: "training_data.csv"
+            validation:
+              type: "Automatic split"
+              value: "20%"
+            shape_info:
+              instance_shape: "VM.Standard2.1"
+              replica: 2
+            metrics:
+              - name: "accuracy"
+                category: "performance"
+                scores: [0.95]
+    AquaFineTuneModelList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AquaFineTuneModel"
+
+    ImportModelDetails:
+      type: object
+      properties:
+        model:
+          type: string
+          description: "Name of the model"
+        os_path:
+          type: string
+          description: "Path to the model in the objet storage. This is of the format oci://namesapace@bucket_name/path/to/model. "
+        download_from_hf:
+          type: boolean
+          default: true
+          description: "Will download the model from the huggingface and uploaded to the provided object storage path"
+        local_dir:
+          type: string
+          description: "Local directory where the model will be downloaded to from huggingface"
+        cleanup_model_cache:
+          type: boolean
+          default: false
+          description: "Cleanup local path"
+        inference_container:
+          type: string
+          description: "The inference container to use for model deployment"
+        finetuning_container:
+          type: string
+          description: "The Fine tuning container to use for model deployment"
+        compartment_id:
+          type: string
+        project_id:
+          type: string
+        model_file:
+          type: string
+          description: "Required if the model is of type GGUF"
+        inference_container_uri:
+          type: string
+        allow_patterns:
+          description: "Artifact file patterns that should be included while downloading from HuggingFace"
+          type: array
+          items:
+            type: string
+        ignore_patterns:
+          description: "Artifact file patterns that should be ignored while downloading from HuggingFace"
+          type: array
+          items:
+            type: string
+        freeform_tags:
+          description: "Freeform tags to be added to the model created"
+          type: object
+          additionalProperties: true
+        defined_tags:
+          type: object
+          additionalProperties: true
+        ignore_model_artifact_check:
+          description: "Flag to ignore checking config.json or safetensor file presence in the huggingface repo"
+          type: boolean
+          default: false
+      required:
+        - model
+        - os_path
+
+    AquaFineTuningParams:
+      type: object
+      description: "Class for maintaining Aqua fine-tuning model parameters"
+      properties:
+        epochs:
+          type: integer
+          nullable: true
+          example: 10
+        learning_rate:
+          type: number
+          format: float
+          nullable: true
+          example: 0.001
+        sample_packing:
+          oneOf:
+            - type: boolean
+            - type: string
+              enum: ["auto"]
+          default: "auto"
+          example: "auto"
+        batch_size:
+          type: integer
+          nullable: true
+          description: "Internally used as micro_batch_size"
+          example: 32
+        sequence_len:
+          type: integer
+          nullable: true
+          example: 128
+        pad_to_sequence_len:
+          type: boolean
+          nullable: true
+          example: true
+        lora_r:
+          type: integer
+          nullable: true
+          example: 4
+        lora_alpha:
+          type: integer
+          nullable: true
+          example: 16
+        lora_dropout:
+          type: number
+          format: float
+          nullable: true
+          example: 0.1
+        lora_target_linear:
+          type: boolean
+          nullable: true
+          example: false
+        lora_target_modules:
+          type: array
+          items:
+            type: string
+          nullable: true
+          example: ["module1", "module2"]
+        early_stopping_patience:
+          type: integer
+          nullable: true
+          example: 3
+        early_stopping_threshold:
+          type: number
+          format: float
+          nullable: true
+          example: 0.01
+      additionalProperties: true
+
+    AquaFineTuningSummary:
+      type: object
+      description: "Represents a summary of Aqua FineTuning job."
+      properties:
+        id:
+          type: string
+          example: "ft-job-1234"
+        name:
+          type: string
+          example: "Fine Tuning Job Name"
+        console_url:
+          type: string
+          example: "https://console.example.com/jobs/ft-job-1234"
+        lifecycle_state:
+          type: string
+          example: "SUCCEEDED"
+        lifecycle_details:
+          type: string
+          example: "Completed successfully"
+        time_created:
+          type: string
+          example: "2025-01-01T12:00:00Z"
+        tags:
+          type: object
+          additionalProperties: true
+          example: { "env": "prod" }
+        experiment:
+          $ref: "#/components/schemas/AquaResourceIdentifier"
+        source:
+          $ref: "#/components/schemas/AquaResourceIdentifier"
+        job:
+          $ref: "#/components/schemas/AquaResourceIdentifier"
+        parameters:
+          $ref: "#/components/schemas/AquaFineTuningParams"
+    CreateFineTuningDetails:
+      type: object
+      description: "Class to create aqua model fine-tuning instance."
+      properties:
+        ft_source_id:
+          type: string
+          example: "ocid.datasciencemodel.......<UNIQUEID>"
+        ft_name:
+          type: string
+          example: "My FineTuning Job"
+        dataset_path:
+          type: string
+          example: "oci://bucket@namespace/path/to/dataset.jsonl"
+        report_path:
+          type: string
+          example: "oci://bucket@namespace/path/to/report/"
+        ft_parameters:
+          type: object
+          description: "Parameters for fine-tuning job"
+          example:
+            epochs: 10
+            learning_rate: 0.001
+        shape_name:
+          type: string
+          example: "VM.GPU.A10.2"
+        replica:
+          type: integer
+          example: 2
+        validation_set_size:
+          type: number
+          format: float
+          example: 0.2
+        ft_description:
+          type: string
+          nullable: true
+          example: "A description for the fine-tuning job."
+        compartment_id:
+          type: string
+          nullable: true
+          example: "ocid.compartment.......<UNIQUEID>"
+        project_id:
+          type: string
+          nullable: true
+          example: "ocid.datascienceproject.......<UNIQUEID>"
+        experiment_id:
+          type: string
+          nullable: true
+          example: "experiment-9012"
+        experiment_name:
+          type: string
+          nullable: true
+          example: "Experiment Name"
+        experiment_description:
+          type: string
+          nullable: true
+          example: "Description of the experiment"
+        block_storage_size:
+          type: integer
+          nullable: true
+          example: 256
+        subnet_id:
+          type: string
+          nullable: true
+          example: "subnet-3456"
+        log_group_id:
+          type: string
+          nullable: true
+          example: "loggroup-7890"
+        log_id:
+          type: string
+          nullable: true
+          example: "log-1234"
+        watch_logs:
+          type: boolean
+          nullable: true
+          default: false
+          example: false
+        force_overwrite:
+          type: boolean
+          nullable: true
+          default: false
+          example: false
+        freeform_tags:
+          type: object
+          additionalProperties: true
+          nullable: true
+          example: { "key": "value" }
+        defined_tags:
+          type: object
+          additionalProperties: true
+          nullable: true
+          example: { "namespace": { "key": "value" } }
+      required:
+        - ft_source_id
+        - ft_name
+        - dataset_path
+        - report_path
+        - ft_parameters
+        - shape_name
+        - replica
+        - validation_set_size
+
+    ModelParams:
+      type: object
+      description: "Parameters for model deployment."
+      properties:
+        max_tokens:
+          type: integer
+          nullable: true
+          example: 256
+        temperature:
+          type: number
+          format: float
+          nullable: true
+          example: 0.7
+        top_k:
+          type: number
+          format: float
+          nullable: true
+          example: 50
+        top_p:
+          type: number
+          format: float
+          nullable: true
+          example: 0.9
+        model:
+          type: string
+          nullable: true
+          example: "gpt-3.5-turbo"
+      additionalProperties: false
+
+    ShapeInfo:
+      type: object
+      description: "Information about the shape configuration for the deployment."
+      properties:
+        instance_shape:
+          type: string
+          nullable: true
+          example: "VM.Standard2.1"
+        instance_count:
+          type: integer
+          nullable: true
+          example: 2
+        ocpus:
+          type: number
+          format: float
+          nullable: true
+          example: 1.0
+        memory_in_gbs:
+          type: number
+          format: float
+          nullable: true
+          example: 15.0
+      additionalProperties: false
+
+    AquaDeployment:
+      type: object
+      description: "Represents an Aqua Model Deployment."
+      properties:
+        id:
+          type: string
+          example: "deployment-ocid-001"
+        display_name:
+          type: string
+          example: "My Model Deployment"
+        aqua_service_model:
+          type: boolean
+          example: true
+        model_id:
+          type: string
+          example: "model-ocid-1234"
+        aqua_model_name:
+          type: string
+          example: "Aqua Model Name"
+        state:
+          type: string
+          example: "ACTIVE"
+        description:
+          type: string
+          nullable: true
+          example: "Deployment description"
+        created_on:
+          type: string
+          format: date-time
+          example: "2025-01-01T12:00:00Z"
+        created_by:
+          type: string
+          example: "user@example.com"
+        endpoint:
+          type: string
+          example: "https://endpoint.example.com"
+        private_endpoint_id:
+          type: string
+          nullable: true
+          example: "private-endpoint-ocid-001"
+        console_link:
+          type: string
+          example: "https://console.example.com/model-deployments/deployment-ocid-001"
+        lifecycle_details:
+          type: string
+          nullable: true
+          example: "All systems go"
+        shape_info:
+          $ref: "#/components/schemas/ShapeInfo"
+        tags:
+          type: object
+          additionalProperties: true
+          example: { "env": "prod", "project": "example" }
+        environment_variables:
+          type: object
+          additionalProperties: true
+          example: { "VAR1": "value1", "VAR2": "value2" }
+        cmd:
+          type: array
+          items:
+            type: string
+          example: ["python", "serve.py"]
+      required:
+        - id
+        - display_name
+        - aqua_service_model
+        - model_id
+        - state
+        - created_on
+        - created_by
+        - endpoint
+
+    AquaDeploymentList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AquaDeployment"
+
+    AquaCreateDeployment:
+      type: object
+      properties:
+        compartment_id:
+          type: string
+          example: "ocid1.compartment.oc1..<UNIQUEID>"
+        project_id:
+          type: string
+          example: "ocid1.datascienceproject.oc1..<UNIQUEID>"
+        log_group_id:
+          type: string
+          example: "ocid1.loggroup.oc1..<UNIQUEID>"
+        access_log_id:
+          type: string
+          example: "ocid1.log.oc1..<UNIQUEID>"
+        predict_log_id:
+          type: string
+          example: "ocid1.log.oc1..<UNIQUEID>"
+        description:
+          type: string
+          example: "llama model deployment"
+        instance_count:
+          type: integer
+          example: 1
+        bandwidth_mbps:
+          type: integer
+          example: 10
+        env_var:
+          type: object
+          example: {"key": "value"}
+        container_family:
+          type: string
+          example: "odsc-vllm-serving"
+        ocpus:
+          type: number
+          description: "applicable when CPU shape is chose. Not applicable for GPU shape"
+          example: 40
+        memory_in_gbs:
+          type: number
+          description: "applicable when CPU shape is chose. Not applicable for GPU shape"
+          example: 256
+        model_file:
+          type: string
+          example: "my_model.gguf"
+          description: "Applicable when there are multiple gguf files."
+        private_endpoint_id:
+          type: string
+          example: "ocid1.datasciencemodeldeploymentprivatendpoint.oc1..<UNIQUEID>"
+        cmd_var:
+          type: string
+          example: "ocid1.compartment.oc1..<UNIQUEID>"
+
+    AquaDeploymentDetail:
+      allOf:
+        - $ref: "#/components/schemas/AquaDeployment"
+        - type: object
+          description: "Represents details of an Aqua deployment with logging information."
+          properties:
+            log_group:
+              $ref: "#/components/schemas/AquaResourceIdentifier"
+            log:
+              $ref: "#/components/schemas/AquaResourceIdentifier"
+    AquaEvaluationMetric:
+      type: object
+      description: "Represents a single evaluation metric for a model."
+      properties:
+        name:
+          type: string
+          description: "Name of the evaluation metric."
+          example: "accuracy"
+        value:
+          type: number
+          format: float
+          description: "Numeric value of the evaluation metric."
+          example: 0.95
+        threshold:
+          type: number
+          format: float
+          description: "Threshold value for evaluation comparison."
+          example: 0.90
+      required:
+        - name
+        - value
+
+    AquaEvaluationSummary:
+      type: object
+      description: "Represents a summary of model evaluation results."
+      properties:
+        id:
+          type: string
+          description: "Unique identifier of the evaluation job."
+          example: "eval-ocid-001"
+        model_id:
+          type: string
+          description: "Identifier of the evaluated model."
+          example: "model-ocid-1234"
+        evaluator:
+          type: string
+          description: "Name or identifier of the evaluator."
+          example: "AutoEvaluator"
+        evaluation_metrics:
+          type: array
+          description: "List of evaluation metrics."
+          items:
+            $ref: "#/components/schemas/AquaEvaluationMetric"
+        status:
+          type: string
+          description: "Evaluation status (e.g. SUCCEEDED, FAILED)."
+          example: "SUCCEEDED"
+        created_on:
+          type: string
+          format: date-time
+          description: "Timestamp when the evaluation was created."
+          example: "2025-01-15T10:30:00Z"
+        comments:
+          type: string
+          description: "Optional comments regarding the evaluation."
+          example: "Evaluation completed successfully."
+      required:
+        - id
+        - model_id
+        - evaluator
+        - evaluation_metrics
+        - status
+        - created_on
+
+    CreateEvaluationDetails:
+      type: object
+      description: "Payload for creating a new model evaluation job."
+      properties:
+        model_id:
+          type: string
+          description: "Identifier of the model to be evaluated."
+          example: "model-ocid-1234"
+        dataset_path:
+          type: string
+          description: "Path to the dataset used for evaluation. This can be a local or object storage path."
+          example: "oci://bucket/path/to/evaluation_data.csv"
+        evaluator:
+          type: string
+          description: "Evaluator name or identifier."
+          example: "AutoEvaluator"
+        evaluation_params:
+          type: object
+          description: "Additional evaluation parameters."
+          additionalProperties: true
+          example:
+            batch_size: 32
+            metric: "accuracy"
+        comments:
+          type: string
+          description: "Optional comments or description for the evaluation job."
+          example: "Evaluating model performance on test dataset."
+      required:
+        - model_id
+        - dataset_path
+        - evaluator

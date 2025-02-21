@@ -37,6 +37,10 @@ class AquaAPIhandler(APIHandler):
         except Exception:
             pass
 
+    def prepare(self, *args, **kwargs):
+        """The base class prepare is not required for Aqua"""
+        pass
+        
     @staticmethod
     def serialize(obj: Any):
         """Serialize the object.
