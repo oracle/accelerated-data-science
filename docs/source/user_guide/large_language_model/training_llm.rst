@@ -1,6 +1,14 @@
 Training Large Language Model
 *****************************
 
+.. admonition:: Note
+  :class: note
+
+  The example provided below is obsolete. Instead, use the `AI Quick Actions <https://docs.oracle.com/en-us/iaas/data-science/using/ai-quick-actions.htm>`_, which can be used to deploy, evaluate, and fine-tune foundation models in OCI Data Science.
+
+
+
+
 .. versionadded:: 2.8.8
 
 Oracle Cloud Infrastructure (OCI) `Data Science Jobs (Jobs) <https://docs.oracle.com/en-us/iaas/data-science/using/jobs-about.htm>`_
@@ -55,4 +63,3 @@ The same training script also support Parameter-Efficient Fine-Tuning (PEFT). Yo
     torchrun llama_finetuning.py --enable_fsdp --use_peft --peft_method lora \
     --pure_bf16 --batch_size_training 1 \
     --model_name meta-llama/Llama-2-7b-hf --output_dir /home/datascience/outputs
-
