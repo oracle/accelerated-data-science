@@ -164,6 +164,7 @@ class AquaDeployment(Serializable):
 
     class Config:
         extra = "ignore"
+        protected_namespaces = ()
 
 
 class AquaDeploymentDetail(AquaDeployment, DataClassSerializable):
@@ -180,16 +181,16 @@ class ShapeInfoConfig(Serializable):
     """Describes how many memory and cpu to this model for specific shape.
 
     Attributes:
-        memory_in_gbs (int, optional): The number of memory in gbs to this model of the shape.
-        ocpu (int, optional): The number of ocpus to this model of the shape.
+        memory_in_gbs (float, optional): The number of memory in gbs to this model of the shape.
+        ocpu (float, optional): The number of ocpus to this model of the shape.
     """
 
-    memory_in_gbs: Optional[int] = Field(
-        default_factory=int,
+    memory_in_gbs: Optional[float] = Field(
+        None,
         description="The number of memory in gbs to this model of the shape.",
     )
-    ocpu: Optional[int] = Field(
-        default_factory=int,
+    ocpu: Optional[float] = Field(
+        None,
         description="The number of ocpus to this model of the shape.",
     )
 
@@ -558,3 +559,4 @@ class CreateModelDeploymentDetails(BaseModel):
 
     class Config:
         extra = "ignore"
+        protected_namespaces = ()

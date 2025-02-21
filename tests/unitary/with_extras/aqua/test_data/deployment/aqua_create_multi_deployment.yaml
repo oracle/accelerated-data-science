@@ -4,7 +4,7 @@ spec:
   displayName: multi-model-deployment-name
   freeformTags:
     OCI_AQUA: active
-    multimodel: "true"
+    aqua_multimodel: "true"
     aqua_model_id: model-id
   id: "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>"
   infrastructure:

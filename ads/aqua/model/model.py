@@ -369,7 +369,7 @@ class AquaModelApp(AquaApp):
 
         # Combine tags
         tags = {
-            Tags.AQUA_TAG: "active",
+            # Tags.AQUA_TAG: "active",
             Tags.MULTIMODEL_TYPE_TAG: "true",
             **(freeform_tags or {}),
         }
@@ -1809,8 +1809,8 @@ class AquaModelApp(AquaApp):
             filter_tag = Tags.AQUA_FINE_TUNED_MODEL_TAG
         elif model_type == ModelType.BASE:
             filter_tag = Tags.BASE_MODEL_CUSTOM
-        elif model_type == ModelType.MULTIMODEL:
-            filter_tag = Tags.MULTIMODEL_TYPE_TAG
+        # elif model_type == ModelType.MULTIMODEL:
+        #     filter_tag = Tags.MULTIMODEL_TYPE_TAG
         else:
             raise AquaValueError(
                 f"Model of type {model_type} is unknown. The values should be in {ModelType.values()}"

@@ -180,7 +180,7 @@ class TestDataset:
         "freeform_tags": {
             "OCI_AQUA": "active",
             "aqua_model_id": "model-id",
-            "multimodel": "true",
+            "aqua_multimodel": "true",
         },
         "id": "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>",
         "lifecycle_state": "ACTIVE",
@@ -264,7 +264,7 @@ class TestDataset:
                                     "instance_shape_name": DEPLOYMENT_SHAPE_NAME_CPU,
                                     "model_deployment_instance_shape_config_details": oci.data_science.models.ModelDeploymentInstanceShapeConfigDetails(
                                         **{
-                                            "ocpus": 10,
+                                            "ocpus": 10.0,
                                             "memory_in_gbs": 60.0,
                                         }
                                     ),
@@ -366,7 +366,7 @@ class TestDataset:
         "created_on": "2024-01-01T00:00:00.000000+00:00",
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
-        "private_endpoint_id": "",
+        "private_endpoint_id": None,
         "models": [],
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
@@ -397,7 +397,7 @@ class TestDataset:
         "created_on": "2024-01-01T00:00:00.000000+00:00",
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
-        "private_endpoint_id": "",
+        "private_endpoint_id": None,
         "models": [
             {
                 "env_var": {},
@@ -435,7 +435,7 @@ class TestDataset:
         "tags": {
             "OCI_AQUA": "active",
             "aqua_model_id": "model-id",
-            "multimodel": "true",
+            "aqua_multimodel": "true",
         },
     }
 
@@ -450,7 +450,7 @@ class TestDataset:
     aqua_deployment_gguf_shape_info = {
         "instance_shape": DEPLOYMENT_SHAPE_NAME_CPU,
         "instance_count": 1,
-        "ocpus": 10,
+        "ocpus": 10.0,
         "memory_in_gbs": 60.0,
     }
 

@@ -77,7 +77,7 @@ spec:
   displayName: multi_model
   freeformTags:
     OCI_AQUA: active
-    multimodel: "true"
+    aqua_multimodel: "true"
     license: Apache 2.0
     organization: Organization
     ready_to_fine_tune: false

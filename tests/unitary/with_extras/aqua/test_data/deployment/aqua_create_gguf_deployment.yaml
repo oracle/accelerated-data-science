@@ -18,7 +18,7 @@ spec:
       shapeName: "VM.Standard.A1.Flex"
       shapeConfigDetails:
         memoryInGBs: 60.0
-        ocpus: 10
+        ocpus: 10.0
     type: datascienceModelDeployment
   lifecycleState: CREATING
   modelDeploymentUrl: "https://modeldeployment.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>"

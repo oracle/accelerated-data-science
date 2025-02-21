@@ -449,7 +449,7 @@ class TestAquaModel:
         mock_from_id.return_value = mock_model
         mock_create.return_value = mock_model
 
-        assert model.freeform_tags == {"OCI_AQUA": "active", "multimodel": "true"}
+        assert model.freeform_tags == {"OCI_AQUA": "active", "aqua_multimodel": "true"}
         assert model.custom_metadata_list.get("model_group_count").value == "2"
         assert (
             model.custom_metadata_list.get("deployment-container").value
