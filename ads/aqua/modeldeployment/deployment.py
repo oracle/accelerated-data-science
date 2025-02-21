@@ -33,6 +33,7 @@ from ads.aqua.constants import (
     AQUA_MODEL_TYPE_SERVICE,
     AQUA_MULTI_MODEL_CONFIG,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
+    MODEL_NAME_DELIMITER,
     UNKNOWN,
     UNKNOWN_DICT,
 )
@@ -463,10 +464,11 @@ class AquaDeploymentApp(AquaApp):
                     container_params, user_params, container_type_key
                 )
                 if restricted_params:
+                    selected_model = model.model_name or model.model_id
                     raise AquaValueError(
                         f"Parameters {restricted_params} are set by Aqua "
                         f"and cannot be overridden or are invalid."
-                        f"Select other parameters for model {model.model_id}."
+                        f"Select other parameters for model {selected_model}."
                     )
 
             params = container_params
@@ -474,6 +476,9 @@ class AquaDeploymentApp(AquaApp):
             multi_model_deployment = deployment_config.configuration.get(
                 create_deployment_details.instance_shape, ConfigurationItem()
             ).multi_model_deployment
+            # finds the corresponding deployment parameters based on the gpu count
+            # and combines them with user's parameters. Existing deployment parameters
+            # will be overriden by user's parameters.
             for item in multi_model_deployment:
                 if (
                     model.gpu_count
@@ -524,7 +529,7 @@ class AquaDeploymentApp(AquaApp):
             **(create_deployment_details.freeform_tags or UNKNOWN_DICT),
         }
 
-        model_name = ", ".join(model_name_list)
+        model_name = f"{MODEL_NAME_DELIMITER} ".join(model_name_list)
 
         aqua_deployment = self._create_deployment(
             create_deployment_details=create_deployment_details,
