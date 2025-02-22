@@ -1,0 +1,129 @@
+kind: datascienceModel
+spec:
+  artifact: oci://models@namespace/models/model-name/artifact
+  compartmentId: ocid1.compartment.oc1..<OCID>
+  customMetadataList:
+    data:
+    - category: Other
+      description: ID of model_one in the multimodel group.
+      key: model-id-0
+      value: ocid1.compartment.oc1..<OCID>
+    - category: Other
+      description: Name of model_one in the multimodel group.
+      key: model-name-0
+      value: model_one
+    - category: Other
+      description: GPU count of model_one in the multimodel group.
+      key: model-gpu-count-0
+      value: 1
+    - category: Other
+      description: User params of model_one in the multimodel group.
+      key: model-user-params-0
+      value: --test_key_one test_value_one
+    - category: Other
+      description: Artifact path for model_one in the multimodel group.
+      key: artifact_location-0
+      value: model_one_path
+    - category: Other
+      description: ID of model_two in the multimodel group.
+      key: model-id-1
+      value: ocid1.compartment.oc1..<OCID>
+    - category: Other
+      description: Name of model_two in the multimodel group.
+      key: model-name-1
+      value: model_two
+    - category: Other
+      description: GPU count of model_two in the multimodel group.
+      key: model-gpu-count-1
+      value: 1
+    - category: Other
+      description: User params of model_two in the multimodel group.
+      key: model-user-params-1
+      value: --test_key_two test_value_two
+    - category: Other
+      description: Artifact path for model_two in the multimodel group.
+      key: artifact_location-1
+      value: model_two_path
+    - category: Other
+      description: ID of model_three in the multimodel group.
+      key: model-id-2
+      value: ocid1.compartment.oc1..<OCID>
+    - category: Other
+      description: Name of model_three in the multimodel group.
+      key: model-name-2
+      value: model_three
+    - category: Other
+      description: GPU count of model_three in the multimodel group.
+      key: model-gpu-count-2
+      value: 1
+    - category: Other
+      description: User params of model_three in the multimodel group.
+      key: model-user-params-2
+      value: --test_key_three test_value_three
+    - category: Other
+      description: Artifact path for model_three in the multimodel group.
+      key: artifact_location-2
+      value: model_three_path
+    - category: Other
+      description: Inference container mapping for multi_model
+      key: deployment-container
+      value: odsc-vllm-serving
+    - category: Other
+      description: Number of models in the group.
+      key: model_group_count
+      value: 3
+  definedTags: {}
+  description: Multi-model grouping using model_one, model_two, model_three.
+  displayName: multi_model
+  freeformTags:
+    OCI_AQUA: active
+    aqua_multimodel: "true"
+    license: Apache 2.0
+    organization: Organization
+    ready_to_fine_tune: false
+  id: ocid1.datasciencemodel.oc1.iad.<OCID>
+  lifecycleState: ACTIVE
+  modelDescription:
+    models:
+    - bucketName: models
+      namespace: namespace
+      objects:
+      - name: models/model_one/artifact/README.md
+        sizeInBytes: 10317
+        version: 450a8124-f5ca-4ee6-b4cf-c1dc05b13d46
+      - name: models/model_one/artifact/config.json
+        sizeInBytes: 950
+        version: 3ace781b-4a48-4e89-88b6-61f0db6d51ad
+      prefix: models/model_one/artifact
+    - bucketName: models
+      namespace: namespace
+      objects:
+      - name: models/model_two/artifact/README.md
+        sizeInBytes: 10317
+        version: 450a8124-f5ca-4ee6-b4cf-c1dc05b13d46
+      - name: models/model_two/artifact/config.json
+        sizeInBytes: 950
+        version: 3ace781b-4a48-4e89-88b6-61f0db6d51ad
+      prefix: models/model_two/artifact
+    - bucketName: models
+      namespace: namespace
+      objects:
+      - name: models/model_three/artifact/README.md
+        sizeInBytes: 10317
+        version: 450a8124-f5ca-4ee6-b4cf-c1dc05b13d46
+      - name: models/model_three/artifact/config.json
+        sizeInBytes: 950
+        version: 3ace781b-4a48-4e89-88b6-61f0db6d51ad
+      prefix: models/model_three/artifact
+    type: modelOSSReferenceDescription
+    version: '1.0'
+  projectId: ocid1.datascienceproject.oc1.iad.<OCID>
+  provenanceMetadata:
+    artifact_dir: null
+    git_branch: null
+    git_commit: 123456
+    repository_url: https://model-name-url.com
+    training_id: null
+    training_script_path: null
+  timeCreated: 2024-01-01T00:00:00.000000+00:00
+type: dataScienceModel

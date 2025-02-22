@@ -10,7 +10,7 @@ import pytest
 from parameterized import parameterized
 from unittest import TestCase
 from unittest.mock import MagicMock, PropertyMock
-from mock import patch
+from unittest.mock import patch
 from importlib import reload
 
 import ads.aqua
