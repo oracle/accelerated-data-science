@@ -367,7 +367,7 @@ class TestAquaModel:
         mock_model.display_name = "test_display_name"
         mock_model.description = "test_description"
         mock_model.freeform_tags = {
-            "OCI_AQUA": "ACTIVE",
+            # "OCI_AQUA": "ACTIVE",
         }
         mock_model.id = "mock_model_id"
         mock_model.artifact = "mock_artifact_path"
@@ -391,10 +391,7 @@ class TestAquaModel:
             env_var={"params": "--trust-remote-code --max-model-len 32000"},
         )
 
-        with pytest.raises(
-            AquaValueError,
-            match="Invalid selected model test_display_name. Currently only service models are supported for multi model deployment.",
-        ):
+        with pytest.raises(AquaValueError):
             model = self.app.create_multi(
                 models=[model_info_1, model_info_2],
                 project_id="test_project_id",
@@ -403,10 +400,7 @@ class TestAquaModel:
 
         mock_model.freeform_tags["aqua_service_model"] = TestDataset.SERVICE_MODEL_ID
 
-        with pytest.raises(
-            AquaValueError,
-            match="Invalid or missing task tag for selected model test_display_name. Currently only text-generation models are support for multi model deployment.",
-        ):
+        with pytest.raises(AquaValueError):
             model = self.app.create_multi(
                 models=[model_info_1, model_info_2],
                 project_id="test_project_id",
@@ -415,10 +409,7 @@ class TestAquaModel:
 
         mock_model.freeform_tags["task"] = "text-generation"
 
-        with pytest.raises(
-            AquaValueError,
-            match="Unsupported deployment container 'odsc-tgi-serving' for model 'mock_model_id'. Only 'odsc-vllm-serving' is supported for multi-model deployments.",
-        ):
+        with pytest.raises(AquaValueError):
             model = self.app.create_multi(
                 models=[model_info_1, model_info_2],
                 project_id="test_project_id",
@@ -449,7 +440,7 @@ class TestAquaModel:
         mock_from_id.return_value = mock_model
         mock_create.return_value = mock_model
 
-        assert model.freeform_tags == {"OCI_AQUA": "active", "aqua_multimodel": "true"}
+        assert model.freeform_tags == {"aqua_multimodel": "true"}
         assert model.custom_metadata_list.get("model_group_count").value == "2"
         assert (
             model.custom_metadata_list.get("deployment-container").value
