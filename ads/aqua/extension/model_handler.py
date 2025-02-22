@@ -5,7 +5,7 @@
 import threading
 from functools import partial
 from logging import getLogger
-from typing import Dict, List, Optional
+from typing import List, Optional
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -30,7 +30,13 @@ from ads.aqua.extension.models_ws_msg_handler import (
     AquaModelWSMsgHandler,
 )
 from ads.aqua.model import AquaModelApp
-from ads.aqua.model.entities import AquaModel, AquaModelSummary, HFModelSummary
+from ads.aqua.model.entities import (
+    AquaModel,
+    AquaModelSummary,
+    HFModelSummary,
+    TaskStatus,
+    TaskStatusEnum,
+)
 from ads.aqua.ui import ModelFormat
 
 logger = getLogger(__name__)
@@ -160,7 +166,7 @@ class AquaModelHandler(AquaAPIhandler):
         )
         async_mode = input_data.get("async_mode", False)
 
-        def model_register_progress_callback(register_id: str, status: Dict[str, str]):
+        def model_register_progress_callback(register_id: str, status: TaskStatus):
             """Callback method to track the model register progress"""
             logger.info(f"Progress for {register_id}: {status}")
             subscribers: List[WebSocketHandler] = (
@@ -175,14 +181,14 @@ class AquaModelHandler(AquaAPIhandler):
                     and subscriber.ws_connection.stream.socket
                 ):
                     try:
-                        subscriber.write_message(status)
+                        subscriber.write_message(status.to_json())
                     except Exception as e:
                         print(e)
                         IOLoop.current().add_callback(
-                            lambda: subscriber.write_message(status)
+                            lambda: subscriber.write_message(status.to_json())
                         )
             if len(subscribers) == 0:
-                AquaModelWSMsgHandler.register_status[register_id] = status
+                AquaModelWSMsgHandler.register_status[register_id] = status.to_json()
 
         def register_model(callback=None) -> AquaModel:
             """Wrapper method to help initialize callback in case of async mode"""
@@ -210,7 +216,9 @@ class AquaModelHandler(AquaAPIhandler):
                 if async_mode:
                     model_register_progress_callback(
                         register_id=job_id,
-                        status={"state": "FAILED", "message": str(e)},
+                        status=TaskStatus(
+                            state=TaskStatusEnum.REGISTRATION_FAILED, message=str(e)
+                        ),
                     )
                     raise
                 else:

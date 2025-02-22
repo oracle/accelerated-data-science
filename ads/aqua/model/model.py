@@ -76,6 +76,7 @@ from ads.aqua.model.entities import (
     ModelFormat,
     ModelValidationResult,
     TaskStatus,
+    TaskStatusEnum,
 )
 from ads.aqua.model.utils import HFModelProgressTracker
 from ads.aqua.ui import AquaContainerConfig, AquaContainerConfigItem
@@ -1434,10 +1435,15 @@ class AquaModelApp(AquaApp):
         def tqdm_callback(self, status):  # noqa: ARG001
             callback(status)
 
+        def publish_status(status: TaskStatus):
+            """wrapper to avoid repeated null check"""
+            if callback:
+                callback(status)
+
         # if local_dir is not set, the return value points to the cached data folder
         tqdm = HFModelProgressTracker
-        tqdm.callback = tqdm_callback
-        logger.info(f"callback is {tqdm.callback}")
+        if callback:
+            tqdm.register_hooks(tqdm_callback)
         local_dir = snapshot_download(
             repo_id=model_name,
             local_dir=local_dir,
@@ -1445,20 +1451,35 @@ class AquaModelApp(AquaApp):
             ignore_patterns=ignore_patterns,
             tqdm_class=tqdm,
         )
-        callback({"state": "Model download complete"})
+        publish_status(
+            TaskStatus(
+                state=TaskStatusEnum.MODEL_DOWNLOAD_SUCCESSFUL,
+                message="Model download complete",
+            )
+        )
         # Upload to object storage and skip .cache/huggingface/ folder
         logger.debug(
             f"Uploading local artifacts from local directory {local_dir} to {os_path}."
         )
         # Upload to object storage
-        callback({"state": "Object Storage upload started"})
+        publish_status(
+            TaskStatus(
+                state=TaskStatusEnum.MODEL_UPLOAD_STARTED,
+                message=f"Uploading model to Object Storage: {os_path}",
+            )
+        )
         model_artifact_path = upload_folder(
             os_path=os_path,
             local_dir=local_dir,
             model_name=model_name,
             exclude_pattern=f"{HF_METADATA_FOLDER}*",
         )
-        callback({"state": f"Uploaded model to {os_path}"})
+        publish_status(
+            TaskStatus(
+                state=TaskStatusEnum.MODEL_UPLOAD_SUCCESSFUL,
+                message=f"Model uploaded successfully to {os_path}",
+            )
+        )
 
         return model_artifact_path
 
@@ -1534,7 +1555,7 @@ class AquaModelApp(AquaApp):
         )
         publish_status(
             TaskStatus(
-                state="MODEL_VALIDATION_SUCCESSFUL",
+                state=TaskStatusEnum.MODEL_VALIDATION_SUCCESSFUL,
                 message="Model information validated",
             )
         )
@@ -1543,7 +1564,7 @@ class AquaModelApp(AquaApp):
         if import_model_details.download_from_hf:
             publish_status(
                 TaskStatus(
-                    state="MODEL_DOWNLOAD_BEGIN",
+                    state=TaskStatusEnum.MODEL_DOWNLOAD_STARTED,
                     message=f"Downloading {model_name} from Hugging Face",
                 )
             )
@@ -1572,7 +1593,10 @@ class AquaModelApp(AquaApp):
             defined_tags=import_model_details.defined_tags,
         )
         publish_status(
-            {"state": "Model Created", "message": f"Model id is: {ds_model.id}"}
+            TaskStatus(
+                TaskStatusEnum.DATASCIENCE_MODEL_CREATED,
+                message=f"DataScience model created. Model id is: {ds_model.id}",
+            )
         )
         # registered model will always have inference and evaluation container, but
         # fine-tuning container may be not set
@@ -1625,7 +1649,10 @@ class AquaModelApp(AquaApp):
                 model_name=model_name, local_dir=import_model_details.local_dir
             )
         publish_status(
-            {"state": "SUCCESS", "description": f"Model id is: {ds_model.id}"}
+            TaskStatus(
+                state=TaskStatusEnum.MODEL_REGISTRATION_SUCCESSFUL,
+                message=f"Model {model_name} successfully registered. Model id is: {ds_model.id}",
+            )
         )
         return AquaModel(**aqua_model_attributes)
 
