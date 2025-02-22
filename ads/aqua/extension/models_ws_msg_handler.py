@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -11,18 +11,28 @@ from ads.aqua.extension.aqua_ws_msg_handler import AquaWSMsgHandler
 from ads.aqua.extension.models.ws_models import (
     ListModelsResponse,
     ModelDetailsResponse,
+    ModelRegisterRequest,
     RequestResponseType,
 )
 from ads.aqua.model import AquaModelApp
 
+REGISTRATION_STATUS = "registration_status"
+
 
 class AquaModelWSMsgHandler(AquaWSMsgHandler):
+    status_subscriber = {}
+    register_status = {}  # Not threadsafe
+
     def __init__(self, message: Union[str, bytes]):
         super().__init__(message)
 
     @staticmethod
     def get_message_types() -> List[RequestResponseType]:
-        return [RequestResponseType.ListModels, RequestResponseType.ModelDetails]
+        return [
+            RequestResponseType.ListModels,
+            RequestResponseType.ModelDetails,
+            RequestResponseType.RegisterModelStatus,
+        ]
 
     @handle_exceptions
     def process(self) -> Union[ListModelsResponse, ModelDetailsResponse]:
@@ -47,3 +57,32 @@ class AquaModelWSMsgHandler(AquaWSMsgHandler):
                 kind=RequestResponseType.ModelDetails,
                 data=response,
             )
+        elif request.get("kind") == "RegisterModelStatus":
+            job_id = request.get("job_id")
+            if REGISTRATION_STATUS not in AquaModelWSMsgHandler.status_subscriber:
+                AquaModelWSMsgHandler.status_subscriber = {
+                    REGISTRATION_STATUS: {job_id: {"subscriber": []}}
+                }
+            if REGISTRATION_STATUS in AquaModelWSMsgHandler.status_subscriber:
+                if (
+                    job_id
+                    in AquaModelWSMsgHandler.status_subscriber[REGISTRATION_STATUS]
+                ):
+                    AquaModelWSMsgHandler.status_subscriber[REGISTRATION_STATUS][
+                        job_id
+                    ]["subscriber"].append(self.ws_connection)
+                else:
+                    AquaModelWSMsgHandler.status_subscriber[REGISTRATION_STATUS][
+                        job_id
+                    ] = {"subscriber": [self.ws_connection]}
+            print(AquaModelWSMsgHandler.register_status)
+            if "state" in AquaModelWSMsgHandler.register_status.get(job_id, {}):
+                return ModelRegisterRequest(
+                    status=AquaModelWSMsgHandler.register_status[job_id]["state"],
+                    message=AquaModelWSMsgHandler.register_status[job_id]["message"],
+                    job_id=job_id,
+                )
+            else:
+                return ModelRegisterRequest(
+                    status="SUBSCRIBED", job_id=job_id, message=""
+                )

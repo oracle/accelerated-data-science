@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import concurrent.futures
 from asyncio.futures import Future
@@ -46,10 +45,12 @@ def get_aqua_internal_error_response(message_id: str) -> ErrorResponse:
 class AquaUIWebSocketHandler(WebSocketHandler):
     """Handler for Aqua Websocket."""
 
-    _handlers_: List[Type[AquaWSMsgHandler]] = [AquaEvaluationWSMsgHandler,
-                                                AquaDeploymentWSMsgHandler,
-                                                AquaModelWSMsgHandler,
-                                                AquaCommonWsMsgHandler]
+    _handlers_: List[Type[AquaWSMsgHandler]] = [
+        AquaEvaluationWSMsgHandler,
+        AquaDeploymentWSMsgHandler,
+        AquaModelWSMsgHandler,
+        AquaCommonWsMsgHandler,
+    ]
 
     thread_pool: ThreadPoolExecutor
 
@@ -98,10 +99,17 @@ class AquaUIWebSocketHandler(WebSocketHandler):
             raise ValueError(f"No handler found for message type {request.kind}")
         else:
             message_handler = handler(message)
+            message_handler.set_ws_connection(self)
             future: Future = self.thread_pool.submit(message_handler.process)
             self.future_message_map[future] = request
             future.add_done_callback(self.on_message_processed)
 
+    def on_close(self) -> None:
+        self.thread_pool.shutdown()
+        logger.info("AQUA WebSocket closed")
+
+
+class AquaAsyncRequestProgressWebSocketHandler(AquaUIWebSocketHandler):
     def on_message_processed(self, future: concurrent.futures.Future):
         """Callback function to handle the response from the various AquaWSMsgHandlers."""
         try:
@@ -120,11 +128,12 @@ class AquaUIWebSocketHandler(WebSocketHandler):
         finally:
             self.future_message_map.pop(future)
             # Send the response back to the client on the event thread
-            IOLoop.current().run_sync(lambda: self.write_message(response.to_json()))
-
-    def on_close(self) -> None:
-        self.thread_pool.shutdown()
-        logger.info("AQUA WebSocket closed")
+            IOLoop.current().add_callback(
+                lambda: self.write_message(response.to_json())
+            )
 
 
-__handlers__ = [("ws?([^/]*)", AquaUIWebSocketHandler)]
+__handlers__ = [
+    ("ws?([^/]*)", AquaUIWebSocketHandler),
+    ("ws?/progress([^/]*)", AquaAsyncRequestProgressWebSocketHandler),
+]

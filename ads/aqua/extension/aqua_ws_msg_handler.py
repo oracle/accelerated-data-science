@@ -10,6 +10,7 @@ from http.client import responses
 from typing import List
 
 from tornado.web import HTTPError
+from tornado.websocket import WebSocketHandler
 
 from ads.aqua import logger
 from ads.aqua.common.decorator import handle_exceptions
@@ -52,6 +53,9 @@ class AquaWSMsgHandler:
         This method will contain the core logic to be executed for handling the message
         """
         pass
+
+    def set_ws_connection(self, con: WebSocketHandler):
+        self.ws_connection = con
 
     def write_error(self, status_code, **kwargs):
         """AquaWSMSGhandler errors are JSON, not human pages."""

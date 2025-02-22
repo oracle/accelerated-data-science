@@ -11,7 +11,7 @@ This module contains dataclasses for Aqua Model.
 
 import re
 from dataclasses import InitVar, dataclass, field
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 import oci
 from huggingface_hub import hf_api
@@ -24,6 +24,7 @@ from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model.enums import FineTuningDefinedMetadata
 from ads.aqua.training.exceptions import exit_code_dict
 from ads.aqua.ui import ModelFormat
+from ads.common.extended_enum import ExtendedEnum
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_log_links
 from ads.model.datascience_model import DataScienceModel
@@ -295,6 +296,24 @@ class ImportModelDetails(CLIBuilderMixin):
     freeform_tags: Optional[dict] = None
     defined_tags: Optional[dict] = None
     ignore_model_artifact_check: Optional[bool] = None
+    callback: Optional[Callable] = None
 
     def __post_init__(self):
         self._command = "model register"
+
+
+class TaskStatusEnum(ExtendedEnum):
+    MODEL_VALIDATION_SUCCESSFUL = "MODEL_VALIDATION_SUCCESSFUL"
+    MODEL_DOWNLOAD_STARTED = "MODEL_DOWNLOAD_STARTED"
+    MODEL_DOWNLOAD_SUCCESSFUL = "MODEL_DOWNLOAD_SUCCESSFUL"
+    MODEL_UPLOAD_STARTED = "MODEL_UPLOAD_STARTED"
+    MODEL_UPLOAD_SUCCESSFUL = "MODEL_UPLOAD_SUCCESSFUL"
+    DATASCIENCE_MODEL_CREATED = "DATASCIENCE_MODEL_CREATED"
+    MODEL_REGISTRATION_SUCCESSFUL = "MODEL_REGISTRATION_SUCCESSFUL"
+    REGISTRATION_FAILED = "REGISTRATION_FAILED"
+
+
+@dataclass
+class TaskStatus(DataClassSerializable):
+    state: TaskStatusEnum
+    message: str
