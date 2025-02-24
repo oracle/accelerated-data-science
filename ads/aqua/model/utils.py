@@ -5,6 +5,8 @@
 
 from tqdm import tqdm
 
+from ads.aqua.model.entities import TaskStatus, TaskStatusEnum
+
 
 class HFModelProgressTracker(tqdm):
     hooks = []
@@ -25,9 +27,19 @@ class HFModelProgressTracker(tqdm):
         super().update(n)
         # Invoke the callback with the current progress value (self.n)
         for hook in HFModelProgressTracker.hooks:
-            hook({"status": f"{self.n} of {self.total} files downloaded"})
+            hook(
+                TaskStatus(
+                    state=TaskStatusEnum.MODEL_DOWNLOAD_INPROGRESS,
+                    message=f"{self.n} of {self.total} files downloaded",
+                )
+            )
 
     def close(self):
         for hook in HFModelProgressTracker.hooks:
-            hook({"status": f"{self.n} of {self.total} files downloaded"})
+            hook(
+                TaskStatus(
+                    state=TaskStatusEnum.MODEL_DOWNLOAD_INPROGRESS,
+                    message=f"{self.n} of {self.total} files downloaded",
+                )
+            )
         super().close()

@@ -1432,7 +1432,7 @@ class AquaModelApp(AquaApp):
             local_dir = os.path.join(local_dir, model_name)
             os.makedirs(local_dir, exist_ok=True)
 
-        def tqdm_callback(self, status):  # noqa: ARG001
+        def tqdm_callback(status: TaskStatus):  # noqa: ARG001
             callback(status)
 
         def publish_status(status: TaskStatus):
@@ -1754,6 +1754,7 @@ class AquaModelApp(AquaApp):
         aqua_model_list = self.list()
 
         for aqua_model_summary in aqua_model_list:
+            print(aqua_model_summary.name.lower())
             if aqua_model_summary.name.lower() == model_id_lower:
                 logger.info(
                     f"Found matching verified model id {aqua_model_summary.id} for the model {model_id}"
