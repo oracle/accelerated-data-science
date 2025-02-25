@@ -26,6 +26,7 @@ from ads.config import (
 from ads.config import (
     COMPARTMENT_OCID,
     PROJECT_OCID,
+    USER,
 )
 from ads.feature_engineering.schema import Schema
 from ads.jobs.builders.base import Builder
@@ -42,6 +43,7 @@ from ads.model.model_metadata import (
     ModelTaxonomyMetadata,
 )
 from ads.model.service.oci_datascience_model import (
+    ModelMetadataArtifactDetails,
     ModelProvenanceNotFoundError,
     OCIDataScienceModel,
 )
@@ -1591,7 +1593,11 @@ class DataScienceModel(Builder):
 
     @classmethod
     def list(
-        cls, compartment_id: str = None, project_id: str = None, **kwargs
+        cls,
+        compartment_id: str = None,
+        project_id: str = None,
+        category: str = USER,
+        **kwargs,
     ) -> List["DataScienceModel"]:
         """Lists datascience models in a given compartment.
 
@@ -1601,6 +1607,8 @@ class DataScienceModel(Builder):
             The compartment OCID.
         project_id: (str, optional). Defaults to `None`.
             The project OCID.
+        category: (str, optional). Defaults to `USER`.
+            The category of Model. Allowed values are: "USER", "SERVICE"
         kwargs
             Additional keyword arguments for filtering models.
 
@@ -1612,13 +1620,17 @@ class DataScienceModel(Builder):
         return [
             cls()._update_from_oci_dsc_model(model)
             for model in OCIDataScienceModel.list_resource(
-                compartment_id, project_id=project_id, **kwargs
+                compartment_id, project_id=project_id, category=category, **kwargs
             )
         ]
 
     @classmethod
     def list_df(
-        cls, compartment_id: str = None, project_id: str = None, **kwargs
+        cls,
+        compartment_id: str = None,
+        project_id: str = None,
+        category: str = USER,
+        **kwargs,
     ) -> "pandas.DataFrame":
         """Lists datascience models in a given compartment.
 
@@ -1628,6 +1640,8 @@ class DataScienceModel(Builder):
             The compartment OCID.
         project_id: (str, optional). Defaults to `None`.
             The project OCID.
+        category: (str, optional). Defaults to `None`.
+            The category of Model.
         kwargs
             Additional keyword arguments for filtering models.
 
@@ -1638,7 +1652,7 @@ class DataScienceModel(Builder):
         """
         records = []
         for model in OCIDataScienceModel.list_resource(
-            compartment_id, project_id=project_id, **kwargs
+            compartment_id, project_id=project_id, category=category, **kwargs
         ):
             records.append(
                 {
@@ -2213,3 +2227,276 @@ class DataScienceModel(Builder):
         else:
             # model found case
             self.model_file_description["models"].pop(modelSearchIdx)
+
+    def create_custom_metadata_artifact(
+        self,
+        metadata_key_name: str,
+        artifact_path_or_content: str,
+        path_type: str = utils.MetadataArtifactPathType.LOCAL,
+    ) -> ModelMetadataArtifactDetails:
+        """Creates model custom metadata artifact for specified model.
+
+        Parameters
+        ----------
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+
+        artifact_path: str
+            The model custom metadata artifact local file path to be upload.
+        Returns
+        -------
+        Dict
+            The model custom metadata artifact creation info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'ETag': '77156317-8bb9-4c4a-882b-0d85f8140d93',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Length': '4029958',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        return self.dsc_model.create_custom_metadata_artifact(
+            metadata_key_name=metadata_key_name,
+            artifact_path=artifact_path_or_content,
+            path_type=path_type,
+        )
+
+    def create_defined_metadata_artifact(
+        self,
+        metadata_key_name: str,
+        artifact_path_or_content: str,
+        path_type: str = utils.MetadataArtifactPathType.LOCAL,
+    ) -> ModelMetadataArtifactDetails:
+        """Creates model defined metadata artifact for specified model.
+
+        Parameters
+        ----------
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+
+        artifact_path: str
+            The model defined metadata artifact local file path to be upload.
+        Returns
+        -------
+        The model defined metadata artifact creation info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'ETag': '77156317-8bb9-4c4a-882b-0d85f8140d93',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Length': '4029958',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        return self.dsc_model.create_defined_metadata_artifact(
+            metadata_key_name=metadata_key_name,
+            artifact_path=artifact_path_or_content,
+            path_type=path_type,
+        )
+
+    def update_custom_metadata_artifact(
+        self,
+        metadata_key_name: str,
+        artifact_path_or_content: str,
+        path_type: str = utils.MetadataArtifactPathType.LOCAL,
+    ) -> ModelMetadataArtifactDetails:
+        """Update model custom metadata artifact for specified model.
+
+        Parameters
+        ----------
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+
+        artifact_path: str
+            The model custom metadata artifact local file path to be upload.
+        Returns
+        -------
+        Dict
+            The model custom metadata artifact update info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'ETag': '77156317-8bb9-4c4a-882b-0d85f8140d93',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Length': '4029958',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        return self.dsc_model.update_custom_metadata_artifact(
+            metadata_key_name=metadata_key_name,
+            artifact_path=artifact_path_or_content,
+            path_type=path_type,
+        )
+
+    def update_defined_metadata_artifact(
+        self,
+        metadata_key_name: str,
+        artifact_path_or_content: str,
+        path_type: str = utils.MetadataArtifactPathType.LOCAL,
+    ) -> ModelMetadataArtifactDetails:
+        """Update model defined metadata artifact for specified model.
+
+        Parameters
+        ----------
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+
+        artifact_path: str
+            The model defined metadata artifact local file path to be upload.
+        Returns
+        -------
+        Dict
+            The model defined metadata artifact update info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'ETag': '77156317-8bb9-4c4a-882b-0d85f8140d93',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Length': '4029958',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        return self.dsc_model.update_defined_metadata_artifact(
+            metadata_key_name=metadata_key_name,
+            artifact_path=artifact_path_or_content,
+            path_type=path_type,
+        )
+
+    def get_custom_metadata_artifact(
+        self, metadata_key_name: str, target_dir: str, override: bool = False
+    ) -> None:
+        """Downloads model custom metadata artifact content for specified model metadata key.
+
+        Parameters
+        ----------
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+        target_dir: str
+            The local file path where downloaded model custom metadata artifact saved.
+        override: bool
+            A boolean flag that controls downloaded metadata artifact file overwriting
+            - If True, overwrites the file if it already exists.
+            - If False (default), raises a `FileExistsError` if the file exists.
+        Returns
+        -------
+        BytesIO
+               custom metadata artifact content
+
+        """
+        file_content = self.dsc_model.get_custom_metadata_artifact(
+            metadata_key_name=metadata_key_name
+        )
+        artifact_file_path = os.path.join(target_dir, f"{metadata_key_name}")
+
+        if not override and os.path.exists(artifact_file_path):
+            raise FileExistsError(f"File already exists: {artifact_file_path}")
+
+        with open(artifact_file_path, "wb") as _file:
+            _file.write(file_content)
+            logger.info(f"Artifact downloaded to location - {artifact_file_path}")
+
+    def get_defined_metadata_artifact(
+        self, metadata_key_name: str, target_dir: str, override: bool = False
+    ) -> None:
+        """Downloads model defined metadata artifact content for specified model metadata key.
+
+        Parameters
+        ----------
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+        target_dir: str
+            The local file path where downloaded model defined metadata artifact saved.
+        override: bool
+            A boolean flag that controls downloaded metadata artifact file overwriting
+            - If True, overwrites the file if it already exists.
+            - If False (default), raises a `FileExistsError` if the file exists.
+        Returns
+        -------
+        BytesIO
+                Defined metadata artifact content
+
+        """
+        file_content = self.dsc_model.get_defined_metadata_artifact(
+            metadata_key_name=metadata_key_name
+        )
+        artifact_file_path = os.path.join(target_dir, f"{metadata_key_name}")
+
+        if not override and os.path.exists(artifact_file_path):
+            raise FileExistsError(f"File already exists: {artifact_file_path}")
+
+        with open(artifact_file_path, "wb") as _file:
+            _file.write(file_content)
+            logger.info(f"Artifact downloaded to location - {artifact_file_path}")
+
+    def delete_custom_metadata_artifact(
+        self, metadata_key_name: str
+    ) -> ModelMetadataArtifactDetails:
+        """Deletes model custom metadata artifact for specified model metadata key.
+
+        Parameters
+        ----------
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+        Returns
+        -------
+        Dict
+            The model custom metadata artifact delete call info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'X-Content-Type-Options': 'nosniff',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        return self.dsc_model.delete_custom_metadata_artifact(
+            metadata_key_name=metadata_key_name
+        )
+
+    def delete_defined_metadata_artifact(
+        self, metadata_key_name: str
+    ) -> ModelMetadataArtifactDetails:
+        """Deletes model defined metadata artifact for specified model metadata key.
+
+        Parameters
+        ----------
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+        Returns
+        -------
+        Dict
+            The model defined metadata artifact delete call info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'X-Content-Type-Options': 'nosniff',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        return self.dsc_model.delete_defined_metadata_artifact(
+            metadata_key_name=metadata_key_name
+        )
