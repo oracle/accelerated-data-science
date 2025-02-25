@@ -22,6 +22,7 @@ from ads.aqua.extension.errors import Errors
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import AquaModelSummary, HFModelSummary
 from ads.aqua.ui import ModelFormat
+from ads.common.utils import MetadataArtifactPathType
 
 
 class AquaModelHandler(AquaAPIhandler):
@@ -350,18 +351,28 @@ class AquaModelDefinedMetadataArtifactHandler(AquaAPIhandler):
         Raises HTTPError if inputs are missing or are invalid.
     """
 
+    @handle_exceptions
     def get(self, model_id: str, metadata_key: str):
         """
         model_id: ocid of the model
         metadata_key: the metadata key for which artifact content needs to be downloaded.
         Can be any of Readme, License , FinetuneConfiguration , DeploymentConfiguration
         """
-        target_dir = self.get_argument("target_dir")
-        if not target_dir:
-            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("target_dir"))
+        content = str(
+            AquaModelApp().get_defined_metadata_artifact_content(model_id, metadata_key)
+        )
+        return self.finish({"content": content})
+
+    @handle_exceptions
+    def post(self, model_id: str, metadata_key: str):
+        input_body = self.get_json_body()
+        path_type = input_body.get("path_type")
+        artifact_path_or_content = input_body.get("artifact_path_or_content")
+        if path_type not in MetadataArtifactPathType.values():
+            raise HTTPError(400, f"Invalid value of path_type: {path_type}")
         return self.finish(
-            AquaModelApp().get_defined_metadata_artifact_content(
-                model_id, metadata_key, target_dir
+            AquaModelApp().create_defined_metadata_artifact(
+                model_id, metadata_key, path_type, artifact_path_or_content
             )
         )
 

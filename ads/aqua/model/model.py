@@ -831,14 +831,42 @@ class AquaModelApp(AquaApp):
         family_values = [item.family for item in containers]
         return family_values
 
-    def get_defined_metadata_artifact_content(
-        self, model_id: str, metadata_key: str, target_dir: str
+    @telemetry(
+        entry_point="plugin=model&action=get_defined_metadata_artifact_content",
+        name="aqua",
+    )
+    def get_defined_metadata_artifact_content(self, model_id: str, metadata_key: str):
+        try:
+            content = self.ds_client.get_model_defined_metadatum_artifact_content(
+                model_id, metadata_key
+            ).data.content.decode("utf-8")
+            return content
+        except Exception as ex:
+            raise AquaRuntimeError(
+                f"Error in getting defined metadata artifact content for model: {model_id}. {ex}"
+            )
+
+    @telemetry(
+        entry_point="plugin=model&action=create_defined_metadata_artifact", name="aqua"
+    )
+    def create_defined_metadata_artifact(
+        self,
+        model_id: str,
+        metadata_key: str,
+        path_type: str,
+        artifact_path_or_content: str,
     ):
         ds_model = DataScienceModel.from_id(model_id)
-        ds_model.get_defined_metadata_artifact(
-            metadata_key, target_dir=target_dir, override=True
-        )
-        return {f"{metadata_key} download status": "Success"}
+        try:
+            ds_model.create_defined_metadata_artifact(
+                metadata_key_name=metadata_key,
+                artifact_path_or_content=artifact_path_or_content,
+                path_type=path_type,
+            )
+        except Exception as ex:
+            raise AquaRuntimeError(
+                f"Error occurred in creating defined metadata artifact for model: {model_id}: {ex}"
+            )
 
     def _create_model_catalog_entry(
         self,
