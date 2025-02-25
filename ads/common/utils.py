@@ -84,6 +84,7 @@ mpl.rcParams["axes.prop_cycle"] = cycler(
 )
 
 
+# Metadata artifact path type can be either local path or OSS path. It can also be the content itself.
 class MetadataArtifactPathType(ExtendedEnum):
     LOCAL = "local"
     OSS = "oss"

@@ -625,7 +625,7 @@ class OCIDataScienceModel(
         msg="Model needs to be saved to the Model Catalog before the creating custom metadata artifact corresponding to that model"
     )
     def create_custom_metadata_artifact(
-        self, metadata_key_name: str, artifact_path: str
+        self, metadata_key_name: str, artifact_path: str, path_type: str
     ) -> ModelMetadataArtifactDetails:
         """Creates model custom metadata artifact for specified model.
 
@@ -653,12 +653,9 @@ class OCIDataScienceModel(
             }
 
         """
-        if not utils.is_path_exists(artifact_path):
-            raise FileNotFoundError(f"File not found:  {artifact_path} . ")
-        with open(artifact_path, "rb") as f:
-            contents = f.read()
-            logger.info(f"The metadata artifact content - {contents}")
-
+        contents = self.get_metadata_content(
+            artifact_path_or_content=artifact_path, path_type=path_type
+        )
         response = self.client.create_model_custom_metadatum_artifact(
             self.id,
             metadata_key_name,
@@ -671,6 +668,21 @@ class OCIDataScienceModel(
         return response_data
 
     def get_metadata_content(self, artifact_path_or_content: str, path_type):
+        """
+        returns the content of the metadata artifact
+
+        Parameters
+        ----------
+        artifact_path_or_content: str
+            The path of the file (local or oss) containing metadata artifact or content.
+        path_type: str
+            can be one of local , oss or content
+
+        Returns
+        -------
+        metadata artifact content
+        """
+
         if path_type == utils.MetadataArtifactPathType.CONTENT:
             return artifact_path_or_content
         elif path_type == utils.MetadataArtifactPathType.LOCAL:
@@ -723,7 +735,9 @@ class OCIDataScienceModel(
             }
 
         """
-        contents = self.get_metadata_content(artifact_path, path_type)
+        contents = self.get_metadata_content(
+            artifact_path_or_content=artifact_path, path_type=path_type
+        )
         response = self.client.create_model_defined_metadatum_artifact(
             self.id,
             metadata_key_name,
@@ -767,7 +781,9 @@ class OCIDataScienceModel(
             }
 
         """
-        contents = self.get_metadata_content(artifact_path, path_type)
+        contents = self.get_metadata_content(
+            artifact_path_or_content=artifact_path, path_type=path_type
+        )
         response = self.client.update_model_defined_metadatum_artifact(
             self.id,
             metadata_key_name,
@@ -811,7 +827,9 @@ class OCIDataScienceModel(
             }
 
         """
-        contents = self.get_metadata_content(artifact_path, path_type)
+        contents = self.get_metadata_content(
+            artifact_path_or_content=artifact_path, path_type=path_type
+        )
         response = self.client.update_model_custom_metadatum_artifact(
             self.id,
             metadata_key_name,
