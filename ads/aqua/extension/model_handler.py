@@ -358,10 +358,10 @@ class AquaModelDefinedMetadataArtifactHandler(AquaAPIhandler):
         metadata_key: the metadata key for which artifact content needs to be downloaded.
         Can be any of Readme, License , FinetuneConfiguration , DeploymentConfiguration
         """
-        content = str(
+
+        return self.finish(
             AquaModelApp().get_defined_metadata_artifact_content(model_id, metadata_key)
         )
-        return self.finish({"content": content})
 
     @handle_exceptions
     def post(self, model_id: str, metadata_key: str):

@@ -347,7 +347,12 @@ class AquaApp:
         try:
             config = self.ds_client.get_model_defined_metadatum_artifact_content(
                 model_id, config_file_name
-            ).data.content
+            ).data.content.decode("utf-8")
+            try:
+                config_dict = json.loads(config)
+                config = config_dict
+            except Exception:
+                pass
         except Exception:
             pass
 

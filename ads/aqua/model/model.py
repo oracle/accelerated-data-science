@@ -836,15 +836,12 @@ class AquaModelApp(AquaApp):
         name="aqua",
     )
     def get_defined_metadata_artifact_content(self, model_id: str, metadata_key: str):
-        try:
-            content = self.ds_client.get_model_defined_metadatum_artifact_content(
-                model_id, metadata_key
-            ).data.content.decode("utf-8")
-            return content
-        except Exception as ex:
-            raise AquaRuntimeError(
-                f"Error in getting defined metadata artifact content for model: {model_id}. {ex}"
+        content = self.get_config(model_id, metadata_key)
+        if not content:
+            logger.debug(
+                f"Defined metadata artifact {metadata_key} for model: {model_id} is not available."
             )
+        return content
 
     @telemetry(
         entry_point="plugin=model&action=create_defined_metadata_artifact", name="aqua"
