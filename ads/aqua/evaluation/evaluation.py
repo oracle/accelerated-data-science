@@ -75,6 +75,7 @@ from ads.aqua.evaluation.entities import (
     CreateAquaEvaluationDetails,
 )
 from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
+from ads.aqua.model.constants import ModelCustomMetadataFields
 from ads.aqua.ui import AquaContainerConfig
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -183,6 +184,26 @@ class AquaEvaluationApp(AquaApp):
             evaluation_source = ModelDeployment.from_id(
                 create_aqua_evaluation_details.evaluation_source_id
             )
+            try:
+                if Tags.MULTIMODEL_TYPE_TAG in evaluation_source.freeform_tags:
+                    multi_model_id = evaluation_source.freeform_tags.get(
+                        Tags.AQUA_MODEL_ID_TAG, UNKNOWN
+                    )
+
+                    if not multi_model_id:
+                        raise AquaRuntimeError(
+                            f"Invalid multi model deployment {multi_model_id}."
+                            f"Make sure the {Tags.AQUA_MODEL_ID_TAG} tag is added to the deployment."
+                        )
+
+                    aqua_model = DataScienceModel.from_id(multi_model_id)
+                    AquaEvaluationApp.validate_name_multi_model(
+                        aqua_model, create_aqua_evaluation_details
+                    )
+
+            except (AquaRuntimeError, AquaValueError) as err:
+                raise AquaValueError(f"{err}") from err
+
             try:
                 if (
                     evaluation_source.runtime.type
@@ -549,6 +570,43 @@ class AquaEvaluationApp(AquaApp):
             },
             parameters=AquaEvalParams(),
         )
+
+    @staticmethod
+    def validate_name_multi_model(
+        evaluation_source: DataScienceModel,
+        create_aqua_evaluation_details: CreateAquaEvaluationDetails,
+    ):
+        user_model_parameters = create_aqua_evaluation_details.model_parameters
+        if "name" not in user_model_parameters:
+            logger.debug(
+                f"User did not input model name for multi model deployment evaluation with evaluation source ID: {create_aqua_evaluation_details.evaluation_source_id}"
+            )
+            raise AquaValueError(
+                "Provide the model name. For evaluation, a single model needs to be targeted using the name in the multi model deployment."
+            )
+
+        custom_metadata_list = evaluation_source.custom_metadata_list
+        user_model_name = user_model_parameters.get("name")
+
+        model_group_count = int(
+            custom_metadata_list.get(
+                ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT
+            ).value
+        )
+
+        model_names = [
+            custom_metadata_list.get(f"model-name-{idx}").value
+            for idx in range(model_group_count)
+        ]
+
+        if user_model_name not in model_names:
+            valid_model_names = ", ".join(map(str, model_names))
+            logger.debug(
+                f"User input for model name was {user_model_name}, expected {valid_model_names} evaluation source ID: {create_aqua_evaluation_details.evaluation_source_id}"
+            )
+            raise AquaValueError(
+                f"Provide the correct model name. The valid model names for this Model Deployment are {valid_model_names}."
+            )
 
     def _build_evaluation_runtime(
         self,
@@ -1392,7 +1450,7 @@ class AquaEvaluationApp(AquaApp):
             )
         except Exception as e:
             logger.debug(
-                f"Failed to retreive job run: {jobrun_id}. " f"DEBUG INFO: {str(e)}"
+                f"Failed to retreive job run: {jobrun_id}. DEBUG INFO: {str(e)}"
             )
             jobrun = None
 

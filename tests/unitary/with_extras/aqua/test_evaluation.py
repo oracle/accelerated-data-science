@@ -34,6 +34,7 @@ from ads.aqua.evaluation.entities import (
     AquaEvalMetrics,
     AquaEvalReport,
     AquaEvaluationSummary,
+    CreateAquaEvaluationDetails,
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.jobs.ads_job import DataScienceJob, DataScienceJobRun, Job
@@ -353,6 +354,7 @@ class TestDataset:
     COMPARTMENT_ID = "ocid1.compartment.oc1..<UNIQUE_OCID>"
     EVAL_ID = "ocid1.datasciencemodel.oc1.iad.<OCID>"
     INVALID_EVAL_ID = "ocid1.datasciencemodel.oc1.phx.<OCID>"
+    MODEL_DEPLOYMENT_ID = "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>"
 
 
 class TestAquaEvaluation(unittest.TestCase):
@@ -449,7 +451,7 @@ class TestAquaEvaluation(unittest.TestCase):
         mock_from_id.return_value = foundation_model
 
         experiment = MagicMock()
-        experiment.id = "test_experiment_id"
+        experiment.id = "ocid1.datasciencemodelversionset.oc1.iad.amaaaaaav66vvniakngdzelb5hcgjd6yvfejksu2excidvvi3s5s5whtmdea"
         mock_mvs_create.return_value = experiment
 
         evaluation_model = MagicMock()
@@ -532,6 +534,67 @@ class TestAquaEvaluation(unittest.TestCase):
             },
             "time_created": f"{oci_dsc_model.time_created}",
         }
+
+    @parameterized.expand(
+    [
+        (
+            {"name": "model_one"},
+            None
+        ),
+        (
+            {},
+            "Provide the model name. For evaluation, a single model needs to be targeted using the name in the multi model deployment."
+        ),
+        (
+            {"name": "wrong_model_name"},
+            "Provide the correct model name. The valid model names for this Model Deployment are model_one, model_two, model_three."
+        )
+    ])
+    @patch("ads.aqua.evaluation.evaluation.AquaEvaluationApp.create")
+    def test_validate_multi_model_evaluation(
+        self,
+        mock_model_parameters,
+        expected_message,
+        mock_model
+    ):
+        curr_dir = os.path.dirname(__file__)
+
+        eval_model_freeform_tags = {"ftag1": "fvalue1", "ftag2": "fvalue2"}
+        eval_model_defined_tags = {"dtag1": "dvalue1", "dtag2": "dvalue2"}
+
+        eval_model_freeform_tags[Tags.MULTIMODEL_TYPE_TAG] = "true"
+        eval_model_freeform_tags[Tags.AQUA_TAG] = "active"
+
+        create_aqua_evaluation_details = dict(  # noqa: C408
+            evaluation_source_id= TestDataset.MODEL_DEPLOYMENT_ID,
+            evaluation_name="test_evaluation_name",
+            dataset_path="oci://dataset_bucket@namespace/prefix/dataset.jsonl",
+            report_path="oci://report_bucket@namespace/prefix/",
+            model_parameters=mock_model_parameters,
+            shape_name="VM.Standard.E3.Flex",
+            block_storage_size=1,
+            experiment_name="test_experiment_name",
+            memory_in_gbs=1,
+            ocpus=1,
+            freeform_tags=eval_model_freeform_tags,
+            defined_tags=eval_model_defined_tags,
+        )
+
+
+        aqua_multi_model = os.path.join(
+            curr_dir, "test_data/deployment/aqua_multi_model.yaml"
+        )
+
+        mock_model = DataScienceModel.from_yaml(
+            uri=aqua_multi_model
+        )
+
+        mock_create_aqua_evaluation_details = MagicMock(**create_aqua_evaluation_details, spec=CreateAquaEvaluationDetails)
+
+        try:
+            AquaEvaluationApp.validate_name_multi_model(mock_model, mock_create_aqua_evaluation_details)
+        except Exception as e:
+            self.assertEqual(str(e), expected_message)
 
     def test_get_service_model_name(self):
         # get service model name from fine tuned model deployment
