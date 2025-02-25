@@ -53,6 +53,7 @@ from ads.aqua.modeldeployment.entities import (
 )
 from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
 from ads.aqua.ui import ModelFormat
+from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
 from ads.config import (
@@ -879,7 +880,7 @@ class AquaDeploymentApp(AquaApp):
             multi_model_metadata = json.loads(
                 read_file(
                     file_path=multi_model_metadata_path,
-                    auth=self._auth,
+                    auth=default_signer(),
                 )
             )
             aqua_deployment.models = [
