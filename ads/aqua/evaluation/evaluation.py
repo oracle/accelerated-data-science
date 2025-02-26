@@ -185,25 +185,22 @@ class AquaEvaluationApp(AquaApp):
             evaluation_source = ModelDeployment.from_id(
                 create_aqua_evaluation_details.evaluation_source_id
             )
-            try:
-                if Tags.MULTIMODEL_TYPE_TAG in evaluation_source.freeform_tags:
-                    multi_model_id = evaluation_source.freeform_tags.get(
-                        Tags.AQUA_MODEL_ID_TAG, UNKNOWN
+
+            if Tags.MULTIMODEL_TYPE_TAG in evaluation_source.freeform_tags:
+                multi_model_id = evaluation_source.freeform_tags.get(
+                    Tags.AQUA_MODEL_ID_TAG, UNKNOWN
+                )
+
+                if not multi_model_id:
+                    raise AquaRuntimeError(
+                        f"Invalid multi model deployment {multi_model_id}."
+                        f"Make sure the {Tags.AQUA_MODEL_ID_TAG} tag is added to the deployment."
                     )
 
-                    if not multi_model_id:
-                        raise AquaRuntimeError(
-                            f"Invalid multi model deployment {multi_model_id}."
-                            f"Make sure the {Tags.AQUA_MODEL_ID_TAG} tag is added to the deployment."
-                        )
-
-                    aqua_model = DataScienceModel.from_id(multi_model_id)
-                    AquaEvaluationApp.validate_model_name(
-                        aqua_model, create_aqua_evaluation_details
-                    )
-
-            except AquaError as err:
-                raise AquaValueError(f"{err}") from err
+                aqua_model = DataScienceModel.from_id(multi_model_id)
+                AquaEvaluationApp.validate_model_name(
+                    aqua_model, create_aqua_evaluation_details
+                )
 
             try:
                 if (
@@ -593,24 +590,31 @@ class AquaEvaluationApp(AquaApp):
         -------
         AquaValueError:
             - When the user fails to specify any input for the model name.
-            - When the user supplies a model name that does not match the model name set in the DataScienceModel metadata."""
+            - When the user supplies a model name that does not match the model name set in the DataScienceModel metadata.
+            - When the DataScienceModel metadata lacks core attributes for validating the name"""
         user_model_parameters = create_aqua_evaluation_details.model_parameters
 
         custom_metadata_list = evaluation_source.custom_metadata_list
         user_model_name = user_model_parameters.get("model")
 
-        model_group_count = int(
-            custom_metadata_list.get(
-                ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT
-            ).value
-        )
+        model_count = custom_metadata_list.get(ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT)
+
+        if model_count and custom_metadata_list:
+            model_group_count = int(model_count.value)
+        else:
+            logger.debug(
+                f"The ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT or custom_metadata_list (ModelCustomMetadata) is missing from the metadata in evaluation source ID: {create_aqua_evaluation_details.evaluation_source_id}"
+            )
+            raise AquaRuntimeError(
+                "Recreate the model deployment and retry the evaluation. An issue occured when initalizing the model group during deployment."
+            )
 
         model_names = [
-            custom_metadata_list.get(f"model-name-{idx}").value
+            custom_metadata_list.get(f"model-name-{idx}")
             for idx in range(model_group_count)
         ]
 
-        valid_model_names = ", ".join(map(str, model_names))
+        valid_model_names = ", ".join(name.value for name in model_names if name is not None)
 
         if "model" not in user_model_parameters:
             logger.debug(

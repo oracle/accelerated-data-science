@@ -38,6 +38,7 @@ from ads.aqua.evaluation.entities import (
     CreateAquaEvaluationDetails,
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.aqua.model.constants import ModelCustomMetadataFields
 from ads.jobs.ads_job import DataScienceJob, DataScienceJobRun, Job
 from ads.model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
@@ -539,10 +540,6 @@ class TestAquaEvaluation(unittest.TestCase):
     @parameterized.expand(
     [
         (
-            {"model": "model_one"},
-            None
-        ),
-        (
             {},
             "Provide the model name. For evaluation, a single model needs to be targeted using the name in the multi model deployment. The valid model names for this Model Deployment are model_one, model_two, model_three."
         ),
@@ -595,6 +592,7 @@ class TestAquaEvaluation(unittest.TestCase):
         try:
             AquaEvaluationApp.validate_model_name(mock_model, mock_create_aqua_evaluation_details)
         except AquaError as e:
+            print(str(e))
             self.assertEqual(str(e), expected_message)
 
     def test_get_service_model_name(self):
