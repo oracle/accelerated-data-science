@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import base64
@@ -358,6 +358,30 @@ class TestDataset:
     INVALID_EVAL_ID = "ocid1.datasciencemodel.oc1.phx.<OCID>"
     MODEL_DEPLOYMENT_ID = "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>"
 
+    multi_model_deployment_model_attributes = [
+        {
+            "env_var": {"--test_key_one": "test_value_one"},
+            "gpu_count": 1,
+            "model_id": "ocid1.compartment.oc1..<OCID>",
+            "model_name": "model_one",
+            "artifact_location": "artifact_location_one",
+        },
+        {
+            "env_var": {"--test_key_two": "test_value_two"},
+            "gpu_count": 1,
+            "model_id": "ocid1.compartment.oc1..<OCID>",
+            "model_name": "model_two",
+            "artifact_location": "artifact_location_two",
+        },
+        {
+            "env_var": {"--test_key_three": "test_value_three"},
+            "gpu_count": 1,
+            "model_id": "ocid1.compartment.oc1..<OCID>",
+            "model_name": "model_three",
+            "artifact_location": "artifact_location_three",
+        },
+    ]
+
 
 class TestAquaEvaluation(unittest.TestCase):
     """Contains unittests for TestAquaEvaluationApp."""
@@ -538,22 +562,27 @@ class TestAquaEvaluation(unittest.TestCase):
         }
 
     @parameterized.expand(
-    [
-        (
-            {},
-            "Provide the model name. For evaluation, a single model needs to be targeted using the name in the multi model deployment. The valid model names for this Model Deployment are model_one, model_two, model_three."
-        ),
-        (
-            {"model": "wrong_model_name"},
-            "Provide the correct model name. The valid model names for this Model Deployment are model_one, model_two, model_three."
-        )
-    ])
+        [
+            (
+                {},
+                "Provide the model name. For evaluation, a single model needs to be targeted using the name in the multi model deployment. The valid model names for this Model Deployment are model_one, model_two, model_three.",
+            ),
+            (
+                {"model": "wrong_model_name"},
+                "Provide the correct model name. The valid model names for this Model Deployment are model_one, model_two, model_three.",
+            ),
+        ]
+    )
     @patch("ads.aqua.evaluation.evaluation.AquaEvaluationApp.create")
+    @patch(
+        "ads.model.datascience_model.OCIDataScienceModel.get_custom_metadata_artifact"
+    )
     def test_validate_model_name(
         self,
         mock_model_parameters,
         expected_message,
-        mock_model
+        mock_get_custom_metadata_artifact,
+        mock_model,
     ):
         curr_dir = os.path.dirname(__file__)
 
@@ -564,7 +593,7 @@ class TestAquaEvaluation(unittest.TestCase):
         eval_model_freeform_tags[Tags.AQUA_TAG] = "active"
 
         create_aqua_evaluation_details = dict(  # noqa: C408
-            evaluation_source_id= TestDataset.MODEL_DEPLOYMENT_ID,
+            evaluation_source_id=TestDataset.MODEL_DEPLOYMENT_ID,
             evaluation_name="test_evaluation_name",
             dataset_path="oci://dataset_bucket@namespace/prefix/dataset.jsonl",
             report_path="oci://report_bucket@namespace/prefix/",
@@ -578,19 +607,27 @@ class TestAquaEvaluation(unittest.TestCase):
             defined_tags=eval_model_defined_tags,
         )
 
-
         aqua_multi_model = os.path.join(
             curr_dir, "test_data/deployment/aqua_multi_model.yaml"
         )
 
-        mock_model = DataScienceModel.from_yaml(
-            uri=aqua_multi_model
+        mock_model = DataScienceModel.from_yaml(uri=aqua_multi_model)
+
+        multi_model_deployment_model_attributes_str = json.dumps(
+            TestDataset.multi_model_deployment_model_attributes
+        ).encode("utf-8")
+        mock_get_custom_metadata_artifact.return_value = (
+            multi_model_deployment_model_attributes_str
         )
 
-        mock_create_aqua_evaluation_details = MagicMock(**create_aqua_evaluation_details, spec=CreateAquaEvaluationDetails)
+        mock_create_aqua_evaluation_details = MagicMock(
+            **create_aqua_evaluation_details, spec=CreateAquaEvaluationDetails
+        )
 
         try:
-            AquaEvaluationApp.validate_model_name(mock_model, mock_create_aqua_evaluation_details)
+            AquaEvaluationApp.validate_model_name(
+                mock_model, mock_create_aqua_evaluation_details
+            )
         except AquaError as e:
             print(str(e))
             self.assertEqual(str(e), expected_message)
