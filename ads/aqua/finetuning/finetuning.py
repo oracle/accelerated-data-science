@@ -29,10 +29,12 @@ from ads.aqua.constants import (
     DEFAULT_FT_BLOCK_STORAGE_SIZE,
     DEFAULT_FT_REPLICA,
     DEFAULT_FT_VALIDATION_SET_SIZE,
-    FINE_TUNING_CONFIGURATION,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     UNKNOWN,
     UNKNOWN_DICT,
+)
+from ads.aqua.model.constants import (
+    DefinedMetadata
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.constants import (
@@ -592,7 +594,7 @@ class AquaFineTuningApp(AquaApp):
         Dict:
             A dict of allowed finetuning configs.
         """
-        config = self.get_config(model_id, FINE_TUNING_CONFIGURATION)
+        config = self.get_config(model_id, DefinedMetadata.FINE_TUNING_CONFIGURATION)
         if not config:
             logger.debug(
                 f"Fine-tuning config for custom model: {model_id} is not available. Use defaults."

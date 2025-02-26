@@ -55,6 +55,7 @@ from ads.aqua.constants import (
     NB_SESSION_IDENTIFIER,
     UNKNOWN,
 )
+from ads.aqua.model.constants import CustomMetadata
 from ads.aqua.evaluation.constants import (
     EVAL_TERMINATION_STATE,
     EvaluationConfig,
@@ -1210,7 +1211,11 @@ class AquaEvaluationApp(AquaApp):
         try:
             job.dsc_job.delete(force_delete=True)
             logger.info(f"Deleting Job: {job.job_id} for evaluation {model.id}")
-
+            # check if model metadata report exists
+            custom_metadata_head = model.head_custom_metadata_artifact(CustomMetadata.REPORTS)
+            if custom_metadata_head.status == "204":
+                model.delete_custom_metadata_artifact(CustomMetadata.REPORTS)
+                logger.info(f"Deleting evaluation report for : {model.id}")
             model.delete()
             logger.info(f"Deleting evaluation: {model.id}")
         except oci.exceptions.ServiceError as ex:

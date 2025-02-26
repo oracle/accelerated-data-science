@@ -45,9 +45,7 @@ from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_FILE,
     AQUA_MODEL_TYPE_CUSTOM,
     HF_METADATA_FOLDER,
-    LICENSE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
-    README,
     READY_TO_DEPLOY_STATUS,
     READY_TO_FINE_TUNE_STATUS,
     READY_TO_IMPORT_STATUS,
@@ -73,6 +71,13 @@ from ads.aqua.model.entities import (
     ModelFormat,
     ModelValidationResult,
 )
+
+from ads.aqua.model.constants import (
+    DefinedMetadata,
+    CustomMetadata
+)
+
+from ads.aqua.model.constants import DefinedMetadata
 from ads.aqua.ui import AquaContainerConfig, AquaContainerConfigItem
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link
@@ -256,7 +261,7 @@ class AquaModelApp(AquaApp):
             if artifact_path != UNKNOWN:
                 model_card = str(
                     self.ds_client.get_model_defined_metadatum_artifact_content(
-                        model_id, README
+                        model_id, DefinedMetadata.README
                     ).data.content
                 )
 
@@ -379,6 +384,18 @@ class AquaModelApp(AquaApp):
         is_fine_tuned_model = ds_model.freeform_tags.get(
             Tags.AQUA_FINE_TUNED_MODEL_TAG, None
         )
+        # Check if custom_metadata_list contains any key from CustomMetadata and delete them
+        custom_metadata_keys = ds_model.custom_metadata_list().keys()
+        for key in custom_metadata_keys:
+            if key in CustomMetadata.__members__.values():
+                ds_model.delete_custom_metadata_artifact(key)
+
+        # Check if defined_metadata_list contains any key from DefinedMetadata and delete them
+        defined_metadata_keys = ds_model.defined_metadata_list().keys()
+        for key in defined_metadata_keys:
+            if key in DefinedMetadata.__members__.values():
+                ds_model.delete_defined_metadata_artifact(key)
+
         if is_registered_model or is_fine_tuned_model:
             logger.info(f"Deleting model {model_id}.")
             return ds_model.delete()
@@ -1582,7 +1599,7 @@ class AquaModelApp(AquaApp):
             project_id=ds_model.project_id,
             model_card=str(
                 self.ds_client.get_model_defined_metadatum_artifact_content(
-                    verified_model.id, README
+                    verified_model.id, DefinedMetadata.README
                 ).data.content
             ),
             inference_container=inference_container,
@@ -1680,7 +1697,7 @@ class AquaModelApp(AquaApp):
 
         content = str(
             self.ds_client.get_model_defined_metadatum_artifact_content(
-                model_id, LICENSE
+                model_id, DefinedMetadata.LICENSE
             ).data.content
         )
 
