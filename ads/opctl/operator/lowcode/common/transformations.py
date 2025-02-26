@@ -219,7 +219,7 @@ class Transformations(ABC):
         -------
             A new Pandas DataFrame without missing values.
         """
-        df.fillna(0, inplace=True)
+        return df.fillna(0)
 
     def _outlier_treatment(self, df):
         """
