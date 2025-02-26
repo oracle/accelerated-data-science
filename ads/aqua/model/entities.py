@@ -24,7 +24,6 @@ from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model.enums import FineTuningDefinedMetadata
 from ads.aqua.training.exceptions import exit_code_dict
 from ads.aqua.ui import ModelFormat
-from ads.common.extended_enum import ExtendedEnum
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_log_links
 from ads.model.datascience_model import DataScienceModel
@@ -300,21 +299,3 @@ class ImportModelDetails(CLIBuilderMixin):
 
     def __post_init__(self):
         self._command = "model register"
-
-
-class TaskStatusEnum(ExtendedEnum):
-    MODEL_VALIDATION_SUCCESSFUL = "MODEL_VALIDATION_SUCCESSFUL"
-    MODEL_DOWNLOAD_STARTED = "MODEL_DOWNLOAD_STARTED"
-    MODEL_DOWNLOAD_SUCCESSFUL = "MODEL_DOWNLOAD_SUCCESSFUL"
-    MODEL_UPLOAD_STARTED = "MODEL_UPLOAD_STARTED"
-    MODEL_UPLOAD_SUCCESSFUL = "MODEL_UPLOAD_SUCCESSFUL"
-    DATASCIENCE_MODEL_CREATED = "DATASCIENCE_MODEL_CREATED"
-    MODEL_REGISTRATION_SUCCESSFUL = "MODEL_REGISTRATION_SUCCESSFUL"
-    REGISTRATION_FAILED = "REGISTRATION_FAILED"
-    MODEL_DOWNLOAD_INPROGRESS = "MODEL_DOWNLOAD_INPROGRESS"
-
-
-@dataclass
-class TaskStatus(DataClassSerializable):
-    state: TaskStatusEnum
-    message: str

@@ -3,21 +3,19 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import threading
-from functools import partial
 from logging import getLogger
-from typing import List, Optional
+from typing import Optional
 from urllib.parse import urlparse
 from uuid import uuid4
 
-from tornado.ioloop import IOLoop
 from tornado.web import HTTPError
-from tornado.websocket import WebSocketHandler
 
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.enums import (
     CustomInferenceContainerTypeFamily,
 )
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
+from ads.aqua.common.task_status import TaskStatus, TaskStatusEnum
 from ads.aqua.common.utils import (
     get_hf_model_info,
     is_valid_ocid,
@@ -25,17 +23,16 @@ from ads.aqua.common.utils import (
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
-from ads.aqua.extension.models_ws_msg_handler import (
-    REGISTRATION_STATUS,
-    AquaModelWSMsgHandler,
+from ads.aqua.extension.status_manager import (
+    RegistrationStatus,
+    StatusTracker,
+    TaskNameEnum,
 )
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import (
     AquaModel,
     AquaModelSummary,
     HFModelSummary,
-    TaskStatus,
-    TaskStatusEnum,
 )
 from ads.aqua.ui import ModelFormat
 
@@ -126,7 +123,7 @@ class AquaModelHandler(AquaAPIhandler):
         HTTPError
             Raises HTTPError if inputs are missing or are invalid
         """
-        job_id = str(uuid4())
+        task_id = str(uuid4())
         try:
             input_data = self.get_json_body()
         except Exception as ex:
@@ -166,30 +163,6 @@ class AquaModelHandler(AquaAPIhandler):
         )
         async_mode = input_data.get("async_mode", False)
 
-        def model_register_progress_callback(register_id: str, status: TaskStatus):
-            """Callback method to track the model register progress"""
-            logger.info(f"Progress for {register_id}: {status}")
-            subscribers: List[WebSocketHandler] = (
-                AquaModelWSMsgHandler.status_subscriber.get(REGISTRATION_STATUS, {})
-                .get(register_id, {})
-                .get("subscriber", [])
-            )
-            for subscriber in subscribers:
-                if (
-                    subscriber
-                    and subscriber.ws_connection
-                    and subscriber.ws_connection.stream.socket
-                ):
-                    try:
-                        subscriber.write_message(status.to_json())
-                    except Exception as e:
-                        print(e)
-                        IOLoop.current().add_callback(
-                            lambda: subscriber.write_message(status.to_json())
-                        )
-            if len(subscribers) == 0:
-                AquaModelWSMsgHandler.register_status[register_id] = status.to_json()
-
         def register_model(callback=None) -> AquaModel:
             """Wrapper method to help initialize callback in case of async mode"""
             try:
@@ -214,11 +187,13 @@ class AquaModelHandler(AquaAPIhandler):
                 )
             except Exception as e:
                 if async_mode:
-                    model_register_progress_callback(
-                        register_id=job_id,
-                        status=TaskStatus(
-                            state=TaskStatusEnum.REGISTRATION_FAILED, message=str(e)
-                        ),
+                    StatusTracker.add_status(
+                        RegistrationStatus(
+                            task_id=task_id,
+                            task_status=TaskStatus(
+                                state=TaskStatusEnum.REGISTRATION_FAILED, message=str(e)
+                            ),
+                        )
                     )
                     raise
                 else:
@@ -228,14 +203,18 @@ class AquaModelHandler(AquaAPIhandler):
         if async_mode:
             t = threading.Thread(
                 target=register_model,
-                args=(partial(model_register_progress_callback, register_id=job_id),),
+                args=(
+                    StatusTracker.prepare_status_callback(
+                        TaskNameEnum.REGISTRATION_STATUS, task_id=task_id
+                    ),
+                ),
                 daemon=True,
             )
             t.start()
             output = {
                 "state": "ACCEPTED",
-                "job_id": job_id,
-                "progress_url": f"ws://host:port/aqua/ws/{job_id}",
+                "task_id": task_id,
+                "progress_url": f"ws://host:port/aqua/ws/{task_id}",
             }
         else:
             output = register_model()

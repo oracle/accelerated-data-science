@@ -5,7 +5,7 @@
 
 from tqdm import tqdm
 
-from ads.aqua.model.entities import TaskStatus, TaskStatusEnum
+from ads.aqua.common.task_status import TaskStatus, TaskStatusEnum
 
 
 class HFModelProgressTracker(tqdm):

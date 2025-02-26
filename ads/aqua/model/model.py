@@ -26,6 +26,7 @@ from ads.aqua.common.errors import (
     AquaRuntimeError,
     AquaValueError,
 )
+from ads.aqua.common.task_status import TaskStatus, TaskStatusEnum
 from ads.aqua.common.utils import (
     LifecycleStatus,
     _build_resource_identifier,
@@ -75,8 +76,6 @@ from ads.aqua.model.entities import (
     ImportModelDetails,
     ModelFormat,
     ModelValidationResult,
-    TaskStatus,
-    TaskStatusEnum,
 )
 from ads.aqua.model.utils import HFModelProgressTracker
 from ads.aqua.ui import AquaContainerConfig, AquaContainerConfigItem
@@ -1515,6 +1514,9 @@ class AquaModelApp(AquaApp):
 
         def publish_status(status: TaskStatus):
             """Invoke callback with the status"""
+            logger.info(
+                f"Publishing status using callback: {import_model_details.callback}"
+            )
             if import_model_details.callback:
                 import_model_details.callback(status=status)
             else:

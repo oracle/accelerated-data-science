@@ -4,6 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
+from logging import getLogger
 from typing import List, Union
 
 from ads.aqua.common.decorator import handle_exceptions
@@ -14,7 +15,14 @@ from ads.aqua.extension.models.ws_models import (
     ModelRegisterRequest,
     RequestResponseType,
 )
+from ads.aqua.extension.status_manager import (
+    RegistrationSubscriber,
+    StatusTracker,
+    TaskNameEnum,
+)
 from ads.aqua.model import AquaModelApp
+
+logger = getLogger(__name__)
 
 REGISTRATION_STATUS = "registration_status"
 
@@ -58,31 +66,47 @@ class AquaModelWSMsgHandler(AquaWSMsgHandler):
                 data=response,
             )
         elif request.get("kind") == "RegisterModelStatus":
-            job_id = request.get("job_id")
-            if REGISTRATION_STATUS not in AquaModelWSMsgHandler.status_subscriber:
-                AquaModelWSMsgHandler.status_subscriber = {
-                    REGISTRATION_STATUS: {job_id: {"subscriber": []}}
-                }
-            if REGISTRATION_STATUS in AquaModelWSMsgHandler.status_subscriber:
-                if (
-                    job_id
-                    in AquaModelWSMsgHandler.status_subscriber[REGISTRATION_STATUS]
-                ):
-                    AquaModelWSMsgHandler.status_subscriber[REGISTRATION_STATUS][
-                        job_id
-                    ]["subscriber"].append(self.ws_connection)
-                else:
-                    AquaModelWSMsgHandler.status_subscriber[REGISTRATION_STATUS][
-                        job_id
-                    ] = {"subscriber": [self.ws_connection]}
-            print(AquaModelWSMsgHandler.register_status)
-            if "state" in AquaModelWSMsgHandler.register_status.get(job_id, {}):
+            task_id = request.get("task_id")
+            StatusTracker.add_subscriber(
+                subscriber=RegistrationSubscriber(
+                    task_id=task_id, subscriber=self.ws_connection
+                ),
+                notify_latest_status=False,
+            )
+            # if REGISTRATION_STATUS not in AquaModelWSMsgHandler.status_subscriber:
+            #     AquaModelWSMsgHandler.status_subscriber = {
+            #         REGISTRATION_STATUS: {job_id: {"subscriber": []}}
+            #     }
+            # if REGISTRATION_STATUS in AquaModelWSMsgHandler.status_subscriber:
+            #     if (
+            #         job_id
+            #         in AquaModelWSMsgHandler.status_subscriber[REGISTRATION_STATUS]
+            #     ):
+            #         AquaModelWSMsgHandler.status_subscriber[REGISTRATION_STATUS][
+            #             job_id
+            #         ]["subscriber"].append(self.ws_connection)
+            #     else:
+            #         AquaModelWSMsgHandler.status_subscriber[REGISTRATION_STATUS][
+            #             job_id
+            #         ] = {"subscriber": [self.ws_connection]}
+
+            latest_status = StatusTracker.get_latest_status(
+                TaskNameEnum.REGISTRATION_STATUS, task_id=task_id
+            )
+            logger.info(latest_status)
+            # if "state" in AquaModelWSMsgHandler.register_status.get(job_id, {}):
+            #     return ModelRegisterRequest(
+            #         status=AquaModelWSMsgHandler.register_status[job_id]["state"],
+            #         message=AquaModelWSMsgHandler.register_status[job_id]["message"],
+            #         job_id=job_id,
+            #     )
+            if latest_status:
                 return ModelRegisterRequest(
-                    status=AquaModelWSMsgHandler.register_status[job_id]["state"],
-                    message=AquaModelWSMsgHandler.register_status[job_id]["message"],
-                    job_id=job_id,
+                    status=latest_status.state,
+                    message=latest_status.message,
+                    task_id=task_id,
                 )
             else:
                 return ModelRegisterRequest(
-                    status="SUBSCRIBED", job_id=job_id, message=""
+                    status="SUBSCRIBED", task_id=task_id, message=""
                 )

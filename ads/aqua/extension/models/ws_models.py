@@ -153,5 +153,5 @@ class RequestStatus(DataClassSerializable):
 @dataclass
 class ModelRegisterRequest(DataClassSerializable):
     status: str
-    job_id: str
+    task_id: str
     message: str = ""
