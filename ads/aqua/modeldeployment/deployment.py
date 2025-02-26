@@ -24,7 +24,6 @@ from ads.aqua.common.utils import (
     get_params_list,
     get_resource_name,
     get_restricted_params_by_container,
-    read_file,
     validate_cmd_var,
 )
 from ads.aqua.constants import (
@@ -53,7 +52,6 @@ from ads.aqua.modeldeployment.entities import (
 )
 from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
 from ads.aqua.ui import ModelFormat
-from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
 from ads.config import (
@@ -866,23 +864,23 @@ class AquaDeploymentApp(AquaApp):
                 )
             aqua_model = DataScienceModel.from_id(aqua_model_id)
             custom_metadata_list = aqua_model.custom_metadata_list
-            multi_model_metadata_path = custom_metadata_list.get(
+            multi_model_metadata_value = custom_metadata_list.get(
                 ModelCustomMetadataFields.MULTIMODEL_METADATA,
                 ModelCustomMetadataItem(
                     key=ModelCustomMetadataFields.MULTIMODEL_METADATA
                 ),
             ).value
-            if not multi_model_metadata_path:
+            if not multi_model_metadata_value:
                 raise AquaRuntimeError(
                     f"Invalid multi model deployment {model_deployment_id}."
                     f"Make sure the custom metadata {ModelCustomMetadataFields.MULTIMODEL_METADATA} is added to the aqua multi model {aqua_model.display_name}."
                 )
             multi_model_metadata = json.loads(
-                read_file(
-                    file_path=multi_model_metadata_path,
-                    auth=default_signer(),
-                )
+                aqua_model.dsc_model.get_custom_metadata_artifact(
+                    metadata_key_name=ModelCustomMetadataFields.MULTIMODEL_METADATA
+                ).decode("utf-8")
             )
+
             aqua_deployment.models = [
                 AquaMultiModelRef(**metadata) for metadata in multi_model_metadata
             ]

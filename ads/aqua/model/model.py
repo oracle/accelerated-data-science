@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import copy
 import json
 import os
 import pathlib
@@ -256,7 +255,6 @@ class AquaModelApp(AquaApp):
             raise AquaValueError("Model list cannot be empty.")
 
         artifact_list = []
-        multi_models = []
         display_name_list = []
         model_custom_metadata = ModelCustomMetadata()
         # TODO: update it when more deployment containers are supported
@@ -268,6 +266,8 @@ class AquaModelApp(AquaApp):
         for model in models:
             source_model = DataScienceModel.from_id(model.model_id)
             display_name = source_model.display_name
+            # Update model name in user's input model
+            model.model_name = display_name
 
             if not source_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, UNKNOWN):
                 raise AquaValueError(
@@ -294,6 +294,9 @@ class AquaModelApp(AquaApp):
                     "Please register the model first."
                 )
 
+            # Update model artifact location in user's input model
+            model.artifact_location = model_artifact_path
+
             artifact_list.append(model_artifact_path)
 
             # Validate deployment container consistency
@@ -309,16 +312,6 @@ class AquaModelApp(AquaApp):
                     f"Unsupported deployment container '{deployment_container}' for model '{source_model.id}'. "
                     f"Only '{InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY}' is supported for multi-model deployments."
                 )
-
-            multi_models.append(
-                AquaMultiModelRef(
-                    model_id=model.model_id,
-                    model_name=display_name,
-                    gpu_count=model.gpu_count,
-                    env_var=model.env_var,
-                    artifact_location=model_artifact_path,
-                )
-            )
 
         # Generate model group details
         timestamp = datetime.now().strftime("%Y%m%d")
@@ -363,19 +356,17 @@ class AquaModelApp(AquaApp):
         for artifact in artifact_list:
             custom_model.add_artifact(uri=artifact)
 
-        # Update input models with artifact location for further reference
-        models = copy.deepcopy(multi_models)
+        # Finalize creation
+        custom_model.create(model_by_reference=True)
 
+        # Create custom metadata for multi model metadata
         custom_model.create_custom_metadata_artifact(
             metadata_key_name=ModelCustomMetadataFields.MULTIMODEL_METADATA,
             artifact_path_or_content=json.dumps(
-                [model.model_dump() for model in multi_models]
+                [model.model_dump() for model in models]
             ),
             path_type=utils.MetadataArtifactPathType.CONTENT,
         )
-
-        # Finalize creation
-        custom_model.create(model_by_reference=True)
 
         logger.info(
             f"Aqua Model '{custom_model.id}' created with models: {', '.join(display_name_list)}."
