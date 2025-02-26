@@ -189,7 +189,7 @@ class TestArtifactDownloader:
         """Tests whether model_file_description is loaded within downloader and is parsed, and also if
         #  download_from_model_file_description is appropriately called."""
 
-        self.mock_dsc_model.is_model_by_reference.return_value = True
+        self.mock_dsc_model._is_model_by_reference.return_value = True
         self.mock_artifact_file_path = os.path.join(
             self.curr_dir, "test_files/model_description.json"
         )

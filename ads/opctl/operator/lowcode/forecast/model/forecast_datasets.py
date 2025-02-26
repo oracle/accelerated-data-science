@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+from typing import Dict, List
 
 import pandas as pd
 
@@ -167,7 +169,7 @@ class ForecastDatasets:
                 self.historical_data.data,
                 self.additional_data.data,
             ],
-            axis=1
+            axis=1,
         )
 
     def get_data_by_series(self, include_horizon=True):
@@ -416,3 +418,59 @@ class ForecastOutput:
         for df in self.series_id_map.values():
             output = pd.concat([output, df])
         return output.reset_index(drop=True)
+
+
+class ForecastResults:
+    """
+    Forecast Results contains all outputs from the forecast run.
+    This class is returned to users who use the Forecast's `operate` method.
+
+    """
+
+    def set_forecast(self, df: pd.DataFrame):
+        self.forecast = df
+
+    def get_forecast(self):
+        return getattr(self, "forecast", None)
+
+    def set_metrics(self, df: pd.DataFrame):
+        self.metrics = df
+
+    def get_metrics(self):
+        return getattr(self, "metrics", None)
+
+    def set_test_metrics(self, df: pd.DataFrame):
+        self.test_metrics = df
+
+    def get_test_metrics(self):
+        return getattr(self, "test_metrics", None)
+
+    def set_local_explanations(self, df: pd.DataFrame):
+        self.local_explanations = df
+
+    def get_local_explanations(self):
+        return getattr(self, "local_explanations", None)
+
+    def set_global_explanations(self, df: pd.DataFrame):
+        self.global_explanations = df
+
+    def get_global_explanations(self):
+        return getattr(self, "global_explanations", None)
+
+    def set_model_parameters(self, df: pd.DataFrame):
+        self.model_parameters = df
+
+    def get_model_parameters(self):
+        return getattr(self, "model_parameters", None)
+
+    def set_models(self, models: List):
+        self.models = models
+
+    def get_models(self):
+        return getattr(self, "models", None)
+
+    def set_errors_dict(self, errors_dict: Dict):
+        self.errors_dict = errors_dict
+
+    def get_errors_dict(self):
+        return getattr(self, "errors_dict", None)
