@@ -577,7 +577,7 @@ class AquaEvaluationApp(AquaApp):
         create_aqua_evaluation_details: CreateAquaEvaluationDetails,
     ):
         user_model_parameters = create_aqua_evaluation_details.model_parameters
-        if "name" not in user_model_parameters:
+        if "model" not in user_model_parameters:
             logger.debug(
                 f"User did not input model name for multi model deployment evaluation with evaluation source ID: {create_aqua_evaluation_details.evaluation_source_id}"
             )
@@ -586,7 +586,7 @@ class AquaEvaluationApp(AquaApp):
             )
 
         custom_metadata_list = evaluation_source.custom_metadata_list
-        user_model_name = user_model_parameters.get("name")
+        user_model_name = user_model_parameters.get("model")
 
         model_group_count = int(
             custom_metadata_list.get(

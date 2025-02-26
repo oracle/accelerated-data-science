@@ -538,7 +538,7 @@ class TestAquaEvaluation(unittest.TestCase):
     @parameterized.expand(
     [
         (
-            {"name": "model_one"},
+            {"model": "model_one"},
             None
         ),
         (
@@ -546,7 +546,7 @@ class TestAquaEvaluation(unittest.TestCase):
             "Provide the model name. For evaluation, a single model needs to be targeted using the name in the multi model deployment."
         ),
         (
-            {"name": "wrong_model_name"},
+            {"model": "wrong_model_name"},
             "Provide the correct model name. The valid model names for this Model Deployment are model_one, model_two, model_three."
         )
     ])
