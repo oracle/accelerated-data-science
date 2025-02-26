@@ -15,6 +15,7 @@ import cloudpickle
 
 from ads.opctl import logger
 from ads.common.model_export_util import prepare_generic_model
+from ads.opctl.operator.common.utils import create_log_in_log_group
 from ads.opctl.operator.lowcode.common.utils import write_data, write_simple_json
 from ads.opctl.operator.lowcode.common.utils import default_signer
 from ..model.forecast_datasets import AdditionalData
@@ -184,6 +185,9 @@ class ModelDeploymentManager:
 
         log_group = self.spec.what_if_analysis.model_deployment.log_group
         log_id = self.spec.what_if_analysis.model_deployment.log_id
+        if not log_id and not self.test_mode:
+            auth = oci.auth.signers.get_resource_principals_signer()
+            log_id = create_log_in_log_group(auth, log_group)
 
         logs_configuration_details_object = CategoryLogDetails(
             access=LogDetails(log_group_id=log_group,
@@ -211,8 +215,10 @@ class ModelDeploymentManager:
             logger.info(f"deployment metadata :{model_deployment.data}")
             md = data_science.get_model_deployment(model_deployment_id=model_deployment.data.resources[0].identifier)
             self.deployment_info['model_deployment_ocid'] = md.data.id
+            self.deployment_info['status'] = md.data.lifecycle_state
             endpoint_url = md.data.model_deployment_url
             self.deployment_info['model_deployment_endpoint'] = f"{endpoint_url}/predict"
+            self.deployment_info['log_id'] = log_id
 
     def save_deployment_info(self):
         output_dir = self.spec.output_directory.url

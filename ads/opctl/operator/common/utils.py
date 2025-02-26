@@ -9,6 +9,7 @@ import os
 import sys
 import time
 import traceback
+import uuid
 from string import Template
 from typing import Any, Dict, List, Tuple
 
@@ -17,6 +18,7 @@ import yaml
 from cerberus import Validator
 
 from ads.opctl import logger, utils
+import oci
 
 CONTAINER_NETWORK = "CONTAINER_NETWORK"
 
@@ -190,3 +192,42 @@ def print_traceback():
     if logger.level == logging.DEBUG:
         ex_type, ex, tb = sys.exc_info()
         traceback.print_tb(tb)
+
+
+def create_log_in_log_group(signer, log_group_id, log_name=None):
+    """
+    Creates a log within a given log group
+    :param signer: The signer
+    :param log_group_id: The OCID of the log group.
+    :param log_name: Name of the log to be created.
+    :return: Created log id.
+    """
+
+    if not log_name:
+        log_name = f"log-{int(time.time())}-{uuid.uuid4()}"
+    logging_client = oci.logging.LoggingManagementClient(config={}, signer=signer)
+
+    log_details = oci.logging.models.CreateLogDetails(
+        display_name=log_name,
+        log_type="CUSTOM",
+        is_enabled=True
+    )
+
+    response = logging_client.create_log(
+        log_group_id=log_group_id,
+        create_log_details=log_details
+    )
+
+    wait_for_resource_id = response.headers['opc-work-request-id']
+    lowered_wait_for_states = ["succeeded", "failed"]
+    try:
+        waiter_result = oci.wait_until(
+            logging_client,
+            logging_client.get_work_request(wait_for_resource_id),
+            evaluate_response=lambda r: getattr(r.data, 'status')
+                                        and getattr(r.data, 'status').lower() in lowered_wait_for_states,
+        )
+        log_id = waiter_result.data.resources[0].identifier
+        return log_id
+    except Exception as e:
+        raise oci.exceptions.CompositeOperationError(partial_results=[response], cause=e)

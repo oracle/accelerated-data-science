@@ -209,7 +209,7 @@ class Transformations(ABC):
 
     def _missing_value_imputation_add(self, df):
         """
-        Function fills missing values in the pandas dataframe using liner interpolation
+        Function fills missing values with zero
 
         Parameters
         ----------
@@ -219,15 +219,7 @@ class Transformations(ABC):
         -------
             A new Pandas DataFrame without missing values.
         """
-        # find columns that all all NA and replace with 0
-        for col in df.columns:
-            # find next int not in list
-            i = 0
-            vals = df[col].unique()
-            while i in vals:
-                i = i + 1
-            df[col] = df[col].fillna(0)
-        return df
+        df.fillna(0, inplace=True)
 
     def _outlier_treatment(self, df):
         """
