@@ -31,6 +31,7 @@ from ads.aqua.common.enums import (
     Tags,
 )
 from ads.aqua.common.errors import (
+    AquaError,
     AquaFileExistsError,
     AquaFileNotFoundError,
     AquaMissingKeyError,
@@ -197,11 +198,11 @@ class AquaEvaluationApp(AquaApp):
                         )
 
                     aqua_model = DataScienceModel.from_id(multi_model_id)
-                    AquaEvaluationApp.validate_name_multi_model(
+                    AquaEvaluationApp.validate_model_name(
                         aqua_model, create_aqua_evaluation_details
                     )
 
-            except (AquaRuntimeError, AquaValueError) as err:
+            except AquaError as err:
                 raise AquaValueError(f"{err}") from err
 
             try:
@@ -572,18 +573,28 @@ class AquaEvaluationApp(AquaApp):
         )
 
     @staticmethod
-    def validate_name_multi_model(
+    def validate_model_name(
         evaluation_source: DataScienceModel,
         create_aqua_evaluation_details: CreateAquaEvaluationDetails,
-    ):
+    ) -> None:
+        """
+        Validates the user input of the model name when creating an Aqua evaluation.
+
+        Parameters
+        ----------
+        evaluation_source: DataScienceModel
+            The DataScienceModel Object which contains all metadata
+            about each model in a single and multi model deployment.
+        create_aqua_evaluation_details: CreateAquaEvaluationDetails
+            The CreateAquaEvaluationDetails data class which contains all
+            required and optional fields to create the aqua evaluation.
+
+        Raises
+        -------
+        AquaValueError:
+            - When the user fails to specify any input for the model name.
+            - When the user supplies a model name that does not match the model name set in the DataScienceModel metadata."""
         user_model_parameters = create_aqua_evaluation_details.model_parameters
-        if "model" not in user_model_parameters:
-            logger.debug(
-                f"User did not input model name for multi model deployment evaluation with evaluation source ID: {create_aqua_evaluation_details.evaluation_source_id}"
-            )
-            raise AquaValueError(
-                "Provide the model name. For evaluation, a single model needs to be targeted using the name in the multi model deployment."
-            )
 
         custom_metadata_list = evaluation_source.custom_metadata_list
         user_model_name = user_model_parameters.get("model")
@@ -599,8 +610,18 @@ class AquaEvaluationApp(AquaApp):
             for idx in range(model_group_count)
         ]
 
+        valid_model_names = ", ".join(map(str, model_names))
+
+        if "model" not in user_model_parameters:
+            logger.debug(
+                f"User did not input model name for multi model deployment evaluation with evaluation source ID: {create_aqua_evaluation_details.evaluation_source_id}"
+            )
+            raise AquaValueError(
+                f"Provide the model name. For evaluation, a single model needs to be targeted using the name in the multi model deployment. The valid model names for this Model Deployment are {valid_model_names}."
+            )
+
         if user_model_name not in model_names:
-            valid_model_names = ", ".join(map(str, model_names))
+
             logger.debug(
                 f"User input for model name was {user_model_name}, expected {valid_model_names} evaluation source ID: {create_aqua_evaluation_details.evaluation_source_id}"
             )

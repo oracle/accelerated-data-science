@@ -17,6 +17,7 @@ from parameterized import parameterized
 from ads.aqua.common import utils
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import (
+    AquaError,
     AquaFileNotFoundError,
     AquaMissingKeyError,
     AquaRuntimeError,
@@ -451,7 +452,7 @@ class TestAquaEvaluation(unittest.TestCase):
         mock_from_id.return_value = foundation_model
 
         experiment = MagicMock()
-        experiment.id = "ocid1.datasciencemodelversionset.oc1.iad.amaaaaaav66vvniakngdzelb5hcgjd6yvfejksu2excidvvi3s5s5whtmdea"
+        experiment.id = "test_experiment_id"
         mock_mvs_create.return_value = experiment
 
         evaluation_model = MagicMock()
@@ -543,7 +544,7 @@ class TestAquaEvaluation(unittest.TestCase):
         ),
         (
             {},
-            "Provide the model name. For evaluation, a single model needs to be targeted using the name in the multi model deployment."
+            "Provide the model name. For evaluation, a single model needs to be targeted using the name in the multi model deployment. The valid model names for this Model Deployment are model_one, model_two, model_three."
         ),
         (
             {"model": "wrong_model_name"},
@@ -551,7 +552,7 @@ class TestAquaEvaluation(unittest.TestCase):
         )
     ])
     @patch("ads.aqua.evaluation.evaluation.AquaEvaluationApp.create")
-    def test_validate_multi_model_evaluation(
+    def test_validate_model_name(
         self,
         mock_model_parameters,
         expected_message,
@@ -592,8 +593,8 @@ class TestAquaEvaluation(unittest.TestCase):
         mock_create_aqua_evaluation_details = MagicMock(**create_aqua_evaluation_details, spec=CreateAquaEvaluationDetails)
 
         try:
-            AquaEvaluationApp.validate_name_multi_model(mock_model, mock_create_aqua_evaluation_details)
-        except Exception as e:
+            AquaEvaluationApp.validate_model_name(mock_model, mock_create_aqua_evaluation_details)
+        except AquaError as e:
             self.assertEqual(str(e), expected_message)
 
     def test_get_service_model_name(self):
