@@ -28,6 +28,7 @@ from ads.common.utils import (
     extract_region,
     folder_size,
     human_size,
+    parse_content_disposition,
     remove_file,
     upload_to_os,
 )
@@ -579,3 +580,55 @@ class TestCommonUtils:
             progress_callback=ANY,
         )
         assert response.status == 200
+
+
+class TestParseContentDisposition:
+    def test_attachment_with_quotes(self):
+        header = 'attachment; filename="example.txt"'
+        disposition, params = parse_content_disposition(header)
+        assert disposition == "attachment"
+        assert params == {"filename": "example.txt"}
+
+    def test_attachment_without_quotes(self):
+        header = "attachment; filename=example.txt"
+        disposition, params = parse_content_disposition(header)
+        assert disposition == "attachment"
+        assert params == {"filename": "example.txt"}
+
+    def test_inline_no_params(self):
+        header = "inline"
+        disposition, params = parse_content_disposition(header)
+        assert disposition == "inline"
+        assert params == {}
+
+    def test_multiple_params(self):
+        header = 'attachment; filename="example.txt"; size=12345'
+        disposition, params = parse_content_disposition(header)
+        assert disposition == "attachment"
+        assert params == {"filename": "example.txt", "size": "12345"}
+
+    def test_extra_whitespace(self):
+        header = '  attachment ;  filename =   "example.txt" ; param = value  '
+        disposition, params = parse_content_disposition(header)
+        assert disposition == "attachment"
+        assert params == {"filename": "example.txt", "param": "value"}
+
+    def test_form_data(self):
+        header = 'form-data; name="fieldName"; filename="filename.jpg"'
+        disposition, params = parse_content_disposition(header)
+        assert disposition == "form-data"
+        # Note: Keys are lowercased, but values remain as extracted.
+        # Here, 'name' remains "fieldName" since our parser does not modify the case of values.
+        assert params == {"name": "fieldName", "filename": "filename.jpg"}
+
+    def test_no_semicolon(self):
+        header = "attachment"
+        disposition, params = parse_content_disposition(header)
+        assert disposition == "attachment"
+        assert params == {}
+
+    def test_none(self):
+        header = None
+        disposition, params = parse_content_disposition(header)
+        assert disposition == ""
+        assert params == {}
