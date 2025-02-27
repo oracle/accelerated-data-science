@@ -939,6 +939,25 @@ def get_combined_params(params1: str = None, params2: str = None) -> str:
     return " ".join(combined_params)
 
 
+def build_params_string(params: dict) -> str:
+    """Builds params string from params dict
+
+    Parameters
+    ----------
+    params:
+        Parameter dict with key-value pairs
+
+    Returns
+    -------
+        A params string.
+    """
+    return (
+        " ".join(f"{name} {value}" for name, value in params.items()).strip()
+        if params
+        else UNKNOWN
+    )
+
+
 def copy_model_config(artifact_path: str, os_path: str, auth: dict = None):
     """Copies the aqua model config folder from the artifact path to the user provided object storage path.
     The config folder is overwritten if the files already exist at the destination path.

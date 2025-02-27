@@ -13,6 +13,7 @@ from ads.aqua.common.entities import AquaMultiModelRef, ContainerSpec
 from ads.aqua.common.enums import InferenceContainerTypeFamily, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
+    build_params_string,
     build_pydantic_error_message,
     get_combined_params,
     get_container_config,
@@ -470,13 +471,7 @@ class AquaDeploymentApp(AquaApp):
         container_params = container_spec.get(ContainerSpec.CLI_PARM, UNKNOWN).strip()
 
         for idx, model in enumerate(create_deployment_details.models):
-            user_params = (
-                " ".join(
-                    f"{name} {value}" for name, value in model.env_var.items()
-                ).strip()
-                if model.env_var
-                else UNKNOWN
-            )
+            user_params = build_params_string(model.env_var)
             if user_params:
                 restricted_params = self._find_restricted_params(
                     container_params, user_params, container_type_key
@@ -489,7 +484,10 @@ class AquaDeploymentApp(AquaApp):
                         f"Select other parameters for model {selected_model}."
                     )
 
-            params = container_params
+            # replaces `--served-model-name`` with user's model name
+            container_params_dict = get_params_dict(container_params)
+            container_params_dict.update({"--served-model-name": model.model_name})
+            params = build_params_string(container_params_dict)
             deployment_config = self.get_deployment_config(model.model_id)
             multi_model_deployment = deployment_config.configuration.get(
                 create_deployment_details.instance_shape, ConfigurationItem()

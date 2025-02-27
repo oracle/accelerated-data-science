@@ -264,6 +264,7 @@ class AquaModelApp(AquaApp):
         for idx, model in enumerate(models):
             source_model = DataScienceModel.from_id(model.model_id)
             display_name = source_model.display_name
+            model.model_name = model.model_name or display_name
 
             if not source_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, UNKNOWN):
                 raise AquaValueError(
