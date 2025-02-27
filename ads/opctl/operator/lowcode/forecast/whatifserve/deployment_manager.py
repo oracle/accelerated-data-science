@@ -186,8 +186,9 @@ class ModelDeploymentManager:
         log_group = self.spec.what_if_analysis.model_deployment.log_group
         log_id = self.spec.what_if_analysis.model_deployment.log_id
         if not log_id and not self.test_mode:
-            auth = oci.auth.signers.get_resource_principals_signer()
-            log_id = create_log_in_log_group(auth, log_group)
+            signer = oci.auth.signers.get_resource_principals_signer()
+            auth = {"signer": signer, "config": {}}
+            log_id = create_log_in_log_group(self.compartment_id, log_group, auth)
 
         logs_configuration_details_object = CategoryLogDetails(
             access=LogDetails(log_group_id=log_group,
