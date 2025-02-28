@@ -252,7 +252,7 @@ def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
     return config
 
 
-def list_os_files_with_extension(oss_path: str, extension: str) -> [str]:
+def list_os_files_with_extension(oss_path: str, extension: str) -> List[str]:
     """
     List files in the specified directory with the given extension.
 
@@ -937,6 +937,25 @@ def get_combined_params(params1: str = None, params2: str = None) -> str:
     ]
 
     return " ".join(combined_params)
+
+
+def build_params_string(params: dict) -> str:
+    """Builds params string from params dict
+
+    Parameters
+    ----------
+    params:
+        Parameter dict with key-value pairs
+
+    Returns
+    -------
+        A params string.
+    """
+    return (
+        " ".join(f"{name} {value}" for name, value in params.items()).strip()
+        if params
+        else UNKNOWN
+    )
 
 
 def copy_model_config(artifact_path: str, os_path: str, auth: dict = None):

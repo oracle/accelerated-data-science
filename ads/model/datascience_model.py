@@ -3,7 +3,6 @@
 # Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import cgi
 import json
 import logging
 import os
@@ -1790,7 +1789,9 @@ class DataScienceModel(Builder):
         # Update artifact info
         try:
             artifact_info = self.dsc_model.get_artifact_info()
-            _, file_name_info = cgi.parse_header(artifact_info["Content-Disposition"])
+            _, file_name_info = utils.parse_content_disposition(
+                artifact_info["Content-Disposition"]
+            )
 
             if self.dsc_model._is_model_by_reference():
                 _, file_extension = os.path.splitext(file_name_info["filename"])

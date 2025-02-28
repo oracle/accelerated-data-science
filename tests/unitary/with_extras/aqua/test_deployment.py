@@ -502,10 +502,10 @@ class TestDataset:
         "deployment_config": {
             "model_a": {
                 "shape": [
-                    "VM.GPU.A10.2",
-                    "VM.GPU.A10.4",
                     "BM.GPU.A100-v2.8",
                     "BM.GPU.H100.8",
+                    "VM.GPU.A10.2",
+                    "VM.GPU.A10.4",
                 ],
                 "configuration": {
                     "VM.GPU.A10.2": {
@@ -835,12 +835,8 @@ class TestAquaDeployment(unittest.TestCase):
     @parameterized.expand(
         [
             [
-                "shape",
-                "Unable to determine a valid GPU allocation for the selected models based on their current configurations. Please try selecting a different set of models.",
-            ],
-            [
                 "configuration",
-                "Unable to determine a valid GPU allocation for the selected models based on their current configurations. Please select a different set of models.",
+                "Unable to determine a valid GPU allocation for the selected models based on their current configurations. Please try selecting a different set of models.",
             ],
         ]
     )
