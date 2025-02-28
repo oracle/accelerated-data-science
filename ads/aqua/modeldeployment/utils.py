@@ -62,7 +62,10 @@ class MultiModelDeploymentConfigLoader:
             cannot be determined, an appropriate error message is included in the summary.
         """
         # Fetch deployment configurations concurrently.
+        logger.debug(f"Loading model deployment configuration for models: {model_ids}")
         deployment_configs = self._fetch_deployment_configs_concurrently(model_ids)
+
+        logger.debug(f"Loaded config: {deployment_configs}")
         model_shape_gpu, deployment = self._extract_model_shape_gpu(deployment_configs)
 
         # Initialize the summary result with the deployment configurations.
@@ -80,6 +83,8 @@ class MultiModelDeploymentConfigLoader:
 
         # Identify common deployment shapes among all models.
         common_shapes = self._get_common_shapes(model_shape_gpu)
+        logger.debug(f"Common Shapes: {common_shapes} from: {model_shape_gpu}")
+
         if not common_shapes:
             summary.error_message = (
                 "The selected models do not share any common deployment shapes. "
@@ -94,6 +99,9 @@ class MultiModelDeploymentConfigLoader:
         gpu_allocation = self._compute_gpu_allocation(
             common_shapes, model_shape_gpu, primary_model_id
         )
+
+        logger.debug(f"GPU Allocation: {gpu_allocation}")
+
         if not gpu_allocation:
             summary.error_message = (
                 "Unable to determine a valid GPU allocation for the selected models based on their current configurations. "

@@ -252,7 +252,7 @@ def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
     return config
 
 
-def list_os_files_with_extension(oss_path: str, extension: str) -> [str]:
+def list_os_files_with_extension(oss_path: str, extension: str) -> List[str]:
     """
     List files in the specified directory with the given extension.
 
