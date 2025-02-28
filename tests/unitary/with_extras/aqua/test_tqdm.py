@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 from tqdm.contrib.concurrent import thread_map
 
-from ads.aqua.model.utils import HFModelProgressTracker
+from ads.aqua.model.utils import prepare_progress_tracker_with_callback
 
 
 def test_custom_tqdm_thread_map():
@@ -21,13 +21,12 @@ def test_custom_tqdm_thread_map():
     items = list(range(0, 10))
     callback = MagicMock()
 
-    HFModelProgressTracker.register_hooks(callback)
-    # print(HFModelProgressTracker.hooks)
+    clz = prepare_progress_tracker_with_callback(callback)
     thread_map(
         process,
         items,
         desc=f"Fetching {len(items)} items",
-        tqdm_class=HFModelProgressTracker,
+        tqdm_class=clz,
         max_workers=3,
     )
     callback.assert_called()
@@ -35,8 +34,8 @@ def test_custom_tqdm_thread_map():
 
 def test_custom_tqdm():
     callback = MagicMock()
-    HFModelProgressTracker.register_hooks(callback)
-    with HFModelProgressTracker(range(10), desc="Processing") as bar:
+    clz = prepare_progress_tracker_with_callback(callback)
+    with clz(range(10), desc="Processing") as bar:
         for _ in bar:
             # Simulate work
             import time

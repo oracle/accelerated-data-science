@@ -77,7 +77,7 @@ from ads.aqua.model.entities import (
     ModelFormat,
     ModelValidationResult,
 )
-from ads.aqua.model.utils import HFModelProgressTracker
+from ads.aqua.model.utils import prepare_progress_tracker_with_callback
 from ads.aqua.ui import AquaContainerConfig, AquaContainerConfigItem
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
@@ -1440,9 +1440,9 @@ class AquaModelApp(AquaApp):
                 callback(status)
 
         # if local_dir is not set, the return value points to the cached data folder
-        tqdm = HFModelProgressTracker
+        tqdm = None
         if callback:
-            tqdm.register_hooks(tqdm_callback)
+            tqdm = prepare_progress_tracker_with_callback(tqdm_callback)
         local_dir = snapshot_download(
             repo_id=model_name,
             local_dir=local_dir,

@@ -73,33 +73,11 @@ class AquaModelWSMsgHandler(AquaWSMsgHandler):
                 ),
                 notify_latest_status=False,
             )
-            # if REGISTRATION_STATUS not in AquaModelWSMsgHandler.status_subscriber:
-            #     AquaModelWSMsgHandler.status_subscriber = {
-            #         REGISTRATION_STATUS: {job_id: {"subscriber": []}}
-            #     }
-            # if REGISTRATION_STATUS in AquaModelWSMsgHandler.status_subscriber:
-            #     if (
-            #         job_id
-            #         in AquaModelWSMsgHandler.status_subscriber[REGISTRATION_STATUS]
-            #     ):
-            #         AquaModelWSMsgHandler.status_subscriber[REGISTRATION_STATUS][
-            #             job_id
-            #         ]["subscriber"].append(self.ws_connection)
-            #     else:
-            #         AquaModelWSMsgHandler.status_subscriber[REGISTRATION_STATUS][
-            #             job_id
-            #         ] = {"subscriber": [self.ws_connection]}
 
             latest_status = StatusTracker.get_latest_status(
                 TaskNameEnum.REGISTRATION_STATUS, task_id=task_id
             )
             logger.info(latest_status)
-            # if "state" in AquaModelWSMsgHandler.register_status.get(job_id, {}):
-            #     return ModelRegisterRequest(
-            #         status=AquaModelWSMsgHandler.register_status[job_id]["state"],
-            #         message=AquaModelWSMsgHandler.register_status[job_id]["message"],
-            #         job_id=job_id,
-            #     )
             if latest_status:
                 return ModelRegisterRequest(
                     status=latest_status.state,
