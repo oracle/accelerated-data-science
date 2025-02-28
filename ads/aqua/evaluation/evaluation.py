@@ -31,7 +31,6 @@ from ads.aqua.common.enums import (
     Tags,
 )
 from ads.aqua.common.errors import (
-    AquaError,
     AquaFileExistsError,
     AquaFileNotFoundError,
     AquaMissingKeyError,
@@ -98,6 +97,7 @@ from ads.model.generic_model import ModelDeploymentRuntimeType
 from ads.model.model_metadata import (
     MetadataTaxonomyKeys,
     ModelCustomMetadata,
+    ModelCustomMetadataItem,
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
 )
@@ -198,9 +198,7 @@ class AquaEvaluationApp(AquaApp):
                     )
 
                 aqua_model = DataScienceModel.from_id(multi_model_id)
-                AquaEvaluationApp.validate_model_name(
-                    aqua_model, create_aqua_evaluation_details
-                )
+                self.validate_model_name(aqua_model, create_aqua_evaluation_details)
 
             try:
                 if (
@@ -597,24 +595,28 @@ class AquaEvaluationApp(AquaApp):
         custom_metadata_list = evaluation_source.custom_metadata_list
         user_model_name = user_model_parameters.get("model")
 
-        model_count = custom_metadata_list.get(ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT)
+        multi_model_metadata_value = custom_metadata_list.get(
+            ModelCustomMetadataFields.MULTIMODEL_METADATA,
+            ModelCustomMetadataItem(key=ModelCustomMetadataFields.MULTIMODEL_METADATA),
+        ).value
 
-        if model_count and custom_metadata_list:
-            model_group_count = int(model_count.value)
-        else:
+        if not multi_model_metadata_value:
             logger.debug(
-                f"The ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT or custom_metadata_list (ModelCustomMetadata) is missing from the metadata in evaluation source ID: {create_aqua_evaluation_details.evaluation_source_id}"
+                f"The {ModelCustomMetadataFields.MULTIMODEL_METADATA} is missing from the metadata in evaluation source ID: {create_aqua_evaluation_details.evaluation_source_id}"
             )
             raise AquaRuntimeError(
                 "Recreate the model deployment and retry the evaluation. An issue occured when initalizing the model group during deployment."
             )
 
-        model_names = [
-            custom_metadata_list.get(f"model-name-{idx}")
-            for idx in range(model_group_count)
-        ]
+        multi_model_metadata = json.loads(
+            evaluation_source.dsc_model.get_custom_metadata_artifact(
+                metadata_key_name=ModelCustomMetadataFields.MULTIMODEL_METADATA
+            ).decode("utf-8")
+        )
 
-        valid_model_names = ", ".join(name.value for name in model_names if name is not None)
+        model_names = [metadata.get("model_name") for metadata in multi_model_metadata]
+
+        valid_model_names = ", ".join(model_names)
 
         if "model" not in user_model_parameters:
             logger.debug(
@@ -625,7 +627,6 @@ class AquaEvaluationApp(AquaApp):
             )
 
         if user_model_name not in model_names:
-
             logger.debug(
                 f"User input for model name was {user_model_name}, expected {valid_model_names} evaluation source ID: {create_aqua_evaluation_details.evaluation_source_id}"
             )

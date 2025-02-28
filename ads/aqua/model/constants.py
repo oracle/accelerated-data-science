@@ -19,6 +19,7 @@ class ModelCustomMetadataFields(ExtendedEnum):
     FINETUNE_CONTAINER = "finetune-container"
     DEPLOYMENT_CONTAINER_URI = "deployment-container-uri"
     MULTIMODEL_GROUP_COUNT = "model_group_count"
+    MULTIMODEL_METADATA = "multi_model_metadata"
 
 
 class ModelTask(ExtendedEnum):

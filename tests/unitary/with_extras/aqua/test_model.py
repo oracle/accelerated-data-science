@@ -356,11 +356,17 @@ class TestAquaModel:
         assert model.provenance_metadata.training_id == "test_training_id"
 
     @patch.object(DataScienceModel, "add_artifact")
+    @patch.object(DataScienceModel, "create_custom_metadata_artifact")
     @patch.object(DataScienceModel, "create")
     @patch("ads.model.datascience_model.validate")
     @patch.object(DataScienceModel, "from_id")
     def test_create_multimodel(
-        self, mock_from_id, mock_validate, mock_create, mock_add_artifact
+        self,
+        mock_from_id,
+        mock_validate,
+        mock_create,
+        mock_create_custom_metadata_artifact,
+        mock_add_artifact,
     ):
         mock_model = MagicMock()
         mock_model.model_file_description = {"test_key": "test_value"}

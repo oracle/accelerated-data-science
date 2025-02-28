@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import json
 import os
 import pathlib
 from datetime import datetime, timedelta
@@ -79,6 +80,7 @@ from ads.aqua.model.entities import (
     ModelValidationResult,
 )
 from ads.aqua.ui import AquaContainerConfig, AquaContainerConfigItem
+from ads.common import utils
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link
@@ -261,9 +263,10 @@ class AquaModelApp(AquaApp):
         )
 
         # Process each model
-        for idx, model in enumerate(models):
+        for model in models:
             source_model = DataScienceModel.from_id(model.model_id)
             display_name = source_model.display_name
+            # Update model name in user's input model
             model.model_name = model.model_name or display_name
 
             if not source_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, UNKNOWN):
@@ -291,6 +294,9 @@ class AquaModelApp(AquaApp):
                     "Please register the model first."
                 )
 
+            # Update model artifact location in user's input model
+            model.artifact_location = model_artifact_path
+
             artifact_list.append(model_artifact_path)
 
             # Validate deployment container consistency
@@ -306,47 +312,6 @@ class AquaModelApp(AquaApp):
                     f"Unsupported deployment container '{deployment_container}' for model '{source_model.id}'. "
                     f"Only '{InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY}' is supported for multi-model deployments."
                 )
-
-            # Add model-specific metadata
-            model_custom_metadata.add(
-                key=f"model-id-{idx}",
-                value=source_model.id,
-                description=f"ID of '{display_name}' in the multimodel group.",
-                category="Other",
-            )
-            model_custom_metadata.add(
-                key=f"model-name-{idx}",
-                value=display_name,
-                description=f"Name of '{display_name}' in the multimodel group.",
-                category="Other",
-            )
-            if model.gpu_count:
-                model_custom_metadata.add(
-                    key=f"model-gpu-count-{idx}",
-                    value=model.gpu_count,
-                    description=f"GPU count of '{display_name}' in the multimodel group.",
-                    category="Other",
-                )
-            user_params = (
-                " ".join(
-                    f"{name} {value}" for name, value in model.env_var.items()
-                ).strip()
-                if model.env_var
-                else UNKNOWN
-            )
-            if user_params:
-                model_custom_metadata.add(
-                    key=f"model-user-params-{idx}",
-                    value=user_params,
-                    description=f"User params of '{display_name}' in the multimodel group.",
-                    category="Other",
-                )
-            model_custom_metadata.add(
-                key=f"{ModelCustomMetadataFields.ARTIFACT_LOCATION}-{idx}",
-                value=model_artifact_path,
-                description=f"Artifact path for '{display_name}' in the multimodel group.",
-                category="Other",
-            )
 
         # Generate model group details
         timestamp = datetime.now().strftime("%Y%m%d")
@@ -393,6 +358,15 @@ class AquaModelApp(AquaApp):
 
         # Finalize creation
         custom_model.create(model_by_reference=True)
+
+        # Create custom metadata for multi model metadata
+        custom_model.create_custom_metadata_artifact(
+            metadata_key_name=ModelCustomMetadataFields.MULTIMODEL_METADATA,
+            artifact_path_or_content=json.dumps(
+                [model.model_dump() for model in models]
+            ),
+            path_type=utils.MetadataArtifactPathType.CONTENT,
+        )
 
         logger.info(
             f"Aqua Model '{custom_model.id}' created with models: {', '.join(display_name_list)}."
