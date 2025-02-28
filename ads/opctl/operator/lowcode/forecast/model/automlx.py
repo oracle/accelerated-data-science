@@ -476,11 +476,15 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     # Fall back to the default explanation generation method
                     super().explain_model()
             except Exception as e:
-                self.errors_dict[s_id] = {
-                    "model_name": self.spec.model,
-                    "error": str(e),
-                    "error_trace": traceback.format_exc(),
-                }
+                if s_id in self.errors_dict:
+                    self.errors_dict[s_id]["explainer_error"] = str(e)
+                    self.errors_dict[s_id]["explainer_error_trace"] = traceback.format_exc()
+                else:
+                    self.errors_dict[s_id] = {
+                        "model_name": self.spec.model,
+                        "explainer_error": str(e),
+                        "explainer_error_trace": traceback.format_exc(),
+                    }
                 logger.warning(
                     f"Failed to generate explanations for series {s_id} with error: {e}."
                 )
