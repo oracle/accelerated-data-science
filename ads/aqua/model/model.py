@@ -5,7 +5,7 @@ import os
 import pathlib
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Dict, List, Optional, Set, Union
+from typing import Callable, Dict, List, Optional, Set, Union
 
 import oci
 from cachetools import TTLCache
@@ -26,6 +26,7 @@ from ads.aqua.common.errors import (
     AquaRuntimeError,
     AquaValueError,
 )
+from ads.aqua.common.task_status import TaskStatus, TaskStatusEnum
 from ads.aqua.common.utils import (
     LifecycleStatus,
     _build_resource_identifier,
@@ -76,6 +77,7 @@ from ads.aqua.model.entities import (
     ModelFormat,
     ModelValidationResult,
 )
+from ads.aqua.model.utils import prepare_progress_tracker_with_callback
 from ads.aqua.ui import AquaContainerConfig, AquaContainerConfigItem
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
@@ -1403,6 +1405,7 @@ class AquaModelApp(AquaApp):
         local_dir: str = None,
         allow_patterns: List[str] = None,
         ignore_patterns: List[str] = None,
+        callback: Callable = None,
     ) -> str:
         """This helper function downloads the model artifact from Hugging Face to a local folder, then uploads
         to object storage location.
@@ -1428,23 +1431,53 @@ class AquaModelApp(AquaApp):
             local_dir = os.path.join(local_dir, model_name)
             os.makedirs(local_dir, exist_ok=True)
 
+        def tqdm_callback(status: TaskStatus):  # noqa: ARG001
+            callback(status)
+
+        def publish_status(status: TaskStatus):
+            """wrapper to avoid repeated null check"""
+            if callback:
+                callback(status)
+
         # if local_dir is not set, the return value points to the cached data folder
+        tqdm = None
+        if callback:
+            tqdm = prepare_progress_tracker_with_callback(tqdm_callback)
         local_dir = snapshot_download(
             repo_id=model_name,
             local_dir=local_dir,
             allow_patterns=allow_patterns,
             ignore_patterns=ignore_patterns,
+            tqdm_class=tqdm,
+        )
+        publish_status(
+            TaskStatus(
+                state=TaskStatusEnum.MODEL_DOWNLOAD_SUCCESSFUL,
+                message="Model download complete",
+            )
         )
         # Upload to object storage and skip .cache/huggingface/ folder
         logger.debug(
             f"Uploading local artifacts from local directory {local_dir} to {os_path}."
         )
         # Upload to object storage
+        publish_status(
+            TaskStatus(
+                state=TaskStatusEnum.MODEL_UPLOAD_STARTED,
+                message=f"Uploading model to Object Storage: {os_path}",
+            )
+        )
         model_artifact_path = upload_folder(
             os_path=os_path,
             local_dir=local_dir,
             model_name=model_name,
             exclude_pattern=f"{HF_METADATA_FOLDER}*",
+        )
+        publish_status(
+            TaskStatus(
+                state=TaskStatusEnum.MODEL_UPLOAD_SUCCESSFUL,
+                message=f"Model uploaded successfully to {os_path}",
+            )
         )
 
         return model_artifact_path
@@ -1479,6 +1512,16 @@ class AquaModelApp(AquaApp):
         if not import_model_details:
             import_model_details = ImportModelDetails(**kwargs)
 
+        def publish_status(status: TaskStatus):
+            """Invoke callback with the status"""
+            logger.info(
+                f"Publishing status using callback: {import_model_details.callback}"
+            )
+            if import_model_details.callback:
+                import_model_details.callback(status=status)
+            else:
+                logger.info("No callback registered")
+
         # If OCID of a model is passed, we need to copy the defaults for Tags and metadata from the service model.
         verified_model: Optional[DataScienceModel] = None
         if (
@@ -1497,6 +1540,7 @@ class AquaModelApp(AquaApp):
                     f"Found service model for {import_model_details.model}: {model_service_id}"
                 )
                 verified_model = DataScienceModel.from_id(model_service_id)
+                logger.info("fetched model from service catalog")
 
         # Copy the model name from the service model if `model` is ocid
         model_name = (
@@ -1511,15 +1555,28 @@ class AquaModelApp(AquaApp):
             model_name=model_name,
             verified_model=verified_model,
         )
+        publish_status(
+            TaskStatus(
+                state=TaskStatusEnum.MODEL_VALIDATION_SUCCESSFUL,
+                message="Model information validated",
+            )
+        )
 
         # download model from hugginface if indicates
         if import_model_details.download_from_hf:
+            publish_status(
+                TaskStatus(
+                    state=TaskStatusEnum.MODEL_DOWNLOAD_STARTED,
+                    message=f"Downloading {model_name} from Hugging Face",
+                )
+            )
             artifact_path = self._download_model_from_hf(
                 model_name=model_name,
                 os_path=import_model_details.os_path,
                 local_dir=import_model_details.local_dir,
                 allow_patterns=import_model_details.allow_patterns,
                 ignore_patterns=import_model_details.ignore_patterns,
+                callback=publish_status,
             ).rstrip("/")
         else:
             artifact_path = import_model_details.os_path.rstrip("/")
@@ -1536,6 +1593,12 @@ class AquaModelApp(AquaApp):
             inference_container_uri=import_model_details.inference_container_uri,
             freeform_tags=import_model_details.freeform_tags,
             defined_tags=import_model_details.defined_tags,
+        )
+        publish_status(
+            TaskStatus(
+                TaskStatusEnum.DATASCIENCE_MODEL_CREATED,
+                message=f"DataScience model created. Model id is: {ds_model.id}",
+            )
         )
         # registered model will always have inference and evaluation container, but
         # fine-tuning container may be not set
@@ -1587,7 +1650,12 @@ class AquaModelApp(AquaApp):
             cleanup_local_hf_model_artifact(
                 model_name=model_name, local_dir=import_model_details.local_dir
             )
-
+        publish_status(
+            TaskStatus(
+                state=TaskStatusEnum.MODEL_REGISTRATION_SUCCESSFUL,
+                message=f"Model {model_name} successfully registered. Model id is: {ds_model.id}",
+            )
+        )
         return AquaModel(**aqua_model_attributes)
 
     def _if_show(self, model: DataScienceModel) -> bool:
@@ -1688,6 +1756,7 @@ class AquaModelApp(AquaApp):
         aqua_model_list = self.list()
 
         for aqua_model_summary in aqua_model_list:
+            print(aqua_model_summary.name.lower())
             if aqua_model_summary.name.lower() == model_id_lower:
                 logger.info(
                     f"Found matching verified model id {aqua_model_summary.id} for the model {model_id}"

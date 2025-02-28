@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
+from logging import getLogger
 from typing import List, Union
 
 from ads.aqua.common.decorator import handle_exceptions
@@ -11,18 +12,35 @@ from ads.aqua.extension.aqua_ws_msg_handler import AquaWSMsgHandler
 from ads.aqua.extension.models.ws_models import (
     ListModelsResponse,
     ModelDetailsResponse,
+    ModelRegisterRequest,
     RequestResponseType,
+)
+from ads.aqua.extension.status_manager import (
+    RegistrationSubscriber,
+    StatusTracker,
+    TaskNameEnum,
 )
 from ads.aqua.model import AquaModelApp
 
+logger = getLogger(__name__)
+
+REGISTRATION_STATUS = "registration_status"
+
 
 class AquaModelWSMsgHandler(AquaWSMsgHandler):
+    status_subscriber = {}
+    register_status = {}  # Not threadsafe
+
     def __init__(self, message: Union[str, bytes]):
         super().__init__(message)
 
     @staticmethod
     def get_message_types() -> List[RequestResponseType]:
-        return [RequestResponseType.ListModels, RequestResponseType.ModelDetails]
+        return [
+            RequestResponseType.ListModels,
+            RequestResponseType.ModelDetails,
+            RequestResponseType.RegisterModelStatus,
+        ]
 
     @handle_exceptions
     def process(self) -> Union[ListModelsResponse, ModelDetailsResponse]:
@@ -47,3 +65,26 @@ class AquaModelWSMsgHandler(AquaWSMsgHandler):
                 kind=RequestResponseType.ModelDetails,
                 data=response,
             )
+        elif request.get("kind") == "RegisterModelStatus":
+            task_id = request.get("task_id")
+            StatusTracker.add_subscriber(
+                subscriber=RegistrationSubscriber(
+                    task_id=task_id, subscriber=self.ws_connection
+                ),
+                notify_latest_status=False,
+            )
+
+            latest_status = StatusTracker.get_latest_status(
+                TaskNameEnum.REGISTRATION_STATUS, task_id=task_id
+            )
+            logger.info(latest_status)
+            if latest_status:
+                return ModelRegisterRequest(
+                    status=latest_status.state,
+                    message=latest_status.message,
+                    task_id=task_id,
+                )
+            else:
+                return ModelRegisterRequest(
+                    status="SUBSCRIBED", task_id=task_id, message=""
+                )

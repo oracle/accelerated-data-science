@@ -2,8 +2,11 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import threading
+from logging import getLogger
 from typing import Optional
 from urllib.parse import urlparse
+from uuid import uuid4
 
 from tornado.web import HTTPError
 
@@ -12,6 +15,7 @@ from ads.aqua.common.enums import (
     CustomInferenceContainerTypeFamily,
 )
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
+from ads.aqua.common.task_status import TaskStatus, TaskStatusEnum
 from ads.aqua.common.utils import (
     get_hf_model_info,
     is_valid_ocid,
@@ -19,9 +23,20 @@ from ads.aqua.common.utils import (
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
+from ads.aqua.extension.status_manager import (
+    RegistrationStatus,
+    StatusTracker,
+    TaskNameEnum,
+)
 from ads.aqua.model import AquaModelApp
-from ads.aqua.model.entities import AquaModelSummary, HFModelSummary
+from ads.aqua.model.entities import (
+    AquaModel,
+    AquaModelSummary,
+    HFModelSummary,
+)
 from ads.aqua.ui import ModelFormat
+
+logger = getLogger(__name__)
 
 
 class AquaModelHandler(AquaAPIhandler):
@@ -108,6 +123,7 @@ class AquaModelHandler(AquaAPIhandler):
         HTTPError
             Raises HTTPError if inputs are missing or are invalid
         """
+        task_id = str(uuid4())
         try:
             input_data = self.get_json_body()
         except Exception as ex:
@@ -145,27 +161,64 @@ class AquaModelHandler(AquaAPIhandler):
             str(input_data.get("ignore_model_artifact_check", "false")).lower()
             == "true"
         )
+        async_mode = input_data.get("async_mode", False)
 
-        return self.finish(
-            AquaModelApp().register(
-                model=model,
-                os_path=os_path,
-                download_from_hf=download_from_hf,
-                local_dir=local_dir,
-                cleanup_model_cache=cleanup_model_cache,
-                inference_container=inference_container,
-                finetuning_container=finetuning_container,
-                compartment_id=compartment_id,
-                project_id=project_id,
-                model_file=model_file,
-                inference_container_uri=inference_container_uri,
-                allow_patterns=allow_patterns,
-                ignore_patterns=ignore_patterns,
-                freeform_tags=freeform_tags,
-                defined_tags=defined_tags,
-                ignore_model_artifact_check=ignore_model_artifact_check,
+        def register_model(callback=None) -> AquaModel:
+            """Wrapper method to help initialize callback in case of async mode"""
+            try:
+                registered_model = AquaModelApp().register(
+                    model=model,
+                    os_path=os_path,
+                    download_from_hf=download_from_hf,
+                    local_dir=local_dir,
+                    cleanup_model_cache=cleanup_model_cache,
+                    inference_container=inference_container,
+                    finetuning_container=finetuning_container,
+                    compartment_id=compartment_id,
+                    project_id=project_id,
+                    model_file=model_file,
+                    inference_container_uri=inference_container_uri,
+                    allow_patterns=allow_patterns,
+                    ignore_patterns=ignore_patterns,
+                    freeform_tags=freeform_tags,
+                    defined_tags=defined_tags,
+                    ignore_model_artifact_check=ignore_model_artifact_check,
+                    callback=callback,
+                )
+            except Exception as e:
+                if async_mode:
+                    StatusTracker.add_status(
+                        RegistrationStatus(
+                            task_id=task_id,
+                            task_status=TaskStatus(
+                                state=TaskStatusEnum.REGISTRATION_FAILED, message=str(e)
+                            ),
+                        )
+                    )
+                    raise
+                else:
+                    raise
+            return registered_model
+
+        if async_mode:
+            t = threading.Thread(
+                target=register_model,
+                args=(
+                    StatusTracker.prepare_status_callback(
+                        TaskNameEnum.REGISTRATION_STATUS, task_id=task_id
+                    ),
+                ),
+                daemon=True,
             )
-        )
+            t.start()
+            output = {
+                "state": "ACCEPTED",
+                "task_id": task_id,
+                "progress_url": f"ws://host:port/aqua/ws/{task_id}",
+            }
+        else:
+            output = register_model()
+        return self.finish(output)
 
     @handle_exceptions
     def put(self, id):
