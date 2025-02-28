@@ -135,11 +135,14 @@ class MultiModelDeploymentConfigLoader:
     def _extract_model_shape_gpu(
         self, deployment_configs: Dict[str, AquaDeploymentConfig]
     ):
-        """Extracts shape and GPU count details from deployment configurations."""
+        """Extracts shape and GPU count details from deployment configurations.
+        Supported shapes for multi model deployment will be collected from `configuration` entry in deployment config.
+        """
         model_shape_gpu = {}
         deployment = {}
 
         for model_id, config in deployment_configs.items():
+            multi_deployment_shape = list(config.configuration.keys())
             model_shape_gpu[model_id] = {
                 shape: [
                     item.gpu_count
@@ -147,13 +150,13 @@ class MultiModelDeploymentConfigLoader:
                         shape, ConfigurationItem()
                     ).multi_model_deployment
                 ]
-                for shape in config.shape
+                for shape in multi_deployment_shape
             }
             deployment[model_id] = {
-                "shape": config.shape,
+                "shape": multi_deployment_shape,
                 "configuration": {
                     shape: config.configuration.get(shape, ConfigurationItem())
-                    for shape in config.shape
+                    for shape in multi_deployment_shape
                 },
             }
 
