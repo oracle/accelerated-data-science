@@ -522,10 +522,15 @@ class CreateModelDeploymentDetails(BaseModel):
 
         for model in self.models:
             sum_model_gpus += model.gpu_count
-
             aqua_deployment_config = model_deployment_config[model.model_id]
 
-            if selected_shape not in aqua_deployment_config.shape:
+            # We cannot rely on .shape because some models, like Falcon-7B, can only be deployed on a single GPU card (A10.1).
+            # However, Falcon can also be deployed on a single card in other A10 shapes, such as A10.2.
+            # Our current configuration does not support this flexibility.
+            # multi_deployment_shape = aqua_deployment_config.shape
+            multi_deployment_shape = list(aqua_deployment_config.configuration.keys())
+
+            if selected_shape not in multi_deployment_shape:
                 logger.error(
                     f"Model with OCID {model.model_id} in the model group is not compatible with the selected instance shape: {selected_shape}"
                 )

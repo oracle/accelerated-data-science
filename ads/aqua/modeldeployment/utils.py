@@ -142,6 +142,10 @@ class MultiModelDeploymentConfigLoader:
         deployment = {}
 
         for model_id, config in deployment_configs.items():
+            # We cannot rely on .shape because some models, like Falcon-7B, can only be deployed on a single GPU card (A10.1).
+            # However, Falcon can also be deployed on a single card in other A10 shapes, such as A10.2.
+            # Our current configuration does not support this flexibility.
+            # multi_deployment_shape = config.shape
             multi_deployment_shape = list(config.configuration.keys())
             model_shape_gpu[model_id] = {
                 shape: [
