@@ -1,7 +1,8 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from typing import List, Union
 from urllib.parse import urlparse
 
 from tornado.web import HTTPError
@@ -11,7 +12,7 @@ from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
 from ads.aqua.modeldeployment.entities import ModelParams
-from ads.config import COMPARTMENT_OCID, PROJECT_OCID
+from ads.config import COMPARTMENT_OCID
 
 
 class AquaDeploymentHandler(AquaAPIhandler):
@@ -20,7 +21,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
 
     Methods
     -------
-    get(self, id="")
+    get(self, id: Union[str, List[str]])
         Retrieves a list of AQUA deployments or model info or logs by ID.
     post(self, *args, **kwargs)
         Creates a new AQUA deployment.
@@ -37,14 +38,15 @@ class AquaDeploymentHandler(AquaAPIhandler):
     """
 
     @handle_exceptions
-    def get(self, id=""):
+    def get(self, id: Union[str, List[str]] = None):
         """Handle GET request."""
         url_parse = urlparse(self.request.path)
         paths = url_parse.path.strip("/")
         if paths.startswith("aqua/deployments/config"):
-            if not id:
+            if not id or not isinstance(id, (list, str)):
                 raise HTTPError(
-                    400, f"The request {self.request.path} requires model id."
+                    400,
+                    f"The request to {self.request.path} must include either a single model ID or a list of model IDs.",
                 )
             return self.get_deployment_config(id)
         elif paths.startswith("aqua/deployments"):
@@ -98,71 +100,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)
 
-        # required input parameters
-        display_name = input_data.get("display_name")
-        if not display_name:
-            raise HTTPError(
-                400, Errors.MISSING_REQUIRED_PARAMETER.format("display_name")
-            )
-        instance_shape = input_data.get("instance_shape")
-        if not instance_shape:
-            raise HTTPError(
-                400, Errors.MISSING_REQUIRED_PARAMETER.format("instance_shape")
-            )
-        model_id = input_data.get("model_id")
-        if not model_id:
-            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("model_id"))
-
-        compartment_id = input_data.get("compartment_id", COMPARTMENT_OCID)
-        project_id = input_data.get("project_id", PROJECT_OCID)
-        log_group_id = input_data.get("log_group_id")
-        access_log_id = input_data.get("access_log_id")
-        predict_log_id = input_data.get("predict_log_id")
-        description = input_data.get("description")
-        instance_count = input_data.get("instance_count")
-        bandwidth_mbps = input_data.get("bandwidth_mbps")
-        web_concurrency = input_data.get("web_concurrency")
-        server_port = input_data.get("server_port")
-        health_check_port = input_data.get("health_check_port")
-        env_var = input_data.get("env_var")
-        container_family = input_data.get("container_family")
-        ocpus = input_data.get("ocpus")
-        memory_in_gbs = input_data.get("memory_in_gbs")
-        model_file = input_data.get("model_file")
-        private_endpoint_id = input_data.get("private_endpoint_id")
-        container_image_uri = input_data.get("container_image_uri")
-        cmd_var = input_data.get("cmd_var")
-        freeform_tags = input_data.get("freeform_tags")
-        defined_tags = input_data.get("defined_tags")
-
-        self.finish(
-            AquaDeploymentApp().create(
-                compartment_id=compartment_id,
-                project_id=project_id,
-                model_id=model_id,
-                display_name=display_name,
-                description=description,
-                instance_count=instance_count,
-                instance_shape=instance_shape,
-                log_group_id=log_group_id,
-                access_log_id=access_log_id,
-                predict_log_id=predict_log_id,
-                bandwidth_mbps=bandwidth_mbps,
-                web_concurrency=web_concurrency,
-                server_port=server_port,
-                health_check_port=health_check_port,
-                env_var=env_var,
-                container_family=container_family,
-                ocpus=ocpus,
-                memory_in_gbs=memory_in_gbs,
-                model_file=model_file,
-                private_endpoint_id=private_endpoint_id,
-                container_image_uri=container_image_uri,
-                cmd_var=cmd_var,
-                freeform_tags=freeform_tags,
-                defined_tags=defined_tags,
-            )
-        )
+        self.finish(AquaDeploymentApp().create(**input_data))
 
     def read(self, id):
         """Read the information of an Aqua model deployment."""
@@ -181,9 +119,33 @@ class AquaDeploymentHandler(AquaAPIhandler):
             )
         )
 
-    def get_deployment_config(self, model_id):
-        """Gets the deployment config for Aqua model."""
-        return self.finish(AquaDeploymentApp().get_deployment_config(model_id=model_id))
+    def get_deployment_config(self, model_id: Union[str, List[str]]):
+        """
+        Retrieves the deployment configuration for one or more Aqua models.
+
+        Parameters
+        ----------
+        model_id : Union[str, List[str]]
+            A single model ID (str) or a list of model IDs (List[str]).
+
+        Returns
+        -------
+        None
+            The function sends the deployment configuration as a response.
+        """
+        app = AquaDeploymentApp()
+
+        if isinstance(model_id, list):
+            # Handle multiple model deployment
+            primary_model_id = self.get_argument("primary_model_id", default=None)
+            deployment_config = app.get_multimodel_deployment_config(
+                model_ids=model_id, primary_model_id=primary_model_id
+            )
+        else:
+            # Handle single model deployment
+            deployment_config = app.get_deployment_config(model_id=model_id)
+
+        return self.finish(deployment_config)
 
 
 class AquaDeploymentInferenceHandler(AquaAPIhandler):
@@ -259,9 +221,10 @@ class AquaDeploymentParamsHandler(AquaAPIhandler):
     def get(self, model_id):
         """Handle GET request."""
         instance_shape = self.get_argument("instance_shape")
+        gpu_count = self.get_argument("gpu_count", default=None)
         return self.finish(
             AquaDeploymentApp().get_deployment_default_params(
-                model_id=model_id, instance_shape=instance_shape
+                model_id=model_id, instance_shape=instance_shape, gpu_count=gpu_count
             )
         )
 

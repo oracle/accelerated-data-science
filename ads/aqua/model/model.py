@@ -14,6 +14,7 @@ from oci.data_science.models import JobRun, Metadata, Model, UpdateModelDetails
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
+from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import (
     ConfigFolder,
     CustomInferenceContainerTypeFamily,
@@ -64,6 +65,7 @@ from ads.aqua.model.constants import (
     FineTuningCustomMetadata,
     FineTuningMetricCategories,
     ModelCustomMetadataFields,
+    ModelTask,
     ModelType,
 )
 from ads.aqua.model.entities import (
@@ -135,40 +137,45 @@ class AquaModelApp(AquaApp):
     @telemetry(entry_point="plugin=model&action=create", name="aqua")
     def create(
         self,
-        model_id: str,
-        project_id: str,
-        compartment_id: str = None,
-        freeform_tags: Optional[dict] = None,
-        defined_tags: Optional[dict] = None,
+        model_id: Union[str, AquaMultiModelRef],
+        project_id: Optional[str] = None,
+        compartment_id: Optional[str] = None,
+        freeform_tags: Optional[Dict] = None,
+        defined_tags: Optional[Dict] = None,
         **kwargs,
     ) -> DataScienceModel:
-        """Creates custom aqua model from service model.
+        """
+        Creates a custom Aqua model from a service model.
 
         Parameters
         ----------
-        model_id: str
-            The service model id.
-        project_id: str
-            The project id for custom model.
-        compartment_id: str
-            The compartment id for custom model. Defaults to None.
-            If not provided, compartment id will be fetched from environment variables.
-        freeform_tags: dict
-            Freeform tags for the model
-        defined_tags: dict
-            Defined tags for the model
+        model : Union[str, AquaMultiModelRef]
+            The model ID as a string or a AquaMultiModelRef instance to be deployed.
+        project_id : Optional[str]
+            The project ID for the custom model.
+        compartment_id : Optional[str]
+            The compartment ID for the custom model. Defaults to None.
+            If not provided, the compartment ID will be fetched from environment variables.
+        freeform_tags : Optional[Dict]
+            Freeform tags for the model.
+        defined_tags : Optional[Dict]
+            Defined tags for the model.
+
         Returns
         -------
-        DataScienceModel:
+        DataScienceModel
             The instance of DataScienceModel.
         """
+        model_id = (
+            model_id.model_id if isinstance(model_id, AquaMultiModelRef) else model_id
+        )
         service_model = DataScienceModel.from_id(model_id)
         target_project = project_id or PROJECT_OCID
         target_compartment = compartment_id or COMPARTMENT_OCID
 
         if service_model.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
             logger.info(
-                f"Aqua Model {model_id} already exists in user's compartment."
+                f"Aqua Model {model_id} already exists in the user's compartment."
                 "Skipped copying."
             )
             return service_model
@@ -195,18 +202,207 @@ class AquaModelApp(AquaApp):
             .with_custom_metadata_list(service_model.custom_metadata_list)
             .with_defined_metadata_list(service_model.defined_metadata_list)
             .with_provenance_metadata(service_model.provenance_metadata)
-            # TODO: decide what kwargs will be needed.
             .create(model_by_reference=True, **kwargs)
         )
         logger.info(
             f"Aqua Model {custom_model.id} created with the service model {model_id}."
         )
 
-        # tracks unique models that were created in the user compartment
+        # Track unique models that were created in the user's compartment
         self.telemetry.record_event_async(
             category="aqua/service/model",
             action="create",
             detail=service_model.display_name,
+        )
+
+        return custom_model
+
+    @telemetry(entry_point="plugin=model&action=create", name="aqua")
+    def create_multi(
+        self,
+        models: List[AquaMultiModelRef],
+        project_id: Optional[str] = None,
+        compartment_id: Optional[str] = None,
+        freeform_tags: Optional[Dict] = None,
+        defined_tags: Optional[Dict] = None,
+        **kwargs,  # noqa: ARG002
+    ) -> DataScienceModel:
+        """
+        Creates a multi-model grouping using the provided model list.
+
+        Parameters
+        ----------
+        models : List[AquaMultiModelRef]
+            List of AquaMultiModelRef instances for creating a multi-model group.
+        project_id : Optional[str]
+            The project ID for the multi-model group.
+        compartment_id : Optional[str]
+            The compartment ID for the multi-model group.
+        freeform_tags : Optional[Dict]
+            Freeform tags for the model.
+        defined_tags : Optional[Dict]
+            Defined tags for the model.
+
+        Returns
+        -------
+        DataScienceModel
+            Instance of DataScienceModel object.
+        """
+
+        if not models:
+            raise AquaValueError("Model list cannot be empty.")
+
+        artifact_list = []
+        display_name_list = []
+        model_custom_metadata = ModelCustomMetadata()
+        # TODO: update it when more deployment containers are supported
+        default_deployment_container = (
+            InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY
+        )
+
+        # Process each model
+        for idx, model in enumerate(models):
+            source_model = DataScienceModel.from_id(model.model_id)
+            display_name = source_model.display_name
+            model.model_name = model.model_name or display_name
+
+            if not source_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, UNKNOWN):
+                raise AquaValueError(
+                    f"Invalid selected model {display_name}. "
+                    "Currently only service models are supported for multi model deployment."
+                )
+
+            if (
+                source_model.freeform_tags.get(Tags.TASK, UNKNOWN)
+                != ModelTask.TEXT_GENERATION
+            ):
+                raise AquaValueError(
+                    f"Invalid or missing {Tags.TASK} tag for selected model {display_name}. "
+                    f"Currently only {ModelTask.TEXT_GENERATION} models are support for multi model deployment."
+                )
+
+            display_name_list.append(display_name)
+
+            # Retrieve model artifact
+            model_artifact_path = source_model.artifact
+            if not model_artifact_path:
+                raise AquaValueError(
+                    f"Model '{display_name}' (ID: {model.model_id}) has no artifacts. "
+                    "Please register the model first."
+                )
+
+            artifact_list.append(model_artifact_path)
+
+            # Validate deployment container consistency
+            deployment_container = source_model.custom_metadata_list.get(
+                ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
+                ModelCustomMetadataItem(
+                    key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER
+                ),
+            ).value
+
+            if default_deployment_container != deployment_container:
+                raise AquaValueError(
+                    f"Unsupported deployment container '{deployment_container}' for model '{source_model.id}'. "
+                    f"Only '{InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY}' is supported for multi-model deployments."
+                )
+
+            # Add model-specific metadata
+            model_custom_metadata.add(
+                key=f"model-id-{idx}",
+                value=source_model.id,
+                description=f"ID of '{display_name}' in the multimodel group.",
+                category="Other",
+            )
+            model_custom_metadata.add(
+                key=f"model-name-{idx}",
+                value=display_name,
+                description=f"Name of '{display_name}' in the multimodel group.",
+                category="Other",
+            )
+            if model.gpu_count:
+                model_custom_metadata.add(
+                    key=f"model-gpu-count-{idx}",
+                    value=model.gpu_count,
+                    description=f"GPU count of '{display_name}' in the multimodel group.",
+                    category="Other",
+                )
+            user_params = (
+                " ".join(
+                    f"{name} {value}" for name, value in model.env_var.items()
+                ).strip()
+                if model.env_var
+                else UNKNOWN
+            )
+            if user_params:
+                model_custom_metadata.add(
+                    key=f"model-user-params-{idx}",
+                    value=user_params,
+                    description=f"User params of '{display_name}' in the multimodel group.",
+                    category="Other",
+                )
+            model_custom_metadata.add(
+                key=f"{ModelCustomMetadataFields.ARTIFACT_LOCATION}-{idx}",
+                value=model_artifact_path,
+                description=f"Artifact path for '{display_name}' in the multimodel group.",
+                category="Other",
+            )
+
+        # Generate model group details
+        timestamp = datetime.now().strftime("%Y%m%d")
+        model_group_display_name = f"model_group_{timestamp}"
+        combined_models = ", ".join(display_name_list)
+        model_group_description = f"Multi-model grouping using {combined_models}."
+
+        # Add global metadata
+        model_custom_metadata.add(
+            key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
+            value=default_deployment_container,
+            description=f"Inference container mapping for {model_group_display_name}",
+            category="Other",
+        )
+        model_custom_metadata.add(
+            key=ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT,
+            value=str(len(models)),
+            description="Number of models in the group.",
+            category="Other",
+        )
+
+        # Combine tags
+        tags = {
+            # Tags.AQUA_TAG: "active",
+            Tags.MULTIMODEL_TYPE_TAG: "true",
+            **(freeform_tags or {}),
+        }
+
+        # Create multi-model group
+        custom_model = (
+            DataScienceModel()
+            .with_compartment_id(compartment_id)
+            .with_project_id(project_id)
+            .with_display_name(model_group_display_name)
+            .with_description(model_group_description)
+            .with_freeform_tags(**tags)
+            .with_defined_tags(**(defined_tags or {}))
+            .with_custom_metadata_list(model_custom_metadata)
+        )
+
+        # Attach artifacts
+        for artifact in artifact_list:
+            custom_model.add_artifact(uri=artifact)
+
+        # Finalize creation
+        custom_model.create(model_by_reference=True)
+
+        logger.info(
+            f"Aqua Model '{custom_model.id}' created with models: {', '.join(display_name_list)}."
+        )
+
+        # Track telemetry event
+        self.telemetry.record_event_async(
+            category="aqua/multimodel",
+            action="create",
+            detail=combined_models,
         )
 
         return custom_model
@@ -1614,6 +1810,8 @@ class AquaModelApp(AquaApp):
             filter_tag = Tags.AQUA_FINE_TUNED_MODEL_TAG
         elif model_type == ModelType.BASE:
             filter_tag = Tags.BASE_MODEL_CUSTOM
+        # elif model_type == ModelType.MULTIMODEL:
+        #     filter_tag = Tags.MULTIMODEL_TYPE_TAG
         else:
             raise AquaValueError(
                 f"Model of type {model_type} is unknown. The values should be in {ModelType.values()}"
