@@ -570,7 +570,7 @@ class ForecastOperatorBaseModel(ABC):
         # explanations csv reports
         if self.spec.generate_explanations:
             try:
-                if self.formatted_global_explanation is not None:
+                if not self.formatted_global_explanation.empty:
                     write_data(
                         data=self.formatted_global_explanation,
                         filename=os.path.join(
@@ -586,7 +586,7 @@ class ForecastOperatorBaseModel(ABC):
                         f"Attempted to generate global explanations for the {self.spec.global_explanation_filename} file, but an issue occured in formatting the explanations."
                     )
 
-                if self.formatted_local_explanation is not None:
+                if not self.formatted_local_explanation.empty:
                     write_data(
                         data=self.formatted_local_explanation,
                         filename=os.path.join(
