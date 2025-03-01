@@ -884,18 +884,16 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
         assert result[0] == True
-        assert result[1] == 8
-        assert len(result[2]) == 3
+        assert len(result[1]) == 3
 
         result = MultiModelDeploymentConfigLoader(self.app)._verify_compatibility(
             8, model_gpu_dict=TestDataset.model_gpu_dict, primary_model_id="model_b"
         )
 
         assert result[0] == True
-        assert result[1] == 8
-        assert len(result[2]) == 3
+        assert len(result[1]) == 3
 
-        for item in result[2]:
+        for item in result[1]:
             if item.ocid == "model_b":
                 # model_b gets the maximum gpu count
                 assert item.gpu_count == 4
@@ -905,8 +903,7 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
         assert result[0] == False
-        assert result[1] == 0
-        assert result[2] == []
+        assert result[1] == []
 
     @patch("ads.aqua.modeldeployment.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")

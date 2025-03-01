@@ -54,7 +54,7 @@ class MultiModelDeploymentConfigLoader:
         Parameters
         ----------
         shapes : List[ComputeShapeSummary]
-            Model deployment shapes.
+            Model deployment available shapes.
         model_ids : List[str]
             A list of OCIDs for the Aqua models.
         primary_model_id : Optional[str], optional
@@ -91,9 +91,19 @@ class MultiModelDeploymentConfigLoader:
         common_shapes = self._get_common_shapes(model_shape_gpu)
         logger.debug(f"Common Shapes: {common_shapes} from: {model_shape_gpu}")
 
+        # Filter out not available shapes
+        available_shapes = [item.name.upper() for item in shapes]
+        logger.debug(f"Service Available Shapes: {available_shapes}")
+        common_shapes = [
+            shape_name
+            for shape_name in common_shapes
+            if shape_name.upper() in available_shapes
+        ]
+        logger.debug(f"Available Common Shapes: {common_shapes}")
+
         if not common_shapes:
             summary.error_message = (
-                "The selected models do not share any common deployment shapes. "
+                "The selected models do not share any available common deployment shapes. "
                 "Please ensure that all chosen models are compatible for multi-model deployment."
             )
             logger.debug(
@@ -215,12 +225,10 @@ class MultiModelDeploymentConfigLoader:
             if len(model_gpu) != len(model_shape_gpu):
                 continue
 
-            is_compatible, total_gpus_available, combination = (
-                self._verify_compatibility(
-                    total_gpus_available=total_gpus_available,
-                    model_gpu_dict=model_gpu,
-                    primary_model_id=primary_model_id,
-                )
+            is_compatible, combination = self._verify_compatibility(
+                total_gpus_available=total_gpus_available,
+                model_gpu_dict=model_gpu,
+                primary_model_id=primary_model_id,
             )
 
             if is_compatible:
@@ -276,7 +284,6 @@ class MultiModelDeploymentConfigLoader:
                         combination[primary_model_id] = gpu_count
                         return (
                             True,
-                            total_gpus_available,
                             [
                                 GPUModelAllocation(ocid=ocid, gpu_count=gpu_count)
                                 for ocid, gpu_count in combination.items()
@@ -304,14 +311,13 @@ class MultiModelDeploymentConfigLoader:
             if optimal_combination:
                 return (
                     True,
-                    total_gpus_available,
                     [
                         GPUModelAllocation(ocid=ocid, gpu_count=gpu_count)
                         for ocid, gpu_count in optimal_combination.items()
                     ],
                 )
 
-        return (False, 0, [])
+        return (False, [])
 
     @staticmethod
     def get_combinations(input_dict: dict):
