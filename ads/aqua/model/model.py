@@ -266,11 +266,11 @@ class AquaModelApp(AquaApp):
             display_name = source_model.display_name
             model.model_name = model.model_name or display_name
 
-            if not source_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, UNKNOWN):
-                raise AquaValueError(
-                    f"Invalid selected model {display_name}. "
-                    "Currently only service models are supported for multi model deployment."
-                )
+            # if not source_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, UNKNOWN):
+            #     raise AquaValueError(
+            #         f"Invalid selected model {display_name}. "
+            #         "Currently only service models are supported for multi model deployment."
+            #     )
 
             if (
                 source_model.freeform_tags.get(Tags.TASK, UNKNOWN)
