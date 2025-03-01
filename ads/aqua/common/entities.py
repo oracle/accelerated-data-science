@@ -65,7 +65,8 @@ class ComputeShapeSummary(Serializable):
     )
 
     @model_validator(mode="after")
-    def set_gpu_specs(self, model: "ComputeShapeSummary") -> "ComputeShapeSummary":
+    @classmethod
+    def set_gpu_specs(cls, model: "ComputeShapeSummary") -> "ComputeShapeSummary":
         """
         Validates and populates GPU specifications if the shape_series indicates a GPU-based shape.
 
