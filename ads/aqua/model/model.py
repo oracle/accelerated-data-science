@@ -65,7 +65,6 @@ from ads.aqua.model.constants import (
     FineTuningCustomMetadata,
     FineTuningMetricCategories,
     ModelCustomMetadataFields,
-    ModelTask,
     ModelType,
 )
 from ads.aqua.model.entities import (
@@ -272,13 +271,10 @@ class AquaModelApp(AquaApp):
             #         "Currently only service models are supported for multi model deployment."
             #     )
 
-            if (
-                source_model.freeform_tags.get(Tags.TASK, UNKNOWN)
-                != ModelTask.TEXT_GENERATION
-            ):
+            if source_model.freeform_tags.get(Tags.TASK, UNKNOWN) != "text_generation":
                 raise AquaValueError(
                     f"Invalid or missing {Tags.TASK} tag for selected model {display_name}. "
-                    f"Currently only {ModelTask.TEXT_GENERATION} models are support for multi model deployment."
+                    f"Currently only `text_generation` models are support for multi model deployment."
                 )
 
             display_name_list.append(display_name)
