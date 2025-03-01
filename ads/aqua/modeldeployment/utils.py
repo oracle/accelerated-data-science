@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional
 
 from ads.aqua.app import AquaApp
+from ads.aqua.common.entities import ComputeShapeSummary
 from ads.aqua.modeldeployment.entities import (
     AquaDeploymentConfig,
     ConfigurationItem,
@@ -42,13 +43,18 @@ class MultiModelDeploymentConfigLoader:
         self.deployment_app = deployment_app
 
     def load(
-        self, model_ids: List[str], primary_model_id: Optional[str] = None
+        self,
+        shapes: List[ComputeShapeSummary],
+        model_ids: List[str],
+        primary_model_id: Optional[str] = None,
     ) -> ModelDeploymentConfigSummary:
         """
         Retrieves deployment configurations for multiple models and calculates compatible GPU allocations.
 
         Parameters
         ----------
+        shapes : List[ComputeShapeSummary]
+            Model deployment shapes.
         model_ids : List[str]
             A list of OCIDs for the Aqua models.
         primary_model_id : Optional[str], optional
@@ -97,7 +103,10 @@ class MultiModelDeploymentConfigLoader:
 
         # Compute GPU allocations based on the common shapes and optionally prioritize a primary model.
         gpu_allocation = self._compute_gpu_allocation(
-            common_shapes, model_shape_gpu, primary_model_id
+            shapes=shapes,
+            common_shapes=common_shapes,
+            model_shape_gpu=model_shape_gpu,
+            primary_model_id=primary_model_id,
         )
 
         logger.debug(f"GPU Allocation: {gpu_allocation}")
@@ -178,6 +187,7 @@ class MultiModelDeploymentConfigLoader:
 
     def _compute_gpu_allocation(
         self,
+        shapes: List[ComputeShapeSummary],
         common_shapes: List[str],
         model_shape_gpu: Dict[str, Dict[str, List[int]]],
         primary_model_id: Optional[str],
@@ -186,6 +196,16 @@ class MultiModelDeploymentConfigLoader:
         gpu_allocation = {}
 
         for common_shape in common_shapes:
+            total_gpus_available = 0
+
+            # search the shape in the available shapes list
+            shape_summary = next(
+                (shape for shape in shapes if shape.name == common_shape),
+                None,
+            )
+            if shape_summary and shape_summary.gpu_specs:
+                total_gpus_available = shape_summary.gpu_specs.gpu_count
+
             model_gpu = {
                 model: shape_gpu[common_shape]
                 for model, shape_gpu in model_shape_gpu.items()
@@ -195,19 +215,26 @@ class MultiModelDeploymentConfigLoader:
             if len(model_gpu) != len(model_shape_gpu):
                 continue
 
-            is_compatible, max_gpu_count, combination = self._verify_compatibility(
-                model_gpu, primary_model_id
+            is_compatible, total_gpus_available, combination = (
+                self._verify_compatibility(
+                    total_gpus_available=total_gpus_available,
+                    model_gpu_dict=model_gpu,
+                    primary_model_id=primary_model_id,
+                )
             )
 
             if is_compatible:
                 gpu_allocation[common_shape] = GPUShapeAllocation(
-                    models=combination, total_gpus_available=max_gpu_count
+                    models=combination, total_gpus_available=total_gpus_available
                 )
 
         return gpu_allocation
 
     def _verify_compatibility(
-        self, model_gpu_dict: Dict, primary_model_id: str = None
+        self,
+        total_gpus_available: int,
+        model_gpu_dict: Dict,
+        primary_model_id: str = None,
     ) -> tuple:
         """Calculates the gpu allocations for all compatible shapes.
         If no primary Aqua model id provided, gpu count for each compatible shape will be evenly allocated.
@@ -234,7 +261,7 @@ class MultiModelDeploymentConfigLoader:
         tuple:
             A tuple of gpu count allocation result.
         """
-        maximum_gpu_count = max([sorted(gpus)[-1] for gpus in model_gpu_dict.values()])
+
         model_gpu_dict_copy = copy.deepcopy(model_gpu_dict)
         if primary_model_id:
             primary_model_gpu_list = sorted(model_gpu_dict_copy.pop(primary_model_id))
@@ -243,12 +270,13 @@ class MultiModelDeploymentConfigLoader:
                 for combination in combinations:
                     if (
                         len(combination) == len(model_gpu_dict_copy)
-                        and sum(combination.values()) == maximum_gpu_count - gpu_count
+                        and sum(combination.values())
+                        == total_gpus_available - gpu_count
                     ):
                         combination[primary_model_id] = gpu_count
                         return (
                             True,
-                            maximum_gpu_count,
+                            total_gpus_available,
                             [
                                 GPUModelAllocation(ocid=ocid, gpu_count=gpu_count)
                                 for ocid, gpu_count in combination.items()
@@ -262,7 +290,7 @@ class MultiModelDeploymentConfigLoader:
             for combination in combinations:
                 if (
                     len(combination) == len(model_gpu_dict_copy)
-                    and sum(combination.values()) == maximum_gpu_count
+                    and sum(combination.values()) == total_gpus_available
                 ):
                     difference = max(combination.values()) - min(combination.values())
                     if difference < minimal_difference:
@@ -276,7 +304,7 @@ class MultiModelDeploymentConfigLoader:
             if optimal_combination:
                 return (
                     True,
-                    maximum_gpu_count,
+                    total_gpus_available,
                     [
                         GPUModelAllocation(ocid=ocid, gpu_count=gpu_count)
                         for ocid, gpu_count in optimal_combination.items()

@@ -8,13 +8,35 @@ from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 from pydantic import BaseModel, Field, model_validator
 
 from ads.aqua import logger
-from ads.aqua.common.entities import AquaMultiModelRef, ShapeInfo
+from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import Tags
 from ads.aqua.config.utils.serializer import Serializable
 from ads.aqua.constants import UNKNOWN, UNKNOWN_DICT
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
+
+
+class ShapeInfo(Serializable):
+    """
+    Represents the configuration details for a compute instance shape.
+    """
+
+    instance_shape: Optional[str] = Field(
+        default=None,
+        description="The identifier of the compute instance shape (e.g., VM.Standard2.1)",
+    )
+    instance_count: Optional[int] = Field(
+        default=None, description="The number of instances for the given shape."
+    )
+    ocpus: Optional[float] = Field(
+        default=None,
+        description="The number of Oracle CPUs allocated for the instance.",
+    )
+    memory_in_gbs: Optional[float] = Field(
+        default=None,
+        description="The total memory allocated for the instance, in gigabytes.",
+    )
 
 
 class ModelParams(Serializable):

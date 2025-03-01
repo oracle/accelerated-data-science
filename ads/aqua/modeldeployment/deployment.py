@@ -4,12 +4,19 @@
 
 import json
 import shlex
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
 
+from cachetools import TTLCache, cached
+from oci.data_science.models import ModelDeploymentShapeSummary
 from pydantic import ValidationError
 
 from ads.aqua.app import AquaApp, logger
-from ads.aqua.common.entities import AquaMultiModelRef, ContainerSpec
+from ads.aqua.common.entities import (
+    AquaMultiModelRef,
+    ComputeShapeSummary,
+    ContainerSpec,
+)
 from ads.aqua.common.enums import InferenceContainerTypeFamily, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
@@ -90,6 +97,11 @@ class AquaDeploymentApp(AquaApp):
         Lists all Aqua deployments within a specified compartment and/or project.
     get_deployment_config(self, model_id: str) -> AquaDeploymentConfig:
         Gets the deployment config of given Aqua model.
+    get_multimodel_deployment_config(self, model_ids: List[str],...) -> ModelDeploymentConfigSummary:
+        Retrieves the deployment configuration for multiple Aqua models and calculates
+        the GPU allocations for all compatible shapes.
+    list_shapes(self, **kwargs) -> List[Dict]:
+        Lists the valid model deployment shapes.
 
     Note:
         Use `ads aqua deployment <method_name> --help` to get more details on the parameters available.
@@ -931,7 +943,10 @@ class AquaDeploymentApp(AquaApp):
         name="aqua",
     )
     def get_multimodel_deployment_config(
-        self, model_ids: List[str], primary_model_id: Optional[str] = None
+        self,
+        model_ids: List[str],
+        primary_model_id: Optional[str] = None,
+        **kwargs: Dict,
     ) -> ModelDeploymentConfigSummary:
         """
         Retrieves the deployment configuration for multiple Aqua models and calculates
@@ -956,6 +971,9 @@ class AquaDeploymentApp(AquaApp):
         primary_model_id : Optional[str]
             The OCID of the primary Aqua model. If provided, GPU allocation will prioritize
             this model. Otherwise, GPUs will be evenly allocated.
+        **kwargs: Dict
+            - compartment_id: str
+                The compartment OCID to retrieve the model deployment shapes.
 
         Returns
         -------
@@ -963,7 +981,18 @@ class AquaDeploymentApp(AquaApp):
             A summary of the model deployment configurations and GPU allocations.
         """
 
-        return MultiModelDeploymentConfigLoader(self).load(model_ids, primary_model_id)
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+
+        # Get the all model deployment available shapes in a given compartment
+        available_shapes = self.list_shapes(compartment_id=compartment_id)
+
+        return MultiModelDeploymentConfigLoader(
+            deployment_app=self,
+        ).load(
+            shapes=available_shapes,
+            model_ids=model_ids,
+            primary_model_id=primary_model_id,
+        )
 
     def get_deployment_default_params(
         self,
@@ -1123,3 +1152,35 @@ class AquaDeploymentApp(AquaApp):
                     restricted_params.append(key.lstrip("-"))
 
         return restricted_params
+
+    @telemetry(entry_point="plugin=deployment&action=list_shapes", name="aqua")
+    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=5), timer=datetime.now))
+    def list_shapes(self, **kwargs) -> List[ComputeShapeSummary]:
+        """Lists the valid model deployment shapes.
+
+        Parameters
+        ----------
+        kwargs
+            Keyword arguments, such as compartment_id
+            for `list_call_get_all_results <https://docs.oracle.com/en-us/iaas/tools/python/2.118.1/api/pagination.html#oci.pagination.list_call_get_all_results>`_
+
+        Returns
+        -------
+        List[ComputeShapeSummary]:
+            The list of the model deployment shapes.
+        """
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        oci_shapes: list[ModelDeploymentShapeSummary] = self.list_resource(
+            self.ds_client.list_model_deployment_shapes,
+            compartment_id=compartment_id,
+            **kwargs,
+        )
+        return [
+            ComputeShapeSummary(
+                core_count=oci_shape.core_count,
+                memory_in_gbs=oci_shape.memory_in_gbs,
+                shape_series=oci_shape.shape_series,
+                name=oci_shape.name,
+            )
+            for oci_shape in oci_shapes
+        ]
