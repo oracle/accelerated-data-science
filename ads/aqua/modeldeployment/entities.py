@@ -510,7 +510,8 @@ class CreateModelDeploymentDetails(BaseModel):
         if not self.models:
             logger.error("User defined model group (List[AquaMultiModelRef]) is None.")
             raise ConfigValidationError(
-                "Multi-model deployment requires at least one model, but none were provided. Please add one or more models to the model group to proceed."
+                "Multi-model deployment requires at least one model, but none were provided. "
+                "Please add one or more models to the model group to proceed."
             )
 
         selected_shape = self.instance_shape
@@ -520,7 +521,8 @@ class CreateModelDeploymentDetails(BaseModel):
                 f"The model group is not compatible with the selected instance shape {selected_shape}"
             )
             raise ConfigValidationError(
-                f"The model group is not compatible with the selected instance shape '{selected_shape}'. Select a different instance shape."
+                f"The model group is not compatible with the selected instance shape "
+                f"'{selected_shape}'. Select a different instance shape."
             )
 
         total_available_gpus = models_config_summary.gpu_allocation[
@@ -534,10 +536,12 @@ class CreateModelDeploymentDetails(BaseModel):
 
         if len(missing_model_keys) > 0:
             logger.error(
-                f"Missing the following model entry with key {missing_model_keys} in ModelDeploymentConfigSummary"
+                f"Missing the following model entry with key {missing_model_keys} "
+                "in ModelDeploymentConfigSummary"
             )
             raise ConfigValidationError(
-                "One or more selected models are missing from the configuration, preventing validation for deployment on the given shape."
+                "One or more selected models are missing from the configuration, preventing "
+                "validation for deployment on the given shape."
             )
 
         sum_model_gpus = 0
@@ -549,15 +553,17 @@ class CreateModelDeploymentDetails(BaseModel):
             # We cannot rely on .shape because some models, like Falcon-7B, can only be deployed on a single GPU card (A10.1).
             # However, Falcon can also be deployed on a single card in other A10 shapes, such as A10.2.
             # Our current configuration does not support this flexibility.
-            # multi_deployment_shape = aqua_deployment_config.shape
-            multi_deployment_shape = list(aqua_deployment_config.configuration.keys())
 
-            if selected_shape not in multi_deployment_shape:
+            # multi_deployment_shape = aqua_deployment_config.shape
+
+            if selected_shape not in aqua_deployment_config.configuration:
                 logger.error(
-                    f"Model with OCID {model.model_id} in the model group is not compatible with the selected instance shape: {selected_shape}"
+                    f"Model with OCID {model.model_id} in the model group is not compatible "
+                    f"with the selected instance shape: {selected_shape}"
                 )
                 raise ConfigValidationError(
-                    "Select a different instance shape. One or more models in the group are incompatible with the selected instance shape."
+                    "Select a different instance shape. One or more models in the "
+                    "group are incompatible with the selected instance shape."
                 )
 
             multi_model_configs = aqua_deployment_config.configuration.get(
@@ -570,18 +576,22 @@ class CreateModelDeploymentDetails(BaseModel):
             if model.gpu_count not in valid_gpu_configurations:
                 valid_gpu_str = ", ".join(map(str, valid_gpu_configurations))
                 logger.error(
-                    f"Model {model.model_id} allocated {model.gpu_count} GPUs by user, but its deployment configuration requires either {valid_gpu_str} GPUs."
+                    f"Model {model.model_id} allocated {model.gpu_count} GPUs by user, "
+                    f"but its deployment configuration requires either {valid_gpu_str} GPUs."
                 )
                 raise ConfigValidationError(
-                    "Change the GPU count for one or more models in the model group. Adjust GPU allocations per model or choose a larger instance shape."
+                    "Change the GPU count for one or more models in the model group. "
+                    "Adjust GPU allocations per model or choose a larger instance shape."
                 )
 
         if sum_model_gpus > total_available_gpus:
             logger.error(
-                f"Selected shape {selected_shape} has {total_available_gpus} GPUs while model group has {sum_model_gpus} GPUs."
+                f"Selected shape {selected_shape} has {total_available_gpus} "
+                f"GPUs while model group has {sum_model_gpus} GPUs."
             )
             raise ConfigValidationError(
-                "Total requested GPU count exceeds the available GPU capacity for the selected instance shape. Adjust GPU allocations per model or choose a larger instance shape."
+                "Total requested GPU count exceeds the available GPU capacity for the selected "
+                "instance shape. Adjust GPU allocations per model or choose a larger instance shape."
             )
 
     class Config:
