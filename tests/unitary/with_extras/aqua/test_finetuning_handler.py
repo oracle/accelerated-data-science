@@ -5,9 +5,8 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from unittest import TestCase
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-from mock import patch
 from notebook.base.handlers import IPythonHandler
 
 from ads.aqua.extension.finetune_handler import (

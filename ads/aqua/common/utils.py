@@ -553,7 +553,7 @@ def service_config_path():
     return f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=5), timer=datetime.now))
+@cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=1), timer=datetime.now))
 def get_container_config():
     config = load_config(
         file_path=service_config_path(),
