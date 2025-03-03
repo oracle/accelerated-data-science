@@ -56,7 +56,6 @@ from ads.aqua.constants import (
     VALIDATION_METRICS_FINAL,
 )
 from ads.aqua.model.constants import (
-    CustomMetadata,
     DefinedMetadata,
     FineTuningCustomMetadata,
     FineTuningMetricCategories,
@@ -380,15 +379,19 @@ class AquaModelApp(AquaApp):
             Tags.AQUA_FINE_TUNED_MODEL_TAG, None
         )
         # Check if custom_metadata_list contains any key from CustomMetadata and delete them
-        custom_metadata_keys = ds_model.custom_metadata_list().keys()
-        for key in custom_metadata_keys:
-            if key in CustomMetadata.__members__.values():
+        custom_metadata_dict = ds_model.custom_metadata_list.to_dict()["data"]
+        for metadata in custom_metadata_dict:
+            key = metadata["key"]
+            has_artifact = metadata["has_artifact"]
+            if has_artifact:
                 ds_model.delete_custom_metadata_artifact(key)
 
         # Check if defined_metadata_list contains any key from DefinedMetadata and delete them
-        defined_metadata_keys = ds_model.defined_metadata_list().keys()
-        for key in defined_metadata_keys:
-            if key in DefinedMetadata.__members__.values():
+        defined_metadata_dict = ds_model.defined_metadata_list.to_dict()["data"]
+        for metadata in defined_metadata_dict:
+            key = metadata["key"]
+            has_artifact = metadata["has_artifact"]
+            if has_artifact:
                 ds_model.delete_defined_metadata_artifact(key)
 
         if is_registered_model or is_fine_tuned_model:
@@ -866,15 +869,24 @@ class AquaModelApp(AquaApp):
         artifact_path_or_content: str,
     ):
         ds_model = DataScienceModel.from_id(model_id)
-        try:
-            ds_model.create_defined_metadata_artifact(
-                metadata_key_name=metadata_key,
-                artifact_path_or_content=artifact_path_or_content,
-                path_type=path_type,
-            )
-        except Exception as ex:
+        is_registered_model = ds_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None)
+        is_verified_model = ds_model.freeform_tags.get(
+            Tags.AQUA_SERVICE_MODEL_TAG, None
+        )
+        if is_registered_model and not is_verified_model:
+            try:
+                ds_model.create_defined_metadata_artifact(
+                    metadata_key_name=metadata_key,
+                    artifact_path_or_content=artifact_path_or_content,
+                    path_type=path_type,
+                )
+            except Exception as ex:
+                raise AquaRuntimeError(
+                    f"Error occurred in creating defined metadata artifact for model: {model_id}: {ex}"
+                )
+        else:
             raise AquaRuntimeError(
-                f"Error occurred in creating defined metadata artifact for model: {model_id}: {ex}"
+                f"Cannot create defined metadata artifact for model: {model_id}"
             )
 
     def _create_model_catalog_entry(
