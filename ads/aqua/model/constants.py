@@ -47,3 +47,12 @@ class FineTuningCustomMetadata(ExtendedEnum):
     VALIDATION_METRICS_FINAL = "val_metrics_final"
     TRAINING_METRICS_EPOCH = "train_metrics_epoch"
     VALIDATION_METRICS_EPOCH = "val_metrics_epoch"
+
+class DefinedMetadata(ExtendedEnum):
+    FINE_TUNING_CONFIGURATION = "FineTuneConfiguration"
+    DEPLOYMENT_CONFIGURATION = "DeploymentConfiguration"
+    README = "Readme"
+    LICENSE = "License"
+
+class CustomMetadata(ExtendedEnum):
+    REPORTS = "Reports"
