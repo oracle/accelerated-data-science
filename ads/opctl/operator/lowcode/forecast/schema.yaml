@@ -379,7 +379,7 @@ spec:
               required: true
             log_id:
               type: string
-              required: true
+              required: false
             auto_scaling:
               type: dict
               required: false
