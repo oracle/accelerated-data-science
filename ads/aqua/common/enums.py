@@ -52,6 +52,7 @@ class InferenceContainerType(ExtendedEnum):
 
 class InferenceContainerTypeFamily(ExtendedEnum):
     AQUA_VLLM_CONTAINER_FAMILY = "odsc-vllm-serving"
+    AQUA_VLLM_V1_CONTAINER_FAMILY = "odsc-vllm-serving-v1"
     AQUA_TGI_CONTAINER_FAMILY = "odsc-tgi-serving"
     AQUA_LLAMA_CPP_CONTAINER_FAMILY = "odsc-llama-cpp-serving"
 

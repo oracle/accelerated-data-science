@@ -2,10 +2,13 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import re
 from typing import Optional
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
+from ads.aqua.app import logger
+from ads.aqua.common.constants import GPU_SPECS
 from ads.aqua.config.utils.serializer import Serializable
 
 
@@ -23,14 +26,77 @@ class ContainerSpec:
     EVALUATION_CONFIGURATION = "evaluationConfiguration"
 
 
-class ShapeInfo(Serializable):
-    instance_shape: Optional[str] = None
-    instance_count: Optional[int] = None
-    ocpus: Optional[float] = None
-    memory_in_gbs: Optional[float] = None
+class GPUSpecs(Serializable):
+    """
+    Represents the GPU specifications for a compute instance.
+    """
 
-    class Config:
-        extra = "ignore"
+    gpu_memory_in_gbs: Optional[int] = Field(
+        default=None, description="The amount of GPU memory available (in GB)."
+    )
+    gpu_count: Optional[int] = Field(
+        default=None, description="The number of GPUs available."
+    )
+    gpu_type: Optional[str] = Field(
+        default=None, description="The type of GPU (e.g., 'V100, A100, H100')."
+    )
+
+
+class ComputeShapeSummary(Serializable):
+    """
+    Represents the specifications of a compute instance's shape.
+    """
+
+    core_count: Optional[int] = Field(
+        default=None, description="The number of CPU cores available."
+    )
+    memory_in_gbs: Optional[int] = Field(
+        default=None, description="The amount of memory (in GB) available."
+    )
+    name: Optional[str] = Field(
+        default=None, description="The name identifier of the compute shape."
+    )
+    shape_series: Optional[str] = Field(
+        default=None, description="The series or category of the compute shape."
+    )
+    gpu_specs: Optional[GPUSpecs] = Field(
+        default=None,
+        description="The GPU specifications associated with the compute shape.",
+    )
+
+    @model_validator(mode="after")
+    @classmethod
+    def set_gpu_specs(cls, model: "ComputeShapeSummary") -> "ComputeShapeSummary":
+        """
+        Validates and populates GPU specifications if the shape_series indicates a GPU-based shape.
+
+        - If the shape_series contains "GPU", the validator first checks if the shape name exists
+          in the GPU_SPECS dictionary. If found, it creates a GPUSpecs instance with the corresponding data.
+        - If the shape is not found in the GPU_SPECS, it attempts to extract the GPU count from the shape name
+          using a regex pattern (looking for a number following a dot at the end of the name).
+
+        The information about shapes is taken from: https://docs.oracle.com/en-us/iaas/data-science/using/supported-shapes.htm
+
+        Returns:
+            ComputeShapeSummary: The updated instance with gpu_specs populated if applicable.
+        """
+        try:
+            if model.shape_series and "GPU" in model.shape_series.upper():
+                if model.name and model.name in GPU_SPECS:
+                    gpu_info = GPU_SPECS[model.name]
+                    model.gpu_specs = GPUSpecs(**gpu_info)
+                elif model.name:
+                    # Try to extract gpu_count from the shape name using a regex (e.g., "VM.GPU3.2" -> gpu_count=2)
+                    match = re.search(r"\.(\d+)$", model.name)
+                    if match:
+                        gpu_count = int(match.group(1))
+                        model.gpu_specs = GPUSpecs(gpu_count=gpu_count)
+        except Exception as err:
+            logger.info(
+                f"Error occurred in attempt to extract GPU specification for the f{model.name}. "
+                f"Details: {err}"
+            )
+        return model
 
 
 class AquaMultiModelRef(Serializable):
