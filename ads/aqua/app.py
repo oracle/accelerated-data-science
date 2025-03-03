@@ -363,20 +363,6 @@ class AquaApp:
             return config
         return config
 
-    def text_sanitizer(self, content):
-        if isinstance(content, str):
-            return (
-                content.replace("“", '"')
-                .replace("”", '"')
-                .replace("’", "'")
-                .replace("‘", "'")
-                .encode("utf-8", "ignore")
-                .decode("utf-8")
-            )
-        if isinstance(content, dict):
-            return json.dumps(content)
-        return str(content)
-
     @property
     def telemetry(self):
         if not self._telemetry:

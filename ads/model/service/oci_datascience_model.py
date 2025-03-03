@@ -27,7 +27,7 @@ from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.oci_mixin import OCIWorkRequestMixin
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
-from ads.common.utils import extract_region
+from ads.common.utils import extract_region, text_sanitizer
 from ads.common.work_request import DataScienceWorkRequest
 from ads.model.deployment import ModelDeployment
 from ads.opctl.operator.common.utils import default_signer
@@ -729,7 +729,7 @@ class OCIDataScienceModel(
         response = self.client.create_model_defined_metadatum_artifact(
             self.id,
             metadata_key_name,
-            contents,
+            text_sanitizer(contents),
             content_disposition='form-data; name="file"; filename="readme.*"',
         )
         response_data = convert_model_metadata_response(

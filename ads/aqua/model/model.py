@@ -75,7 +75,7 @@ from ads.aqua.model.entities import (
 )
 from ads.aqua.ui import AquaContainerConfig, AquaContainerConfigItem
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import MetadataArtifactPathType, get_console_link
+from ads.common.utils import MetadataArtifactPathType, get_console_link, text_sanitizer
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
@@ -936,6 +936,7 @@ class AquaModelApp(AquaApp):
         tags.pop(Tags.READY_TO_IMPORT, None)
         defined_metadata_dict = {}
         readme_file_path = os_path.rstrip("/") + "/README.md"
+        license_file_path = os_path.rstrip("/") + "/LICENSE.txt"
         if verified_model:
             # Verified model is a model in the service catalog that either has no artifacts but contains all the necessary metadata for deploying and fine tuning.
             # If set, then we copy all the model metadata.
@@ -1048,11 +1049,15 @@ class AquaModelApp(AquaApp):
         logger.debug(f"Created model catalog entry for the model:\n{model}")
         for key, value in defined_metadata_dict.items():
             model.create_defined_metadata_artifact(
-                key, self.text_sanitizer(value), MetadataArtifactPathType.CONTENT
+                key, text_sanitizer(value), MetadataArtifactPathType.CONTENT
             )
         model.create_defined_metadata_artifact(
             DefinedMetadata.README, readme_file_path, MetadataArtifactPathType.OSS
         )
+        if not verified_model:
+            model.create_defined_metadata_artifact(
+                DefinedMetadata.LICENSE, license_file_path, MetadataArtifactPathType.OSS
+            )
         return model
 
     @staticmethod

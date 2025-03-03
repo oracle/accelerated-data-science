@@ -157,6 +157,22 @@ def oci_key_location():
     )
 
 
+def text_sanitizer(content):
+    if isinstance(content, str):
+        return (
+            content.replace("“", '"')
+            .replace("”", '"')
+            .replace("’", "'")
+            .replace("‘", "'")
+            .replace("—", "-")
+            .encode("utf-8", "ignore")
+            .decode("utf-8", "ignore")
+        )
+    if isinstance(content, dict):
+        return json.dumps(content)
+    return str(content)
+
+
 @deprecated(
     "2.5.10",
     details="Deprecated, use: from ads.common.auth import AuthState; AuthState().oci_config_path",
