@@ -76,6 +76,16 @@ GPU_SPECS = {
     "BM.GPU.A100-v2.8": {
         "gpu_type": "A100",
         "gpu_count": 8,
-        "gpu_memory_in_gbs": 320,
+        "gpu_memory_in_gbs": 640,
+    },
+    "BM.GPU.MI300X.8": {
+        "gpu_type": "MI300X",
+        "gpu_count": 8,
+        "gpu_memory_in_gbs": 1536,
+    },
+    "BM.GPU.L40S.4": {
+        "gpu_type": "L40S",
+        "gpu_count": 4,
+        "gpu_memory_in_gbs": 192,
     },
 }
