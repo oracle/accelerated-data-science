@@ -91,6 +91,7 @@ from ads.model.model_metadata import (
     MetadataCustomCategory,
     ModelCustomMetadata,
     ModelCustomMetadataItem,
+    ModelTaxonomyMetadata,
 )
 from ads.telemetry import telemetry
 
@@ -931,8 +932,10 @@ class AquaModelApp(AquaApp):
                 model = model.with_model_file_description(
                     json_dict=verified_model.model_file_description
                 )
+            defined_metadata = verified_model.defined_metadata_list
         else:
             metadata = ModelCustomMetadata()
+            defined_metadata = ModelTaxonomyMetadata()
             if not inference_container:
                 raise AquaRuntimeError(
                     f"Require Inference container information. Model: {model_name} does not have associated inference "
@@ -1018,6 +1021,7 @@ class AquaModelApp(AquaApp):
         tags = {**tags, **(freeform_tags or {})}
         model = (
             model.with_custom_metadata_list(metadata)
+            .with_defined_metadata_list(defined_metadata)
             .with_compartment_id(compartment_id or COMPARTMENT_OCID)
             .with_project_id(project_id or PROJECT_OCID)
             .with_artifact(os_path)
@@ -1674,13 +1678,9 @@ class AquaModelApp(AquaApp):
                 f"License could not be loaded. Failed to get artifact path from custom metadata for"
                 f"the model {model_id}."
             )
-
-        content = str(
-            self.ds_client.get_model_defined_metadatum_artifact_content(
-                model_id, LICENSE
-            ).data.content
-        )
-
+        content = self.ds_client.get_model_defined_metadatum_artifact_content(
+            model_id, LICENSE
+        ).data.content.decode("utf-8")
         return AquaModelLicense(id=model_id, license=content)
 
     def _find_matching_aqua_model(self, model_id: str) -> Optional[str]:
