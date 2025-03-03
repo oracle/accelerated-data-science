@@ -75,7 +75,7 @@ from ads.aqua.model.entities import (
 )
 from ads.aqua.ui import AquaContainerConfig, AquaContainerConfigItem
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import get_console_link
+from ads.common.utils import MetadataArtifactPathType, get_console_link
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
@@ -91,7 +91,6 @@ from ads.model.model_metadata import (
     MetadataCustomCategory,
     ModelCustomMetadata,
     ModelCustomMetadataItem,
-    ModelTaxonomyMetadata,
 )
 from ads.telemetry import telemetry
 
@@ -935,7 +934,7 @@ class AquaModelApp(AquaApp):
 
         # Remove `ready_to_import` tag that might get copied from service model.
         tags.pop(Tags.READY_TO_IMPORT, None)
-
+        defined_metadata_dict = {}
         if verified_model:
             # Verified model is a model in the service catalog that either has no artifacts but contains all the necessary metadata for deploying and fine tuning.
             # If set, then we copy all the model metadata.
@@ -944,10 +943,15 @@ class AquaModelApp(AquaApp):
                 model = model.with_model_file_description(
                     json_dict=verified_model.model_file_description
                 )
-            defined_metadata = verified_model.defined_metadata_list
+            defined_metadata_list = self.ds_client.get_model(
+                verified_model.id
+            ).data.defined_metadata_list
+            for defined_metadata in defined_metadata_list:
+                if defined_metadata.has_artifact:
+                    content = self.get_config(verified_model.id, defined_metadata.key)
+                    defined_metadata_dict[defined_metadata.key] = content
         else:
             metadata = ModelCustomMetadata()
-            defined_metadata = ModelTaxonomyMetadata()
             if not inference_container:
                 raise AquaRuntimeError(
                     f"Require Inference container information. Model: {model_name} does not have associated inference "
@@ -1033,7 +1037,6 @@ class AquaModelApp(AquaApp):
         tags = {**tags, **(freeform_tags or {})}
         model = (
             model.with_custom_metadata_list(metadata)
-            .with_defined_metadata_list(defined_metadata)
             .with_compartment_id(compartment_id or COMPARTMENT_OCID)
             .with_project_id(project_id or PROJECT_OCID)
             .with_artifact(os_path)
@@ -1042,6 +1045,10 @@ class AquaModelApp(AquaApp):
             .with_defined_tags(**(defined_tags or {}))
         ).create(model_by_reference=True)
         logger.debug(f"Created model catalog entry for the model:\n{model}")
+        for key, value in defined_metadata_dict.items():
+            model.create_defined_metadata_artifact(
+                key, self.text_sanitizer(value), MetadataArtifactPathType.CONTENT
+            )
         return model
 
     @staticmethod

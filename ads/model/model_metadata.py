@@ -86,11 +86,13 @@ class MetadataCustomPrintColumns(ExtendedEnum):
     VALUE = "Value"
     DESCRIPTION = "Description"
     CATEGORY = "Category"
+    HAS_ARTIFACT = "HasArtifact"
 
 
 class MetadataTaxonomyPrintColumns(ExtendedEnum):
     KEY = "Key"
     VALUE = "Value"
+    HAS_ARTIFACT = "HasArtifact"
 
 
 class MetadataTaxonomyKeys(ExtendedEnum):
@@ -402,15 +404,12 @@ class ModelTaxonomyMetadataItem(ModelMetadataItem):
         Validates metadata item.
     """
 
-    _FIELDS = ["key", "value"]
+    _FIELDS = ["key", "value", "has_artifact"]
 
-    def __init__(
-        self,
-        key: str,
-        value: str = None,
-    ):
+    def __init__(self, key: str, value: str = None, has_artifact: bool = False):
         self.key = key
         self.value = value
+        self.has_artifact = has_artifact
 
     @property
     def key(self) -> str:
@@ -435,6 +434,17 @@ class ModelTaxonomyMetadataItem(ModelMetadataItem):
         if key is None or key == "":
             raise ValueError("The key cannot be empty.")
         self._key = key
+
+    @property
+    def has_artifact(self) -> bool:
+        return self._has_artifact
+
+    @has_artifact.setter
+    def has_artifact(self, has_artifact: bool):
+        if not has_artifact:
+            self._has_artifact = False
+            return
+        self._has_artifact = has_artifact
 
     @property
     def value(self) -> str:
@@ -559,7 +569,7 @@ class ModelCustomMetadataItem(ModelTaxonomyMetadataItem):
         Validates metadata item.
     """
 
-    _FIELDS = ["key", "value", "description", "category"]
+    _FIELDS = ["key", "value", "description", "category", "has_artifact"]
 
     def __init__(
         self,
@@ -567,14 +577,27 @@ class ModelCustomMetadataItem(ModelTaxonomyMetadataItem):
         value: str = None,
         description: str = None,
         category: str = None,
+        has_artifact: bool = False,
     ):
         super().__init__(key=key, value=value)
         self.description = description
         self.category = category
+        self.has_artifact = has_artifact
 
     @property
     def description(self) -> str:
         return self._description
+
+    @property
+    def has_artifact(self) -> bool:
+        return self._has_artifact
+
+    @has_artifact.setter
+    def has_artifact(self, has_artifact: bool):
+        if not has_artifact:
+            self._has_artifact = False
+        else:
+            self._has_artifact = has_artifact
 
     @description.setter
     def description(self, description: str):

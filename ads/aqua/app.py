@@ -347,7 +347,7 @@ class AquaApp:
         try:
             config = self.ds_client.get_model_defined_metadatum_artifact_content(
                 model_id, config_file_name
-            ).data.content.decode("utf-8")
+            ).data.content.decode("utf-8", errors="ignore")
             try:
                 config_dict = json.loads(config)
                 config = config_dict
@@ -362,6 +362,20 @@ class AquaApp:
             )
             return config
         return config
+
+    def text_sanitizer(self, content):
+        if isinstance(content, str):
+            return (
+                content.replace("“", '"')
+                .replace("”", '"')
+                .replace("’", "'")
+                .replace("‘", "'")
+                .encode("utf-8", "ignore")
+                .decode("utf-8")
+            )
+        if isinstance(content, dict):
+            return json.dumps(content)
+        return str(content)
 
     @property
     def telemetry(self):
