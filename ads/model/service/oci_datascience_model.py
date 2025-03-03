@@ -687,7 +687,9 @@ class OCIDataScienceModel(
 
             if not utils.is_path_exists(artifact_path_or_content):
                 raise FileNotFoundError(f"File not found: {artifact_path_or_content}")
-            contents = str(read_file(artifact_path_or_content, default_signer()))
+            contents = str(
+                read_file(file_path=artifact_path_or_content, auth=default_signer())
+            )
             logger.info(f"The metadata artifact content - {contents}")
             return contents
 

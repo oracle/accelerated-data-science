@@ -935,6 +935,7 @@ class AquaModelApp(AquaApp):
         # Remove `ready_to_import` tag that might get copied from service model.
         tags.pop(Tags.READY_TO_IMPORT, None)
         defined_metadata_dict = {}
+        readme_file_path = os_path.rstrip("/") + "/README.md"
         if verified_model:
             # Verified model is a model in the service catalog that either has no artifacts but contains all the necessary metadata for deploying and fine tuning.
             # If set, then we copy all the model metadata.
@@ -1049,6 +1050,9 @@ class AquaModelApp(AquaApp):
             model.create_defined_metadata_artifact(
                 key, self.text_sanitizer(value), MetadataArtifactPathType.CONTENT
             )
+        model.create_defined_metadata_artifact(
+            DefinedMetadata.README, readme_file_path, MetadataArtifactPathType.OSS
+        )
         return model
 
     @staticmethod
@@ -1562,6 +1566,8 @@ class AquaModelApp(AquaApp):
             ).rstrip("/")
         else:
             artifact_path = import_model_details.os_path.rstrip("/")
+
+        print("artifact_path: ", artifact_path)
         # Create Model catalog entry with pass by reference
         ds_model = self._create_model_catalog_entry(
             os_path=artifact_path,
@@ -1602,7 +1608,7 @@ class AquaModelApp(AquaApp):
             project_id=ds_model.project_id,
             model_card=str(
                 self.ds_client.get_model_defined_metadatum_artifact_content(
-                    verified_model.id, DefinedMetadata.README
+                    ds_model.id, DefinedMetadata.README
                 ).data.content
             ),
             inference_container=inference_container,
