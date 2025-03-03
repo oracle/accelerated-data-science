@@ -31,6 +31,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
         Lists all the AQUA deployments.
     get_deployment_config(self, model_id)
         Gets the deployment config for Aqua model.
+    list_shapes(self)
+        Lists the valid model deployment shapes.
 
     Raises
     ------
@@ -49,6 +51,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
                     f"The request to {self.request.path} must include either a single model ID or a list of model IDs.",
                 )
             return self.get_deployment_config(id)
+        elif paths.startswith("aqua/deployments/shapes"):
+            return self.list_shapes()
         elif paths.startswith("aqua/deployments"):
             if not id:
                 return self.list()
@@ -135,17 +139,36 @@ class AquaDeploymentHandler(AquaAPIhandler):
         """
         app = AquaDeploymentApp()
 
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
+
         if isinstance(model_id, list):
             # Handle multiple model deployment
             primary_model_id = self.get_argument("primary_model_id", default=None)
             deployment_config = app.get_multimodel_deployment_config(
-                model_ids=model_id, primary_model_id=primary_model_id
+                model_ids=model_id,
+                primary_model_id=primary_model_id,
+                compartment_id=compartment_id,
             )
         else:
             # Handle single model deployment
             deployment_config = app.get_deployment_config(model_id=model_id)
 
         return self.finish(deployment_config)
+
+    def list_shapes(self):
+        """
+        Lists the valid model deployment shapes.
+
+        Returns
+        -------
+        List[ComputeShapeSummary]:
+            The list of the model deployment shapes.
+        """
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
+
+        return self.finish(
+            AquaDeploymentApp().list_shapes(compartment_id=compartment_id)
+        )
 
 
 class AquaDeploymentInferenceHandler(AquaAPIhandler):
@@ -263,6 +286,7 @@ class AquaDeploymentParamsHandler(AquaAPIhandler):
 __handlers__ = [
     ("deployments/?([^/]*)/params", AquaDeploymentParamsHandler),
     ("deployments/config/?([^/]*)", AquaDeploymentHandler),
+    ("deployments/shapes/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)/activate", AquaDeploymentHandler),
     ("deployments/?([^/]*)/deactivate", AquaDeploymentHandler),

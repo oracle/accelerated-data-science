@@ -15,7 +15,7 @@ import oci
 import pytest
 from parameterized import parameterized
 
-from ads.aqua.common.entities import AquaMultiModelRef
+from ads.aqua.common.entities import AquaMultiModelRef, ComputeShapeSummary
 import ads.aqua.modeldeployment.deployment
 import ads.config
 from ads.aqua.common.entities import AquaMultiModelRef
@@ -793,8 +793,9 @@ class TestAquaDeployment(unittest.TestCase):
     @patch(
         "ads.aqua.modeldeployment.utils.MultiModelDeploymentConfigLoader._fetch_deployment_configs_concurrently"
     )
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.list_shapes")
     def test_get_multimodel_deployment_config(
-        self, mock_fetch_deployment_configs_concurrently
+        self, mock_list_shapes, mock_fetch_deployment_configs_concurrently
     ):
         config_json = os.path.join(
             self.curr_dir,
@@ -802,6 +803,20 @@ class TestAquaDeployment(unittest.TestCase):
         )
         with open(config_json, "r") as _file:
             config = json.load(_file)
+
+        shapes = []
+
+        with open(
+            os.path.join(
+                self.curr_dir,
+                "test_data/deployment/aqua_deployment_shapes.json",
+            ),
+            "r",
+        ) as _file:
+            shapes = [
+                ComputeShapeSummary(**item) for item in json.load(_file)["shapes"]
+            ]
+        mock_list_shapes.return_value = shapes
 
         mock_fetch_deployment_configs_concurrently.return_value = {
             "model_a": AquaDeploymentConfig(**config)
@@ -824,8 +839,13 @@ class TestAquaDeployment(unittest.TestCase):
     @patch(
         "ads.aqua.modeldeployment.utils.MultiModelDeploymentConfigLoader._fetch_deployment_configs_concurrently"
     )
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.list_shapes")
     def test_get_multimodel_compatible_shapes_invalid_config(
-        self, missing_key, error, mock_fetch_deployment_configs_concurrently
+        self,
+        missing_key,
+        error,
+        mock_list_shapes,
+        mock_fetch_deployment_configs_concurrently,
     ):
         config_json = os.path.join(
             self.curr_dir,
@@ -835,6 +855,20 @@ class TestAquaDeployment(unittest.TestCase):
             config = json.load(_file)
 
         config.pop(missing_key)
+
+        shapes = []
+
+        with open(
+            os.path.join(
+                self.curr_dir,
+                "test_data/deployment/aqua_deployment_shapes.json",
+            ),
+            "r",
+        ) as _file:
+            shapes = [
+                ComputeShapeSummary(**item) for item in json.load(_file)["shapes"]
+            ]
+        mock_list_shapes.return_value = shapes
 
         mock_fetch_deployment_configs_concurrently.return_value = {
             "model_a": AquaDeploymentConfig(**config)
@@ -846,33 +880,30 @@ class TestAquaDeployment(unittest.TestCase):
 
     def test_verify_compatibility(self):
         result = MultiModelDeploymentConfigLoader(self.app)._verify_compatibility(
-            TestDataset.model_gpu_dict
+            8, TestDataset.model_gpu_dict
         )
 
         assert result[0] == True
-        assert result[1] == 8
-        assert len(result[2]) == 3
+        assert len(result[1]) == 3
 
         result = MultiModelDeploymentConfigLoader(self.app)._verify_compatibility(
-            model_gpu_dict=TestDataset.model_gpu_dict, primary_model_id="model_b"
+            8, model_gpu_dict=TestDataset.model_gpu_dict, primary_model_id="model_b"
         )
 
         assert result[0] == True
-        assert result[1] == 8
-        assert len(result[2]) == 3
+        assert len(result[1]) == 3
 
-        for item in result[2]:
+        for item in result[1]:
             if item.ocid == "model_b":
                 # model_b gets the maximum gpu count
                 assert item.gpu_count == 4
 
         result = MultiModelDeploymentConfigLoader(self.app)._verify_compatibility(
-            TestDataset.incompatible_model_gpu_dict
+            0, TestDataset.incompatible_model_gpu_dict
         )
 
         assert result[0] == False
-        assert result[1] == 0
-        assert result[2] == []
+        assert result[1] == []
 
     @patch("ads.aqua.modeldeployment.deployment.get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create")

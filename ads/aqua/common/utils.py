@@ -33,7 +33,7 @@ from huggingface_hub.utils import (
 )
 from oci.data_science.models import JobRun, Model
 from oci.object_storage.models import ObjectSummary
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from ads.aqua.common.enums import (
     InferenceContainerParamType,
@@ -1238,3 +1238,17 @@ def build_pydantic_error_message(ex: ValidationError):
         for e in ex.errors()
         if "loc" in e and e["loc"]
     } or "; ".join(e["msg"] for e in ex.errors())
+
+
+def is_pydantic_model(obj: object) -> bool:
+    """
+    Returns True if obj is a Pydantic model class or an instance of a Pydantic model.
+
+    Args:
+        obj: The object or class to check.
+
+    Returns:
+        bool: True if obj is a subclass or instance of BaseModel, False otherwise.
+    """
+    cls = obj if isinstance(obj, type) else type(obj)
+    return issubclass(cls, BaseModel)

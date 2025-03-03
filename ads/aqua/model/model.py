@@ -65,7 +65,6 @@ from ads.aqua.model.constants import (
     FineTuningCustomMetadata,
     FineTuningMetricCategories,
     ModelCustomMetadataFields,
-    ModelTask,
     ModelType,
 )
 from ads.aqua.model.entities import (
@@ -250,15 +249,19 @@ class AquaModelApp(AquaApp):
         """
 
         if not models:
-            raise AquaValueError("Model list cannot be empty.")
+            raise AquaValueError(
+                "Model list cannot be empty. Please provide at least one model for deployment."
+            )
 
         artifact_list = []
         display_name_list = []
         model_custom_metadata = ModelCustomMetadata()
+
         # TODO: update it when more deployment containers are supported
-        default_deployment_container = (
+        supported_container_families = (
             InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY
         )
+        deployment_container = InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY
 
         # Process each model
         for idx, model in enumerate(models):
@@ -266,19 +269,17 @@ class AquaModelApp(AquaApp):
             display_name = source_model.display_name
             model.model_name = model.model_name or display_name
 
-            if not source_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, UNKNOWN):
-                raise AquaValueError(
-                    f"Invalid selected model {display_name}. "
-                    "Currently only service models are supported for multi model deployment."
-                )
+            # We cannot rely on this tag, service and cached models doesn't have it.
+            # if not source_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, UNKNOWN):
+            #     raise AquaValueError(
+            #         f"Invalid selected model {display_name}. "
+            #         "Currently only service models are supported for multi model deployment."
+            #     )
 
-            if (
-                source_model.freeform_tags.get(Tags.TASK, UNKNOWN)
-                != ModelTask.TEXT_GENERATION
-            ):
+            if source_model.freeform_tags.get(Tags.TASK, UNKNOWN) != "text_generation":
                 raise AquaValueError(
                     f"Invalid or missing {Tags.TASK} tag for selected model {display_name}. "
-                    f"Currently only {ModelTask.TEXT_GENERATION} models are support for multi model deployment."
+                    f"Currently only `text_generation` models are support for multi model deployment."
                 )
 
             display_name_list.append(display_name)
@@ -301,10 +302,10 @@ class AquaModelApp(AquaApp):
                 ),
             ).value
 
-            if default_deployment_container != deployment_container:
+            if deployment_container not in supported_container_families:
                 raise AquaValueError(
                     f"Unsupported deployment container '{deployment_container}' for model '{source_model.id}'. "
-                    f"Only '{InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY}' is supported for multi-model deployments."
+                    f"Only '{supported_container_families}' are supported for multi-model deployments."
                 )
 
             # Add model-specific metadata
@@ -357,7 +358,7 @@ class AquaModelApp(AquaApp):
         # Add global metadata
         model_custom_metadata.add(
             key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
-            value=default_deployment_container,
+            value=deployment_container,
             description=f"Inference container mapping for {model_group_display_name}",
             category="Other",
         )
