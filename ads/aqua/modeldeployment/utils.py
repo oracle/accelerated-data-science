@@ -12,6 +12,7 @@ from typing import Dict, List, Optional
 
 from ads.aqua.app import AquaApp
 from ads.aqua.common.entities import ComputeShapeSummary
+from ads.aqua.constants import UNKNOWN
 from ads.aqua.modeldeployment.entities import (
     AquaDeploymentConfig,
     ConfigurationItem,
@@ -78,28 +79,24 @@ class MultiModelDeploymentConfigLoader:
         # Initialize the summary result with the deployment configurations.
         summary = ModelDeploymentConfigSummary(deployment_config=deployment)
 
-        # # Ensure every model has at least one valid GPU configuration.
-        # for model, shape_gpu in model_shape_gpu.items():
-        #     if not shape_gpu:
-        #         summary.error_message = (
-        #             "Unable to determine a valid GPU allocation for the selected models based on their current configurations. "
-        #             "Please try selecting a different set of models."
-        #         )
-        #         logger.debug(f"No valid GPU configuration found for model `{model}`")
-        #         return summary
-
         # Identify common deployment shapes among all models.
-        common_shapes = self._get_common_shapes(model_shape_gpu)
+        common_shapes, empty_configs = self._get_common_shapes(model_shape_gpu)
         logger.debug(f"Common Shapes: {common_shapes} from: {model_shape_gpu}")
 
         # Filter out not available shapes
         available_shapes = [item.name.upper() for item in shapes]
         logger.debug(f"Service Available Shapes: {available_shapes}")
-        common_shapes = [
-            shape_name
-            for shape_name in common_shapes
-            if shape_name.upper() in available_shapes
-        ]
+
+        # If all models' shape configs are empty, use default deployment shapes instead
+        common_shapes = (
+            available_shapes
+            if empty_configs
+            else [
+                shape_name
+                for shape_name in common_shapes
+                if shape_name.upper() in available_shapes
+            ]
+        )
         logger.debug(f"Available Common Shapes: {common_shapes}")
 
         if not common_shapes:
@@ -188,13 +185,17 @@ class MultiModelDeploymentConfigLoader:
 
     def _get_common_shapes(
         self, model_shape_gpu: Dict[str, Dict[str, List[int]]]
-    ) -> List[str]:
+    ) -> tuple:
         """Finds common shapes across all models."""
-        return list(
-            set.intersection(
-                *(set(shapes.keys()) for shapes in model_shape_gpu.values())
-            )
-        )
+        common_shapes_set = []
+        empty_configs = True
+        for shapes in model_shape_gpu.values():
+            if shapes:
+                common_shapes_set.append(set(shapes.keys()))
+                empty_configs = False
+        if not common_shapes_set:
+            return [], empty_configs
+        return list(set.intersection(*(common_shapes_set))), empty_configs
 
     def _compute_gpu_allocation(
         self,
@@ -217,20 +218,16 @@ class MultiModelDeploymentConfigLoader:
             if shape_summary and shape_summary.gpu_specs:
                 total_gpus_available = shape_summary.gpu_specs.gpu_count
 
+            # generate a list of possible gpu count from `total_gpus_available` for custom models
+            # without multi model deployment config
             model_gpu = {
-                model: shape_gpu[common_shape]
+                model: (
+                    shape_gpu[common_shape]
+                    if shape_gpu.get(common_shape, UNKNOWN)
+                    else self._generate_gpu_list(total_gpus_available)
+                )
                 for model, shape_gpu in model_shape_gpu.items()
-                if shape_gpu[common_shape]
             }
-
-            # assume a list of possible gpu count to model without multi model deployment config
-            model_gpu = {
-                model: (gpu if gpu else self._assume_gpu_list(total_gpus_available))
-                for model, gpu in model_gpu.items()
-            }
-
-            if len(model_gpu) != len(model_shape_gpu):
-                continue
 
             is_compatible, combination = self._verify_compatibility(
                 total_gpus_available=total_gpus_available,
@@ -246,9 +243,27 @@ class MultiModelDeploymentConfigLoader:
         return gpu_allocation
 
     @staticmethod
-    def _assume_gpu_list(total_gpus_available: int) -> list[int]:
-        """Generates a list of powers of 2 that's smaller than `total_gpus_available`."""
-        return [2**i for i in range(math.log2(total_gpus_available) + 1)]
+    def _generate_gpu_list(total_gpus_available: int) -> list[int]:
+        """Generates a list of powers of 2 that's smaller than or equal to `total_gpus_available`.
+
+        Example
+        -------
+        input: 8
+        output: [1,2,4,8]
+
+        Parameters
+        ----------
+        total_gpus_available : int
+            Total GPU available
+
+        Returns
+        -------
+        list
+            A list of powers of 2.
+        """
+        if total_gpus_available < 1:
+            return []
+        return [2**i for i in range(int(math.log2(total_gpus_available)) + 1)]
 
     def _verify_compatibility(
         self,
