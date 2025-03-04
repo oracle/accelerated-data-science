@@ -617,6 +617,17 @@ class ModelCustomMetadataItem(ModelTaxonomyMetadataItem):
         self._description = description
 
     @property
+    def has_artifact(self) -> bool:
+        return self._has_artifact
+
+    @has_artifact.setter
+    def has_artifact(self, has_artifact: bool):
+        if not has_artifact:
+            self._has_artifact = False
+        else:
+            self._has_artifact = has_artifact
+
+    @property
     def category(self) -> str:
         return self._category
 

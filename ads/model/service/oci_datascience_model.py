@@ -27,7 +27,7 @@ from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.oci_mixin import OCIWorkRequestMixin
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
-from ads.common.utils import extract_region, text_sanitizer
+from ads.common.utils import extract_region , text_sanitizer
 from ads.common.work_request import DataScienceWorkRequest
 from ads.model.deployment import ModelDeployment
 from ads.opctl.operator.common.utils import default_signer
@@ -362,14 +362,14 @@ class OCIDataScienceModel(
     )
     def create_model_artifact(
         self,
-        bytes_content: BytesIO,
+        BytesIO_content: BytesIO,
         extension: str = None,
     ) -> None:
         """Creates model artifact for specified model.
 
         Parameters
         ----------
-        bytes_content: BytesIO
+        BytesIO_content: BytesIO
             Model artifacts to upload.
         extension: str
             File extension, defaults to zip
@@ -377,7 +377,7 @@ class OCIDataScienceModel(
         ext = ".json" if extension and extension.lower() == ".json" else ".zip"
         self.client.create_model_artifact(
             self.id,
-            bytes_content,
+            BytesIO_content,
             content_disposition=f'attachment; filename="{self.id}{ext}"',
         )
 
@@ -621,11 +621,55 @@ class OCIDataScienceModel(
                     return True
         return False
 
+    def get_metadata_content(self, artifact_path_or_content: str, path_type):
+        """
+        returns the content of the metadata artifact
+
+        Parameters
+        ----------
+        artifact_path_or_content: str
+            The path of the file (local or oss) containing metadata artifact or content.
+        path_type: str
+            can be one of local , oss or content
+
+        Returns
+        -------
+        metadata artifact content
+        """
+
+        if path_type == utils.MetadataArtifactPathType.CONTENT:
+            return artifact_path_or_content
+
+        elif path_type == utils.MetadataArtifactPathType.LOCAL:
+            if not utils.is_path_exists(artifact_path_or_content):
+                raise FileNotFoundError(
+                    f"File not found:  {artifact_path_or_content} . "
+                )
+
+            with open(artifact_path_or_content, "rb") as f:
+                contents = f.read()
+                logger.info(f"The metadata artifact content - {contents}")
+
+            return contents
+
+        elif path_type == utils.MetadataArtifactPathType.OSS:
+            from ads.aqua.common.utils import read_file
+
+            if not utils.is_path_exists(artifact_path_or_content):
+                raise FileNotFoundError(f"File not found: {artifact_path_or_content}")
+
+            contents = str(
+                read_file(file_path=artifact_path_or_content, auth=default_signer())
+            )
+            logger.info(f"The metadata artifact content - {contents}")
+
+            return contents
+
     @check_for_model_id(
         msg="Model needs to be saved to the Model Catalog before the creating custom metadata artifact corresponding to that model"
     )
     def create_custom_metadata_artifact(
-        self, metadata_key_name: str, artifact_path: str
+        self, metadata_key_name: str, artifact_path: str, path_type: str
     ) -> ModelMetadataArtifactDetails:
         """Creates model custom metadata artifact for specified model.
 
@@ -653,45 +697,19 @@ class OCIDataScienceModel(
             }
 
         """
-        if not utils.is_path_exists(artifact_path):
-            raise FileNotFoundError(f"File not found:  {artifact_path} . ")
-        with open(artifact_path, "rb") as f:
-            contents = f.read()
-            logger.info(f"The metadata artifact content - {contents}")
-
+        contents = self.get_metadata_content(
+            artifact_path_or_content=artifact_path, path_type=path_type
+        )
         response = self.client.create_model_custom_metadatum_artifact(
             self.id,
             metadata_key_name,
-            contents,
+            text_sanitizer(contents),
             content_disposition="form" '-data; name="file"; filename="readme.*"',
         )
         response_data = convert_model_metadata_response(
             response.headers, response.status
         )
         return response_data
-
-    def get_metadata_content(self, artifact_path_or_content: str, path_type):
-        if path_type == utils.MetadataArtifactPathType.CONTENT:
-            return artifact_path_or_content
-        elif path_type == utils.MetadataArtifactPathType.LOCAL:
-            if not utils.is_path_exists(artifact_path_or_content):
-                raise FileNotFoundError(
-                    f"File not found:  {artifact_path_or_content} . "
-                )
-            with open(artifact_path_or_content, "rb") as f:
-                contents = f.read()
-                logger.info(f"The metadata artifact content - {contents}")
-            return contents
-        elif path_type == utils.MetadataArtifactPathType.OSS:
-            from ads.aqua.common.utils import read_file
-
-            if not utils.is_path_exists(artifact_path_or_content):
-                raise FileNotFoundError(f"File not found: {artifact_path_or_content}")
-            contents = str(
-                read_file(file_path=artifact_path_or_content, auth=default_signer())
-            )
-            logger.info(f"The metadata artifact content - {contents}")
-            return contents
 
     @check_for_model_id(
         msg="Model needs to be saved to the Model Catalog before creating defined metadata artifact corresponding to that model"
@@ -725,7 +743,9 @@ class OCIDataScienceModel(
             }
 
         """
-        contents = self.get_metadata_content(artifact_path, path_type)
+        contents = self.get_metadata_content(
+            artifact_path_or_content=artifact_path, path_type=path_type
+        )
         response = self.client.create_model_defined_metadatum_artifact(
             self.id,
             metadata_key_name,
@@ -769,11 +789,13 @@ class OCIDataScienceModel(
             }
 
         """
-        contents = self.get_metadata_content(artifact_path, path_type)
+        contents = self.get_metadata_content(
+            artifact_path_or_content=artifact_path, path_type=path_type
+        )
         response = self.client.update_model_defined_metadatum_artifact(
             self.id,
             metadata_key_name,
-            contents,
+            text_sanitizer(contents),
             content_disposition='form-data; name="file"; filename="readme.*"',
         )
         response_data = convert_model_metadata_response(
@@ -813,11 +835,13 @@ class OCIDataScienceModel(
             }
 
         """
-        contents = self.get_metadata_content(artifact_path, path_type)
+        contents = self.get_metadata_content(
+            artifact_path_or_content=artifact_path, path_type=path_type
+        )
         response = self.client.update_model_custom_metadatum_artifact(
             self.id,
             metadata_key_name,
-            contents,
+            text_sanitizer(contents),
             content_disposition="form" '-data; name="file"; filename="readme.*"',
         )
         response_data = convert_model_metadata_response(

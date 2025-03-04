@@ -22,7 +22,7 @@ from datetime import datetime
 from enum import Enum
 from io import DEFAULT_BUFFER_SIZE
 from textwrap import fill
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Tuple, Union
 from urllib import request
 from urllib.parse import urlparse
 
@@ -84,6 +84,7 @@ mpl.rcParams["axes.prop_cycle"] = cycler(
 )
 
 
+# Metadata artifact path type can be either local path or OSS path. It can also be the content itself.
 class MetadataArtifactPathType(ExtendedEnum):
     LOCAL = "local"
     OSS = "oss"
@@ -1807,3 +1808,36 @@ def get_log_links(
         console_link_url = f"https://cloud.oracle.com/logging/log-groups/{log_group_id}?region={region}"
 
     return console_link_url
+
+
+def parse_content_disposition(header: str) -> Tuple[str, Dict[str, str]]:
+    """
+    Parses a Content-Disposition header into its main disposition and a dictionary of parameters.
+
+    For example:
+        'attachment; filename="example.txt"'
+    will be parsed into:
+        ('attachment', {'filename': 'example.txt'})
+
+    Parameters
+    ----------
+    header (str): The Content-Disposition header string.
+
+    Returns
+    -------
+    Tuple[str, Dict[str, str]]: A tuple containing the disposition and a dictionary of parameters.
+    """
+    if not header:
+        return "", {}
+
+    parts = header.split(";")
+    # The first part is the main disposition (e.g., "attachment").
+    disposition = parts[0].strip().lower()
+    params: Dict[str, str] = {}
+
+    # Process each subsequent part to extract key-value pairs.
+    for part in parts[1:]:
+        if "=" in part:
+            key, value = part.split("=", 1)
+            params[key.strip().lower()] = value.strip().strip('"')
+    return disposition, params

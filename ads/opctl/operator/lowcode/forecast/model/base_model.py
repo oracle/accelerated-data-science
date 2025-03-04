@@ -503,6 +503,7 @@ class ForecastOperatorBaseModel(ABC):
                         f2.write(f1.read())
 
         # forecast csv report
+        # todo: add test data into forecast.csv
         # if self.spec.test_data is not None:
         #     test_data_dict = test_data.get_dict_by_series()
         #     for series_id, test_data_values in test_data_dict.items():
@@ -569,7 +570,7 @@ class ForecastOperatorBaseModel(ABC):
         # explanations csv reports
         if self.spec.generate_explanations:
             try:
-                if self.formatted_global_explanation is not None:
+                if not self.formatted_global_explanation.empty:
                     write_data(
                         data=self.formatted_global_explanation,
                         filename=os.path.join(
@@ -585,7 +586,7 @@ class ForecastOperatorBaseModel(ABC):
                         f"Attempted to generate global explanations for the {self.spec.global_explanation_filename} file, but an issue occured in formatting the explanations."
                     )
 
-                if self.formatted_local_explanation is not None:
+                if not self.formatted_local_explanation.empty:
                     write_data(
                         data=self.formatted_local_explanation,
                         filename=os.path.join(
@@ -771,14 +772,6 @@ class ForecastOperatorBaseModel(ABC):
                 if not len(kernel_explnr_vals):
                     logger.warn(
                         "No explanations generated. Ensure that additional data has been provided."
-                    )
-                elif (
-                    self.spec.model == SupportedModels.AutoMLX
-                    and self.spec.explanations_accuracy_mode
-                    == SpeedAccuracyMode.AUTOMLX
-                ):
-                    logger.warning(
-                        "Global explanations not available for AutoMLX models with inherent explainability"
                     )
                 else:
                     self.global_explanation[s_id] = dict(
