@@ -27,7 +27,7 @@ from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.oci_mixin import OCIWorkRequestMixin
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
-from ads.common.utils import extract_region , text_sanitizer
+from ads.common.utils import extract_region, text_sanitizer
 from ads.common.work_request import DataScienceWorkRequest
 from ads.model.deployment import ModelDeployment
 from ads.opctl.operator.common.utils import default_signer
@@ -161,7 +161,7 @@ class OCIDataScienceModel(
         Gets model artifact attachment information.
     def get_model_artifact_content(self) -> BytesIO:
         Gets model artifact content.
-    create_model_artifact(self, BytesIO_content: BytesIO) -> None:
+    create_model_artifact(self, bytes_content: BytesIO) -> None:
         Creates model artifact for specified model.
     import_model_artifact(self, bucket_uri: str, region: str = None) -> None:
         Imports model artifact content from the model catalog.
@@ -362,14 +362,14 @@ class OCIDataScienceModel(
     )
     def create_model_artifact(
         self,
-        BytesIO_content: BytesIO,
+        bytes_content: BytesIO,
         extension: str = None,
     ) -> None:
         """Creates model artifact for specified model.
 
         Parameters
         ----------
-        BytesIO_content: BytesIO
+        bytes_content: BytesIO
             Model artifacts to upload.
         extension: str
             File extension, defaults to zip
@@ -377,7 +377,7 @@ class OCIDataScienceModel(
         ext = ".json" if extension and extension.lower() == ".json" else ".zip"
         self.client.create_model_artifact(
             self.id,
-            BytesIO_content,
+            bytes_content,
             content_disposition=f'attachment; filename="{self.id}{ext}"',
         )
 
