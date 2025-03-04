@@ -119,6 +119,7 @@ class TestModelTaxonomyMetadataItem:
         expected_result = {
             "key": self.test_item.key,
             "value": self.test_item.value,
+            "has_artifact": False,
         }
         assert item_dict == expected_result
 
@@ -151,6 +152,7 @@ class TestModelTaxonomyMetadataItem:
         test_item = ModelTaxonomyMetadataItem(
             key=MetadataTaxonomyKeys.USE_CASE_TYPE,
             value=UseCaseType.CLUSTERING,
+            has_artifact=False,
         )
         assert test_item.validate() == True
 
@@ -178,7 +180,7 @@ class TestModelTaxonomyMetadataItem:
 
         # Any other key
         test_item = ModelTaxonomyMetadataItem(
-            key=MetadataTaxonomyKeys.ALGORITHM, value="any value"
+            key=MetadataTaxonomyKeys.ALGORITHM, value="any value", has_artifact=False
         )
         assert test_item.validate() == True
 
@@ -197,13 +199,11 @@ class TestModelTaxonomyMetadataItem:
         """Tests converting metadata item to OCI metadata item."""
         # case with non empty string value
         test_metadata_item = ModelTaxonomyMetadataItem(
-            key=self.test_key,
-            value=test_value,
+            key=self.test_key, value=test_value, has_artifact=False
         )
 
         expected_oci_metadata_item = OciMetadataItem(
-            key=self.test_key,
-            value=expected_value,
+            key=self.test_key, value=expected_value, has_artifact=False
         )
         result_oci_metadata_item = test_metadata_item._to_oci_metadata()
         assert expected_oci_metadata_item == result_oci_metadata_item
@@ -224,11 +224,10 @@ class TestModelTaxonomyMetadataItem:
     def test__from_oci_metadata(self, test_value, expected_value):
         """Tests creating a new metadata item from the OCI metadata item."""
         test_oci_metadata_item = OciMetadataItem(
-            key=self.test_key,
-            value=test_value,
+            key=self.test_key, value=test_value, has_artifact=False
         )
         expected_model_metadata_item = ModelTaxonomyMetadataItem(
-            key=self.test_key, value=expected_value
+            key=self.test_key, value=expected_value, has_artifact=False
         )
         result_metadata_item = ModelTaxonomyMetadataItem._from_oci_metadata(
             test_oci_metadata_item
@@ -258,11 +257,13 @@ class TestModelCustomMetadataItem:
             value=self.VALUE,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         assert item.key == self.KEY
         assert item.value == self.VALUE
         assert item.description == self.DESCRIPTION
         assert item.category == self.CATEGORY
+        assert item.has_artifact == False
 
     def test_item_description(self):
         # test replace description
@@ -299,6 +300,7 @@ class TestModelCustomMetadataItem:
             value=self.VALUE,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
 
         # test update
@@ -315,6 +317,7 @@ class TestModelCustomMetadataItem:
             value=self.VALUE,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         # test to dictionary format
         item_dict = item.to_dict()
@@ -329,6 +332,7 @@ class TestModelCustomMetadataItem:
             value=self.VALUE,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         # test to yaml format
         item_yaml = item.to_yaml()
@@ -340,6 +344,7 @@ class TestModelCustomMetadataItem:
             value=self.VALUE,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         # test size
         item.size() == len(json.dumps(item.to_dict()).encode("utf-16"))
@@ -415,6 +420,7 @@ class TestModelCustomMetadataItem:
             value=test_value,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
 
         expected_oci_metadata_item = OciMetadataItem(
@@ -422,6 +428,7 @@ class TestModelCustomMetadataItem:
             value=expected_value,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         result_oci_metadata_item = test_metadata_item._to_oci_metadata()
         assert expected_oci_metadata_item == result_oci_metadata_item
@@ -446,12 +453,14 @@ class TestModelCustomMetadataItem:
             value=test_value,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         expected_model_metadata_item = ModelCustomMetadataItem(
             key=self.KEY,
             value=expected_value,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         result_metadata_item = ModelCustomMetadataItem._from_oci_metadata(
             test_oci_metadata_item
@@ -466,6 +475,7 @@ class TestModelCustomMetadataItem:
             value=self.VALUE,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         assert metadata_item.validate() == True
 
@@ -484,6 +494,7 @@ class TestModelCustomMetadataItem:
             value=[1] * METADATA_VALUE_LENGTH_LIMIT,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         with pytest.raises(MetadataValueTooLong) as exc:
             metadata_item.validate()
@@ -494,6 +505,7 @@ class TestModelCustomMetadataItem:
             value="test",
             description="ab" * METADATA_DESCRIPTION_LENGTH_LIMIT,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         with pytest.raises(MetadataDescriptionTooLong) as exc:
             metadata_item.validate()
@@ -507,6 +519,7 @@ class TestModelCustomMetadata:
         value="pyspark30_p37_cpu_v1",
         description="The slug name which was uesd to train the model.",
         category=MetadataCustomCategory.PERFORMANCE,
+        has_artifact=False,
     )
 
     user_defined_item = ModelCustomMetadataItem(
@@ -514,6 +527,7 @@ class TestModelCustomMetadata:
         value="My own Meta",
         description="This is my own meta",
         category=MetadataCustomCategory.OTHER,
+        has_artifact=False,
     )
 
     dict_item = ModelCustomMetadataItem(
@@ -521,7 +535,7 @@ class TestModelCustomMetadata:
     )
 
     empty_value_item = ModelCustomMetadataItem(
-        key="My Meta With Empty Value", value=None
+        key="My Meta With Empty Value", value=None, has_artifact=False
     )
 
     def test__add(self):
@@ -633,6 +647,7 @@ class TestModelCustomMetadata:
         assert df["Value"].iloc[0] == self.performance_item.value
         assert df["Description"].iloc[0] == self.performance_item.description
         assert df["Category"].iloc[0] == self.performance_item.category
+        assert df["HasArtifact"].iloc[0] == self.performance_item.has_artifact
 
     def test_size(self):
         # test check size of model metadata
