@@ -53,7 +53,7 @@ def mock_auth():
 
 @pytest.fixture(autouse=True, scope="class")
 def mock_get_container_config():
-    with patch("ads.aqua.ui.get_container_config") as mock_config:
+    with patch("ads.aqua.model.model.get_container_config") as mock_config:
         with open(
             os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
