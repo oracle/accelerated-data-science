@@ -165,7 +165,7 @@ class MultiModelDeploymentConfigLoader:
             # multi_deployment_shape = config.shape
             multi_deployment_shape = list(config.configuration.keys())
             model_shape_gpu[model_id] = {
-                shape: [
+                shape.upper(): [
                     item.gpu_count
                     for item in config.configuration.get(
                         shape, ConfigurationItem()
@@ -174,9 +174,9 @@ class MultiModelDeploymentConfigLoader:
                 for shape in multi_deployment_shape
             }
             deployment[model_id] = {
-                "shape": multi_deployment_shape,
+                "shape": [shape.upper() for shape in multi_deployment_shape],
                 "configuration": {
-                    shape: config.configuration.get(shape, ConfigurationItem())
+                    shape.upper(): config.configuration.get(shape, ConfigurationItem())
                     for shape in multi_deployment_shape
                 },
             }
@@ -212,7 +212,7 @@ class MultiModelDeploymentConfigLoader:
 
             # search the shape in the available shapes list
             shape_summary = next(
-                (shape for shape in shapes if shape.name == common_shape),
+                (shape for shape in shapes if shape.name.upper() == common_shape),
                 None,
             )
             if shape_summary and shape_summary.gpu_specs:

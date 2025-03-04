@@ -499,7 +499,7 @@ class TestDataset:
         "deployment_config": {
             "model_a": {
                 "shape": [
-                    "BM.GPU.A100-v2.8",
+                    "BM.GPU.A100-V2.8",
                     "BM.GPU.H100.8",
                     "VM.GPU.A10.2",
                     "VM.GPU.A10.4",
@@ -532,7 +532,7 @@ class TestDataset:
                         ],
                         "shape_info": {"configs": [], "type": ""},
                     },
-                    "BM.GPU.A100-v2.8": {
+                    "BM.GPU.A100-V2.8": {
                         "parameters": {
                             "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
                         },
@@ -581,7 +581,7 @@ class TestDataset:
                 "models": [{"ocid": "model_a", "gpu_count": 4}],
                 "total_gpus_available": 4,
             },
-            "BM.GPU.A100-v2.8": {
+            "BM.GPU.A100-V2.8": {
                 "models": [{"ocid": "model_a", "gpu_count": 8}],
                 "total_gpus_available": 8,
             },
@@ -597,7 +597,7 @@ class TestDataset:
         "deployment_config": {
             "model_a": {
                 "shape": [
-                    "BM.GPU.A100-v2.8",
+                    "BM.GPU.A100-V2.8",
                     "BM.GPU.H100.8",
                     "VM.GPU.A10.2",
                     "VM.GPU.A10.4",
@@ -630,7 +630,7 @@ class TestDataset:
                         ],
                         "shape_info": {"configs": [], "type": ""},
                     },
-                    "BM.GPU.A100-v2.8": {
+                    "BM.GPU.A100-V2.8": {
                         "parameters": {
                             "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
                         },
@@ -695,7 +695,7 @@ class TestDataset:
                 ],
                 "total_gpus_available": 4,
             },
-            "BM.GPU.A100-v2.8": {
+            "BM.GPU.A100-V2.8": {
                 "models": [
                     {"ocid": "model_a", "gpu_count": 2},
                     {"ocid": "model_b", "gpu_count": 2},
@@ -744,6 +744,23 @@ class TestDataset:
                     {"ocid": "model_a", "gpu_count": 2},
                     {"ocid": "model_b", "gpu_count": 2},
                     {"ocid": "model_c", "gpu_count": 4},
+                ],
+                "total_gpus_available": 8,
+            },
+            "BM.GPU.A100-V2.8": {
+                "models": [
+                    {
+                        "gpu_count": 2,
+                        "ocid": "model_a",
+                    },
+                    {
+                        "gpu_count": 2,
+                        "ocid": "model_b",
+                    },
+                    {
+                        "gpu_count": 4,
+                        "ocid": "model_c",
+                    },
                 ],
                 "total_gpus_available": 8,
             },
