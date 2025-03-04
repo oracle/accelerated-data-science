@@ -868,5 +868,30 @@ def test_what_if_analysis(operator_setup, model):
     ), f"Deployment info file not found at {deployment_metadata}"
 
 
+def test_auto_select(operator_setup):
+    DATASET_PREFIX = f"{os.path.dirname(os.path.abspath(__file__))}/../data/timeseries/"
+    tmpdirname = operator_setup
+    historical_test_path = f"{DATASET_PREFIX}/dataset6.csv"
+    model = "auto-select"
+    yaml_i, output_data_path = populate_yaml(
+        tmpdirname=tmpdirname,
+        historical_data_path=historical_test_path,
+        output_data_path=f"{tmpdirname}/{model}/results",
+    )
+    yaml_i["spec"].pop("additional_data")
+    yaml_i["spec"]["horizon"] = 2
+    yaml_i["spec"]["datetime_column"]["format"] = "%d-%m-%Y"
+    yaml_i["spec"]["model"] = model
+    yaml_i["spec"]["model_kwargs"] = {"model_list": ["prophet", "arima"]}
+
+    run_yaml(
+        tmpdirname=tmpdirname,
+        yaml_i=yaml_i,
+        output_data_path=output_data_path,
+        test_metrics_check=False,
+    )
+    report_path = f"{output_data_path}/report.html"
+    assert os.path.exists(report_path), f"Report file not found at {report_path}"
+
 if __name__ == "__main__":
     pass
