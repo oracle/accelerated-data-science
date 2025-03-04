@@ -362,14 +362,14 @@ class OCIDataScienceModel(
     )
     def create_model_artifact(
         self,
-        BytesIO_content: BytesIO,
+        bytes_content: BytesIO,
         extension: str = None,
     ) -> None:
         """Creates model artifact for specified model.
 
         Parameters
         ----------
-        BytesIO_content: BytesIO
+        bytes_content: BytesIO
             Model artifacts to upload.
         extension: str
             File extension, defaults to zip
@@ -377,7 +377,7 @@ class OCIDataScienceModel(
         ext = ".json" if extension and extension.lower() == ".json" else ".zip"
         self.client.create_model_artifact(
             self.id,
-            BytesIO_content,
+            bytes_content,
             content_disposition=f'attachment; filename="{self.id}{ext}"',
         )
 
