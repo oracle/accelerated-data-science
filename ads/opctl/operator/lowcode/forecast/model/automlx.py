@@ -249,7 +249,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 self.explain_model()
 
                 global_explanation_section = None
-
                 # Convert the global explanation data to a DataFrame
                 global_explanation_df = pd.DataFrame(self.global_explanation)
 
@@ -470,13 +469,22 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     self.global_explanation[s_id] = dict(
                         zip(
                             self.local_explanation[s_id].columns,
-                            np.nanmean((self.local_explanation[s_id]), axis=0),
+                            np.nanmean(np.abs(self.local_explanation[s_id]), axis=0),
                         )
                     )
                 else:
                     # Fall back to the default explanation generation method
                     super().explain_model()
             except Exception as e:
+                if s_id in self.errors_dict:
+                    self.errors_dict[s_id]["explainer_error"] = str(e)
+                    self.errors_dict[s_id]["explainer_error_trace"] = traceback.format_exc()
+                else:
+                    self.errors_dict[s_id] = {
+                        "model_name": self.spec.model,
+                        "explainer_error": str(e),
+                        "explainer_error_trace": traceback.format_exc(),
+                    }
                 logger.warning(
                     f"Failed to generate explanations for series {s_id} with error: {e}."
                 )
