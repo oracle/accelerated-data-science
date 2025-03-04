@@ -33,6 +33,9 @@ from ads.aqua.constants import (
     UNKNOWN,
     UNKNOWN_DICT,
 )
+from ads.aqua.model.constants import (
+    DefinedMetadata
+)
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.constants import (
     ENV_AQUA_FINE_TUNING_CONTAINER,
@@ -49,7 +52,6 @@ from ads.common.utils import get_console_link
 from ads.config import (
     AQUA_FINETUNING_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
     AQUA_JOB_SUBNET_ID,
-    AQUA_MODEL_FINETUNING_CONFIG,
     COMPARTMENT_OCID,
     CONDA_BUCKET_NS,
     PROJECT_OCID,
@@ -592,7 +594,7 @@ class AquaFineTuningApp(AquaApp):
         Dict:
             A dict of allowed finetuning configs.
         """
-        config = self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG)
+        config = self.get_config(model_id, DefinedMetadata.FINE_TUNING_CONFIGURATION)
         if not config:
             logger.debug(
                 f"Fine-tuning config for custom model: {model_id} is not available. Use defaults."

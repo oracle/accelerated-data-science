@@ -6,14 +6,14 @@ import json
 import os
 import traceback
 from dataclasses import fields
-from typing import Dict, Optional, Union
+from typing import Dict, Union
 
 import oci
 from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDetails
 
 from ads import set_auth
 from ads.aqua import logger
-from ads.aqua.common.enums import ConfigFolder, Tags
+from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     _is_valid_mvs,
@@ -21,7 +21,7 @@ from ads.aqua.common.utils import (
     is_valid_ocid,
     load_config,
 )
-from ads.aqua.constants import UNKNOWN
+from ads.aqua.constants import AQUA_MODEL_TOKENIZER_CONFIG, UNKNOWN
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import extract_region, is_path_exists
@@ -268,31 +268,7 @@ class AquaApp:
                 logger.info(f"Artifact not found in model {model_id}.")
                 return False
 
-    def get_config(
-        self,
-        model_id: str,
-        config_file_name: str,
-        config_folder: Optional[str] = ConfigFolder.CONFIG,
-    ) -> Dict:
-        """Gets the config for the given Aqua model.
-
-        Parameters
-        ----------
-        model_id: str
-            The OCID of the Aqua model.
-        config_file_name: str
-            name of the config file
-        config_folder: (str, optional):
-            subfolder path where config_file_name needs to be searched
-             Defaults to `ConfigFolder.CONFIG`.
-             When searching inside model artifact directory , the value is ConfigFolder.ARTIFACT`
-
-        Returns
-        -------
-        Dict:
-            A dict of allowed configs.
-        """
-        config_folder = config_folder or ConfigFolder.CONFIG
+    def model_tokenizer_config(self, model_id):
         oci_model = self.ds_client.get_model(model_id).data
         oci_aqua = (
             (
@@ -307,52 +283,84 @@ class AquaApp:
             raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
 
         config = {}
-        # if the current model has a service model tag, then
-        if Tags.AQUA_SERVICE_MODEL_TAG in oci_model.freeform_tags:
-            base_model_ocid = oci_model.freeform_tags[Tags.AQUA_SERVICE_MODEL_TAG]
-            logger.info(
-                f"Base model found for the model: {oci_model.id}. "
-                f"Loading {config_file_name} for base model {base_model_ocid}."
-            )
-            if config_folder == ConfigFolder.ARTIFACT:
-                artifact_path = get_artifact_path(oci_model.custom_metadata_list)
-            else:
-                base_model = self.ds_client.get_model(base_model_ocid).data
-                artifact_path = get_artifact_path(base_model.custom_metadata_list)
-        else:
-            logger.info(f"Loading {config_file_name} for model {oci_model.id}...")
-            artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
         if not artifact_path:
             logger.debug(
                 f"Failed to get artifact path from custom metadata for the model: {model_id}"
             )
             return config
-
-        config_path = os.path.join(os.path.dirname(artifact_path), config_folder)
+        config_path = os.path.join(os.path.dirname(artifact_path), "artifact")
         if not is_path_exists(config_path):
-            config_path = os.path.join(artifact_path.rstrip("/"), config_folder)
+            config_path = os.path.join(artifact_path.rstrip("/"), "artifact")
             if not is_path_exists(config_path):
                 config_path = f"{artifact_path.rstrip('/')}/"
-        config_file_path = os.path.join(config_path, config_file_name)
+        config_file_path = os.path.join(config_path, AQUA_MODEL_TOKENIZER_CONFIG)
         if is_path_exists(config_file_path):
             try:
                 config = load_config(
                     config_path,
-                    config_file_name=config_file_name,
+                    config_file_name=AQUA_MODEL_TOKENIZER_CONFIG,
                 )
             except Exception:
                 logger.debug(
-                    f"Error loading the {config_file_name} at path {config_path}.\n"
+                    f"Error loading the {AQUA_MODEL_TOKENIZER_CONFIG} at path {config_path}.\n"
                     f"{traceback.format_exc()}"
                 )
-
         if not config:
             logger.debug(
-                f"{config_file_name} is not available for the model: {model_id}. "
+                f"{AQUA_MODEL_TOKENIZER_CONFIG} is not available for the model: {model_id}. "
                 f"Check if the custom metadata has the artifact path set."
             )
             return config
 
+        return config
+
+    def get_config(self, model_id: str, config_file_name: str) -> Dict:
+        """Gets the config for the given Aqua model.
+
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the Aqua model.
+        config_file_name: str
+            name of the config file
+
+        Returns
+        -------
+        Dict:
+            A dict of allowed configs.
+        """
+        oci_model = self.ds_client.get_model(model_id).data
+        oci_aqua = (
+            (
+                Tags.AQUA_TAG in oci_model.freeform_tags
+                or Tags.AQUA_TAG.lower() in oci_model.freeform_tags
+            )
+            if oci_model.freeform_tags
+            else False
+        )
+
+        if not oci_aqua:
+            raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
+
+        config = {}
+        try:
+            config = self.ds_client.get_model_defined_metadatum_artifact_content(
+                model_id, config_file_name
+            ).data.content.decode("utf-8", errors="ignore")
+            try:
+                config_dict = json.loads(config)
+                config = config_dict
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+        if not config:
+            logger.error(
+                f"{config_file_name} is not available for the model: {model_id}."
+            )
+            return config
         return config
 
     @property
