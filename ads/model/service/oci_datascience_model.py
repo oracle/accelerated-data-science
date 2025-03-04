@@ -605,7 +605,7 @@ class OCIDataScienceModel(
             raise ValueError("Model OCID not provided.")
         return super().from_ocid(ocid)
 
-    def _is_model_by_reference(self):
+    def is_model_created_by_reference(self):
         """Checks if model is created by reference
         Returns
         -------
