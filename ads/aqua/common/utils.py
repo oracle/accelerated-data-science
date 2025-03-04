@@ -33,7 +33,7 @@ from huggingface_hub.utils import (
 )
 from oci.data_science.models import JobRun, Model
 from oci.object_storage.models import ObjectSummary
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from ads.aqua.common.enums import (
     InferenceContainerParamType,
@@ -252,7 +252,7 @@ def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
     return config
 
 
-def list_os_files_with_extension(oss_path: str, extension: str) -> [str]:
+def list_os_files_with_extension(oss_path: str, extension: str) -> List[str]:
     """
     List files in the specified directory with the given extension.
 
@@ -939,6 +939,25 @@ def get_combined_params(params1: str = None, params2: str = None) -> str:
     return " ".join(combined_params)
 
 
+def build_params_string(params: dict) -> str:
+    """Builds params string from params dict
+
+    Parameters
+    ----------
+    params:
+        Parameter dict with key-value pairs
+
+    Returns
+    -------
+        A params string.
+    """
+    return (
+        " ".join(f"{name} {value}" for name, value in params.items()).strip()
+        if params
+        else UNKNOWN
+    )
+
+
 def copy_model_config(artifact_path: str, os_path: str, auth: dict = None):
     """Copies the aqua model config folder from the artifact path to the user provided object storage path.
     The config folder is overwritten if the files already exist at the destination path.
@@ -1219,3 +1238,17 @@ def build_pydantic_error_message(ex: ValidationError):
         for e in ex.errors()
         if "loc" in e and e["loc"]
     } or "; ".join(e["msg"] for e in ex.errors())
+
+
+def is_pydantic_model(obj: object) -> bool:
+    """
+    Returns True if obj is a Pydantic model class or an instance of a Pydantic model.
+
+    Args:
+        obj: The object or class to check.
+
+    Returns:
+        bool: True if obj is a subclass or instance of BaseModel, False otherwise.
+    """
+    cls = obj if isinstance(obj, type) else type(obj)
+    return issubclass(cls, BaseModel)

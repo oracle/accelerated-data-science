@@ -1,10 +1,11 @@
 kind: deployment
 spec:
   createdBy: ocid1.user.oc1..<OCID>
-  displayName: model-deployment-name
+  displayName: multi-model-deployment-name
   freeformTags:
     OCI_AQUA: active
-    aqua_model_name: model-name
+    aqua_multimodel: "true"
+    aqua_model_id: model-id
   id: "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>"
   infrastructure:
     kind: infrastructure
@@ -15,10 +16,7 @@ spec:
       policyType: FIXED_SIZE
       projectId: ocid1.datascienceproject.oc1.iad.<OCID>
       replica: 1
-      shapeName: "VM.Standard.A1.Flex"
-      shapeConfigDetails:
-        memoryInGBs: 60.0
-        ocpus: 10.0
+      shapeName: "BM.GPU.A10.4"
     type: datascienceModelDeployment
   lifecycleState: CREATING
   modelDeploymentUrl: "https://modeldeployment.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>"
@@ -26,11 +24,8 @@ spec:
     kind: runtime
     spec:
       env:
-        BASE_MODEL: service_models/model-name/artifact
-        BASE_MODEL_FILE: model-name.gguf
-        MODEL_DEPLOY_ENABLE_STREAMING: 'true'
         MODEL_DEPLOY_PREDICT_ENDPOINT: /v1/completions
-        MODEL_DEPLOY_HEALTH_ENDPOINT: /v1/models
+        MULTI_MODEL_CONFIG: '{"models": [{"params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/"}'
       healthCheckPort: 8080
       image: "dsmc://image-name:1.0.0.0"
       modelUri: "ocid1.datasciencemodeldeployment.oc1.<region>.<MODEL_OCID>"

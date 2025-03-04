@@ -1,0 +1,288 @@
+{
+  "shapes": [
+    {
+      "core_count": 1,
+      "gpu_specs": null,
+      "memory_in_gbs": 15,
+      "name": "VM.Standard2.1",
+      "shape_series": "INTEL_SKYLAKE"
+    },
+    {
+      "core_count": 2,
+      "gpu_specs": null,
+      "memory_in_gbs": 30,
+      "name": "VM.Standard2.2",
+      "shape_series": "INTEL_SKYLAKE"
+    },
+    {
+      "core_count": 4,
+      "gpu_specs": null,
+      "memory_in_gbs": 30,
+      "name": "VM.Standard2.4",
+      "shape_series": "INTEL_SKYLAKE"
+    },
+    {
+      "core_count": 8,
+      "gpu_specs": null,
+      "memory_in_gbs": 120,
+      "name": "VM.Standard2.8",
+      "shape_series": "INTEL_SKYLAKE"
+    },
+    {
+      "core_count": 16,
+      "gpu_specs": null,
+      "memory_in_gbs": 240,
+      "name": "VM.Standard2.16",
+      "shape_series": "INTEL_SKYLAKE"
+    },
+    {
+      "core_count": 24,
+      "gpu_specs": null,
+      "memory_in_gbs": 320,
+      "name": "VM.Standard2.24",
+      "shape_series": "INTEL_SKYLAKE"
+    },
+    {
+      "core_count": 64,
+      "gpu_specs": null,
+      "memory_in_gbs": 1024,
+      "name": "VM.Standard.E3.Flex",
+      "shape_series": "AMD_ROME"
+    },
+    {
+      "core_count": 64,
+      "gpu_specs": null,
+      "memory_in_gbs": 1024,
+      "name": "VM.Standard.E4.Flex",
+      "shape_series": "AMD_ROME"
+    },
+    {
+      "core_count": 94,
+      "gpu_specs": null,
+      "memory_in_gbs": 1049,
+      "name": "VM.Standard.E5.Flex",
+      "shape_series": "AMD_ROME"
+    },
+    {
+      "core_count": 32,
+      "gpu_specs": null,
+      "memory_in_gbs": 512,
+      "name": "VM.Standard3.Flex",
+      "shape_series": "INTEL_SKYLAKE"
+    },
+    {
+      "core_count": 18,
+      "gpu_specs": null,
+      "memory_in_gbs": 256,
+      "name": "VM.Optimized3.Flex",
+      "shape_series": "INTEL_SKYLAKE"
+    },
+    {
+      "core_count": 80,
+      "gpu_specs": null,
+      "memory_in_gbs": 512,
+      "name": "VM.Standard.A1.Flex",
+      "shape_series": "ARM"
+    },
+    {
+      "core_count": 78,
+      "gpu_specs": null,
+      "memory_in_gbs": 946,
+      "name": "VM.Standard.A2.Flex",
+      "shape_series": "ARM"
+    },
+    {
+      "core_count": 12,
+      "gpu_specs": {
+        "gpu_count": 1,
+        "gpu_memory_in_gbs": 16,
+        "gpu_type": "P100"
+      },
+      "memory_in_gbs": 72,
+      "name": "VM.GPU2.1",
+      "shape_series": "NVIDIA_GPU"
+    },
+    {
+      "core_count": 6,
+      "gpu_specs": {
+        "gpu_count": 1,
+        "gpu_memory_in_gbs": 16,
+        "gpu_type": "V100"
+      },
+      "memory_in_gbs": 90,
+      "name": "VM.GPU3.1",
+      "shape_series": "NVIDIA_GPU"
+    },
+    {
+      "core_count": 12,
+      "gpu_specs": {
+        "gpu_count": 2,
+        "gpu_memory_in_gbs": 32,
+        "gpu_type": "V100"
+      },
+      "memory_in_gbs": 180,
+      "name": "VM.GPU3.2",
+      "shape_series": "NVIDIA_GPU"
+    },
+    {
+      "core_count": 24,
+      "gpu_specs": {
+        "gpu_count": 4,
+        "gpu_memory_in_gbs": 64,
+        "gpu_type": "V100"
+      },
+      "memory_in_gbs": 360,
+      "name": "VM.GPU3.4",
+      "shape_series": "NVIDIA_GPU"
+    },
+    {
+      "core_count": 28,
+      "gpu_specs": {
+        "gpu_count": 2,
+        "gpu_memory_in_gbs": 32,
+        "gpu_type": "P100"
+      },
+      "memory_in_gbs": 192,
+      "name": "BM.GPU2.2",
+      "shape_series": "NVIDIA_GPU"
+    },
+    {
+      "core_count": 52,
+      "gpu_specs": {
+        "gpu_count": 8,
+        "gpu_memory_in_gbs": 128,
+        "gpu_type": "V100"
+      },
+      "memory_in_gbs": 768,
+      "name": "BM.GPU3.8",
+      "shape_series": "NVIDIA_GPU"
+    },
+    {
+      "core_count": 64,
+      "gpu_specs": {
+        "gpu_count": 8,
+        "gpu_memory_in_gbs": 320,
+        "gpu_type": "A100"
+      },
+      "memory_in_gbs": 2048,
+      "name": "BM.GPU4.8",
+      "shape_series": "NVIDIA_GPU"
+    },
+    {
+      "core_count": 64,
+      "gpu_specs": {
+        "gpu_count": 8,
+        "gpu_memory_in_gbs": 320,
+        "gpu_type": "A100"
+      },
+      "memory_in_gbs": 2048,
+      "name": "BM.GPU.A100-v2.8",
+      "shape_series": "NVIDIA_GPU"
+    },
+    {
+      "core_count": 112,
+      "gpu_specs": {
+        "gpu_count": 8,
+        "gpu_memory_in_gbs": 1128,
+        "gpu_type": "H200"
+      },
+      "memory_in_gbs": 2048,
+      "name": "BM.GPU.H100.8",
+      "shape_series": "NVIDIA_GPU"
+    },
+    {
+      "core_count": 32,
+      "gpu_specs": {
+        "gpu_count": 2,
+        "gpu_memory_in_gbs": null,
+        "gpu_type": null
+      },
+      "memory_in_gbs": 1024,
+      "name": "BM.GPU.T1.2",
+      "shape_series": "NVIDIA_GPU"
+    },
+    {
+      "core_count": 64,
+      "gpu_specs": {
+        "gpu_count": 4,
+        "gpu_memory_in_gbs": 96,
+        "gpu_type": "A10"
+      },
+      "memory_in_gbs": 1024,
+      "name": "BM.GPU.A10.4",
+      "shape_series": "NVIDIA_GPU"
+    },
+    {
+      "core_count": 64,
+      "gpu_specs": {
+        "gpu_count": 4,
+        "gpu_memory_in_gbs": 96,
+        "gpu_type": "A10"
+      },
+      "memory_in_gbs": 1024,
+      "name": "VM.GPU.A10.4",
+      "shape_series": "NVIDIA_GPU"
+    },
+    {
+      "core_count": 112,
+      "gpu_specs": {
+        "gpu_count": 4,
+        "gpu_memory_in_gbs": 192,
+        "gpu_type": "L40S"
+      },
+      "memory_in_gbs": 1024,
+      "name": "BM.GPU.L40S-NC.4",
+      "shape_series": "NVIDIA_GPU"
+    },
+    {
+      "core_count": 15,
+      "gpu_specs": {
+        "gpu_count": 1,
+        "gpu_memory_in_gbs": 24,
+        "gpu_type": "A10"
+      },
+      "memory_in_gbs": 240,
+      "name": "VM.GPU.A10.1",
+      "shape_series": "NVIDIA_GPU"
+    },
+    {
+      "core_count": 30,
+      "gpu_specs": {
+        "gpu_count": 2,
+        "gpu_memory_in_gbs": 48,
+        "gpu_type": "A10"
+      },
+      "memory_in_gbs": 480,
+      "name": "VM.GPU.A10.2",
+      "shape_series": "NVIDIA_GPU"
+    },
+    {
+      "core_count": 64,
+      "gpu_specs": null,
+      "memory_in_gbs": 1024,
+      "name": "VM.Standard.AMD.Generic",
+      "shape_series": "GENERIC"
+    },
+    {
+      "core_count": 32,
+      "gpu_specs": null,
+      "memory_in_gbs": 512,
+      "name": "VM.Standard.Intel.Generic",
+      "shape_series": "GENERIC"
+    },
+    {
+      "core_count": 80,
+      "gpu_specs": null,
+      "memory_in_gbs": 512,
+      "name": "VM.Standard.Ampere.Generic",
+      "shape_series": "GENERIC"
+    },
+    {
+      "core_count": 32,
+      "gpu_specs": null,
+      "memory_in_gbs": 512,
+      "name": "VM.Standard.x86.Generic",
+      "shape_series": "GENERIC"
+    }
+  ]
+}
