@@ -45,6 +45,13 @@ from ads.model.model_metadata import (
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
 
 
+# Fixture that reloads the module before any patching is applied.
+@pytest.fixture(autouse=True, scope="class")
+def reload_model_module():
+    reload(ads.aqua.model.model)
+    yield
+
+
 @pytest.fixture(autouse=True, scope="class")
 def mock_auth():
     with patch("ads.common.auth.default_signer") as mock_default_signer:
@@ -276,7 +283,7 @@ class TestAquaModel:
         os.environ["ODSC_MODEL_COMPARTMENT_OCID"] = TestDataset.SERVICE_COMPARTMENT_ID
         reload(ads.config)
         reload(ads.aqua)
-        reload(ads.aqua.model.model)
+        # reload(ads.aqua.model.model)
 
     @classmethod
     def teardown_class(cls):
