@@ -64,20 +64,25 @@ OCI_MODEL_PAYLOAD = {
             "value": "oci://bucket@namespace/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3",
             "description": "The conda environment where the model was trained.",
             "category": "Training Environment",
+            "hasArtifact": False,
         },
     ],
     "defined_metadata_list": [
-        {"key": "Algorithm", "value": "test"},
-        {"key": "Framework"},
-        {"key": "FrameworkVersion"},
-        {"key": "UseCaseType", "value": "multinomial_classification"},
-        {"key": "Hyperparameters"},
-        {"key": "ArtifactTestResults"},
-        {"key": "UnexpectedKey", "value": "unexpected_value"},
-        {"key": "License"},
-        {"key": "Readme"},
-        {"key": "FineTuneConfiguration"},
-        {"key": "DeploymentConfiguration"},
+        {"key": "Algorithm", "value": "test", "hasArtifact": False},
+        {"key": "Framework", "hasArtifact": False},
+        {"key": "FrameworkVersion", "hasArtifact": False},
+        {
+            "key": "UseCaseType",
+            "value": "multinomial_classification",
+            "hasArtifact": False,
+        },
+        {"key": "Hyperparameters", "hasArtifact": False},
+        {"key": "ArtifactTestResults", "hasArtifact": False},
+        {"key": "UnexpectedKey", "value": "unexpected_value", "hasArtifact": False},
+        {"key": "License", "hasArtifact": False},
+        {"key": "Readme", "hasArtifact": False},
+        {"key": "FineTuneConfiguration", "hasArtifact": False},
+        {"key": "DeploymentConfiguration", "hasArtifact": False},
     ],
     "backup_setting": {
         "is_backup_enabled": True,
@@ -144,22 +149,31 @@ DSC_MODEL_PAYLOAD = {
                 "value": "oci://bucket@namespace/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3",
                 "description": "The conda environment where the model was trained.",
                 "category": "Training Environment",
+                "has_artifact": False,
             },
         ]
     },
     "definedMetadataList": {
         "data": [
-            {"key": "Algorithm", "value": "test"},
-            {"key": "Framework", "value": None},
-            {"key": "FrameworkVersion", "value": None},
-            {"key": "UseCaseType", "value": "multinomial_classification"},
-            {"key": "Hyperparameters", "value": None},
-            {"key": "ArtifactTestResults", "value": None},
-            {"key": "UnexpectedKey", "value": "unexpected_value"},
-            {"key": "License", "value": None},
-            {"key": "Readme", "value": None},
-            {"key": "FineTuneConfiguration", "value": None},
-            {"key": "DeploymentConfiguration", "value": None},
+            {"key": "Algorithm", "value": "test", "has_artifact": False},
+            {"key": "Framework", "value": None, "has_artifact": False},
+            {"key": "FrameworkVersion", "value": None, "has_artifact": False},
+            {
+                "key": "UseCaseType",
+                "value": "multinomial_classification",
+                "has_artifact": False,
+            },
+            {"key": "Hyperparameters", "value": None, "has_artifact": False},
+            {"key": "ArtifactTestResults", "value": None, "has_artifact": False},
+            {
+                "key": "UnexpectedKey",
+                "value": "unexpected_value",
+                "has_artifact": False,
+            },
+            {"key": "License", "value": None, "has_artifact": False},
+            {"key": "Readme", "value": None, "has_artifact": False},
+            {"key": "FineTuneConfiguration", "value": None, "has_artifact": False},
+            {"key": "DeploymentConfiguration", "value": None, "has_artifact": False},
         ]
     },
     "provenanceMetadata": {
@@ -610,7 +624,11 @@ class TestDataScienceModel:
             assert self.prepare_dict(test_oci_dsc_model.to_dict()) == self.prepare_dict(
                 self.mock_dsc_model._to_oci_dsc_model().to_dict()
             )
-
+            print("test_oci_dsc_model.to_dict(): ", test_oci_dsc_model.to_dict())
+            print(
+                "mock_dsc_model._to_oci_dsc_model().to_dict(): ",
+                self.mock_dsc_model._to_oci_dsc_model().to_dict(),
+            )
             test_oci_dsc_model.display_name = "new_name"
             assert self.prepare_dict(test_oci_dsc_model.to_dict()) == self.prepare_dict(
                 self.mock_dsc_model._to_oci_dsc_model(display_name="new_name").to_dict()
@@ -724,21 +742,46 @@ class TestDataScienceModel:
                         "value": "new oci://bucket@namespace/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3",
                         "description": "new The conda environment where the model was trained.",
                         "category": "Training Environment",
+                        "has_artifact": False,
                     },
                 ]
             },
             "definedMetadataList": {
                 "data": [
-                    {"key": "Algorithm", "value": "new test"},
-                    {"key": "Framework", "value": "new test"},
-                    {"key": "FrameworkVersion", "value": "new test"},
-                    {"key": "UseCaseType", "value": "multinomial_classification"},
-                    {"key": "Hyperparameters", "value": "new test"},
-                    {"key": "ArtifactTestResults", "value": "new test"},
-                    {"key": "License", "value": None},
-                    {"key": "Readme", "value": None},
-                    {"key": "FineTuneConfiguration", "value": None},
-                    {"key": "DeploymentConfiguration", "value": None},
+                    {"key": "Algorithm", "value": "new test", "has_artifact": False},
+                    {"key": "Framework", "value": "new test", "has_artifact": False},
+                    {
+                        "key": "FrameworkVersion",
+                        "value": "new test",
+                        "has_artifact": False,
+                    },
+                    {
+                        "key": "UseCaseType",
+                        "value": "multinomial_classification",
+                        "has_artifact": False,
+                    },
+                    {
+                        "key": "Hyperparameters",
+                        "value": "new test",
+                        "has_artifact": False,
+                    },
+                    {
+                        "key": "ArtifactTestResults",
+                        "value": "new test",
+                        "has_artifact": False,
+                    },
+                    {"key": "License", "value": None, "has_artifact": False},
+                    {"key": "Readme", "value": None, "has_artifact": False},
+                    {
+                        "key": "FineTuneConfiguration",
+                        "value": None,
+                        "has_artifact": False,
+                    },
+                    {
+                        "key": "DeploymentConfiguration",
+                        "value": None,
+                        "has_artifact": False,
+                    },
                 ]
             },
             "backupSetting": {

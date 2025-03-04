@@ -1398,7 +1398,13 @@ class ModelCustomMetadata(ModelMetadata):
         return (
             pd.DataFrame(
                 (
-                    (item.key, item.value, item.description, item.category)
+                    (
+                        item.key,
+                        item.value,
+                        item.description,
+                        item.category,
+                        item.has_artifact,
+                    )
                     for item in self._items
                 ),
                 columns=[value for value in MetadataCustomPrintColumns.values()],
@@ -1555,7 +1561,7 @@ class ModelTaxonomyMetadata(ModelMetadata):
         """
         return (
             pd.DataFrame(
-                ((item.key, item.value) for item in self._items),
+                ((item.key, item.value, item.has_artifact) for item in self._items),
                 columns=[value for value in MetadataTaxonomyPrintColumns.values()],
             )
             .sort_values(by=[MetadataTaxonomyPrintColumns.KEY])
