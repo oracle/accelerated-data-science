@@ -591,17 +591,6 @@ class ModelCustomMetadataItem(ModelTaxonomyMetadataItem):
     def description(self) -> str:
         return self._description
 
-    @property
-    def has_artifact(self) -> bool:
-        return self._has_artifact
-
-    @has_artifact.setter
-    def has_artifact(self, has_artifact: bool):
-        if not has_artifact:
-            self._has_artifact = False
-        else:
-            self._has_artifact = has_artifact
-
     @description.setter
     def description(self, description: str):
         """The model metadata description setter.
