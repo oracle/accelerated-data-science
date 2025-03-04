@@ -378,22 +378,6 @@ class AquaModelApp(AquaApp):
         is_fine_tuned_model = ds_model.freeform_tags.get(
             Tags.AQUA_FINE_TUNED_MODEL_TAG, None
         )
-        # Check if custom_metadata_list contains any key from CustomMetadata and delete them
-        custom_metadata_dict = ds_model.custom_metadata_list.to_dict()["data"]
-        for metadata in custom_metadata_dict:
-            key = metadata["key"]
-            has_artifact = metadata["has_artifact"]
-            if has_artifact:
-                ds_model.delete_custom_metadata_artifact(key)
-
-        # Check if defined_metadata_list contains any key from DefinedMetadata and delete them
-        defined_metadata_dict = ds_model.defined_metadata_list.to_dict()["data"]
-        for metadata in defined_metadata_dict:
-            key = metadata["key"]
-            has_artifact = metadata["has_artifact"]
-            if has_artifact:
-                ds_model.delete_defined_metadata_artifact(key)
-
         if is_registered_model or is_fine_tuned_model:
             logger.info(f"Deleting model {model_id}.")
             return ds_model.delete()
