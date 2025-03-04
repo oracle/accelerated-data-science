@@ -539,6 +539,13 @@ class AquaDeploymentApp(AquaApp):
             )
 
         env_var.update({AQUA_MULTI_MODEL_CONFIG: json.dumps({"models": model_config})})
+
+        for env in container_spec.get(ContainerSpec.ENV_VARS, []):
+            if isinstance(env, dict):
+                for key, _ in env.items():
+                    if key not in env_var:
+                        env_var.update(env)
+
         logger.info(f"Env vars used for deploying {aqua_model.id} : {env_var}.")
 
         container_image_uri = (
