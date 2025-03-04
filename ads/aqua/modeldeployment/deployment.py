@@ -499,6 +499,8 @@ class AquaDeploymentApp(AquaApp):
             # replaces `--served-model-name`` with user's model name
             container_params_dict = get_params_dict(container_params)
             container_params_dict.update({"--served-model-name": model.model_name})
+            # replaces `--tensor-parallel-size` with model gpu count
+            container_params_dict.update({"--tensor-parallel-size": model.gpu_count})
             params = build_params_string(container_params_dict)
             deployment_config = self.get_deployment_config(model.model_id)
             multi_model_deployment = deployment_config.configuration.get(
