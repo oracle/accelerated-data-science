@@ -6,6 +6,7 @@
 import copy
 import itertools
 import logging
+import math
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional
 
@@ -77,15 +78,15 @@ class MultiModelDeploymentConfigLoader:
         # Initialize the summary result with the deployment configurations.
         summary = ModelDeploymentConfigSummary(deployment_config=deployment)
 
-        # Ensure every model has at least one valid GPU configuration.
-        for model, shape_gpu in model_shape_gpu.items():
-            if not shape_gpu:
-                summary.error_message = (
-                    "Unable to determine a valid GPU allocation for the selected models based on their current configurations. "
-                    "Please try selecting a different set of models."
-                )
-                logger.debug(f"No valid GPU configuration found for model `{model}`")
-                return summary
+        # # Ensure every model has at least one valid GPU configuration.
+        # for model, shape_gpu in model_shape_gpu.items():
+        #     if not shape_gpu:
+        #         summary.error_message = (
+        #             "Unable to determine a valid GPU allocation for the selected models based on their current configurations. "
+        #             "Please try selecting a different set of models."
+        #         )
+        #         logger.debug(f"No valid GPU configuration found for model `{model}`")
+        #         return summary
 
         # Identify common deployment shapes among all models.
         common_shapes = self._get_common_shapes(model_shape_gpu)
@@ -222,6 +223,12 @@ class MultiModelDeploymentConfigLoader:
                 if shape_gpu[common_shape]
             }
 
+            # assume a list of possible gpu count to model without multi model deployment config
+            model_gpu = {
+                model: (gpu if gpu else self._assume_gpu_list(total_gpus_available))
+                for model, gpu in model_gpu.items()
+            }
+
             if len(model_gpu) != len(model_shape_gpu):
                 continue
 
@@ -237,6 +244,11 @@ class MultiModelDeploymentConfigLoader:
                 )
 
         return gpu_allocation
+
+    @staticmethod
+    def _assume_gpu_list(total_gpus_available: int) -> list[int]:
+        """Generates a list of powers of 2 that's smaller than `total_gpus_available`."""
+        return [2**i for i in range(math.log2(total_gpus_available) + 1)]
 
     def _verify_compatibility(
         self,
