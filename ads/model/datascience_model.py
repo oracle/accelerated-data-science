@@ -2240,10 +2240,16 @@ class DataScienceModel(Builder):
         Parameters
         ----------
         metadata_key_name: str
-            The name of the model metadatum in the metadata.
+            The name of the model custom metadata key
 
-        artifact_path: str
-            The model custom metadata artifact local file path to be upload.
+        artifact_path_or_content: str
+            The model custom metadata artifact path to be upload. It can also be the actual content of the custom metadata
+
+        path_type: str
+            Can be either of utils.MetadataArtifactPathType.LOCAL , utils.MetadataArtifactPathType.OSS , utils.MetadataArtifactPathType.CONTENT
+            Specifies what type of path is to be provided for metadata artifact.
+            Can be either local , oss or the actual content itself
+
         Returns
         -------
         Dict
@@ -2278,10 +2284,16 @@ class DataScienceModel(Builder):
         Parameters
         ----------
         metadata_key_name: str
-            The name of the model metadatum in the metadata.
+            The name of the model defined metadata key
 
-        artifact_path: str
-            The model defined metadata artifact local file path to be upload.
+        artifact_path_or_content: str
+            The model defined metadata artifact path to be upload. It can also be the actual content of the defined metadata
+
+        path_type: str
+            Can be either of utils.MetadataArtifactPathType.LOCAL , utils.MetadataArtifactPathType.OSS , utils.MetadataArtifactPathType.CONTENT
+            Specifies what type of path is to be provided for metadata artifact.
+            Can be either local , oss or the actual content itself
+
         Returns
         -------
         The model defined metadata artifact creation info.
@@ -2315,10 +2327,16 @@ class DataScienceModel(Builder):
         Parameters
         ----------
         metadata_key_name: str
-            The name of the model metadatum in the metadata.
+            The name of the model custom metadata key
 
-        artifact_path: str
-            The model custom metadata artifact local file path to be upload.
+        artifact_path_or_content: str
+            The model custom metadata artifact path. It can also be the actual content of the custom metadata
+
+        path_type: str
+            Can be either of utils.MetadataArtifactPathType.LOCAL , utils.MetadataArtifactPathType.OSS , utils.MetadataArtifactPathType.CONTENT
+            Specifies what type of path is to be provided for metadata artifact.
+            Can be either local , oss or the actual content itself
+
         Returns
         -------
         Dict
@@ -2353,10 +2371,16 @@ class DataScienceModel(Builder):
         Parameters
         ----------
         metadata_key_name: str
-            The name of the model metadatum in the metadata.
+            The name of the model defined metadata key
 
-        artifact_path: str
-            The model defined metadata artifact local file path to be upload.
+        artifact_path_or_content: str
+            The model defined metadata artifact path. It can also be the actual content of the defined metadata
+
+        path_type: str
+            Can be either of utils.MetadataArtifactPathType.LOCAL , utils.MetadataArtifactPathType.OSS , utils.MetadataArtifactPathType.CONTENT
+            Specifies what type of path is to be provided for metadata artifact.
+            Can be either local , oss or the actual content itself
+
         Returns
         -------
         Dict
@@ -2388,9 +2412,11 @@ class DataScienceModel(Builder):
         Parameters
         ----------
         metadata_key_name: str
-            The name of the model metadatum in the metadata.
+            The name of the custom metadata key of the model
+
         target_dir: str
-            The local file path where downloaded model custom metadata artifact saved.
+            The local file path where downloaded model custom metadata artifact will be saved.
+
         override: bool
             A boolean flag that controls downloaded metadata artifact file overwriting
             - If True, overwrites the file if it already exists.
@@ -2422,8 +2448,10 @@ class DataScienceModel(Builder):
         ----------
         metadata_key_name: str
             The name of the model metadatum in the metadata.
+
         target_dir: str
-            The local file path where downloaded model defined metadata artifact saved.
+            The local file path where downloaded model defined metadata artifact will be saved.
+
         override: bool
             A boolean flag that controls downloaded metadata artifact file overwriting
             - If True, overwrites the file if it already exists.

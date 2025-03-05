@@ -630,7 +630,7 @@ class OCIDataScienceModel(
         artifact_path_or_content: str
             The path of the file (local or oss) containing metadata artifact or content.
         path_type: str
-            can be one of local , oss or content
+            can be one of local , oss or actual content itself
 
         Returns
         -------
@@ -680,6 +680,10 @@ class OCIDataScienceModel(
 
         artifact_path: str
             The model custom metadata artifact path to be upload.
+
+        path_type: str
+            can be one of local , oss or actual content itself
+
         Returns
         -------
         ModelMetadataArtifactDetails
@@ -726,6 +730,10 @@ class OCIDataScienceModel(
 
         artifact_path: str
             The model custom metadata artifact path to be upload.
+
+        path_type: str
+            can be one of local , oss or actual content itself.
+
         Returns
         -------
         ModelMetadataArtifactDetails
@@ -772,6 +780,9 @@ class OCIDataScienceModel(
 
         artifact_path: str
             The model defined metadata artifact path to be upload.
+
+        path_type:str
+            can be one of local , oss or actual content itself.
         Returns
         -------
         ModelMetadataArtifactDetails
@@ -818,6 +829,10 @@ class OCIDataScienceModel(
 
         artifact_path: str
             The model custom metadata artifact path to be upload.
+
+        path_type: str
+            can be one of local , oss or actual content itself.
+
         Returns
         -------
         ModelMetadataArtifactDetails
