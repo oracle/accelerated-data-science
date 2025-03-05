@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 from string import Template
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import fsspec
 import oci
@@ -64,6 +64,7 @@ from ads.aqua.constants import (
     VLLM_INFERENCE_RESTRICTED_PARAMS,
 )
 from ads.aqua.data import AquaResourceIdentifier
+from ads.common import auth as authutil
 from ads.common.auth import AuthState, default_signer
 from ads.common.decorator.threaded import threaded
 from ads.common.extended_enum import ExtendedEnum
@@ -1257,13 +1258,22 @@ def is_pydantic_model(obj: object) -> bool:
 
 
 @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=5), timer=datetime.now))
-def load_gpu_shapes_index() -> GPUShapesIndex:
+def load_gpu_shapes_index(
+    auth: Optional[Dict] = None,
+) -> GPUShapesIndex:
     """
     Loads the GPU shapes index from Object Storage or a local resource folder.
 
     The function first attempts to load the file from an Object Storage bucket using fsspec.
     If the loading fails (due to connection issues, missing file, etc.), it falls back to
     loading the index from a local file.
+
+    Parameters
+    ----------
+    auth: (Dict, optional). Defaults to None.
+        The default authentication is set using `ads.set_auth` API. If you need to override the
+        default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+        authentication signer and kwargs required to instantiate IdentityClient object.
 
     Returns
     -------
@@ -1280,16 +1290,16 @@ def load_gpu_shapes_index() -> GPUShapesIndex:
     # Check if the CONDA_BUCKET_NS environment variable is set.
     if CONDA_BUCKET_NS:
         try:
+            auth = auth or authutil.default_signer()
             # Construct the object storage path. Adjust bucket name and path as needed.
-            storage_path = f"oci://{CONDA_BUCKET_NAME}@{CONDA_BUCKET_NS}/{file_name}"
+            storage_path = f"oci://{CONDA_BUCKET_NAME}@{CONDA_BUCKET_NS}/{file_name}/1"
             logger.debug("Loading GPU shapes index from Object Storage")
-            with fsspec.open(storage_path, mode="r") as file_obj:
+            with fsspec.open(storage_path, mode="r", **auth) as file_obj:
                 data = json.load(file_obj)
             logger.debug("Successfully loaded GPU shapes index.")
-        except Exception as e:
+        except Exception as ex:
             logger.debug(
-                f"Failed to load GPU shapes index from Object Storage: {e}. "
-                "Falling back to local resource."
+                f"Failed to load GPU shapes index from Object Storage. Details: {ex}"
             )
 
     # If loading from Object Storage failed, load from the local resource folder.

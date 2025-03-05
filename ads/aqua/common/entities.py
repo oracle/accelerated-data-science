@@ -7,7 +7,7 @@ from typing import Dict, Optional
 
 from pydantic import Field, model_validator
 
-from ads.aqua.app import logger
+from ads.aqua import logger
 from ads.aqua.config.utils.serializer import Serializable
 
 
