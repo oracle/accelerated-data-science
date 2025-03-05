@@ -471,10 +471,8 @@ class AquaDeploymentApp(AquaApp):
         model_name_list = []
         env_var = {**(create_deployment_details.env_var or UNKNOWN_DICT)}
 
-        container_type_key = self._get_container_type_key(
-            model=aqua_model,
-            container_family=create_deployment_details.container_family,
-        )
+        # TODO: update it when selecting deployment container at multi deployment creation level is supported
+        container_type_key = self._get_container_type_key(model=aqua_model)
         container_config = get_container_config()
         container_spec = container_config.get(
             ContainerSpec.CONTAINER_SPEC, UNKNOWN_DICT
@@ -548,10 +546,8 @@ class AquaDeploymentApp(AquaApp):
 
         logger.info(f"Env vars used for deploying {aqua_model.id} : {env_var}.")
 
-        container_image_uri = (
-            create_deployment_details.container_image_uri
-            or get_container_image(container_type=container_type_key)
-        )
+        # TODO: update it when selecting deployment container at multi deployment creation level is supported
+        container_image_uri = get_container_image(container_type=container_type_key)
         server_port = create_deployment_details.server_port or container_spec.get(
             ContainerSpec.SERVER_PORT
         )
@@ -712,7 +708,9 @@ class AquaDeploymentApp(AquaApp):
         )
 
     @staticmethod
-    def _get_container_type_key(model: DataScienceModel, container_family: str) -> str:
+    def _get_container_type_key(
+        model: DataScienceModel, container_family: Optional[str] = None
+    ) -> str:
         container_type_key = UNKNOWN
         if container_family:
             container_type_key = container_family
