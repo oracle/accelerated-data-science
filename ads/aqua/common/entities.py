@@ -3,12 +3,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import re
-from typing import Optional
+from typing import Dict, Optional
 
 from pydantic import Field, model_validator
 
 from ads.aqua.app import logger
-from ads.aqua.common.constants import GPU_SPECS
 from ads.aqua.config.utils.serializer import Serializable
 
 
@@ -39,6 +38,20 @@ class GPUSpecs(Serializable):
     )
     gpu_type: Optional[str] = Field(
         default=None, description="The type of GPU (e.g., 'V100, A100, H100')."
+    )
+
+
+class GPUShapesIndex(Serializable):
+    """
+    Represents the index of GPU shapes.
+
+    Attributes
+    ----------
+    shapes (Dict[str, GPUSpecs]): A mapping of compute shape names to their GPU specifications.
+    """
+
+    shapes: Dict[str, GPUSpecs] = Field(
+        ..., description="Mapping of shape names to GPU specifications."
     )
 
 
@@ -81,18 +94,19 @@ class ComputeShapeSummary(Serializable):
             ComputeShapeSummary: The updated instance with gpu_specs populated if applicable.
         """
         try:
-            if model.shape_series and "GPU" in model.shape_series.upper():
-                if model.name and model.name in GPU_SPECS:
-                    gpu_info = GPU_SPECS[model.name]
-                    model.gpu_specs = GPUSpecs(**gpu_info)
-                elif model.name:
-                    # Try to extract gpu_count from the shape name using a regex (e.g., "VM.GPU3.2" -> gpu_count=2)
-                    match = re.search(r"\.(\d+)$", model.name)
-                    if match:
-                        gpu_count = int(match.group(1))
-                        model.gpu_specs = GPUSpecs(gpu_count=gpu_count)
+            if (
+                model.shape_series
+                and "GPU" in model.shape_series.upper()
+                and model.name
+                and not model.gpu_specs
+            ):
+                # Try to extract gpu_count from the shape name using a regex (e.g., "VM.GPU3.2" -> gpu_count=2)
+                match = re.search(r"\.(\d+)$", model.name)
+                if match:
+                    gpu_count = int(match.group(1))
+                    model.gpu_specs = GPUSpecs(gpu_count=gpu_count)
         except Exception as err:
-            logger.info(
+            logger.debug(
                 f"Error occurred in attempt to extract GPU specification for the f{model.name}. "
                 f"Details: {err}"
             )

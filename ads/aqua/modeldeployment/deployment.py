@@ -32,6 +32,7 @@ from ads.aqua.common.utils import (
     get_params_list,
     get_resource_name,
     get_restricted_params_by_container,
+    load_gpu_shapes_index,
     validate_cmd_var,
 )
 from ads.aqua.constants import (
@@ -1184,12 +1185,16 @@ class AquaDeploymentApp(AquaApp):
             compartment_id=compartment_id,
             **kwargs,
         )
+
+        gpu_specs = load_gpu_shapes_index()
+
         return [
             ComputeShapeSummary(
                 core_count=oci_shape.core_count,
                 memory_in_gbs=oci_shape.memory_in_gbs,
                 shape_series=oci_shape.shape_series,
                 name=oci_shape.name,
+                gpu_specs=gpu_specs.shapes.get(oci_shape.name),
             )
             for oci_shape in oci_shapes
         ]
