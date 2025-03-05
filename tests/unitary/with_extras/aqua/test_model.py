@@ -481,6 +481,7 @@ class TestAquaModel:
         }
 
     @patch("ads.aqua.common.utils.query_resource")
+    @patch("ads.aqua.model.model.get_container_config")
     @patch("ads.aqua.model.model.read_file")
     @patch.object(DataScienceModel, "from_id")
     @patch(
@@ -492,8 +493,8 @@ class TestAquaModel:
         mock_get_artifact_path,
         mock_from_id,
         mock_read_file,
-        mock_query_resource,
         mock_get_container_config,
+        mock_query_resource,
         mock_auth,
     ):
         mock_get_container_config.return_value = get_container_config()
