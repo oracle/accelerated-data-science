@@ -835,6 +835,19 @@ class AquaModelApp(AquaApp):
         name="aqua",
     )
     def get_defined_metadata_artifact_content(self, model_id: str, metadata_key: str):
+        """
+        Gets the defined metadata artifact content for the given model
+
+        Args:
+            model_id: str
+                model ocid for which defined metadata artifact needs to be created
+            metadata_key: str
+                defined metadata key  like Readme , License , DeploymentConfiguration , FinetuningConfiguration
+        Returns:
+            The model defined metadata artifact content. Can be either str or Dict
+
+        """
+
         content = self.get_config(model_id, metadata_key)
         if not content:
             logger.debug(
@@ -852,6 +865,34 @@ class AquaModelApp(AquaApp):
         path_type: str,
         artifact_path_or_content: str,
     ):
+        """
+        Creates defined metadata artifact for the given model
+
+        Args:
+            model_id: str
+                model ocid for which defined metadata artifact needs to be created
+            metadata_key: str
+                defined metadata key  like Readme , License , DeploymentConfiguration , FinetuningConfiguration
+            path_type: str
+                path type of the given defined metadata can be local , oss or the content itself
+            artifact_path_or_content: str
+                It can be local path or oss path or the actual content itself
+        Returns:
+            The model defined metadata artifact creation info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'ETag': '77156317-8bb9-4c4a-882b-0d85f8140d93',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Length': '4029958',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+
         ds_model = DataScienceModel.from_id(model_id)
         is_registered_model = ds_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None)
         is_verified_model = ds_model.freeform_tags.get(
