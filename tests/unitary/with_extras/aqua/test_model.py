@@ -45,31 +45,29 @@ from ads.model.model_metadata import (
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
 
 
-# Fixture that reloads the module before any patching is applied.
-@pytest.fixture(autouse=True, scope="class")
-def reload_model_module():
-    reload(ads.aqua.model.model)
-    yield
-
-
 @pytest.fixture(autouse=True, scope="class")
 def mock_auth():
     with patch("ads.common.auth.default_signer") as mock_default_signer:
         yield mock_default_signer
 
 
+def get_container_config():
+    with open(
+        os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "test_data/ui/container_index.json",
+        ),
+        "r",
+    ) as _file:
+        container_index_json = json.load(_file)
+
+    return container_index_json
+
+
 @pytest.fixture(autouse=True, scope="class")
 def mock_get_container_config():
     with patch("ads.aqua.model.model.get_container_config") as mock_config:
-        with open(
-            os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                "test_data/ui/container_index.json",
-            ),
-            "r",
-        ) as _file:
-            container_index_json = json.load(_file)
-        mock_config.return_value = container_index_json
+        mock_config.return_value = get_container_config()
         yield mock_config
 
 
@@ -283,7 +281,7 @@ class TestAquaModel:
         os.environ["ODSC_MODEL_COMPARTMENT_OCID"] = TestDataset.SERVICE_COMPARTMENT_ID
         reload(ads.config)
         reload(ads.aqua)
-        # reload(ads.aqua.model.model)
+        reload(ads.aqua.model.model)
 
     @classmethod
     def teardown_class(cls):
@@ -382,6 +380,7 @@ class TestAquaModel:
         mock_get_container_config,
         mock_auth,
     ):
+        mock_get_container_config.return_value = get_container_config()
         ds_model = MagicMock()
         ds_model.id = "test_id"
         ds_model.compartment_id = "test_compartment_id"
@@ -496,6 +495,7 @@ class TestAquaModel:
         mock_get_container_config,
         mock_auth,
     ):
+        mock_get_container_config.return_value = get_container_config()
         ds_model = MagicMock()
         ds_model.id = "test_id"
         ds_model.compartment_id = "test_model_compartment_id"
