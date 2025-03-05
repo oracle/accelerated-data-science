@@ -170,7 +170,10 @@ class LargeArtifactDownloader(ArtifactDownloader):
         """Downloads model artifacts."""
         self.progress.update("Importing model artifacts from catalog")
 
-        if self.dsc_model._is_model_by_reference() and self.model_file_description:
+        if (
+            self.dsc_model.is_model_created_by_reference()
+            and self.model_file_description
+        ):
             self.download_from_model_file_description()
             self.progress.update()
             return

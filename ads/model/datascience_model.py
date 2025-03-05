@@ -1779,7 +1779,7 @@ class DataScienceModel(Builder):
                 artifact_info["Content-Disposition"]
             )
 
-            if self.dsc_model._is_model_by_reference():
+            if self.dsc_model.is_model_created_by_reference():
                 _, file_extension = os.path.splitext(file_name_info["filename"])
                 if file_extension.lower() == ".json":
                     bucket_uri, _ = self._download_file_description_artifact()
