@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 from string import Template
-from typing import List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import fsspec
 import oci
@@ -35,6 +35,7 @@ from oci.data_science.models import JobRun, Model
 from oci.object_storage.models import ObjectSummary
 from pydantic import BaseModel, ValidationError
 
+from ads.aqua.common.entities import GPUShapesIndex
 from ads.aqua.common.enums import (
     InferenceContainerParamType,
     InferenceContainerType,
@@ -63,6 +64,7 @@ from ads.aqua.constants import (
     VLLM_INFERENCE_RESTRICTED_PARAMS,
 )
 from ads.aqua.data import AquaResourceIdentifier
+from ads.common import auth as authutil
 from ads.common.auth import AuthState, default_signer
 from ads.common.decorator.threaded import threaded
 from ads.common.extended_enum import ExtendedEnum
@@ -72,6 +74,7 @@ from ads.common.utils import copy_file, get_console_link, upload_to_os
 from ads.config import (
     AQUA_MODEL_DEPLOYMENT_FOLDER,
     AQUA_SERVICE_MODELS_BUCKET,
+    CONDA_BUCKET_NAME,
     CONDA_BUCKET_NS,
     TENANCY_OCID,
 )
@@ -1252,3 +1255,66 @@ def is_pydantic_model(obj: object) -> bool:
     """
     cls = obj if isinstance(obj, type) else type(obj)
     return issubclass(cls, BaseModel)
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=5), timer=datetime.now))
+def load_gpu_shapes_index(
+    auth: Optional[Dict] = None,
+) -> GPUShapesIndex:
+    """
+    Loads the GPU shapes index from Object Storage or a local resource folder.
+
+    The function first attempts to load the file from an Object Storage bucket using fsspec.
+    If the loading fails (due to connection issues, missing file, etc.), it falls back to
+    loading the index from a local file.
+
+    Parameters
+    ----------
+    auth: (Dict, optional). Defaults to None.
+        The default authentication is set using `ads.set_auth` API. If you need to override the
+        default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+        authentication signer and kwargs required to instantiate IdentityClient object.
+
+    Returns
+    -------
+    GPUShapesIndex: The parsed GPU shapes index.
+
+    Raises
+    ------
+    FileNotFoundError: If the GPU shapes index cannot be found in either Object Storage or locally.
+    json.JSONDecodeError: If the JSON is malformed.
+    """
+    file_name = "gpu_shapes_index.json"
+    data: Dict[str, Any] = {}
+
+    # Check if the CONDA_BUCKET_NS environment variable is set.
+    if CONDA_BUCKET_NS:
+        try:
+            auth = auth or authutil.default_signer()
+            # Construct the object storage path. Adjust bucket name and path as needed.
+            storage_path = f"oci://{CONDA_BUCKET_NAME}@{CONDA_BUCKET_NS}/{file_name}/1"
+            logger.debug("Loading GPU shapes index from Object Storage")
+            with fsspec.open(storage_path, mode="r", **auth) as file_obj:
+                data = json.load(file_obj)
+            logger.debug("Successfully loaded GPU shapes index.")
+        except Exception as ex:
+            logger.debug(
+                f"Failed to load GPU shapes index from Object Storage. Details: {ex}"
+            )
+
+    # If loading from Object Storage failed, load from the local resource folder.
+    if not data:
+        try:
+            local_path = os.path.join(
+                os.path.dirname(__file__), "../resources", file_name
+            )
+            logger.debug(f"Loading GPU shapes index from {local_path}.")
+            with open(local_path) as file_obj:
+                data = json.load(file_obj)
+            logger.debug("Successfully loaded GPU shapes index.")
+        except Exception as e:
+            logger.debug(
+                f"Failed to load GPU shapes index from {local_path}. Details: {e}"
+            )
+
+    return GPUShapesIndex(**data)
