@@ -3,44 +3,44 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 import os
 import shlex
 import tempfile
-import json
 from dataclasses import asdict
 from importlib import reload
 from unittest.mock import MagicMock, patch
 
 import oci
-from ads.aqua.constants import HF_METADATA_FOLDER
 import pytest
-from ads.aqua.ui import ModelFormat
-from parameterized import parameterized
 from huggingface_hub.hf_api import HfApi, ModelInfo
+from parameterized import parameterized
 
 import ads.aqua.model
-from ads.aqua.model.entities import (
-    AquaModelSummary,
-    ImportModelDetails,
-    AquaModel,
-    ModelValidationResult,
-)
-from ads.aqua.common.utils import get_hf_model_info
 import ads.common
 import ads.common.oci_client
 import ads.config
+from ads.aqua.common.enums import ModelFormat
+from ads.aqua.common.errors import (
+    AquaFileNotFoundError,
+    AquaRuntimeError,
+    AquaValueError,
+)
+from ads.aqua.common.utils import get_hf_model_info
+from ads.aqua.constants import HF_METADATA_FOLDER
 from ads.aqua.model import AquaModelApp
+from ads.aqua.model.entities import (
+    AquaModel,
+    AquaModelSummary,
+    ImportModelDetails,
+    ModelValidationResult,
+)
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import (
     ModelCustomMetadata,
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
-)
-from ads.aqua.common.errors import (
-    AquaRuntimeError,
-    AquaFileNotFoundError,
-    AquaValueError,
 )
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
 
@@ -51,18 +51,23 @@ def mock_auth():
         yield mock_default_signer
 
 
+def get_container_config():
+    with open(
+        os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "test_data/ui/container_index.json",
+        ),
+        "r",
+    ) as _file:
+        container_index_json = json.load(_file)
+
+    return container_index_json
+
+
 @pytest.fixture(autouse=True, scope="class")
 def mock_get_container_config():
-    with patch("ads.aqua.ui.get_container_config") as mock_config:
-        with open(
-            os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                "test_data/ui/container_index.json",
-            ),
-            "r",
-        ) as _file:
-            container_index_json = json.load(_file)
-        mock_config.return_value = container_index_json
+    with patch("ads.aqua.model.model.get_container_config") as mock_config:
+        mock_config.return_value = get_container_config()
         yield mock_config
 
 
@@ -360,6 +365,7 @@ class TestAquaModel:
             "verified",
         ],
     )
+    @patch("ads.aqua.model.model.get_container_config")
     @patch("ads.aqua.model.model.read_file")
     @patch.object(DataScienceModel, "from_id")
     @patch(
@@ -371,10 +377,11 @@ class TestAquaModel:
         mock_get_artifact_path,
         mock_from_id,
         mock_read_file,
-        foundation_model_type,
         mock_get_container_config,
+        foundation_model_type,
         mock_auth,
     ):
+        mock_get_container_config.return_value = get_container_config()
         ds_model = MagicMock()
         ds_model.id = "test_id"
         ds_model.compartment_id = "test_compartment_id"
@@ -474,6 +481,7 @@ class TestAquaModel:
         }
 
     @patch("ads.aqua.common.utils.query_resource")
+    @patch("ads.aqua.model.model.get_container_config")
     @patch("ads.aqua.model.model.read_file")
     @patch.object(DataScienceModel, "from_id")
     @patch(
@@ -485,10 +493,11 @@ class TestAquaModel:
         mock_get_artifact_path,
         mock_from_id,
         mock_read_file,
-        mock_query_resource,
         mock_get_container_config,
+        mock_query_resource,
         mock_auth,
     ):
+        mock_get_container_config.return_value = get_container_config()
         ds_model = MagicMock()
         ds_model.id = "test_id"
         ds_model.compartment_id = "test_model_compartment_id"

@@ -1,12 +1,9 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import concurrent.futures
-from dataclasses import dataclass, field, fields
 from datetime import datetime, timedelta
-from enum import Enum
 from threading import Lock
-from typing import Dict, List, Optional
 
 from cachetools import TTLCache
 from oci.exceptions import ServiceError
@@ -14,208 +11,16 @@ from oci.identity.models import Compartment
 
 from ads.aqua import logger
 from ads.aqua.app import AquaApp
-from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaResourceAccessError, AquaValueError
 from ads.aqua.common.utils import get_container_config, sanitize_response
+from ads.aqua.config.container_config import AquaContainerConfig
 from ads.aqua.constants import PRIVATE_ENDPOINT_TYPE
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.serializer import DataClassSerializable
-from ads.config import (
-    COMPARTMENT_OCID,
-    DATA_SCIENCE_SERVICE_NAME,
-    TENANCY_OCID,
-)
+from ads.config import COMPARTMENT_OCID, DATA_SCIENCE_SERVICE_NAME, TENANCY_OCID
 from ads.telemetry import telemetry
-
-
-class ModelFormat(Enum):
-    GGUF = "GGUF"
-    SAFETENSORS = "SAFETENSORS"
-    UNKNOWN = "UNKNOWN"
-
-    def to_dict(self):
-        return self.value
-
-
-# todo: the container config spec information is shared across ui and deployment modules, move them
-#   within ads.aqua.common.entities. In that case, check for circular imports due to usage of get_container_config.
-
-
-@dataclass(repr=False)
-class AquaContainerEvaluationConfig(DataClassSerializable):
-    """
-    Represents the evaluation configuration for the container.
-    """
-
-    inference_max_threads: Optional[int] = None
-    inference_rps: Optional[int] = None
-    inference_timeout: Optional[int] = None
-    inference_retries: Optional[int] = None
-    inference_backoff_factor: Optional[int] = None
-    inference_delay: Optional[int] = None
-
-    @classmethod
-    def from_config(cls, config: dict) -> "AquaContainerEvaluationConfig":
-        return cls(
-            inference_max_threads=config.get("inference_max_threads"),
-            inference_rps=config.get("inference_rps"),
-            inference_timeout=config.get("inference_timeout"),
-            inference_retries=config.get("inference_retries"),
-            inference_backoff_factor=config.get("inference_backoff_factor"),
-            inference_delay=config.get("inference_delay"),
-        )
-
-    def to_filtered_dict(self):
-        return {
-            field.name: getattr(self, field.name)
-            for field in fields(self)
-            if getattr(self, field.name) is not None
-        }
-
-
-@dataclass(repr=False)
-class AquaContainerConfigSpec(DataClassSerializable):
-    cli_param: str = None
-    server_port: str = None
-    health_check_port: str = None
-    env_vars: List[dict] = None
-    restricted_params: List[str] = None
-
-
-@dataclass(repr=False)
-class AquaContainerConfigItem(DataClassSerializable):
-    """Represents an item of the AQUA container configuration."""
-
-    class Platform(Enum):
-        ARM_CPU = "ARM_CPU"
-        NVIDIA_GPU = "NVIDIA_GPU"
-
-        def to_dict(self):
-            return self.value
-
-        def __repr__(self):
-            return repr(self.value)
-
-    name: str = None
-    version: str = None
-    display_name: str = None
-    family: str = None
-    platforms: List[Platform] = None
-    model_formats: List[ModelFormat] = None
-    spec: AquaContainerConfigSpec = field(default_factory=AquaContainerConfigSpec)
-
-
-@dataclass(repr=False)
-class AquaContainerConfig(DataClassSerializable):
-    """
-    Represents a configuration with AQUA containers to be returned to the client.
-    """
-
-    inference: Dict[str, AquaContainerConfigItem] = field(default_factory=dict)
-    finetune: Dict[str, AquaContainerConfigItem] = field(default_factory=dict)
-    evaluate: Dict[str, AquaContainerConfigItem] = field(default_factory=dict)
-
-    def to_dict(self):
-        return {
-            "inference": list(self.inference.values()),
-            "finetune": list(self.finetune.values()),
-            "evaluate": list(self.evaluate.values()),
-        }
-
-    @classmethod
-    def from_container_index_json(
-        cls,
-        config: Optional[Dict] = None,
-        enable_spec: Optional[bool] = False,
-    ) -> "AquaContainerConfig":
-        """
-        Create an AquaContainerConfig instance from a container index JSON.
-
-        Parameters
-        ----------
-        config : Dict
-            The container index JSON.
-        enable_spec: bool
-            flag to check if container specification details should be fetched.
-
-        Returns
-        -------
-        AquaContainerConfig
-            The container configuration instance.
-        """
-        if not config:
-            config = get_container_config()
-        inference_items = {}
-        finetune_items = {}
-        evaluate_items = {}
-
-        # extract inference containers
-        for container_type, containers in config.items():
-            if isinstance(containers, list):
-                for container in containers:
-                    platforms = [
-                        AquaContainerConfigItem.Platform[platform]
-                        for platform in container.get("platforms", [])
-                    ]
-                    model_formats = [
-                        ModelFormat[model_format]
-                        for model_format in container.get("modelFormats", [])
-                    ]
-                    container_spec = (
-                        config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
-                            container_type, {}
-                        )
-                        if enable_spec
-                        else None
-                    )
-                    container_item = AquaContainerConfigItem(
-                        name=container.get("name", ""),
-                        version=container.get("version", ""),
-                        display_name=container.get(
-                            "displayName", container.get("version", "")
-                        ),
-                        family=container_type,
-                        platforms=platforms,
-                        model_formats=model_formats,
-                        spec=(
-                            AquaContainerConfigSpec(
-                                cli_param=container_spec.get(
-                                    ContainerSpec.CLI_PARM, ""
-                                ),
-                                server_port=container_spec.get(
-                                    ContainerSpec.SERVER_PORT, ""
-                                ),
-                                health_check_port=container_spec.get(
-                                    ContainerSpec.HEALTH_CHECK_PORT, ""
-                                ),
-                                env_vars=container_spec.get(ContainerSpec.ENV_VARS, []),
-                                restricted_params=container_spec.get(
-                                    ContainerSpec.RESTRICTED_PARAMS, []
-                                ),
-                            )
-                            if container_spec
-                            else None
-                        ),
-                    )
-                    if container.get("type") == "inference":
-                        inference_items[container_type] = container_item
-                    elif (
-                        container.get("type") == "fine-tune"
-                        or container_type == "odsc-llm-fine-tuning"
-                    ):
-                        finetune_items[container_type] = container_item
-                    elif (
-                        container.get("type") == "evaluate"
-                        or container_type == "odsc-llm-evaluate"
-                    ):
-                        evaluate_items[container_type] = container_item
-
-        return AquaContainerConfig(
-            inference=inference_items, finetune=finetune_items, evaluate=evaluate_items
-        )
 
 
 class AquaUIApp(AquaApp):
@@ -512,7 +317,8 @@ class AquaUIApp(AquaApp):
 
         Returns
         -------
-            str has json representation of `oci.data_science.models.ModelDeploymentShapeSummary`."""
+        str has json representation of `oci.data_science.models.ModelDeploymentShapeSummary`.
+        """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         logger.info(
             f"Loading model deployment shape summary from compartment: {compartment_id}"

@@ -7,10 +7,7 @@ from typing import Dict, List, Optional, Union
 
 from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.entities import ContainerSpec
-from ads.aqua.common.enums import (
-    InferenceContainerTypeFamily,
-    Tags,
-)
+from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     get_combined_params,
@@ -36,11 +33,7 @@ from ads.aqua.constants import (
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
 from ads.aqua.model import AquaModelApp
-from ads.aqua.modeldeployment.entities import (
-    AquaDeployment,
-    AquaDeploymentDetail,
-)
-from ads.aqua.ui import ModelFormat
+from ads.aqua.modeldeployment.entities import AquaDeployment, AquaDeploymentDetail
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
 from ads.config import (
@@ -293,13 +286,13 @@ class AquaDeploymentApp(AquaApp):
             )
 
         model_formats_str = aqua_model.freeform_tags.get(
-            Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS.value
+            Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS
         ).upper()
         model_format = model_formats_str.split(",")
 
         # Figure out a better way to handle this in future release
         if (
-            ModelFormat.GGUF.value in model_format
+            ModelFormat.GGUF in model_format
             and container_type_key.lower()
             == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
         ):
