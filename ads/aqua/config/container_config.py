@@ -116,7 +116,7 @@ class AquaContainerConfig(Serializable):
     @classmethod
     def from_container_index_json(
         cls,
-        config: Optional[Dict] = None,
+        config: Dict,
         enable_spec: Optional[bool] = False,
     ) -> "AquaContainerConfig":
         """
@@ -131,6 +131,7 @@ class AquaContainerConfig(Serializable):
         -------
         AquaContainerConfig: The constructed container configuration.
         """
+        #TODO: Return this logic back if necessary in the next iteraion.
         # if not config:
         #     config = get_container_config()
 
