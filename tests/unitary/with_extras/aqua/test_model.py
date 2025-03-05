@@ -365,6 +365,7 @@ class TestAquaModel:
             "verified",
         ],
     )
+    @patch("ads.aqua.model.model.get_container_config")
     @patch("ads.aqua.model.model.read_file")
     @patch.object(DataScienceModel, "from_id")
     @patch(
@@ -376,8 +377,8 @@ class TestAquaModel:
         mock_get_artifact_path,
         mock_from_id,
         mock_read_file,
-        foundation_model_type,
         mock_get_container_config,
+        foundation_model_type,
         mock_auth,
     ):
         mock_get_container_config.return_value = get_container_config()
