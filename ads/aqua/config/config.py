@@ -5,8 +5,8 @@
 
 from typing import Optional
 
+from ads.aqua.app import AquaApp
 from ads.aqua.common.entities import ContainerSpec
-from ads.aqua.common.utils import get_container_config
 from ads.aqua.config.evaluation.evaluation_service_config import EvaluationServiceConfig
 
 DEFAULT_EVALUATION_CONTAINER = "odsc-llm-evaluate"
@@ -25,7 +25,8 @@ def get_evaluation_service_config(
 
     container = container or DEFAULT_EVALUATION_CONTAINER
     return EvaluationServiceConfig(
-        **get_container_config()
+        **AquaApp()
+        .get_container_config()
         .get(ContainerSpec.CONTAINER_SPEC, {})
         .get(container, {})
     )

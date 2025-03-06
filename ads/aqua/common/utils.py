@@ -31,10 +31,11 @@ from huggingface_hub.utils import (
     RepositoryNotFoundError,
     RevisionNotFoundError,
 )
-from oci.data_science.models import JobRun, Model
+from oci.data_science.models import ContainerSummary, JobRun, Model
 from oci.object_storage.models import ObjectSummary
 from pydantic import ValidationError
 
+from ads import deprecated
 from ads.aqua.common.enums import (
     InferenceContainerParamType,
     InferenceContainerType,
@@ -51,6 +52,7 @@ from ads.aqua.constants import (
     COMPARTMENT_MAPPING_KEY,
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     CONTAINER_INDEX,
+    EVALUATION_CONTAINER_CONST_CONFIG,
     HF_LOGIN_DEFAULT_TIMEOUT,
     MAXIMUM_ALLOWED_DATASET_IN_BYTE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
@@ -238,6 +240,7 @@ def read_file(file_path: str, **kwargs) -> str:
 
 
 @threaded()
+@deprecated
 def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
     artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
     signer = default_signer() if artifact_path.startswith("oci://") else {}
@@ -553,13 +556,112 @@ def service_config_path():
     return f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=5), timer=datetime.now))
-def get_container_config():
-    config = load_config(
-        file_path=service_config_path(),
-        config_file_name=CONTAINER_INDEX,
-    )
+def config_parser(containers: List[ContainerSummary]):
+    config = {"containerSpec": {}}
+    inference_containers = [
+        "odsc-vllm-serving",
+        "odsc-vllm-serving-v1",
+        "odsc-tgi-serving",
+        "odsc-llama-cpp-serving",
+    ]
+    evaluate_containers = ["odsc-llm-evaluate"]
+    for smc in containers:
+        if not smc.is_latest:
+            continue
+        temp_dict = {
+            "name": "dsmc://" + smc.container_name,
+            "version": smc.tag,
+            "type": smc.usages[0],
+            "displayName": smc.display_name,
+            "platforms": [],
+            "modelFormats": [],
+        }
+        if smc.family_name in inference_containers:
+            temp_dict["platforms"].append(
+                smc.workload_configuration_details_list[
+                    0
+                ].additional_configurations.get("platforms")
+            )
+            temp_dict["modelFormats"].append(
+                smc.workload_configuration_details_list[
+                    0
+                ].additional_configurations.get("modelFormats")
+            )
+            config["containerSpec"].update(
+                {
+                    smc.family_name: {
+                        "cliParam": smc.workload_configuration_details_list[0].cmd,
+                        "serverPort": smc.workload_configuration_details_list[
+                            0
+                        ].server_port,
+                        "healthCheckPort": smc.workload_configuration_details_list[
+                            0
+                        ].health_check_port,
+                        "envVars": [
+                            {
+                                "MODEL_DEPLOY_PREDICT_ENDPOINT": smc.workload_configuration_details_list[
+                                    0
+                                ].additional_configurations.get(
+                                    "MODEL_DEPLOY_PREDICT_ENDPOINT"
+                                )
+                            },
+                            {
+                                "MODEL_DEPLOY_HEALTH_ENDPOINT": smc.workload_configuration_details_list[
+                                    0
+                                ].additional_configurations.get(
+                                    "MODEL_DEPLOY_HEALTH_ENDPOINT"
+                                )
+                            },
+                            {
+                                "MODEL_DEPLOY_ENABLE_STREAMING": smc.workload_configuration_details_list[
+                                    0
+                                ].additional_configurations.get(
+                                    "MODEL_DEPLOY_ENABLE_STREAMING"
+                                )
+                            },
+                            {
+                                "PORT": smc.workload_configuration_details_list[
+                                    0
+                                ].additional_configurations.get("PORT")
+                            },
+                            {
+                                "HEALTH_CHECK_PORT": smc.workload_configuration_details_list[
+                                    0
+                                ].additional_configurations.get("HEALTH_CHECK_PORT")
+                            },
+                        ],
+                        "restrictedParams": json.loads(
+                            smc.workload_configuration_details_list[
+                                0
+                            ].additional_configurations.get("restrictedParams", "[]")
+                        ),
+                        "evaluationConfiguration": json.loads(
+                            smc.workload_configuration_details_list[
+                                0
+                            ].additional_configurations.get(
+                                "evaluationConfiguration", "{}"
+                            )
+                        ),
+                    }
+                }
+            )
+        elif smc.family_name in evaluate_containers:
+            eval_dict = EVALUATION_CONTAINER_CONST_CONFIG
+            eval_dict["ui_config"]["shapes"] = json.loads(
+                smc.workload_configuration_details_list[
+                    0
+                ].use_case_configuration.additional_configurations.get("shapes")
+            )
+            eval_dict["ui_config"]["metrics"] = json.loads(
+                smc.workload_configuration_details_list[
+                    0
+                ].use_case_configuration.additional_configurations.get("metrics")
+            )
+            config["containerSpec"].update(
+                {smc.family_name: EVALUATION_CONTAINER_CONST_CONFIG}
+            )
 
+        config[smc.family_name] = [temp_dict]
     return config
 
 
@@ -579,9 +681,10 @@ def get_container_image(
     Dict:
         A dict of allowed configs.
     """
+    from ads.aqua.app import AquaApp
 
     container_image = UNKNOWN
-    config = config_file_name or get_container_config()
+    config = config_file_name or AquaApp().get_container_config()
     config_file_name = service_config_path()
 
     if container_type not in config:

@@ -17,7 +17,7 @@ from ads.aqua.app import AquaApp
 from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaResourceAccessError, AquaValueError
-from ads.aqua.common.utils import get_container_config, sanitize_response
+from ads.aqua.common.utils import config_parser, sanitize_response
 from ads.aqua.constants import PRIVATE_ENDPOINT_TYPE
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
@@ -147,7 +147,7 @@ class AquaContainerConfig(DataClassSerializable):
             The container configuration instance.
         """
         if not config:
-            config = get_container_config()
+            config = AquaApp().get_container_config()
         inference_items = {}
         finetune_items = {}
         evaluate_items = {}
@@ -200,15 +200,15 @@ class AquaContainerConfig(DataClassSerializable):
                             else None
                         ),
                     )
-                    if container.get("type") == "inference":
+                    if container.get("type").lower() == "inference":
                         inference_items[container_type] = container_item
                     elif (
-                        container.get("type") == "fine-tune"
+                        container.get("type").lower() == "fine_tune"
                         or container_type == "odsc-llm-fine-tuning"
                     ):
                         finetune_items[container_type] = container_item
                     elif (
-                        container.get("type") == "evaluate"
+                        container.get("type").lower() == "evaluation"
                         or container_type == "odsc-llm-evaluate"
                     ):
                         evaluate_items[container_type] = container_item
@@ -689,6 +689,6 @@ class AquaUIApp(AquaApp):
             The AQUA containers configurations.
         """
         return AquaContainerConfig.from_container_index_json(
-            config=get_container_config(),
+            config=config_parser(self.ds_client.list_containers().data),
             enable_spec=True,
         )

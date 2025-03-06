@@ -14,7 +14,6 @@ from ads.aqua.common.enums import (
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     get_combined_params,
-    get_container_config,
     get_container_image,
     get_container_params_type,
     get_model_by_reference_paths,
@@ -36,11 +35,11 @@ from ads.aqua.constants import (
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
 from ads.aqua.model import AquaModelApp
+from ads.aqua.model.constants import DefinedMetadata
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
 )
-from ads.aqua.model.constants import ( DefinedMetadata )
 from ads.aqua.ui import ModelFormat
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
@@ -326,7 +325,7 @@ class AquaDeploymentApp(AquaApp):
         # Fetch the startup cli command for the container
         # container_index.json will have "containerSpec" section which will provide the cli params for
         # a given container family
-        container_config = get_container_config()
+        container_config = AquaApp().get_container_config()
         container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
             container_type_key, {}
         )
@@ -756,7 +755,7 @@ class AquaDeploymentApp(AquaApp):
                 model=model, container_family=container_family
             )
 
-            container_config = get_container_config()
+            container_config = AquaApp().get_container_config()
             container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
                 container_type_key, {}
             )

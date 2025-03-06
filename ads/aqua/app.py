@@ -17,6 +17,7 @@ from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     _is_valid_mvs,
+    config_parser,
     get_artifact_path,
     is_valid_ocid,
     load_config,
@@ -362,6 +363,10 @@ class AquaApp:
             )
             return config
         return config
+
+    def get_container_config(self):
+        config = self.ds_client.list_containers().data
+        return config_parser(config)
 
     @property
     def telemetry(self):

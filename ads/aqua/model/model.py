@@ -32,7 +32,6 @@ from ads.aqua.common.utils import (
     create_word_icon,
     generate_tei_cmd_var,
     get_artifact_path,
-    get_container_config,
     get_hf_model_info,
     list_os_files_with_extension,
     load_config,
@@ -160,7 +159,6 @@ class AquaModelApp(AquaApp):
         service_model = DataScienceModel.from_id(model_id)
         target_project = project_id or PROJECT_OCID
         target_compartment = compartment_id or COMPARTMENT_OCID
-
         if service_model.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
             logger.info(
                 f"Aqua Model {model_id} already exists in user's compartment."
@@ -824,7 +822,7 @@ class AquaModelApp(AquaApp):
     def list_valid_inference_containers():
         containers = list(
             AquaContainerConfig.from_container_index_json(
-                config=get_container_config(), enable_spec=True
+                config=AquaApp().get_container_config(), enable_spec=True
             ).inference.values()
         )
         family_values = [item.family for item in containers]
