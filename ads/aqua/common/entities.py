@@ -51,7 +51,8 @@ class GPUShapesIndex(Serializable):
     """
 
     shapes: Dict[str, GPUSpecs] = Field(
-        ..., description="Mapping of shape names to GPU specifications."
+        default_factory=dict,
+        description="Mapping of shape names to GPU specifications.",
     )
 
 
