@@ -20,6 +20,11 @@ class TestComputeShapeSummary:
                     "memory_in_gbs": 512,
                     "name": "VM.GPU2.1",
                     "shape_series": "GPU",
+                    "gpu_specs": {
+                        "gpu_type": "P100",
+                        "gpu_count": 1,
+                        "gpu_memory_in_gbs": 16,
+                    },
                 },
                 {"gpu_type": "P100", "gpu_count": 1, "gpu_memory_in_gbs": 16},
             ),
