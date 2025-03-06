@@ -83,6 +83,7 @@ class AquaContainerConfigItem(Serializable):
 
     class Config:
         extra = "allow"
+        protected_namespaces = ()
 
 
 class AquaContainerConfig(Serializable):
@@ -131,7 +132,7 @@ class AquaContainerConfig(Serializable):
         -------
         AquaContainerConfig: The constructed container configuration.
         """
-        #TODO: Return this logic back if necessary in the next iteraion.
+        # TODO: Return this logic back if necessary in the next iteraion.
         # if not config:
         #     config = get_container_config()
 
