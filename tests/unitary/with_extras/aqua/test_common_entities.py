@@ -6,7 +6,7 @@
 
 import pytest
 
-from ads.aqua.common.entities import ComputeShapeSummary
+from ads.aqua.common.entities import ComputeShapeSummary, ContainerPath
 
 
 class TestComputeShapeSummary:
@@ -20,6 +20,11 @@ class TestComputeShapeSummary:
                     "memory_in_gbs": 512,
                     "name": "VM.GPU2.1",
                     "shape_series": "GPU",
+                    "gpu_specs": {
+                        "gpu_type": "P100",
+                        "gpu_count": 1,
+                        "gpu_memory_in_gbs": 16,
+                    },
                 },
                 {"gpu_type": "P100", "gpu_count": 1, "gpu_memory_in_gbs": 16},
             ),
@@ -57,3 +62,60 @@ class TestComputeShapeSummary:
             assert shape.gpu_specs.gpu_memory_in_gbs == expected_gpu_specs.get(
                 "gpu_memory_in_gbs"
             )
+
+
+class TestContainerPath:
+    """The unit tests for ContainerPath."""
+
+    @pytest.mark.parametrize(
+        "image_path, expected_result",
+        [
+            (
+                "iad.ocir.io/ociodscdev/odsc-llm-evaluate:0.1.2.9",
+                {
+                    "full_path": "iad.ocir.io/ociodscdev/odsc-llm-evaluate:0.1.2.9",
+                    "path": "iad.ocir.io/ociodscdev/odsc-llm-evaluate",
+                    "name": "odsc-llm-evaluate",
+                    "version": "0.1.2.9",
+                },
+            ),
+            (
+                "dsmc://model-with-version:0.2.78.0",
+                {
+                    "full_path": "dsmc://model-with-version:0.2.78.0",
+                    "path": "dsmc://model-with-version",
+                    "name": "model-with-version",
+                    "version": "0.2.78.0",
+                },
+            ),
+            (
+                "oci://my-custom-model-version:1.0.0",
+                {
+                    "full_path": "oci://my-custom-model-version:1.0.0",
+                    "path": "oci://my-custom-model-version",
+                    "name": "my-custom-model-version",
+                    "version": "1.0.0",
+                },
+            ),
+            (
+                "custom-scheme://path/to/versioned-model:2.5.1",
+                {
+                    "full_path": "custom-scheme://path/to/versioned-model:2.5.1",
+                    "path": "custom-scheme://path/to/versioned-model",
+                    "name": "versioned-model",
+                    "version": "2.5.1",
+                },
+            ),
+            (
+                "custom-scheme://path/to/versioned-model",
+                {
+                    "full_path": "custom-scheme://path/to/versioned-model",
+                    "path": "custom-scheme://path/to/versioned-model",
+                    "name": "versioned-model",
+                    "version": None,
+                },
+            ),
+        ],
+    )
+    def test_positive(self, image_path, expected_result):
+        assert ContainerPath(full_path=image_path).model_dump() == expected_result

@@ -3,12 +3,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import re
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from pydantic import Field, model_validator
 
-from ads.aqua.app import logger
-from ads.aqua.common.constants import GPU_SPECS
+from ads.aqua import logger
 from ads.aqua.config.utils.serializer import Serializable
 
 
@@ -39,6 +38,21 @@ class GPUSpecs(Serializable):
     )
     gpu_type: Optional[str] = Field(
         default=None, description="The type of GPU (e.g., 'V100, A100, H100')."
+    )
+
+
+class GPUShapesIndex(Serializable):
+    """
+    Represents the index of GPU shapes.
+
+    Attributes
+    ----------
+    shapes (Dict[str, GPUSpecs]): A mapping of compute shape names to their GPU specifications.
+    """
+
+    shapes: Dict[str, GPUSpecs] = Field(
+        default_factory=dict,
+        description="Mapping of shape names to GPU specifications.",
     )
 
 
@@ -81,18 +95,19 @@ class ComputeShapeSummary(Serializable):
             ComputeShapeSummary: The updated instance with gpu_specs populated if applicable.
         """
         try:
-            if model.shape_series and "GPU" in model.shape_series.upper():
-                if model.name and model.name in GPU_SPECS:
-                    gpu_info = GPU_SPECS[model.name]
-                    model.gpu_specs = GPUSpecs(**gpu_info)
-                elif model.name:
-                    # Try to extract gpu_count from the shape name using a regex (e.g., "VM.GPU3.2" -> gpu_count=2)
-                    match = re.search(r"\.(\d+)$", model.name)
-                    if match:
-                        gpu_count = int(match.group(1))
-                        model.gpu_specs = GPUSpecs(gpu_count=gpu_count)
+            if (
+                model.shape_series
+                and "GPU" in model.shape_series.upper()
+                and model.name
+                and not model.gpu_specs
+            ):
+                # Try to extract gpu_count from the shape name using a regex (e.g., "VM.GPU3.2" -> gpu_count=2)
+                match = re.search(r"\.(\d+)$", model.name)
+                if match:
+                    gpu_count = int(match.group(1))
+                    model.gpu_specs = GPUSpecs(gpu_count=gpu_count)
         except Exception as err:
-            logger.info(
+            logger.debug(
                 f"Error occurred in attempt to extract GPU specification for the f{model.name}. "
                 f"Details: {err}"
             )
@@ -126,6 +141,98 @@ class AquaMultiModelRef(Serializable):
     env_var: Optional[dict] = Field(
         default_factory=dict, description="The environment variables of the model."
     )
+
+    class Config:
+        extra = "ignore"
+        protected_namespaces = ()
+
+
+class ContainerPath(Serializable):
+    """
+    Represents a parsed container path, extracting the path, name, and version.
+
+    This model is designed to parse a container path string of the format
+    '<image_path>:<version>'. It extracts the following components:
+    - `path`: The full path up to the version.
+    - `name`: The last segment of the path, representing the image name.
+    - `version`: The version number following the final colon.
+
+    Example Usage:
+    --------------
+    >>> container = ContainerPath(full_path="iad.ocir.io/ociodscdev/odsc-llm-evaluate:0.1.2.9")
+    >>> container.path
+    'iad.ocir.io/ociodscdev/odsc-llm-evaluate'
+    >>> container.name
+    'odsc-llm-evaluate'
+    >>> container.version
+    '0.1.2.9'
+
+    >>> container = ContainerPath(full_path="custom-scheme://path/to/versioned-model:2.5.1")
+    >>> container.path
+    'custom-scheme://path/to/versioned-model'
+    >>> container.name
+    'versioned-model'
+    >>> container.version
+    '2.5.1'
+
+    Attributes
+    ----------
+    full_path : str
+        The complete container path string to be parsed.
+    path : Optional[str]
+        The full path up to the version (e.g., 'iad.ocir.io/ociodscdev/odsc-llm-evaluate').
+    name : Optional[str]
+        The image name, which is the last segment of `path` (e.g., 'odsc-llm-evaluate').
+    version : Optional[str]
+        The version number following the final colon in the path (e.g., '0.1.2.9').
+
+    Methods
+    -------
+    validate(values: Any) -> Any
+        Validates and parses the `full_path`, extracting `path`, `name`, and `version`.
+    """
+
+    full_path: str
+    path: Optional[str] = None
+    name: Optional[str] = None
+    version: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate(cls, values: Any) -> Any:
+        """
+        Validates and parses the full container path, extracting the image path, image name, and version.
+
+        Parameters
+        ----------
+        values : dict
+            The dictionary of values being validated, containing 'full_path'.
+
+        Returns
+        -------
+        dict
+            Updated values dictionary with extracted 'path', 'name', and 'version'.
+        """
+        full_path = values.get("full_path", "").strip()
+
+        # Regex to parse <image_path>:<version>
+        match = re.match(
+            r"^(?P<image_path>.+?)(?::(?P<image_version>[\w\.]+))?$", full_path
+        )
+
+        if not match:
+            raise ValueError(
+                "Invalid container path format. Expected format: '<image_path>:<version>'"
+            )
+
+        # Extract image_path and version
+        values["path"] = match.group("image_path")
+        values["version"] = match.group("image_version")
+
+        # Extract image_name as the last segment of image_path
+        values["name"] = values["path"].split("/")[-1]
+
+        return values
 
     class Config:
         extra = "ignore"

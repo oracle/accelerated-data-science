@@ -12,7 +12,7 @@ AI Quick Actions is accessible through the Python SDK APIs and CLI. If the CLI o
 API Specification
 =================
 
-Access API specification from `aqua_spec.yaml <https://github.com/oracle/accelerated-data-science/blob/main/ads/aqua/server/aqua_spec.yaml>`_ 
+Access API specification from `aqua_spec.yaml <https://github.com/oracle/accelerated-data-science/blob/main/ads/aqua/server/aqua_spec.yml>`_ 
 
 
 Configuration
