@@ -17,7 +17,7 @@ from ads.aqua.common.entities import (
     ComputeShapeSummary,
     ContainerSpec,
 )
-from ads.aqua.common.enums import InferenceContainerTypeFamily, Tags
+from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     build_params_string,
@@ -359,13 +359,13 @@ class AquaDeploymentApp(AquaApp):
             )
 
         model_formats_str = aqua_model.freeform_tags.get(
-            Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS.value
+            Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS
         ).upper()
         model_format = model_formats_str.split(",")
 
         # Figure out a better way to handle this in future release
         if (
-            ModelFormat.GGUF.value in model_format
+            ModelFormat.GGUF in model_format
             and container_type_key.lower()
             == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
         ):
