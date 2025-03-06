@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 from tornado.web import HTTPError
 
+import ads.config
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.enums import CustomInferenceContainerTypeFamily
 from ads.aqua.common.errors import AquaRuntimeError
@@ -81,7 +82,7 @@ class AquaModelHandler(AquaAPIhandler):
         # project_id is no needed.
         project_id = self.get_argument("project_id", default=None)
         model_type = self.get_argument("model_type", default=None)
-        category = self.get_argument("category", default="USER")
+        category = self.get_argument("category", default=ads.config.USER)
         return self.finish(
             AquaModelApp().list(
                 compartment_id=compartment_id,
