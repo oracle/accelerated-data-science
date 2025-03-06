@@ -476,7 +476,7 @@ class TestOCIDataScienceModel:
             category="Other",
         )
         self.mock_model.custom_metadata_list = [metadata_item]
-        assert not self.mock_model._is_model_by_reference()
+        assert not self.mock_model.is_model_created_by_reference()
 
         metadata_item = ModelCustomMetadataItem(
             key="modelDescription",
@@ -486,7 +486,7 @@ class TestOCIDataScienceModel:
         )
         self.mock_model.custom_metadata_list = [metadata_item]
 
-        assert self.mock_model._is_model_by_reference()
+        assert self.mock_model.is_model_created_by_reference()
 
     @patch.object(OCIDataScienceModel, "client")
     def test_create_defined_metadata_artifact(self, mock_client):

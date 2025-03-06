@@ -45,6 +45,7 @@ from ads.aqua.common.utils import (
     upload_local_to_os,
 )
 from ads.aqua.config.config import get_evaluation_service_config
+from ads.aqua.config.container_config import AquaContainerConfig
 from ads.aqua.constants import (
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     EVALUATION_REPORT,
@@ -55,7 +56,6 @@ from ads.aqua.constants import (
     NB_SESSION_IDENTIFIER,
     UNKNOWN,
 )
-from ads.aqua.model.constants import CustomMetadata
 from ads.aqua.evaluation.constants import (
     EVAL_TERMINATION_STATE,
     EvaluationConfig,
@@ -76,7 +76,7 @@ from ads.aqua.evaluation.entities import (
     CreateAquaEvaluationDetails,
 )
 from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
-from ads.aqua.ui import AquaContainerConfig
+from ads.aqua.model.constants import CustomMetadata
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_console_link, get_files, get_log_links
@@ -193,7 +193,7 @@ class AquaEvaluationApp(AquaApp):
                         evaluation_source.runtime.to_dict()
                     )
                     inference_config = AquaContainerConfig.from_container_index_json(
-                        enable_spec=True
+                        config=AquaApp().get_container_config(), enable_spec=True
                     ).inference
                     for container in inference_config.values():
                         if container.name == runtime.image[: runtime.image.rfind(":")]:
@@ -925,7 +925,7 @@ class AquaEvaluationApp(AquaApp):
         ]
 
     @telemetry(entry_point="plugin=evaluation&action=load_metrics", name="aqua")
-    def load_metrics(self, eval_id: str,eval_name: str = None) -> AquaEvalMetrics:
+    def load_metrics(self, eval_id: str, eval_name: str = None) -> AquaEvalMetrics:
         """Loads evalution metrics markdown from artifacts.
 
         Parameters
@@ -951,7 +951,9 @@ class AquaEvaluationApp(AquaApp):
             logger.info(f"Downloading evaluation artifact: {eval_id}.")
 
             if eval_name:
-                DataScienceModel.get_custom_metadata_artifact(eval_id,eval_name,temp_dir)
+                DataScienceModel.get_custom_metadata_artifact(
+                    eval_id, eval_name, temp_dir
+                )
             else:
                 DataScienceModel.from_id(eval_id).download_artifact(
                     temp_dir,
@@ -1036,8 +1038,7 @@ class AquaEvaluationApp(AquaApp):
         return content
 
     @telemetry(entry_point="plugin=evaluation&action=download_report", name="aqua")
-    def download_report(self, eval_id,
-                        eval_name: str = None) -> AquaEvalReport:
+    def download_report(self, eval_id, eval_name: str = None) -> AquaEvalReport:
         """Downloads HTML report from model artifact.
 
         Parameters
@@ -1067,7 +1068,9 @@ class AquaEvaluationApp(AquaApp):
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Downloading evaluation artifact for {eval_id}.")
             if eval_name:
-                DataScienceModel.get_custom_metadata_artifact(eval_id,eval_name,temp_dir)
+                DataScienceModel.get_custom_metadata_artifact(
+                    eval_id, eval_name, temp_dir
+                )
             else:
                 DataScienceModel.from_id(eval_id).download_artifact(
                     temp_dir,
@@ -1212,7 +1215,9 @@ class AquaEvaluationApp(AquaApp):
             job.dsc_job.delete(force_delete=True)
             logger.info(f"Deleting Job: {job.job_id} for evaluation {model.id}")
             # check if model metadata report exists
-            custom_metadata_head = model.head_custom_metadata_artifact(CustomMetadata.REPORTS)
+            custom_metadata_head = model.head_custom_metadata_artifact(
+                CustomMetadata.REPORTS
+            )
             if custom_metadata_head.status == "204":
                 model.delete_custom_metadata_artifact(CustomMetadata.REPORTS)
                 logger.info(f"Deleting evaluation report for : {model.id}")

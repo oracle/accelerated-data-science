@@ -8,20 +8,13 @@ from urllib.parse import urlparse
 from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
-from ads.aqua.common.enums import (
-    CustomInferenceContainerTypeFamily,
-)
-from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
-from ads.aqua.common.utils import (
-    get_hf_model_info,
-    is_valid_ocid,
-    list_hf_models,
-)
+from ads.aqua.common.enums import CustomInferenceContainerTypeFamily
+from ads.aqua.common.errors import AquaRuntimeError
+from ads.aqua.common.utils import get_hf_model_info, is_valid_ocid, list_hf_models
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import AquaModelSummary, HFModelSummary
-from ads.aqua.ui import ModelFormat
 from ads.common.utils import MetadataArtifactPathType
 
 
@@ -45,26 +38,22 @@ class AquaModelHandler(AquaAPIhandler):
                 raise HTTPError(
                     400, Errors.MISSING_REQUIRED_PARAMETER.format("model_format")
                 )
-            try:
-                model_format = ModelFormat(model_format.upper())
-            except ValueError as err:
-                raise AquaValueError(f"Invalid model format: {model_format}") from err
+
+            model_format = model_format.upper()
+
+            if os_path:
+                return self.finish(AquaModelApp.get_model_files(os_path, model_format))
+            elif model_name:
+                return self.finish(
+                    AquaModelApp.get_hf_model_files(model_name, model_format)
+                )
             else:
-                if os_path:
-                    return self.finish(
-                        AquaModelApp.get_model_files(os_path, model_format)
-                    )
-                elif model_name:
-                    return self.finish(
-                        AquaModelApp.get_hf_model_files(model_name, model_format)
-                    )
-                else:
-                    raise HTTPError(
-                        400,
-                        Errors.MISSING_ONEOF_REQUIRED_PARAMETER.format(
-                            "os_path", "model_name"
-                        ),
-                    )
+                raise HTTPError(
+                    400,
+                    Errors.MISSING_ONEOF_REQUIRED_PARAMETER.format(
+                        "os_path", "model_name"
+                    ),
+                )
         elif not model_id:
             return self.list()
 

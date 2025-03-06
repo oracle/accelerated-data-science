@@ -35,7 +35,6 @@ from oci.data_science.models import ContainerSummary, JobRun, Model
 from oci.object_storage.models import ObjectSummary
 from pydantic import ValidationError
 
-from ads import deprecated
 from ads.aqua.common.enums import (
     InferenceContainerParamType,
     InferenceContainerType,
@@ -240,7 +239,6 @@ def read_file(file_path: str, **kwargs) -> str:
 
 
 @threaded()
-@deprecated
 def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
     artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
     signer = default_signer() if artifact_path.startswith("oci://") else {}
@@ -591,12 +589,12 @@ def config_parser(containers: List[ContainerSummary]):
                 {
                     smc.family_name: {
                         "cliParam": smc.workload_configuration_details_list[0].cmd,
-                        "serverPort": smc.workload_configuration_details_list[
-                            0
-                        ].server_port,
-                        "healthCheckPort": smc.workload_configuration_details_list[
-                            0
-                        ].health_check_port,
+                        "serverPort": str(
+                            smc.workload_configuration_details_list[0].server_port
+                        ),
+                        "healthCheckPort": str(
+                            smc.workload_configuration_details_list[0].health_check_port
+                        ),
                         "envVars": [
                             {
                                 "MODEL_DEPLOY_PREDICT_ENDPOINT": smc.workload_configuration_details_list[
