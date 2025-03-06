@@ -60,7 +60,6 @@ from ads.aqua.modeldeployment.entities import (
     ModelDeploymentConfigSummary,
 )
 from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
-from ads.aqua.ui import ModelFormat
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import get_log_links
 from ads.config import (
