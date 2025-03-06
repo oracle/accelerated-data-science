@@ -1741,7 +1741,7 @@ class AquaModelApp(AquaApp):
 
         content = self.ds_client.get_model_defined_metadatum_artifact_content(
             model_id, DefinedMetadata.LICENSE
-        ).data.content.decode("utf-8")
+        ).data.content.decode("utf-8", errors="ignore")
 
         return AquaModelLicense(id=model_id, license=content)
 
