@@ -252,10 +252,10 @@ class AquaModelApp(AquaApp):
                 ds_model.custom_metadata_list._to_oci_metadata()
             )
             if artifact_path != UNKNOWN:
-                model_card = str(
+                model_card = (
                     self.ds_client.get_model_defined_metadatum_artifact_content(
                         model_id, DefinedMetadata.README
-                    ).data.content
+                    ).data.content.decode("utf-8", errors="ignore")
                 )
 
         inference_container = ds_model.custom_metadata_list.get(
