@@ -1746,46 +1746,13 @@ class TestAquaDeployment(unittest.TestCase):
                     container_family=container_type_key,
                 )
 
-
-class TestMDInferenceResponse(unittest.TestCase):
-    def setUp(self):
-        self.app = MDInferenceResponse()
-
-    @classmethod
-    def setUpClass(cls):
-        cls.curr_dir = os.path.dirname(os.path.abspath(__file__))
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.curr_dir = None
-
-    @patch("requests.post")
-    def test_get_model_deployment_response(self, mock_post):
-        """Test to check if model deployment response is returned correctly."""
-
-        endpoint = TestDataset.MODEL_DEPLOYMENT_URL + "/predict"
-        self.app.prompt = "What is 1+1?"
-        self.app.model_params = ModelParams(**TestDataset.model_params)
-
-        mock_response = MagicMock()
-        response_json = os.path.join(
-            self.curr_dir, "test_data/deployment/aqua_deployment_response.json"
-        )
-        with open(response_json, "r") as _file:
-            mock_response.content = _file.read()
-        mock_response.status_code = 200
-        mock_post.return_value = mock_response
-
-        result = self.app.get_model_deployment_response(endpoint)
-        assert result["choices"][0]["text"] == " The answer is 2"
-
-
-class TestCreateModelDeploymentDetails:
-    curr_dir = os.path.dirname(__file__)  # Define curr_dir
-
+    @patch("ads.model.datascience_model.DataScienceModel.from_id")
     def validate_multimodel_deployment_feasibility_helper(
-        self, models, instance_shape, display_name, total_gpus, multi_model="true"
+        self, models, instance_shape, display_name, total_gpus, mock_from_id
     ):
+        mock_from_id.return_value = MagicMock(
+            compartment_id=TestDataset.SERVICE_COMPARTMENT_ID
+        )
         config_json = os.path.join(
             self.curr_dir, "test_data/deployment/aqua_summary_multi_model.json"
         )
@@ -1803,7 +1770,7 @@ class TestCreateModelDeploymentDetails:
                 models=aqua_models,
                 instance_shape=instance_shape,
                 display_name=display_name,
-                freeform_tags={Tags.MULTIMODEL_TYPE_TAG: multi_model},
+                freeform_tags={Tags.MULTIMODEL_TYPE_TAG: "true"},
             )
         else:
             model_id = "model_a"
@@ -1811,7 +1778,7 @@ class TestCreateModelDeploymentDetails:
                 model_id=model_id,
                 instance_shape=instance_shape,
                 display_name=display_name,
-                freeform_tags={Tags.MULTIMODEL_TYPE_TAG: multi_model},
+                freeform_tags={Tags.MULTIMODEL_TYPE_TAG: "true"},
             )
 
         mock_models_config_summary = ModelDeploymentConfigSummary(**(config))
@@ -1820,8 +1787,7 @@ class TestCreateModelDeploymentDetails:
             models_config_summary=mock_models_config_summary
         )
 
-    @pytest.mark.parametrize(
-        "models, instance_shape, display_name, total_gpus",
+    @parameterized.expand(
         [
             (
                 [
@@ -1855,15 +1821,18 @@ class TestCreateModelDeploymentDetails:
             ),
         ],
     )
+    @patch("ads.model.datascience_model.DataScienceModel.from_id")
     def test_validate_multimodel_deployment_feasibility_positive(
-        self, models, instance_shape, display_name, total_gpus
+        self, models, instance_shape, display_name, total_gpus, mock_from_id
     ):
+        mock_from_id.return_value = MagicMock(
+            compartment_id=TestDataset.SERVICE_COMPARTMENT_ID
+        )
         self.validate_multimodel_deployment_feasibility_helper(
             models, instance_shape, display_name, total_gpus
         )
 
-    @pytest.mark.parametrize(
-        "models, instance_shape, display_name, total_gpus, value_error",
+    @parameterized.expand(
         [
             (
                 None,
@@ -1933,10 +1902,53 @@ class TestCreateModelDeploymentDetails:
             ),
         ],
     )
+    @patch("ads.model.datascience_model.DataScienceModel.from_id")
     def test_validate_multimodel_deployment_feasibility_negative(
-        self, models, instance_shape, display_name, total_gpus, value_error
+        self,
+        models,
+        instance_shape,
+        display_name,
+        total_gpus,
+        value_error,
+        mock_from_id,
     ):
+        mock_from_id.return_value = MagicMock(
+            compartment_id=TestDataset.SERVICE_COMPARTMENT_ID
+        )
         with pytest.raises(ConfigValidationError, match=value_error):
             self.validate_multimodel_deployment_feasibility_helper(
                 models, instance_shape, display_name, total_gpus
             )
+
+
+class TestMDInferenceResponse(unittest.TestCase):
+    def setUp(self):
+        self.app = MDInferenceResponse()
+
+    @classmethod
+    def setUpClass(cls):
+        cls.curr_dir = os.path.dirname(os.path.abspath(__file__))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.curr_dir = None
+
+    @patch("requests.post")
+    def test_get_model_deployment_response(self, mock_post):
+        """Test to check if model deployment response is returned correctly."""
+
+        endpoint = TestDataset.MODEL_DEPLOYMENT_URL + "/predict"
+        self.app.prompt = "What is 1+1?"
+        self.app.model_params = ModelParams(**TestDataset.model_params)
+
+        mock_response = MagicMock()
+        response_json = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_deployment_response.json"
+        )
+        with open(response_json, "r") as _file:
+            mock_response.content = _file.read()
+        mock_response.status_code = 200
+        mock_post.return_value = mock_response
+
+        result = self.app.get_model_deployment_response(endpoint)
+        assert result["choices"][0]["text"] == " The answer is 2"
