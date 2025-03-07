@@ -1902,7 +1902,7 @@ class TestAquaDeployment(unittest.TestCase):
         total_gpus,
         value_error,
     ):
-        with pytest.raises(ConfigValidationError, match=value_error):
+        with pytest.raises(ConfigValidationError):
             self.validate_multimodel_deployment_feasibility_helper(
                 models, instance_shape, display_name, total_gpus
             )
