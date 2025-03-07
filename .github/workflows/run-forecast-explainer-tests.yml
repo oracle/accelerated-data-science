@@ -56,4 +56,4 @@ jobs:
           pip install -r test-requirements-operators.txt
           pip install "oracle-automlx[forecasting]>=25.1.1"
           pip install pandas>=2.2.0
-          python -m pytest -v -p no:warnings --durations=5 --asyncio-default-fixture-loop-scope=function tests/operators/forecast/test_explainers.py
+          python -m pytest -v -p no:warnings --durations=5 tests/operators/forecast/test_explainers.py
