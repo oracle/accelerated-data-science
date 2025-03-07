@@ -134,6 +134,93 @@ class MultiModelDeploymentConfigLoader:
         summary.gpu_allocation = gpu_allocation
         return summary
 
+    def load_single(
+        self,
+        shapes: List[ComputeShapeSummary],
+        model_id: str,
+    ) -> ModelDeploymentConfigSummary:
+        """
+        Retrieves deployment configuration for single model and allocate all available GPU count to it.
+
+        Parameters
+        ----------
+        shapes : List[ComputeShapeSummary]
+            Model deployment available shapes.
+        model_id : str
+            The OCID for the Aqua model.
+
+        Returns
+        -------
+        ModelDeploymentConfigSummary
+            A summary of the deployment configurations and GPU allocations. If GPU allocation
+            cannot be determined, an appropriate error message is included in the summary.
+        """
+        # Fetch deployment configuration concurrently.
+        logger.debug(f"Loading model deployment configuration for model: {model_id}")
+        deployment_config = self._fetch_deployment_configs_concurrently([model_id])[
+            model_id
+        ]
+
+        deployment = {
+            model_id: {
+                "shape": [shape.upper() for shape in deployment_config.shape],
+                "configuration": {
+                    shape.upper(): deployment_config.configuration.get(
+                        shape, ConfigurationItem()
+                    )
+                    for shape in deployment_config.shape
+                },
+            }
+        }
+
+        # Initialize the summary result with the deployment configurations.
+        summary = ModelDeploymentConfigSummary(deployment_config=deployment)
+
+        # Find out the common shapes from deployment config and available deployment shapes
+        shape = [shape.upper() for shape in deployment_config.shape]
+        common_shapes = [shape.name.upper() for shape in shapes]
+        if shape:
+            common_shapes = list(set(common_shapes).intersection(set(shape)))
+
+        if not common_shapes:
+            summary.error_message = (
+                "The selected model does not have any available deployment shape. "
+                "Please ensure that chosen model is compatible for multi-model deployment."
+            )
+            logger.debug(
+                f"No compatible deployment shapes found for selected model: {model_id}"
+            )
+            return summary
+
+        logger.debug(f"Available Common Shapes: {common_shapes}")
+
+        gpu_allocation = {}
+        for shape in common_shapes:
+            total_gpus_available = 0
+            shape_summary = next(
+                (
+                    deployment_shape
+                    for deployment_shape in shapes
+                    if deployment_shape.name.upper() == shape
+                ),
+                None,
+            )
+            if shape_summary and shape_summary.gpu_specs:
+                total_gpus_available = shape_summary.gpu_specs.gpu_count
+
+            if total_gpus_available != 0:
+                gpu_allocation[shape] = GPUShapeAllocation(
+                    models=[
+                        GPUModelAllocation(
+                            ocid=model_id, gpu_count=total_gpus_available
+                        )
+                    ],
+                    total_gpus_available=total_gpus_available,
+                )
+
+        summary.gpu_allocation = gpu_allocation
+        return summary
+
     def _fetch_deployment_configs_concurrently(
         self, model_ids: List[str]
     ) -> Dict[str, AquaDeploymentConfig]:

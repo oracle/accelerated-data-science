@@ -145,18 +145,10 @@ class AquaDeploymentApp(AquaApp):
                     f"Invalid parameters for creating a model deployment. Error details: {custom_errors}."
                 ) from ex
 
-        # If a single model is provided, delegate to `create` method
-        if (
-            not create_deployment_details.model_id
-            and create_deployment_details.models
-            and len(create_deployment_details.models) == 1
-        ):
-            single_model = create_deployment_details.models[0]
-            logger.info(
-                f"Single model ({single_model.model_id}) provided. "
-                "Delegating to single model creation method."
+        if not (create_deployment_details.model_id or create_deployment_details.models):
+            raise AquaValueError(
+                "Invalid parameters for creating a model deployment. Either `model_id` or `models` must be provided."
             )
-            create_deployment_details.model_id = single_model.model_id
 
         # Set defaults for compartment and project if not provided.
         compartment_id = create_deployment_details.compartment_id or COMPARTMENT_OCID
@@ -170,6 +162,10 @@ class AquaDeploymentApp(AquaApp):
         # Create an AquaModelApp instance once to perform the deployment creation.
         model_app = AquaModelApp()
         if create_deployment_details.model_id:
+            logger.info(
+                f"Single model ({create_deployment_details.model_id}) provided. "
+                "Delegating to single model creation method."
+            )
             aqua_model = model_app.create(
                 model_id=create_deployment_details.model_id,
                 compartment_id=compartment_id,
@@ -253,6 +249,10 @@ class AquaDeploymentApp(AquaApp):
                         f"The provided container `{create_deployment_details.container_image_uri}` may not support multi-model deployment. "
                         f"Only the following container families are supported: {supported_container_families}."
                     )
+
+            logger.info(
+                f"Multi models ({model_ids}) provided. Delegating to multi model creation method."
+            )
 
             aqua_model = model_app.create_multi(
                 models=create_deployment_details.models,
@@ -1051,15 +1051,26 @@ class AquaDeploymentApp(AquaApp):
         ModelDeploymentConfigSummary
             A summary of the model deployment configurations and GPU allocations.
         """
+        if not model_ids:
+            raise AquaValueError(
+                "Invalid or empty parameter `model_ids`. Specify a list of valid model ids to get multi model deployment config."
+            )
 
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
 
         # Get the all model deployment available shapes in a given compartment
         available_shapes = self.list_shapes(compartment_id=compartment_id)
 
-        return MultiModelDeploymentConfigLoader(
-            deployment_app=self,
-        ).load(
+        multi_model_deployment_config_loader = MultiModelDeploymentConfigLoader(
+            deployment_app=self
+        )
+
+        if len(model_ids) == 1:
+            return multi_model_deployment_config_loader.load_single(
+                shapes=available_shapes, model_id=model_ids[0]
+            )
+
+        return multi_model_deployment_config_loader.load(
             shapes=available_shapes,
             model_ids=model_ids,
             primary_model_id=primary_model_id,
