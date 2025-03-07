@@ -96,7 +96,9 @@ def test_generate_datasets():
     assert "target" not in additional_columns
 
 
-def setup_test_data(model, freq, num_series, horizon=5, num_points=100, seed=42, include_additional=True):
+def setup_test_data(
+    model, freq, num_series, horizon=5, num_points=100, seed=42, include_additional=True
+):
     """
     Setup test data for the given parameters.
 
@@ -113,17 +115,21 @@ def setup_test_data(model, freq, num_series, horizon=5, num_points=100, seed=42,
     - Tuple containing primary, additional datasets and the operator configuration.
     """
     primary, additional, _, _ = generate_datasets(
-        freq=freq, horizon=horizon, num_series=num_series, num_points=num_points, seed=seed
+        freq=freq,
+        horizon=horizon,
+        num_series=num_series,
+        num_points=num_points,
+        seed=seed,
     )
 
     yaml_i = deepcopy(TEMPLATE_YAML)
     yaml_i["spec"]["historical_data"].pop("url")
     yaml_i["spec"]["historical_data"]["data"] = primary
     yaml_i["spec"]["historical_data"]["format"] = "pandas"
-    
+
     if include_additional:
         yaml_i["spec"]["additional_data"] = {"data": additional, "format": "pandas"}
-    
+
     yaml_i["spec"]["model"] = model
     yaml_i["spec"]["target_column"] = "target"
     yaml_i["spec"]["datetime_column"]["name"] = "ds"
@@ -177,10 +183,18 @@ def test_explanations_output_and_columns(model, freq, num_series):
         not (local_explanations == 0).all().all()
     ), "Local explanations contain only 0 values"
 
-    additional_columns = additional.columns.tolist()
+    additional_columns = list(
+        set(additional.columns.tolist())
+        - set(operator_config.spec.target_category_columns)
+        - {operator_config.spec.datetime_column.name}
+    )
     for column in additional_columns:
-        assert column in global_explanations.columns, f"Column {column} missing in global explanations"
-        assert column in local_explanations.columns, f"Column {column} missing in local explanations"
+        assert (
+            column in global_explanations.T.columns
+        ), f"Column {column} missing in global explanations"
+        assert (
+            column in local_explanations.columns
+        ), f"Column {column} missing in local explanations"
 
 
 @pytest.mark.parametrize("model", MODELS)
@@ -208,11 +222,19 @@ def test_explanations_filenames(model, num_series):
 
         results = forecast_operate(operator_config)
 
-        global_explanation_path = os.path.join(output_directory, global_explanation_filename)
-        local_explanation_path = os.path.join(output_directory, local_explanation_filename)
+        global_explanation_path = os.path.join(
+            output_directory, global_explanation_filename
+        )
+        local_explanation_path = os.path.join(
+            output_directory, local_explanation_filename
+        )
 
-        assert os.path.exists(global_explanation_path), f"Global explanation file not found at {global_explanation_path}"
-        assert os.path.exists(local_explanation_path), f"Local explanation file not found at {local_explanation_path}"
+        assert os.path.exists(
+            global_explanation_path
+        ), f"Global explanation file not found at {global_explanation_path}"
+        assert os.path.exists(
+            local_explanation_path
+        ), f"Local explanation file not found at {local_explanation_path}"
 
 
 @pytest.mark.parametrize("model", MODELS)
@@ -231,18 +253,22 @@ def test_explanations_no_additional_data(model, num_series, caplog):
     with tempfile.TemporaryDirectory() as tmpdirname:
         output_directory = tmpdirname
 
-        _, _, operator_config = setup_test_data(model, "D", num_series, include_additional=False)
+        _, _, operator_config = setup_test_data(
+            model, "D", num_series, include_additional=False
+        )
         operator_config.spec.output_directory.url = output_directory
 
         forecast_operate(operator_config)
 
         assert any(
             "Unable to generate explanations as there is no additional data passed in. Either set generate_explanations to False, or pass in additional data."
-            in message for message in caplog.messages
+            in message
+            for message in caplog.messages
         ), "Required warning message not found in logs"
 
 
 MODES = ["BALANCED", "HIGH_ACCURACY"]
+
 
 @pytest.mark.skip(reason="Disabled by default. Enable to run this test.")
 @pytest.mark.parametrize("mode", MODES)
@@ -269,11 +295,19 @@ def test_explanations_accuracy_mode(mode, model, num_series):
 
         results = forecast_operate(operator_config)
 
-        global_explanation_path = os.path.join(output_directory, operator_config.spec.global_explanation_filename)
-        local_explanation_path = os.path.join(output_directory, operator_config.spec.local_explanation_filename)
+        global_explanation_path = os.path.join(
+            output_directory, operator_config.spec.global_explanation_filename
+        )
+        local_explanation_path = os.path.join(
+            output_directory, operator_config.spec.local_explanation_filename
+        )
 
-        assert os.path.exists(global_explanation_path), f"Global explanation file not found at {global_explanation_path}"
-        assert os.path.exists(local_explanation_path), f"Local explanation file not found at {local_explanation_path}"
+        assert os.path.exists(
+            global_explanation_path
+        ), f"Global explanation file not found at {global_explanation_path}"
+        assert os.path.exists(
+            local_explanation_path
+        ), f"Local explanation file not found at {local_explanation_path}"
 
 
 @pytest.mark.parametrize("model", MODELS)
