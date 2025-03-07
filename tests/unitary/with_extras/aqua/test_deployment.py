@@ -1746,13 +1746,9 @@ class TestAquaDeployment(unittest.TestCase):
                     container_family=container_type_key,
                 )
 
-    @patch("ads.model.datascience_model.DataScienceModel.from_id")
     def validate_multimodel_deployment_feasibility_helper(
-        self, models, instance_shape, display_name, total_gpus, mock_from_id
+        self, models, instance_shape, display_name, total_gpus
     ):
-        mock_from_id.return_value = MagicMock(
-            compartment_id=TestDataset.SERVICE_COMPARTMENT_ID
-        )
         config_json = os.path.join(
             self.curr_dir, "test_data/deployment/aqua_summary_multi_model.json"
         )
@@ -1821,13 +1817,9 @@ class TestAquaDeployment(unittest.TestCase):
             ),
         ],
     )
-    @patch("ads.model.datascience_model.DataScienceModel.from_id")
     def test_validate_multimodel_deployment_feasibility_positive(
-        self, models, instance_shape, display_name, total_gpus, mock_from_id
+        self, models, instance_shape, display_name, total_gpus
     ):
-        mock_from_id.return_value = MagicMock(
-            compartment_id=TestDataset.SERVICE_COMPARTMENT_ID
-        )
         self.validate_multimodel_deployment_feasibility_helper(
             models, instance_shape, display_name, total_gpus
         )
@@ -1902,7 +1894,6 @@ class TestAquaDeployment(unittest.TestCase):
             ),
         ],
     )
-    @patch("ads.model.datascience_model.DataScienceModel.from_id")
     def test_validate_multimodel_deployment_feasibility_negative(
         self,
         models,
@@ -1910,11 +1901,7 @@ class TestAquaDeployment(unittest.TestCase):
         display_name,
         total_gpus,
         value_error,
-        mock_from_id,
     ):
-        mock_from_id.return_value = MagicMock(
-            compartment_id=TestDataset.SERVICE_COMPARTMENT_ID
-        )
         with pytest.raises(ConfigValidationError, match=value_error):
             self.validate_multimodel_deployment_feasibility_helper(
                 models, instance_shape, display_name, total_gpus
