@@ -517,12 +517,14 @@ class CreateModelDeploymentDetails(BaseModel):
         selected_shape = self.instance_shape
 
         if selected_shape not in models_config_summary.gpu_allocation:
+            supported_shapes = list(models_config_summary.gpu_allocation.keys())
             logger.error(
-                f"The model group is not compatible with the selected instance shape {selected_shape}"
+                f"The model group is not compatible with the selected instance shape "
+                f"'{selected_shape}'. Select a different instance shape from supported shapes {supported_shapes}."
             )
             raise ConfigValidationError(
                 f"The model group is not compatible with the selected instance shape "
-                f"'{selected_shape}'. Select a different instance shape."
+                f"'{selected_shape}'. Select a different instance shape from supported shapes {supported_shapes}."
             )
 
         total_available_gpus = models_config_summary.gpu_allocation[
