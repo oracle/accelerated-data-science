@@ -1,36 +1,32 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import fsspec
+import numpy as np
 import os
+import pandas as pd
 import tempfile
 import time
 from abc import ABC, abstractmethod
+from sklearn import linear_model
 from typing import Tuple
 
-import fsspec
-import pandas as pd
-import numpy as np
-from sklearn import linear_model
-
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
-
-from ..operator_config import AnomalyOperatorConfig, AnomalyOperatorSpec
-from .anomaly_dataset import AnomalyDatasets, AnomalyOutput, TestData
 from ads.opctl.operator.lowcode.anomaly.const import OutputColumns, SupportedMetrics
-from ..const import SupportedModels
+from ads.opctl.operator.lowcode.anomaly.utils import _build_metrics_df, default_signer
 from ads.opctl.operator.lowcode.common.utils import (
     human_time_friendly,
     enable_print,
     disable_print,
     write_data,
-    merge_category_columns,
-    find_output_dirname,
 )
-from ads.opctl.operator.lowcode.anomaly.utils import _build_metrics_df, default_signer
-from ads.common.object_storage_details import ObjectStorageDetails
+from .anomaly_dataset import AnomalyDatasets, AnomalyOutput, TestData
+from ..const import SupportedModels
+from ..operator_config import AnomalyOperatorConfig, AnomalyOperatorSpec
 
 
 class AnomalyOperatorBaseModel(ABC):
@@ -57,7 +53,7 @@ class AnomalyOperatorBaseModel(ABC):
 
     def generate_report(self):
         """Generates the report."""
-        import datapane as dp
+        import report_creator as rc
         import matplotlib.pyplot as plt
 
         start_time = time.time()
@@ -79,12 +75,10 @@ class AnomalyOperatorBaseModel(ABC):
                 anomaly_output, test_data, elapsed_time
             )
         table_blocks = [
-            dp.DataTable(df, label=col)
+            rc.DataTable(df, label=col, index=True)
             for col, df in self.datasets.full_data_dict.items()
         ]
-        data_table = (
-            dp.Select(blocks=table_blocks) if len(table_blocks) > 1 else table_blocks[0]
-        )
+        data_table = rc.Select(blocks=table_blocks)
         date_column = self.spec.datetime_column.name
 
         blocks = []
@@ -106,44 +100,42 @@ class AnomalyOperatorBaseModel(ABC):
                 plt.xlabel(date_column)
                 plt.ylabel(col)
                 plt.title(f"`{col}` with reference to anomalies")
-                figure_blocks.append(ax)
-            blocks.append(dp.Group(blocks=figure_blocks, label=target))
-        plots = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+                figure_blocks.append(rc.Widget(ax))
+            blocks.append(rc.Group(*figure_blocks, label=target))
+        plots = rc.Select(blocks)
 
         report_sections = []
-        title_text = dp.Text("# Anomaly Detection Report")
+        title_text = rc.Heading("Anomaly Detection Report", level=1)
 
-        yaml_appendix_title = dp.Text(f"## Reference: YAML File")
-        yaml_appendix = dp.Code(code=self.config.to_yaml(), language="yaml")
-        summary = dp.Blocks(
-            blocks=[
-                dp.Group(
-                    dp.Text(f"You selected the **`{self.spec.model}`** model."),
-                    dp.Text(
-                        "Based on your dataset, you could have also selected "
-                        f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
-                    ),
-                    dp.BigNumber(
-                        heading="Analysis was completed in ",
-                        value=human_time_friendly(elapsed_time),
-                    ),
-                    label="Summary",
-                )
-            ]
+        yaml_appendix_title = rc.Heading("Reference: YAML File", level=2)
+        yaml_appendix = rc.Yaml(self.config.to_dict())
+        summary = rc.Block(
+            rc.Group(
+                rc.Text(f"You selected the **`{self.spec.model}`** model."),
+                rc.Text(
+                    "Based on your dataset, you could have also selected "
+                    f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
+                ),
+                rc.Metric(
+                    heading="Analysis was completed in ",
+                    value=human_time_friendly(elapsed_time),
+                ),
+                label="Summary",
+            )
         )
-        sec_text = dp.Text(f"## Train Evaluation Metrics")
-        sec = dp.DataTable(self._evaluation_metrics(anomaly_output))
+        sec_text = rc.Heading("Train Evaluation Metrics", level=2)
+        sec = rc.DataTable(self._evaluation_metrics(anomaly_output), index=True)
         evaluation_metrics_sec = [sec_text, sec]
 
         test_metrics_sections = []
         if total_metrics is not None and not total_metrics.empty:
-            sec_text = dp.Text(f"## Test Data Evaluation Metrics")
-            sec = dp.DataTable(total_metrics)
+            sec_text = rc.Heading("Test Data Evaluation Metrics", level=2)
+            sec = rc.DataTable(total_metrics, index=True)
             test_metrics_sections = test_metrics_sections + [sec_text, sec]
 
         if summary_metrics is not None and not summary_metrics.empty:
-            sec_text = dp.Text(f"## Test Data Summary Metrics")
-            sec = dp.DataTable(summary_metrics)
+            sec_text = rc.Heading("Test Data Summary Metrics", level=2)
+            sec = rc.DataTable(summary_metrics, index=True)
             test_metrics_sections = test_metrics_sections + [sec_text, sec]
 
         report_sections = (
@@ -248,20 +240,21 @@ class AnomalyOperatorBaseModel(ABC):
         test_metrics: pd.DataFrame,
     ):
         """Saves resulting reports to the given folder."""
-        import datapane as dp
+        import report_creator as rc
 
-        unique_output_dir = find_output_dirname(self.spec.output_directory)
+        unique_output_dir = self.spec.output_directory.url
 
         if ObjectStorageDetails.is_oci_path(unique_output_dir):
             storage_options = default_signer()
         else:
             storage_options = dict()
 
-        # datapane html report
+        # report-creator html report
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
             disable_print()
-            dp.save_report(report_sections, report_local_path)
+            with rc.ReportCreator("My Report") as report:
+                report.save(rc.Block(*report_sections), report_local_path)
             enable_print()
             with open(report_local_path) as f1:
                 with fsspec.open(
@@ -323,11 +316,11 @@ class AnomalyOperatorBaseModel(ABC):
         # Iterate over the full_data_dict items
         for target, df in self.datasets.full_data_dict.items():
             est = linear_model.SGDOneClassSVM(random_state=42)
-            est.fit(df[target].values.reshape(-1, 1))
+            est.fit(df[self.spec.target_column].fillna(0).values.reshape(-1, 1))
             y_pred = np.vectorize(self.outlier_map.get)(
-                est.predict(df[target].values.reshape(-1, 1))
+                est.predict(df[self.spec.target_column].fillna(0).values.reshape(-1, 1))
             )
-            scores = est.score_samples(df[target].values.reshape(-1, 1))
+            scores = est.score_samples(df[self.spec.target_column].fillna(0).values.reshape(-1, 1))
 
             anomaly = pd.DataFrame(
                 {date_column: df[date_column], OutputColumns.ANOMALY_COL: y_pred}

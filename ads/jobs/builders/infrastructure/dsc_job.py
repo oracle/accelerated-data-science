@@ -6,9 +6,10 @@
 from __future__ import annotations
 
 import datetime
+import inspect
 import logging
-import oci
 import os
+import re
 import time
 import traceback
 import uuid
@@ -17,11 +18,12 @@ from string import Template
 from typing import Any, Dict, List, Optional, Union
 
 import fsspec
+import oci
 import oci.data_science
 import oci.util as oci_util
-import yaml
 from oci.data_science.models import JobInfrastructureConfigurationDetails
 from oci.exceptions import ServiceError
+import yaml
 from ads.common import utils
 from ads.common.oci_datascience import DSCNotebookSession, OCIDataScienceMixin
 from ads.common.oci_logging import OCILog
@@ -374,12 +376,13 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
         """
         runs = self.run_list()
         for run in runs:
-            if run.lifecycle_state in [
-                DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
-                DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
-                DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
-            ]:
-                run.cancel(wait_for_completion=True)
+            if force_delete:
+                if run.lifecycle_state in [
+                    DataScienceJobRun.LIFECYCLE_STATE_ACCEPTED,
+                    DataScienceJobRun.LIFECYCLE_STATE_IN_PROGRESS,
+                    DataScienceJobRun.LIFECYCLE_STATE_NEEDS_ATTENTION,
+                ]:
+                    run.cancel(wait_for_completion=True)
             run.delete()
         self.client.delete_job(self.id)
         return self
@@ -581,6 +584,25 @@ class DataScienceJobRun(
             id=self.log_id, log_group_id=self.log_details.log_group_id, **auth
         )
 
+    @property
+    def exit_code(self):
+        """The exit code of the job run from the lifecycle details.
+        Note that,
+        None will be returned if the job run is not finished or failed without exit code.
+        0 will be returned if job run succeeded.
+        """
+        if self.lifecycle_state == self.LIFECYCLE_STATE_SUCCEEDED:
+            return 0
+        if not self.lifecycle_details:
+            return None
+        match = re.search(r"exit code (\d+)", self.lifecycle_details)
+        if not match:
+            return None
+        try:
+            return int(match.group(1))
+        except Exception:
+            return None
+
     @staticmethod
     def _format_log(message: str, date_time: datetime.datetime) -> dict:
         """Formats a message as log record with datetime.
@@ -653,6 +675,22 @@ class DataScienceJobRun(
                 timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             print(f"{timestamp} - {status}")
         return status
+
+    def wait(self, interval: float = SLEEP_INTERVAL):
+        """Waits for the job run until if finishes.
+
+        Parameters
+        ----------
+        interval : float
+            Time interval in seconds between each request to update the logs.
+            Defaults to 3 (seconds).
+
+        """
+        self.sync()
+        while self.status not in self.TERMINAL_STATES:
+            time.sleep(interval)
+            self.sync()
+        return self
 
     def watch(
         self,
@@ -782,7 +820,7 @@ class DataScienceJobRun(
         # Update runtime from job run
         from ads.jobs import Job
 
-        job = Job.from_dict(job_dict)
+        job = Job(**self.auth).from_dict(job_dict)
         envs = job.runtime.envs
         run_config_override = run_dict.get("jobConfigurationOverrideDetails", {})
         envs.update(run_config_override.get("environmentVariables", {}))
@@ -811,7 +849,7 @@ class DataScienceJobRun(
         """
         from ads.jobs import Job
 
-        return Job.from_datascience_job(self.job_id)
+        return Job(**self.auth).from_datascience_job(self.job_id)
 
     def download(self, to_dir):
         """Downloads files from job run output URI to local.
@@ -828,6 +866,12 @@ class DataScienceJobRun(
         """
         self.job.download(to_dir)
         return self
+
+    def delete(self, force_delete: bool = False):
+        if force_delete:
+            self.cancel(wait_for_completion=True)
+        super().delete()
+        return
 
 
 # This is for backward compatibility
@@ -953,9 +997,9 @@ class DataScienceJob(Infrastructure):
             if key not in attribute_map and key.lower() in snake_to_camel_map:
                 value = spec.pop(key)
                 if isinstance(value, dict):
-                    spec[
-                        snake_to_camel_map[key.lower()]
-                    ] = DataScienceJob.standardize_spec(value)
+                    spec[snake_to_camel_map[key.lower()]] = (
+                        DataScienceJob.standardize_spec(value)
+                    )
                 else:
                     spec[snake_to_camel_map[key.lower()]] = value
         return spec
@@ -971,6 +1015,9 @@ class DataScienceJob(Infrastructure):
             Specification as keyword arguments.
             If spec contains the same key as the one in kwargs, the value from kwargs will be used.
         """
+        # Saves a copy of the auth object from the class to the instance.
+        # Future changes to the class level Job.auth will not affect the auth of existing instances.
+        self.auth = self.auth.copy()
         for key in ["config", "signer", "client_kwargs"]:
             if kwargs.get(key):
                 self.auth[key] = kwargs.pop(key)
@@ -1709,6 +1756,15 @@ class DataScienceJob(Infrastructure):
 
         """
         return cls.from_dsc_job(DSCJob(**cls.auth).from_ocid(job_id))
+
+    @class_or_instance_method
+    def from_dict(cls, obj_dict: dict):
+        """Initialize the object from a Python dictionary"""
+        if inspect.isclass(cls):
+            job_cls = cls
+        else:
+            job_cls = cls.__class__
+        return job_cls(spec=obj_dict.get("spec"), **cls.auth)
 
     @class_or_instance_method
     def list_jobs(cls, compartment_id: str = None, **kwargs) -> List[DataScienceJob]:

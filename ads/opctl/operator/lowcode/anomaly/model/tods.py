@@ -1,7 +1,7 @@
 # #!/usr/bin/env python
 # # -*- coding: utf-8 -*--
 
-# # Copyright (c) 2023 Oracle and/or its affiliates.
+# # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 # import importlib
@@ -97,16 +97,16 @@
 #         return anomaly_output
 
 #     def _generate_report(self):
-#         import datapane as dp
+#         import report_creator as rc
 
 #         """The method that needs to be implemented on the particular model level."""
-#         selected_models_text = dp.Text(
+#         selected_models_text = rc.Text(
 #             f"## Selected Models Overview \n "
 #             "The following tables provide information regarding the chosen model."
 #         )
 #         all_sections = [selected_models_text]
 
-#         model_description = dp.Text(
+#         model_description = rc.Text(
 #             "The tods model is a full-stack automated machine learning system for outlier detection "
 #             "on univariate / multivariate time-series data. It provides exhaustive modules for building "
 #             "machine learning-based outlier detection systems and wide range of algorithms."

@@ -7,6 +7,7 @@
 
 import sys
 from functools import wraps
+from typing import TYPE_CHECKING, Union
 
 from oci.exceptions import (
     ClientError,
@@ -17,9 +18,13 @@ from oci.exceptions import (
     RequestException,
     ServiceError,
 )
+from tornado.web import HTTPError
 
-from ads.aqua.exception import AquaError
+from ads.aqua.common.errors import AquaError
 from ads.aqua.extension.base_handler import AquaAPIhandler
+
+if TYPE_CHECKING:
+    from ads.aqua.extension.aqua_ws_msg_handler import AquaWSMsgHandler
 
 
 def handle_exceptions(func):
@@ -52,12 +57,15 @@ def handle_exceptions(func):
     """
 
     @wraps(func)
-    def inner_function(self: AquaAPIhandler, *args, **kwargs):
+    def inner_function(
+        self: Union[AquaAPIhandler, "AquaWSMsgHandler"], *args, **kwargs
+    ):
         try:
             return func(self, *args, **kwargs)
         except ServiceError as error:
-            self.write_error(
+            return self.write_error(
                 status_code=error.status or 500,
+                message=error.message,
                 reason=error.message,
                 service_payload=error.args[0] if error.args else None,
                 exc_info=sys.exc_info(),
@@ -67,32 +75,38 @@ def handle_exceptions(func):
             MissingEndpointForNonRegionalServiceClientError,
             RequestException,
         ) as error:
-            self.write_error(
+            return self.write_error(
                 status_code=400,
                 reason=f"{type(error).__name__}: {str(error)}",
                 exc_info=sys.exc_info(),
             )
         except ConnectTimeout as error:
-            self.write_error(
+            return self.write_error(
                 status_code=408,
                 reason=f"{type(error).__name__}: {str(error)}",
                 exc_info=sys.exc_info(),
             )
         except (MultipartUploadError, CompositeOperationError) as error:
-            self.write_error(
+            return self.write_error(
                 status_code=500,
                 reason=f"{type(error).__name__}: {str(error)}",
                 exc_info=sys.exc_info(),
             )
         except AquaError as error:
-            self.write_error(
+            return self.write_error(
                 status_code=error.status,
                 reason=error.reason,
                 service_payload=error.service_payload,
                 exc_info=sys.exc_info(),
             )
-        except Exception as ex:
+        except HTTPError as e:
             self.write_error(
+                status_code=e.status_code,
+                reason=e.log_message,
+                exc_info=sys.exc_info(),
+            )
+        except Exception as ex:
+            return self.write_error(
                 status_code=500,
                 reason=f"{type(ex).__name__}: {str(ex)}",
                 exc_info=sys.exc_info(),

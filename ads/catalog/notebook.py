@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import warnings
@@ -220,7 +220,7 @@ class NotebookCatalog:
                 lambda x: "<a href='%s'>%s</a>"
                 % (x if x.startswith("http") else "http://%s" % x, "open")
             )
-            return df.style.set_properties(**{"margin-left": "0px"}).render()
+            return df.style.set_properties(**{"margin-left": "0px"}).to_html()
 
         notebook.commit = MethodType(commit, notebook)
         notebook.rollback = MethodType(rollback, notebook)
@@ -295,7 +295,7 @@ class NotebookCatalog:
         shape=None,
         block_storage_size_in_gbs=None,
         subnet_id=None,
-        **kwargs
+        **kwargs,
     ):
         """
         Create a new notebook session with the supplied details.

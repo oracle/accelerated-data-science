@@ -1,0 +1,12 @@
+{
+  "configuration": {
+    "VM.GPU.A10.1": {
+      "parameters": {
+        "VLLM_PARAMS": "--max-model-len 4096"
+      }
+    }
+  },
+  "shape": [
+    "VM.GPU.A10.1"
+  ]
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from __future__ import print_function, absolute_import
@@ -98,7 +98,6 @@ class SummaryList(list, metaclass=ABCMeta):
         pass
 
     def to_dataframe(self, datetime_format=None):
-
         """
         Returns the model catalog summary as a pandas dataframe
 
@@ -121,7 +120,6 @@ class SummaryList(list, metaclass=ABCMeta):
 
     @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def show_in_notebook(self, datetime_format=None):
-
         """
         Displays the model catalog summary in a Jupyter Notebook cell
 
@@ -144,7 +142,7 @@ class SummaryList(list, metaclass=ABCMeta):
     def _repr_html_(self):
         return self.df.style.applymap(
             self._color_lifecycle_state, subset=["lifecycle_state"]
-        ).render()
+        ).to_html()
 
     def _sort_by(self, cols, reverse=False):
         return sorted(

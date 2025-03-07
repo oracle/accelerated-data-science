@@ -2,6 +2,53 @@
 Release Notes
 =============
 
+2.11.12
+------
+Release date: June 13, 2024
+
+* Fixed bugs and introduced enhancements following our recent release.
+
+
+2.11.11
+------
+Release date: June 11, 2024
+
+* Fixed the bug that led to timeout when loading config files during jupyterlab load.
+* Fixed bugs and introduced enhancements following our recent release.
+
+
+2.11.10
+------
+Release date: June 5, 2024
+
+* Support for Bring Your Own Model (BYOM) via AI Quick Actions.
+* Introduced enhancements following our recent release.
+
+
+
+2.11.9
+------
+Release date: April 24, 2024
+
+* Fixed bugs and introduced enhancements following our recent release.
+
+
+2.11.8
+------
+Release date: April 24, 2024
+
+* Fixed bugs, added realm compatibility check, improved logging and error handling, and added additional telemetry for Aqua.
+* Upgraded oci version to 2.125.3
+
+
+2.11.7
+------
+Release date: April 18, 2024
+
+* Fixed the bug in ``ADSDataset.show_in_notebook()``.
+* Updated langchain version. 
+
+
 2.11.6
 ------
 Release date: April 3, 2024

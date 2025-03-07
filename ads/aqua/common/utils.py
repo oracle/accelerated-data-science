@@ -10,8 +10,6 @@ import logging
 import os
 import random
 import re
-import sys
-from enum import Enum
 from functools import wraps
 from pathlib import Path
 from string import Template
@@ -21,67 +19,27 @@ import fsspec
 import oci
 from oci.data_science.models import JobRun, Model
 
-from ads.aqua.constants import RqsAdditionalDetails
-from ads.aqua.data import AquaResourceIdentifier, Tags
-from ads.aqua.exception import AquaFileNotFoundError, AquaRuntimeError, AquaValueError
+from ads.aqua.common.enums import RqsAdditionalDetails
+from ads.aqua.common.errors import (
+    AquaFileNotFoundError,
+    AquaRuntimeError,
+    AquaValueError,
+)
+from ads.aqua.constants import *
+from ads.aqua.data import AquaResourceIdentifier
 from ads.common.auth import default_signer
+from ads.common.decorator.threaded import threaded
+from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import get_console_link, upload_to_os
-from ads.config import (
-    AQUA_SERVICE_MODELS_BUCKET,
-    CONDA_BUCKET_NS,
-    TENANCY_OCID,
-)
+from ads.common.utils import copy_file, get_console_link, upload_to_os
+from ads.config import AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, TENANCY_OCID
 from ads.model import DataScienceModel, ModelVersionSet
 
-# TODO: allow the user to setup the logging level?
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-logger = logging.getLogger("ODSC_AQUA")
-
-UNKNOWN = ""
-UNKNOWN_DICT = {}
-README = "README.md"
-LICENSE_TXT = "config/LICENSE.txt"
-DEPLOYMENT_CONFIG = "deployment_config.json"
-COMPARTMENT_MAPPING_KEY = "service-model-compartment"
-CONTAINER_INDEX = "container_index.json"
-EVALUATION_REPORT_JSON = "report.json"
-EVALUATION_REPORT_MD = "report.md"
-EVALUATION_REPORT = "report.html"
-UNKNOWN_JSON_STR = "{}"
-CONSOLE_LINK_RESOURCE_TYPE_MAPPING = dict(
-    datasciencemodel="models",
-    datasciencemodeldeployment="model-deployments",
-    datasciencemodeldeploymentdev="model-deployments",
-    datasciencemodeldeploymentint="model-deployments",
-    datasciencemodeldeploymentpre="model-deployments",
-    datasciencejob="jobs",
-    datasciencejobrun="job-runs",
-    datasciencejobrundev="job-runs",
-    datasciencejobrunint="job-runs",
-    datasciencejobrunpre="job-runs",
-    datasciencemodelversionset="model-version-sets",
-    datasciencemodelversionsetpre="model-version-sets",
-    datasciencemodelversionsetint="model-version-sets",
-    datasciencemodelversionsetdev="model-version-sets",
-)
-FINE_TUNING_RUNTIME_CONTAINER = "iad.ocir.io/ociodscdev/aqua_ft_cuda121:0.3.17.20"
-DEFAULT_FT_BLOCK_STORAGE_SIZE = 750
-DEFAULT_FT_REPLICA = 1
-DEFAULT_FT_BATCH_SIZE = 1
-DEFAULT_FT_VALIDATION_SET_SIZE = 0.1
-
-HF_MODELS = "/home/datascience/conda/pytorch21_p39_gpu_v1/"
-MAXIMUM_ALLOWED_DATASET_IN_BYTE = 52428800  # 1024 x 1024 x 50 = 50MB
-JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING = "ME_STANDALONE"
-NB_SESSION_IDENTIFIER = "NB_SESSION_OCID"
-LIFECYCLE_DETAILS_MISSING_JOBRUN = "The asscociated JobRun resource has been deleted."
-READY_TO_DEPLOY_STATUS = "ACTIVE"
-READY_TO_FINE_TUNE_STATUS = "TRUE"
+logger = logging.getLogger("ads.aqua")
 
 
-class LifecycleStatus(Enum):
+class LifecycleStatus(str, metaclass=ExtendedEnumMeta):
     UNKNOWN = ""
 
     @property
@@ -140,12 +98,6 @@ LIFECYCLE_DETAILS_MAPPING = {
     JobRun.LIFECYCLE_STATE_FAILED: "The evaluation failed.",
     JobRun.LIFECYCLE_STATE_NEEDS_ATTENTION: "Missing jobrun information.",
 }
-SUPPORTED_FILE_FORMATS = ["jsonl"]
-MODEL_BY_REFERENCE_OSS_PATH_KEY = "artifact_location"
-
-
-def get_logger():
-    return logger
 
 
 def random_color_generator(word: str):
@@ -209,22 +161,28 @@ def get_artifact_path(custom_metadata_list: List) -> str:
     Parameters
     ----------
     custom_metadata_list: List
-        A list of custom metadata of model.
+        A list of custom metadata of OCI model.
 
     Returns
     -------
     str:
         The artifact path from model.
     """
-    for custom_metadata in custom_metadata_list:
-        if custom_metadata.key == MODEL_BY_REFERENCE_OSS_PATH_KEY:
-            if ObjectStorageDetails.is_oci_path(custom_metadata.value):
-                artifact_path = custom_metadata.value
-            else:
-                artifact_path = ObjectStorageDetails(
-                    AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, custom_metadata.value
-                ).path
-            return artifact_path
+    try:
+        for custom_metadata in custom_metadata_list:
+            if custom_metadata.key == MODEL_BY_REFERENCE_OSS_PATH_KEY:
+                if ObjectStorageDetails.is_oci_path(custom_metadata.value):
+                    artifact_path = custom_metadata.value
+                else:
+                    artifact_path = ObjectStorageDetails(
+                        AQUA_SERVICE_MODELS_BUCKET,
+                        CONDA_BUCKET_NS,
+                        custom_metadata.value,
+                    ).path
+                return artifact_path
+    except Exception as ex:
+        logger.debug(ex)
+
     logger.debug("Failed to get artifact path from custom metadata.")
     return UNKNOWN
 
@@ -234,10 +192,11 @@ def read_file(file_path: str, **kwargs) -> str:
         with fsspec.open(file_path, "r", **kwargs.get("auth", {})) as f:
             return f.read()
     except Exception as e:
-        logger.error(f"Failed to read file {file_path}. {e}")
+        logger.debug(f"Failed to read file {file_path}. {e}")
         return UNKNOWN
 
 
+@threaded()
 def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
     artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
     if artifact_path.startswith("oci://"):
@@ -268,12 +227,10 @@ def is_valid_ocid(ocid: str) -> bool:
     bool:
         Whether the given ocid is valid.
     """
-    # TODO: revisit pattern
-    pattern = (
-        r"^ocid1\.([a-z0-9_]+)\.([a-z0-9]+)\.([a-z0-9-]*)(\.[^.]+)?\.([a-z0-9_]+)$"
-    )
-    match = re.match(pattern, ocid)
-    return True
+
+    if not ocid:
+        return False
+    return ocid.lower().startswith("ocid")
 
 
 def get_resource_type(ocid: str) -> str:
@@ -484,7 +441,7 @@ def _build_resource_identifier(
             ),
         )
     except Exception as e:
-        logger.error(
+        logger.debug(
             f"Failed to construct AquaResourceIdentifier from given id=`{id}`, and name=`{name}`, {str(e)}"
         )
         return AquaResourceIdentifier()
@@ -528,6 +485,19 @@ def _build_job_identifier(
         return AquaResourceIdentifier()
 
 
+def container_config_path():
+    return f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
+
+
+def get_container_config():
+    config = load_config(
+        file_path=container_config_path(),
+        config_file_name=CONTAINER_INDEX,
+    )
+
+    return config
+
+
 def get_container_image(
     config_file_name: str = None, container_type: str = None
 ) -> str:
@@ -545,14 +515,8 @@ def get_container_image(
         A dict of allowed configs.
     """
 
-    config_file_name = (
-        f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
-    )
-
-    config = load_config(
-        file_path=config_file_name,
-        config_file_name=CONTAINER_INDEX,
-    )
+    config = config_file_name or get_container_config()
+    config_file_name = container_config_path()
 
     if container_type not in config:
         raise AquaValueError(
@@ -577,20 +541,30 @@ def get_container_image(
     return container_image
 
 
-def fetch_service_compartment():
-    """Loads the compartment mapping json from service bucket"""
+def fetch_service_compartment() -> Union[str, None]:
+    """
+    Loads the compartment mapping json from service bucket.
+    This json file has a service-model-compartment key which contains a dictionary of namespaces
+    and the compartment OCID of the service models in that namespace.
+    """
     config_file_name = (
         f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
     )
 
-    config = load_config(
-        file_path=config_file_name,
-        config_file_name=CONTAINER_INDEX,
-    )
+    try:
+        config = load_config(
+            file_path=config_file_name,
+            config_file_name=CONTAINER_INDEX,
+        )
+    except Exception as e:
+        logger.debug(
+            f"Config file {config_file_name}/{CONTAINER_INDEX} to fetch service compartment OCID "
+            f"could not be found. \n{str(e)}."
+        )
+        return
     compartment_mapping = config.get(COMPARTMENT_MAPPING_KEY)
     if compartment_mapping:
         return compartment_mapping.get(CONDA_BUCKET_NS)
-    return None
 
 
 def get_max_version(versions):
@@ -694,23 +668,26 @@ def get_model_by_reference_paths(model_file_description: dict):
     fine_tune_output_path = UNKNOWN
     models = model_file_description["models"]
 
-    for model in models:
-        namespace, bucket_name, prefix = (
-            model["namespace"],
-            model["bucketName"],
-            model["prefix"],
-        )
-        bucket_uri = f"oci://{bucket_name}@{namespace}/{prefix}".rstrip("/")
-        if bucket_name == AQUA_SERVICE_MODELS_BUCKET:
-            base_model_path = bucket_uri
-        else:
-            fine_tune_output_path = bucket_uri
-
-    if not base_model_path:
+    if not models:
         raise AquaValueError(
-            f"Base Model should come from the bucket {AQUA_SERVICE_MODELS_BUCKET}. "
-            f"Other paths are not supported by Aqua."
+            f"Model path is not available in the model json artifact. "
+            f"Please check if the model created by reference has the correct artifact."
         )
+
+    if len(models) > 0:
+        # since the model_file_description json does not have a flag to identify the base model, we consider
+        # the first instance to be the base model.
+        base_model_artifact = models[0]
+        base_model_path = f"oci://{base_model_artifact['bucketName']}@{base_model_artifact['namespace']}/{base_model_artifact['prefix']}".rstrip(
+            "/"
+        )
+    if len(models) > 1:
+        # second model is considered as fine-tuned model
+        ft_model_artifact = models[1]
+        fine_tune_output_path = f"oci://{ft_model_artifact['bucketName']}@{ft_model_artifact['namespace']}/{ft_model_artifact['prefix']}".rstrip(
+            "/"
+        )
+
     return base_model_path, fine_tune_output_path
 
 
@@ -733,3 +710,141 @@ def _is_valid_mvs(mvs: ModelVersionSet, target_tag: str) -> bool:
         return False
 
     return target_tag in mvs.freeform_tags
+
+
+def known_realm():
+    """This helper function returns True if the Aqua service is available by default in the given namespace.
+    Returns
+    -------
+    bool:
+        Return True if aqua service is available.
+
+    """
+    return os.environ.get("CONDA_BUCKET_NS") in AQUA_GA_LIST
+
+
+def get_ocid_substring(ocid: str, key_len: int) -> str:
+    """This helper function returns the last n characters of the ocid specified by key_len parameter.
+    If ocid is None or length is less than key_len, it returns an empty string."""
+    return ocid[-key_len:] if ocid and len(ocid) > key_len else ""
+
+
+def is_service_managed_container(container):
+    return container and container.startswith(SERVICE_MANAGED_CONTAINER_URI_SCHEME)
+
+
+def get_params_list(params: str) -> List[str]:
+    """Parses the string parameter and returns a list of params.
+
+    Parameters
+    ----------
+    params
+        string parameters by separated by -- delimiter
+
+    Returns
+    -------
+        list of params
+
+    """
+    if not params:
+        return []
+    return ["--" + param.strip() for param in params.split("--")[1:]]
+
+
+def get_params_dict(params: Union[str, List[str]]) -> dict:
+    """Accepts a string or list of string of double-dash parameters and returns a dict with the parameter keys and values.
+
+    Parameters
+    ----------
+    params:
+        List of parameters or parameter string separated by space.
+
+    Returns
+    -------
+        dict containing parameter keys and values
+
+    """
+    params_list = get_params_list(params) if isinstance(params, str) else params
+    return {
+        split_result[0]: split_result[1] if len(split_result) > 1 else UNKNOWN
+        for split_result in (x.split() for x in params_list)
+    }
+
+
+def get_combined_params(params1: str = None, params2: str = None) -> str:
+    """
+    Combines string of double-dash parameters, and overrides the values from the second string in the first.
+    Parameters
+    ----------
+    params1:
+        Parameter string with values
+    params2:
+        Parameter string with values that need to be overridden.
+
+    Returns
+    -------
+        A combined list with overridden values from params2.
+    """
+    if not params1:
+        return params2
+    if not params2:
+        return params1
+
+    # overwrite values from params2 into params1
+    combined_params = [
+        f"{key} {value}" if value else key
+        for key, value in {
+            **get_params_dict(params1),
+            **get_params_dict(params2),
+        }.items()
+    ]
+
+    return " ".join(combined_params)
+
+
+def copy_model_config(artifact_path: str, os_path: str, auth: dict = None):
+    """Copies the aqua model config folder from the artifact path to the user provided object storage path.
+    The config folder is overwritten if the files already exist at the destination path.
+
+    Parameters
+    ----------
+    artifact_path:
+        Path of the aqua model where config folder is available.
+    os_path:
+        User provided path where config folder will be copied.
+    auth: (Dict, optional). Defaults to None.
+        The default authentication is set using `ads.set_auth` API. If you need to override the
+        default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+        authentication signer and kwargs required to instantiate IdentityClient object.
+
+    Returns
+    -------
+    None
+        Nothing.
+    """
+
+    try:
+        source_dir = ObjectStorageDetails(
+            AQUA_SERVICE_MODELS_BUCKET,
+            CONDA_BUCKET_NS,
+            f"{os.path.dirname(artifact_path).rstrip('/')}/config",
+        ).path
+        dest_dir = f"{os_path.rstrip('/')}/config"
+
+        oss_details = ObjectStorageDetails.from_path(source_dir)
+        objects = oss_details.list_objects(fields="name").objects
+
+        for obj in objects:
+            source_path = ObjectStorageDetails(
+                AQUA_SERVICE_MODELS_BUCKET, CONDA_BUCKET_NS, obj.name
+            ).path
+            destination_path = os.path.join(dest_dir, os.path.basename(obj.name))
+            copy_file(
+                uri_src=source_path,
+                uri_dst=destination_path,
+                force_overwrite=True,
+                auth=auth,
+            )
+    except Exception as ex:
+        logger.debug(ex)
+        logger.debug(f"Failed to copy config folder from {artifact_path} to {os_path}.")

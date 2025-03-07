@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from __future__ import print_function, absolute_import
@@ -367,7 +367,7 @@ class DatasetFactory:
                 HTML(
                     list_df.style.set_table_attributes("class=table")
                     .hide_index()
-                    .render()
+                    .to_html()
                 )
             )
         return list_df
@@ -884,7 +884,6 @@ class CustomFormatReaders:
         import xml.etree.cElementTree as et
 
         def get_children(df, node, parent, i):
-
             for name in node.attrib.keys():
                 df.at[i, parent + name] = node.attrib[name]
             for child in list(node):

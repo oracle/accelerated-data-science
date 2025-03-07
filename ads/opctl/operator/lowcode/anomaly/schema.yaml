@@ -323,7 +323,7 @@ spec:
             missing_value_imputation:
               type: boolean
               required: false
-              default: true
+              default: false
 
     generate_report:
       type: boolean
@@ -349,9 +349,8 @@ spec:
     model:
       type: string
       required: false
-      default: automlx
+      default: autots
       allowed:
-        - automlx
         - autots
         - auto
       meta:

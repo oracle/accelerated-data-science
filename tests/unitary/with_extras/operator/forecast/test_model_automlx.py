@@ -7,7 +7,6 @@
 import unittest
 from unittest.mock import patch, Mock
 import pandas as pd
-import datapane as dp
 from ads.opctl.operator.lowcode.forecast.model.automlx import AutoMLXOperatorModel
 from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import ForecastDatasets
 

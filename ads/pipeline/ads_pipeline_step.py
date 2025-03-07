@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import copy
 from typing import List
@@ -9,6 +9,7 @@ from typing import List
 from ads.jobs import Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
+from ads.common.utils import get_random_name_for_resource
 
 PIPELINE_STEP_KIND_TO_OCI_MAP = {
     "dataScienceJob": "ML_JOB",
@@ -43,7 +44,7 @@ class PipelineStep(Job):
 
     def __init__(
         self,
-        name: str,
+        name: str = None,
         job_id: str = None,
         infrastructure=None,
         runtime=None,
@@ -174,7 +175,7 @@ class PipelineStep(Job):
 
         super().__init__()
         if not name:
-            raise ValueError("PipelineStep name must be specified.")
+            name = get_random_name_for_resource()
         elif any(char in PIPELINE_STEP_RESTRICTED_CHAR_SET for char in name):
             raise ValueError(
                 "PipelineStep name can not include any of the "
@@ -521,17 +522,15 @@ class PipelineStep(Job):
             dict_details["spec"][self.CONST_DESCRIPTION] = self.description
         if self.kind == "ML_JOB":
             if self.environment_variable:
-                dict_details["spec"][self.CONST_ENVIRONMENT_VARIABLES] = (
-                    self.environment_variable
-                )
+                dict_details["spec"][
+                    self.CONST_ENVIRONMENT_VARIABLES
+                ] = self.environment_variable
             if self.argument:
-                dict_details["spec"][self.CONST_COMMAND_LINE_ARGUMENTS] = (
-                    self.argument
-                )
+                dict_details["spec"][self.CONST_COMMAND_LINE_ARGUMENTS] = self.argument
             if self.maximum_runtime_in_minutes:
-                dict_details["spec"][self.CONST_MAXIMUM_RUNTIME_IN_MINUTES] = (
-                    self.maximum_runtime_in_minutes
-                )
+                dict_details["spec"][
+                    self.CONST_MAXIMUM_RUNTIME_IN_MINUTES
+                ] = self.maximum_runtime_in_minutes
 
         dict_details["spec"].pop(self.CONST_DEPENDS_ON, None)
 

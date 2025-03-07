@@ -302,11 +302,11 @@ spec:
             missing_value_imputation:
               type: boolean
               required: false
-              default: true
+              default: false
             outlier_treatment:
               type: boolean
               required: false
-              default: true
+              default: false
 
     generate_explanations:
       type: boolean
@@ -365,14 +365,15 @@ spec:
     model:
       type: string
       required: false
-      default: auto
+      default: auto-select
       allowed:
         - prophet
         - arima
         - neuralprophet
+        - mlforecast
         - automlx
         - autots
-        - auto
+        - auto-select
 
     model_kwargs:
       type: dict
@@ -413,4 +414,8 @@ spec:
         - RMSE
         - MSE
         - SMAPE
+        - mape
+        - rmse
+        - mse
+        - smape
   type: dict

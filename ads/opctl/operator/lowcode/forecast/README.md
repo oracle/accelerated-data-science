@@ -35,12 +35,10 @@ To run forecasting locally, create and activate a new conda environment (`ads-fo
 - neuralprophet
 - pmdarima
 - statsmodels
-- datapane
+- report-creator
 - cerberus
 - sktime
-- optuna==3.1.0
-- oracle-automlx==23.4.1
-- oracle-automlx[forecasting]==23.4.1
+- optuna
 - oracle-ads>=2.9.0
 ```
 

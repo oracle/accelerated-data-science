@@ -1,0 +1,62 @@
+name: "Forecast Operator Tests"
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ "main", "operators/**" ]
+
+# Cancel in progress workflows on pull_requests.
+# https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# hack for https://github.com/actions/cache/issues/810#issuecomment-1222550359
+env:
+  SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+
+jobs:
+  test:
+    name: python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+            "**requirements.txt"
+            "test-requirements-operators.txt"
+
+      - uses: ./.github/workflows/set-dummy-conf
+        name: "Test config setup"
+
+      - name: "Run Forecast Tests"
+        timeout-minutes: 180
+        shell: bash
+        run: |
+          set -x # print commands that are executed
+          $CONDA/bin/conda init
+          source /home/runner/.bashrc
+          pip install -r test-requirements-operators.txt
+          pip install "oracle-automlx[classic]>=24.2.0"
+          pip install "oracle-automlx[forecasting]>=24.2.0"
+          pip install pandas>=2.2.0
+          python -m pytest -v -p no:warnings --durations=5 tests/operators/forecast

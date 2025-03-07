@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import matplotlib
@@ -48,6 +48,7 @@ from ads.common.decorator.runtime_dependency import (
 )
 
 NATURAL_EARTH_DATASET = "naturalearth_lowres"
+
 
 class PandasDataset(object):
     """
@@ -107,7 +108,6 @@ class PandasDataset(object):
         self.sampled_df = self.sampled_df.reset_index(drop=True)
 
     def _find_feature_subset(self, df, target_name, include_n_features=32):
-
         if len(df.columns) <= include_n_features:
             return self.sampled_df
         else:
@@ -212,7 +212,6 @@ class PandasDataset(object):
     def _generate_features_html(
         self, is_wide_dataset, n_features, df_stats, visualizations_follow
     ):
-
         html = utils.get_bootstrap_styles()
 
         if is_wide_dataset:
@@ -233,7 +232,7 @@ class PandasDataset(object):
                 if ("float" in str(type(x))) or ("int" in str(type(x)))
                 else x
             )
-            .render()
+            .to_html()
         )
 
         if visualizations_follow:
@@ -244,7 +243,6 @@ class PandasDataset(object):
     def _generate_warnings_html(
         self, is_wide_dataset, n_rows, n_features, df_stats, out, accordion
     ):
-
         #
         # create the "Warnings" accordion section:
         #  - show high cardinal categoricals

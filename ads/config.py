@@ -8,6 +8,7 @@ import contextlib
 import inspect
 import os
 from typing import Dict, Optional
+
 from ads.common.config import DEFAULT_CONFIG_PATH, DEFAULT_CONFIG_PROFILE, Config, Mode
 
 OCI_ODSC_SERVICE_ENDPOINT = os.environ.get("OCI_ODSC_SERVICE_ENDPOINT")
@@ -41,7 +42,6 @@ COMPARTMENT_OCID = (
 )
 MD_OCID = os.environ.get("MD_OCID")
 DATAFLOW_RUN_OCID = os.environ.get("DATAFLOW_RUN_ID")
-
 RESOURCE_OCID = (
     NB_SESSION_OCID or JOB_RUN_OCID or MD_OCID or PIPELINE_RUN_OCID or DATAFLOW_RUN_OCID
 )
@@ -66,6 +66,8 @@ AQUA_RESOURCE_LIMIT_NAMES_CONFIG = os.environ.get(
 AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME = "deployment-container"
 AQUA_FINETUNING_CONTAINER_METADATA_NAME = "finetune-container"
 AQUA_EVALUATION_CONTAINER_METADATA_NAME = "evaluation-container"
+AQUA_DEPLOYMENT_CONTAINER_OVERRIDE_FLAG_METADATA_NAME = "deployment-container-custom"
+AQUA_FINETUNING_CONTAINER_OVERRIDE_FLAG_METADATA_NAME = "finetune-container-custom"
 AQUA_MODEL_DEPLOYMENT_FOLDER = "/opt/ds/model/deployed_model/"
 AQUA_SERVED_MODEL_NAME = "odsc-llm"
 AQUA_CONFIG_FOLDER = os.path.join(
@@ -79,9 +81,19 @@ AQUA_TELEMETRY_BUCKET = os.environ.get(
     "AQUA_TELEMETRY_BUCKET", "service-managed-models"
 )
 AQUA_TELEMETRY_BUCKET_NS = os.environ.get("AQUA_TELEMETRY_BUCKET_NS", CONDA_BUCKET_NS)
+
 DEBUG_TELEMETRY = os.environ.get("DEBUG_TELEMETRY", None)
 AQUA_SERVICE_NAME = "aqua"
 DATA_SCIENCE_SERVICE_NAME = "data-science"
+
+
+THREADED_DEFAULT_TIMEOUT = 5
+try:
+    THREADED_DEFAULT_TIMEOUT = int(
+        os.environ.get("THREADED_DEFAULT_TIMEOUT", THREADED_DEFAULT_TIMEOUT)
+    )
+except ValueError:
+    pass
 
 
 def export(

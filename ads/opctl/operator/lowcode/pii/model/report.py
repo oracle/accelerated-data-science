@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -39,10 +39,10 @@ from ads.opctl.operator.lowcode.pii.operator_config import PiiOperatorConfig
 from ads.opctl.operator.lowcode.pii.utils import compute_rate
 
 try:
-    import datapane as dp
+    import report_creator as rc
 except ImportError:
     raise ModuleNotFoundError(
-        f"`datapane` module was not found. Please run "
+        f"`report-creator` module was not found. Please run "
         f"`pip install {OptionalDependency.PII}`."
     )
 
@@ -119,8 +119,8 @@ def make_model_card(model_name="", readme_path=""):
         logger.warning(
             "You don't have internet connection. Therefore, we are not able to generate model card."
         )
-        return dp.Group(
-            dp.Text("-"),
+        return rc.Group(
+            rc.Text("-"),
             columns=1,
         )
 
@@ -144,15 +144,15 @@ def make_model_card(model_name="", readme_path=""):
                 )
             ]
         )
-        eval_res_tb = dp.Plot(data=fig, caption="Evaluation Results")
+        eval_res_tb = rc.Widget(data=fig, caption="Evaluation Results")
     except:
-        eval_res_tb = dp.Text("-")
+        eval_res_tb = rc.Text("-")
         logger.warning(
             "The given readme.md doesn't have correct template for Evaluation Results."
         )
 
-    return dp.Group(
-        dp.Text(text),
+    return rc.Group(
+        rc.Text(text),
         eval_res_tb,
         columns=2,
     )
@@ -172,7 +172,7 @@ def map_label_to_color(labels):
 
 
 @runtime_dependency(module="plotly", install_from=OptionalDependency.PII)
-def plot_pie(count_map) -> dp.Plot:
+def plot_pie(count_map) -> rc.Widget:
     import plotly.express as px
 
     cols = count_map.keys()
@@ -190,7 +190,7 @@ def plot_pie(count_map) -> dp.Plot:
         color_discrete_map=map_label_to_color(cols),
     )
     fig.update_traces(textposition="inside", textinfo="percent+label")
-    return dp.Plot(fig)
+    return rc.Widget(fig)
 
 
 def build_entity_df(entites, id) -> pd.DataFrame:
@@ -223,37 +223,38 @@ class RowReportFields:
         self.spec = row_spec
         self.show_sensitive_info = show_sensitive_info
 
-    def build_report(self) -> dp.Group:
-        return dp.Group(
-            dp.Select(
+    def build_report(self) -> rc.Group:
+        return rc.Group(
+            rc.Select(
                 blocks=[
                     self._make_stats_card(),
                     self._make_text_card(),
                 ],
-                type=dp.SelectType.TABS,
+                type=rc.SelectType.TABS,
             ),
             label="Row Id: " + str(self.spec.id),
         )
 
     def _make_stats_card(self):
         stats = [
-            dp.Text("## Row Summary Statistics"),
-            dp.BigNumber(
+            rc.Heading("Row Summary Statistics", level=2),
+            rc.Metric(
                 heading="Total No. Of Entites Proceed",
                 value=self.spec.total_tokens or 0,
             ),
-            dp.Text(f"### Entities Distribution"),
+            rc.Heading("Entities Distribution", level=3),
             plot_pie(self.spec.statics),
         ]
         if self.show_sensitive_info:
-            stats.append(dp.Text(f"### Resolved Entities"))
+            stats.append(rc.Heading("Resolved Entities", level=3))
             stats.append(
-                dp.DataTable(
+                rc.DataTable(
                     build_entity_df(self.spec.entities, id=self.spec.id),
                     label="Resolved Entities",
+                    index=True,
                 )
             )
-        return dp.Group(blocks=stats, label="STATS")
+        return rc.Group(stats, label="STATS")
 
     def _make_text_card(self):
         annotations = []
@@ -274,7 +275,7 @@ class RowReportFields:
             },
             return_html=True,
         )
-        return dp.Group(dp.HTML(render_html), label="TEXT")
+        return rc.Group(rc.HTML(render_html), label="TEXT")
 
 
 class PIIOperatorReport:
@@ -293,26 +294,28 @@ class PIIOperatorReport:
         self.report_uri = report_uri
 
     def make_view(self):
-        title_text = dp.Text("# Personally Identifiable Information Operator Report")
-        time_proceed = dp.BigNumber(
+        title_text = rc.Heading(
+            "Personally Identifiable Information Operator Report", level=1
+        )
+        time_proceed = rc.Metric(
             heading="Ran at",
             value=self.report_spec.run_summary.timestamp or "today",
         )
-        report_description = dp.Text(PII_REPORT_DESCRIPTION)
+        report_description = rc.Text(PII_REPORT_DESCRIPTION)
 
-        structure = dp.Blocks(
-            dp.Select(
+        structure = rc.Block(
+            rc.Select(
                 blocks=[
-                    dp.Group(
+                    rc.Group(
                         self._build_summary_page(),
                         label="Summary",
                     ),
-                    dp.Group(
+                    rc.Group(
                         self._build_details_page(),
                         label="Details",
                     ),
                 ],
-                type=dp.SelectType.TABS,
+                type=rc.SelectType.TABS,
             )
         )
         self.report_sections = [title_text, report_description, time_proceed, structure]
@@ -322,11 +325,10 @@ class PIIOperatorReport:
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
             disable_print()
-            dp.save_report(
-                report_sections or self.report_sections,
-                path=report_local_path,
-                open=False,
-            )
+            with rc.ReportCreator("My Report") as report:
+                report.save(
+                    rc.Block(report_sections or self.report_sections), report_local_path
+                )
             enable_print()
 
             report_uri = report_uri or self.report_uri
@@ -339,36 +341,36 @@ class PIIOperatorReport:
                     f2.write(f1.read())
 
     def _build_summary_page(self):
-        summary = dp.Blocks(
-            dp.Text("# PII Summary"),
-            dp.Text(self._get_summary_desc()),
-            dp.Select(
+        summary = rc.Block(
+            rc.Heading("PII Summary", level=1),
+            rc.Text(self._get_summary_desc()),
+            rc.Select(
                 blocks=[
                     self._make_summary_stats_card(),
                     self._make_yaml_card(),
                     self._make_model_card(),
                 ],
-                type=dp.SelectType.TABS,
+                type=rc.SelectType.TABS,
             ),
         )
 
         return summary
 
     def _build_details_page(self):
-        details = dp.Blocks(
-            dp.Text(DETAILS_REPORT_DESCRIPTION),
-            dp.Select(
+        details = rc.Block(
+            rc.Text(DETAILS_REPORT_DESCRIPTION),
+            rc.Select(
                 blocks=[
                     row.build_report() for row in self.rows_details
                 ],  # RowReportFields
-                type=dp.SelectType.DROPDOWN,
+                type=rc.SelectType.DROPDOWN,
                 label="Details",
             ),
         )
 
         return details
 
-    def _make_summary_stats_card(self) -> dp.Group:
+    def _make_summary_stats_card(self) -> rc.Group:
         """
         Shows summary statics
         1. total rows
@@ -388,21 +390,21 @@ class PIIOperatorReport:
             process_rate = "-"
 
         summary_stats = [
-            dp.Text("## Summary Statistics"),
-            dp.Group(
-                dp.BigNumber(
+            rc.Heading("Summary Statistics", level=2),
+            rc.Group(
+                rc.Metric(
                     heading="Total No. Of Rows",
                     value=self.report_spec.run_summary.total_rows or "unknown",
                 ),
-                dp.BigNumber(
+                rc.Metric(
                     heading="Total No. Of Entites Proceed",
                     value=self.report_spec.run_summary.total_tokens,
                 ),
-                dp.BigNumber(
+                rc.Metric(
                     heading="Rows per second processed",
                     value=process_rate,
                 ),
-                dp.BigNumber(
+                rc.Metric(
                     heading="Total Time Spent",
                     value=human_time_friendly(
                         self.report_spec.run_summary.elapsed_time
@@ -410,32 +412,31 @@ class PIIOperatorReport:
                 ),
                 columns=2,
             ),
-            dp.Text(f"### Entities Distribution"),
+            rc.Heading("Entities Distribution", level=3),
             plot_pie(self.report_spec.run_summary.statics),
         ]
         if self.report_spec.run_summary.show_sensitive_info:
             entites_df = self._build_total_entity_df()
-            summary_stats.append(dp.Text(f"### Resolved Entities"))
-            summary_stats.append(dp.DataTable(entites_df))
-        return dp.Group(blocks=summary_stats, label="STATS")
+            summary_stats.append(rc.Heading("Resolved Entities", level=3))
+            summary_stats.append(rc.DataTable(entites_df, index=True))
+        return rc.Group(summary_stats, label="STATS")
 
-    def _make_yaml_card(self) -> dp.Group:
+    def _make_yaml_card(self) -> rc.Group:
         """Shows the full pii config yaml."""
-        yaml_string = self.report_spec.run_summary.config.to_yaml()
-        yaml_appendix_title = dp.Text(f"## Reference: YAML File")
-        yaml_appendix = dp.Code(code=yaml_string, language="yaml")
-        return dp.Group(blocks=[yaml_appendix_title, yaml_appendix], label="YAML")
+        yaml_appendix_title = rc.Heading("Reference: YAML File", level=2)
+        yaml_appendix = rc.Yaml(self.report_spec.run_summary.config.to_dict())
+        return rc.Group(yaml_appendix_title, yaml_appendix, label="YAML")
 
-    def _make_model_card(self) -> dp.Group:
+    def _make_model_card(self) -> rc.Group:
         """Generates model card."""
         if len(self.report_spec.run_summary.selected_spacy_model) == 0:
-            return dp.Group(
-                dp.Text("No model used."),
+            return rc.Group(
+                rc.Text("No model used."),
                 label="MODEL CARD",
             )
 
         model_cards = [
-            dp.Group(
+            rc.Group(
                 make_model_card(model_name=x.get("model")),
                 label=x.get("model"),
             )
@@ -443,14 +444,14 @@ class PIIOperatorReport:
         ]
 
         if len(model_cards) <= 1:
-            return dp.Group(
-                blocks=model_cards,
+            return rc.Group(
+                model_cards,
                 label="MODEL CARD",
             )
-        return dp.Group(
-            dp.Select(
-                blocks=model_cards,
-                type=dp.SelectType.TABS,
+        return rc.Group(
+            rc.Select(
+                model_cards,
+                type=rc.SelectType.TABS,
             ),
             label="MODEL CARD",
         )

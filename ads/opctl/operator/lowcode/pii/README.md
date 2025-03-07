@@ -33,7 +33,7 @@ To run pii operator locally, create and activate a new conda environment (`ads-p
 
 ```yaml
 - aiohttp
-- datapane
+- report-creator
 - gender_guesser
 - nameparser
 - oracle_ads[opctl]

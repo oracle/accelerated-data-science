@@ -1,0 +1,20 @@
+{
+  "compartment_id": null,
+  "defined_tags": {
+    "OracleInternalReserved": {
+      "CostCenter": "123456",
+      "OwnerEmail": "email@oracle.com",
+      "Phonebook": "datascience",
+      "ServiceType": "IaaS",
+      "UsageType": "development"
+    }
+  },
+  "description": "root-compartment-description",
+  "freeform_tags": {},
+  "id": "ocid1.tenancy.oc1..<OCID>",
+  "inactive_status": null,
+  "is_accessible": true,
+  "lifecycle_state": "ACTIVE",
+  "name": "root-compartment-name",
+  "time_created": "2018-11-08T18:08:40.849000+00:00"
+}

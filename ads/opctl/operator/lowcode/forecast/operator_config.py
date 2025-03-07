@@ -14,7 +14,7 @@ from ads.opctl.operator.common.operator_config import OperatorConfig, OutputDire
 
 from .const import SupportedMetrics, SpeedAccuracyMode
 from .const import SupportedModels
-
+from ads.opctl.operator.lowcode.common.utils import find_output_dirname
 
 @dataclass(repr=True)
 class TestData(InputData):
@@ -90,6 +90,7 @@ class ForecastOperatorSpec(DataClassSerializable):
 
     def __post_init__(self):
         """Adjusts the specification details."""
+        self.output_directory = self.output_directory or OutputDirectory(url=find_output_dirname(self.output_directory))
         self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE.lower()
         self.model = self.model or SupportedModels.Auto
         self.confidence_interval_width = self.confidence_interval_width or 0.80

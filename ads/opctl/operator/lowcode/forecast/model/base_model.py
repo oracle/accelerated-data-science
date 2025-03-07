@@ -1,34 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
-import json
-import os
-import tempfile
-import time
-from abc import ABC, abstractmethod
-from typing import Tuple
-import traceback
 
 import fsspec
 import numpy as np
+import os
 import pandas as pd
+import tempfile
+import time
+import traceback
+from abc import ABC, abstractmethod
+from typing import Tuple
 
-from ads.opctl.operator.lowcode.forecast.utils import (
-    default_signer,
-    evaluate_train_metrics,
-    get_forecast_plots,
-    _build_metrics_df,
-    _build_metrics_per_horizon,
-    load_pkl,
-    write_pkl,
-    _label_encode_dataframe,
-)
+from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
-
 from ads.opctl.operator.lowcode.common.utils import (
     human_time_friendly,
     enable_print,
@@ -37,18 +25,28 @@ from ads.opctl.operator.lowcode.common.utils import (
     merged_category_column_name,
     datetime_to_seconds,
     seconds_to_datetime,
-    find_output_dirname,
 )
+from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import TestData
+from ads.opctl.operator.lowcode.forecast.utils import (
+    default_signer,
+    evaluate_train_metrics,
+    get_forecast_plots,
+    get_auto_select_plot,
+    _build_metrics_df,
+    _build_metrics_per_horizon,
+    load_pkl,
+    write_pkl,
+    _label_encode_dataframe,
+)
+from .forecast_datasets import ForecastDatasets
 from ..const import (
     SUMMARY_METRICS_HORIZON_LIMIT,
     SupportedMetrics,
     SupportedModels,
     SpeedAccuracyMode,
+    AUTO_SELECT
 )
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
-from ads.common.decorator.runtime_dependency import runtime_dependency
-from .forecast_datasets import ForecastDatasets, ForecastOutput
-from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import TestData
 
 
 class ForecastOperatorBaseModel(ABC):
@@ -88,7 +86,9 @@ class ForecastOperatorBaseModel(ABC):
         self.formatted_local_explanation = None
 
         self.forecast_col_name = "yhat"
-        self.perform_tuning = (self.spec.tuning != None) and (self.spec.tuning.n_trials != None)
+        self.perform_tuning = (self.spec.tuning != None) and (
+            self.spec.tuning.n_trials != None
+        )
 
     def generate_report(self):
         """Generates the forecasting report."""
@@ -100,7 +100,7 @@ class ForecastOperatorBaseModel(ABC):
             warnings.simplefilter(action="ignore", category=UserWarning)
             warnings.simplefilter(action="ignore", category=RuntimeWarning)
             warnings.simplefilter(action="ignore", category=ConvergenceWarning)
-            import datapane as dp
+            import report_creator as rc
 
             # load models if given
             if self.spec.previous_output_dir is not None:
@@ -140,69 +140,58 @@ class ForecastOperatorBaseModel(ABC):
                     other_sections,
                 ) = self._generate_report()
 
-                title_text = dp.Text("# Forecast Report")
-
-                md_columns = " * ".join(
-                    [f"{s_id} \n" for s_id in self.datasets.list_series_ids()]
+                header_section = rc.Block(
+                    rc.Heading("Forecast Report", level=1),
+                    rc.Text(
+                        f"You selected the {self.spec.model} model.\n{model_description}\nBased on your dataset, you could have also selected any of the models: {SupportedModels.keys()}."
+                    ),
+                    rc.Group(
+                        rc.Metric(
+                            heading="Analysis was completed in ",
+                            value=human_time_friendly(elapsed_time),
+                        ),
+                        rc.Metric(
+                            heading="Starting time index",
+                            value=self.datasets.get_earliest_timestamp().strftime(
+                                "%B %d, %Y"
+                            ),
+                        ),
+                        rc.Metric(
+                            heading="Ending time index",
+                            value=self.datasets.get_latest_timestamp().strftime(
+                                "%B %d, %Y"
+                            ),
+                        ),
+                        rc.Metric(
+                            heading="Num series",
+                            value=len(self.datasets.list_series_ids()),
+                        ),
+                    ),
                 )
 
-                header_section = dp.Blocks(
-                    blocks=[
-                        dp.Text(f"You selected the **`{self.spec.model}`** model."),
-                        model_description,
-                        dp.Text(
-                            "Based on your dataset, you could have also selected "
-                            f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
-                        ),
-                        dp.Group(
-                            dp.BigNumber(
-                                heading="Analysis was completed in ",
-                                value=human_time_friendly(elapsed_time),
-                            ),
-                            dp.BigNumber(
-                                heading="Starting time index",
-                                value=self.datasets.get_earliest_timestamp().strftime(
-                                    "%B %d, %Y"
-                                ),
-                            ),
-                            dp.BigNumber(
-                                heading="Ending time index",
-                                value=self.datasets.get_latest_timestamp().strftime(
-                                    "%B %d, %Y"
-                                ),
-                            ),
-                            dp.BigNumber(
-                                heading="Num series",
-                                value=len(self.datasets.list_series_ids()),
-                            ),
-                            columns=4,
-                        ),
-                    ]
-                )
-
-                first_10_rows_blocks = [
-                    dp.DataTable(
-                        df.head(10),
-                        caption="Start",
+                first_5_rows_blocks = [
+                    rc.DataTable(
+                        df.head(5),
                         label=s_id,
+                        index=True,
                     )
                     for s_id, df in self.full_data_dict.items()
                 ]
 
-                last_10_rows_blocks = [
-                    dp.DataTable(
-                        df.tail(10),
-                        caption="End",
+                last_5_rows_blocks = [
+                    rc.DataTable(
+                        df.tail(5),
                         label=s_id,
+                        index=True,
                     )
                     for s_id, df in self.full_data_dict.items()
                 ]
 
                 data_summary_blocks = [
-                    dp.DataTable(
+                    rc.DataTable(
                         df.describe(),
-                        caption="Summary Statistics",
                         label=s_id,
+                        index=True,
                     )
                     for s_id, df in self.full_data_dict.items()
                 ]
@@ -210,44 +199,33 @@ class ForecastOperatorBaseModel(ABC):
                 series_name = merged_category_column_name(
                     self.spec.target_category_columns
                 )
-                series_subtext = dp.Text(f"Indexed by {series_name}")
-                first_10_title = dp.Text("### First 10 Rows of Data")
-                last_10_title = dp.Text("### Last 10 Rows of Data")
-                summary_title = dp.Text("### Data Summary Statistics")
+                # series_subtext = rc.Text(f"Indexed by {series_name}")
+                first_10_title = rc.Heading("First 5 Rows of Data", level=3)
+                last_10_title = rc.Heading("Last 5 Rows of Data", level=3)
+                summary_title = rc.Heading("Data Summary Statistics", level=3)
 
-                if series_name is not None and len(self.datasets.list_series_ids()) > 1:
-                    data_summary_sec = dp.Blocks(
-                        blocks=[
-                            first_10_title,
-                            series_subtext,
-                            dp.Select(blocks=first_10_rows_blocks),
-                            last_10_title,
-                            series_subtext,
-                            dp.Select(blocks=last_10_rows_blocks),
-                            summary_title,
-                            series_subtext,
-                            dp.Select(blocks=data_summary_blocks),
-                            dp.Text("----"),
-                        ]
-                    )
-                else:
-                    data_summary_sec = dp.Blocks(
-                        blocks=[
-                            first_10_title,
-                            first_10_rows_blocks[0],
-                            last_10_title,
-                            last_10_rows_blocks[0],
-                            summary_title,
-                            data_summary_blocks[0],
-                            dp.Text("----"),
-                        ]
-                    )
+                data_summary_sec = rc.Block(
+                    rc.Block(
+                        first_10_title,
+                        # series_subtext,
+                        rc.Select(blocks=first_5_rows_blocks),
+                    ),
+                    rc.Block(
+                        last_10_title,
+                        # series_subtext,
+                        rc.Select(blocks=last_5_rows_blocks),
+                    ),
+                    rc.Block(
+                        summary_title,
+                        # series_subtext,
+                        rc.Select(blocks=data_summary_blocks),
+                    ),
+                    rc.Separator(),
+                )
 
-                summary = dp.Group(
-                    blocks=[
-                        header_section,
-                        data_summary_sec,
-                    ]
+                summary = rc.Block(
+                    header_section,
+                    data_summary_sec,
                 )
 
                 test_metrics_sections = []
@@ -255,41 +233,65 @@ class ForecastOperatorBaseModel(ABC):
                     self.test_eval_metrics is not None
                     and not self.test_eval_metrics.empty
                 ):
-                    sec7_text = dp.Text(f"## Test Data Evaluation Metrics")
-                    sec7 = dp.DataTable(self.test_eval_metrics)
+                    sec7_text = rc.Heading("Test Data Evaluation Metrics", level=2)
+                    sec7 = rc.DataTable(self.test_eval_metrics, index=True)
                     test_metrics_sections = test_metrics_sections + [sec7_text, sec7]
 
                 if summary_metrics is not None and not summary_metrics.empty:
-                    sec8_text = dp.Text(f"## Test Data Summary Metrics")
-                    sec8 = dp.DataTable(summary_metrics)
+                    sec8_text = rc.Heading("Test Data Summary Metrics", level=2)
+                    sec8 = rc.DataTable(summary_metrics, index=True)
                     test_metrics_sections = test_metrics_sections + [sec8_text, sec8]
 
                 train_metrics_sections = []
                 if self.eval_metrics is not None and not self.eval_metrics.empty:
-                    sec9_text = dp.Text(f"## Training Data Metrics")
-                    sec9 = dp.DataTable(self.eval_metrics)
+                    sec9_text = rc.Heading("Training Data Metrics", level=2)
+                    sec9 = rc.DataTable(self.eval_metrics, index=True)
                     train_metrics_sections = [sec9_text, sec9]
+
+                backtest_sections = []
+                if self.spec.model == AUTO_SELECT:
+                    output_dir = self.spec.output_directory.url
+                    backtest_report_name = "backtest_stats.csv"
+                    backtest_stats = pd.read_csv(f"{output_dir}/{backtest_report_name}")
+                    average_dict = backtest_stats.mean().to_dict()
+                    del average_dict['backtest']
+                    best_model = min(average_dict, key=average_dict.get)
+                    backtest_text = rc.Heading("Back Testing Metrics", level=2)
+                    summary_text = rc.Text(
+                        f"Overall, the average scores for the models are {average_dict}, with {best_model}"
+                        f" being identified as the top-performing model during backtesting.")
+                    backtest_table = rc.DataTable(backtest_stats, index=True)
+                    liner_plot = get_auto_select_plot(backtest_stats)
+                    backtest_sections = [backtest_text, backtest_table, summary_text, liner_plot]
 
 
                 forecast_plots = []
                 if len(self.forecast_output.list_series_ids()) > 0:
-                    forecast_text = dp.Text(f"## Forecasted Data Overlaying Historical")
+                    forecast_text = rc.Heading(
+                        "Forecasted Data Overlaying Historical", level=2
+                    )
                     forecast_sec = get_forecast_plots(
                         self.forecast_output,
                         horizon=self.spec.horizon,
                         test_data=test_data,
                         ci_interval_width=self.spec.confidence_interval_width,
                     )
-                    if series_name is not None and len(self.datasets.list_series_ids()) > 1:
-                        forecast_plots = [forecast_text, series_subtext, forecast_sec]
+                    if (
+                        series_name is not None
+                        and len(self.datasets.list_series_ids()) > 1
+                    ):
+                        forecast_plots = [
+                            forecast_text,
+                            forecast_sec,
+                        ]  # series_subtext,
                     else:
                         forecast_plots = [forecast_text, forecast_sec]
 
-                yaml_appendix_title = dp.Text(f"## Reference: YAML File")
-                yaml_appendix = dp.Code(code=self.config.to_yaml(), language="yaml")
+                yaml_appendix_title = rc.Heading("Reference: YAML File", level=2)
+                yaml_appendix = rc.Yaml(self.config.to_dict())
                 report_sections = (
-                    [title_text]
-                    + [summary]
+                    [summary]
+                    + backtest_sections
                     + forecast_plots
                     + other_sections
                     + test_metrics_sections
@@ -421,22 +423,22 @@ class ForecastOperatorBaseModel(ABC):
         test_metrics_df: pd.DataFrame,
     ):
         """Saves resulting reports to the given folder."""
-        import datapane as dp
+        import report_creator as rc
 
-        unique_output_dir = find_output_dirname(self.spec.output_directory)
+        unique_output_dir = self.spec.output_directory.url
 
         if ObjectStorageDetails.is_oci_path(unique_output_dir):
             storage_options = default_signer()
         else:
             storage_options = dict()
 
-        # datapane html report
+        # report-creator html report
         if self.spec.generate_report:
-            # datapane html report
             with tempfile.TemporaryDirectory() as temp_dir:
                 report_local_path = os.path.join(temp_dir, "___report.html")
                 disable_print()
-                dp.save_report(report_sections, report_local_path)
+                with rc.ReportCreator("My Report") as report:
+                    report.save(rc.Block(*report_sections), report_local_path)
                 enable_print()
 
                 report_path = os.path.join(unique_output_dir, self.spec.report_filename)
@@ -655,11 +657,10 @@ class ForecastOperatorBaseModel(ABC):
             include_horizon=False
         ).items():
             if s_id in self.models:
-
                 explain_predict_fn = self.get_explain_predict_fn(series_id=s_id)
-                data_trimmed = data_i.tail(max(int(len(data_i) * ratio), 5)).reset_index(
-                    drop=True
-                )
+                data_trimmed = data_i.tail(
+                    max(int(len(data_i) * ratio), 5)
+                ).reset_index(drop=True)
                 data_trimmed[datetime_col_name] = data_trimmed[datetime_col_name].apply(
                     lambda x: x.timestamp()
                 )
@@ -667,7 +668,8 @@ class ForecastOperatorBaseModel(ABC):
                 # Explainer fails when boolean columns are passed
 
                 _, data_trimmed_encoded = _label_encode_dataframe(
-                    data_trimmed, no_encode={datetime_col_name, self.original_target_column}
+                    data_trimmed,
+                    no_encode={datetime_col_name, self.original_target_column},
                 )
 
                 kernel_explnr = PermutationExplainer(
