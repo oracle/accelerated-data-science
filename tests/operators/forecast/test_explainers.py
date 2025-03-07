@@ -26,8 +26,7 @@ from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import (
 from ads.opctl.operator.lowcode.forecast.operator_config import (
     ForecastOperatorConfig,
 )
-
-from ..common.timeseries_syn_gen import TimeSeriesGenerator
+from tests.operators.common.timeseries_syn_gen import TimeSeriesGenerator
 
 MODELS = [
     "arima",
