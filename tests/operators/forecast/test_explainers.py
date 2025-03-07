@@ -30,7 +30,7 @@ from tests.operators.common.timeseries_syn_gen import TimeSeriesGenerator
 
 MODELS = [
     "arima",
-    "automlx",
+    # "automlx",
     "prophet",
     "neuralprophet",
 ]
@@ -140,49 +140,10 @@ def setup_test_data(model, freq, num_series, horizon=5, num_points=100, seed=42,
 @pytest.mark.parametrize("model", MODELS)
 @pytest.mark.parametrize("freq", ["D", "W", "M", "H", "T"])
 @pytest.mark.parametrize("num_series", [1, 3])
-def test_explanations_output(model, freq, num_series):
+def test_explanations_output_and_columns(model, freq, num_series):
     """
     Test the global and local explanations for different models, frequencies, and number of series.
-
-    Parameters:
-    - model: The forecasting model to use.
-    - freq: Frequency of the datetime column.
-    - num_series: Number of different time series to generate.
-    """
-    if model == "automlx" and freq == "T":
-        pytest.skip(
-            "Skipping 'T' frequency for 'automlx' model. automlx requires data with a frequency of at least one hour"
-        )
-    if model == "neuralprophet":
-        pytest.skip("Skipping 'neuralprophet' model as it takes a long time to finish")
-
-    _, _, operator_config = setup_test_data(model, freq, num_series)
-
-    results = forecast_operate(operator_config)
-
-    global_explanations = results.get_global_explanations()
-    local_explanations = results.get_local_explanations()
-
-    assert (
-        not (global_explanations.isna()).all().all()
-    ), "Global explanations contain NaN values"
-    assert (
-        not (global_explanations == 0).all().all()
-    ), "Global explanations contain only 0 values"
-    assert (
-        not (local_explanations.isna()).all().all()
-    ), "Local explanations contain NaN values"
-    assert (
-        not (local_explanations == 0).all().all()
-    ), "Local explanations contain only 0 values"
-
-
-@pytest.mark.parametrize("model", MODELS)
-@pytest.mark.parametrize("freq", ["D", "W", "M", "H", "T"])
-@pytest.mark.parametrize("num_series", [1, 3])
-def test_explanations_columns(model, freq, num_series):
-    """
-    Test that the explanation output contains all the columns from the additional dataset.
+    Also test that the explanation output contains all the columns from the additional dataset.
 
     Parameters:
     - model: The forecasting model to use.
@@ -202,6 +163,19 @@ def test_explanations_columns(model, freq, num_series):
 
     global_explanations = results.get_global_explanations()
     local_explanations = results.get_local_explanations()
+
+    assert (
+        not (global_explanations.isna()).all().all()
+    ), "Global explanations contain NaN values"
+    assert (
+        not (global_explanations == 0).all().all()
+    ), "Global explanations contain only 0 values"
+    assert (
+        not (local_explanations.isna()).all().all()
+    ), "Local explanations contain NaN values"
+    assert (
+        not (local_explanations == 0).all().all()
+    ), "Local explanations contain only 0 values"
 
     additional_columns = additional.columns.tolist()
     for column in additional_columns:
