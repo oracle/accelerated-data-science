@@ -80,6 +80,9 @@ class AquaContainerConfigItem(Serializable):
         default_factory=AquaContainerConfigSpec,
         description="Detailed container specification.",
     )
+    usages: Optional[List[str]] = Field(
+        default_factory=list, description="Supported usages."
+    )
 
     class Config:
         extra = "allow"
@@ -131,7 +134,7 @@ class AquaContainerConfig(Serializable):
         -------
         AquaContainerConfig: The constructed container configuration.
         """
-        #TODO: Return this logic back if necessary in the next iteraion.
+        # TODO: Return this logic back if necessary in the next iteraion.
         # if not config:
         #     config = get_container_config()
 
@@ -144,6 +147,7 @@ class AquaContainerConfig(Serializable):
                 for container in containers:
                     platforms = container.get("platforms", [])
                     model_formats = container.get("modelFormats", [])
+                    usages = container.get("usages", [])
                     container_spec = (
                         config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
                             container_type, {}
@@ -160,6 +164,7 @@ class AquaContainerConfig(Serializable):
                         family=container_type,
                         platforms=platforms,
                         model_formats=model_formats,
+                        usages=usages,
                         spec=(
                             AquaContainerConfigSpec(
                                 cli_param=container_spec.get(
