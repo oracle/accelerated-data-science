@@ -12,3 +12,4 @@ pytest-cov
 pytest-xdist
 pytest-asyncio
 ruff
+setuptools
