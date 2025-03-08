@@ -481,123 +481,114 @@ class CreateModelDeploymentDetails(BaseModel):
 
     def validate_multimodel_deployment_feasibility(
         self, models_config_summary: ModelDeploymentConfigSummary
-    ):
+    ) -> None:
         """
-        Validates whether the user input of a model group (List[AquaMultiModelRef], 2+ models with a specified gpu count per model)
-        is feasible for a multi model deployment on the user's selected shape (instance_shape)
+        Validates whether the selected model group is feasible for a multi-model deployment
+        on the chosen instance shape.
 
         Validation Criteria:
-            - GPU Capacity: Ensures that the total number of GPUs requested by all models in the group does not exceed the GPU capacity of the selected instance shape.
-            - Verifies that all models in the group are compatible with the selected instance shape.
-            - Ensures that each model’s GPU allocation, as specified by the user, matches the requirements in the model's deployment configuration.
-            - Confirms that the selected instance shape supports multi-model deployment.
-            - Requires user input for the model group to be considered a valid multi-model deployment.
-
+        - Ensures that the model group is not empty.
+        - Verifies that the selected instance shape is supported by the GPU allocation.
+        - Confirms that each model in the group has a corresponding deployment configuration.
+        - Ensures that each model's user-specified GPU allocation is allowed by its deployment configuration.
+        - Checks that the total GPUs requested by the model group does not exceed the available GPU capacity
+            for the selected instance shape.
 
         Parameters
         ----------
-        models_config_summary : ModelDeploymentConfigSummary, optional
-            An instance of ModelDeploymentConfigSummary containing all required
-            fields (GPU Allocation, Deployment Configuration) for creating a multi model deployment via Aqua.
+        models_config_summary : ModelDeploymentConfigSummary
+            Contains GPU allocations and deployment configuration for models.
 
         Raises
-        -------
+        ------
         ConfigValidationError:
-            When the deployment is NOT a multi model deployment
-            When assigned GPU Allocations per model are NOT within the number of GPUs available in the instance shape
-            When all models in model group can NOT be deployed on the instance shape with the selected GPU count
+        - If the model group is empty.
+        - If the selected instance shape is not supported.
+        - If any model is missing from the deployment configuration.
+        - If a model's GPU allocation does not match any valid configuration.
+        - If the total requested GPUs exceed the instance shape’s capacity.
         """
+        # Ensure that at least one model is provided.
         if not self.models:
-            logger.error("User defined model group (List[AquaMultiModelRef]) is None.")
+            logger.error("No models provided in the model group.")
             raise ConfigValidationError(
-                "Multi-model deployment requires at least one model, but none were provided. "
-                "Please add one or more models to the model group to proceed."
+                "Multi-model deployment requires at least one model. Please add one or more models."
             )
 
-        selected_shape = self.instance_shape
+        selected_shape: str = self.instance_shape
 
+        # Verify that the selected shape is supported by the GPU allocation.
         if selected_shape not in models_config_summary.gpu_allocation:
-            logger.error(
-                f"The model group is not compatible with the selected instance shape {selected_shape}"
+            supported_shapes = list(models_config_summary.gpu_allocation.keys())
+            error_message = (
+                f"The model group is not compatible with the selected instance shape '{selected_shape}'. "
+                f"Supported shapes: {supported_shapes}."
             )
-            raise ConfigValidationError(
-                f"The model group is not compatible with the selected instance shape "
-                f"'{selected_shape}'. Select a different instance shape."
-            )
+            logger.error(error_message)
+            raise ConfigValidationError(error_message)
 
-        total_available_gpus = models_config_summary.gpu_allocation[
+        total_available_gpus: int = models_config_summary.gpu_allocation[
             selected_shape
         ].total_gpus_available
+        model_deployment_config: Dict[str, Any] = (
+            models_config_summary.deployment_config
+        )
 
-        model_deployment_config = models_config_summary.deployment_config
-
-        required_model_keys = [model.model_id for model in self.models]
-        missing_model_keys = required_model_keys - model_deployment_config.keys()
-
-        if len(missing_model_keys) > 0:
-            logger.error(
-                f"Missing the following model entry with key {missing_model_keys} "
-                "in ModelDeploymentConfigSummary"
+        # Verify that every model in the group has a corresponding deployment configuration.
+        required_model_keys = {model.model_id for model in self.models}
+        missing_model_keys = required_model_keys - set(model_deployment_config.keys())
+        if missing_model_keys:
+            error_message = (
+                f"Missing deployment configuration for models: {missing_model_keys}. "
+                "Ensure all selected models are properly configured."
             )
-            raise ConfigValidationError(
-                "One or more selected models are missing from the configuration, preventing "
-                "validation for deployment on the given shape."
-            )
+            logger.error(error_message)
+            raise ConfigValidationError(error_message)
 
         sum_model_gpus = 0
 
+        # Validate each model's GPU allocation against its deployment configuration.
         for model in self.models:
             sum_model_gpus += model.gpu_count
             aqua_deployment_config = model_deployment_config[model.model_id]
 
-            # Validates custom model with deployment config
-            # Skips validating custom models without deployment config as the configuration is empty and gpu counts are generated by ads sdk
+            # Skip validation for models without deployment configuration details.
             if not aqua_deployment_config.configuration:
                 continue
 
-            # We cannot rely on .shape because some models, like Falcon-7B, can only be deployed on a single GPU card (A10.1).
-            # However, Falcon can also be deployed on a single card in other A10 shapes, such as A10.2.
-            # Our current configuration does not support this flexibility.
-
-            # multi_deployment_shape = aqua_deployment_config.shape
-
             if selected_shape not in aqua_deployment_config.configuration:
-                logger.error(
-                    f"Model with OCID {model.model_id} in the model group is not compatible "
-                    f"with the selected instance shape: {selected_shape}"
+                error_message = (
+                    f"Model {model.model_id} is not compatible with the selected instance shape '{selected_shape}'. "
+                    "Select a different instance shape."
                 )
-                raise ConfigValidationError(
-                    "Select a different instance shape. One or more models in the "
-                    "group are incompatible with the selected instance shape."
-                )
+                logger.error(error_message)
+                raise ConfigValidationError(error_message)
 
+            # Retrieve valid GPU counts for the selected shape.
             multi_model_configs = aqua_deployment_config.configuration.get(
                 selected_shape, ConfigurationItem()
             ).multi_model_deployment
 
-            valid_gpu_configurations = [
-                gpu_shape_config.gpu_count for gpu_shape_config in multi_model_configs
-            ]
+            valid_gpu_configurations = [cfg.gpu_count for cfg in multi_model_configs]
+
             if model.gpu_count not in valid_gpu_configurations:
                 valid_gpu_str = ", ".join(map(str, valid_gpu_configurations))
-                logger.error(
-                    f"Model {model.model_id} allocated {model.gpu_count} GPUs by user, "
-                    f"but its deployment configuration requires either {valid_gpu_str} GPUs."
+                error_message = (
+                    f"Model {model.model_id} allocated {model.gpu_count} GPUs, but valid GPU configurations "
+                    f"are: {valid_gpu_str}. Adjust the GPU allocation or select a larger instance shape."
                 )
-                raise ConfigValidationError(
-                    "Change the GPU count for one or more models in the model group. "
-                    "Adjust GPU allocations per model or choose a larger instance shape."
-                )
+                logger.error(error_message)
+                raise ConfigValidationError(error_message)
 
+        # Check that the total GPU count for the model group does not exceed the instance capacity.
         if sum_model_gpus > total_available_gpus:
-            logger.error(
-                f"Selected shape {selected_shape} has {total_available_gpus} "
-                f"GPUs while model group has {sum_model_gpus} GPUs."
+            error_message = (
+                f"Selected shape '{selected_shape}' has {total_available_gpus} GPUs, "
+                f"but the model group requires {sum_model_gpus} GPUs. "
+                "Adjust GPU allocations per model or choose a larger instance shape."
             )
-            raise ConfigValidationError(
-                "Total requested GPU count exceeds the available GPU capacity for the selected "
-                "instance shape. Adjust GPU allocations per model or choose a larger instance shape."
-            )
+            logger.error(error_message)
+            raise ConfigValidationError(error_message)
 
     class Config:
         extra = "ignore"

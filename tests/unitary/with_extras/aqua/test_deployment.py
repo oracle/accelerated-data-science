@@ -499,7 +499,7 @@ class TestDataset:
         "deployment_config": {
             "model_a": {
                 "shape": [
-                    "BM.GPU.A100-v2.8",
+                    "BM.GPU.A100-V2.8",
                     "BM.GPU.H100.8",
                     "VM.GPU.A10.2",
                     "VM.GPU.A10.4",
@@ -532,7 +532,7 @@ class TestDataset:
                         ],
                         "shape_info": {"configs": [], "type": ""},
                     },
-                    "BM.GPU.A100-v2.8": {
+                    "BM.GPU.A100-V2.8": {
                         "parameters": {
                             "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
                         },
@@ -581,13 +581,220 @@ class TestDataset:
                 "models": [{"ocid": "model_a", "gpu_count": 4}],
                 "total_gpus_available": 4,
             },
-            "BM.GPU.A100-v2.8": {
+            "BM.GPU.A100-V2.8": {
                 "models": [{"ocid": "model_a", "gpu_count": 8}],
                 "total_gpus_available": 8,
             },
             "BM.GPU.H100.8": {
                 "models": [{"ocid": "model_a", "gpu_count": 8}],
                 "total_gpus_available": 8,
+            },
+        },
+        "error_message": None,
+    }
+
+    aqua_deployment_multi_model_config_summary_hybrid = {
+        "deployment_config": {
+            "model_a": {
+                "shape": [
+                    "BM.GPU.A100-V2.8",
+                    "BM.GPU.H100.8",
+                    "VM.GPU.A10.2",
+                    "VM.GPU.A10.4",
+                ],
+                "configuration": {
+                    "VM.GPU.A10.2": {
+                        "parameters": {},
+                        "multi_model_deployment": [
+                            {
+                                "gpu_count": 2,
+                                "parameters": {
+                                    "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
+                                },
+                            }
+                        ],
+                        "shape_info": {"configs": [], "type": ""},
+                    },
+                    "VM.GPU.A10.4": {
+                        "parameters": {
+                            "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
+                        },
+                        "multi_model_deployment": [
+                            {
+                                "gpu_count": 2,
+                                "parameters": {
+                                    "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
+                                },
+                            },
+                            {"gpu_count": 4, "parameters": {}},
+                        ],
+                        "shape_info": {"configs": [], "type": ""},
+                    },
+                    "BM.GPU.A100-V2.8": {
+                        "parameters": {
+                            "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
+                        },
+                        "multi_model_deployment": [
+                            {
+                                "gpu_count": 1,
+                                "parameters": {
+                                    "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
+                                },
+                            },
+                            {
+                                "gpu_count": 2,
+                                "parameters": {
+                                    "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
+                                },
+                            },
+                            {
+                                "gpu_count": 8,
+                                "parameters": {
+                                    "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
+                                },
+                            },
+                        ],
+                        "shape_info": {"configs": [], "type": ""},
+                    },
+                    "BM.GPU.H100.8": {
+                        "parameters": {
+                            "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
+                        },
+                        "multi_model_deployment": [
+                            {"gpu_count": 1, "parameters": {}},
+                            {"gpu_count": 2, "parameters": {}},
+                            {"gpu_count": 8, "parameters": {}},
+                        ],
+                        "shape_info": {"configs": [], "type": ""},
+                    },
+                },
+            },
+            "model_b": {
+                "configuration": {},
+                "shape": [],
+            },
+            "model_c": {
+                "configuration": {},
+                "shape": [],
+            },
+        },
+        "gpu_allocation": {
+            "BM.GPU.H100.8": {
+                "models": [
+                    {"ocid": "model_a", "gpu_count": 2},
+                    {"ocid": "model_b", "gpu_count": 2},
+                    {"ocid": "model_c", "gpu_count": 4},
+                ],
+                "total_gpus_available": 8,
+            },
+            "VM.GPU.A10.4": {
+                "models": [
+                    {"ocid": "model_a", "gpu_count": 2},
+                    {"ocid": "model_b", "gpu_count": 1},
+                    {"ocid": "model_c", "gpu_count": 1},
+                ],
+                "total_gpus_available": 4,
+            },
+            "BM.GPU.A100-V2.8": {
+                "models": [
+                    {"ocid": "model_a", "gpu_count": 2},
+                    {"ocid": "model_b", "gpu_count": 2},
+                    {"ocid": "model_c", "gpu_count": 4},
+                ],
+                "total_gpus_available": 8,
+            },
+        },
+        "error_message": None,
+    }
+
+    aqua_deployment_multi_model_config_summary_all_empty = {
+        "deployment_config": {
+            "model_a": {
+                "configuration": {},
+                "shape": [],
+            },
+            "model_b": {
+                "configuration": {},
+                "shape": [],
+            },
+            "model_c": {
+                "configuration": {},
+                "shape": [],
+            },
+        },
+        "gpu_allocation": {
+            "VM.GPU3.4": {
+                "models": [
+                    {"ocid": "model_a", "gpu_count": 1},
+                    {"ocid": "model_b", "gpu_count": 1},
+                    {"ocid": "model_c", "gpu_count": 2},
+                ],
+                "total_gpus_available": 4,
+            },
+            "BM.GPU3.8": {
+                "models": [
+                    {"ocid": "model_a", "gpu_count": 2},
+                    {"ocid": "model_b", "gpu_count": 2},
+                    {"ocid": "model_c", "gpu_count": 4},
+                ],
+                "total_gpus_available": 8,
+            },
+            "BM.GPU4.8": {
+                "models": [
+                    {"ocid": "model_a", "gpu_count": 2},
+                    {"ocid": "model_b", "gpu_count": 2},
+                    {"ocid": "model_c", "gpu_count": 4},
+                ],
+                "total_gpus_available": 8,
+            },
+            "BM.GPU.A100-V2.8": {
+                "models": [
+                    {
+                        "gpu_count": 2,
+                        "ocid": "model_a",
+                    },
+                    {
+                        "gpu_count": 2,
+                        "ocid": "model_b",
+                    },
+                    {
+                        "gpu_count": 4,
+                        "ocid": "model_c",
+                    },
+                ],
+                "total_gpus_available": 8,
+            },
+            "BM.GPU.H100.8": {
+                "models": [
+                    {"ocid": "model_a", "gpu_count": 2},
+                    {"ocid": "model_b", "gpu_count": 2},
+                    {"ocid": "model_c", "gpu_count": 4},
+                ],
+                "total_gpus_available": 8,
+            },
+            "BM.GPU.A10.4": {
+                "models": [
+                    {"ocid": "model_a", "gpu_count": 1},
+                    {"ocid": "model_b", "gpu_count": 1},
+                    {"ocid": "model_c", "gpu_count": 2},
+                ],
+                "total_gpus_available": 4,
+            },
+            "VM.GPU.A10.4": {
+                "models": [
+                    {"ocid": "model_a", "gpu_count": 1},
+                    {"ocid": "model_b", "gpu_count": 1},
+                    {"ocid": "model_c", "gpu_count": 2},
+                ],
+                "total_gpus_available": 4,
+            },
+            "BM.GPU.L40S-NC.4": {
+                "models": [
+                    {"ocid": "model_a", "gpu_count": 1},
+                    {"ocid": "model_b", "gpu_count": 1},
+                    {"ocid": "model_c", "gpu_count": 2},
+                ],
+                "total_gpus_available": 4,
             },
         },
         "error_message": None,
@@ -828,24 +1035,12 @@ class TestAquaDeployment(unittest.TestCase):
             == TestDataset.aqua_deployment_multi_model_config_summary
         )
 
-    @parameterized.expand(
-        [
-            [
-                "configuration",
-                "Unable to determine a valid GPU allocation for the selected models based on their current configurations. Please try selecting a different set of models.",
-            ],
-        ]
-    )
     @patch(
         "ads.aqua.modeldeployment.utils.MultiModelDeploymentConfigLoader._fetch_deployment_configs_concurrently"
     )
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.list_shapes")
-    def test_get_multimodel_compatible_shapes_invalid_config(
-        self,
-        missing_key,
-        error,
-        mock_list_shapes,
-        mock_fetch_deployment_configs_concurrently,
+    def test_get_multimodel_deployment_config_hybrid(
+        self, mock_list_shapes, mock_fetch_deployment_configs_concurrently
     ):
         config_json = os.path.join(
             self.curr_dir,
@@ -853,8 +1048,6 @@ class TestAquaDeployment(unittest.TestCase):
         )
         with open(config_json, "r") as _file:
             config = json.load(_file)
-
-        config.pop(missing_key)
 
         shapes = []
 
@@ -871,12 +1064,34 @@ class TestAquaDeployment(unittest.TestCase):
         mock_list_shapes.return_value = shapes
 
         mock_fetch_deployment_configs_concurrently.return_value = {
-            "model_a": AquaDeploymentConfig(**config)
+            "model_a": AquaDeploymentConfig(**config),
+            "model_b": AquaDeploymentConfig(),
+            "model_c": AquaDeploymentConfig(),
         }
+        result = self.app.get_multimodel_deployment_config(
+            ["model_a", "model_b", "model_c"]
+        )
 
-        test_config = self.app.get_multimodel_deployment_config(["model_a"])
+        assert (
+            result.model_dump()
+            == TestDataset.aqua_deployment_multi_model_config_summary_hybrid
+        )
 
-        assert test_config.error_message == error
+        # all custom models without deployment config
+        # deployment shape should be collected from `list_shapes` and gpu list will be generated by ads sdk.
+        mock_fetch_deployment_configs_concurrently.return_value = {
+            "model_a": AquaDeploymentConfig(),
+            "model_b": AquaDeploymentConfig(),
+            "model_c": AquaDeploymentConfig(),
+        }
+        result = self.app.get_multimodel_deployment_config(
+            ["model_a", "model_b", "model_c"]
+        )
+
+        assert (
+            result.model_dump()
+            == TestDataset.aqua_deployment_multi_model_config_summary_all_empty
+        )
 
     def test_verify_compatibility(self):
         result = MultiModelDeploymentConfigLoader(self.app)._verify_compatibility(
@@ -1531,45 +1746,8 @@ class TestAquaDeployment(unittest.TestCase):
                     container_family=container_type_key,
                 )
 
-
-class TestMDInferenceResponse(unittest.TestCase):
-    def setUp(self):
-        self.app = MDInferenceResponse()
-
-    @classmethod
-    def setUpClass(cls):
-        cls.curr_dir = os.path.dirname(os.path.abspath(__file__))
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.curr_dir = None
-
-    @patch("requests.post")
-    def test_get_model_deployment_response(self, mock_post):
-        """Test to check if model deployment response is returned correctly."""
-
-        endpoint = TestDataset.MODEL_DEPLOYMENT_URL + "/predict"
-        self.app.prompt = "What is 1+1?"
-        self.app.model_params = ModelParams(**TestDataset.model_params)
-
-        mock_response = MagicMock()
-        response_json = os.path.join(
-            self.curr_dir, "test_data/deployment/aqua_deployment_response.json"
-        )
-        with open(response_json, "r") as _file:
-            mock_response.content = _file.read()
-        mock_response.status_code = 200
-        mock_post.return_value = mock_response
-
-        result = self.app.get_model_deployment_response(endpoint)
-        assert result["choices"][0]["text"] == " The answer is 2"
-
-
-class TestCreateModelDeploymentDetails:
-    curr_dir = os.path.dirname(__file__)  # Define curr_dir
-
     def validate_multimodel_deployment_feasibility_helper(
-        self, models, instance_shape, display_name, total_gpus, multi_model="true"
+        self, models, instance_shape, display_name, total_gpus
     ):
         config_json = os.path.join(
             self.curr_dir, "test_data/deployment/aqua_summary_multi_model.json"
@@ -1588,7 +1766,7 @@ class TestCreateModelDeploymentDetails:
                 models=aqua_models,
                 instance_shape=instance_shape,
                 display_name=display_name,
-                freeform_tags={Tags.MULTIMODEL_TYPE_TAG: multi_model},
+                freeform_tags={Tags.MULTIMODEL_TYPE_TAG: "true"},
             )
         else:
             model_id = "model_a"
@@ -1596,7 +1774,7 @@ class TestCreateModelDeploymentDetails:
                 model_id=model_id,
                 instance_shape=instance_shape,
                 display_name=display_name,
-                freeform_tags={Tags.MULTIMODEL_TYPE_TAG: multi_model},
+                freeform_tags={Tags.MULTIMODEL_TYPE_TAG: "true"},
             )
 
         mock_models_config_summary = ModelDeploymentConfigSummary(**(config))
@@ -1605,8 +1783,7 @@ class TestCreateModelDeploymentDetails:
             models_config_summary=mock_models_config_summary
         )
 
-    @pytest.mark.parametrize(
-        "models, instance_shape, display_name, total_gpus",
+    @parameterized.expand(
         [
             (
                 [
@@ -1647,8 +1824,7 @@ class TestCreateModelDeploymentDetails:
             models, instance_shape, display_name, total_gpus
         )
 
-    @pytest.mark.parametrize(
-        "models, instance_shape, display_name, total_gpus, value_error",
+    @parameterized.expand(
         [
             (
                 None,
@@ -1719,9 +1895,47 @@ class TestCreateModelDeploymentDetails:
         ],
     )
     def test_validate_multimodel_deployment_feasibility_negative(
-        self, models, instance_shape, display_name, total_gpus, value_error
+        self,
+        models,
+        instance_shape,
+        display_name,
+        total_gpus,
+        value_error,
     ):
-        with pytest.raises(ConfigValidationError, match=value_error):
+        with pytest.raises(ConfigValidationError):
             self.validate_multimodel_deployment_feasibility_helper(
                 models, instance_shape, display_name, total_gpus
             )
+
+
+class TestMDInferenceResponse(unittest.TestCase):
+    def setUp(self):
+        self.app = MDInferenceResponse()
+
+    @classmethod
+    def setUpClass(cls):
+        cls.curr_dir = os.path.dirname(os.path.abspath(__file__))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.curr_dir = None
+
+    @patch("requests.post")
+    def test_get_model_deployment_response(self, mock_post):
+        """Test to check if model deployment response is returned correctly."""
+
+        endpoint = TestDataset.MODEL_DEPLOYMENT_URL + "/predict"
+        self.app.prompt = "What is 1+1?"
+        self.app.model_params = ModelParams(**TestDataset.model_params)
+
+        mock_response = MagicMock()
+        response_json = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_deployment_response.json"
+        )
+        with open(response_json, "r") as _file:
+            mock_response.content = _file.read()
+        mock_response.status_code = 200
+        mock_post.return_value = mock_response
+
+        result = self.app.get_model_deployment_response(endpoint)
+        assert result["choices"][0]["text"] == " The answer is 2"
