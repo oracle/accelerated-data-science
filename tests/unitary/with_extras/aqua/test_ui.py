@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import hashlib
@@ -518,6 +518,7 @@ class TestAquaUI(unittest.TestCase):
                     "platforms": [],
                     "model_formats": [],
                     "spec": None,
+                    "usages": [],
                 }
             ],
             "inference": [
@@ -541,6 +542,7 @@ class TestAquaUI(unittest.TestCase):
                         "restricted_params": [],
                         "server_port": "8080",
                     },
+                    "usages": [],
                 },
                 {
                     "name": "dsmc://odsc-text-generation-inference",
@@ -567,6 +569,7 @@ class TestAquaUI(unittest.TestCase):
                         ],
                         "server_port": "8080",
                     },
+                    "usages": [],
                 },
                 {
                     "name": "dsmc://odsc-vllm-serving",
@@ -592,6 +595,7 @@ class TestAquaUI(unittest.TestCase):
                         ],
                         "server_port": "8080",
                     },
+                    "usages": [],
                 },
             ],
             "finetune": [
@@ -603,6 +607,7 @@ class TestAquaUI(unittest.TestCase):
                     "platforms": [],
                     "model_formats": [],
                     "spec": None,
+                    "usages": [],
                 }
             ],
         }
