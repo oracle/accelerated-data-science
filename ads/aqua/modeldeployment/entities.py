@@ -512,10 +512,10 @@ class CreateModelDeploymentDetails(BaseModel):
         if not self.models:
             logger.error("No models provided in the model group.")
             raise ConfigValidationError(
-                "Multi-model deployment requires at least one model. Please add one or more models."
+                "Multi-model deployment requires at least one model. Please provide one or more models."
             )
 
-        selected_shape: str = self.instance_shape
+        selected_shape = self.instance_shape
 
         # Verify that the selected shape is supported by the GPU allocation.
         if selected_shape not in models_config_summary.gpu_allocation:

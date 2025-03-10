@@ -149,7 +149,7 @@ class AquaModelApp(AquaApp):
 
         Parameters
         ----------
-        model : Union[str, AquaMultiModelRef]
+        model_id : Union[str, AquaMultiModelRef]
             The model ID as a string or a AquaMultiModelRef instance to be deployed.
         project_id : Optional[str]
             The project ID for the custom model.
@@ -294,7 +294,7 @@ class AquaModelApp(AquaApp):
             if source_model.freeform_tags.get(Tags.TASK, UNKNOWN) != "text_generation":
                 raise AquaValueError(
                     f"Invalid or missing {Tags.TASK} tag for selected model {display_name}. "
-                    f"Currently only `text_generation` models are support for multi model deployment."
+                    f"Currently only `text_generation` models are supported for multi model deployment."
                 )
 
             display_name_list.append(display_name)
