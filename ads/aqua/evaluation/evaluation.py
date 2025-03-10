@@ -626,14 +626,15 @@ class AquaEvaluationApp(AquaApp):
             logger.error(error_message)
 
         if model_group_count < 1:
-            error_message = (
+            logger.error(
                 f"Invalid model group count: {model_group_count} for evaluation source ID "
                 f"'{create_aqua_evaluation_details.evaluation_source_id}'. A valid multi-model deployment "
                 f"requires at least one model."
             )
-            logger.error(error_message)
             raise AquaRuntimeError(
-                f"Cannot extract details about the multi-model deployment to evaluate. A valid multi-model deployment requires at least one model, however the provided evaluation source ID '{create_aqua_evaluation_details.evaluation_source_id}' doesn't contain details about the deployed models."
+                f"Unable to retrieve details for the multi-model deployment evaluation. A valid multi-model deployment "
+                f"must include at least one model. However, the provided evaluation source ID "
+                f"'{create_aqua_evaluation_details.evaluation_source_id}' does not contain any information about deployed models."
             )
 
         # Build the list of valid model names from custom metadata.
