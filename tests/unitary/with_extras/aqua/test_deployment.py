@@ -499,10 +499,10 @@ class TestDataset:
         "deployment_config": {
             "model_a": {
                 "shape": [
-                    "BM.GPU.A100-V2.8",
-                    "BM.GPU.H100.8",
                     "VM.GPU.A10.2",
                     "VM.GPU.A10.4",
+                    "BM.GPU.A100-V2.8",
+                    "BM.GPU.H100.8",
                 ],
                 "configuration": {
                     "VM.GPU.A10.2": {
@@ -588,6 +588,73 @@ class TestDataset:
             "BM.GPU.H100.8": {
                 "models": [{"ocid": "model_a", "gpu_count": 8}],
                 "total_gpus_available": 8,
+            },
+        },
+        "error_message": None,
+    }
+
+    aqua_deployment_multi_model_config_single_custom = {
+        "deployment_config": {"model_a": {"shape": [], "configuration": {}}},
+        "gpu_allocation": {
+            "VM.GPU2.1": {
+                "models": [{"ocid": "model_a", "gpu_count": 1}],
+                "total_gpus_available": 1,
+            },
+            "VM.GPU3.1": {
+                "models": [{"ocid": "model_a", "gpu_count": 1}],
+                "total_gpus_available": 1,
+            },
+            "VM.GPU3.2": {
+                "models": [{"ocid": "model_a", "gpu_count": 2}],
+                "total_gpus_available": 2,
+            },
+            "VM.GPU3.4": {
+                "models": [{"ocid": "model_a", "gpu_count": 4}],
+                "total_gpus_available": 4,
+            },
+            "BM.GPU2.2": {
+                "models": [{"ocid": "model_a", "gpu_count": 2}],
+                "total_gpus_available": 2,
+            },
+            "BM.GPU3.8": {
+                "models": [{"ocid": "model_a", "gpu_count": 8}],
+                "total_gpus_available": 8,
+            },
+            "BM.GPU4.8": {
+                "models": [{"ocid": "model_a", "gpu_count": 8}],
+                "total_gpus_available": 8,
+            },
+            "BM.GPU.A100-V2.8": {
+                "models": [{"ocid": "model_a", "gpu_count": 8}],
+                "total_gpus_available": 8,
+            },
+            "BM.GPU.H100.8": {
+                "models": [{"ocid": "model_a", "gpu_count": 8}],
+                "total_gpus_available": 8,
+            },
+            "BM.GPU.T1.2": {
+                "models": [{"ocid": "model_a", "gpu_count": 2}],
+                "total_gpus_available": 2,
+            },
+            "BM.GPU.A10.4": {
+                "models": [{"ocid": "model_a", "gpu_count": 4}],
+                "total_gpus_available": 4,
+            },
+            "VM.GPU.A10.4": {
+                "models": [{"ocid": "model_a", "gpu_count": 4}],
+                "total_gpus_available": 4,
+            },
+            "BM.GPU.L40S-NC.4": {
+                "models": [{"ocid": "model_a", "gpu_count": 4}],
+                "total_gpus_available": 4,
+            },
+            "VM.GPU.A10.1": {
+                "models": [{"ocid": "model_a", "gpu_count": 1}],
+                "total_gpus_available": 1,
+            },
+            "VM.GPU.A10.2": {
+                "models": [{"ocid": "model_a", "gpu_count": 2}],
+                "total_gpus_available": 2,
             },
         },
         "error_message": None,
@@ -1001,7 +1068,7 @@ class TestAquaDeployment(unittest.TestCase):
         "ads.aqua.modeldeployment.utils.MultiModelDeploymentConfigLoader._fetch_deployment_configs_concurrently"
     )
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.list_shapes")
-    def test_get_multimodel_deployment_config(
+    def test_get_multimodel_deployment_config_single(
         self, mock_list_shapes, mock_fetch_deployment_configs_concurrently
     ):
         config_json = os.path.join(
@@ -1033,6 +1100,18 @@ class TestAquaDeployment(unittest.TestCase):
         assert (
             result.model_dump()
             == TestDataset.aqua_deployment_multi_model_config_summary
+        )
+
+        # custom model without deployment config
+        # deployment shape should be collected from `list_shapes`.
+        mock_fetch_deployment_configs_concurrently.return_value = {
+            "model_a": AquaDeploymentConfig()
+        }
+        result = self.app.get_multimodel_deployment_config(["model_a"])
+
+        assert (
+            result.model_dump()
+            == TestDataset.aqua_deployment_multi_model_config_single_custom
         )
 
     @patch(
