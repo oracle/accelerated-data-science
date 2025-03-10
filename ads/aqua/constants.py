@@ -84,51 +84,6 @@ TEI_CONTAINER_DEFAULT_HOST = "8080"
 EVALUATION_CONTAINER_CONST_CONFIG = {
     "version": "1.0",
     "kind": "evaluation_service_config",
-    "report_params": {"default": {}},
-    "inference_params": {
-        "default": {
-            "inference_rps": 25,
-            "inference_timeout": 120,
-            "inference_max_threads": 10,
-            "inference_retries": 3,
-            "inference_backoff_factor": 3,
-            "inference_delay": 0,
-        },
-        "containers": [
-            {"name": "odsc-vllm-serving", "params": {}},
-            {"name": "odsc-vllm-serving-v1", "params": {}},
-            {"name": "odsc-tgi-serving", "params": {}},
-            {
-                "name": "odsc-llama-cpp-serving",
-                "params": {"inference_max_threads": 1, "inference_delay": 1},
-            },
-        ],
-    },
-    "inference_model_params": {
-        "default": {},
-        "containers": [
-            {
-                "name": "odsc-vllm-serving",
-                "default": {},
-                "versions": {"0.6.2": {"overrides": {"exclude": [], "include": {}}}},
-            },
-            {
-                "name": "odsc-vllm-serving-v1",
-                "default": {},
-                "versions": {"0.7.1.1": {"overrides": {"exclude": [], "include": {}}}},
-            },
-            {
-                "name": "odsc-tgi-serving",
-                "default": {},
-                "versions": {"2.0.1.4": {"overrides": {"exclude": [], "include": {}}}},
-            },
-            {
-                "name": "odsc-llama-cpp-serving",
-                "default": {},
-                "versions": {"0.2.78.0": {"overrides": {"exclude": [], "include": {}}}},
-            },
-        ],
-    },
     "ui_config": {
         "model_params": {
             "default": {

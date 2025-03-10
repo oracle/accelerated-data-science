@@ -551,13 +551,20 @@ def service_config_path():
 
 def config_parser(containers: List[ContainerSummary]):
     config = {"containerSpec": {}}
-    inference_containers = [
-        "odsc-vllm-serving",
-        "odsc-vllm-serving-v1",
-        "odsc-tgi-serving",
-        "odsc-llama-cpp-serving",
-    ]
-    evaluate_containers = ["odsc-llm-evaluate"]
+    inference_containers = list(
+        {
+            container.family_name
+            for container in containers
+            if any(usage.lower() == "inference" for usage in container.usages)
+        }
+    )
+    evaluate_containers = list(
+        {
+            container.family_name
+            for container in containers
+            if any(usage.lower() == "evaluation" for usage in container.usages)
+        }
+    )
     for smc in containers:
         if not smc.is_latest:
             continue
@@ -650,10 +657,7 @@ def config_parser(containers: List[ContainerSummary]):
                     0
                 ].use_case_configuration.additional_configurations.get("metrics")
             )
-            config["containerSpec"].update(
-                {smc.family_name: EVALUATION_CONTAINER_CONST_CONFIG}
-            )
-
+            config["containerSpec"].update({smc.family_name: eval_dict})
         config[smc.family_name] = [temp_dict]
     return config
 
