@@ -44,7 +44,7 @@ from ads.aqua.finetuning.entities import (
 )
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import get_console_link , UNKNOWN
+from ads.common.utils import UNKNOWN, get_console_link
 from ads.config import (
     AQUA_FINETUNING_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
     AQUA_JOB_SUBNET_ID,

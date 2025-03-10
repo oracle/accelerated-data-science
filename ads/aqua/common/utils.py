@@ -19,7 +19,6 @@ from pathlib import Path
 from string import Template
 from typing import List, Union
 
-import fsspec
 import oci
 from cachetools import TTLCache, cached
 from huggingface_hub.constants import HF_HUB_CACHE
@@ -61,16 +60,19 @@ from ads.aqua.constants import (
     UNKNOWN_JSON_STR,
     VLLM_INFERENCE_RESTRICTED_PARAMS,
 )
-
-from ads.common.utils import UNKNOWN
-
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.auth import AuthState, default_signer
 from ads.common.decorator.threaded import threaded
 from ads.common.extended_enum import ExtendedEnum
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import copy_file, get_console_link, upload_to_os, read_file
+from ads.common.utils import (
+    UNKNOWN,
+    copy_file,
+    get_console_link,
+    read_file,
+    upload_to_os,
+)
 from ads.config import (
     AQUA_MODEL_DEPLOYMENT_FOLDER,
     AQUA_SERVICE_MODELS_BUCKET,

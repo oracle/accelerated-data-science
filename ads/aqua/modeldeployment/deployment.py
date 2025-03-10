@@ -41,7 +41,7 @@ from ads.aqua.modeldeployment.entities import (
 )
 from ads.aqua.ui import ModelFormat
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import get_log_links , UNKNOWN
+from ads.common.utils import UNKNOWN, get_log_links
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,

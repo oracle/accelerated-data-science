@@ -238,6 +238,7 @@ def random_valid_ocid(prefix="ocid1.dataflowapplication.oc1.iad"):
     fake = "".join([random.choice(string.ascii_lowercase) for i in range(60)])
     return f"{left}.{fake}"
 
+
 def read_file(file_path: str, **kwargs) -> str:
     try:
         with fsspec.open(file_path, "r", **kwargs.get("auth", {})) as f:
@@ -245,6 +246,7 @@ def read_file(file_path: str, **kwargs) -> str:
     except Exception as e:
         logger.debug(f"Failed to read file {file_path}. {e}")
         return UNKNOWN
+
 
 def get_dataframe_styles(max_width=75):
     """Styles used for dataframe, example usage:

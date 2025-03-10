@@ -22,15 +22,15 @@ from oci.exceptions import ServiceError
 from requests.structures import CaseInsensitiveDict
 
 from ads.common import utils
+from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.oci_mixin import OCIWorkRequestMixin
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
-from ads.common.utils import extract_region, text_sanitizer , read_file
+from ads.common.utils import extract_region, read_file, text_sanitizer
 from ads.common.work_request import DataScienceWorkRequest
 from ads.model.deployment import ModelDeployment
-from ads.common.auth import default_signer
 
 logger = logging.getLogger(__name__)
 
