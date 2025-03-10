@@ -341,12 +341,9 @@ class ModelMetadataItem(ABC):
     def _from_oci_metadata(cls, oci_metadata_item) -> "ModelMetadataItem":
         """Creates a new metadata item from the OCI metadata item."""
         oci_metadata_item = to_dict(oci_metadata_item)
-        print("oci_metadata_item: ", oci_metadata_item)
         key_value_map = {field: oci_metadata_item.get(field) for field in cls._FIELDS}
-        print("key_value_map['value'] type: ", type(key_value_map["value"]))
         if isinstance(key_value_map["value"], str):
             try:
-                print("type of oci_metadata_item: ", type(oci_metadata_item))
                 key_value_map["value"] = json.loads(oci_metadata_item.get("value"))
                 try:
                     key_value_map["has_artifact"] = json.loads(
@@ -356,7 +353,6 @@ class ModelMetadataItem(ABC):
                     key_value_map["has_artifact"] = False
             except Exception:
                 pass
-        print("key value map: ", key_value_map)
         return cls(**key_value_map)
 
     def __hash__(self):
@@ -490,7 +486,7 @@ class ModelTaxonomyMetadataItem(ModelMetadataItem):
         """
         self.update(value=None)
 
-    def update(self, value: str) -> None:
+    def update(self, value: str, has_artifact: bool = False) -> None:
         """Updates metadata item value.
 
         Parameters
@@ -504,6 +500,7 @@ class ModelTaxonomyMetadataItem(ModelMetadataItem):
             Nothing.
         """
         self.value = value
+        self.has_artifact = has_artifact
 
     def validate(self) -> bool:
         """Validates metadata item.
@@ -663,7 +660,9 @@ class ModelCustomMetadataItem(ModelTaxonomyMetadataItem):
         """
         self.update(value=None, description=None, category=None)
 
-    def update(self, value: str, description: str, category: str) -> None:
+    def update(
+        self, value: str, description: str, category: str, has_artifact: bool = False
+    ) -> None:
         """Updates metadata item.
 
         Parameters
@@ -683,6 +682,7 @@ class ModelCustomMetadataItem(ModelTaxonomyMetadataItem):
         self.value = value
         self.description = description
         self.category = category
+        self.has_artifact = has_artifact
 
     def _to_oci_metadata(self):
         """Converts metadata item to OCI metadata item."""
@@ -1548,11 +1548,11 @@ class ModelTaxonomyMetadata(ModelMetadata):
         """
         metadata = cls()
         for oci_item in metadata_list:
-            print("oci_item: ", oci_item)
             item = ModelTaxonomyMetadataItem._from_oci_metadata(oci_item)
-            print("item: ", item)
             if item.key in metadata.keys:
-                metadata[item.key].update(value=item.value)
+                metadata[item.key].update(
+                    value=item.value, has_artifact=item.has_artifact
+                )
             else:
                 metadata._items.add(item)
         return metadata
