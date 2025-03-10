@@ -3,6 +3,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
 import pathlib
+import traceback
 from datetime import datetime, timedelta
 from threading import Lock
 from typing import Dict, List, Optional, Set, Union
@@ -45,6 +46,7 @@ from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME,
     AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE,
     AQUA_MODEL_ARTIFACT_FILE,
+    AQUA_MODEL_TOKENIZER_CONFIG,
     AQUA_MODEL_TYPE_CUSTOM,
     HF_METADATA_FOLDER,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
@@ -53,7 +55,6 @@ from ads.aqua.constants import (
     READY_TO_IMPORT_STATUS,
     TRAINING_METRICS_FINAL,
     TRINING_METRICS,
-    UNKNOWN,
     VALIDATION_METRICS,
     VALIDATION_METRICS_FINAL,
 )
@@ -74,7 +75,13 @@ from ads.aqua.model.entities import (
     ModelValidationResult,
 )
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import MetadataArtifactPathType, get_console_link, text_sanitizer
+from ads.common.utils import (
+    UNKNOWN,
+    MetadataArtifactPathType,
+    get_console_link,
+    is_path_exists,
+    text_sanitizer,
+)
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
@@ -555,7 +562,7 @@ class AquaModelApp(AquaApp):
         ]
 
     def get_hf_tokenizer_config(self, model_id):
-        """Gets the default chat template for the given Aqua model.
+        """Gets the default model tokenizer config for the given Aqua model.
 
         Parameters
         ----------
@@ -564,12 +571,53 @@ class AquaModelApp(AquaApp):
 
         Returns
         -------
-        str:
-            Chat template string.
+        Dict:
+            Model tokenizer config.
         """
-        config = self.model_tokenizer_config(model_id)
+        oci_model = self.ds_client.get_model(model_id).data
+        oci_aqua = (
+            (
+                Tags.AQUA_TAG in oci_model.freeform_tags
+                or Tags.AQUA_TAG.lower() in oci_model.freeform_tags
+            )
+            if oci_model.freeform_tags
+            else False
+        )
+
+        if not oci_aqua:
+            raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
+
+        config = {}
+        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+        if not artifact_path:
+            logger.debug(
+                f"Failed to get artifact path from custom metadata for the model: {model_id}"
+            )
+            return config
+        config_path = os.path.join(os.path.dirname(artifact_path), "artifact")
+        if not is_path_exists(config_path):
+            config_path = os.path.join(artifact_path.rstrip("/"), "artifact")
+            if not is_path_exists(config_path):
+                config_path = f"{artifact_path.rstrip('/')}/"
+        config_file_path = os.path.join(config_path, AQUA_MODEL_TOKENIZER_CONFIG)
+        if is_path_exists(config_file_path):
+            try:
+                config = load_config(
+                    config_path,
+                    config_file_name=AQUA_MODEL_TOKENIZER_CONFIG,
+                )
+            except Exception:
+                logger.debug(
+                    f"Error loading the {AQUA_MODEL_TOKENIZER_CONFIG} at path {config_path}.\n"
+                    f"{traceback.format_exc()}"
+                )
         if not config:
-            logger.debug(f"Tokenizer config for model: {model_id} is not available.")
+            logger.debug(
+                f"{AQUA_MODEL_TOKENIZER_CONFIG} is not available for the model: {model_id}. "
+                f"Check if the custom metadata has the artifact path set."
+            )
+            return config
+
         return config
 
     @staticmethod

@@ -64,6 +64,8 @@ MIN_RATIO_FOR_DOWN_SAMPLING = 1 / 20
 # Maximum distinct values by cardinality will be used for plotting
 MAX_DISPLAY_VALUES = 10
 
+UNKNOWN = ""
+
 # par link of the index json file.
 PAR_LINK = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/WyjtfVIG0uda-P3-2FmAfwaLlXYQZbvPZmfX1qg0-sbkwEQO6jpwabGr2hMDBmBp/n/ociodscdev/b/service-conda-packs/o/service_pack/index.json"
 
@@ -235,6 +237,15 @@ def random_valid_ocid(prefix="ocid1.dataflowapplication.oc1.iad"):
     left, right = prefix.rsplit(".", 1)
     fake = "".join([random.choice(string.ascii_lowercase) for i in range(60)])
     return f"{left}.{fake}"
+
+
+def read_file(file_path: str, **kwargs) -> str:
+    try:
+        with fsspec.open(file_path, "r", **kwargs.get("auth", {})) as f:
+            return f.read()
+    except Exception as e:
+        logger.debug(f"Failed to read file {file_path}. {e}")
+        return UNKNOWN
 
 
 def get_dataframe_styles(max_width=75):
