@@ -1802,8 +1802,6 @@ class DataScienceModel(Builder):
                 self.set_spec(self.CONST_ARTIFACT, file_name_info["filename"])
         except:
             pass
-        print("self: ", self)
-        print("self dsc_model: ", self.dsc_model)
         return self.dsc_model
 
     def to_dict(self) -> Dict:

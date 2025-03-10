@@ -345,12 +345,9 @@ class ModelMetadataItem(ABC):
         if isinstance(key_value_map["value"], str):
             try:
                 key_value_map["value"] = json.loads(oci_metadata_item.get("value"))
-                try:
-                    key_value_map["has_artifact"] = json.loads(
-                        oci_metadata_item.get("has_artifact")
-                    )
-                except Exception:
-                    key_value_map["has_artifact"] = False
+                key_value_map["has_artifact"] = bool(
+                    oci_metadata_item.get("has_artifact")
+                )
             except Exception:
                 pass
         return cls(**key_value_map)
