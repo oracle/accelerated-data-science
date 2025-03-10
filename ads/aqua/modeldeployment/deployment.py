@@ -30,7 +30,6 @@ from ads.aqua.constants import (
     AQUA_MODEL_TYPE_CUSTOM,
     AQUA_MODEL_TYPE_SERVICE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
-    UNKNOWN,
     UNKNOWN_DICT,
 )
 from ads.aqua.data import AquaResourceIdentifier
@@ -42,7 +41,7 @@ from ads.aqua.modeldeployment.entities import (
 )
 from ads.aqua.ui import ModelFormat
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import get_log_links
+from ads.common.utils import get_log_links , UNKNOWN
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,

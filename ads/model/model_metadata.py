@@ -341,17 +341,22 @@ class ModelMetadataItem(ABC):
     def _from_oci_metadata(cls, oci_metadata_item) -> "ModelMetadataItem":
         """Creates a new metadata item from the OCI metadata item."""
         oci_metadata_item = to_dict(oci_metadata_item)
+        print("oci_metadata_item: ",oci_metadata_item)
         key_value_map = {field: oci_metadata_item.get(field) for field in cls._FIELDS}
-
+        print("key_value_map['value'] type: ",type(key_value_map["value"]))
         if isinstance(key_value_map["value"], str):
             try:
+                print("type of oci_metadata_item: ",type(oci_metadata_item))
                 key_value_map["value"] = json.loads(oci_metadata_item.get("value"))
-                key_value_map["has_artifact"] = json.loads(
-                    oci_metadata_item.get("has_artifact")
-                )
+                try:
+                    key_value_map["has_artifact"] = json.loads(
+                        oci_metadata_item.get("has_artifact")
+                    )
+                except Exception:
+                    key_value_map["has_artifact"]=False
             except Exception:
                 pass
-
+        print("key value map: ",key_value_map)
         return cls(**key_value_map)
 
     def __hash__(self):
@@ -444,10 +449,7 @@ class ModelTaxonomyMetadataItem(ModelMetadataItem):
 
     @has_artifact.setter
     def has_artifact(self, has_artifact: bool):
-        if not has_artifact:
-            self._has_artifact = False
-            return
-        self._has_artifact = has_artifact
+        self._has_artifact = has_artifact is True
 
     @property
     def value(self) -> str:
@@ -689,6 +691,8 @@ class ModelCustomMetadataItem(ModelTaxonomyMetadataItem):
             oci_metadata_item.value = _METADATA_EMPTY_VALUE
         if not oci_metadata_item.category:
             oci_metadata_item.category = MetadataCustomCategory.OTHER
+        if not oci_metadata_item.has_artifact:
+            oci_metadata_item.has_artifact=False
         return oci_metadata_item
 
     def validate(self) -> bool:
@@ -1544,7 +1548,9 @@ class ModelTaxonomyMetadata(ModelMetadata):
         """
         metadata = cls()
         for oci_item in metadata_list:
+            print("oci_item: ",oci_item)
             item = ModelTaxonomyMetadataItem._from_oci_metadata(oci_item)
+            print("item: ",item)
             if item.key in metadata.keys:
                 metadata[item.key].update(value=item.value)
             else:

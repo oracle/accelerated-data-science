@@ -27,10 +27,10 @@ from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.oci_mixin import OCIWorkRequestMixin
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
-from ads.common.utils import extract_region, text_sanitizer
+from ads.common.utils import extract_region, text_sanitizer , read_file
 from ads.common.work_request import DataScienceWorkRequest
 from ads.model.deployment import ModelDeployment
-from ads.opctl.operator.common.utils import default_signer
+from ads.common.auth import default_signer
 
 logger = logging.getLogger(__name__)
 
@@ -64,8 +64,6 @@ class ModelMetadataArtifactNotFoundError(Exception):  # pragma: no cover
         super().__init__(
             f"The model {model_ocid} does not contain the metadata with key {metadata_key}."
         )
-
-    pass
 
 
 @dataclass(repr=False)
@@ -653,15 +651,13 @@ class OCIDataScienceModel(
             return contents
 
         elif path_type == utils.MetadataArtifactPathType.OSS:
-            from ads.aqua.common.utils import read_file
-
             if not utils.is_path_exists(artifact_path_or_content):
                 raise FileNotFoundError(f"File not found: {artifact_path_or_content}")
 
             contents = str(
                 read_file(file_path=artifact_path_or_content, auth=default_signer())
             )
-            logger.info(f"The metadata artifact content - {contents}")
+            logger.debug(f"The metadata artifact content - {contents}")
 
             return contents
 

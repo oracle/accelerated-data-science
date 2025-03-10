@@ -52,8 +52,7 @@ from ads.aqua.constants import (
     EVALUATION_REPORT_MD,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     LIFECYCLE_DETAILS_MISSING_JOBRUN,
-    NB_SESSION_IDENTIFIER,
-    UNKNOWN,
+    NB_SESSION_IDENTIFIER
 )
 from ads.aqua.evaluation.constants import (
     EVAL_TERMINATION_STATE,
@@ -78,7 +77,7 @@ from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
 from ads.aqua.ui import AquaContainerConfig
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import get_console_link, get_files, get_log_links
+from ads.common.utils import get_console_link, get_files, get_log_links , UNKNOWN
 from ads.config import (
     AQUA_JOB_SUBNET_ID,
     COMPARTMENT_OCID,

@@ -2233,7 +2233,7 @@ class DataScienceModel(Builder):
         self,
         metadata_key_name: str,
         artifact_path_or_content: str,
-        path_type: str = utils.MetadataArtifactPathType.LOCAL,
+        path_type: utils.MetadataArtifactPathType = utils.MetadataArtifactPathType.LOCAL,
     ) -> ModelMetadataArtifactDetails:
         """Creates model custom metadata artifact for specified model.
 
@@ -2245,7 +2245,7 @@ class DataScienceModel(Builder):
         artifact_path_or_content: str
             The model custom metadata artifact path to be upload. It can also be the actual content of the custom metadata
 
-        path_type: str
+        path_type: utils.MetadataArtifactPathType
             Can be either of utils.MetadataArtifactPathType.LOCAL , utils.MetadataArtifactPathType.OSS , utils.MetadataArtifactPathType.CONTENT
             Specifies what type of path is to be provided for metadata artifact.
             Can be either local , oss or the actual content itself
@@ -2277,7 +2277,7 @@ class DataScienceModel(Builder):
         self,
         metadata_key_name: str,
         artifact_path_or_content: str,
-        path_type: str = utils.MetadataArtifactPathType.LOCAL,
+        path_type: utils.MetadataArtifactPathType = utils.MetadataArtifactPathType.LOCAL,
     ) -> ModelMetadataArtifactDetails:
         """Creates model defined metadata artifact for specified model.
 
@@ -2289,7 +2289,7 @@ class DataScienceModel(Builder):
         artifact_path_or_content: str
             The model defined metadata artifact path to be upload. It can also be the actual content of the defined metadata
 
-        path_type: str
+        path_type: utils.MetadataArtifactPathType
             Can be either of utils.MetadataArtifactPathType.LOCAL , utils.MetadataArtifactPathType.OSS , utils.MetadataArtifactPathType.CONTENT
             Specifies what type of path is to be provided for metadata artifact.
             Can be either local , oss or the actual content itself
@@ -2320,7 +2320,7 @@ class DataScienceModel(Builder):
         self,
         metadata_key_name: str,
         artifact_path_or_content: str,
-        path_type: str = utils.MetadataArtifactPathType.LOCAL,
+        path_type: utils.MetadataArtifactPathType = utils.MetadataArtifactPathType.LOCAL,
     ) -> ModelMetadataArtifactDetails:
         """Update model custom metadata artifact for specified model.
 
@@ -2332,7 +2332,7 @@ class DataScienceModel(Builder):
         artifact_path_or_content: str
             The model custom metadata artifact path. It can also be the actual content of the custom metadata
 
-        path_type: str
+        path_type: utils.MetadataArtifactPathType
             Can be either of utils.MetadataArtifactPathType.LOCAL , utils.MetadataArtifactPathType.OSS , utils.MetadataArtifactPathType.CONTENT
             Specifies what type of path is to be provided for metadata artifact.
             Can be either local , oss or the actual content itself
@@ -2364,7 +2364,7 @@ class DataScienceModel(Builder):
         self,
         metadata_key_name: str,
         artifact_path_or_content: str,
-        path_type: str = utils.MetadataArtifactPathType.LOCAL,
+        path_type: utils.MetadataArtifactPathType = utils.MetadataArtifactPathType.LOCAL,
     ) -> ModelMetadataArtifactDetails:
         """Update model defined metadata artifact for specified model.
 
@@ -2376,7 +2376,7 @@ class DataScienceModel(Builder):
         artifact_path_or_content: str
             The model defined metadata artifact path. It can also be the actual content of the defined metadata
 
-        path_type: str
+        path_type: utils.MetadataArtifactPathType
             Can be either of utils.MetadataArtifactPathType.LOCAL , utils.MetadataArtifactPathType.OSS , utils.MetadataArtifactPathType.CONTENT
             Specifies what type of path is to be provided for metadata artifact.
             Can be either local , oss or the actual content itself
@@ -2437,7 +2437,7 @@ class DataScienceModel(Builder):
 
         with open(artifact_file_path, "wb") as _file:
             _file.write(file_content)
-            logger.info(f"Artifact downloaded to location - {artifact_file_path}")
+            logger.debug(f"Artifact downloaded to location - {artifact_file_path}")
 
     def get_defined_metadata_artifact(
         self, metadata_key_name: str, target_dir: str, override: bool = False
@@ -2472,7 +2472,7 @@ class DataScienceModel(Builder):
 
         with open(artifact_file_path, "wb") as _file:
             _file.write(file_content)
-            logger.info(f"Artifact downloaded to location - {artifact_file_path}")
+            logger.debug(f"Artifact downloaded to location - {artifact_file_path}")
 
     def delete_custom_metadata_artifact(
         self, metadata_key_name: str

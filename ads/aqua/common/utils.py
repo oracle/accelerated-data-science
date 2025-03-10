@@ -58,17 +58,19 @@ from ads.aqua.constants import (
     SUPPORTED_FILE_FORMATS,
     TEI_CONTAINER_DEFAULT_HOST,
     TGI_INFERENCE_RESTRICTED_PARAMS,
-    UNKNOWN,
     UNKNOWN_JSON_STR,
     VLLM_INFERENCE_RESTRICTED_PARAMS,
 )
+
+from ads.common.utils import UNKNOWN
+
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.auth import AuthState, default_signer
 from ads.common.decorator.threaded import threaded
 from ads.common.extended_enum import ExtendedEnum
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import copy_file, get_console_link, upload_to_os
+from ads.common.utils import copy_file, get_console_link, upload_to_os, read_file
 from ads.config import (
     AQUA_MODEL_DEPLOYMENT_FOLDER,
     AQUA_SERVICE_MODELS_BUCKET,
@@ -226,15 +228,6 @@ def get_artifact_path(custom_metadata_list: List) -> str:
 
     logger.debug("Failed to get artifact path from custom metadata.")
     return UNKNOWN
-
-
-def read_file(file_path: str, **kwargs) -> str:
-    try:
-        with fsspec.open(file_path, "r", **kwargs.get("auth", {})) as f:
-            return f.read()
-    except Exception as e:
-        logger.debug(f"Failed to read file {file_path}. {e}")
-        return UNKNOWN
 
 
 @threaded()
