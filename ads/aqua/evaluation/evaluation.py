@@ -575,64 +575,82 @@ class AquaEvaluationApp(AquaApp):
         create_aqua_evaluation_details: CreateAquaEvaluationDetails,
     ) -> None:
         """
-        Validates the user input of the model name when creating an Aqua evaluation.
+        Validates the user input for the model name when creating an Aqua evaluation.
+
+        This function verifies that:
+        - The model group is not empty.
+        - The user provided a non-empty model name.
+        - The provided model name exists in the DataScienceModel metadata.
+        - The deployment configuration contains core metadata required for validation.
 
         Parameters
         ----------
-        evaluation_source: DataScienceModel
-            The DataScienceModel Object which contains all metadata
-            about each model in a single and multi model deployment.
-        create_aqua_evaluation_details: CreateAquaEvaluationDetails
-            The CreateAquaEvaluationDetails data class which contains all
-            required and optional fields to create the aqua evaluation.
+        evaluation_source : DataScienceModel
+            The DataScienceModel object containing metadata about each model in the deployment.
+        create_aqua_evaluation_details : CreateAquaEvaluationDetails
+            Contains required and optional fields for creating the Aqua evaluation.
 
         Raises
-        -------
-        AquaValueError:
-            - When the user fails to specify any input for the model name.
-            - When the user supplies a model name that does not match the model name set in the DataScienceModel metadata.
-            - When the DataScienceModel metadata lacks core attributes for validating the name"""
+        ------
+        AquaValueError
+            If the user fails to provide a model name or if the provided model name does not match
+            any of the valid model names in the deployment metadata.
+        AquaRuntimeError
+            If the metadata is missing the model group count or if the model group count is invalid.
+        """
         user_model_parameters = create_aqua_evaluation_details.model_parameters
-
         custom_metadata_list = evaluation_source.custom_metadata_list
         user_model_name = user_model_parameters.get("model")
 
+        # Ensure that a non-empty model name was provided.
+        if not user_model_name:
+            error_message = (
+                "No model name was provided for evaluation. For multi-model deployment, "
+                "a model must be specified in the model parameters."
+            )
+            logger.debug(error_message)
+            raise AquaValueError(error_message)
+
+        # Retrieve and convert the model group count from metadata.
         model_count = custom_metadata_list.get(
             ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT
         )
-
-        if model_count and custom_metadata_list:
+        try:
             model_group_count = int(model_count.value)
-        else:
-            logger.debug(
-                f"The ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT or custom_metadata_list (ModelCustomMetadata) is missing from the metadata in evaluation source ID: {create_aqua_evaluation_details.evaluation_source_id}"
+        except Exception as ex:
+            error_message = (
+                "Missing or invalid `MULTIMODEL_GROUP_COUNT` "
+                f"in custom metadata for evaluation source ID '{create_aqua_evaluation_details.evaluation_source_id}'. "
+                f"Details: {ex}"
             )
+            logger.error(error_message)
+
+        if model_group_count < 1:
+            error_message = (
+                f"Invalid model group count: {model_group_count} for evaluation source ID "
+                f"'{create_aqua_evaluation_details.evaluation_source_id}'. A valid multi-model deployment "
+                f"requires at least one model."
+            )
+            logger.error(error_message)
             raise AquaRuntimeError(
-                "Recreate the model deployment and retry the evaluation. An issue occured when initalizing the model group during deployment."
+                f"Cannot extract details about the multi-model deployment to evaluate. A valid multi-model deployment requires at least one model, however the provided evaluation source ID '{create_aqua_evaluation_details.evaluation_source_id}' doesn't contain details about the deployed models."
             )
 
+        # Build the list of valid model names from custom metadata.
         model_names = [
             custom_metadata_list.get(f"model-name-{idx}").value
             for idx in range(model_group_count)
         ]
 
-        valid_model_names = ", ".join(name for name in model_names if name is not None)
-
-        if "model" not in user_model_parameters:
-            logger.debug(
-                f"User did not input model name for multi model deployment evaluation with evaluation source ID: {create_aqua_evaluation_details.evaluation_source_id}"
-            )
-            raise AquaValueError(
-                f"Provide the model name. For evaluation, a single model needs to be targeted using the name in the multi model deployment. The valid model names for this Model Deployment are {valid_model_names}."
-            )
-
+        # Check if the provided model name is among the valid names.
         if user_model_name not in model_names:
-            logger.debug(
-                f"User input for model name was {user_model_name}, expected {valid_model_names} evaluation source ID: {create_aqua_evaluation_details.evaluation_source_id}"
+            error_message = (
+                f"Provided model name '{user_model_name}' does not match any valid model names {model_names} "
+                f"for evaluation source ID '{create_aqua_evaluation_details.evaluation_source_id}'. "
+                "Please provide the correct model name."
             )
-            raise AquaValueError(
-                f"Provide the correct model name. The valid model names for this Model Deployment are {valid_model_names}."
-            )
+            logger.debug(error_message)
+            raise AquaValueError(error_message)
 
     def _build_evaluation_runtime(
         self,

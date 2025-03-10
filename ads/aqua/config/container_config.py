@@ -4,11 +4,11 @@
 
 from typing import Dict, List, Optional
 
-from common.extended_enum import ExtendedEnum
 from pydantic import Field
 
 from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.config.utils.serializer import Serializable
+from ads.common.extended_enum import ExtendedEnum
 
 
 class Usage(ExtendedEnum):
