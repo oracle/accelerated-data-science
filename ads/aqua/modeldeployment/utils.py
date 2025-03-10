@@ -44,7 +44,41 @@ class MultiModelDeploymentConfigLoader:
         """
         self.deployment_app = deployment_app
 
-    def load_multi_model_deployment_configuration(
+    def load(
+        self,
+        shapes: List[ComputeShapeSummary],
+        model_ids: List[str],
+        primary_model_id: Optional[str] = None,
+    ) -> ModelDeploymentConfigSummary:
+        """
+        Retrieves deployment configurations for multiple/single model and calculates compatible GPU allocations.
+
+        Parameters
+        ----------
+        shapes : List[ComputeShapeSummary]
+            Model deployment available shapes.
+        model_ids : List[str]
+            A list of OCIDs for the Aqua models.
+        primary_model_id : Optional[str], optional
+            The OCID of the primary Aqua model. If provided, GPU allocation prioritizes this model.
+            Otherwise, GPUs are evenly allocated.
+
+        Returns
+        -------
+        ModelDeploymentConfigSummary
+            A summary of the deployment configurations and GPU allocations. If GPU allocation
+            cannot be determined, an appropriate error message is included in the summary.
+        """
+        if len(model_ids) == 1:
+            return self._load_model_deployment_configuration(
+                shapes=shapes, model_ids=model_ids
+            )
+
+        return self._load_multi_model_deployment_configuration(
+            shapes=shapes, model_ids=model_ids, primary_model_id=primary_model_id
+        )
+
+    def _load_multi_model_deployment_configuration(
         self,
         shapes: List[ComputeShapeSummary],
         model_ids: List[str],
@@ -69,23 +103,13 @@ class MultiModelDeploymentConfigLoader:
             A summary of the deployment configurations and GPU allocations. If GPU allocation
             cannot be determined, an appropriate error message is included in the summary.
         """
-        # Fetch deployment configurations concurrently.
-        logger.debug(f"Loading model deployment configuration for models: {model_ids}")
-        deployment_configs = self._fetch_deployment_configs_concurrently(model_ids)
-
-        logger.debug(f"Loaded config: {deployment_configs}")
-        model_shape_gpu, deployment = self._extract_model_shape_gpu(deployment_configs)
-
-        # Initialize the summary result with the deployment configurations.
-        summary = ModelDeploymentConfigSummary(deployment_config=deployment)
+        model_shape_gpu, available_shapes, summary = self._fetch_model_shape_gpu(
+            shapes=shapes, model_ids=model_ids
+        )
 
         # Identify common deployment shapes among all models.
         common_shapes, empty_configs = self._get_common_shapes(model_shape_gpu)
         logger.debug(f"Common Shapes: {common_shapes} from: {model_shape_gpu}")
-
-        # Filter out not available shapes
-        available_shapes = [item.name.upper() for item in shapes]
-        logger.debug(f"Service Available Shapes: {available_shapes}")
 
         # If all models' shape configs are empty, use default deployment shapes instead
         common_shapes = (
@@ -132,10 +156,10 @@ class MultiModelDeploymentConfigLoader:
         summary.gpu_allocation = gpu_allocation
         return summary
 
-    def load_model_deployment_configuration(
+    def _load_model_deployment_configuration(
         self,
         shapes: List[ComputeShapeSummary],
-        model_id: str,
+        model_ids: List[str],
     ) -> ModelDeploymentConfigSummary:
         """
         Retrieves deployment configuration for single model and allocate all available GPU count to it.
@@ -144,8 +168,8 @@ class MultiModelDeploymentConfigLoader:
         ----------
         shapes : List[ComputeShapeSummary]
             Model deployment available shapes.
-        model_id : str
-            The OCID for the Aqua model.
+        model_ids : List[str]
+            A list of OCIDs for the Aqua models.
 
         Returns
         -------
@@ -153,30 +177,13 @@ class MultiModelDeploymentConfigLoader:
             A summary of the deployment configurations and GPU allocations. If GPU allocation
             cannot be determined, an appropriate error message is included in the summary.
         """
-        # Fetch deployment configuration concurrently.
-        logger.debug(f"Loading model deployment configuration for model: {model_id}")
-        deployment_config = self._fetch_deployment_configs_concurrently([model_id])[
-            model_id
-        ]
-
-        deployment = {
-            model_id: AquaDeploymentConfig(
-                shape=[shape.upper() for shape in deployment_config.shape],
-                configuration={
-                    shape.upper(): deployment_config.configuration.get(
-                        shape, ConfigurationItem()
-                    )
-                    for shape in deployment_config.shape
-                },
-            )
-        }
-
-        # Initialize the summary result with the deployment configurations.
-        summary = ModelDeploymentConfigSummary(deployment_config=deployment)
+        model_id = model_ids[0]
+        _, common_shapes, summary = self._fetch_model_shape_gpu(
+            shapes=shapes, model_ids=model_ids
+        )
 
         # Find out the common shapes from deployment config and available deployment shapes
-        shape = [shape.upper() for shape in deployment_config.shape]
-        common_shapes = [shape.name.upper() for shape in shapes]
+        shape = [shape.upper() for shape in summary.deployment_config[model_id].shape]
         if shape:
             common_shapes = list(set(common_shapes).intersection(set(shape)))
 
@@ -219,6 +226,24 @@ class MultiModelDeploymentConfigLoader:
         summary.gpu_allocation = gpu_allocation
         return summary
 
+    def _fetch_model_shape_gpu(self, shapes: List[ComputeShapeSummary], model_ids: str):
+        """Fetches dict of model shape and gpu, list of available shapes and builds `ModelDeploymentConfigSummary` instance."""
+        # Fetch deployment configurations concurrently.
+        logger.debug(f"Loading model deployment configuration for models: {model_ids}")
+        deployment_configs = self._fetch_deployment_configs_concurrently(model_ids)
+
+        logger.debug(f"Loaded config: {deployment_configs}")
+        model_shape_gpu, deployment = self._extract_model_shape_gpu(deployment_configs)
+
+        # Initialize the summary result with the deployment configurations.
+        summary = ModelDeploymentConfigSummary(deployment_config=deployment)
+
+        # Filter out not available shapes
+        available_shapes = [item.name.upper() for item in shapes]
+        logger.debug(f"Service Available Shapes: {available_shapes}")
+
+        return model_shape_gpu, available_shapes, summary
+
     def _fetch_deployment_configs_concurrently(
         self, model_ids: List[str]
     ) -> Dict[str, AquaDeploymentConfig]:
@@ -241,25 +266,30 @@ class MultiModelDeploymentConfigLoader:
     ):
         """Extracts shape and GPU count details from deployment configurations.
         Supported shapes for multi model deployment will be collected from `configuration` entry in deployment config.
+        Supported shapes for single model deployment will be collected from `shape` entry in deployment config.
         """
         model_shape_gpu = {}
         deployment = {}
+        is_single_model = len(deployment_configs) == 1
 
         for model_id, config in deployment_configs.items():
-            # We cannot rely on .shape because some models, like Falcon-7B, can only be deployed on a single GPU card (A10.1).
+            # For multi model deployment, we cannot rely on .shape because some models, like Falcon-7B, can only be deployed on a single GPU card (A10.1).
             # However, Falcon can also be deployed on a single card in other A10 shapes, such as A10.2.
             # Our current configuration does not support this flexibility.
-            # multi_deployment_shape = config.shape
-            multi_deployment_shape = list(config.configuration.keys())
-            model_shape_gpu[model_id] = {
-                shape.upper(): [
-                    item.gpu_count
-                    for item in config.configuration.get(
-                        shape, ConfigurationItem()
-                    ).multi_model_deployment
-                ]
-                for shape in multi_deployment_shape
-            }
+            # For single model deployment, we use `config.shape` to find the available shapes.
+            multi_deployment_shape = (
+                config.shape if is_single_model else list(config.configuration.keys())
+            )
+            if not is_single_model:
+                model_shape_gpu[model_id] = {
+                    shape.upper(): [
+                        item.gpu_count
+                        for item in config.configuration.get(
+                            shape, ConfigurationItem()
+                        ).multi_model_deployment
+                    ]
+                    for shape in multi_deployment_shape
+                }
             deployment[model_id] = {
                 "shape": [shape.upper() for shape in multi_deployment_shape],
                 "configuration": {

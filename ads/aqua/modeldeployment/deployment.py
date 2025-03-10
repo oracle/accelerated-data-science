@@ -1053,7 +1053,7 @@ class AquaDeploymentApp(AquaApp):
         """
         if not model_ids:
             raise AquaValueError(
-                "Invalid or empty parameter `model_ids`. Specify a list of valid model ids to get multi model deployment config."
+                "Model IDs were not provided. Please provide a valid list of model IDs to retrieve the multi-model deployment configuration."
             )
 
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
@@ -1061,16 +1061,9 @@ class AquaDeploymentApp(AquaApp):
         # Get the all model deployment available shapes in a given compartment
         available_shapes = self.list_shapes(compartment_id=compartment_id)
 
-        multi_model_deployment_config_loader = MultiModelDeploymentConfigLoader(
-            deployment_app=self
-        )
-
-        if len(model_ids) == 1:
-            return multi_model_deployment_config_loader.load_model_deployment_configuration(
-                shapes=available_shapes, model_id=model_ids[0]
-            )
-
-        return multi_model_deployment_config_loader.load_multi_model_deployment_configuration(
+        return MultiModelDeploymentConfigLoader(
+            deployment_app=self,
+        ).load(
             shapes=available_shapes,
             model_ids=model_ids,
             primary_model_id=primary_model_id,
