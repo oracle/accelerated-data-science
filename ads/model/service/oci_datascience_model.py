@@ -619,7 +619,9 @@ class OCIDataScienceModel(
                     return True
         return False
 
-    def get_metadata_content(self, artifact_path_or_content: str, path_type):
+    def get_metadata_content(
+        self, artifact_path_or_content: str, path_type: utils.MetadataArtifactPathType
+    ):
         """
         returns the content of the metadata artifact
 
@@ -665,7 +667,10 @@ class OCIDataScienceModel(
         msg="Model needs to be saved to the Model Catalog before the creating custom metadata artifact corresponding to that model"
     )
     def create_custom_metadata_artifact(
-        self, metadata_key_name: str, artifact_path: str, path_type: str
+        self,
+        metadata_key_name: str,
+        artifact_path: str,
+        path_type: utils.MetadataArtifactPathType,
     ) -> ModelMetadataArtifactDetails:
         """Creates model custom metadata artifact for specified model.
 
@@ -677,7 +682,7 @@ class OCIDataScienceModel(
         artifact_path: str
             The model custom metadata artifact path to be upload.
 
-        path_type: str
+        path_type: utils.MetadataArtifactPathType
             can be one of local , oss or actual content itself
 
         Returns
@@ -715,7 +720,10 @@ class OCIDataScienceModel(
         msg="Model needs to be saved to the Model Catalog before creating defined metadata artifact corresponding to that model"
     )
     def create_defined_metadata_artifact(
-        self, metadata_key_name: str, artifact_path: str, path_type: str
+        self,
+        metadata_key_name: str,
+        artifact_path: str,
+        path_type: utils.MetadataArtifactPathType,
     ) -> ModelMetadataArtifactDetails:
         """Creates model defined metadata artifact for specified model.
 
@@ -727,7 +735,7 @@ class OCIDataScienceModel(
         artifact_path: str
             The model custom metadata artifact path to be upload.
 
-        path_type: str
+        path_type: utils.MetadataArtifactPathType
             can be one of local , oss or actual content itself.
 
         Returns
@@ -765,7 +773,10 @@ class OCIDataScienceModel(
         msg="Model needs to be saved to the Model Catalog before updating defined metadata artifact corresponding to that model"
     )
     def update_defined_metadata_artifact(
-        self, metadata_key_name: str, artifact_path: str, path_type: str
+        self,
+        metadata_key_name: str,
+        artifact_path: str,
+        path_type: utils.MetadataArtifactPathType,
     ) -> ModelMetadataArtifactDetails:
         """Update model defined metadata artifact for specified model.
 
@@ -777,7 +788,7 @@ class OCIDataScienceModel(
         artifact_path: str
             The model defined metadata artifact path to be upload.
 
-        path_type:str
+        path_type:utils.MetadataArtifactPathType
             can be one of local , oss or actual content itself.
         Returns
         -------
@@ -814,7 +825,10 @@ class OCIDataScienceModel(
         msg="Model needs to be saved to the Model Catalog before updating custom metadata artifact corresponding to that model"
     )
     def update_custom_metadata_artifact(
-        self, metadata_key_name: str, artifact_path: str, path_type: str
+        self,
+        metadata_key_name: str,
+        artifact_path: str,
+        path_type: utils.MetadataArtifactPathType,
     ) -> ModelMetadataArtifactDetails:
         """Update model custom metadata artifact for specified model.
 
@@ -826,7 +840,7 @@ class OCIDataScienceModel(
         artifact_path: str
             The model custom metadata artifact path to be upload.
 
-        path_type: str
+        path_type: utils.MetadataArtifactPathType
             can be one of local , oss or actual content itself.
 
         Returns
