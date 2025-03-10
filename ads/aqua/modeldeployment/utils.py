@@ -44,7 +44,7 @@ class MultiModelDeploymentConfigLoader:
         """
         self.deployment_app = deployment_app
 
-    def load(
+    def load_multi_model_deployment_configuration(
         self,
         shapes: List[ComputeShapeSummary],
         model_ids: List[str],
@@ -132,7 +132,7 @@ class MultiModelDeploymentConfigLoader:
         summary.gpu_allocation = gpu_allocation
         return summary
 
-    def load_single(
+    def load_model_deployment_configuration(
         self,
         shapes: List[ComputeShapeSummary],
         model_id: str,
@@ -160,15 +160,15 @@ class MultiModelDeploymentConfigLoader:
         ]
 
         deployment = {
-            model_id: {
-                "shape": [shape.upper() for shape in deployment_config.shape],
-                "configuration": {
+            model_id: AquaDeploymentConfig(
+                shape=[shape.upper() for shape in deployment_config.shape],
+                configuration={
                     shape.upper(): deployment_config.configuration.get(
                         shape, ConfigurationItem()
                     )
                     for shape in deployment_config.shape
                 },
-            }
+            )
         }
 
         # Initialize the summary result with the deployment configurations.

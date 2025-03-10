@@ -162,7 +162,7 @@ class AquaDeploymentApp(AquaApp):
         # Create an AquaModelApp instance once to perform the deployment creation.
         model_app = AquaModelApp()
         if create_deployment_details.model_id:
-            logger.info(
+            logger.debug(
                 f"Single model ({create_deployment_details.model_id}) provided. "
                 "Delegating to single model creation method."
             )
@@ -250,7 +250,7 @@ class AquaDeploymentApp(AquaApp):
                         f"Only the following container families are supported: {supported_container_families}."
                     )
 
-            logger.info(
+            logger.debug(
                 f"Multi models ({model_ids}) provided. Delegating to multi model creation method."
             )
 
@@ -1066,11 +1066,11 @@ class AquaDeploymentApp(AquaApp):
         )
 
         if len(model_ids) == 1:
-            return multi_model_deployment_config_loader.load_single(
+            return multi_model_deployment_config_loader.load_model_deployment_configuration(
                 shapes=available_shapes, model_id=model_ids[0]
             )
 
-        return multi_model_deployment_config_loader.load(
+        return multi_model_deployment_config_loader.load_multi_model_deployment_configuration(
             shapes=available_shapes,
             model_ids=model_ids,
             primary_model_id=primary_model_id,
