@@ -31,7 +31,6 @@ from ads.aqua.common.enums import (
     Tags,
 )
 from ads.aqua.common.errors import (
-    AquaError,
     AquaFileExistsError,
     AquaFileNotFoundError,
     AquaMissingKeyError,
@@ -598,7 +597,9 @@ class AquaEvaluationApp(AquaApp):
         custom_metadata_list = evaluation_source.custom_metadata_list
         user_model_name = user_model_parameters.get("model")
 
-        model_count = custom_metadata_list.get(ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT)
+        model_count = custom_metadata_list.get(
+            ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT
+        )
 
         if model_count and custom_metadata_list:
             model_group_count = int(model_count.value)
@@ -611,11 +612,11 @@ class AquaEvaluationApp(AquaApp):
             )
 
         model_names = [
-            custom_metadata_list.get(f"model-name-{idx}")
+            custom_metadata_list.get(f"model-name-{idx}").value
             for idx in range(model_group_count)
         ]
 
-        valid_model_names = ", ".join(name.value for name in model_names if name is not None)
+        valid_model_names = ", ".join(name for name in model_names if name is not None)
 
         if "model" not in user_model_parameters:
             logger.debug(
@@ -626,7 +627,6 @@ class AquaEvaluationApp(AquaApp):
             )
 
         if user_model_name not in model_names:
-
             logger.debug(
                 f"User input for model name was {user_model_name}, expected {valid_model_names} evaluation source ID: {create_aqua_evaluation_details.evaluation_source_id}"
             )
