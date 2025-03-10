@@ -36,7 +36,7 @@ from ads.aqua.common.utils import (
     load_gpu_shapes_index,
     validate_cmd_var,
 )
-from ads.aqua.config.container_config import AquaContainerConfig
+from ads.aqua.config.container_config import AquaContainerConfig, Usage
 from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_FILE,
     AQUA_MODEL_TYPE_CUSTOM,
@@ -196,10 +196,22 @@ class AquaDeploymentApp(AquaApp):
             except ConfigValidationError as err:
                 raise AquaValueError(f"{err}") from err
 
-            # TODO: update it when more deployment containers are supported
+            service_inference_containers = (
+                AquaContainerConfig.from_container_index_json(
+                    config=container_config
+                ).inference.values()
+            )
+
             supported_container_families = [
-                InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY
+                container_config_item.family
+                for container_config_item in service_inference_containers
+                if Usage.MULTI_MODEL in container_config_item.usages
             ]
+
+            if not supported_container_families:
+                raise AquaValueError(
+                    "Currently, there are no containers that support multi-model deployment."
+                )
 
             # Check if provided container family supports multi-model deployment
             if (
@@ -217,12 +229,6 @@ class AquaDeploymentApp(AquaApp):
             # If the container is not recognized, we can only issue a warning that
             # the provided container may not support multi-model deployment.
             if create_deployment_details.container_image_uri:
-                service_inference_containers = (
-                    AquaContainerConfig.from_container_index_json(
-                        config=container_config
-                    ).inference.values()
-                )
-
                 selected_container_name = ContainerPath(
                     full_path=create_deployment_details.container_image_uri
                 ).name

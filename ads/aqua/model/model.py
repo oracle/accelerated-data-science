@@ -43,7 +43,7 @@ from ads.aqua.common.utils import (
     read_file,
     upload_folder,
 )
-from ads.aqua.config.container_config import AquaContainerConfig
+from ads.aqua.config.container_config import AquaContainerConfig, Usage
 from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_CONFIG,
     AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME,
@@ -258,11 +258,25 @@ class AquaModelApp(AquaApp):
         display_name_list = []
         model_custom_metadata = ModelCustomMetadata()
 
-        # TODO: update it when more deployment containers are supported
-        supported_container_families = (
-            InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY
-        )
-        deployment_container = InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY
+        # Get container config
+        container_config = get_container_config()
+
+        service_inference_containers = AquaContainerConfig.from_container_index_json(
+            config=container_config
+        ).inference.values()
+
+        supported_container_families = [
+            container_config_item.family
+            for container_config_item in service_inference_containers
+            if Usage.MULTI_MODEL in container_config_item.usages
+        ]
+
+        if not supported_container_families:
+            raise AquaValueError(
+                "Currently, there are no containers that support multi-model deployment."
+            )
+
+        selected_models_deployment_containers = set()
 
         # Process each model
         for idx, model in enumerate(models):
@@ -309,6 +323,8 @@ class AquaModelApp(AquaApp):
                     f"Only '{supported_container_families}' are supported for multi-model deployments."
                 )
 
+            selected_models_deployment_containers.add(deployment_container)
+
             # Add model-specific metadata
             model_custom_metadata.add(
                 key=f"model-id-{idx}",
@@ -349,6 +365,16 @@ class AquaModelApp(AquaApp):
                 description=f"Artifact path for '{display_name}' in the multimodel group.",
                 category="Other",
             )
+
+        # Check if the all models in the group shares same container family
+        if len(selected_models_deployment_containers) > 1:
+            raise AquaValueError(
+                "The selected models are associated with different container families: "
+                f"{list(selected_models_deployment_containers)}."
+                "For multi-model deployment, all models in the group must share the same container family."
+            )
+
+        deployment_container = selected_models_deployment_containers.pop()
 
         # Generate model group details
         timestamp = datetime.now().strftime("%Y%m%d")

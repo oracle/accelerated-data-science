@@ -4,10 +4,17 @@
 
 from typing import Dict, List, Optional
 
+from common.extended_enum import ExtendedEnum
 from pydantic import Field
 
 from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.config.utils.serializer import Serializable
+
+
+class Usage(ExtendedEnum):
+    INFERENCE = "inference"
+    BATCH_INFERENCE = "batch_inference"
+    MULTI_MODEL = "multi_model"
 
 
 class AquaContainerConfigSpec(Serializable):
