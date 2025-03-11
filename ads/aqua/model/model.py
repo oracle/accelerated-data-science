@@ -49,6 +49,7 @@ from ads.aqua.constants import (
     AQUA_MODEL_TOKENIZER_CONFIG,
     AQUA_MODEL_TYPE_CUSTOM,
     HF_METADATA_FOLDER,
+    LICENSE_TXT,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     README,
     READY_TO_DEPLOY_STATUS,
@@ -1807,7 +1808,31 @@ class AquaModelApp(AquaApp):
                 f"the model {model_id}."
             )
 
-        content = self.get_config(model_id, DefinedMetadata.LICENSE)
+        content = ""
+        try:
+            content = self.ds_client.get_defined_metadata_artifact_content(
+                model_id, DefinedMetadata.LICENSE
+            ).data.content.decode("utf-8", errors="ignore")
+        except Exception as ex:
+            logger.error(
+                f"License could not be found for model: {model_id} in defined metadata : {str(ex)}"
+            )
+            artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+            license_path = os.path.join(os.path.dirname(artifact_path), "config")
+            if not is_path_exists(license_path):
+                license_path = os.path.join(artifact_path.rstrip("/"), "config")
+                if not is_path_exists(license_path):
+                    license_path = f"{artifact_path.rstrip('/')}/"
+
+            license_file_path = os.path.join(license_path, LICENSE_TXT)
+            logger.info(f"Fetching {LICENSE_TXT} from {license_file_path}")
+            if is_path_exists(license_file_path):
+                try:
+                    content = str(read_file(license_file_path, auth=default_signer()))
+                except Exception as e:
+                    logger.debug(
+                        f"Error occurred while fetching config {LICENSE_TXT} at path {license_path} : {str(e)}"
+                    )
         return AquaModelLicense(id=model_id, license=content)
 
     def _find_matching_aqua_model(self, model_id: str) -> Optional[str]:
