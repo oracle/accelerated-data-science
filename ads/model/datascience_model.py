@@ -2424,8 +2424,7 @@ class DataScienceModel(Builder):
             - If False (default), raises a `FileExistsError` if the file exists.
         Returns
         -------
-        BytesIO
-               custom metadata artifact content
+        None
 
         """
         file_content = self.dsc_model.get_custom_metadata_artifact(
@@ -2459,8 +2458,7 @@ class DataScienceModel(Builder):
             - If False (default), raises a `FileExistsError` if the file exists.
         Returns
         -------
-        BytesIO
-                Defined metadata artifact content
+        None
 
         """
         file_content = self.dsc_model.get_defined_metadata_artifact(
