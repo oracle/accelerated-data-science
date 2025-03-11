@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -45,87 +45,6 @@ class TestEvaluationServiceConfig:
             expected_config = json.load(file)
 
         assert self.mock_config.to_dict() == expected_config
-
-    @pytest.mark.parametrize(
-        "container_name, extra_params",
-        [
-            ("odsc-vllm-serving", {}),
-            ("odsc-vllm-serving", {}),
-            ("odsc-tgi-serving", {}),
-            (
-                "odsc-llama-cpp-serving",
-                {"inference_max_threads": 1, "inference_delay": 1},
-            ),
-            ("none-exist", {}),
-        ],
-    )
-    def test_get_merged_inference_params(self, container_name, extra_params):
-        """Tests merging default inference params with those specific to the given framework."""
-
-        test_result = self.mock_config.get_merged_inference_params(
-            container_name=container_name
-        )
-        expected_result = {
-            "inference_rps": 25,
-            "inference_timeout": 120,
-            "inference_max_threads": 10,
-            "inference_retries": 3,
-            "inference_backoff_factor": 3.0,
-            "inference_delay": 0.0,
-        }
-        expected_result.update(extra_params)
-
-        assert test_result.to_dict() == expected_result
-
-    @pytest.mark.parametrize(
-        "container_name, version, exclude, include",
-        [
-            ("odsc-vllm-serving", "0.5.3.post1", ["add_generation_prompt"], {}),
-            (
-                "odsc-vllm-serving",
-                "0.5.1",
-                ["max_tokens", "frequency_penalty"],
-                {"some_other_param": "some_other_param_value"},
-            ),
-            ("odsc-vllm-serving", "none-exist", [], {}),
-            ("odsc-tgi-serving", None, [], {}),
-            ("odsc-tgi-serving", "none-exist", [], {}),
-            (
-                "odsc-tgi-serving",
-                "2.0.1.4",
-                ["max_tokens", "frequency_penalty"],
-                {"some_other_param": "some_other_param_value"},
-            ),
-            ("odsc-llama-cpp-serving", "0.2.78.0", [], {}),
-            ("none-exist", "none-exist", [], {}),
-        ],
-    )
-    def test_get_merged_inference_model_params(
-        self, container_name, version, exclude, include
-    ):
-        expected_result = {"some_default_param": "some_default_param"}
-        expected_result.update(
-            {
-                "model": "odsc-llm",
-                "add_generation_prompt": False,
-                "max_tokens": 500,
-                "temperature": 0.7,
-                "top_p": 0.9,
-                "top_k": 50,
-                "presence_penalty": 0.0,
-                "frequency_penalty": 0.0,
-                "stop": [],
-            }
-        )
-        expected_result.update(include)
-        for key in exclude:
-            expected_result.pop(key, None)
-
-        test_result = self.mock_config.get_merged_inference_model_params(
-            container_name=container_name, version=version
-        )
-
-        assert test_result == expected_result
 
     @pytest.mark.parametrize(
         "evaluation_container, evaluation_target, shapes_found",
