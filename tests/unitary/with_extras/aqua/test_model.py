@@ -364,10 +364,17 @@ class TestAquaModel:
     @patch.object(DataScienceModel, "add_artifact")
     @patch.object(DataScienceModel, "create")
     @patch("ads.model.datascience_model.validate")
+    @patch("ads.aqua.model.model.get_container_config")
     @patch.object(DataScienceModel, "from_id")
     def test_create_multimodel(
-        self, mock_from_id, mock_validate, mock_create, mock_add_artifact
+        self,
+        mock_from_id,
+        mock_get_container_config,
+        mock_validate,
+        mock_create,
+        mock_add_artifact,
     ):
+        mock_get_container_config.return_value = get_container_config()
         mock_model = MagicMock()
         mock_model.model_file_description = {"test_key": "test_value"}
         mock_model.display_name = "test_display_name"
