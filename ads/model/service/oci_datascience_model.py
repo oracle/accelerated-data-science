@@ -878,7 +878,7 @@ class OCIDataScienceModel(
     @check_for_model_id(
         msg="Model needs to be saved to the Model Catalog before fetching custom metadata artifact corresponding to that model"
     )
-    def get_custom_metadata_artifact(self, metadata_key_name: str) -> BytesIO:
+    def get_custom_metadata_artifact(self, metadata_key_name: str) -> bytes:
         """Downloads model custom metadata artifact content for specified model metadata key.
 
         Parameters
@@ -887,7 +887,7 @@ class OCIDataScienceModel(
             The name of the model metadatum in the metadata.
         Returns
         -------
-        BytesIO
+        bytes
                custom metadata artifact content
 
         """
@@ -902,7 +902,7 @@ class OCIDataScienceModel(
     @check_for_model_id(
         msg="Model needs to be saved to the Model Catalog before fetching defined metadata artifact corresponding to that model"
     )
-    def get_defined_metadata_artifact(self, metadata_key_name: str) -> BytesIO:
+    def get_defined_metadata_artifact(self, metadata_key_name: str) -> bytes:
         """Downloads model defined metadata artifact content for specified model metadata key.
 
         Parameters
@@ -911,7 +911,7 @@ class OCIDataScienceModel(
             The name of the model metadatum in the metadata.
         Returns
         -------
-        BytesIO
+        bytes
                 Defined metadata artifact content
 
         """
