@@ -15,9 +15,12 @@ from oci.data_science.models import JobRun, Metadata, Model, UpdateModelDetails
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import (
+    ConfigFolder,
     CustomInferenceContainerTypeFamily,
     FineTuningContainerTypeFamily,
     InferenceContainerTypeFamily,
+    ModelFormat,
+    Platform,
     Tags,
 )
 from ads.aqua.common.errors import (
@@ -39,11 +42,13 @@ from ads.aqua.common.utils import (
     read_file,
     upload_folder,
 )
+from ads.aqua.config.container_config import AquaContainerConfig
 from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_CONFIG,
     AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME,
     AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE,
     AQUA_MODEL_ARTIFACT_FILE,
+    AQUA_MODEL_TOKENIZER_CONFIG,
     AQUA_MODEL_TYPE_CUSTOM,
     HF_METADATA_FOLDER,
     LICENSE_TXT,
@@ -71,10 +76,8 @@ from ads.aqua.model.entities import (
     AquaModelLicense,
     AquaModelSummary,
     ImportModelDetails,
-    ModelFormat,
     ModelValidationResult,
 )
-from ads.aqua.ui import AquaContainerConfig, AquaContainerConfigItem
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link
@@ -568,6 +571,26 @@ class AquaModelApp(AquaApp):
             training_final,
         ]
 
+    def get_hf_tokenizer_config(self, model_id):
+        """Gets the default chat template for the given Aqua model.
+
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the Aqua model.
+
+        Returns
+        -------
+        str:
+            Chat template string.
+        """
+        config = self.get_config(
+            model_id, AQUA_MODEL_TOKENIZER_CONFIG, ConfigFolder.ARTIFACT
+        )
+        if not config:
+            logger.debug(f"Tokenizer config for model: {model_id} is not available.")
+        return config
+
     @staticmethod
     def to_aqua_model(
         model: Union[
@@ -645,28 +668,24 @@ class AquaModelApp(AquaApp):
         except Exception:
             model_file = UNKNOWN
 
-        inference_containers = AquaContainerConfig.from_container_index_json().inference
+        inference_containers = AquaContainerConfig.from_container_index_json(
+            config=get_container_config()
+        ).inference
 
         model_formats_str = freeform_tags.get(
-            Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS.value
+            Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS
         ).upper()
-        model_formats = [
-            ModelFormat[model_format] for model_format in model_formats_str.split(",")
-        ]
+        model_formats = model_formats_str.split(",")
 
-        supported_platform: Set[AquaContainerConfigItem.Platform] = set()
+        supported_platform: Set[str] = set()
 
         for container in inference_containers.values():
             for model_format in model_formats:
                 if model_format in container.model_formats:
                     supported_platform.update(container.platforms)
 
-        nvidia_gpu_supported = (
-            AquaContainerConfigItem.Platform.NVIDIA_GPU in supported_platform
-        )
-        arm_cpu_supported = (
-            AquaContainerConfigItem.Platform.ARM_CPU in supported_platform
-        )
+        nvidia_gpu_supported = Platform.NVIDIA_GPU in supported_platform
+        arm_cpu_supported = Platform.ARM_CPU in supported_platform
 
         return {
             "compartment_id": model.compartment_id,
@@ -876,8 +895,7 @@ class AquaModelApp(AquaApp):
             tags.update(
                 {
                     Tags.MODEL_FORMAT: ",".join(
-                        model_format.value
-                        for model_format in validation_result.model_formats
+                        model_format for model_format in validation_result.model_formats
                     )
                 }
             )
@@ -914,9 +932,9 @@ class AquaModelApp(AquaApp):
                     category="Other",
                 )
 
-            inference_containers = (
-                AquaContainerConfig.from_container_index_json().inference
-            )
+            inference_containers = AquaContainerConfig.from_container_index_json(
+                config=get_container_config()
+            ).inference
             smc_container_set = {
                 container.family for container in inference_containers.values()
             }
@@ -991,13 +1009,13 @@ class AquaModelApp(AquaApp):
         return model
 
     @staticmethod
-    def get_model_files(os_path: str, model_format: ModelFormat) -> List[str]:
+    def get_model_files(os_path: str, model_format: str) -> List[str]:
         """
         Get a list of model files based on the given OS path and model format.
 
         Args:
             os_path (str): The OS path where the model files are located.
-            model_format (ModelFormat): The format of the model files.
+            model_format (str): The format of the model files.
 
         Returns:
             List[str]: A list of model file names.
@@ -1037,13 +1055,13 @@ class AquaModelApp(AquaApp):
         return model_files
 
     @staticmethod
-    def get_hf_model_files(model_name: str, model_format: ModelFormat) -> List[str]:
+    def get_hf_model_files(model_name: str, model_format: str) -> List[str]:
         """
         Get a list of model files based on the given OS path and model format.
 
         Args:
             model_name (str): The huggingface model name.
-            model_format (ModelFormat): The format of the model files.
+            model_format (str): The format of the model files.
 
         Returns:
             List[str]: A list of model file names.
@@ -1075,7 +1093,7 @@ class AquaModelApp(AquaApp):
                 and model_sibling.rfilename == AQUA_MODEL_ARTIFACT_CONFIG
             ):
                 model_files.append(model_sibling.rfilename)
-            if extension == model_format.value:
+            if extension == model_format:
                 model_files.append(model_sibling.rfilename)
 
         logger.debug(
@@ -1130,8 +1148,8 @@ class AquaModelApp(AquaApp):
 
         if not (safetensors_model_files or gguf_model_files):
             raise AquaRuntimeError(
-                f"The model {model_name} does not contain either {ModelFormat.SAFETENSORS.value} "
-                f"or {ModelFormat.GGUF.value} files in {import_model_details.os_path} or Hugging Face repository. "
+                f"The model {model_name} does not contain either {ModelFormat.SAFETENSORS} "
+                f"or {ModelFormat.GGUF} files in {import_model_details.os_path} or Hugging Face repository. "
                 f"Please check if the path is correct or the model artifacts are available at this location."
             )
 
@@ -1239,7 +1257,7 @@ class AquaModelApp(AquaApp):
             ):
                 raise AquaRuntimeError(
                     f"The model {model_name} does not contain {AQUA_MODEL_ARTIFACT_CONFIG} file as required "
-                    f"by {ModelFormat.SAFETENSORS.value} format model."
+                    f"by {ModelFormat.SAFETENSORS} format model."
                     f" Please check if the model name is correct in Hugging Face repository."
                 )
             validation_result.telemetry_model_name = model_name

@@ -789,53 +789,13 @@ def test_pandas_additional_input(operator_setup, model):
     yaml_i["spec"]["additional_data"]["format"] = "pandas"
 
     operator_config = ForecastOperatorConfig.from_dict(yaml_i)
-    operate(operator_config)
+    results = operate(operator_config)
     assert pd.read_csv(additional_data_path)["Date"].equals(
         pd.read_csv(f"{tmpdirname}/results/forecast.csv")["Date"]
     )
-
-
-# def test_spark_additional_input(operator_setup):
-#     from ads.opctl.operator.lowcode.forecast.__main__ import operate
-#     from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import ForecastDatasets
-#     from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorConfig
-#     from pyspark.sql import SparkSession
-#     from pyspark import SparkContext
-
-#     spark = SparkSession.builder.getOrCreate()
-
-#     tmpdirname = operator_setup
-#     historical_data_path, additional_data_path = setup_small_rossman()
-#     yaml_i, output_data_path = populate_yaml(
-#         tmpdirname=tmpdirname,
-#         historical_data_path=historical_data_path,
-#         additional_data_path=additional_data_path,
-#     )
-#     yaml_i["spec"]["horizon"] = 10
-#     yaml_i["spec"]["model"] = "prophet"
-
-#     df = pd.read_csv(historical_data_path)
-#     spark_df = spark.createDataFrame(df)
-
-#     def _run_operator(df):
-#         yaml_i["spec"]["historical_data"].pop("url")
-#         yaml_i["spec"]["historical_data"]["data"] = spark_df
-#         yaml_i["spec"]["historical_data"]["format"] = "spark"
-#         operator_config = ForecastOperatorConfig.from_dict(yaml_i)
-#         operate(operator_config)
-
-#     # df_add = pd.read_csv(additional_data_path)
-#     # spark_df_add = spark.createDataFrame(df_add)
-#     # yaml_i["spec"]["additional_data"].pop("url")
-#     # yaml_i["spec"]["additional_data"]["data"] = spark_df_add
-#     # yaml_i["spec"]["additional_data"]["format"] = "spark"
-
-#     rdd_processed = spark_df.rdd.map(lambda x: _run_operator(x, broadcast_yaml_i))
-#     print(rdd_processed.collect())
-
-#     assert pd.read_csv(additional_data_path)["Date"].equals(
-#         pd.read_csv(f"{tmpdirname}/results/forecast.csv")["Date"]
-#     )
+    forecast = results.get_forecast()
+    metrics = results.get_metrics()
+    test_metrics = results.get_test_metrics()
 
 
 @pytest.mark.parametrize("model", ["prophet"])
@@ -862,6 +822,7 @@ def test_date_format(operator_setup, model):
         pd.read_csv(f"{tmpdirname}/results/forecast.csv")["Date"]
     )
 
+
 @pytest.mark.parametrize("model", MODELS)
 def test_what_if_analysis(operator_setup, model):
     os.environ["TEST_MODE"] = "True"
@@ -869,23 +830,20 @@ def test_what_if_analysis(operator_setup, model):
         pytest.skip("Skipping what-if scenario for auto-select")
     tmpdirname = operator_setup
     historical_data_path, additional_data_path = setup_small_rossman()
-    additional_test_path = f'{tmpdirname}/additional_data.csv'
-    historical_test_path = f'{tmpdirname}/historical_data.csv'
+    additional_test_path = f"{tmpdirname}/additional_data.csv"
+    historical_test_path = f"{tmpdirname}/historical_data.csv"
     historical_data = pd.read_csv(historical_data_path, parse_dates=["Date"])
-    historical_filtered = historical_data[historical_data['Date'] > "2013-03-01"]
+    historical_filtered = historical_data[historical_data["Date"] > "2013-03-01"]
     additional_data = pd.read_csv(additional_data_path, parse_dates=["Date"])
     add_filtered = additional_data[additional_data['Date'] > "2013-03-01"]
-    numeric_columns = add_filtered.select_dtypes(include=['number', 'object', 'datetime64'])
-    non_constant_columns = numeric_columns.columns[(numeric_columns != numeric_columns.iloc[0]).any()]
-    df_non_constant = numeric_columns[non_constant_columns.union(['Store'])]
-    df_non_constant.to_csv(f'{additional_test_path}', index=False)
+    add_filtered.to_csv(f'{additional_test_path}', index=False)
     historical_filtered.to_csv(f'{historical_test_path}', index=False)
 
     yaml_i, output_data_path = populate_yaml(
         tmpdirname=tmpdirname,
         historical_data_path=historical_test_path,
         additional_data_path=additional_test_path,
-        output_data_path=f"{tmpdirname}/{model}/results"
+        output_data_path=f"{tmpdirname}/{model}/results",
     )
     yaml_i["spec"]["horizon"] = 10
     yaml_i["spec"]["model"] = model
@@ -893,7 +851,7 @@ def test_what_if_analysis(operator_setup, model):
         "model_name": f"model_{model}",
         "model_display_name": f"test_{model}",
         "project_id": "test_project_id",
-        "compartment_id": "test_compartment_id"
+        "compartment_id": "test_compartment_id",
     }
 
     run_yaml(
@@ -905,7 +863,35 @@ def test_what_if_analysis(operator_setup, model):
     report_path = f"{output_data_path}/report.html"
     deployment_metadata = f"{output_data_path}/deployment_info.json"
     assert os.path.exists(report_path), f"Report file not found at {report_path}"
-    assert os.path.exists(deployment_metadata), f"Deployment info file not found at {deployment_metadata}"
+    assert os.path.exists(
+        deployment_metadata
+    ), f"Deployment info file not found at {deployment_metadata}"
+
+
+def test_auto_select(operator_setup):
+    DATASET_PREFIX = f"{os.path.dirname(os.path.abspath(__file__))}/../data/timeseries/"
+    tmpdirname = operator_setup
+    historical_test_path = f"{DATASET_PREFIX}/dataset6.csv"
+    model = "auto-select"
+    yaml_i, output_data_path = populate_yaml(
+        tmpdirname=tmpdirname,
+        historical_data_path=historical_test_path,
+        output_data_path=f"{tmpdirname}/{model}/results",
+    )
+    yaml_i["spec"].pop("additional_data")
+    yaml_i["spec"]["horizon"] = 2
+    yaml_i["spec"]["datetime_column"]["format"] = "%d-%m-%Y"
+    yaml_i["spec"]["model"] = model
+    yaml_i["spec"]["model_kwargs"] = {"model_list": ["prophet", "arima"]}
+
+    run_yaml(
+        tmpdirname=tmpdirname,
+        yaml_i=yaml_i,
+        output_data_path=output_data_path,
+        test_metrics_check=False,
+    )
+    report_path = f"{output_data_path}/report.html"
+    assert os.path.exists(report_path), f"Report file not found at {report_path}"
 
 if __name__ == "__main__":
     pass

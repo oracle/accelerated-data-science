@@ -2,12 +2,6 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-"""
-aqua.common.enums
-~~~~~~~~~~~~~~
-This module contains the set of enums used in AQUA.
-"""
-
 from ads.common.extended_enum import ExtendedEnum
 
 
@@ -88,7 +82,24 @@ class RqsAdditionalDetails(ExtendedEnum):
 
 class TextEmbeddingInferenceContainerParams(ExtendedEnum):
     """Contains a subset of params that are required for enabling model deployment in OCI Data Science. More options
-    are available at https://huggingface.co/docs/text-embeddings-inference/en/cli_arguments"""
+    are available at https://huggingface.co/docs/text-embeddings-inference/en/cli_arguments
+    """
 
     MODEL_ID = "model-id"
     PORT = "port"
+
+
+class ConfigFolder(ExtendedEnum):
+    CONFIG = "config"
+    ARTIFACT = "artifact"
+
+
+class ModelFormat(ExtendedEnum):
+    GGUF = "GGUF"
+    SAFETENSORS = "SAFETENSORS"
+    UNKNOWN = "UNKNOWN"
+
+
+class Platform(ExtendedEnum):
+    ARM_CPU = "ARM_CPU"
+    NVIDIA_GPU = "NVIDIA_GPU"
