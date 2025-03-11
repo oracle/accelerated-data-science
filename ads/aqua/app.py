@@ -17,6 +17,7 @@ from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     _is_valid_mvs,
     config_parser,
+    defined_metadata_to_file_map,
     get_artifact_path,
     is_valid_ocid,
     load_config,
@@ -291,6 +292,7 @@ class AquaApp:
         """
 
         config = {}
+        config_file_name = defined_metadata_to_file_map().get(config_file_name.lower())
         if Tags.AQUA_SERVICE_MODEL_TAG in oci_model.freeform_tags:
             base_model_ocid = oci_model.freeform_tags[Tags.AQUA_SERVICE_MODEL_TAG]
             logger.info(
@@ -313,7 +315,9 @@ class AquaApp:
             config_path = os.path.join(artifact_path.rstrip("/"), "config")
             if not is_path_exists(config_path):
                 config_path = f"{artifact_path.rstrip('/')}/"
+
         config_file_path = os.path.join(config_path, config_file_name)
+        logger.info(f"Fetching {config_file_name} from {config_file_path}")
         if is_path_exists(config_file_path):
             try:
                 config = load_config(config_path, config_file_name=config_file_name)
@@ -323,7 +327,7 @@ class AquaApp:
                 )
         return config
 
-    def get_config(self, model_id: str, config_file_name: str) -> Dict:
+    def get_config(self, model_id: str, config_file_name: str) -> Union[Dict, str]:
         """Gets the config for the given Aqua model.
 
         Parameters
@@ -335,8 +339,8 @@ class AquaApp:
 
         Returns
         -------
-        Dict:
-            A dict of allowed configs.
+        Dict or str:
+            A dict or string of allowed configs.
         """
         oci_model = self.ds_client.get_model(model_id).data
         oci_aqua = (

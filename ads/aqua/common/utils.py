@@ -50,10 +50,14 @@ from ads.aqua.constants import (
     COMPARTMENT_MAPPING_KEY,
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     CONTAINER_INDEX,
+    DEPLOYMENT_CONFIG,
     EVALUATION_CONTAINER_CONST_CONFIG,
+    FINE_TUNING_CONFIG,
     HF_LOGIN_DEFAULT_TIMEOUT,
+    LICENSE_TXT,
     MAXIMUM_ALLOWED_DATASET_IN_BYTE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
+    README,
     SERVICE_MANAGED_CONTAINER_URI_SCHEME,
     SUPPORTED_FILE_FORMATS,
     TEI_CONTAINER_DEFAULT_HOST,
@@ -237,6 +241,7 @@ def get_artifact_path(custom_metadata_list: List) -> str:
 def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
     artifact_path = f"{file_path.rstrip('/')}/{config_file_name}"
     signer = default_signer() if artifact_path.startswith("oci://") else {}
+    print("artifact_path: ", artifact_path)
     config = json.loads(
         read_file(file_path=artifact_path, auth=signer, **kwargs) or UNKNOWN_JSON_STR
     )
@@ -482,6 +487,15 @@ def sanitize_response(oci_client, response: list):
 
     """
     return oci_client.base_client.sanitize_for_serialization(response)
+
+
+def defined_metadata_to_file_map():
+    return {
+        "readme": README,
+        "license": LICENSE_TXT,
+        "finetuneconfiguration": FINE_TUNING_CONFIG,
+        "deploymentconfiguration": DEPLOYMENT_CONFIG,
+    }
 
 
 def _build_resource_identifier(

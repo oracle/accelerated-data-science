@@ -276,7 +276,7 @@ class AquaModelApp(AquaApp):
                 )
                 if artifact_path != UNKNOWN:
                     model_card_path = (
-                        f"{artifact_path.rstrip('/')}/config/{README}"
+                        f"{artifact_path.rstrip('/')}/artifact/{README}"
                         if is_verified_type
                         else f"{artifact_path.rstrip('/')}/{README}"
                     )
@@ -925,7 +925,7 @@ class AquaModelApp(AquaApp):
         self,
         model_id: str,
         metadata_key: str,
-        path_type: str,
+        path_type: MetadataArtifactPathType,
         artifact_path_or_content: str,
     ):
         """
@@ -971,7 +971,7 @@ class AquaModelApp(AquaApp):
             except Exception as ex:
                 raise AquaRuntimeError(
                     f"Error occurred in creating defined metadata artifact for model: {model_id}: {ex}"
-                )
+                ) from ex
         else:
             raise AquaRuntimeError(
                 f"Cannot create defined metadata artifact for model: {model_id}"
@@ -1807,10 +1807,7 @@ class AquaModelApp(AquaApp):
                 f"the model {model_id}."
             )
 
-        content = self.ds_client.get_model_defined_metadatum_artifact_content(
-            model_id, DefinedMetadata.LICENSE
-        ).data.content.decode("utf-8", errors="ignore")
-
+        content = self.get_config(model_id, DefinedMetadata.LICENSE)
         return AquaModelLicense(id=model_id, license=content)
 
     def _find_matching_aqua_model(self, model_id: str) -> Optional[str]:
