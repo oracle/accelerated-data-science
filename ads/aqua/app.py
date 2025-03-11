@@ -3,6 +3,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
+import os
 from dataclasses import fields
 from typing import Dict, Union
 
@@ -16,11 +17,13 @@ from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     _is_valid_mvs,
     config_parser,
+    get_artifact_path,
     is_valid_ocid,
+    load_config,
 )
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
-from ads.common.utils import UNKNOWN, extract_region
+from ads.common.utils import UNKNOWN, extract_region, is_path_exists
 from ads.config import (
     AQUA_TELEMETRY_BUCKET,
     AQUA_TELEMETRY_BUCKET_NS,
@@ -264,6 +267,62 @@ class AquaApp:
                 logger.info(f"Artifact not found in model {model_id}.")
                 return False
 
+    def get_config_from_oss(
+        self,
+        model_id: str,
+        config_file_name: str,
+        oci_model: oci.data_science.models.Model,
+    ) -> Dict:
+        """Gets the config for the given Aqua model from OSS bucket.
+
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the Aqua model.
+        config_file_name: str
+            name of the config file
+        oci_model:  oci.data_science.models.Model
+            corresponding oci datascience model
+
+        Returns
+        -------
+        Dict:
+            A dict of allowed configs.
+        """
+
+        config = {}
+        if Tags.AQUA_SERVICE_MODEL_TAG in oci_model.freeform_tags:
+            base_model_ocid = oci_model.freeform_tags[Tags.AQUA_SERVICE_MODEL_TAG]
+            logger.info(
+                f"Base model found for the model: {oci_model.id}. "
+                f"Loading {config_file_name} for base model {base_model_ocid}."
+            )
+            base_model = self.ds_client.get_model(base_model_ocid).data
+            artifact_path = get_artifact_path(base_model.custom_metadata_list)
+        else:
+            logger.info(f"Loading {config_file_name} for model {oci_model.id}...")
+            artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+
+        if not artifact_path:
+            logger.debug(
+                f"Failed to get artifact path from custom metadata for the model: {model_id}"
+            )
+            return config
+        config_path = os.path.join(os.path.dirname(artifact_path), "config")
+        if not is_path_exists(config_path):
+            config_path = os.path.join(artifact_path.rstrip("/"), "config")
+            if not is_path_exists(config_path):
+                config_path = f"{artifact_path.rstrip('/')}/"
+        config_file_path = os.path.join(config_path, config_file_name)
+        if is_path_exists(config_file_path):
+            try:
+                config = load_config(config_path, config_file_name=config_file_name)
+            except Exception as e:
+                logger.debug(
+                    f"Error occurred while fetching config {config_file_name} at path {config_path} : {str(e)}"
+                )
+        return config
+
     def get_config(self, model_id: str, config_file_name: str) -> Dict:
         """Gets the config for the given Aqua model.
 
@@ -292,7 +351,6 @@ class AquaApp:
         if not oci_aqua:
             raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
 
-        config = {}
         try:
             config = self.ds_client.get_model_defined_metadatum_artifact_content(
                 model_id, config_file_name
@@ -302,8 +360,13 @@ class AquaApp:
                 config = config_dict
             except Exception:
                 pass
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(
+                f"Error occurred while fetching {config_file_name} from defined metadata list: {str(e)}"
+            )
+            # To maintain backward compatibility
+            # TODO: Remove this once config from oss path is depricated completely
+            config = self.get_config_from_oss(model_id, config_file_name, oci_model)
 
         if not config:
             logger.error(

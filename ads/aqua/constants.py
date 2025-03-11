@@ -35,7 +35,8 @@ AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE = "model_type"
 AQUA_MODEL_ARTIFACT_FILE = "model_file"
 HF_METADATA_FOLDER = ".cache/"
 HF_LOGIN_DEFAULT_TIMEOUT = 2
-
+README = "README.md"
+LICENSE_TXT = "config/LICENSE.txt"
 TRAINING_METRICS_FINAL = "training_metrics_final"
 VALIDATION_METRICS_FINAL = "validation_metrics_final"
 TRINING_METRICS = "training_metrics"

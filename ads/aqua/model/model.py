@@ -50,6 +50,7 @@ from ads.aqua.constants import (
     AQUA_MODEL_TYPE_CUSTOM,
     HF_METADATA_FOLDER,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
+    README,
     READY_TO_DEPLOY_STATUS,
     READY_TO_FINE_TUNE_STATUS,
     READY_TO_IMPORT_STATUS,
@@ -74,12 +75,14 @@ from ads.aqua.model.entities import (
     ImportModelDetails,
     ModelValidationResult,
 )
+from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import (
     UNKNOWN,
     MetadataArtifactPathType,
     get_console_link,
     is_path_exists,
+    read_file,
     text_sanitizer,
 )
 from ads.config import (
@@ -238,6 +241,7 @@ class AquaModelApp(AquaApp):
 
         logger.info(f"Fetching model details for model {model_id}.")
         ds_model = DataScienceModel.from_id(model_id)
+
         if not self._if_show(ds_model):
             raise AquaRuntimeError(
                 f"Target model `{ds_model.id} `is not an Aqua model as it does not contain "
@@ -257,15 +261,28 @@ class AquaModelApp(AquaApp):
 
         model_card = ""
         if load_model_card:
-            artifact_path = get_artifact_path(
-                ds_model.custom_metadata_list._to_oci_metadata()
-            )
-            if artifact_path != UNKNOWN:
+            try:
                 model_card = (
                     self.ds_client.get_model_defined_metadatum_artifact_content(
                         model_id, DefinedMetadata.README
                     ).data.content.decode("utf-8", errors="ignore")
                 )
+            except Exception as ex:
+                logger.debug(
+                    f"Error occurred in getting {DefinedMetadata.README} from defined metadata for {model_id}: {str(ex)}"
+                )
+                artifact_path = get_artifact_path(
+                    ds_model.custom_metadata_list._to_oci_metadata()
+                )
+                if artifact_path != UNKNOWN:
+                    model_card_path = (
+                        f"{artifact_path.rstrip('/')}/config/{README}"
+                        if is_verified_type
+                        else f"{artifact_path.rstrip('/')}/{README}"
+                    )
+                    model_card = str(
+                        read_file(file_path=model_card_path, auth=default_signer())
+                    )
 
         inference_container = ds_model.custom_metadata_list.get(
             ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
