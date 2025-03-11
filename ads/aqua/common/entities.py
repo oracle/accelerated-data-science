@@ -33,3 +33,8 @@ class ModelConfigResult(BaseModel):
 
     config: Dict[str, Any] = Field(..., description="Loaded configuration dictionary.")
     model_details: Model = Field(..., description="Details of the model from OCI.")
+
+    class Config:
+        extra = "ignore"
+        arbitrary_types_allowed = True
+        protected_namespaces = ()
