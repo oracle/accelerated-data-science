@@ -90,7 +90,9 @@ from ads.config import (
     AQUA_FINETUNING_CONTAINER_METADATA_NAME,
     COMPARTMENT_OCID,
     PROJECT_OCID,
+    SERVICE,
     TENANCY_OCID,
+    USER,
 )
 from ads.model import DataScienceModel
 from ads.model.model_metadata import (
@@ -770,7 +772,8 @@ class AquaModelApp(AquaApp):
         """
 
         models = []
-        if compartment_id and kwargs["category"] != "SERVICE":
+        category = kwargs.get("category", USER)
+        if compartment_id and category != SERVICE:
             # tracks number of times custom model listing was called
             self.telemetry.record_event_async(
                 category="aqua/custom/model", action="list"
