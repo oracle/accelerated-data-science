@@ -1802,7 +1802,7 @@ class DataScienceModel(Builder):
                 self.set_spec(self.CONST_ARTIFACT, file_name_info["filename"])
         except:
             pass
-        return self.dsc_model
+        return self
 
     def to_dict(self) -> Dict:
         """Serializes model to a dictionary.
