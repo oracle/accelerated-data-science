@@ -21,6 +21,7 @@ from oci.data_science.models import (
 from oci.exceptions import ServiceError
 from requests.structures import CaseInsensitiveDict
 
+from ads.common import utils
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_datascience import OCIDataScienceMixin

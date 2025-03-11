@@ -21,7 +21,7 @@ from oci.response import Response
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_mixin import OCIModelMixin
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import MetadataArtifactPathType
+from ads.model.common.utils import MetadataArtifactPathType
 from ads.model.datascience_model import _MAX_ARTIFACT_SIZE_IN_BYTES
 from ads.model.service.oci_datascience_model import (
     ModelArtifactNotFoundError,
