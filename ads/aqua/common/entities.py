@@ -5,7 +5,8 @@
 import re
 from typing import Any, Dict, Optional
 
-from pydantic import Field, model_validator
+from oci.data_science.models import Model
+from pydantic import BaseModel, Field, model_validator
 
 from ads.aqua import logger
 from ads.aqua.config.utils.serializer import Serializable
@@ -23,6 +24,27 @@ class ContainerSpec:
     ENV_VARS = "envVars"
     RESTRICTED_PARAMS = "restrictedParams"
     EVALUATION_CONFIGURATION = "evaluationConfiguration"
+
+
+class ModelConfigResult(BaseModel):
+    """
+    Represents the result of getting the AQUA model configuration.
+    Attributes:
+        model_details (Dict[str, Any]): A dictionary containing model details extracted from OCI.
+        config (Dict[str, Any]): A dictionary of the loaded configuration.
+    """
+
+    config: Optional[Dict[str, Any]] = Field(
+        None, description="Loaded configuration dictionary."
+    )
+    model_details: Optional[Model] = Field(
+        None, description="Details of the model from OCI."
+    )
+
+    class Config:
+        extra = "ignore"
+        arbitrary_types_allowed = True
+        protected_namespaces = ()
 
 
 class GPUSpecs(Serializable):

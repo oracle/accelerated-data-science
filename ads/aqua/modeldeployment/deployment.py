@@ -1008,7 +1008,7 @@ class AquaDeploymentApp(AquaApp):
         AquaDeploymentConfig:
             An instance of AquaDeploymentConfig.
         """
-        config = self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG)
+        config = self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG).config
         if not config:
             logger.debug(
                 f"Deployment config for custom model: {model_id} is not available. Use defaults."

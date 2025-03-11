@@ -15,7 +15,7 @@ import oci
 import pytest
 from parameterized import parameterized
 
-from ads.aqua.common.entities import AquaMultiModelRef, ComputeShapeSummary
+from ads.aqua.common.entities import AquaMultiModelRef, ComputeShapeSummary, ModelConfigResult
 import ads.aqua.modeldeployment.deployment
 import ads.config
 from ads.aqua.common.entities import AquaMultiModelRef
@@ -1054,12 +1054,12 @@ class TestAquaDeployment(unittest.TestCase):
         with open(config_json, "r") as _file:
             config = json.load(_file)
 
-        self.app.get_config = MagicMock(return_value=config)
+        self.app.get_config = MagicMock(return_value=ModelConfigResult(config=config))
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
         expected_config = AquaDeploymentConfig(**config)
         assert result == expected_config
 
-        self.app.get_config = MagicMock(return_value=None)
+        self.app.get_config = MagicMock(return_value=ModelConfigResult(config=None))
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
         expected_config = AquaDeploymentConfig(**{})
         assert result == expected_config
