@@ -2,7 +2,7 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from oci.data_science.models import Model
 from pydantic import BaseModel, Field
@@ -31,8 +31,12 @@ class ModelConfigResult(BaseModel):
         config (Dict[str, Any]): A dictionary of the loaded configuration.
     """
 
-    config: Dict[str, Any] = Field(..., description="Loaded configuration dictionary.")
-    model_details: Model = Field(..., description="Details of the model from OCI.")
+    config: Optional[Dict[str, Any]] = Field(
+        None, description="Loaded configuration dictionary."
+    )
+    model_details: Optional[Model] = Field(
+        None, description="Details of the model from OCI."
+    )
 
     class Config:
         extra = "ignore"

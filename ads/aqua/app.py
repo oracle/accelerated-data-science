@@ -353,7 +353,7 @@ class AquaApp:
                 f"Check if the custom metadata has the artifact path set."
             )
 
-        return ModelConfigResult(config=config or {}, model_details=oci_model)
+        return ModelConfigResult(config=config, model_details=oci_model)
 
     @property
     def telemetry(self):
