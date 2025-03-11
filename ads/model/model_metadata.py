@@ -24,6 +24,7 @@ from ads.common.error import ChangesNotCommitted
 from ads.common.extended_enum import ExtendedEnum
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
+from ads.common.utils import parse_bool
 from ads.dataset import factory
 
 try:
@@ -345,7 +346,7 @@ class ModelMetadataItem(ABC):
         if isinstance(key_value_map["value"], str):
             try:
                 key_value_map["value"] = json.loads(oci_metadata_item.get("value"))
-                key_value_map["has_artifact"] = bool(
+                key_value_map["has_artifact"] = parse_bool(
                     oci_metadata_item.get("has_artifact")
                 )
             except Exception:
