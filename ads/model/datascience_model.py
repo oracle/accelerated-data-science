@@ -2252,7 +2252,7 @@ class DataScienceModel(Builder):
 
         Returns
         -------
-        Dict
+        ModelMetadataArtifactDetails
             The model custom metadata artifact creation info.
             Example:
             {
@@ -2296,7 +2296,8 @@ class DataScienceModel(Builder):
 
         Returns
         -------
-        The model defined metadata artifact creation info.
+        ModelMetadataArtifactDetails
+            The model defined metadata artifact creation info.
             Example:
             {
                 'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
@@ -2339,7 +2340,7 @@ class DataScienceModel(Builder):
 
         Returns
         -------
-        Dict
+        ModelMetadataArtifactDetails
             The model custom metadata artifact update info.
             Example:
             {
@@ -2383,7 +2384,7 @@ class DataScienceModel(Builder):
 
         Returns
         -------
-        Dict
+        ModelMetadataArtifactDetails
             The model defined metadata artifact update info.
             Example:
             {
@@ -2485,7 +2486,7 @@ class DataScienceModel(Builder):
             The name of the model metadatum in the metadata.
         Returns
         -------
-        Dict
+        ModelMetadataArtifactDetails
             The model custom metadata artifact delete call info.
             Example:
             {
@@ -2513,7 +2514,7 @@ class DataScienceModel(Builder):
             The name of the model metadatum in the metadata.
         Returns
         -------
-        Dict
+        ModelMetadataArtifactDetails
             The model defined metadata artifact delete call info.
             Example:
             {
