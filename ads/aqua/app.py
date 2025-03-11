@@ -340,7 +340,7 @@ class AquaApp:
         config_file_path = os.path.join(config_path, config_file_name)
         if is_path_exists(config_file_path):
             try:
-                logger.info(
+                logger.debug(
                     f"Loading config: `{config_file_name}` from `{config_path}`"
                 )
                 config = load_config(

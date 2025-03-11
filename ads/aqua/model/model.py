@@ -285,7 +285,7 @@ class AquaModelApp(AquaApp):
             display_name = source_model.display_name
             model.model_name = model.model_name or display_name
 
-            # We cannot rely on this tag, service and cached models doesn't have it.
+            # TODO Uncomment the section below, if only service models should be allowed for multi-model deployment
             # if not source_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, UNKNOWN):
             #     raise AquaValueError(
             #         f"Invalid selected model {display_name}. "
@@ -400,7 +400,8 @@ class AquaModelApp(AquaApp):
             category="Other",
         )
 
-        # Combine tags
+        # Combine tags. The `Tags.AQUA_TAG` has been excluded, because we don't want to show
+        # the models created for multi-model purpose in the AQUA models list.
         tags = {
             # Tags.AQUA_TAG: "active",
             Tags.MULTIMODEL_TYPE_TAG: "true",
