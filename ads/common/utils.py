@@ -43,7 +43,6 @@ from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
     runtime_dependency,
 )
-from ads.common.extended_enum import ExtendedEnum
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_client import OCIClientFactory
 from ads.common.word_lists import adjectives, animals
@@ -84,13 +83,6 @@ mpl.rcParams["image.cmap"] = "BuGn"
 mpl.rcParams["axes.prop_cycle"] = cycler(
     color=["teal", "blueviolet", "forestgreen", "peru", "y", "dodgerblue", "r"]
 )
-
-
-# Metadata artifact path type can be either local path or OSS path. It can also be the content itself.
-class MetadataArtifactPathType(ExtendedEnum):
-    LOCAL = "local"
-    OSS = "oss"
-    CONTENT = "content"
 
 
 # sqlalchemy engines

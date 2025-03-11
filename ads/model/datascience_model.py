@@ -34,6 +34,7 @@ from ads.model.artifact_downloader import (
     SmallArtifactDownloader,
 )
 from ads.model.artifact_uploader import LargeArtifactUploader, SmallArtifactUploader
+from ads.model.common.utils import MetadataArtifactPathType
 from ads.model.model_metadata import (
     MetadataCustomCategory,
     ModelCustomMetadata,
@@ -2232,7 +2233,7 @@ class DataScienceModel(Builder):
         self,
         metadata_key_name: str,
         artifact_path_or_content: str,
-        path_type: utils.MetadataArtifactPathType = utils.MetadataArtifactPathType.LOCAL,
+        path_type: MetadataArtifactPathType = MetadataArtifactPathType.LOCAL,
     ) -> ModelMetadataArtifactDetails:
         """Creates model custom metadata artifact for specified model.
 
@@ -2244,8 +2245,8 @@ class DataScienceModel(Builder):
         artifact_path_or_content: str
             The model custom metadata artifact path to be upload. It can also be the actual content of the custom metadata
 
-        path_type: utils.MetadataArtifactPathType
-            Can be either of utils.MetadataArtifactPathType.LOCAL , utils.MetadataArtifactPathType.OSS , utils.MetadataArtifactPathType.CONTENT
+        path_type: MetadataArtifactPathType
+            Can be either of MetadataArtifactPathType.LOCAL , MetadataArtifactPathType.OSS , MetadataArtifactPathType.CONTENT
             Specifies what type of path is to be provided for metadata artifact.
             Can be either local , oss or the actual content itself
 
@@ -2276,7 +2277,7 @@ class DataScienceModel(Builder):
         self,
         metadata_key_name: str,
         artifact_path_or_content: str,
-        path_type: utils.MetadataArtifactPathType = utils.MetadataArtifactPathType.LOCAL,
+        path_type: MetadataArtifactPathType = MetadataArtifactPathType.LOCAL,
     ) -> ModelMetadataArtifactDetails:
         """Creates model defined metadata artifact for specified model.
 
@@ -2288,8 +2289,8 @@ class DataScienceModel(Builder):
         artifact_path_or_content: str
             The model defined metadata artifact path to be upload. It can also be the actual content of the defined metadata
 
-        path_type: utils.MetadataArtifactPathType
-            Can be either of utils.MetadataArtifactPathType.LOCAL , utils.MetadataArtifactPathType.OSS , utils.MetadataArtifactPathType.CONTENT
+        path_type: MetadataArtifactPathType
+            Can be either of MetadataArtifactPathType.LOCAL , MetadataArtifactPathType.OSS , MetadataArtifactPathType.CONTENT
             Specifies what type of path is to be provided for metadata artifact.
             Can be either local , oss or the actual content itself
 
@@ -2319,7 +2320,7 @@ class DataScienceModel(Builder):
         self,
         metadata_key_name: str,
         artifact_path_or_content: str,
-        path_type: utils.MetadataArtifactPathType = utils.MetadataArtifactPathType.LOCAL,
+        path_type: MetadataArtifactPathType = MetadataArtifactPathType.LOCAL,
     ) -> ModelMetadataArtifactDetails:
         """Update model custom metadata artifact for specified model.
 
@@ -2331,8 +2332,8 @@ class DataScienceModel(Builder):
         artifact_path_or_content: str
             The model custom metadata artifact path. It can also be the actual content of the custom metadata
 
-        path_type: utils.MetadataArtifactPathType
-            Can be either of utils.MetadataArtifactPathType.LOCAL , utils.MetadataArtifactPathType.OSS , utils.MetadataArtifactPathType.CONTENT
+        path_type: MetadataArtifactPathType
+            Can be either of MetadataArtifactPathType.LOCAL , MetadataArtifactPathType.OSS , MetadataArtifactPathType.CONTENT
             Specifies what type of path is to be provided for metadata artifact.
             Can be either local , oss or the actual content itself
 
@@ -2363,7 +2364,7 @@ class DataScienceModel(Builder):
         self,
         metadata_key_name: str,
         artifact_path_or_content: str,
-        path_type: utils.MetadataArtifactPathType = utils.MetadataArtifactPathType.LOCAL,
+        path_type: MetadataArtifactPathType = MetadataArtifactPathType.LOCAL,
     ) -> ModelMetadataArtifactDetails:
         """Update model defined metadata artifact for specified model.
 
@@ -2375,8 +2376,8 @@ class DataScienceModel(Builder):
         artifact_path_or_content: str
             The model defined metadata artifact path. It can also be the actual content of the defined metadata
 
-        path_type: utils.MetadataArtifactPathType
-            Can be either of utils.MetadataArtifactPathType.LOCAL , utils.MetadataArtifactPathType.OSS , utils.MetadataArtifactPathType.CONTENT
+        path_type: MetadataArtifactPathType
+            Can be either of MetadataArtifactPathType.LOCAL , MetadataArtifactPathType.OSS , MetadataArtifactPathType.CONTENT
             Specifies what type of path is to be provided for metadata artifact.
             Can be either local , oss or the actual content itself
 

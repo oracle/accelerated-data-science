@@ -21,7 +21,6 @@ from oci.data_science.models import (
 from oci.exceptions import ServiceError
 from requests.structures import CaseInsensitiveDict
 
-from ads.common import utils
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_datascience import OCIDataScienceMixin
@@ -30,6 +29,7 @@ from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import extract_region, read_file, text_sanitizer
 from ads.common.work_request import DataScienceWorkRequest
+from ads.model.common.utils import MetadataArtifactPathType
 from ads.model.deployment import ModelDeployment
 
 logger = logging.getLogger(__name__)
@@ -620,7 +620,7 @@ class OCIDataScienceModel(
         return False
 
     def get_metadata_content(
-        self, artifact_path_or_content: str, path_type: utils.MetadataArtifactPathType
+        self, artifact_path_or_content: str, path_type: MetadataArtifactPathType
     ):
         """
         returns the content of the metadata artifact
@@ -637,10 +637,10 @@ class OCIDataScienceModel(
         metadata artifact content
         """
 
-        if path_type == utils.MetadataArtifactPathType.CONTENT:
+        if path_type == MetadataArtifactPathType.CONTENT:
             return artifact_path_or_content
 
-        elif path_type == utils.MetadataArtifactPathType.LOCAL:
+        elif path_type == MetadataArtifactPathType.LOCAL:
             if not utils.is_path_exists(artifact_path_or_content):
                 raise FileNotFoundError(
                     f"File not found:  {artifact_path_or_content} . "
@@ -652,7 +652,7 @@ class OCIDataScienceModel(
 
             return contents
 
-        elif path_type == utils.MetadataArtifactPathType.OSS:
+        elif path_type == MetadataArtifactPathType.OSS:
             if not utils.is_path_exists(artifact_path_or_content):
                 raise FileNotFoundError(f"File not found: {artifact_path_or_content}")
 
@@ -670,7 +670,7 @@ class OCIDataScienceModel(
         self,
         metadata_key_name: str,
         artifact_path: str,
-        path_type: utils.MetadataArtifactPathType,
+        path_type: MetadataArtifactPathType,
     ) -> ModelMetadataArtifactDetails:
         """Creates model custom metadata artifact for specified model.
 
@@ -682,7 +682,7 @@ class OCIDataScienceModel(
         artifact_path: str
             The model custom metadata artifact path to be upload.
 
-        path_type: utils.MetadataArtifactPathType
+        path_type: MetadataArtifactPathType
             can be one of local , oss or actual content itself
 
         Returns
@@ -723,7 +723,7 @@ class OCIDataScienceModel(
         self,
         metadata_key_name: str,
         artifact_path: str,
-        path_type: utils.MetadataArtifactPathType,
+        path_type: MetadataArtifactPathType,
     ) -> ModelMetadataArtifactDetails:
         """Creates model defined metadata artifact for specified model.
 
@@ -735,7 +735,7 @@ class OCIDataScienceModel(
         artifact_path: str
             The model custom metadata artifact path to be upload.
 
-        path_type: utils.MetadataArtifactPathType
+        path_type: MetadataArtifactPathType
             can be one of local , oss or actual content itself.
 
         Returns
@@ -776,7 +776,7 @@ class OCIDataScienceModel(
         self,
         metadata_key_name: str,
         artifact_path: str,
-        path_type: utils.MetadataArtifactPathType,
+        path_type: MetadataArtifactPathType,
     ) -> ModelMetadataArtifactDetails:
         """Update model defined metadata artifact for specified model.
 
@@ -788,7 +788,7 @@ class OCIDataScienceModel(
         artifact_path: str
             The model defined metadata artifact path to be upload.
 
-        path_type:utils.MetadataArtifactPathType
+        path_type:MetadataArtifactPathType
             can be one of local , oss or actual content itself.
         Returns
         -------
@@ -828,7 +828,7 @@ class OCIDataScienceModel(
         self,
         metadata_key_name: str,
         artifact_path: str,
-        path_type: utils.MetadataArtifactPathType,
+        path_type: MetadataArtifactPathType,
     ) -> ModelMetadataArtifactDetails:
         """Update model custom metadata artifact for specified model.
 
@@ -840,7 +840,7 @@ class OCIDataScienceModel(
         artifact_path: str
             The model custom metadata artifact path to be upload.
 
-        path_type: utils.MetadataArtifactPathType
+        path_type: MetadataArtifactPathType
             can be one of local , oss or actual content itself.
 
         Returns
