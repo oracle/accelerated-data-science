@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import logging
 import os
@@ -17,6 +17,7 @@ from ads.opctl.operator.lowcode.common.utils import (
 from ads.opctl.operator.lowcode.forecast.const import (
     AUTOMLX_METRIC_MAP,
     ForecastOutputColumns,
+    SpeedAccuracyMode,
     SupportedModels,
 )
 from ads.opctl.operator.lowcode.forecast.utils import _label_encode_dataframe
@@ -55,8 +56,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         )
         return model_kwargs_cleaned, time_budget
 
-    def preprocess(self, data):  # TODO: re-use self.le for explanations
-        _, df_encoded = _label_encode_dataframe(
+    def preprocess(self, data, series_id):  # TODO: re-use self.le for explanations
+        self.le[series_id], df_encoded = _label_encode_dataframe(
             data,
             no_encode={self.spec.datetime_column.name, self.original_target_column},
         )
@@ -65,8 +66,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     @runtime_dependency(
         module="automlx",
         err_msg=(
-            "Please run `pip3 install oracle-automlx>=23.4.1` and "
-            "`pip3 install oracle-automlx[forecasting]>=23.4.1` "
+            "Please run `pip3 install oracle-automlx[forecasting]>=25.1.1` "
             "to install the required dependencies for automlx."
         ),
     )
@@ -80,22 +80,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         import logging
 
         from automlx import Pipeline, init
-
-        cpu_count = os.cpu_count()
-        try:
-            if cpu_count < 4:
-                engine = "local"
-                engine_opts = None
-            else:
-                engine = "ray"
-                engine_opts = ({"ray_setup": {"_temp_dir": "/tmp/ray-temp"}},)
-            init(
-                engine=engine,
-                engine_opts=engine_opts,
-                loglevel=logging.CRITICAL,
-            )
-        except Exception as e:
-            logger.info(f"Error. Has Ray already been initialized? Skipping. {e}")
 
         full_data_dict = self.datasets.get_data_by_series()
 
@@ -112,6 +96,26 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         # Clean up kwargs for pass through
         model_kwargs_cleaned, time_budget = self.set_kwargs()
 
+        cpu_count = os.cpu_count()
+        try:
+            engine_type = model_kwargs_cleaned.pop(
+                "engine", "local" if cpu_count <= 4 else "ray"
+            )
+            engine_opts = (
+                None
+                if engine_type == "local"
+                else {"ray_setup": {"_temp_dir": "/tmp/ray-temp"}}
+            )
+            init(
+                engine=engine_type,
+                engine_opts=engine_opts,
+                loglevel=logging.CRITICAL,
+            )
+        except Exception as e:
+            logger.info(
+                f"Error initializing automlx. Has Ray already been initialized? Skipping. {e}"
+            )
+
         for s_id, df in full_data_dict.items():
             try:
                 logger.debug(f"Running automlx on series {s_id}")
@@ -120,7 +124,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 self.forecast_output.init_series_output(
                     series_id=s_id, data_at_series=df
                 )
-                data = self.preprocess(df)
+                data = self.preprocess(df, s_id)
                 data_i = self.drop_horizon(data)
                 X_pred = self.get_horizon(data).drop(target, axis=1)
 
@@ -152,7 +156,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     target
                 ].values
 
-                self.models[s_id] = model
+                self.models[s_id] = {}
+                self.models[s_id]["model"] = model
+                self.models[s_id]["le"] = self.le[s_id]
 
                 # In case of Naive model, model.forecast function call does not return confidence intervals.
                 if f"{target}_ci_upper" not in summary_frame:
@@ -213,7 +219,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         other_sections = []
 
         if len(self.models) > 0:
-            for s_id, m in models.items():
+            for s_id, artifacts in models.items():
+                m = artifacts["model"]
                 selected_models[s_id] = {
                     "series_id": s_id,
                     "selected_model": m.selected_model_,
@@ -241,17 +248,17 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 # If the key is present, call the "explain_model" method
                 self.explain_model()
 
+                global_explanation_section = None
                 # Convert the global explanation data to a DataFrame
                 global_explanation_df = pd.DataFrame(self.global_explanation)
 
                 self.formatted_global_explanation = (
                     global_explanation_df / global_explanation_df.sum(axis=0) * 100
                 )
-                self.formatted_global_explanation = (
-                    self.formatted_global_explanation.rename(
-                        {self.spec.datetime_column.name: ForecastOutputColumns.DATE},
-                        axis=1,
-                    )
+
+                self.formatted_global_explanation.rename(
+                    columns={self.spec.datetime_column.name: ForecastOutputColumns.DATE},
+                    inplace=True,
                 )
 
                 aggregate_local_explanations = pd.DataFrame()
@@ -264,11 +271,15 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 self.formatted_local_explanation = aggregate_local_explanations
 
                 if not self.target_cat_col:
-                    self.formatted_global_explanation = self.formatted_global_explanation.rename(
-                        {"Series 1": self.original_target_column},
-                        axis=1,
+                    self.formatted_global_explanation = (
+                        self.formatted_global_explanation.rename(
+                            {"Series 1": self.original_target_column},
+                            axis=1,
+                        )
                     )
-                    self.formatted_local_explanation.drop("Series", axis=1, inplace=True)
+                    self.formatted_local_explanation.drop(
+                        "Series", axis=1, inplace=True
+                    )
 
                 # Create a markdown section for the global explainability
                 global_explanation_section = rc.Block(
@@ -293,8 +304,11 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 )
 
                 # Append the global explanation text and section to the "other_sections" list
+                if global_explanation_section:
+                    other_sections.append(global_explanation_section)
+
+                # Append the local explanation text and section to the "other_sections" list
                 other_sections = other_sections + [
-                    global_explanation_section,
                     local_explanation_section,
                 ]
             except Exception as e:
@@ -312,7 +326,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         )
 
     def get_explain_predict_fn(self, series_id):
-        selected_model = self.models[series_id]
+        selected_model = self.models[series_id]["model"]
 
         # If training date, use method below. If future date, use forecast!
         def _custom_predict_fn(
@@ -330,12 +344,12 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             data[dt_column_name] = seconds_to_datetime(
                 data[dt_column_name], dt_format=self.spec.datetime_column.format
             )
-            data = self.preprocess(data)
+            data = self.preprocess(data, series_id)
             horizon_data = horizon_data.drop(target_col, axis=1)
             horizon_data[dt_column_name] = seconds_to_datetime(
                 horizon_data[dt_column_name], dt_format=self.spec.datetime_column.format
             )
-            horizon_data = self.preprocess(horizon_data)
+            horizon_data = self.preprocess(horizon_data, series_id)
 
             rows = []
             for i in range(data.shape[0]):
@@ -375,3 +389,103 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         return self.models.get(self.series_id).forecast(
             X=data_temp, periods=data_temp.shape[0]
         )[self.series_id]
+
+    @runtime_dependency(
+        module="automlx",
+        err_msg=(
+            "Please run `python3 -m pip install automlx` to install the required dependencies for model explanation."
+        ),
+    )
+    def explain_model(self):
+        """
+        Generates explanations for the model using the AutoMLx library.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        This function works by generating local explanations for each series in the dataset.
+        It uses the ``MLExplainer`` class from the AutoMLx library to generate feature attributions
+        for each series. The feature attributions are then stored in the ``self.local_explanation`` dictionary.
+
+        If the accuracy mode is set to AutoMLX, it uses the AutoMLx library to generate explanations.
+        Otherwise, it falls back to the default explanation generation method.
+        """
+        import automlx
+
+        # Loop through each series in the dataset
+        for s_id, data_i in self.datasets.get_data_by_series(
+            include_horizon=False
+        ).items():
+            try:
+                if self.spec.explanations_accuracy_mode == SpeedAccuracyMode.AUTOMLX:
+                    # Use the MLExplainer class from AutoMLx to generate explanations
+                    explainer = automlx.MLExplainer(
+                        self.models[s_id]["model"],
+                        self.datasets.additional_data.get_data_for_series(
+                            series_id=s_id
+                        )
+                        .drop(self.spec.datetime_column.name, axis=1)
+                        .head(-self.spec.horizon)
+                        if self.spec.additional_data
+                        else None,
+                        pd.DataFrame(data_i[self.spec.target_column]),
+                        task="forecasting",
+                    )
+
+                    # Generate explanations for the forecast
+                    explanations = explainer.explain_prediction(
+                        X=self.datasets.additional_data.get_data_for_series(
+                            series_id=s_id
+                        )
+                        .drop(self.spec.datetime_column.name, axis=1)
+                        .tail(self.spec.horizon)
+                        if self.spec.additional_data
+                        else None,
+                        forecast_timepoints=list(range(self.spec.horizon + 1)),
+                    )
+
+                    # Convert the explanations to a DataFrame
+                    explanations_df = pd.concat(
+                        [exp.to_dataframe() for exp in explanations]
+                    )
+                    explanations_df["row"] = explanations_df.groupby(
+                        "Feature"
+                    ).cumcount()
+                    explanations_df = explanations_df.pivot(
+                        index="row", columns="Feature", values="Attribution"
+                    )
+                    explanations_df = explanations_df.reset_index(drop=True)
+
+                    # Store the explanations in the local_explanation dictionary
+                    self.local_explanation[s_id] = explanations_df
+
+                    self.global_explanation[s_id] = dict(
+                        zip(
+                            self.local_explanation[s_id].columns,
+                            np.nanmean(np.abs(self.local_explanation[s_id]), axis=0),
+                        )
+                    )
+                else:
+                    # Fall back to the default explanation generation method
+                    super().explain_model()
+            except Exception as e:
+                if s_id in self.errors_dict:
+                    self.errors_dict[s_id]["explainer_error"] = str(e)
+                    self.errors_dict[s_id]["explainer_error_trace"] = traceback.format_exc()
+                else:
+                    self.errors_dict[s_id] = {
+                        "model_name": self.spec.model,
+                        "explainer_error": str(e),
+                        "explainer_error_trace": traceback.format_exc(),
+                    }
+                logger.warning(
+                    f"Failed to generate explanations for series {s_id} with error: {e}."
+                )
+                logger.debug(f"Full Traceback: {traceback.format_exc()}")

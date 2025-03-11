@@ -172,8 +172,10 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 ).values,
             )
 
-            self.models[s_id] = model
             self.trainers[s_id] = model.trainer
+            self.models[s_id] = {}
+            self.models[s_id]["model"] = model
+            self.models[s_id]["le"] = self.le[s_id]
 
             self.model_parameters[s_id] = {
                 "framework": SupportedModels.NeuralProphet,
@@ -355,7 +357,8 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
             sec5_text = rc.Heading("Neural Prophet Model Parameters", level=2)
             model_states = []
-            for s_id, m in self.models.items():
+            for s_id, artifacts in self.models.items():
+                m = artifacts["model"]
                 model_states.append(
                     pd.Series(
                         m.state_dict(),

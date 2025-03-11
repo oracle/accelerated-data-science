@@ -1,16 +1,15 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import inspect
 import os
 import shutil
 import tempfile
+import warnings
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -21,8 +20,8 @@ from PIL import Image
 from ads.common import auth as authutil
 from ads.common import logger, utils
 from ads.common.decorator.utils import class_or_instance_method
-from ads.common.utils import DATA_SCHEMA_MAX_COL_NUM, get_files
 from ads.common.object_storage_details import ObjectStorageDetails
+from ads.common.utils import DATA_SCHEMA_MAX_COL_NUM, get_files
 from ads.config import (
     CONDA_BUCKET_NS,
     JOB_RUN_COMPARTMENT_OCID,
@@ -49,11 +48,11 @@ from ads.model.deployment import (
     DEFAULT_POLL_INTERVAL,
     DEFAULT_WAIT_TIME,
     ModelDeployment,
+    ModelDeploymentCondaRuntime,
+    ModelDeploymentContainerRuntime,
+    ModelDeploymentInfrastructure,
     ModelDeploymentMode,
     ModelDeploymentProperties,
-    ModelDeploymentCondaRuntime,
-    ModelDeploymentInfrastructure,
-    ModelDeploymentContainerRuntime,
 )
 from ads.model.deployment.common.utils import State as ModelDeploymentState
 from ads.model.deployment.common.utils import send_request
@@ -64,12 +63,12 @@ from ads.model.model_introspect import (
     ModelIntrospect,
 )
 from ads.model.model_metadata import (
-    ExtendedEnumMeta,
+    ExtendedEnum,
     Framework,
+    MetadataCustomCategory,
     ModelCustomMetadata,
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
-    MetadataCustomCategory,
 )
 from ads.model.model_metadata_mixin import MetadataMixin
 from ads.model.model_properties import ModelProperties
@@ -147,7 +146,7 @@ class ModelDeploymentRuntimeType:
     CONTAINER = "container"
 
 
-class DataScienceModelType(str, metaclass=ExtendedEnumMeta):
+class DataScienceModelType(ExtendedEnum):
     MODEL_DEPLOYMENT = "datasciencemodeldeployment"
     MODEL = "datasciencemodel"
 
@@ -940,11 +939,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 manifest = fetch_manifest_from_conda_location(conda_prefix)
                 if "pack_path" in manifest:
                     self.properties.inference_conda_env = manifest["pack_path"]
-                else:
-                    if not self.ignore_conda_error:
-                        raise ValueError(
-                            "`inference_conda_env` must be specified for conda runtime. If you are using container runtime, set `ignore_conda_error=True`."
-                        )
+                elif not self.ignore_conda_error:
+                    raise ValueError(
+                        "`inference_conda_env` must be specified for conda runtime. If you are using container runtime, set `ignore_conda_error=True`."
+                    )
                 self.properties.inference_python_version = (
                     manifest["python"]
                     if "python" in manifest
@@ -1025,7 +1023,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                     detail=PREPARE_STATUS_SERIALIZE_MODEL_DETAIL,
                     status=ModelState.DONE.value,
                 )
-            except SerializeModelNotImplementedError as e:
+            except SerializeModelNotImplementedError:
                 if not utils.is_path_exists(
                     uri=os.path.join(self.artifact_dir, self.model_file_name),
                     auth=self.auth,
@@ -1056,17 +1054,19 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             except Exception as e:
                 raise e
 
+        if self.framework == Framework.EMBEDDING_ONNX:
+            self.model_artifact.prepare_schema(schema_name="openapi.json")
+
         if as_onnx:
             jinja_template_filename = "score_onnx_new"
+        elif self.framework and self.framework != "other":
+            jinja_template_filename = "score_" + self.framework
+            if self.framework == "transformers":
+                jinja_template_filename = "score_" + "huggingface_pipeline"
         else:
-            if self.framework and self.framework != "other":
-                jinja_template_filename = "score_" + self.framework
-                if self.framework == "transformers":
-                    jinja_template_filename = "score_" + "huggingface_pipeline"
-            else:
-                jinja_template_filename = (
-                    "score-pkl" if self._serialize else "score_generic"
-                )
+            jinja_template_filename = (
+                "score-pkl" if self._serialize else "score_generic"
+            )
 
         if score_py_uri:
             utils.copy_file(
@@ -1276,7 +1276,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         if self.model_artifact is None:
             raise ArtifactsNotAvailableError
 
-        endpoint = f"http://127.0.0.1:8000/predict"
+        endpoint = "http://127.0.0.1:8000/predict"
         data = self._handle_input_data(data, auto_serialize_data, **kwargs)
 
         request_body = send_request(
@@ -2179,7 +2179,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 )
                 self.update_summary_action(
                     detail=SAVE_STATUS_INTROSPECT_TEST_DETAIL,
-                    action=f"Use `.introspect()` method to get detailed information.",
+                    action="Use `.introspect()` method to get detailed information.",
                 )
                 raise IntrospectionNotPassed(msg)
             else:
@@ -2470,7 +2470,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             .with_shape_name(self.properties.deployment_instance_shape)
             .with_replica(self.properties.deployment_instance_count)
             .with_subnet_id(self.properties.deployment_instance_subnet_id)
-            .with_private_endpoint_id(self.properties.deployment_instance_private_endpoint_id)
+            .with_private_endpoint_id(
+                self.properties.deployment_instance_private_endpoint_id
+            )
         )
 
         web_concurrency = (

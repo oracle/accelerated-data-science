@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
 # Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -12,9 +11,9 @@ from typing import Dict, Optional
 from zipfile import ZipFile
 
 from ads.common import utils
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import extract_region
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
-from ads.common.object_storage_details import ObjectStorageDetails
 
 
 class ArtifactDownloader(ABC):
@@ -169,9 +168,12 @@ class LargeArtifactDownloader(ArtifactDownloader):
 
     def _download(self):
         """Downloads model artifacts."""
-        self.progress.update(f"Importing model artifacts from catalog")
+        self.progress.update("Importing model artifacts from catalog")
 
-        if self.dsc_model.is_model_by_reference() and self.model_file_description:
+        if (
+            self.dsc_model.is_model_created_by_reference()
+            and self.model_file_description
+        ):
             self.download_from_model_file_description()
             self.progress.update()
             return

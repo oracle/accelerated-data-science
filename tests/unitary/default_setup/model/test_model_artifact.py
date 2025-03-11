@@ -7,7 +7,7 @@ import os
 import pickle
 import sys
 
-import mock
+from unittest import mock
 import pytest
 import yaml
 from ads.common.model import ADSModel

@@ -1,31 +1,31 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import os
 import json
+import os
+from importlib import reload
+from unittest import TestCase
+from unittest.mock import MagicMock, PropertyMock, patch
+
 import pytest
 from parameterized import parameterized
-from unittest import TestCase
-from unittest.mock import MagicMock, PropertyMock
-from mock import patch
-from dataclasses import asdict
-from importlib import reload
 
 import ads.aqua
 import ads.aqua.finetuning.finetuning
-from ads.aqua.model.entities import AquaFineTuneModel
 import ads.config
 from ads.aqua.app import AquaApp
+from ads.aqua.common.errors import AquaValueError
 from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.finetuning.constants import FineTuneCustomMetadata
 from ads.aqua.finetuning.entities import AquaFineTuningParams
+from ads.aqua.model.entities import AquaFineTuneModel
 from ads.jobs.ads_job import Job
+from ads.jobs.builders.infrastructure.dsc_job import DataScienceJobRun
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import ModelCustomMetadata
-from ads.aqua.common.errors import AquaValueError
 
 
 class FineTuningTestCase(TestCase):
@@ -50,6 +50,12 @@ class FineTuningTestCase(TestCase):
         reload(ads.aqua)
         reload(ads.aqua.finetuning.finetuning)
 
+    @parameterized.expand(
+        [
+            ("watch_logs", True),
+            ("watch_logs", False),
+        ]
+    )
     @patch.object(Job, "run")
     @patch("ads.jobs.ads_job.Job.name", new_callable=PropertyMock)
     @patch("ads.jobs.ads_job.Job.id", new_callable=PropertyMock)
@@ -61,6 +67,8 @@ class FineTuningTestCase(TestCase):
     @patch.object(AquaApp, "get_source")
     def test_create_fine_tuning(
         self,
+        mock_watch_logs,
+        mock_watch_logs_called,
         mock_get_source,
         mock_mvs_create,
         mock_ds_model_create,
@@ -118,6 +126,7 @@ class FineTuningTestCase(TestCase):
         ft_job_run.id = "test_ft_job_run_id"
         ft_job_run.lifecycle_details = "Job run artifact execution in progress."
         ft_job_run.lifecycle_state = "IN_PROGRESS"
+        ft_job_run.watch = MagicMock()
         mock_job_run.return_value = ft_job_run
 
         self.app.ds_client.update_model = MagicMock()
@@ -145,9 +154,22 @@ class FineTuningTestCase(TestCase):
             defined_tags=ft_model_defined_tags,
         )
 
-        aqua_ft_summary = self.app.create(**create_aqua_ft_details)
+        inputs = {
+            **create_aqua_ft_details,
+            **{
+                mock_watch_logs: mock_watch_logs_called,
+                "log_id": "test_log_id",
+                "log_group_id": "test_log_group_id",
+            },
+        }
+        aqua_ft_summary = self.app.create(**inputs)
 
-        assert asdict(aqua_ft_summary) == {
+        if mock_watch_logs_called:
+            ft_job_run.watch.assert_called()
+        else:
+            ft_job_run.watch.assert_not_called()
+
+        assert aqua_ft_summary.to_dict() == {
             "console_url": f"https://cloud.oracle.com/data-science/models/{ft_model.id}?region={self.app.region}",
             "experiment": {
                 "id": f"{mock_mvs_create.return_value[0]}",
@@ -267,15 +289,14 @@ class FineTuningTestCase(TestCase):
         params_dict = {
             "params": {
                 "batch_size": 1,
+                "val_set_size": 0.1,
                 "sequence_len": 2048,
-                "sample_packing": True,
                 "pad_to_sequence_len": True,
                 "learning_rate": 0.0002,
                 "lora_r": 32,
                 "lora_alpha": 16,
                 "lora_dropout": 0.05,
                 "lora_target_linear": True,
-                "lora_target_modules": ["q_proj", "k_proj"],
             }
         }
         config_json = os.path.join(self.curr_dir, "test_data/finetuning/ft_config.json")
@@ -309,14 +330,22 @@ class FineTuningTestCase(TestCase):
                 True,
             ),
             (
+                {"optimizer": "adamw_torch"},
+                False,
+            ),
+            (
                 {
-                    "micro_batch_size": 1,
-                    "max_sequence_len": 2048,
-                    "flash_attention": True,
-                    "pad_to_sequence_len": True,
-                    "lr_scheduler": "cosine",
+                    "epochs": [2],
                 },
                 False,
+            ),
+            (
+                {
+                    "epochs": 2,
+                    "load_best_model_at_end": True,
+                    "metric_for_best_model": "accuracy",
+                },
+                True,
             ),
         ]
     )

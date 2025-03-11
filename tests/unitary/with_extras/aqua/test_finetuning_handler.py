@@ -1,21 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from unittest import TestCase
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-from mock import patch
-from notebook.base.handlers import APIHandler, IPythonHandler
+from notebook.base.handlers import IPythonHandler
 
 from ads.aqua.extension.finetune_handler import (
     AquaFineTuneHandler,
     AquaFineTuneParamsHandler,
 )
 from ads.aqua.finetuning import AquaFineTuningApp
-from ads.aqua.finetuning.entities import CreateFineTuningDetails
 
 
 class TestDataset:
@@ -68,9 +66,7 @@ class FineTuningHandlerTestCase(TestCase):
         self.test_instance.post()
 
         self.test_instance.finish.assert_called_with(mock_create.return_value)
-        mock_create.assert_called_with(
-            CreateFineTuningDetails(**TestDataset.mock_valid_input)
-        )
+        mock_create.assert_called_with(**TestDataset.mock_valid_input)
 
     @patch.object(AquaFineTuningApp, "get_finetuning_config")
     def test_get_finetuning_config(self, mock_get_finetuning_config):

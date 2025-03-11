@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from ads.common.extended_enum import ExtendedEnumMeta
+from ads.common.extended_enum import ExtendedEnum
 from ads.opctl.operator.lowcode.common.const import DataColumns
 
 
-class SupportedModels(str, metaclass=ExtendedEnumMeta):
+class SupportedModels(ExtendedEnum):
     """Supported forecast models."""
 
     Prophet = "prophet"
@@ -19,7 +19,7 @@ class SupportedModels(str, metaclass=ExtendedEnumMeta):
     # Auto = "auto"
 
 
-class SpeedAccuracyMode(str, metaclass=ExtendedEnumMeta):
+class SpeedAccuracyMode(ExtendedEnum):
     """
     Enum representing different modes based on time taken and accuracy for explainability.
     """
@@ -27,13 +27,15 @@ class SpeedAccuracyMode(str, metaclass=ExtendedEnumMeta):
     HIGH_ACCURACY = "HIGH_ACCURACY"
     BALANCED = "BALANCED"
     FAST_APPROXIMATE = "FAST_APPROXIMATE"
+    AUTOMLX = "AUTOMLX"
     ratio = {}
     ratio[HIGH_ACCURACY] = 1  # 100 % data used for generating explanations
     ratio[BALANCED] = 0.5  # 50 % data used for generating explanations
     ratio[FAST_APPROXIMATE] = 0  # constant
+    ratio[AUTOMLX] = 0  # constant
 
 
-class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
+class SupportedMetrics(ExtendedEnum):
     """Supported forecast metrics."""
 
     MAPE = "MAPE"
@@ -60,7 +62,7 @@ class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
     ELAPSED_TIME = "Elapsed Time"
 
 
-class ForecastOutputColumns(str, metaclass=ExtendedEnumMeta):
+class ForecastOutputColumns(ExtendedEnum):
     """The column names for the forecast.csv output file"""
 
     DATE = "Date"

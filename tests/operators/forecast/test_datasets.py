@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
+import json
 import yaml
 import tempfile
 import subprocess
@@ -15,6 +16,8 @@ import random
 import pathlib
 import datetime
 from ads.opctl.operator.cmd import run
+from ads.opctl.operator.lowcode.forecast.__main__ import operate as forecast_operate
+from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorConfig
 
 
 DATASET_PREFIX = f"{os.path.dirname(os.path.abspath(__file__))}/../data/timeseries/"
@@ -153,13 +156,126 @@ def test_load_datasets(model, data_details):
             verify_explanations(
                 tmpdirname=tmpdirname,
                 additional_cols=additional_cols,
-                target_category_columns=yaml_i["spec"]['target_category_columns']
+                target_category_columns=yaml_i["spec"]["target_category_columns"],
             )
         if include_test_data:
             test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")
             print(test_metrics)
             train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
             print(train_metrics)
+
+
+@pytest.mark.parametrize("model", MODELS[:-2])
+def test_pandas_to_historical(model):
+    df = pd.read_csv(f"{DATASET_PREFIX}dataset1.csv")
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        output_data_path = f"{tmpdirname}/results"
+        yaml_i = deepcopy(TEMPLATE_YAML)
+        yaml_i["spec"]["model"] = model
+        yaml_i["spec"]["historical_data"].pop("url")
+        yaml_i["spec"]["historical_data"]["data"] = df
+        yaml_i["spec"]["target_column"] = "Y"
+        yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COL
+        yaml_i["spec"]["horizon"] = PERIODS
+        yaml_i["spec"]["output_directory"]["url"] = output_data_path
+        if model == "automlx":
+            yaml_i["spec"]["model_kwargs"] = {"time_budget": 2}
+        operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+        forecast_operate(operator_config)
+        check_output_for_errors(output_data_path)
+
+
+@pytest.mark.parametrize("model", ["prophet", "neuralprophet"])
+def test_pandas_to_historical_test(model):
+    df = pd.read_csv(f"{DATASET_PREFIX}dataset4.csv")
+    df_train = df[:-PERIODS]
+    df_test = df[-PERIODS:]
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        output_data_path = f"{tmpdirname}/results"
+        yaml_i = deepcopy(TEMPLATE_YAML)
+        yaml_i["spec"]["model"] = model
+        yaml_i["spec"]["historical_data"].pop("url")
+        yaml_i["spec"]["historical_data"]["data"] = df_train
+        yaml_i["spec"]["test_data"] = {"data": df_test}
+        yaml_i["spec"]["target_column"] = "Y"
+        yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COL
+        yaml_i["spec"]["horizon"] = PERIODS
+        yaml_i["spec"]["output_directory"]["url"] = output_data_path
+        if model == "automlx":
+            yaml_i["spec"]["model_kwargs"] = {"time_budget": 2}
+        operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+        forecast_operate(operator_config)
+        check_output_for_errors(output_data_path)
+        test_metrics = pd.read_csv(f"{output_data_path}/metrics.csv")
+        print(test_metrics)
+
+
+# CostAD
+@pytest.mark.parametrize("model", ["prophet", "neuralprophet"])
+def test_pandas_to_historical_test2(model):
+    df = pd.read_csv(f"{DATASET_PREFIX}dataset5.csv")
+    df_train = df[:-1]
+    df_test = df[-1:]
+    df1, df2 = None, None
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        output_data_path = f"{tmpdirname}/results"
+        yaml_i = deepcopy(TEMPLATE_YAML)
+        yaml_i["spec"]["model"] = model
+        yaml_i["spec"]["historical_data"].pop("url")
+        yaml_i["spec"]["historical_data"]["data"] = df_train
+        yaml_i["spec"]["test_data"] = {"data": df_test}
+        yaml_i["spec"]["target_column"] = "Y"
+        yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COL
+        yaml_i["spec"]["datetime_column"]["format"] = "%d/%m/%Y"
+        yaml_i["spec"]["horizon"] = 1
+        yaml_i["spec"]["output_directory"]["url"] = output_data_path
+        if model == "automlx":
+            yaml_i["spec"]["model_kwargs"] = {"time_budget": 2}
+        operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+        results = forecast_operate(operator_config)
+        # check_output_for_errors(output_data_path)
+        test_metrics = pd.read_csv(f"{output_data_path}/metrics.csv")
+        df1 = results.get_test_metrics()
+        df2 = results.get_forecast()
+
+
+def check_output_for_errors(output_data_path):
+    # try:
+    # List files in the directory
+    result = subprocess.run(
+        f"ls -a {output_data_path}",
+        shell=True,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    files = result.stdout.splitlines()
+
+    # Check if errors.json is in the directory
+    if "errors.json" in files:
+        errors_file_path = os.path.join(output_data_path, "errors.json")
+
+        # Read the errors.json file
+        with open(errors_file_path, "r") as f:
+            errors_content = json.load(f)
+
+        # Extract and raise the error message
+        # error_message = errors_content.get("message", "An error occurred.")
+        raise Exception(errors_content)
+
+    print("No errors.json file found. Directory is clear.")
+
+    # except subprocess.CalledProcessError as e:
+    #     print(f"Error listing files in directory: {e}")
+    # except FileNotFoundError:
+    #     print("The directory does not exist.")
+    # except json.JSONDecodeError:
+    #     print("errors.json is not a valid JSON file.")
+    # except Exception as e:
+    #     print(f"Raised error: {e}")
 
 
 def run_operator(
@@ -199,9 +315,9 @@ def run_operator(
         sleep(0.1)
         subprocess.run(f"ls -a {output_data_path}", shell=True)
 
-        test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")
+        test_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
         print(test_metrics)
-        train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
+        train_metrics = pd.read_csv(f"{tmpdirname}/results/train_metrics.csv")
         print(train_metrics)
 
 

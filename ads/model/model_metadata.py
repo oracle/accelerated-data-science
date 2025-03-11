@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -11,20 +10,21 @@ import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Dict, List, Tuple, Union, Optional, Any
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-import ads.dataset.factory as factory
 import fsspec
 import git
 import oci.data_science.models
 import pandas as pd
 import yaml
+from oci.util import to_dict
+
 from ads.common import logger
 from ads.common.error import ChangesNotCommitted
-from ads.common.extended_enum import ExtendedEnumMeta
-from ads.common.serializer import DataClassSerializable
+from ads.common.extended_enum import ExtendedEnum
 from ads.common.object_storage_details import ObjectStorageDetails
-from oci.util import to_dict
+from ads.common.serializer import DataClassSerializable
+from ads.dataset import factory
 
 try:
     from yaml import CDumper as dumper
@@ -81,19 +81,19 @@ class MetadataDescriptionTooLong(ValueError):
         )
 
 
-class MetadataCustomPrintColumns(str, metaclass=ExtendedEnumMeta):
+class MetadataCustomPrintColumns(ExtendedEnum):
     KEY = "Key"
     VALUE = "Value"
     DESCRIPTION = "Description"
     CATEGORY = "Category"
 
 
-class MetadataTaxonomyPrintColumns(str, metaclass=ExtendedEnumMeta):
+class MetadataTaxonomyPrintColumns(ExtendedEnum):
     KEY = "Key"
     VALUE = "Value"
 
 
-class MetadataTaxonomyKeys(str, metaclass=ExtendedEnumMeta):
+class MetadataTaxonomyKeys(ExtendedEnum):
     USE_CASE_TYPE = "UseCaseType"
     FRAMEWORK = "Framework"
     FRAMEWORK_VERSION = "FrameworkVersion"
@@ -102,7 +102,7 @@ class MetadataTaxonomyKeys(str, metaclass=ExtendedEnumMeta):
     ARTIFACT_TEST_RESULT = "ArtifactTestResults"
 
 
-class MetadataCustomKeys(str, metaclass=ExtendedEnumMeta):
+class MetadataCustomKeys(ExtendedEnum):
     SLUG_NAME = "SlugName"
     CONDA_ENVIRONMENT = "CondaEnvironment"
     CONDA_ENVIRONMENT_PATH = "CondaEnvironmentPath"
@@ -121,7 +121,7 @@ class MetadataCustomKeys(str, metaclass=ExtendedEnumMeta):
     MODEL_FILE_NAME = "ModelFileName"
 
 
-class MetadataCustomCategory(str, metaclass=ExtendedEnumMeta):
+class MetadataCustomCategory(ExtendedEnum):
     PERFORMANCE = "Performance"
     TRAINING_PROFILE = "Training Profile"
     TRAINING_AND_VALIDATION_DATASETS = "Training and Validation Datasets"
@@ -129,7 +129,7 @@ class MetadataCustomCategory(str, metaclass=ExtendedEnumMeta):
     OTHER = "Other"
 
 
-class UseCaseType(str, metaclass=ExtendedEnumMeta):
+class UseCaseType(ExtendedEnum):
     BINARY_CLASSIFICATION = "binary_classification"
     REGRESSION = "regression"
     MULTINOMIAL_CLASSIFICATION = "multinomial_classification"
@@ -146,7 +146,7 @@ class UseCaseType(str, metaclass=ExtendedEnumMeta):
     OTHER = "other"
 
 
-class Framework(str, metaclass=ExtendedEnumMeta):
+class Framework(ExtendedEnum):
     SCIKIT_LEARN = "scikit-learn"
     XGBOOST = "xgboost"
     TENSORFLOW = "tensorflow"
@@ -173,6 +173,7 @@ class Framework(str, metaclass=ExtendedEnumMeta):
     WORD2VEC = "word2vec"
     ENSEMBLE = "ensemble"
     SPARK = "pyspark"
+    EMBEDDING_ONNX = "embedding_onnx"
     OTHER = "other"
 
 
@@ -1398,7 +1399,7 @@ class ModelCustomMetadata(ModelMetadata):
         if (
             not data
             or not isinstance(data, Dict)
-            or not "data" in data
+            or "data" not in data
             or not isinstance(data["data"], List)
         ):
             raise ValueError(
@@ -1508,7 +1509,10 @@ class ModelTaxonomyMetadata(ModelMetadata):
         metadata = cls()
         for oci_item in metadata_list:
             item = ModelTaxonomyMetadataItem._from_oci_metadata(oci_item)
-            metadata[item.key].update(value=item.value)
+            if item.key in metadata.keys:
+                metadata[item.key].update(value=item.value)
+            else:
+                metadata._items.add(item)
         return metadata
 
     def to_dataframe(self) -> pd.DataFrame:
@@ -1550,7 +1554,7 @@ class ModelTaxonomyMetadata(ModelMetadata):
         if (
             not data
             or not isinstance(data, Dict)
-            or not "data" in data
+            or "data" not in data
             or not isinstance(data["data"], List)
         ):
             raise ValueError(
@@ -1561,7 +1565,10 @@ class ModelTaxonomyMetadata(ModelMetadata):
         metadata = cls()
         for item in data["data"]:
             item = ModelTaxonomyMetadataItem.from_dict(item)
-            metadata[item.key].update(value=item.value)
+            if item.key in metadata.keys:
+                metadata[item.key].update(value=item.value)
+            else:
+                metadata._items.add(item)
         return metadata
 
 

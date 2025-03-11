@@ -9,6 +9,7 @@ import os
 import sys
 import time
 import traceback
+import uuid
 from string import Template
 from typing import Any, Dict, List, Tuple
 
@@ -17,6 +18,7 @@ import yaml
 from cerberus import Validator
 
 from ads.opctl import logger, utils
+from ads.common.oci_logging import OCILog
 
 CONTAINER_NETWORK = "CONTAINER_NETWORK"
 
@@ -190,3 +192,17 @@ def print_traceback():
     if logger.level == logging.DEBUG:
         ex_type, ex, tb = sys.exc_info()
         traceback.print_tb(tb)
+
+
+def create_log_in_log_group(compartment_id, log_group_id, auth, log_name=None):
+    """
+    Creates a log within a given log group
+    """
+    if not log_name:
+        log_name = f"log-{int(time.time())}-{uuid.uuid4()}"
+    log = OCILog(display_name=log_name,
+                 log_group_id=log_group_id,
+                 compartment_id=compartment_id,
+                 **auth).create()
+    logger.info(f"Created log with log OCID {log.id}")
+    return log.id
