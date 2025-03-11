@@ -586,7 +586,7 @@ class AquaModelApp(AquaApp):
         """
         config = self.get_config(
             model_id, AQUA_MODEL_TOKENIZER_CONFIG, ConfigFolder.ARTIFACT
-        )
+        ).config
         if not config:
             logger.debug(f"Tokenizer config for model: {model_id} is not available.")
         return config
