@@ -79,6 +79,7 @@ from ads.aqua.model.entities import (
     ImportModelDetails,
     ModelValidationResult,
 )
+from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import get_console_link
@@ -291,10 +292,13 @@ class AquaModelApp(AquaApp):
             #         "Currently only service models are supported for multi model deployment."
             #     )
 
-            if source_model.freeform_tags.get(Tags.TASK, UNKNOWN) != "text_generation":
+            if (
+                source_model.freeform_tags.get(Tags.TASK, UNKNOWN).lower()
+                not in MultiModelSupportedTaskType
+            ):
                 raise AquaValueError(
                     f"Invalid or missing {Tags.TASK} tag for selected model {display_name}. "
-                    f"Currently only `text_generation` models are supported for multi model deployment."
+                    f"Currently only `{MultiModelSupportedTaskType.values()}` models are supported for multi model deployment."
                 )
 
             display_name_list.append(display_name)
