@@ -683,14 +683,6 @@ class TestAquaEvaluation(unittest.TestCase):
         response1 = self.app.download_report(raw_eval_id)
         assert self.app._report_cache.get(expected_eval_id) == response1
 
-        # Case 3: Test with eval_name
-        eval_name = "custom_eval_report.html"
-        with patch.object(DataScienceModel, "get_custom_metadata_artifact") as mock_get_artifact:
-            response2 = self.app.download_report(raw_eval_id, eval_name=eval_name)
-
-            # Ensure eval_name was passed in get_custom_metadata_artifact
-            mock_get_artifact.assert_called_with(expected_eval_id, eval_name, mock_temp_path)
-
 
     @patch.object(DataScienceModel, "from_id")
     @patch.object(DataScienceJob, "from_id")

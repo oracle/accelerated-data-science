@@ -924,16 +924,13 @@ class AquaEvaluationApp(AquaApp):
         ]
 
     @telemetry(entry_point="plugin=evaluation&action=load_metrics", name="aqua")
-    def load_metrics(self, eval_id: str, eval_name: str = None) -> AquaEvalMetrics:
+    def load_metrics(self, eval_id: str) -> AquaEvalMetrics:
         """Loads evalution metrics markdown from artifacts.
 
         Parameters
         ----------
         eval_id: str
             The evaluation ocid.
-
-        eval_name: str
-            The evaluation name is the name eval report was saved in model metadata
 
         Returns
         -------
@@ -949,10 +946,12 @@ class AquaEvaluationApp(AquaApp):
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Downloading evaluation artifact: {eval_id}.")
 
-            if eval_name:
+            if self.if_model_custom_metadata_artifact_exist(eval_id,EVALUATION_REPORT_MD):
                 DataScienceModel.get_custom_metadata_artifact(
-                    eval_id, eval_name, temp_dir
+                    eval_id, EVALUATION_REPORT_MD, temp_dir
                 )
+                if self.if_model_custom_metadata_artifact_exist(eval_id , EVALUATION_REPORT_JSON):
+                    DataScienceModel.get_custom_metadata_artifact(eval_id, EVALUATION_REPORT_JSON, temp_dir)
             else:
                 DataScienceModel.from_id(eval_id).download_artifact(
                     temp_dir,
@@ -975,7 +974,6 @@ class AquaEvaluationApp(AquaApp):
                 logger.debug(
                     f"Failed to load `report.json` from evaluation artifact.\nError: {str(e)}"
                 )
-                json_report = {}
 
         eval_metrics = AquaEvalMetrics(
             id=eval_id,
@@ -1037,16 +1035,13 @@ class AquaEvaluationApp(AquaApp):
         return content
 
     @telemetry(entry_point="plugin=evaluation&action=download_report", name="aqua")
-    def download_report(self, eval_id, eval_name: str = None) -> AquaEvalReport:
+    def download_report(self, eval_id) -> AquaEvalReport:
         """Downloads HTML report from model artifact.
 
         Parameters
         ----------
         eval_id: str
             The evaluation ocid.
-
-        eval_name: str
-            The evaluation name is the name eval report was saved in model metadata
 
         Returns
         -------
@@ -1066,10 +1061,12 @@ class AquaEvaluationApp(AquaApp):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Downloading evaluation artifact for {eval_id}.")
-            if eval_name:
+            if self.if_model_custom_metadata_artifact_exist(eval_id,EVALUATION_REPORT_MD):
                 DataScienceModel.get_custom_metadata_artifact(
-                    eval_id, eval_name, temp_dir
+                    eval_id, EVALUATION_REPORT_MD, temp_dir
                 )
+                if self.if_model_custom_metadata_artifact_exist(eval_id , EVALUATION_REPORT_JSON):
+                    DataScienceModel.get_custom_metadata_artifact(eval_id, EVALUATION_REPORT_JSON, temp_dir)
             else:
                 DataScienceModel.from_id(eval_id).download_artifact(
                     temp_dir,

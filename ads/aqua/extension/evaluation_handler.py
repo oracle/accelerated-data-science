@@ -93,20 +93,20 @@ class AquaEvaluationReportHandler(AquaAPIhandler):
     """Handler for Aqua Evaluation report REST APIs."""
 
     @handle_exceptions
-    def get(self, eval_id, eval_name):
+    def get(self, eval_id):
         """Handle GET request."""
         eval_id = eval_id.split("/")[0]
-        return self.finish(AquaEvaluationApp().download_report(eval_id, eval_name))
+        return self.finish(AquaEvaluationApp().download_report(eval_id))
 
 
 class AquaEvaluationMetricsHandler(AquaAPIhandler):
     """Handler for Aqua Evaluation metrics REST APIs."""
 
     @handle_exceptions
-    def get(self, eval_id,eval_name):
+    def get(self, eval_id):
         """Handle GET request."""
         eval_id = eval_id.split("/")[0]
-        return self.finish(AquaEvaluationApp().load_metrics(eval_id, eval_name))
+        return self.finish(AquaEvaluationApp().load_metrics(eval_id))
 
 
 class AquaEvaluationConfigHandler(AquaAPIhandler):
