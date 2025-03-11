@@ -252,7 +252,7 @@ class MultiModelDeploymentConfigLoader:
             results = executor.map(
                 lambda model_id: self.deployment_app.get_config(
                     model_id, AQUA_MODEL_DEPLOYMENT_CONFIG
-                ),
+                ).config,
                 model_ids,
             )
 
