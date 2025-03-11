@@ -99,7 +99,9 @@ class TestAquaDeploymentHandler(unittest.TestCase):
         self.deployment_handler.request.path = "aqua/deployments/config"
         self.deployment_handler.get(id=["mock-model-id-one", "mock-model-id-two"])
         mock_get_multimodel_deployment_config.assert_called_with(
-            model_ids=["mock-model-id-one", "mock-model-id-two"], primary_model_id=None
+            model_ids=["mock-model-id-one", "mock-model-id-two"],
+            primary_model_id=None,
+            compartment_id=TestDataset.USER_COMPARTMENT_ID,
         )
 
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get")
