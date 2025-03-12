@@ -268,7 +268,9 @@ class AquaApp:
                 logger.info(f"Artifact not found in model {model_id}.")
                 return False
 
-    def if_model_custom_metadata_artifact_exist(self, model_id: str, metadata_key_name: str, **kwargs) -> bool:
+    def if_model_custom_metadata_artifact_exist(
+        self, model_id: str, metadata_key_name: str, **kwargs
+    ) -> bool:
         """Checks if the custom metadata artifact exists for the model.
 
         Parameters
@@ -287,11 +289,15 @@ class AquaApp:
         """
 
         try:
-            response = self.ds_client.head_model_custom_metadatum_artifact(model_id=model_id,metadatumKeyName=metadata_key_name, **kwargs)
+            response = self.ds_client.head_model_custom_metadatum_artifact(
+                model_id=model_id, metadatum_key_name=metadata_key_name, **kwargs
+            )
             return response.status == 200
         except oci.exceptions.ServiceError as ex:
             if ex.status == 404:
-                logger.info(f"Artifact not found in model {model_id} for cutom metadata {metadata_key_name}.")
+                logger.info(
+                    f"Artifact not found in model {model_id} for cutom metadata {metadata_key_name}."
+                )
                 return False
 
     def get_config_from_oss(

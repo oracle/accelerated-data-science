@@ -946,12 +946,18 @@ class AquaEvaluationApp(AquaApp):
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Downloading evaluation artifact: {eval_id}.")
 
-            if self.if_model_custom_metadata_artifact_exist(eval_id,EVALUATION_REPORT_MD):
-                DataScienceModel.get_custom_metadata_artifact(
-                    eval_id, EVALUATION_REPORT_MD, temp_dir
+            if self.if_model_custom_metadata_artifact_exist(
+                eval_id, EVALUATION_REPORT_MD
+            ):
+                DataScienceModel.from_id(eval_id).get_custom_metadata_artifact(
+                    EVALUATION_REPORT_MD, temp_dir
                 )
-                if self.if_model_custom_metadata_artifact_exist(eval_id , EVALUATION_REPORT_JSON):
-                    DataScienceModel.get_custom_metadata_artifact(eval_id, EVALUATION_REPORT_JSON, temp_dir)
+                if self.if_model_custom_metadata_artifact_exist(
+                    eval_id, EVALUATION_REPORT_JSON
+                ):
+                    DataScienceModel.from_id(eval_id).get_custom_metadata_artifact(
+                        EVALUATION_REPORT_JSON, temp_dir
+                    )
             else:
                 DataScienceModel.from_id(eval_id).download_artifact(
                     temp_dir,
@@ -1062,9 +1068,9 @@ class AquaEvaluationApp(AquaApp):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Downloading evaluation artifact for {eval_id}.")
-            if self.if_model_custom_metadata_artifact_exist(eval_id,EVALUATION_REPORT):
-                DataScienceModel.get_custom_metadata_artifact(
-                    eval_id, EVALUATION_REPORT, temp_dir
+            if self.if_model_custom_metadata_artifact_exist(eval_id, EVALUATION_REPORT):
+                DataScienceModel.from_id(eval_id).get_custom_metadata_artifact(
+                    EVALUATION_REPORT, temp_dir
                 )
             else:
                 DataScienceModel.from_id(eval_id).download_artifact(
