@@ -798,17 +798,14 @@ class AsyncClient(BaseClient):
 
 def get_httpx_client(**kwargs: Any) -> httpx.Client:
     """
-    Creates and returns a synchronous httpx Client configured with OCI authentication.
-
-    This function checks if an 'auth' keyword argument is provided. If not, it instantiates
-    the default OCI authentication (HttpxOCIAuth) and injects it into the client configuration.
-    Any additional keyword arguments are passed directly to the httpx.Client constructor.
+    Creates and returns a synchronous httpx Client configured with OCI authentication signer based
+    the authentication type setup using ads.set_auth method or env variable OCI_IAM_TYPE.
+    More information - https://accelerated-data-science.readthedocs.io/en/stable/user_guide/cli/authentication.html
 
     Parameters
     ----------
     **kwargs : Any
-        Arbitrary keyword arguments for configuring the httpx.Client. An optional 'auth'
-        argument can be provided to override the default OCI authentication.
+        Keyword arguments supported by httpx.Client
 
     Returns
     -------
@@ -821,17 +818,14 @@ def get_httpx_client(**kwargs: Any) -> httpx.Client:
 
 def get_async_httpx_client(**kwargs: Any) -> httpx.AsyncClient:
     """
-    Creates and returns an asynchronous httpx AsyncClient configured with OCI authentication.
-
-    This function checks if an 'auth' keyword argument is provided. If not, it instantiates
-    the default OCI authentication (HttpxOCIAuth) and injects it into the client configuration.
-    Any additional keyword arguments are passed directly to the httpx.AsyncClient constructor.
+    Creates and returns a synchronous httpx Client configured with OCI authentication signer based
+    the authentication type setup using ads.set_auth method or env variable OCI_IAM_TYPE.
+    More information - https://accelerated-data-science.readthedocs.io/en/stable/user_guide/cli/authentication.html
 
     Parameters
     ----------
     **kwargs : Any
-        Arbitrary keyword arguments for configuring the httpx.AsyncClient. An optional 'auth'
-        argument can be provided to override the default OCI authentication.
+        Keyword arguments supported by httpx.Client
 
     Returns
     -------
