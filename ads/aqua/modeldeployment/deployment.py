@@ -958,8 +958,8 @@ class AquaDeploymentApp(AquaApp):
             ).value
             if not multi_model_metadata_value:
                 raise AquaRuntimeError(
-                    f"Invalid multi model deployment {model_deployment_id}."
-                    f"Make sure the custom metadata {ModelCustomMetadataFields.MULTIMODEL_METADATA} is added to the aqua multi model {aqua_model.display_name}."
+                    f"Invalid multi-model deployment: {model_deployment_id}. "
+                    f"Ensure that the required custom metadata `{ModelCustomMetadataFields.MULTIMODEL_METADATA}` is added to the AQUA multi-model `{aqua_model.display_name}` ({aqua_model.id})."
                 )
             multi_model_metadata = json.loads(
                 aqua_model.dsc_model.get_custom_metadata_artifact(

@@ -24,6 +24,7 @@ from oci.data_science.models import (
 from ads.aqua import logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common import utils
+from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import (
     DataScienceResource,
     Resource,
@@ -645,21 +646,32 @@ class AquaEvaluationApp(AquaApp):
 
         if not multi_model_metadata_value:
             error_message = (
-                "Recreate the model deployment and retry the evaluation. An issue occured when initalizing the model group during deployment."
-                f"The {ModelCustomMetadataFields.MULTIMODEL_METADATA} is missing from the metadata in evaluation source ID: {create_aqua_evaluation_details.evaluation_source_id}."
+                f"Required model metadata is missing for evaluation source ID: {evaluation_source.id}. "
+                f"A valid multi-model deployment requires {ModelCustomMetadataFields.MULTIMODEL_METADATA}. "
+                "Please recreate the model deployment and retry the evaluation, as an issue occurred during the initialization of the model group."
             )
             logger.debug(error_message)
             raise AquaRuntimeError(error_message)
 
-        multi_model_metadata = json.loads(
-            evaluation_source.dsc_model.get_custom_metadata_artifact(
-                metadata_key_name=ModelCustomMetadataFields.MULTIMODEL_METADATA
-            ).decode("utf-8")
-        )
+        try:
+            multi_model_metadata = json.loads(
+                evaluation_source.dsc_model.get_custom_metadata_artifact(
+                    metadata_key_name=ModelCustomMetadataFields.MULTIMODEL_METADATA
+                ).decode("utf-8")
+            )
+        except Exception as ex:
+            error_message = (
+                f"Error fetching {ModelCustomMetadataFields.MULTIMODEL_METADATA} "
+                f"from custom metadata for evaluation source ID '{evaluation_source.id}'. "
+                f"Details: {ex}"
+            )
+            logger.error(error_message)
+            raise AquaRuntimeError(error_message)
 
         # Build the list of valid model names from custom metadata.
         model_names = [
-            metadata.get("model_name", UNKNOWN) for metadata in multi_model_metadata
+            AquaMultiModelRef(**metadata).model_name
+            for metadata in multi_model_metadata
         ]
 
         # Check if the provided model name is among the valid names.

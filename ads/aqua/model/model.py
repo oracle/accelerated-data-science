@@ -391,6 +391,10 @@ class AquaModelApp(AquaApp):
         # Finalize creation
         custom_model.create(model_by_reference=True)
 
+        logger.info(
+            f"Aqua Model '{custom_model.id}' created with models: {', '.join(display_name_list)}."
+        )
+
         # Create custom metadata for multi model metadata
         custom_model.create_custom_metadata_artifact(
             metadata_key_name=ModelCustomMetadataFields.MULTIMODEL_METADATA,
@@ -400,8 +404,8 @@ class AquaModelApp(AquaApp):
             path_type=MetadataArtifactPathType.CONTENT,
         )
 
-        logger.info(
-            f"Aqua Model '{custom_model.id}' created with models: {', '.join(display_name_list)}."
+        logger.debug(
+            f"Multi model metadata uploaded for Aqua model: {custom_model.id}."
         )
 
         # Track telemetry event
