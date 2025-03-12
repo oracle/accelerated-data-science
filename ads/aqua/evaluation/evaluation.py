@@ -97,6 +97,7 @@ from ads.model.generic_model import ModelDeploymentRuntimeType
 from ads.model.model_metadata import (
     MetadataTaxonomyKeys,
     ModelCustomMetadata,
+    ModelCustomMetadataItem,
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
 )
@@ -578,6 +579,7 @@ class AquaEvaluationApp(AquaApp):
 
         This function verifies that:
         - The model group is not empty.
+        - The model multi metadata is present in the DataScienceModel metadata.
         - The user provided a non-empty model name.
         - The provided model name exists in the DataScienceModel metadata.
         - The deployment configuration contains core metadata required for validation.
@@ -636,10 +638,28 @@ class AquaEvaluationApp(AquaApp):
                 f"'{create_aqua_evaluation_details.evaluation_source_id}' does not contain any information about deployed models."
             )
 
+        multi_model_metadata_value = custom_metadata_list.get(
+            ModelCustomMetadataFields.MULTIMODEL_METADATA,
+            ModelCustomMetadataItem(key=ModelCustomMetadataFields.MULTIMODEL_METADATA),
+        ).value
+
+        if not multi_model_metadata_value:
+            error_message = (
+                "Recreate the model deployment and retry the evaluation. An issue occured when initalizing the model group during deployment."
+                f"The {ModelCustomMetadataFields.MULTIMODEL_METADATA} is missing from the metadata in evaluation source ID: {create_aqua_evaluation_details.evaluation_source_id}."
+            )
+            logger.debug(error_message)
+            raise AquaRuntimeError(error_message)
+
+        multi_model_metadata = json.loads(
+            evaluation_source.dsc_model.get_custom_metadata_artifact(
+                metadata_key_name=ModelCustomMetadataFields.MULTIMODEL_METADATA
+            ).decode("utf-8")
+        )
+
         # Build the list of valid model names from custom metadata.
         model_names = [
-            custom_metadata_list.get(f"model-name-{idx}").value
-            for idx in range(model_group_count)
+            metadata.get("model_name", UNKNOWN) for metadata in multi_model_metadata
         ]
 
         # Check if the provided model name is among the valid names.

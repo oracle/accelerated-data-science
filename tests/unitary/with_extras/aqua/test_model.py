@@ -362,6 +362,7 @@ class TestAquaModel:
         assert model.provenance_metadata.training_id == "test_training_id"
 
     @patch.object(DataScienceModel, "add_artifact")
+    @patch.object(DataScienceModel, "create_custom_metadata_artifact")
     @patch.object(DataScienceModel, "create")
     @patch("ads.model.datascience_model.validate")
     @patch("ads.aqua.model.model.get_container_config")
@@ -369,9 +370,9 @@ class TestAquaModel:
     def test_create_multimodel(
         self,
         mock_from_id,
-        mock_get_container_config,
         mock_validate,
         mock_create,
+        mock_create_custom_metadata_artifact,
         mock_add_artifact,
     ):
         mock_get_container_config.return_value = get_container_config()

@@ -63,7 +63,7 @@ from ads.aqua.modeldeployment.entities import (
 )
 from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import UNKNOWN, get_log_links
+from ads.common.utils import get_log_links
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
@@ -550,7 +550,7 @@ class AquaDeploymentApp(AquaApp):
 
         container_params = container_spec.get(ContainerSpec.CLI_PARM, UNKNOWN).strip()
 
-        for idx, model in enumerate(create_deployment_details.models):
+        for model in create_deployment_details.models:
             user_params = build_params_string(model.env_var)
             if user_params:
                 restricted_params = self._find_restricted_params(
@@ -589,22 +589,13 @@ class AquaDeploymentApp(AquaApp):
                     params = f"{params} {get_combined_params(config_parameters, user_params)}".strip()
                     break
 
-            artifact_location_key = (
-                f"{ModelCustomMetadataFields.ARTIFACT_LOCATION}-{idx}"
-            )
-            artifact_path_prefix = aqua_model.custom_metadata_list.get(
-                artifact_location_key
-            ).value.rstrip("/")
+            artifact_path_prefix = model.artifact_location.rstrip("/")
             if ObjectStorageDetails.is_oci_path(artifact_path_prefix):
                 os_path = ObjectStorageDetails.from_path(artifact_path_prefix)
                 artifact_path_prefix = os_path.filepath.rstrip("/")
 
             model_config.append({"params": params, "model_path": artifact_path_prefix})
-
-            model_name_key = f"model-name-{idx}"
-            model_name_list.append(
-                aqua_model.custom_metadata_list.get(model_name_key).value
-            )
+            model_name_list.append(model.model_name)
 
         env_var.update({AQUA_MULTI_MODEL_CONFIG: json.dumps({"models": model_config})})
 
@@ -960,28 +951,24 @@ class AquaDeploymentApp(AquaApp):
                 )
             aqua_model = DataScienceModel.from_id(aqua_model_id)
             custom_metadata_list = aqua_model.custom_metadata_list
-            model_group_count = int(
-                custom_metadata_list.get(
-                    ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT
-                ).value
+            multi_model_metadata_value = custom_metadata_list.get(
+                ModelCustomMetadataFields.MULTIMODEL_METADATA,
+                ModelCustomMetadataItem(
+                    key=ModelCustomMetadataFields.MULTIMODEL_METADATA
+                ),
+            ).value
+            if not multi_model_metadata_value:
+                raise AquaRuntimeError(
+                    f"Invalid multi model deployment {model_deployment_id}."
+                    f"Make sure the custom metadata {ModelCustomMetadataFields.MULTIMODEL_METADATA} is added to the aqua multi model {aqua_model.display_name}."
+                )
+            multi_model_metadata = json.loads(
+                aqua_model.dsc_model.get_custom_metadata_artifact(
+                    metadata_key_name=ModelCustomMetadataFields.MULTIMODEL_METADATA
+                ).decode("utf-8")
             )
             aqua_deployment.models = [
-                AquaMultiModelRef(
-                    model_id=custom_metadata_list.get(f"model-id-{idx}").value,
-                    model_name=custom_metadata_list.get(f"model-name-{idx}").value,
-                    gpu_count=custom_metadata_list.get(
-                        f"model-gpu-count-{idx}",
-                        ModelCustomMetadataItem(key=f"model-gpu-count-{idx}"),
-                    ).value,
-                    env_var=get_params_dict(
-                        custom_metadata_list.get(
-                            f"model-user-params-{idx}",
-                            ModelCustomMetadataItem(key=f"model-user-params-{idx}"),
-                        ).value
-                        or UNKNOWN
-                    ),
-                )
-                for idx in range(model_group_count)
+                AquaMultiModelRef(**metadata) for metadata in multi_model_metadata
             ]
 
         return AquaDeploymentDetail(

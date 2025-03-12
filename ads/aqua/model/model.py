@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import json
 import os
 import pathlib
 from datetime import datetime, timedelta
@@ -93,6 +94,7 @@ from ads.config import (
     TENANCY_OCID,
 )
 from ads.model import DataScienceModel
+from ads.model.common.utils import MetadataArtifactPathType
 from ads.model.model_metadata import (
     MetadataCustomCategory,
     ModelCustomMetadata,
@@ -279,9 +281,10 @@ class AquaModelApp(AquaApp):
         selected_models_deployment_containers = set()
 
         # Process each model
-        for idx, model in enumerate(models):
+        for model in models:
             source_model = DataScienceModel.from_id(model.model_id)
             display_name = source_model.display_name
+            # Update model name in user's input model
             model.model_name = model.model_name or display_name
 
             # TODO Uncomment the section below, if only service models should be allowed for multi-model deployment
@@ -310,6 +313,9 @@ class AquaModelApp(AquaApp):
                     "Please register the model first."
                 )
 
+            # Update model artifact location in user's input model
+            model.artifact_location = model_artifact_path
+
             artifact_list.append(model_artifact_path)
 
             # Validate deployment container consistency
@@ -327,47 +333,6 @@ class AquaModelApp(AquaApp):
                 )
 
             selected_models_deployment_containers.add(deployment_container)
-
-            # Add model-specific metadata
-            model_custom_metadata.add(
-                key=f"model-id-{idx}",
-                value=source_model.id,
-                description=f"ID of '{display_name}' in the multimodel group.",
-                category="Other",
-            )
-            model_custom_metadata.add(
-                key=f"model-name-{idx}",
-                value=display_name,
-                description=f"Name of '{display_name}' in the multimodel group.",
-                category="Other",
-            )
-            if model.gpu_count:
-                model_custom_metadata.add(
-                    key=f"model-gpu-count-{idx}",
-                    value=model.gpu_count,
-                    description=f"GPU count of '{display_name}' in the multimodel group.",
-                    category="Other",
-                )
-            user_params = (
-                " ".join(
-                    f"{name} {value}" for name, value in model.env_var.items()
-                ).strip()
-                if model.env_var
-                else UNKNOWN
-            )
-            if user_params:
-                model_custom_metadata.add(
-                    key=f"model-user-params-{idx}",
-                    value=user_params,
-                    description=f"User params of '{display_name}' in the multimodel group.",
-                    category="Other",
-                )
-            model_custom_metadata.add(
-                key=f"{ModelCustomMetadataFields.ARTIFACT_LOCATION}-{idx}",
-                value=model_artifact_path,
-                description=f"Artifact path for '{display_name}' in the multimodel group.",
-                category="Other",
-            )
 
         # Check if the all models in the group shares same container family
         if len(selected_models_deployment_containers) > 1:
@@ -425,6 +390,15 @@ class AquaModelApp(AquaApp):
 
         # Finalize creation
         custom_model.create(model_by_reference=True)
+
+        # Create custom metadata for multi model metadata
+        custom_model.create_custom_metadata_artifact(
+            metadata_key_name=ModelCustomMetadataFields.MULTIMODEL_METADATA,
+            artifact_path_or_content=json.dumps(
+                [model.model_dump() for model in models]
+            ),
+            path_type=MetadataArtifactPathType.CONTENT,
+        )
 
         logger.info(
             f"Aqua Model '{custom_model.id}' created with models: {', '.join(display_name_list)}."

@@ -359,6 +359,30 @@ class TestDataset:
     INVALID_EVAL_ID = "ocid1.datasciencemodel.oc1.phx.<OCID>"
     MODEL_DEPLOYMENT_ID = "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>"
 
+    multi_model_deployment_model_attributes = [
+        {
+            "env_var": {"--test_key_one": "test_value_one"},
+            "gpu_count": 1,
+            "model_id": "ocid1.compartment.oc1..<OCID>",
+            "model_name": "model_one",
+            "artifact_location": "artifact_location_one",
+        },
+        {
+            "env_var": {"--test_key_two": "test_value_two"},
+            "gpu_count": 1,
+            "model_id": "ocid1.compartment.oc1..<OCID>",
+            "model_name": "model_two",
+            "artifact_location": "artifact_location_two",
+        },
+        {
+            "env_var": {"--test_key_three": "test_value_three"},
+            "gpu_count": 1,
+            "model_id": "ocid1.compartment.oc1..<OCID>",
+            "model_name": "model_three",
+            "artifact_location": "artifact_location_three",
+        },
+    ]
+
 
 class TestAquaEvaluation(unittest.TestCase):
     """Contains unittests for TestAquaEvaluationApp."""
@@ -551,8 +575,15 @@ class TestAquaEvaluation(unittest.TestCase):
         ]
     )
     @patch("ads.aqua.evaluation.evaluation.AquaEvaluationApp.create")
+    @patch(
+        "ads.model.datascience_model.OCIDataScienceModel.get_custom_metadata_artifact"
+    )
     def test_validate_model_name(
-        self, mock_model_parameters, expected_message, mock_model
+        self,
+        mock_model_parameters,
+        expected_message,
+        mock_get_custom_metadata_artifact,
+        mock_model,
     ):
         curr_dir = os.path.dirname(__file__)
 
@@ -582,6 +613,13 @@ class TestAquaEvaluation(unittest.TestCase):
         )
 
         mock_model = DataScienceModel.from_yaml(uri=aqua_multi_model)
+
+        multi_model_deployment_model_attributes_str = json.dumps(
+            TestDataset.multi_model_deployment_model_attributes
+        ).encode("utf-8")
+        mock_get_custom_metadata_artifact.return_value = (
+            multi_model_deployment_model_attributes_str
+        )
 
         mock_create_aqua_evaluation_details = MagicMock(
             **create_aqua_evaluation_details, spec=CreateAquaEvaluationDetails
