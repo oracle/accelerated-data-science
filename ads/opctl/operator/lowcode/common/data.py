@@ -19,13 +19,16 @@ from .transformations import Transformations
 
 
 class AbstractData(ABC):
-    def __init__(self, spec: dict, name="input_data"):
+    def __init__(self, spec, name="input_data", data=None):
         self.Transformations = Transformations
         self.data = None
         self._data_dict = dict()
         self.name = name
         self.spec = spec
-        self.load_transform_ingest_data(spec)
+        if data is not None:
+            self.data = data
+        else:
+            self.load_transform_ingest_data(spec)
 
     def get_raw_data_by_cat(self, category):
         mapping = self._data_transformer.get_target_category_columns_map()
