@@ -19,6 +19,7 @@ from ads.common import oci_client as oc
 from ads.common import utils
 from ads.common.extended_enum import ExtendedEnum
 from ads.common.object_storage_details import ObjectStorageDetails
+from ads.common.utils import is_path_exists
 from ads.config import (
     AQUA_SERVICE_MODELS_BUCKET as SERVICE_MODELS_BUCKET,
 )
@@ -71,6 +72,11 @@ class BucketNotVersionedError(Exception):  # pragma: no cover
         self,
         msg="Model artifact bucket is not versioned. Enable versioning on the bucket to proceed with model creation by reference.",
     ):
+        super().__init__(msg)
+
+
+class PathNotFoundError(Exception):
+    def __init__(self, msg="The given path doesn't exist."):
         super().__init__(msg)
 
 
@@ -2407,7 +2413,7 @@ class DataScienceModel(Builder):
 
     def get_custom_metadata_artifact(
         self, metadata_key_name: str, target_dir: str, override: bool = False
-    ) -> None:
+    ) -> bytes:
         """Downloads model custom metadata artifact content for specified model metadata key.
 
         Parameters
@@ -2424,9 +2430,13 @@ class DataScienceModel(Builder):
             - If False (default), raises a `FileExistsError` if the file exists.
         Returns
         -------
-        None
+        bytes
+            File content of the custom metadata artifact
 
         """
+        if not is_path_exists(target_dir):
+            raise PathNotFoundError(f"Path : {target_dir} does not exist")
+
         file_content = self.dsc_model.get_custom_metadata_artifact(
             metadata_key_name=metadata_key_name
         )
@@ -2438,10 +2448,11 @@ class DataScienceModel(Builder):
         with open(artifact_file_path, "wb") as _file:
             _file.write(file_content)
             logger.debug(f"Artifact downloaded to location - {artifact_file_path}")
+        return file_content
 
     def get_defined_metadata_artifact(
         self, metadata_key_name: str, target_dir: str, override: bool = False
-    ) -> None:
+    ) -> bytes:
         """Downloads model defined metadata artifact content for specified model metadata key.
 
         Parameters
@@ -2458,9 +2469,13 @@ class DataScienceModel(Builder):
             - If False (default), raises a `FileExistsError` if the file exists.
         Returns
         -------
-        None
+        bytes
+            File content of the custom metadata artifact
 
         """
+        if not is_path_exists(target_dir):
+            raise PathNotFoundError(f"Path : {target_dir} does not exist")
+
         file_content = self.dsc_model.get_defined_metadata_artifact(
             metadata_key_name=metadata_key_name
         )
@@ -2472,6 +2487,7 @@ class DataScienceModel(Builder):
         with open(artifact_file_path, "wb") as _file:
             _file.write(file_content)
             logger.debug(f"Artifact downloaded to location - {artifact_file_path}")
+        return file_content
 
     def delete_custom_metadata_artifact(
         self, metadata_key_name: str
