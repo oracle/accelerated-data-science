@@ -20,6 +20,7 @@ import ads.telemetry
 from ads.common import logger
 from ads.common.decorator.deprecate import deprecated
 from ads.common.extended_enum import ExtendedEnum
+from ads.config import OCI_ODSC_SERVICE_ENDPOINT
 
 SECURITY_TOKEN_LEFT_TIME = 600
 
@@ -88,13 +89,15 @@ def set_auth(
     auth: Optional[str] = AuthType.API_KEY,
     oci_config_location: Optional[str] = DEFAULT_LOCATION,
     profile: Optional[str] = DEFAULT_PROFILE,
-    config: Optional[Dict] = {"region": os.environ["OCI_RESOURCE_REGION"]}
-    if os.environ.get("OCI_RESOURCE_REGION")
-    else {},
+    config: Optional[Dict] = (
+        {"region": os.environ["OCI_RESOURCE_REGION"]}
+        if os.environ.get("OCI_RESOURCE_REGION")
+        else {}
+    ),
     signer: Optional[Any] = None,
     signer_callable: Optional[Callable] = None,
-    signer_kwargs: Optional[Dict] = {},
-    client_kwargs: Optional[Dict] = {},
+    signer_kwargs: Optional[Dict] = None,
+    client_kwargs: Optional[Dict] = None,
 ) -> None:
     """
     Sets the default authentication type.
@@ -195,6 +198,12 @@ def set_auth(
     >>> # instance principals authentication dictionary created based on callable with kwargs parameters:
     >>> ads.set_auth(signer_callable=signer_callable, signer_kwargs=signer_kwargs)
     """
+    signer_kwargs = signer_kwargs or {}
+    client_kwargs = {
+        "service_endpoint": OCI_ODSC_SERVICE_ENDPOINT,
+        **(client_kwargs or {}),
+    }
+
     auth_state = AuthState()
 
     valid_auth_keys = AuthFactory.classes.keys()
@@ -258,9 +267,11 @@ def api_keys(
     """
     signer_args = dict(
         oci_config=oci_config if isinstance(oci_config, Dict) else {},
-        oci_config_location=oci_config
-        if isinstance(oci_config, str)
-        else os.path.expanduser(DEFAULT_LOCATION),
+        oci_config_location=(
+            oci_config
+            if isinstance(oci_config, str)
+            else os.path.expanduser(DEFAULT_LOCATION)
+        ),
         oci_key_profile=profile,
         client_kwargs=client_kwargs,
     )
@@ -334,9 +345,11 @@ def security_token(
     """
     signer_args = dict(
         oci_config=oci_config if isinstance(oci_config, Dict) else {},
-        oci_config_location=oci_config
-        if isinstance(oci_config, str)
-        else os.path.expanduser(DEFAULT_LOCATION),
+        oci_config_location=(
+            oci_config
+            if isinstance(oci_config, str)
+            else os.path.expanduser(DEFAULT_LOCATION)
+        ),
         oci_key_profile=profile,
         client_kwargs=client_kwargs,
     )
@@ -485,6 +498,7 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
     >>> auth = ads.auth.default_signer() # signer_callable instantiated
     >>> oc.OCIClientFactory(**auth).object_storage # Creates Object storage client using instance principal authentication
     """
+    default_client_kwargs = {"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT}
     auth_state = AuthState()
     if auth_state.oci_signer or auth_state.oci_signer_callable:
         configuration = ads.telemetry.update_oci_client_config(auth_state.oci_config)
@@ -496,6 +510,7 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
             "config": configuration,
             "signer": signer,
             "client_kwargs": {
+                **default_client_kwargs,
                 **(auth_state.oci_client_kwargs or {}),
                 **(client_kwargs or {}),
             },
@@ -508,6 +523,7 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
             oci_key_profile=auth_state.oci_key_profile,
             oci_config=auth_state.oci_config,
             client_kwargs={
+                **default_client_kwargs,
                 **(auth_state.oci_client_kwargs or {}),
                 **(client_kwargs or {}),
             },

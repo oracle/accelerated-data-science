@@ -51,7 +51,7 @@ _T = TypeVar("_T", bound="BaseClient")
 logger = logging.getLogger(__name__)
 
 
-class OCIAuth(httpx.Auth):
+class HttpxOCIAuth(httpx.Auth):
     """
     Custom HTTPX authentication class that uses the OCI Signer for request signing.
 
@@ -59,14 +59,15 @@ class OCIAuth(httpx.Auth):
         signer (oci.signer.Signer): The OCI signer used to sign requests.
     """
 
-    def __init__(self, signer: oci.signer.Signer):
+    def __init__(self, signer: Optional[oci.signer.Signer] = None):
         """
-        Initialize the OCIAuth instance.
+        Initialize the HttpxOCIAuth instance.
 
         Args:
             signer (oci.signer.Signer): The OCI signer to use for signing requests.
         """
-        self.signer = signer
+
+        self.signer = signer or authutil.default_signer().get("signer")
 
     def auth_flow(self, request: httpx.Request) -> Iterator[httpx.Request]:
         """
@@ -256,7 +257,7 @@ class BaseClient:
         auth = auth or authutil.default_signer()
         if not callable(auth.get("signer")):
             raise ValueError("Auth object must have a 'signer' callable attribute.")
-        self.auth = OCIAuth(auth["signer"])
+        self.auth = HttpxOCIAuth(auth["signer"])
 
         logger.debug(
             f"Initialized {self.__class__.__name__} with endpoint={self.endpoint}, "
@@ -352,7 +353,7 @@ class Client(BaseClient):
             **kwargs: Keyword arguments forwarded to BaseClient.
         """
         super().__init__(*args, **kwargs)
-        self._client = httpx.Client(timeout=self.timeout)
+        self._client = httpx.Client(timeout=self.timeout, auth=self.auth)
 
     def is_closed(self) -> bool:
         return self._client.is_closed
@@ -400,7 +401,6 @@ class Client(BaseClient):
             response = self._client.post(
                 self.endpoint,
                 headers=self._prepare_headers(stream=False, headers=headers),
-                auth=self.auth,
                 json=payload,
             )
             logger.debug(f"Received response with status code: {response.status_code}")
@@ -447,7 +447,6 @@ class Client(BaseClient):
                     "POST",
                     self.endpoint,
                     headers=self._prepare_headers(stream=True, headers=headers),
-                    auth=self.auth,
                     json={**payload, "stream": True},
                 ) as response:
                     try:
@@ -581,7 +580,7 @@ class AsyncClient(BaseClient):
             **kwargs: Keyword arguments forwarded to BaseClient.
         """
         super().__init__(*args, **kwargs)
-        self._client = httpx.AsyncClient(timeout=self.timeout)
+        self._client = httpx.AsyncClient(timeout=self.timeout, auth=self.auth)
 
     def is_closed(self) -> bool:
         return self._client.is_closed
@@ -637,7 +636,6 @@ class AsyncClient(BaseClient):
             response = await self._client.post(
                 self.endpoint,
                 headers=self._prepare_headers(stream=False, headers=headers),
-                auth=self.auth,
                 json=payload,
             )
             logger.debug(f"Received response with status code: {response.status_code}")
@@ -683,7 +681,6 @@ class AsyncClient(BaseClient):
                     "POST",
                     self.endpoint,
                     headers=self._prepare_headers(stream=True, headers=headers),
-                    auth=self.auth,
                     json={**payload, "stream": True},
                 ) as response:
                     try:

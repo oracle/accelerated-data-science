@@ -129,3 +129,50 @@ The following examples demonstrate how to perform the same operations using the 
         input=["one", "two"]
     )
     print(response)
+
+
+HTTPX Client Integration with OCI Authentication (HttpxOCIAuth)
+================================================================
+
+.. versionadded:: 2.13.1
+
+In recent updates to the client, a new class, ``HttpxOCIAuth``, has been introduced.
+This class allows signing of HTTPX requests using OCI signers, making the HTTPX client compatible
+with the LLM models deployed on the OCI Model Deployment service. With this integration, you can use
+HTTPX-based clients with any compatible third-party libraries (e.g., the OpenAi client).
+
+Usage
+-----
+
+**Synchronous HTTPX Client**
+
+.. code-block:: python3
+
+    import httpx
+    import ads
+    from ads.aqua import HttpxOCIAuth
+
+    ads.set_auth(auth="security_token", profile="<replace-with-your-profile>")
+    client = httpx.Client(auth=HttpxOCIAuth())
+
+    response = client.post(
+        url="https://<MD_OCID>/predict",
+        json={
+            "model": "odsc-llm",
+            "prompt": "Tell me a joke."
+        },
+    )
+
+    response.raise_for_status()
+    json_response = response.json()
+
+**Asynchronous HTTPX Client**
+
+.. code-block:: python3
+
+    import httpx
+    import ads
+    from ads.aqua import HttpxOCIAuth
+
+    ads.set_auth(auth="security_token", profile="<replace-with-your-profile>")
+    async_client = httpx.AsyncClient(auth=HttpxOCIAuth())
