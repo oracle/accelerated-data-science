@@ -370,6 +370,7 @@ class TestAquaModel:
     def test_create_multimodel(
         self,
         mock_from_id,
+        mock_get_container_config,
         mock_validate,
         mock_create,
         mock_create_custom_metadata_artifact,
