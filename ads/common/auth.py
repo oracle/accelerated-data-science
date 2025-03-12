@@ -20,7 +20,6 @@ import ads.telemetry
 from ads.common import logger
 from ads.common.decorator.deprecate import deprecated
 from ads.common.extended_enum import ExtendedEnum
-from ads.config import OCI_ODSC_SERVICE_ENDPOINT
 
 SECURITY_TOKEN_LEFT_TIME = 600
 
@@ -199,14 +198,7 @@ def set_auth(
     >>> ads.set_auth(signer_callable=signer_callable, signer_kwargs=signer_kwargs)
     """
     signer_kwargs = signer_kwargs or {}
-    client_kwargs = {
-        **(
-            {"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT}
-            if OCI_ODSC_SERVICE_ENDPOINT
-            else {}
-        ),
-        **(client_kwargs or {}),
-    }
+    client_kwargs = client_kwargs or {}
 
     auth_state = AuthState()
 
@@ -502,12 +494,6 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
     >>> auth = ads.auth.default_signer() # signer_callable instantiated
     >>> oc.OCIClientFactory(**auth).object_storage # Creates Object storage client using instance principal authentication
     """
-    default_client_kwargs = (
-        {"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT}
-        if OCI_ODSC_SERVICE_ENDPOINT
-        else {}
-    )
-
     auth_state = AuthState()
     if auth_state.oci_signer or auth_state.oci_signer_callable:
         configuration = ads.telemetry.update_oci_client_config(auth_state.oci_config)
@@ -519,7 +505,6 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
             "config": configuration,
             "signer": signer,
             "client_kwargs": {
-                **default_client_kwargs,
                 **(auth_state.oci_client_kwargs or {}),
                 **(client_kwargs or {}),
             },
@@ -532,7 +517,6 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
             oci_key_profile=auth_state.oci_key_profile,
             oci_config=auth_state.oci_config,
             client_kwargs={
-                **default_client_kwargs,
                 **(auth_state.oci_client_kwargs or {}),
                 **(client_kwargs or {}),
             },
