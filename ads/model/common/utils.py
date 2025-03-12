@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
 # Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -7,14 +6,27 @@
 import json
 import os
 import tempfile
-import yaml
 from typing import Any, Dict, Optional
 from zipfile import ZipFile
-from ads.common import utils
 
+import yaml
+
+from ads.common import utils
+from ads.common.extended_enum import ExtendedEnum
 
 DEPRECATE_AS_ONNX_WARNING = "This attribute `as_onnx` will be deprecated in the future. You can choose specific format by setting `model_save_serializer`."
 DEPRECATE_USE_TORCH_SCRIPT_WARNING = "This attribute `use_torch_script` will be deprecated in the future. You can choose specific format by setting `model_save_serializer`."
+
+
+class MetadataArtifactPathType(ExtendedEnum):
+    """
+    Enum for defining metadata artifact path type.
+    Can be either local path or OSS path. It can also be the content itself.
+    """
+
+    LOCAL = "local"
+    OSS = "oss"
+    CONTENT = "content"
 
 
 def _extract_locals(

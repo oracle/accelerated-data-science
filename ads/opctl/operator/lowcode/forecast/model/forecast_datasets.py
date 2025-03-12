@@ -23,8 +23,8 @@ from ..operator_config import ForecastOperatorConfig
 
 
 class HistoricalData(AbstractData):
-    def __init__(self, spec: dict):
-        super().__init__(spec=spec, name="historical_data")
+    def __init__(self, spec, historical_data = None):
+        super().__init__(spec=spec, name="historical_data", data=historical_data)
 
     def _ingest_data(self, spec):
         try:
@@ -52,8 +52,11 @@ class HistoricalData(AbstractData):
 
 
 class AdditionalData(AbstractData):
-    def __init__(self, spec, historical_data):
-        if spec.additional_data is not None:
+    def __init__(self, spec, historical_data, additional_data=None):
+        if additional_data is not None:
+            super().__init__(spec=spec, name="additional_data", data=additional_data)
+            self.additional_regressors = list(self.data.columns)
+        elif spec.additional_data is not None:
             super().__init__(spec=spec, name="additional_data")
             add_dates = self.data.index.get_level_values(0).unique().tolist()
             add_dates.sort()
@@ -110,14 +113,15 @@ class AdditionalData(AbstractData):
 
 
 class TestData(AbstractData):
-    def __init__(self, spec):
-        super().__init__(spec=spec, name="test_data")
+    def __init__(self, spec, test_data):
+        if test_data is not None or spec.test_data is not None:
+            super().__init__(spec=spec, name="test_data", data=test_data)
         self.dt_column_name = spec.datetime_column.name
         self.target_name = spec.target_column
 
 
 class ForecastDatasets:
-    def __init__(self, config: ForecastOperatorConfig):
+    def __init__(self, config: ForecastOperatorConfig, historical_data=None, additional_data=None, test_data=None):
         """Instantiates the DataIO instance.
 
         Properties
@@ -127,11 +131,15 @@ class ForecastDatasets:
         """
         self.historical_data: HistoricalData = None
         self.additional_data: AdditionalData = None
-
         self._horizon = config.spec.horizon
         self._datetime_column_name = config.spec.datetime_column.name
         self._target_col = config.spec.target_column
-        self._load_data(config.spec)
+        if historical_data is not None:
+            self.historical_data = HistoricalData(config.spec, historical_data)
+            self.additional_data = AdditionalData(config.spec, self.historical_data, additional_data)
+        else:
+            self._load_data(config.spec)
+        self.test_data = TestData(config.spec, test_data)
 
     def _load_data(self, spec):
         """Loads forecasting input data."""
@@ -200,7 +208,7 @@ class ForecastDatasets:
         return self.get_data_at_series(s_id)[-self._horizon :]
 
     def has_artificial_series(self):
-        return self.historical_data._data_transformer.has_artificial_series
+        return bool(self.historical_data.spec.target_category_columns)
 
     def get_earliest_timestamp(self):
         return self.historical_data.get_min_time()
@@ -251,7 +259,7 @@ class ForecastOutput:
         target_column: str,
         dt_column: str,
     ):
-        """Forecast Output contains all of the details required to generate the forecast.csv output file.
+        """Forecast Output contains all the details required to generate the forecast.csv output file.
 
         init
         -------

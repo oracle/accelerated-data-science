@@ -88,13 +88,15 @@ def set_auth(
     auth: Optional[str] = AuthType.API_KEY,
     oci_config_location: Optional[str] = DEFAULT_LOCATION,
     profile: Optional[str] = DEFAULT_PROFILE,
-    config: Optional[Dict] = {"region": os.environ["OCI_RESOURCE_REGION"]}
-    if os.environ.get("OCI_RESOURCE_REGION")
-    else {},
+    config: Optional[Dict] = (
+        {"region": os.environ["OCI_RESOURCE_REGION"]}
+        if os.environ.get("OCI_RESOURCE_REGION")
+        else {}
+    ),
     signer: Optional[Any] = None,
     signer_callable: Optional[Callable] = None,
-    signer_kwargs: Optional[Dict] = {},
-    client_kwargs: Optional[Dict] = {},
+    signer_kwargs: Optional[Dict] = None,
+    client_kwargs: Optional[Dict] = None,
 ) -> None:
     """
     Sets the default authentication type.
@@ -195,6 +197,9 @@ def set_auth(
     >>> # instance principals authentication dictionary created based on callable with kwargs parameters:
     >>> ads.set_auth(signer_callable=signer_callable, signer_kwargs=signer_kwargs)
     """
+    signer_kwargs = signer_kwargs or {}
+    client_kwargs = client_kwargs or {}
+
     auth_state = AuthState()
 
     valid_auth_keys = AuthFactory.classes.keys()
@@ -258,9 +263,11 @@ def api_keys(
     """
     signer_args = dict(
         oci_config=oci_config if isinstance(oci_config, Dict) else {},
-        oci_config_location=oci_config
-        if isinstance(oci_config, str)
-        else os.path.expanduser(DEFAULT_LOCATION),
+        oci_config_location=(
+            oci_config
+            if isinstance(oci_config, str)
+            else os.path.expanduser(DEFAULT_LOCATION)
+        ),
         oci_key_profile=profile,
         client_kwargs=client_kwargs,
     )
@@ -334,9 +341,11 @@ def security_token(
     """
     signer_args = dict(
         oci_config=oci_config if isinstance(oci_config, Dict) else {},
-        oci_config_location=oci_config
-        if isinstance(oci_config, str)
-        else os.path.expanduser(DEFAULT_LOCATION),
+        oci_config_location=(
+            oci_config
+            if isinstance(oci_config, str)
+            else os.path.expanduser(DEFAULT_LOCATION)
+        ),
         oci_key_profile=profile,
         client_kwargs=client_kwargs,
     )

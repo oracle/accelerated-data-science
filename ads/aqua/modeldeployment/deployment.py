@@ -27,7 +27,6 @@ from ads.aqua.constants import (
     AQUA_MODEL_TYPE_CUSTOM,
     AQUA_MODEL_TYPE_SERVICE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
-    UNKNOWN,
     UNKNOWN_DICT,
 )
 from ads.aqua.data import AquaResourceIdentifier
@@ -35,7 +34,7 @@ from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
 from ads.aqua.model import AquaModelApp
 from ads.aqua.modeldeployment.entities import AquaDeployment, AquaDeploymentDetail
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import get_log_links
+from ads.common.utils import UNKNOWN, get_log_links
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
@@ -654,7 +653,7 @@ class AquaDeploymentApp(AquaApp):
         Dict:
             A dict of allowed deployment configs.
         """
-        config = self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG)
+        config = self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG).config
         if not config:
             logger.debug(
                 f"Deployment config for custom model: {model_id} is not available. Use defaults."
