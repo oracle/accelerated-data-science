@@ -200,7 +200,11 @@ def set_auth(
     """
     signer_kwargs = signer_kwargs or {}
     client_kwargs = {
-        "service_endpoint": OCI_ODSC_SERVICE_ENDPOINT,
+        **(
+            {"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT}
+            if OCI_ODSC_SERVICE_ENDPOINT
+            else {}
+        ),
         **(client_kwargs or {}),
     }
 
@@ -498,7 +502,12 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
     >>> auth = ads.auth.default_signer() # signer_callable instantiated
     >>> oc.OCIClientFactory(**auth).object_storage # Creates Object storage client using instance principal authentication
     """
-    default_client_kwargs = {"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT}
+    default_client_kwargs = (
+        {"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT}
+        if OCI_ODSC_SERVICE_ENDPOINT
+        else {}
+    )
+
     auth_state = AuthState()
     if auth_state.oci_signer or auth_state.oci_signer_callable:
         configuration = ads.telemetry.update_oci_client_config(auth_state.oci_config)
