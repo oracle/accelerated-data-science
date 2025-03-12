@@ -60,7 +60,6 @@ from ads.aqua.constants import (
     READY_TO_IMPORT_STATUS,
     TRAINING_METRICS_FINAL,
     TRINING_METRICS,
-    UNKNOWN,
     VALIDATION_METRICS,
     VALIDATION_METRICS_FINAL,
 )
@@ -82,7 +81,7 @@ from ads.aqua.model.entities import (
 from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import get_console_link
+from ads.common.utils import UNKNOWN, get_console_link
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,

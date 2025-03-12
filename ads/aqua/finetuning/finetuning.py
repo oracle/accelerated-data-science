@@ -30,7 +30,6 @@ from ads.aqua.constants import (
     DEFAULT_FT_REPLICA,
     DEFAULT_FT_VALIDATION_SET_SIZE,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
-    UNKNOWN,
     UNKNOWN_DICT,
 )
 from ads.aqua.data import AquaResourceIdentifier
@@ -45,7 +44,7 @@ from ads.aqua.finetuning.entities import (
 )
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import get_console_link
+from ads.common.utils import UNKNOWN, get_console_link
 from ads.config import (
     AQUA_FINETUNING_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
     AQUA_JOB_SUBNET_ID,

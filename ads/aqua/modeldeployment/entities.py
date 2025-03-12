@@ -14,7 +14,7 @@ from ads.aqua.config.utils.serializer import Serializable
 from ads.aqua.constants import UNKNOWN, UNKNOWN_DICT
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.serializer import DataClassSerializable
-from ads.common.utils import get_console_link
+from ads.common.utils import UNKNOWN, get_console_link
 
 
 class ShapeInfo(Serializable):

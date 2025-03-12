@@ -3,7 +3,6 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """This module defines constants used in ads.aqua module."""
 
-UNKNOWN = ""
 UNKNOWN_VALUE = ""
 READY_TO_IMPORT_STATUS = "TRUE"
 UNKNOWN_DICT = {}

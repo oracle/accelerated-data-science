@@ -29,7 +29,8 @@ from ads.aqua.config.evaluation.evaluation_service_config import (
     ShapeConfig,
     UIConfig,
 )
-from ads.aqua.constants import EVALUATION_REPORT_JSON, EVALUATION_REPORT_MD, UNKNOWN
+from ads.aqua.constants import EVALUATION_REPORT_JSON, EVALUATION_REPORT_MD
+from ads.common.utils import UNKNOWN
 from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.evaluation.entities import (
     AquaEvalMetrics,
