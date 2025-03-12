@@ -11,7 +11,7 @@ from ads.aqua import logger
 from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import Tags
 from ads.aqua.config.utils.serializer import Serializable
-from ads.aqua.constants import UNKNOWN, UNKNOWN_DICT
+from ads.aqua.constants import UNKNOWN_DICT
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import UNKNOWN, get_console_link
