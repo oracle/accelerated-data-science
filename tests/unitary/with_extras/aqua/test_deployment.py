@@ -15,7 +15,11 @@ import oci
 import pytest
 from parameterized import parameterized
 
-from ads.aqua.common.entities import AquaMultiModelRef, ComputeShapeSummary, ModelConfigResult
+from ads.aqua.common.entities import (
+    AquaMultiModelRef,
+    ComputeShapeSummary,
+    ModelConfigResult,
+)
 import ads.aqua.modeldeployment.deployment
 import ads.config
 from ads.aqua.common.entities import AquaMultiModelRef
@@ -403,19 +407,22 @@ class TestDataset:
                 "env_var": {},
                 "gpu_count": 2,
                 "model_id": "test_model_id_1",
-                "model_name": None,
+                "model_name": "test_model_1",
+                "artifact_location": "test_location_1",
             },
             {
                 "env_var": {},
                 "gpu_count": 2,
                 "model_id": "test_model_id_2",
-                "model_name": None,
+                "model_name": "test_model_2",
+                "artifact_location": "test_location_2",
             },
             {
                 "env_var": {},
                 "gpu_count": 2,
                 "model_id": "test_model_id_3",
-                "model_name": None,
+                "model_name": "test_model_3",
+                "artifact_location": "test_location_3",
             },
         ],
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
@@ -880,18 +887,21 @@ class TestDataset:
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_one",
+            "artifact_location": "artifact_location_one",
         },
         {
             "env_var": {"--test_key_two": "test_value_two"},
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_two",
+            "artifact_location": "artifact_location_two",
         },
         {
             "env_var": {"--test_key_three": "test_value_three"},
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_three",
+            "artifact_location": "artifact_location_three",
         },
     ]
 
@@ -978,10 +988,16 @@ class TestAquaDeployment(unittest.TestCase):
         assert result.log.name == "log-name"
         assert result.log_group.name == "log-group-name"
 
+    @patch(
+        "ads.model.service.oci_datascience_model.OCIDataScienceModel.get_custom_metadata_artifact"
+    )
     @patch("ads.model.DataScienceModel.from_id")
     @patch("ads.aqua.modeldeployment.deployment.get_resource_name")
     def test_get_multi_model_deployment(
-        self, mock_get_resource_name, mock_model_from_id
+        self,
+        mock_get_resource_name,
+        mock_model_from_id,
+        mock_get_custom_metadata_artifact,
     ):
         multi_model_deployment = copy.deepcopy(
             TestDataset.multi_model_deployment_object
@@ -1010,6 +1026,13 @@ class TestAquaDeployment(unittest.TestCase):
 
         mock_model_from_id.return_value = DataScienceModel.from_yaml(
             uri=aqua_multi_model
+        )
+
+        multi_model_deployment_model_attributes_str = json.dumps(
+            TestDataset.multi_model_deployment_model_attributes
+        ).encode("utf-8")
+        mock_get_custom_metadata_artifact.return_value = (
+            multi_model_deployment_model_attributes_str
         )
 
         result = self.app.get(model_deployment_id=TestDataset.MODEL_DEPLOYMENT_ID)
@@ -1588,17 +1611,23 @@ class TestAquaDeployment(unittest.TestCase):
 
         model_info_1 = AquaMultiModelRef(
             model_id="test_model_id_1",
+            model_name="test_model_1",
             gpu_count=2,
+            artifact_location="test_location_1",
         )
 
         model_info_2 = AquaMultiModelRef(
             model_id="test_model_id_2",
+            model_name="test_model_2",
             gpu_count=2,
+            artifact_location="test_location_2",
         )
 
         model_info_3 = AquaMultiModelRef(
             model_id="test_model_id_3",
+            model_name="test_model_3",
             gpu_count=2,
+            artifact_location="test_location_3",
         )
 
         result = self.app.create(

@@ -153,6 +153,8 @@ class AquaMultiModelRef(Serializable):
         Number of GPUs required for deployment.
     env_var : Optional[Dict[str, Any]]
         Optional environment variables to override during deployment.
+    artifact_location : Optional[str]
+        Artifact path of model in the multimodel group.
     """
 
     model_id: str = Field(..., description="The model OCID to deploy.")
@@ -162,6 +164,9 @@ class AquaMultiModelRef(Serializable):
     )
     env_var: Optional[dict] = Field(
         default_factory=dict, description="The environment variables of the model."
+    )
+    artifact_location: Optional[str] = Field(
+        None, description="Artifact path of model in the multimodel group."
     )
 
     class Config:
