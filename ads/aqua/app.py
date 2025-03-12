@@ -22,10 +22,9 @@ from ads.aqua.common.utils import (
     is_valid_ocid,
     load_config,
 )
-from ads.aqua.constants import UNKNOWN
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
-from ads.common.utils import extract_region, is_path_exists
+from ads.common.utils import UNKNOWN, extract_region, is_path_exists
 from ads.config import (
     AQUA_TELEMETRY_BUCKET,
     AQUA_TELEMETRY_BUCKET_NS,
