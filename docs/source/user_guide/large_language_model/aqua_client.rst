@@ -144,6 +144,7 @@ Usage
 **Synchronous HTTPX Client**
 
 .. code-block:: python3
+
     import ads
 
     ads.set_auth(auth="security_token", profile="<replace-with-your-profile>")
