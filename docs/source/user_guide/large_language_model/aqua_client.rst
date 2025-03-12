@@ -147,13 +147,11 @@ Usage
 **Synchronous HTTPX Client**
 
 .. code-block:: python3
-
-    import httpx
     import ads
-    from ads.aqua import HttpxOCIAuth
 
     ads.set_auth(auth="security_token", profile="<replace-with-your-profile>")
-    client = httpx.Client(auth=HttpxOCIAuth())
+
+    client = ads.aqua.get_httpx_client()
 
     response = client.post(
         url="https://<MD_OCID>/predict",
@@ -170,9 +168,8 @@ Usage
 
 .. code-block:: python3
 
-    import httpx
     import ads
-    from ads.aqua import HttpxOCIAuth
 
     ads.set_auth(auth="security_token", profile="<replace-with-your-profile>")
-    async_client = httpx.AsyncClient(auth=HttpxOCIAuth())
+
+    async_client = client = ads.aqua.get_async_httpx_client()

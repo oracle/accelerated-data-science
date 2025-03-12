@@ -7,7 +7,13 @@ import os
 from logging import getLogger
 
 from ads import logger, set_auth
-from ads.aqua.client.client import AsyncClient, Client, HttpxOCIAuth
+from ads.aqua.client.client import (
+    AsyncClient,
+    Client,
+    HttpxOCIAuth,
+    get_async_httpx_client,
+    get_httpx_client,
+)
 from ads.aqua.common.utils import fetch_service_compartment
 from ads.config import OCI_RESOURCE_PRINCIPAL_VERSION
 

@@ -794,3 +794,49 @@ class AsyncClient(BaseClient):
         logger.debug(f"Generating embeddings with input: {input}, payload: {payload}")
         payload = {**(payload or {}), "input": input}
         return await self._request(payload=payload, headers=headers)
+
+
+def get_httpx_client(**kwargs: Any) -> httpx.Client:
+    """
+    Creates and returns a synchronous httpx Client configured with OCI authentication.
+
+    This function checks if an 'auth' keyword argument is provided. If not, it instantiates
+    the default OCI authentication (HttpxOCIAuth) and injects it into the client configuration.
+    Any additional keyword arguments are passed directly to the httpx.Client constructor.
+
+    Parameters
+    ----------
+    **kwargs : Any
+        Arbitrary keyword arguments for configuring the httpx.Client. An optional 'auth'
+        argument can be provided to override the default OCI authentication.
+
+    Returns
+    -------
+    Client
+        A configured synchronous httpx Client instance.
+    """
+    kwargs["auth"] = kwargs.get("auth") or HttpxOCIAuth()
+    return httpx.Client(**kwargs)
+
+
+def get_async_httpx_client(**kwargs: Any) -> httpx.AsyncClient:
+    """
+    Creates and returns an asynchronous httpx AsyncClient configured with OCI authentication.
+
+    This function checks if an 'auth' keyword argument is provided. If not, it instantiates
+    the default OCI authentication (HttpxOCIAuth) and injects it into the client configuration.
+    Any additional keyword arguments are passed directly to the httpx.AsyncClient constructor.
+
+    Parameters
+    ----------
+    **kwargs : Any
+        Arbitrary keyword arguments for configuring the httpx.AsyncClient. An optional 'auth'
+        argument can be provided to override the default OCI authentication.
+
+    Returns
+    -------
+    AsyncClient
+        A configured asynchronous httpx AsyncClient instance.
+    """
+    kwargs["auth"] = kwargs.get("auth") or HttpxOCIAuth()
+    return httpx.AsyncClient(**kwargs)
