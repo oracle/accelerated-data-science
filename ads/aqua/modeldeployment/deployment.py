@@ -45,7 +45,6 @@ from ads.aqua.constants import (
     AQUA_MULTI_MODEL_CONFIG,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     MODEL_NAME_DELIMITER,
-    UNKNOWN,
     UNKNOWN_DICT,
 )
 from ads.aqua.data import AquaResourceIdentifier

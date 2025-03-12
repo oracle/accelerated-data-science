@@ -12,7 +12,6 @@ from typing import Dict, List, Optional
 
 from ads.aqua.app import AquaApp
 from ads.aqua.common.entities import ComputeShapeSummary
-from ads.aqua.constants import UNKNOWN
 from ads.aqua.modeldeployment.entities import (
     AquaDeploymentConfig,
     ConfigurationItem,
@@ -20,6 +19,7 @@ from ads.aqua.modeldeployment.entities import (
     GPUShapeAllocation,
     ModelDeploymentConfigSummary,
 )
+from ads.common.utils import UNKNOWN
 from ads.config import AQUA_MODEL_DEPLOYMENT_CONFIG
 
 logger = logging.getLogger("ads.aqua")
