@@ -17,6 +17,7 @@ import ads.aqua
 import ads.aqua.finetuning.finetuning
 import ads.config
 from ads.aqua.app import AquaApp
+from ads.aqua.common.entities import ModelConfigResult
 from ads.aqua.common.errors import AquaValueError
 from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.finetuning.constants import FineTuneCustomMetadata
@@ -279,7 +280,7 @@ class FineTuningTestCase(TestCase):
         with open(config_json, "r") as _file:
             config = json.load(_file)
 
-        self.app.get_config = MagicMock(return_value=config)
+        self.app.get_config = MagicMock(return_value=ModelConfigResult(config=config))
         result = self.app.get_finetuning_config(model_id="test-model-id")
         assert result == config
 

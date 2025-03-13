@@ -31,7 +31,6 @@ class Transformations(ABC):
             dataset_info : ForecastOperatorConfig
         """
         self.name = name
-        self.has_artificial_series = False
         self.dataset_info = dataset_info
         self.target_category_columns = dataset_info.target_category_columns
         self.target_column_name = dataset_info.target_column
@@ -136,7 +135,6 @@ class Transformations(ABC):
         self._target_category_columns_map = {}
         if not self.target_category_columns:
             df[DataColumns.Series] = "Series 1"
-            self.has_artificial_series = True
         else:
             df[DataColumns.Series] = merge_category_columns(
                 df, self.target_category_columns

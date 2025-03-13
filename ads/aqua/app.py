@@ -435,9 +435,11 @@ class CLIBuilderMixin:
         """
         cmd = f"ads aqua {self._command}"
         params = [
-            f"--{field.name} {json.dumps(getattr(self, field.name))}"
-            if isinstance(getattr(self, field.name), dict)
-            else f"--{field.name} {getattr(self, field.name)}"
+            (
+                f"--{field.name} {json.dumps(getattr(self, field.name))}"
+                if isinstance(getattr(self, field.name), dict)
+                else f"--{field.name} {getattr(self, field.name)}"
+            )
             for field in fields(self.__class__)
             if getattr(self, field.name) is not None
         ]

@@ -15,7 +15,7 @@ from ads.aqua.client.client import (
     BaseClient,
     Client,
     ExtendedRequestError,
-    OCIAuth,
+    HttpxOCIAuth,
     _create_retry_decorator,
     _retry_decorator,
     _should_retry_exception,
@@ -23,12 +23,12 @@ from ads.aqua.client.client import (
 from ads.common import auth as authutil
 
 
-class TestOCIAuth:
-    """Unit tests for OCIAuth class."""
+class TestHttpxOCIAuth:
+    """Unit tests for HttpxOCIAuth class."""
 
     def setup_method(self):
         self.signer_mock = Mock()
-        self.oci_auth = OCIAuth(self.signer_mock)
+        self.oci_auth = HttpxOCIAuth(self.signer_mock)
 
     def test_auth_flow(self):
         """Ensures that the auth_flow signs the request correctly."""
@@ -226,7 +226,7 @@ class TestBaseClient:
         assert self.base_client.retries == self.retries
         assert self.base_client.backoff_factor == self.backoff_factor
         assert self.base_client.timeout == self.timeout
-        assert isinstance(self.base_client.auth, OCIAuth)
+        assert isinstance(self.base_client.auth, HttpxOCIAuth)
 
     def test_init_default_auth(self):
         """Ensures that default auth is used when auth is None."""

@@ -28,7 +28,8 @@ from ads.aqua.config.evaluation.evaluation_service_config import (
     ShapeConfig,
     UIConfig,
 )
-from ads.aqua.constants import EVALUATION_REPORT_JSON, EVALUATION_REPORT_MD, UNKNOWN
+from ads.aqua.constants import EVALUATION_REPORT_JSON, EVALUATION_REPORT_MD
+from ads.common.utils import UNKNOWN
 from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.evaluation.entities import (
     AquaEvalMetrics,
@@ -649,7 +650,7 @@ class TestAquaEvaluation(unittest.TestCase):
     @patch.object(DataScienceModel, "from_id")
     @patch("tempfile.TemporaryDirectory")
     def test_download_report(
-            self, mock_TemporaryDirectory, mock_dsc_model_from_id, mock_download_artifact
+        self, mock_TemporaryDirectory, mock_dsc_model_from_id, mock_download_artifact
     ):
         """Tests downloading evaluation report successfully."""
         curr_dir = os.path.dirname(os.path.abspath(__file__))
@@ -669,12 +670,16 @@ class TestAquaEvaluation(unittest.TestCase):
 
         # Verify eval_id transformation
         mock_dsc_model_from_id.assert_called_with(expected_eval_id)
-        mock_model_instance.download_artifact.assert_called_once_with(mock_temp_path, auth=self.app._auth)
+        mock_model_instance.download_artifact.assert_called_once_with(
+            mock_temp_path, auth=self.app._auth
+        )
 
         self.print_expected_response(response, "DOWNLOAD REPORT")
         self.assert_payload(response, AquaEvalReport)
         read_content = base64.b64decode(response.content).decode()
-        expected_content = "This is a sample evaluation report.html.\nStandard deviation (σ)\n"
+        expected_content = (
+            "This is a sample evaluation report.html.\nStandard deviation (σ)\n"
+        )
 
         assert read_content == expected_content, read_content
         assert self.app._report_cache.currsize == 1
@@ -682,7 +687,6 @@ class TestAquaEvaluation(unittest.TestCase):
         # Case 2: Download from cache
         response1 = self.app.download_report(raw_eval_id)
         assert self.app._report_cache.get(expected_eval_id) == response1
-
 
     @patch.object(DataScienceModel, "from_id")
     @patch.object(DataScienceJob, "from_id")
@@ -763,11 +767,15 @@ class TestAquaEvaluation(unittest.TestCase):
         eval_name = "custom_eval_report.md"
 
         # Case 1: Call with eval_name (Custom Report Retrieval)
-        with patch("your_module.DataScienceModel.get_custom_metadata_artifact") as mock_get_custom_metadata_artifact:
+        with patch(
+            "your_module.DataScienceModel.get_custom_metadata_artifact"
+        ) as mock_get_custom_metadata_artifact:
             response = self.app.load_metrics(raw_eval_id, eval_name=eval_name)
 
             # Ensure eval_id is correctly processed
-            mock_get_custom_metadata_artifact.assert_called_with(expected_eval_id, eval_name, mock_temp_path)
+            mock_get_custom_metadata_artifact.assert_called_with(
+                expected_eval_id, eval_name, mock_temp_path
+            )
 
             # Ensure `from_id` is NOT called when eval_name is provided
             mock_dsc_model_from_id.assert_not_called()
@@ -783,10 +791,11 @@ class TestAquaEvaluation(unittest.TestCase):
 
         # Ensure `from_id` is called when eval_name is NOT provided
         mock_dsc_model_from_id.assert_called_with(expected_eval_id)
-        mock_download_artifact.assert_called_once_with(mock_temp_path, auth=self.app._auth)
+        mock_download_artifact.assert_called_once_with(
+            mock_temp_path, auth=self.app._auth
+        )
 
         assert response1 == self.app._metrics_cache.get(expected_eval_id)
-
 
     @patch.object(DataScienceModel, "download_artifact")
     @patch.object(DataScienceModel, "from_id")

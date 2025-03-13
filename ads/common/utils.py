@@ -22,7 +22,7 @@ from datetime import datetime
 from enum import Enum
 from io import DEFAULT_BUFFER_SIZE
 from textwrap import fill
-from typing import Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 from urllib import request
 from urllib.parse import urlparse
 
@@ -43,7 +43,6 @@ from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
     runtime_dependency,
 )
-from ads.common.extended_enum import ExtendedEnum
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_client import OCIClientFactory
 from ads.common.word_lists import adjectives, animals
@@ -84,13 +83,6 @@ mpl.rcParams["image.cmap"] = "BuGn"
 mpl.rcParams["axes.prop_cycle"] = cycler(
     color=["teal", "blueviolet", "forestgreen", "peru", "y", "dodgerblue", "r"]
 )
-
-
-# Metadata artifact path type can be either local path or OSS path. It can also be the content itself.
-class MetadataArtifactPathType(ExtendedEnum):
-    LOCAL = "local"
-    OSS = "oss"
-    CONTENT = "content"
 
 
 # sqlalchemy engines
@@ -237,6 +229,28 @@ def random_valid_ocid(prefix="ocid1.dataflowapplication.oc1.iad"):
     left, right = prefix.rsplit(".", 1)
     fake = "".join([random.choice(string.ascii_lowercase) for i in range(60)])
     return f"{left}.{fake}"
+
+
+def parse_bool(value: Any) -> bool:
+    """
+    Converts a value to boolean. For strings, it interprets 'true', '1', or 'yes'
+    (case insensitive) as True; everything else as False.
+
+    Parameters
+    ----------
+    value : Any
+        The value to convert to boolean.
+
+    Returns
+    -------
+    bool
+        The boolean interpretation of the value.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes")
+    return bool(value)
 
 
 def read_file(file_path: str, **kwargs) -> str:
