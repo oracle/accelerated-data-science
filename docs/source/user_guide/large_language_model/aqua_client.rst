@@ -129,3 +129,45 @@ The following examples demonstrate how to perform the same operations using the 
         input=["one", "two"]
     )
     print(response)
+
+
+HTTPX Client Integration with OCI Authentication
+================================================
+
+.. versionadded:: 2.13.1
+
+The latest client release now includes streamlined support for OCI authentication with HTTPX. Our helper functions for creating synchronous and asynchronous HTTPX clients automatically configure authentication based on your default settings. Additionally, you can pass extra keyword arguments to further customize the HTTPX client (e.g., timeouts, proxies, etc.), making it fully compatible with OCI Model Deployment service and third-party libraries (e.g., the OpenAI client).
+
+Usage
+-----
+
+**Synchronous HTTPX Client**
+
+.. code-block:: python3
+
+    import ads
+
+    ads.set_auth(auth="security_token", profile="<replace-with-your-profile>")
+
+    client = ads.aqua.get_httpx_client(timeout=10.0)
+
+    response = client.post(
+        url="https://<MD_OCID>/predict",
+        json={
+            "model": "odsc-llm",
+            "prompt": "Tell me a joke."
+        },
+    )
+
+    response.raise_for_status()
+    json_response = response.json()
+
+**Asynchronous HTTPX Client**
+
+.. code-block:: python3
+
+    import ads
+
+    ads.set_auth(auth="security_token", profile="<replace-with-your-profile>")
+
+    async_client = client = ads.aqua.get_async_httpx_client(timeout=10.0)

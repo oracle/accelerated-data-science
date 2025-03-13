@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
@@ -16,6 +16,7 @@ import oci
 import pytest
 from parameterized import parameterized
 
+from ads.aqua.common.entities import ModelConfigResult
 import ads.aqua.modeldeployment.deployment
 import ads.config
 from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
@@ -438,11 +439,11 @@ class TestAquaDeployment(unittest.TestCase):
         with open(config_json, "r") as _file:
             config = json.load(_file)
 
-        self.app.get_config = MagicMock(return_value=config)
+        self.app.get_config = MagicMock(return_value=ModelConfigResult(config=config))
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
         assert result == config
 
-        self.app.get_config = MagicMock(return_value=None)
+        self.app.get_config = MagicMock(return_value=ModelConfigResult(config=None))
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
         assert result == None
 
