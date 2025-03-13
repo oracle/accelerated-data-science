@@ -1855,11 +1855,9 @@ class TestAquaDeployment(unittest.TestCase):
                 )
 
     def validate_multimodel_deployment_feasibility_helper(
-        self, models, instance_shape, display_name, total_gpus
+        self, models, instance_shape, display_name, total_gpus, mock_path
     ):
-        config_json = os.path.join(
-            self.curr_dir, "test_data/deployment/aqua_summary_multi_model.json"
-        )
+        config_json = os.path.join(self.curr_dir, mock_path)
 
         with open(config_json, "r") as _file:
             config = json.load(_file)
@@ -1929,7 +1927,11 @@ class TestAquaDeployment(unittest.TestCase):
         self, models, instance_shape, display_name, total_gpus
     ):
         self.validate_multimodel_deployment_feasibility_helper(
-            models, instance_shape, display_name, total_gpus
+            models,
+            instance_shape,
+            display_name,
+            total_gpus,
+            "test_data/deployment/aqua_summary_multi_model.json",
         )
 
     @parameterized.expand(
@@ -2012,8 +2014,86 @@ class TestAquaDeployment(unittest.TestCase):
     ):
         with pytest.raises(ConfigValidationError):
             self.validate_multimodel_deployment_feasibility_helper(
-                models, instance_shape, display_name, total_gpus
+                models,
+                instance_shape,
+                display_name,
+                total_gpus,
+                "test_data/deployment/aqua_summary_multi_model.json",
             )
+
+    @parameterized.expand(
+        [
+            (
+                [
+                    {"ocid": "model_a", "gpu_count": 2},
+                ],
+                "invalid_shape",  # unsupported gpu shape
+                "test_a",
+                2,
+                "The model group is not compatible with the selected instance shape 'invalid_shape'. Supported shapes: ['BM.GPU.H100.8', 'BM.GPU.A100-v2.8'].",
+            ),
+            (
+                [
+                    {"ocid": "model_a", "gpu_count": 3},  # invalid gpu count 3
+                ],
+                "BM.GPU.H100.8",
+                "test_a",
+                8,
+                "Model model_a allocated 3 GPUs, but for single model deployment a valid GPU count would be 8. Adjust the GPU allocation to 8.",
+            ),
+        ],
+    )
+    def test_validate_multimodel_deployment_feasibility_negative_single(
+        self,
+        models,
+        instance_shape,
+        display_name,
+        total_gpus,
+        value_error,
+    ):
+        with pytest.raises(ConfigValidationError, match=value_error):
+            self.validate_multimodel_deployment_feasibility_helper(
+                models,
+                instance_shape,
+                display_name,
+                total_gpus,
+                "test_data/deployment/aqua_summary_multi_model_single.json",
+            )
+
+    @parameterized.expand(
+        [
+            (
+                [
+                    {"ocid": "model_a", "gpu_count": 8},
+                ],
+                "BM.GPU.H100.8",
+                "test_a",
+                8,
+            ),
+            (
+                [
+                    {"ocid": "model_a", "gpu_count": 2},
+                ],
+                "VM.GPU.A10.2",
+                "test_a",
+                2,
+            ),
+        ],
+    )
+    def test_validate_multimodel_deployment_feasibility_positive_single(
+        self,
+        models,
+        instance_shape,
+        display_name,
+        total_gpus,
+    ):
+        self.validate_multimodel_deployment_feasibility_helper(
+            models,
+            instance_shape,
+            display_name,
+            total_gpus,
+            "test_data/deployment/aqua_summary_multi_model_single.json",
+        )
 
 
 class TestMDInferenceResponse(unittest.TestCase):
