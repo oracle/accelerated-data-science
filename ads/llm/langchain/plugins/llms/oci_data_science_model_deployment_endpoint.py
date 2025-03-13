@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -433,23 +433,6 @@ class OCIModelDeploymentLLM(BaseLLM, BaseOCIModelDeployment):
     model: str = DEFAULT_MODEL_NAME
     """The name of the model."""
 
-    max_tokens: int = 256
-    """Denotes the number of tokens to predict per generation."""
-
-    temperature: float = 0.2
-    """A non-negative float that tunes the degree of randomness in generation."""
-
-    k: int = -1
-    """Number of most likely tokens to consider at each step."""
-
-    p: float = 0.75
-    """Total probability mass of tokens to consider at each step."""
-
-    best_of: int = 1
-    """Generates best_of completions server-side and returns the "best"
-    (the one with the highest log probability per token).
-    """
-
     stop: Optional[List[str]] = None
     """Stop words to use when generating. Model output is cut off
     at the first occurrence of any of these substrings."""
@@ -466,14 +449,9 @@ class OCIModelDeploymentLLM(BaseLLM, BaseOCIModelDeployment):
     def _default_params(self) -> Dict[str, Any]:
         """Get the default parameters."""
         return {
-            "best_of": self.best_of,
-            "max_tokens": self.max_tokens,
             "model": self.model,
             "stop": self.stop,
             "stream": self.streaming,
-            "temperature": self.temperature,
-            "top_k": self.k,
-            "top_p": self.p,
         }
 
     @property
@@ -788,6 +766,23 @@ class OCIModelDeploymentTGI(OCIModelDeploymentLLM):
 
     """
 
+    max_tokens: int = 256
+    """Denotes the number of tokens to predict per generation."""
+
+    temperature: float = 0.2
+    """A non-negative float that tunes the degree of randomness in generation."""
+
+    k: int = -1
+    """Number of most likely tokens to consider at each step."""
+
+    p: float = 0.75
+    """Total probability mass of tokens to consider at each step."""
+
+    best_of: int = 1
+    """Generates best_of completions server-side and returns the "best"
+    (the one with the highest log probability per token).
+    """
+
     api: Literal["/generate", "/v1/completions"] = "/v1/completions"
     """Api spec."""
 
@@ -920,6 +915,20 @@ class OCIModelDeploymentVLLM(OCIModelDeploymentLLM):
                 # other model parameters
             )
 
+    """
+
+    max_tokens: int = 256
+    """Denotes the number of tokens to predict per generation."""
+
+    temperature: float = 0.2
+    """A non-negative float that tunes the degree of randomness in generation."""
+
+    p: float = 0.75
+    """Total probability mass of tokens to consider at each step."""
+
+    best_of: int = 1
+    """Generates best_of completions server-side and returns the "best"
+    (the one with the highest log probability per token).
     """
 
     n: int = 1

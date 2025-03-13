@@ -16,6 +16,7 @@ try:
         OCIDataScienceEmbedding,
     )
     from ads.llm.langchain.plugins.llms.oci_data_science_model_deployment_endpoint import (
+        OCIModelDeploymentLLM,
         OCIModelDeploymentTGI,
         OCIModelDeploymentVLLM,
     )
