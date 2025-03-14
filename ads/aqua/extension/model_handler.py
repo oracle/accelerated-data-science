@@ -16,7 +16,7 @@ from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import AquaModelSummary, HFModelSummary
-from ads.common.utils import MetadataArtifactPathType
+from ads.model.common.utils import MetadataArtifactPathType
 
 
 class AquaModelHandler(AquaAPIhandler):

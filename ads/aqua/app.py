@@ -4,20 +4,21 @@
 
 import json
 import os
+import traceback
 from dataclasses import fields
-from typing import Dict, Union
+from typing import Any, Dict, Optional, Union
 
 import oci
 from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDetails
 
 from ads import set_auth
 from ads.aqua import logger
-from ads.aqua.common.enums import Tags
+from ads.aqua.common.entities import ModelConfigResult
+from ads.aqua.common.enums import ConfigFolder, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     _is_valid_mvs,
     config_parser,
-    defined_metadata_to_file_map,
     get_artifact_path,
     is_valid_ocid,
     load_config,
@@ -300,13 +301,8 @@ class AquaApp:
                 )
                 return False
 
-    def get_config_from_oss(
-        self,
-        model_id: str,
-        config_file_name: str,
-        oci_model: oci.data_science.models.Model,
-    ) -> Dict:
-        """Gets the config for the given Aqua model from OSS bucket.
+    def get_config_from_metadata(self, model_id: str, metadata_key: str) -> Dict:
+        """Gets the config for the given Aqua model from model catalog metadata content.
 
         Parameters
         ----------
@@ -314,66 +310,46 @@ class AquaApp:
             The OCID of the Aqua model.
         config_file_name: str
             name of the config file
-        oci_model:  oci.data_science.models.Model
-            corresponding oci datascience model
-
         Returns
         -------
         Dict:
             A dict of allowed configs.
         """
-
         config = {}
-        config_file_name = defined_metadata_to_file_map().get(config_file_name.lower())
-        if Tags.AQUA_SERVICE_MODEL_TAG in oci_model.freeform_tags:
-            base_model_ocid = oci_model.freeform_tags[Tags.AQUA_SERVICE_MODEL_TAG]
-            logger.info(
-                f"Base model found for the model: {oci_model.id}. "
-                f"Loading {config_file_name} for base model {base_model_ocid}."
-            )
-            base_model = self.ds_client.get_model(base_model_ocid).data
-            artifact_path = get_artifact_path(base_model.custom_metadata_list)
-        else:
-            logger.info(f"Loading {config_file_name} for model {oci_model.id}...")
-            artifact_path = get_artifact_path(oci_model.custom_metadata_list)
-
-        if not artifact_path:
-            logger.debug(
-                f"Failed to get artifact path from custom metadata for the model: {model_id}"
-            )
-            return config
-        config_path = os.path.join(os.path.dirname(artifact_path), "config")
-        if not is_path_exists(config_path):
-            config_path = os.path.join(artifact_path.rstrip("/"), "config")
-            if not is_path_exists(config_path):
-                config_path = f"{artifact_path.rstrip('/')}/"
-
-        config_file_path = os.path.join(config_path, config_file_name)
-        logger.info(f"Fetching {config_file_name} from {config_file_path}")
-        if is_path_exists(config_file_path):
-            try:
-                config = load_config(config_path, config_file_name=config_file_name)
-            except Exception as e:
-                logger.debug(
-                    f"Error occurred while fetching config {config_file_name} at path {config_path} : {str(e)}"
-                )
+        try:
+            config = self.ds_client.get_model_defined_metadatum_artifact_content(
+                model_id, metadata_key
+            ).data.content.decode("utf-8")
+            return json.loads(config)
+        except Exception as ex:
+            logger.error(f"{metadata_key} not found for model :{model_id}. {ex}")
         return config
 
-    def get_config(self, model_id: str, config_file_name: str) -> Union[Dict, str]:
-        """Gets the config for the given Aqua model.
+    def get_config(
+        self,
+        model_id: str,
+        config_file_name: str,
+        config_folder: Optional[str] = ConfigFolder.CONFIG,
+    ) -> ModelConfigResult:
+        """
+        Gets the configuration for the given Aqua model along with the model details.
 
         Parameters
         ----------
-        model_id: str
+        model_id : str
             The OCID of the Aqua model.
-        config_file_name: str
-            name of the config file
+        config_file_name : str
+            The name of the configuration file.
+        config_folder : Optional[str]
+            The subfolder path where config_file_name is searched.
+            Defaults to ConfigFolder.CONFIG. For model artifact directories, use ConfigFolder.ARTIFACT.
 
         Returns
         -------
-        Dict or str:
-            A dict or string of allowed configs.
+        ModelConfigResult
+            A Pydantic model containing the model_details (extracted from OCI) and the config dictionary.
         """
+        config_folder = config_folder or ConfigFolder.CONFIG
         oci_model = self.ds_client.get_model(model_id).data
         oci_aqua = (
             (
@@ -383,33 +359,57 @@ class AquaApp:
             if oci_model.freeform_tags
             else False
         )
-
         if not oci_aqua:
-            raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
+            raise AquaRuntimeError(f"Target model {oci_model.id} is not an Aqua model.")
 
-        try:
-            config = self.ds_client.get_model_defined_metadatum_artifact_content(
-                model_id, config_file_name
-            ).data.content.decode("utf-8", errors="ignore")
-            try:
-                config_dict = json.loads(config)
-                config = config_dict
-            except Exception:
-                pass
-        except Exception as e:
-            logger.error(
-                f"Error occurred while fetching {config_file_name} from defined metadata list: {str(e)}"
+        config: Dict[str, Any] = {}
+
+        # if the current model has a service model tag, then
+        if Tags.AQUA_SERVICE_MODEL_TAG in oci_model.freeform_tags:
+            base_model_ocid = oci_model.freeform_tags[Tags.AQUA_SERVICE_MODEL_TAG]
+            logger.info(
+                f"Base model found for the model: {oci_model.id}. "
+                f"Loading {config_file_name} for base model {base_model_ocid}."
             )
-            # To maintain backward compatibility
-            # TODO: Remove this once config from oss path is depricated completely
-            config = self.get_config_from_oss(model_id, config_file_name, oci_model)
+            if config_folder == ConfigFolder.ARTIFACT:
+                artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+            else:
+                base_model = self.ds_client.get_model(base_model_ocid).data
+                artifact_path = get_artifact_path(base_model.custom_metadata_list)
+        else:
+            logger.info(f"Loading {config_file_name} for model {oci_model.id}...")
+            artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+        if not artifact_path:
+            logger.debug(
+                f"Failed to get artifact path from custom metadata for the model: {model_id}"
+            )
+            return ModelConfigResult(config=config, model_details=oci_model)
+
+        config_path = os.path.join(os.path.dirname(artifact_path), config_folder)
+        if not is_path_exists(config_path):
+            config_path = os.path.join(artifact_path.rstrip("/"), config_folder)
+            if not is_path_exists(config_path):
+                config_path = f"{artifact_path.rstrip('/')}/"
+        config_file_path = os.path.join(config_path, config_file_name)
+        if is_path_exists(config_file_path):
+            try:
+                config = load_config(
+                    config_path,
+                    config_file_name=config_file_name,
+                )
+            except Exception:
+                logger.debug(
+                    f"Error loading the {config_file_name} at path {config_path}.\n"
+                    f"{traceback.format_exc()}"
+                )
 
         if not config:
-            logger.error(
-                f"{config_file_name} is not available for the model: {model_id}."
+            logger.debug(
+                f"{config_file_name} is not available for the model: {model_id}. "
+                f"Check if the custom metadata has the artifact path set."
             )
-            return config
-        return config
+
+        return ModelConfigResult(config=config, model_details=oci_model)
 
     def get_container_config(self):
         config = self.ds_client.list_containers().data

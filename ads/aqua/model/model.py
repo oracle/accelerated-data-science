@@ -80,7 +80,6 @@ from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import (
     UNKNOWN,
-    MetadataArtifactPathType,
     get_console_link,
     is_path_exists,
     read_file,
@@ -99,6 +98,7 @@ from ads.config import (
     USER,
 )
 from ads.model import DataScienceModel
+from ads.model.common.utils import MetadataArtifactPathType
 from ads.model.model_metadata import (
     MetadataCustomCategory,
     ModelCustomMetadata,

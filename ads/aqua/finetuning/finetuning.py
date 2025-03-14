@@ -21,6 +21,7 @@ from ads.aqua.common.enums import Resource, Tags
 from ads.aqua.common.errors import AquaFileExistsError, AquaValueError
 from ads.aqua.common.utils import (
     build_pydantic_error_message,
+    defined_metadata_to_file_map,
     get_container_image,
     upload_local_to_os,
 )
@@ -591,7 +592,17 @@ class AquaFineTuningApp(AquaApp):
         Dict:
             A dict of allowed finetuning configs.
         """
-        config = self.get_config(model_id, DefinedMetadata.FINE_TUNING_CONFIGURATION)
+        config = self.get_config_from_metadata(
+            model_id, DefinedMetadata.FINE_TUNING_CONFIGURATION
+        )
+        if config:
+            return config
+        config = self.get_config(
+            model_id,
+            defined_metadata_to_file_map().get(
+                DefinedMetadata.FINE_TUNING_CONFIGURATION.lower()
+            ),
+        ).config
         if not config:
             logger.debug(
                 f"Fine-tuning config for custom model: {model_id} is not available. Use defaults."

@@ -10,6 +10,7 @@ from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
+    defined_metadata_to_file_map,
     get_combined_params,
     get_container_image,
     get_container_params_type,
@@ -655,7 +656,17 @@ class AquaDeploymentApp(AquaApp):
         Dict:
             A dict of allowed deployment configs.
         """
-        config = self.get_config(model_id, DefinedMetadata.DEPLOYMENT_CONFIGURATION)
+        config = self.get_config_from_metadata(
+            model_id, DefinedMetadata.DEPLOYMENT_CONFIGURATION
+        )
+        if config:
+            return config
+        config = self.get_config(
+            model_id,
+            defined_metadata_to_file_map().get(
+                DefinedMetadata.DEPLOYMENT_CONFIGURATION.lower()
+            ),
+        ).config
         if not config:
             logger.debug(
                 f"Deployment config for custom model: {model_id} is not available. Use defaults."
