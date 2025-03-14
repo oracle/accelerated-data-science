@@ -662,6 +662,7 @@ class AquaModelApp(AquaApp):
             oci.resource_search.models.ResourceSummary,
         ],
         region: str,
+        container_config: Optional[Dict] = None,
     ) -> dict:
         """Constructs required fields for AquaModelSummary."""
 
@@ -718,7 +719,7 @@ class AquaModelApp(AquaApp):
             model_file = UNKNOWN
 
         inference_containers = AquaContainerConfig.from_container_index_json(
-            config=AquaApp().get_container_config()
+            config=container_config or AquaApp().get_container_config()
         ).inference
 
         model_formats_str = freeform_tags.get(
@@ -824,20 +825,25 @@ class AquaModelApp(AquaApp):
             )
 
         logger.info(
-            f"Fetched {len(models)} model in compartment_id={compartment_id or ODSC_MODEL_COMPARTMENT_OCID}."
+            f"Fetched {len(models)} model in compartment_id={ODSC_MODEL_COMPARTMENT_OCID if category==SERVICE else compartment_id}."
         )
 
+        container_config = self.get_container_config()
         aqua_models = []
 
         for model in models:
             aqua_models.append(
                 AquaModelSummary(
-                    **self._process_model(model=model, region=self.region),
+                    **self._process_model(
+                        model=model,
+                        region=self.region,
+                        container_config=container_config,
+                    ),
                     project_id=project_id or UNKNOWN,
                 )
             )
 
-        if not compartment_id:
+        if category == SERVICE:
             self._service_models_cache.__setitem__(
                 key=ODSC_MODEL_COMPARTMENT_OCID, value=aqua_models
             )
@@ -1810,7 +1816,7 @@ class AquaModelApp(AquaApp):
 
         content = ""
         try:
-            content = self.ds_client.get_defined_metadata_artifact_content(
+            content = self.ds_client.get_model_defined_metadatum_artifact_content(
                 model_id, DefinedMetadata.LICENSE
             ).data.content.decode("utf-8", errors="ignore")
         except Exception as ex:

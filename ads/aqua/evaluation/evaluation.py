@@ -946,20 +946,19 @@ class AquaEvaluationApp(AquaApp):
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Downloading evaluation artifact: {eval_id}.")
 
-            if self.if_model_custom_metadata_artifact_exist(
+            dsc_model = DataScienceModel.from_id(eval_id)
+            if dsc_model.if_model_custom_metadata_artifact_exist(
                 eval_id, EVALUATION_REPORT_MD
             ):
-                DataScienceModel.from_id(eval_id).get_custom_metadata_artifact(
-                    EVALUATION_REPORT_MD, temp_dir
-                )
-                if self.if_model_custom_metadata_artifact_exist(
+                dsc_model.get_custom_metadata_artifact(EVALUATION_REPORT_MD, temp_dir)
+                if dsc_model.if_model_custom_metadata_artifact_exist(
                     eval_id, EVALUATION_REPORT_JSON
                 ):
-                    DataScienceModel.from_id(eval_id).get_custom_metadata_artifact(
+                    dsc_model.get_custom_metadata_artifact(
                         EVALUATION_REPORT_JSON, temp_dir
                     )
             else:
-                DataScienceModel.from_id(eval_id).download_artifact(
+                dsc_model.download_artifact(
                     temp_dir,
                     auth=self._auth,
                 )
@@ -1068,16 +1067,16 @@ class AquaEvaluationApp(AquaApp):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Downloading evaluation artifact for {eval_id}.")
-            if self.if_model_custom_metadata_artifact_exist(eval_id, EVALUATION_REPORT):
-                DataScienceModel.from_id(eval_id).get_custom_metadata_artifact(
-                    EVALUATION_REPORT, temp_dir
-                )
+            dsc_model = DataScienceModel.from_id(eval_id)
+            if dsc_model.if_model_custom_metadata_artifact_exist(
+                eval_id, EVALUATION_REPORT
+            ):
+                dsc_model.get_custom_metadata_artifact(EVALUATION_REPORT, temp_dir)
             else:
-                DataScienceModel.from_id(eval_id).download_artifact(
+                dsc_model.download_artifact(
                     temp_dir,
                     auth=self._auth,
                 )
-
             content = self._read_from_artifact(
                 temp_dir, get_files(temp_dir), EVALUATION_REPORT
             )
