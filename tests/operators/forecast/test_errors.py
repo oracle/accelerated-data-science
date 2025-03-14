@@ -739,7 +739,7 @@ def test_pandas_historical_input(operator_setup, model):
     )
 
     tmpdirname = operator_setup
-    historical_data_path, additional_data_path = setup_small_rossman()
+    historical_data_path, additional_data_path = setup_artificial_data()
     yaml_i, output_data_path = populate_yaml(
         tmpdirname=tmpdirname,
         historical_data_path=historical_data_path,
@@ -835,9 +835,9 @@ def test_what_if_analysis(operator_setup, model):
     historical_data = pd.read_csv(historical_data_path, parse_dates=["Date"])
     historical_filtered = historical_data[historical_data["Date"] > "2013-03-01"]
     additional_data = pd.read_csv(additional_data_path, parse_dates=["Date"])
-    add_filtered = additional_data[additional_data['Date'] > "2013-03-01"]
-    add_filtered.to_csv(f'{additional_test_path}', index=False)
-    historical_filtered.to_csv(f'{historical_test_path}', index=False)
+    add_filtered = additional_data[additional_data["Date"] > "2013-03-01"]
+    add_filtered.to_csv(f"{additional_test_path}", index=False)
+    historical_filtered.to_csv(f"{historical_test_path}", index=False)
 
     yaml_i, output_data_path = populate_yaml(
         tmpdirname=tmpdirname,
@@ -892,6 +892,52 @@ def test_auto_select(operator_setup):
     )
     report_path = f"{output_data_path}/report.html"
     assert os.path.exists(report_path), f"Report file not found at {report_path}"
+
+
+@pytest.mark.parametrize("model", ["prophet"])
+def test_prophet_floor_cap(operator_setup, model):
+    from ads.opctl.operator.lowcode.forecast.__main__ import operate
+    from ads.opctl.operator.lowcode.forecast.operator_config import (
+        ForecastOperatorConfig,
+    )
+
+    yaml_i = TEMPLATE_YAML.copy()
+    yaml_i["spec"]["horizon"] = 10
+    yaml_i["spec"]["model"] = model
+    yaml_i["spec"]["historical_data"] = {"format": "pandas"}
+    yaml_i["spec"]["target_column"] = "target"
+    yaml_i["spec"]["datetime_column"]["name"] = HISTORICAL_DATETIME_COL.name
+    yaml_i["spec"]["output_directory"]["url"] = operator_setup
+    yaml_i["spec"]["model_kwargs"] = {"max": 20, "min": 0}
+
+    target_column = pd.Series(np.arange(20, -6, -2), name="target")
+    df = pd.concat(
+        [HISTORICAL_DATETIME_COL[: len(target_column)], target_column], axis=1
+    )
+    yaml_i["spec"]["historical_data"]["data"] = df
+    operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+    results = operate(operator_config)
+    assert np.all(
+        results.get_forecast()["forecast_value"].dropna() > 0
+    ), "`min` not obeyed in prophet"
+    assert np.all(
+        results.get_forecast()["fitted_value"].dropna() > 0
+    ), "`min` not obeyed in prophet"
+
+    target_column = pd.Series(np.arange(-6, 20, 2), name="target")
+    df = pd.concat(
+        [HISTORICAL_DATETIME_COL[: len(target_column)], target_column], axis=1
+    )
+    yaml_i["spec"]["historical_data"]["data"] = df
+    operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+    results = operate(operator_config)
+    assert np.all(
+        results.get_forecast()["forecast_value"].dropna() < 20
+    ), "`max` not obeyed in prophet"
+    assert np.all(
+        results.get_forecast()["fitted_value"].dropna() < 20
+    ), "`max` not obeyed in prophet"
+
 
 if __name__ == "__main__":
     pass

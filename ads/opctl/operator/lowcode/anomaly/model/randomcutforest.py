@@ -95,7 +95,7 @@ class RandomCutForestOperatorModel(AnomalyOperatorBaseModel):
 
                 anomaly_output.add_output(target, anomaly, score)
             except Exception as e:
-                logger.warn(f"Encountered Error: {e}. Skipping series {target}.")
+                logger.warning(f"Encountered Error: {e}. Skipping series {target}.")
 
         return anomaly_output
 
