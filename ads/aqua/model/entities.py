@@ -23,7 +23,6 @@ from ads.aqua.constants import LIFECYCLE_DETAILS_MISSING_JOBRUN, UNKNOWN_VALUE
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model.enums import FineTuningDefinedMetadata
 from ads.aqua.training.exceptions import exit_code_dict
-from ads.aqua.ui import ModelFormat
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_log_links
 from ads.model.datascience_model import DataScienceModel
@@ -46,7 +45,7 @@ class AquaFineTuneValidation(DataClassSerializable):
 @dataclass(repr=False)
 class ModelValidationResult:
     model_file: Optional[str] = None
-    model_formats: List[ModelFormat] = field(default_factory=list)
+    model_formats: List[str] = field(default_factory=list)
     telemetry_model_name: str = None
     tags: Optional[dict] = None
 
@@ -89,7 +88,7 @@ class AquaModelSummary(DataClassSerializable):
     nvidia_gpu_supported: bool = False
     arm_cpu_supported: bool = False
     model_file: Optional[str] = None
-    model_formats: List[ModelFormat] = field(default_factory=list)
+    model_formats: List[str] = field(default_factory=list)
 
 
 @dataclass(repr=False)

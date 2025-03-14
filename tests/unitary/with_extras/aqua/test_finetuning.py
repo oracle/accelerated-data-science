@@ -4,28 +4,29 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import os
 import json
+import os
+from importlib import reload
+from unittest import TestCase
+from unittest.mock import MagicMock, PropertyMock, patch
+
 import pytest
 from parameterized import parameterized
-from unittest import TestCase
-from unittest.mock import MagicMock, PropertyMock
-from mock import patch
-from importlib import reload
 
 import ads.aqua
 import ads.aqua.finetuning.finetuning
-from ads.aqua.model.entities import AquaFineTuneModel
 import ads.config
 from ads.aqua.app import AquaApp
+from ads.aqua.common.entities import ModelConfigResult
+from ads.aqua.common.errors import AquaValueError
 from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.finetuning.constants import FineTuneCustomMetadata
 from ads.aqua.finetuning.entities import AquaFineTuningParams
+from ads.aqua.model.entities import AquaFineTuneModel
 from ads.jobs.ads_job import Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJobRun
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import ModelCustomMetadata
-from ads.aqua.common.errors import AquaValueError
 
 
 class FineTuningTestCase(TestCase):
@@ -279,7 +280,7 @@ class FineTuningTestCase(TestCase):
         with open(config_json, "r") as _file:
             config = json.load(_file)
 
-        self.app.get_config = MagicMock(return_value=config)
+        self.app.get_config = MagicMock(return_value=ModelConfigResult(config=config))
         result = self.app.get_finetuning_config(model_id="test-model-id")
         assert result == config
 

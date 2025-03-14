@@ -91,19 +91,13 @@ class ModelEvaluator:
         output_dir = operator_config.spec.output_directory.url
         output_file_path = f'{output_dir}/back_testing/{model}/{backtest}'
         Path(output_file_path).mkdir(parents=True, exist_ok=True)
-        historical_data_url = f'{output_file_path}/historical.csv'
-        additional_data_url = f'{output_file_path}/additional.csv'
-        test_data_url = f'{output_file_path}/test.csv'
-        historical_data.to_csv(historical_data_url, index=False)
-        additional_data.to_csv(additional_data_url, index=False)
-        test_data.to_csv(test_data_url, index=False)
         backtest_op_config_draft = operator_config.to_dict()
         backtest_spec = backtest_op_config_draft["spec"]
-        backtest_spec["historical_data"]["url"] = historical_data_url
-        if backtest_spec["additional_data"]:
-            backtest_spec["additional_data"]["url"] = additional_data_url
-        backtest_spec["test_data"] = {}
-        backtest_spec["test_data"]["url"] = test_data_url
+        backtest_spec["datetime_column"]["format"] = None
+        backtest_spec.pop("test_data")
+        backtest_spec.pop("additional_data")
+        backtest_spec.pop("historical_data")
+        backtest_spec["generate_report"] = False
         backtest_spec["model"] = model
         backtest_spec['model_kwargs'] = None
         backtest_spec["output_directory"] = {"url": output_file_path}
@@ -118,19 +112,23 @@ class ModelEvaluator:
     def run_all_models(self, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig):
         cut_offs, train_sets, additional_data, test_sets = self.generate_k_fold_data(datasets, operator_config)
         metrics = {}
+        date_col = operator_config.spec.datetime_column.name
         for model in self.models:
             from .model.factory import ForecastOperatorModelFactory
             metrics[model] = {}
             for i in range(len(cut_offs)):
                 try:
-                    backtest_historical_data = train_sets[i]
-                    backtest_additional_data = additional_data[i]
-                    backtest_test_data = test_sets[i]
+                    backtest_historical_data = train_sets[i].set_index([date_col, DataColumns.Series])
+                    backtest_additional_data = additional_data[i].set_index([date_col, DataColumns.Series])
+                    backtest_test_data = test_sets[i].set_index([date_col, DataColumns.Series])
                     backtest_operator_config = self.create_operator_config(operator_config, i, model,
                                                                            backtest_historical_data,
                                                                            backtest_additional_data,
                                                                            backtest_test_data)
-                    datasets = ForecastDatasets(backtest_operator_config)
+                    datasets = ForecastDatasets(backtest_operator_config,
+                                                backtest_historical_data,
+                                                backtest_additional_data,
+                                                backtest_test_data)
                     ForecastOperatorModelFactory.get_model(
                         backtest_operator_config, datasets
                     ).generate_report()

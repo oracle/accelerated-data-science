@@ -96,8 +96,8 @@ class TestConfig:
                 model_id="test_model_id", config_file_name="test_config_file_name"
             )
             if not path_exists:
-                assert result == {}
+                assert result.config == {}
             if not custom_metadata:
-                assert result == {}
+                assert result.config == {}
             if path_exists and custom_metadata:
-                assert result == {"config_key": "config_value"}
+                assert result.config == {"config_key": "config_value"}

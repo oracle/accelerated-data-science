@@ -11,10 +11,10 @@ from oci.data_science.models import (
 )
 
 from ads.aqua.common.enums import Tags
-from ads.aqua.constants import UNKNOWN, UNKNOWN_DICT
+from ads.aqua.constants import UNKNOWN_DICT
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.serializer import DataClassSerializable
-from ads.common.utils import get_console_link
+from ads.common.utils import UNKNOWN, get_console_link
 
 
 @dataclass

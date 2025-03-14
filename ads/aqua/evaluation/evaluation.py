@@ -40,11 +40,13 @@ from ads.aqua.common.errors import (
 from ads.aqua.common.utils import (
     extract_id_and_name_from_tag,
     fire_and_forget,
+    get_container_config,
     get_container_image,
     is_valid_ocid,
     upload_local_to_os,
 )
 from ads.aqua.config.config import get_evaluation_service_config
+from ads.aqua.config.container_config import AquaContainerConfig
 from ads.aqua.constants import (
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     EVALUATION_REPORT,
@@ -53,7 +55,6 @@ from ads.aqua.constants import (
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     LIFECYCLE_DETAILS_MISSING_JOBRUN,
     NB_SESSION_IDENTIFIER,
-    UNKNOWN,
 )
 from ads.aqua.evaluation.constants import (
     EVAL_TERMINATION_STATE,
@@ -75,10 +76,9 @@ from ads.aqua.evaluation.entities import (
     CreateAquaEvaluationDetails,
 )
 from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
-from ads.aqua.ui import AquaContainerConfig
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import get_console_link, get_files, get_log_links
+from ads.common.utils import UNKNOWN, get_console_link, get_files, get_log_links
 from ads.config import (
     AQUA_JOB_SUBNET_ID,
     COMPARTMENT_OCID,
@@ -192,7 +192,7 @@ class AquaEvaluationApp(AquaApp):
                         evaluation_source.runtime.to_dict()
                     )
                     inference_config = AquaContainerConfig.from_container_index_json(
-                        enable_spec=True
+                        config=get_container_config(), enable_spec=True
                     ).inference
                     for container in inference_config.values():
                         if container.name == runtime.image[: runtime.image.rfind(":")]:

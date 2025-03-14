@@ -121,7 +121,7 @@ class ForecastOperatorBaseModel(ABC):
 
             # Generate metrics
             summary_metrics = None
-            test_data = None
+            test_data = self.datasets.test_data
             self.eval_metrics = None
 
             if self.spec.generate_report or self.spec.generate_metrics:
@@ -131,12 +131,11 @@ class ForecastOperatorBaseModel(ABC):
                         {"Series 1": self.original_target_column}, axis=1, inplace=True
                     )
 
-                if self.spec.test_data:
+                if self.datasets.test_data is not None:
                     try:
                         (
                             self.test_eval_metrics,
-                            summary_metrics,
-                            test_data,
+                            summary_metrics
                         ) = self._test_evaluate_metrics(
                             elapsed_time=elapsed_time,
                         )
@@ -362,7 +361,7 @@ class ForecastOperatorBaseModel(ABC):
     def _test_evaluate_metrics(self, elapsed_time=0):
         total_metrics = pd.DataFrame()
         summary_metrics = pd.DataFrame()
-        data = TestData(self.spec)
+        data = self.datasets.test_data
 
         # Generate y_pred and y_true for each series
         for s_id in self.forecast_output.list_series_ids():
@@ -399,7 +398,7 @@ class ForecastOperatorBaseModel(ABC):
             total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
 
         if total_metrics.empty:
-            return total_metrics, summary_metrics, data
+            return total_metrics, summary_metrics
 
         summary_metrics = pd.DataFrame(
             {
@@ -465,7 +464,7 @@ class ForecastOperatorBaseModel(ABC):
                 ]
                 summary_metrics = summary_metrics[new_column_order]
 
-        return total_metrics, summary_metrics, data
+        return total_metrics, summary_metrics
 
     def _save_report(
         self,
@@ -549,7 +548,7 @@ class ForecastOperatorBaseModel(ABC):
                 )
 
             # test_metrics csv report
-            if self.spec.test_data is not None:
+            if self.datasets.test_data is not None:
                 if test_metrics_df is not None:
                     test_metrics_df_formatted = test_metrics_df.reset_index().rename(
                         {"index": "metrics", "Series 1": metrics_col_name}, axis=1

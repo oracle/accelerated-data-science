@@ -19,7 +19,6 @@ from pathlib import Path
 from string import Template
 from typing import List, Union
 
-import fsspec
 import oci
 from cachetools import TTLCache, cached
 from huggingface_hub.constants import HF_HUB_CACHE
@@ -58,7 +57,6 @@ from ads.aqua.constants import (
     SUPPORTED_FILE_FORMATS,
     TEI_CONTAINER_DEFAULT_HOST,
     TGI_INFERENCE_RESTRICTED_PARAMS,
-    UNKNOWN,
     UNKNOWN_JSON_STR,
     VLLM_INFERENCE_RESTRICTED_PARAMS,
 )
@@ -68,7 +66,13 @@ from ads.common.decorator.threaded import threaded
 from ads.common.extended_enum import ExtendedEnum
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import copy_file, get_console_link, upload_to_os
+from ads.common.utils import (
+    UNKNOWN,
+    copy_file,
+    get_console_link,
+    read_file,
+    upload_to_os,
+)
 from ads.config import (
     AQUA_MODEL_DEPLOYMENT_FOLDER,
     AQUA_SERVICE_MODELS_BUCKET,
@@ -226,15 +230,6 @@ def get_artifact_path(custom_metadata_list: List) -> str:
 
     logger.debug("Failed to get artifact path from custom metadata.")
     return UNKNOWN
-
-
-def read_file(file_path: str, **kwargs) -> str:
-    try:
-        with fsspec.open(file_path, "r", **kwargs.get("auth", {})) as f:
-            return f.read()
-    except Exception as e:
-        logger.debug(f"Failed to read file {file_path}. {e}")
-        return UNKNOWN
 
 
 @threaded()
@@ -553,7 +548,7 @@ def service_config_path():
     return f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=5), timer=datetime.now))
+@cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=10), timer=datetime.now))
 def get_container_config():
     config = load_config(
         file_path=service_config_path(),
