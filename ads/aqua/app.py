@@ -380,6 +380,15 @@ class AquaApp:
         return ModelConfigResult(config=config, model_details=oci_model)
 
     def get_container_config(self):
+        """
+        Fetches container config from containers.conf in OCI Datascience control plane
+
+        Returns
+        -------
+        Dict
+            A Dict of containers conf.
+
+        """
         config = self.ds_client.list_containers().data
         return config_parser(config)
 

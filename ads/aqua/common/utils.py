@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 from string import Template
-from typing import List, Union
+from typing import Dict, List, Union
 
 import oci
 from cachetools import TTLCache, cached
@@ -562,7 +562,11 @@ def service_config_path():
     return f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
 
 
-def config_parser(containers: List[ContainerSummary]):
+def config_parser(containers: List[ContainerSummary]) -> Dict:
+    """
+    Parses the config from containers.conf to container_index.json
+    """
+
     config = {"containerSpec": {}}
     inference_containers = list(
         {

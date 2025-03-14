@@ -192,7 +192,7 @@ class AquaEvaluationApp(AquaApp):
                         evaluation_source.runtime.to_dict()
                     )
                     inference_config = AquaContainerConfig.from_container_index_json(
-                        config=AquaApp().get_container_config(), enable_spec=True
+                        config=self.get_container_config(), enable_spec=True
                     ).inference
                     for container in inference_config.values():
                         if container.name == runtime.image[: runtime.image.rfind(":")]:
