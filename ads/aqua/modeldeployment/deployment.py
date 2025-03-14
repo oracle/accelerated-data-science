@@ -321,7 +321,7 @@ class AquaDeploymentApp(AquaApp):
         # Fetch the startup cli command for the container
         # container_index.json will have "containerSpec" section which will provide the cli params for
         # a given container family
-        container_config = AquaApp().get_container_config()
+        container_config = self.get_container_config()
         container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
             container_type_key, {}
         )
@@ -761,7 +761,7 @@ class AquaDeploymentApp(AquaApp):
                 model=model, container_family=container_family
             )
 
-            container_config = AquaApp().get_container_config()
+            container_config = self.get_container_config()
             container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
                 container_type_key, {}
             )

@@ -1041,8 +1041,8 @@ class AquaModelApp(AquaApp):
         # Remove `ready_to_import` tag that might get copied from service model.
         tags.pop(Tags.READY_TO_IMPORT, None)
         defined_metadata_dict = {}
-        readme_file_path = os_path.rstrip("/") + "/README.md"
-        license_file_path = os_path.rstrip("/") + "/LICENSE.txt"
+        readme_file_path = os_path.rstrip("/") + "/" + README
+        license_file_path = os_path.rstrip("/") + "/" + LICENSE_TXT
         if verified_model:
             # Verified model is a model in the service catalog that either has no artifacts but contains all the necessary metadata for deploying and fine tuning.
             # If set, then we copy all the model metadata.
@@ -1080,7 +1080,7 @@ class AquaModelApp(AquaApp):
                 )
 
             inference_containers = AquaContainerConfig.from_container_index_json(
-                config=AquaApp().get_container_config()
+                config=self.get_container_config()
             ).inference
             smc_container_set = {
                 container.family for container in inference_containers.values()

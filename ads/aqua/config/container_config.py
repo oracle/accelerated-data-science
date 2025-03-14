@@ -192,7 +192,7 @@ class AquaContainerConfig(Serializable):
                     ):
                         finetune_items[container_type] = container_item
                     elif (
-                        container.get("type").lower() == "evaluation"
+                        container.get("type").lower() in ("evaluation", "evaluate")
                         or container_type == "odsc-llm-evaluate"
                     ):
                         evaluate_items[container_type] = container_item
