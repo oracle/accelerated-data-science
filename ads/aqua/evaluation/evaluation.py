@@ -430,8 +430,11 @@ class AquaEvaluationApp(AquaApp):
                 JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING
             )
 
-        container_image = self._get_evaluation_container(
-            create_aqua_evaluation_details.evaluation_source_id
+        container_image = (
+            create_aqua_evaluation_details.container_image_uri
+            or self._get_evaluation_container(
+                create_aqua_evaluation_details.evaluation_source_id
+            )
         )
 
         evaluation_job.with_runtime(
@@ -666,7 +669,7 @@ class AquaEvaluationApp(AquaApp):
                 f"Details: {ex}"
             )
             logger.error(error_message)
-            raise AquaRuntimeError(error_message)
+            raise AquaRuntimeError(error_message) from ex
 
         # Build the list of valid model names from custom metadata.
         model_names = [
