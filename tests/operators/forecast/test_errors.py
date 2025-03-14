@@ -921,5 +921,40 @@ def test_report_title(operator_setup, model):
         assert False, "Report Title was not set"
 
 
+@pytest.mark.parametrize("model", ["prophet"])
+def test_generate_files(operator_setup, model):
+    from ads.opctl.operator.lowcode.forecast.__main__ import operate
+    from ads.opctl.operator.lowcode.forecast.operator_config import (
+        ForecastOperatorConfig,
+    )
+
+    yaml_i = TEMPLATE_YAML.copy()
+    yaml_i["spec"]["horizon"] = 10
+    yaml_i["spec"]["model"] = model
+    yaml_i["spec"]["historical_data"] = {"format": "pandas"}
+    yaml_i["spec"]["target_column"] = TARGET_COL.name
+    yaml_i["spec"]["datetime_column"]["name"] = HISTORICAL_DATETIME_COL.name
+    yaml_i["spec"]["report_title"] = "Skibidi ADS Skibidi"
+    yaml_i["spec"]["output_directory"]["url"] = operator_setup
+    yaml_i["spec"]["generate_explanations_file"] = False
+    yaml_i["spec"]["generate_forecast_file"] = False
+    yaml_i["spec"]["generate_metrics_file"] = False
+
+    df = pd.concat([HISTORICAL_DATETIME_COL[:15], TARGET_COL[:15]], axis=1)
+    yaml_i["spec"]["historical_data"]["data"] = df
+    operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+    results = operate(operator_config)
+    files = os.listdir(operator_setup)
+    assert "report.html" in files, "Failed to generate report"
+    assert (
+        "forecast.csv" not in files
+    ), "Generated forecast file, but `generate_forecast_file` was set False"
+    assert (
+        "metrics.csv" not in files
+    ), "Generated metrics file, but `generate_metrics_file` was set False"
+    assert not results.get_forecast().empty
+    assert not results.get_metrics().empty
+
+
 if __name__ == "__main__":
     pass

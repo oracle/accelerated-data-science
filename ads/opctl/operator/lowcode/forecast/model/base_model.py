@@ -469,17 +469,18 @@ class ForecastOperatorBaseModel(ABC):
         result_df: pd.DataFrame,
         metrics_df: pd.DataFrame,
         test_metrics_df: pd.DataFrame,
-        # test_data: pd.DataFrame,
+        test_data: pd.DataFrame,
     ):
         """Saves resulting reports to the given folder."""
 
         unique_output_dir = self.spec.output_directory.url
         results = ForecastResults()
 
-        if ObjectStorageDetails.is_oci_path(unique_output_dir):
-            storage_options = default_signer()
-        else:
-            storage_options = {}
+        storage_options = (
+            default_signer()
+            if ObjectStorageDetails.is_oci_path(unique_output_dir)
+            else {}
+        )
 
         # report-creator html report
         if self.spec.generate_report:
@@ -510,12 +511,13 @@ class ForecastOperatorBaseModel(ABC):
             if self.target_cat_col
             else result_df.drop(DataColumns.Series, axis=1)
         )
-        write_data(
-            data=result_df,
-            filename=os.path.join(unique_output_dir, self.spec.forecast_filename),
-            format="csv",
-            storage_options=storage_options,
-        )
+        if self.spec.generate_forecast_file:
+            write_data(
+                data=result_df,
+                filename=os.path.join(unique_output_dir, self.spec.forecast_filename),
+                format="csv",
+                storage_options=storage_options,
+            )
         results.set_forecast(result_df)
 
         # metrics csv report
@@ -529,15 +531,16 @@ class ForecastOperatorBaseModel(ABC):
                 metrics_df_formatted = metrics_df.reset_index().rename(
                     {"index": "metrics", "Series 1": metrics_col_name}, axis=1
                 )
-                write_data(
-                    data=metrics_df_formatted,
-                    filename=os.path.join(
-                        unique_output_dir, self.spec.metrics_filename
-                    ),
-                    format="csv",
-                    storage_options=storage_options,
-                    index=False,
-                )
+                if self.spec.generate_metrics_file:
+                    write_data(
+                        data=metrics_df_formatted,
+                        filename=os.path.join(
+                            unique_output_dir, self.spec.metrics_filename
+                        ),
+                        format="csv",
+                        storage_options=storage_options,
+                        index=False,
+                    )
                 results.set_metrics(metrics_df_formatted)
             else:
                 logger.warn(
@@ -550,15 +553,16 @@ class ForecastOperatorBaseModel(ABC):
                     test_metrics_df_formatted = test_metrics_df.reset_index().rename(
                         {"index": "metrics", "Series 1": metrics_col_name}, axis=1
                     )
-                    write_data(
-                        data=test_metrics_df_formatted,
-                        filename=os.path.join(
-                            unique_output_dir, self.spec.test_metrics_filename
-                        ),
-                        format="csv",
-                        storage_options=storage_options,
-                        index=False,
-                    )
+                    if self.spec.generate_metrics_file:
+                        write_data(
+                            data=test_metrics_df_formatted,
+                            filename=os.path.join(
+                                unique_output_dir, self.spec.test_metrics_filename
+                            ),
+                            format="csv",
+                            storage_options=storage_options,
+                            index=False,
+                        )
                     results.set_test_metrics(test_metrics_df_formatted)
                 else:
                     logger.warn(
@@ -568,15 +572,16 @@ class ForecastOperatorBaseModel(ABC):
         if self.spec.generate_explanations:
             try:
                 if not self.formatted_global_explanation.empty:
-                    write_data(
-                        data=self.formatted_global_explanation,
-                        filename=os.path.join(
-                            unique_output_dir, self.spec.global_explanation_filename
-                        ),
-                        format="csv",
-                        storage_options=storage_options,
-                        index=True,
-                    )
+                    if not self.spec.generate_explanations_file:
+                        write_data(
+                            data=self.formatted_global_explanation,
+                            filename=os.path.join(
+                                unique_output_dir, self.spec.global_explanation_filename
+                            ),
+                            format="csv",
+                            storage_options=storage_options,
+                            index=True,
+                        )
                     results.set_global_explanations(self.formatted_global_explanation)
                 else:
                     logger.warn(
@@ -584,15 +589,16 @@ class ForecastOperatorBaseModel(ABC):
                     )
 
                 if not self.formatted_local_explanation.empty:
-                    write_data(
-                        data=self.formatted_local_explanation,
-                        filename=os.path.join(
-                            unique_output_dir, self.spec.local_explanation_filename
-                        ),
-                        format="csv",
-                        storage_options=storage_options,
-                        index=True,
-                    )
+                    if not self.spec.generate_explanations_file:
+                        write_data(
+                            data=self.formatted_local_explanation,
+                            filename=os.path.join(
+                                unique_output_dir, self.spec.local_explanation_filename
+                            ),
+                            format="csv",
+                            storage_options=storage_options,
+                            index=True,
+                        )
                     results.set_local_explanations(self.formatted_local_explanation)
                 else:
                     logger.warn(
