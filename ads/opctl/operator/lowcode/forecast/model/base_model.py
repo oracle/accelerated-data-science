@@ -29,7 +29,6 @@ from ads.opctl.operator.lowcode.common.utils import (
     seconds_to_datetime,
     write_data,
 )
-from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import TestData
 from ads.opctl.operator.lowcode.forecast.utils import (
     _build_metrics_df,
     _build_metrics_per_horizon,
@@ -132,11 +131,10 @@ class ForecastOperatorBaseModel(ABC):
 
                 if self.datasets.test_data is not None:
                     try:
-                        (
-                            self.test_eval_metrics,
-                            summary_metrics
-                        ) = self._test_evaluate_metrics(
-                            elapsed_time=elapsed_time,
+                        (self.test_eval_metrics, summary_metrics) = (
+                            self._test_evaluate_metrics(
+                                elapsed_time=elapsed_time,
+                            )
                         )
                         if not self.target_cat_col:
                             self.test_eval_metrics.rename(
@@ -155,9 +153,9 @@ class ForecastOperatorBaseModel(ABC):
                     model_description,
                     other_sections,
                 ) = self._generate_report()
-
+                report_title = self.config.spec.report_title or "Forecast Report"
                 header_section = rc.Block(
-                    rc.Heading("Forecast Report", level=1),
+                    rc.Heading(report_title, level=1),
                     rc.Text(
                         f"You selected the {self.spec.model} model.\nBased on your dataset, you could have also selected any of the models: {SupportedModels.keys()}."
                     ),
@@ -471,7 +469,7 @@ class ForecastOperatorBaseModel(ABC):
         result_df: pd.DataFrame,
         metrics_df: pd.DataFrame,
         test_metrics_df: pd.DataFrame,
-        test_data: pd.DataFrame,
+        # test_data: pd.DataFrame,
     ):
         """Saves resulting reports to the given folder."""
 
