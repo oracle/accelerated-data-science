@@ -738,10 +738,11 @@ def test_pandas_historical_input(operator_setup, model):
         ForecastOperatorConfig,
     )
 
-    tmpdirname = operator_setup
-    historical_data_path, additional_data_path = setup_artificial_data()
+    historical_data_path, additional_data_path, _ = setup_artificial_data(
+        operator_setup
+    )
     yaml_i, output_data_path = populate_yaml(
-        tmpdirname=tmpdirname,
+        operator_setup=operator_setup,
         historical_data_path=historical_data_path,
         additional_data_path=additional_data_path,
     )
@@ -755,7 +756,7 @@ def test_pandas_historical_input(operator_setup, model):
     operator_config = ForecastOperatorConfig.from_dict(yaml_i)
     operate(operator_config)
     assert pd.read_csv(additional_data_path)["Date"].equals(
-        pd.read_csv(f"{tmpdirname}/results/forecast.csv")["Date"]
+        pd.read_csv(f"{operator_setup}/results/forecast.csv")["Date"]
     )
 
 
