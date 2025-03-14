@@ -72,6 +72,7 @@ from ads.aqua.model.entities import (
     AquaFineTuningMetric,
     AquaModel,
     AquaModelLicense,
+    AquaModelReadme,
     AquaModelSummary,
     ImportModelDetails,
     ModelValidationResult,
@@ -219,7 +220,7 @@ class AquaModelApp(AquaApp):
         return custom_model
 
     @telemetry(entry_point="plugin=model&action=get", name="aqua")
-    def get(self, model_id: str, load_model_card: Optional[bool] = True) -> "AquaModel":
+    def get(self, model_id: str) -> "AquaModel":
         """Gets the information of an Aqua model.
 
         Parameters
@@ -254,37 +255,7 @@ class AquaModelApp(AquaApp):
             and ds_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG)
         )
 
-        # todo: consolidate this logic in utils for model and deployment use
-        is_verified_type = (
-            ds_model.freeform_tags.get(Tags.READY_TO_IMPORT, "false").upper()
-            == READY_TO_IMPORT_STATUS
-        )
-
         model_card = ""
-        if load_model_card:
-            try:
-                model_card = (
-                    self.ds_client.get_model_defined_metadatum_artifact_content(
-                        model_id, DefinedMetadata.README
-                    ).data.content.decode("utf-8", errors="ignore")
-                )
-            except Exception as ex:
-                logger.debug(
-                    f"Error occurred in getting {DefinedMetadata.README} from defined metadata for {model_id}: {str(ex)}"
-                )
-                artifact_path = get_artifact_path(
-                    ds_model.custom_metadata_list._to_oci_metadata()
-                )
-                if artifact_path != UNKNOWN:
-                    model_card_path = (
-                        f"{artifact_path.rstrip('/')}/artifact/{README}"
-                        if is_verified_type
-                        else f"{artifact_path.rstrip('/')}/{README}"
-                    )
-                    model_card = str(
-                        read_file(file_path=model_card_path, auth=default_signer())
-                    )
-
         inference_container = ds_model.custom_metadata_list.get(
             ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
             ModelCustomMetadataItem(key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER),
@@ -1791,6 +1762,55 @@ class AquaModelApp(AquaApp):
         )
         separator = " " if description else ""
         return f"{description}{separator}{tags_text}"
+
+    @telemetry(entry_point="plugin=model&action=load_readme", name="aqua")
+    def load_readme(self, model_id: str) -> AquaModelReadme:
+        """Loads the readme or the model card for the given model.
+
+        Parameters
+        ----------
+        model_id: str
+            The model id.
+
+        Returns
+        -------
+        AquaModelReadme:
+            The instance of AquaModelReadme.
+        """
+        oci_model = self.ds_client.get_model(model_id).data
+        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+        if not artifact_path:
+            raise AquaRuntimeError(
+                f"Readme could not be loaded. Failed to get artifact path from custom metadata for"
+                f"the model {model_id}."
+            )
+
+        content = ""
+        try:
+            content = self.ds_client.get_model_defined_metadatum_artifact_content(
+                model_id, DefinedMetadata.README
+            ).data.content.decode("utf-8", errors="ignore")
+        except Exception as ex:
+            logger.error(
+                f"License could not be found for model: {model_id} in defined metadata : {str(ex)}"
+            )
+            artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+            readme_path = os.path.join(os.path.dirname(artifact_path), "artifact")
+            if not is_path_exists(readme_path):
+                readme_path = os.path.join(artifact_path.rstrip("/"), "artifact")
+                if not is_path_exists(readme_path):
+                    readme_path = f"{artifact_path.rstrip('/')}/"
+
+            readme_file_path = os.path.join(readme_path, README)
+            logger.info(f"Fetching {README} from {readme_file_path}")
+            if is_path_exists(readme_file_path):
+                try:
+                    content = str(read_file(readme_file_path, auth=default_signer()))
+                except Exception as e:
+                    logger.debug(
+                        f"Error occurred while fetching config {README} at path {readme_file_path} : {str(e)}"
+                    )
+        return AquaModelReadme(id=model_id, model_card=content)
 
     @telemetry(entry_point="plugin=model&action=load_license", name="aqua")
     def load_license(self, model_id: str) -> AquaModelLicense:

@@ -208,6 +208,16 @@ class AquaModelLicenseHandler(AquaAPIhandler):
         return self.finish(AquaModelApp().load_license(model_id))
 
 
+class AquaModelReadmeHandler(AquaAPIhandler):
+    """
+    Handler for fetching model card for AQUA models
+    """
+
+    def get(self, model_id):
+        model_id = model_id.split("/")[0]
+        return self.finish(AquaModelApp().load_readme(model_id))
+
+
 class AquaHuggingFaceHandler(AquaAPIhandler):
     """Handler for Aqua Hugging Face REST APIs."""
 
@@ -370,6 +380,7 @@ class AquaModelDefinedMetadataArtifactHandler(AquaAPIhandler):
 __handlers__ = [
     ("model/?([^/]*)", AquaModelHandler),
     ("model/?([^/]*)/license", AquaModelLicenseHandler),
+    ("model/?([^/]*)/readme", AquaModelReadmeHandler),
     ("model/?([^/]*)/tokenizer", AquaModelTokenizerConfigHandler),
     ("model/hf/search/?([^/]*)", AquaHuggingFaceHandler),
     (

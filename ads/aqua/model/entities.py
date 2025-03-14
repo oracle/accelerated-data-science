@@ -58,6 +58,14 @@ class AquaFineTuningMetric(DataClassSerializable):
 
 
 @dataclass(repr=False)
+class AquaModelReadme(DataClassSerializable):
+    """Represents the response of Get Model Readme."""
+
+    id: str = field(default_factory=str)
+    model_card: str = field(default_factory=str)
+
+
+@dataclass(repr=False)
 class AquaModelLicense(DataClassSerializable):
     """Represents the response of Get Model License."""
 
