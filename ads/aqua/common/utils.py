@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 from string import Template
-from typing import Dict, List, Union
+from typing import List, Union
 
 import oci
 from cachetools import TTLCache, cached
@@ -30,7 +30,7 @@ from huggingface_hub.utils import (
     RepositoryNotFoundError,
     RevisionNotFoundError,
 )
-from oci.data_science.models import ContainerSummary, JobRun, Model
+from oci.data_science.models import JobRun, Model
 from oci.object_storage.models import ObjectSummary
 from pydantic import ValidationError
 
@@ -51,7 +51,6 @@ from ads.aqua.constants import (
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     CONTAINER_INDEX,
     DEPLOYMENT_CONFIG,
-    EVALUATION_CONTAINER_CONST_CONFIG,
     FINE_TUNING_CONFIG,
     HF_LOGIN_DEFAULT_TIMEOUT,
     LICENSE_TXT,
@@ -560,123 +559,6 @@ def _build_job_identifier(
 
 def service_config_path():
     return f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
-
-
-def config_parser(containers: List[ContainerSummary]) -> Dict:
-    """
-    Parses the config from containers.conf to container_index.json
-    """
-
-    config = {"containerSpec": {}}
-    inference_containers = list(
-        {
-            container.family_name
-            for container in containers
-            if any(usage.lower() == "inference" for usage in container.usages)
-        }
-    )
-    evaluate_containers = list(
-        {
-            container.family_name
-            for container in containers
-            if any(usage.lower() == "evaluation" for usage in container.usages)
-        }
-    )
-    for smc in containers:
-        if not smc.is_latest:
-            continue
-        temp_dict = {
-            "name": "dsmc://" + smc.container_name,
-            "version": smc.tag,
-            "type": smc.usages[0],
-            "displayName": smc.display_name,
-            "platforms": [],
-            "modelFormats": [],
-        }
-        if smc.family_name in inference_containers:
-            temp_dict["platforms"].append(
-                smc.workload_configuration_details_list[
-                    0
-                ].additional_configurations.get("platforms")
-            )
-            temp_dict["modelFormats"].append(
-                smc.workload_configuration_details_list[
-                    0
-                ].additional_configurations.get("modelFormats")
-            )
-            config["containerSpec"].update(
-                {
-                    smc.family_name: {
-                        "cliParam": smc.workload_configuration_details_list[0].cmd,
-                        "serverPort": str(
-                            smc.workload_configuration_details_list[0].server_port
-                        ),
-                        "healthCheckPort": str(
-                            smc.workload_configuration_details_list[0].health_check_port
-                        ),
-                        "envVars": [
-                            {
-                                "MODEL_DEPLOY_PREDICT_ENDPOINT": smc.workload_configuration_details_list[
-                                    0
-                                ].additional_configurations.get(
-                                    "MODEL_DEPLOY_PREDICT_ENDPOINT"
-                                )
-                            },
-                            {
-                                "MODEL_DEPLOY_HEALTH_ENDPOINT": smc.workload_configuration_details_list[
-                                    0
-                                ].additional_configurations.get(
-                                    "MODEL_DEPLOY_HEALTH_ENDPOINT"
-                                )
-                            },
-                            {
-                                "MODEL_DEPLOY_ENABLE_STREAMING": smc.workload_configuration_details_list[
-                                    0
-                                ].additional_configurations.get(
-                                    "MODEL_DEPLOY_ENABLE_STREAMING"
-                                )
-                            },
-                            {
-                                "PORT": smc.workload_configuration_details_list[
-                                    0
-                                ].additional_configurations.get("PORT")
-                            },
-                            {
-                                "HEALTH_CHECK_PORT": smc.workload_configuration_details_list[
-                                    0
-                                ].additional_configurations.get("HEALTH_CHECK_PORT")
-                            },
-                        ],
-                        "restrictedParams": json.loads(
-                            smc.workload_configuration_details_list[
-                                0
-                            ].additional_configurations.get("restrictedParams", "[]")
-                        ),
-                        "evaluationConfiguration": json.loads(
-                            smc.workload_configuration_details_list[
-                                0
-                            ].additional_configurations.get(
-                                "evaluationConfiguration", "{}"
-                            )
-                        ),
-                    }
-                }
-            )
-        elif smc.family_name in evaluate_containers:
-            eval_dict = EVALUATION_CONTAINER_CONST_CONFIG
-            eval_dict["ui_config"]["shapes"] = json.loads(
-                smc.workload_configuration_details_list[
-                    0
-                ].use_case_configuration.additional_configurations.get("shapes")
-            )
-            eval_dict["ui_config"]["metrics"] = json.loads(
-                smc.workload_configuration_details_list[
-                    0
-                ].use_case_configuration.additional_configurations.get("metrics")
-            )
-            config["containerSpec"].update({smc.family_name: eval_dict})
-        config[smc.family_name] = [temp_dict]
-    return config
 
 
 def get_container_image(

@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
+import json
 from typing import Dict, List, Optional
 
+from oci.data_science.models import ContainerSummary
 from pydantic import Field
 
 from ads.aqua.common.entities import ContainerSpec
@@ -115,6 +116,103 @@ class AquaContainerConfig(Serializable):
             "finetune": list(self.finetune.values()),
             "evaluate": list(self.evaluate.values()),
         }
+
+    @classmethod
+    def from_service_config(
+        cls, service_containers: List[ContainerSummary]
+    ) -> "AquaContainerConfig":
+        """
+        Creates an AquaContainerConfig instance from a service containers.conf.
+
+        Parameters
+        ----------
+        service_containers (List[Any]):  List of containers specified in containers.conf
+        Returns
+        -------
+        AquaContainerConfig: The constructed container configuration.
+        """
+
+        inference_items: Dict[str, AquaContainerConfigItem] = {}
+        finetune_items: Dict[str, AquaContainerConfigItem] = {}
+        evaluate_items: Dict[str, AquaContainerConfigItem] = {}
+        for container in service_containers:
+            if not container.is_latest:
+                continue
+            container_item = AquaContainerConfigItem(
+                name="dsmc://" + container.container_name,
+                version=container.tag,
+                display_name=container.display_name,
+                family=container.family_name,
+                usages=container.usages,
+                platforms=[],
+                model_formats=[],
+                spec=None,
+            )
+            container_type = container.family_name
+            if container.usages[0].lower() in "inference":
+                container_item.platforms.append(
+                    container.workload_configuration_details_list[
+                        0
+                    ].additional_configurations.get("platforms")
+                )
+                container_item.model_formats.append(
+                    container.workload_configuration_details_list[
+                        0
+                    ].additional_configurations.get("modelFormats")
+                )
+                env_vars = [
+                    {
+                        "MODEL_DEPLOY_PREDICT_ENDPOINT": container.workload_configuration_details_list[
+                            0
+                        ].additional_configurations.get(
+                            "MODEL_DEPLOY_PREDICT_ENDPOINT", ""
+                        ),
+                        "MODEL_DEPLOY_HEALTH_ENDPOINT": container.workload_configuration_details_list[
+                            0
+                        ].additional_configurations.get(
+                            "MODEL_DEPLOY_HEALTH_ENDPOINT", ""
+                        ),
+                        "MODEL_DEPLOY_ENABLE_STREAMING": container.workload_configuration_details_list[
+                            0
+                        ].additional_configurations.get(
+                            "MODEL_DEPLOY_ENABLE_STREAMING", ""
+                        ),
+                        "PORT": container.workload_configuration_details_list[
+                            0
+                        ].additional_configurations.get("PORT", ""),
+                        "HEALTH_CHECK_PORT": container.workload_configuration_details_list[
+                            0
+                        ].additional_configurations.get("HEALTH_CHECK_PORT", ""),
+                    }
+                ]
+                container_spec = AquaContainerConfigSpec(
+                    cli_param=container.workload_configuration_details_list[0].cmd,
+                    server_port=str(
+                        container.workload_configuration_details_list[0].server_port
+                    ),
+                    health_check_port=str(
+                        container.workload_configuration_details_list[
+                            0
+                        ].health_check_port
+                    ),
+                    env_vars=env_vars,
+                    restricted_params=json.loads(
+                        container.workload_configuration_details_list[
+                            0
+                        ].additional_configurations.get("restrictedParams")
+                        or "[]"
+                    ),
+                )
+                container_item.spec = container_spec
+            if "INFERENCE" in container.usages:
+                inference_items[container_type] = container_item
+            if "FINE_TUNE" in container.usages:
+                finetune_items[container_type] = container_item
+            if "EVALUATION" in container.usages:
+                evaluate_items[container_type] = container_item
+        return cls(
+            inference=inference_items, finetune=finetune_items, evaluate=evaluate_items
+        )
 
     @classmethod
     def from_container_index_json(

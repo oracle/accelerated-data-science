@@ -6,10 +6,14 @@ import json
 import os
 import traceback
 from dataclasses import fields
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import oci
-from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDetails
+from oci.data_science.models import (
+    ContainerSummary,
+    UpdateModelDetails,
+    UpdateModelProvenanceDetails,
+)
 
 from ads import set_auth
 from ads.aqua import logger
@@ -18,7 +22,6 @@ from ads.aqua.common.enums import ConfigFolder, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     _is_valid_mvs,
-    config_parser,
     get_artifact_path,
     is_valid_ocid,
     load_config,
@@ -379,7 +382,7 @@ class AquaApp:
 
         return ModelConfigResult(config=config, model_details=oci_model)
 
-    def get_container_config(self):
+    def get_container_config(self) -> List[ContainerSummary]:
         """
         Fetches container config from containers.conf in OCI Datascience control plane
 
@@ -390,7 +393,7 @@ class AquaApp:
 
         """
         config = self.ds_client.list_containers().data
-        return config_parser(config)
+        return config
 
     @property
     def telemetry(self):
