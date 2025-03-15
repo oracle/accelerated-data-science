@@ -154,7 +154,7 @@ def build_image(image_type: str, gpu: bool = False) -> None:
         # Just get the manufacturer of the processors
         manufacturer = cpuinfo.get_cpu_info().get("brand_raw")
         arch = (
-            "arm" if re.search("apple m\d ", manufacturer, re.IGNORECASE) else "other"
+            "arm" if re.search("apple m\d", manufacturer, re.IGNORECASE) else "other"
         )
         print(f"The local machine's platform is {arch}.")
         image, dockerfile, target = _get_image_name_dockerfile_target(
