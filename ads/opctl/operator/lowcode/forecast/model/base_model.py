@@ -143,7 +143,7 @@ class ForecastOperatorBaseModel(ABC):
                                 inplace=True,
                             )
                     except Exception:
-                        logger.warn("Unable to generate Test Metrics.")
+                        logger.warning("Unable to generate Test Metrics.")
                         logger.debug(f"Full Traceback: {traceback.format_exc()}")
             report_sections = []
 
@@ -366,7 +366,7 @@ class ForecastOperatorBaseModel(ABC):
                     -self.spec.horizon :
                 ]
             except KeyError as ke:
-                logger.warn(
+                logger.warning(
                     f"Error Generating Metrics: Unable to find {s_id} in the test data. Error: {ke.args}"
                 )
             y_pred = self.forecast_output.get_forecast(s_id)["forecast_value"].values[
@@ -542,7 +542,7 @@ class ForecastOperatorBaseModel(ABC):
                     )
                 results.set_metrics(metrics_df_formatted)
             else:
-                logger.warn(
+                logger.warning(
                     f"Attempted to generate the {self.spec.metrics_filename} file with the training metrics, however the training metrics could not be properly generated."
                 )
 
@@ -564,7 +564,7 @@ class ForecastOperatorBaseModel(ABC):
                         )
                     results.set_test_metrics(test_metrics_df_formatted)
                 else:
-                    logger.warn(
+                    logger.warning(
                         f"Attempted to generate the {self.spec.test_metrics_filename} file with the test metrics, however the test metrics could not be properly generated."
                     )
         # explanations csv reports
@@ -583,7 +583,7 @@ class ForecastOperatorBaseModel(ABC):
                         )
                     results.set_global_explanations(self.formatted_global_explanation)
                 else:
-                    logger.warn(
+                    logger.warning(
                         f"Attempted to generate global explanations for the {self.spec.global_explanation_filename} file, but an issue occured in formatting the explanations."
                     )
 
@@ -600,11 +600,11 @@ class ForecastOperatorBaseModel(ABC):
                         )
                     results.set_local_explanations(self.formatted_local_explanation)
                 else:
-                    logger.warn(
+                    logger.warning(
                         f"Attempted to generate local explanations for the {self.spec.local_explanation_filename} file, but an issue occured in formatting the explanations."
                     )
             except AttributeError as e:
-                logger.warn(
+                logger.warning(
                     "Unable to generate explanations for this model type or for this dataset."
                 )
                 logger.debug(f"Got error: {e.args}")
@@ -772,7 +772,7 @@ class ForecastOperatorBaseModel(ABC):
                 local_ex_time = local_ex_time + time.time() - exp_end_time
 
                 if not len(kernel_explnr_vals):
-                    logger.warn(
+                    logger.warning(
                         "No explanations generated. Ensure that additional data has been provided."
                     )
                 else:
@@ -783,7 +783,7 @@ class ForecastOperatorBaseModel(ABC):
                         )
                     )
             else:
-                logger.warn(
+                logger.warning(
                     f"Skipping explanations for {s_id}, as forecast was not generated."
                 )
 
