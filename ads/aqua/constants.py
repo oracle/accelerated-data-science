@@ -82,24 +82,3 @@ LLAMA_CPP_INFERENCE_RESTRICTED_PARAMS = {
     "--host",
 }
 TEI_CONTAINER_DEFAULT_HOST = "8080"
-
-EVALUATION_CONTAINER_CONST_CONFIG = {
-    "version": "1.0",
-    "kind": "evaluation_service_config",
-    "ui_config": {
-        "model_params": {
-            "default": {
-                "model": "odsc-llm",
-                "max_tokens": 500,
-                "temperature": 0.7,
-                "top_p": 0.9,
-                "top_k": 50,
-                "presence_penalty": 0.0,
-                "frequency_penalty": 0.0,
-                "stop": [],
-            }
-        },
-        "shapes": [],
-        "metrics": [],
-    },
-}
