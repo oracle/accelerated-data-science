@@ -130,6 +130,9 @@
         "NVIDIA_GPU"
       ],
       "type": "inference",
+      "usages": [
+        "multi_model"
+      ],
       "version": "0.4.1.3"
     }
   ]

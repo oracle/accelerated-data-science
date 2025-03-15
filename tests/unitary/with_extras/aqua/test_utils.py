@@ -1,22 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import unittest
 from unittest.mock import MagicMock, patch
 
-import pytest
-from ads.common.object_storage_details import ObjectStorageDetails
 from oci.object_storage.models import ListObjects, ObjectSummary
 from oci.resource_search.models.resource_summary import ResourceSummary
 from parameterized import parameterized
 
 from ads.aqua.common import utils
 from ads.aqua.common.errors import AquaRuntimeError
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.config import TENANCY_OCID
-from ads.common import auth as authutil
 
 
 class TestDataset:

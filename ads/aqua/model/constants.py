@@ -18,6 +18,8 @@ class ModelCustomMetadataFields(ExtendedEnum):
     EVALUATION_CONTAINER = "evaluation-container"
     FINETUNE_CONTAINER = "finetune-container"
     DEPLOYMENT_CONTAINER_URI = "deployment-container-uri"
+    MULTIMODEL_GROUP_COUNT = "model_group_count"
+    MULTIMODEL_METADATA = "multi_model_metadata"
 
 
 class ModelTask(ExtendedEnum):
@@ -34,6 +36,7 @@ class FineTuningMetricCategories(ExtendedEnum):
 class ModelType(ExtendedEnum):
     FT = "FT"  # Fine Tuned Model
     BASE = "BASE"  # Base model
+    MULTIMODEL = "MULTIMODEL"
 
 
 # TODO: merge metadata key used in create FT
