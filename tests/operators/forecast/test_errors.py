@@ -914,8 +914,9 @@ def test_prophet_floor_cap(operator_setup, model):
     yaml_i["spec"]["model"] = model
     yaml_i["spec"]["historical_data"] = {"format": "pandas"}
     yaml_i["spec"]["datetime_column"]["name"] = HISTORICAL_DATETIME_COL.name
-    yaml_i["spec"]["output_directory"]["url"] = operator_setup
+    # yaml_i["spec"]["output_directory"]["url"] = operator_setup
     yaml_i["spec"]["target_column"] = "target"
+    yaml_i["spec"]["model_kwargs"] = {"min": 0, "max": 20}
 
     target_column = pd.Series(np.arange(20, -6, -2), name="target")
     df = pd.concat(
