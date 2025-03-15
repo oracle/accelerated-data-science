@@ -914,7 +914,7 @@ def test_prophet_floor_cap(operator_setup, model):
     yaml_i["spec"]["model"] = model
     yaml_i["spec"]["historical_data"] = {"format": "pandas"}
     yaml_i["spec"]["datetime_column"]["name"] = HISTORICAL_DATETIME_COL.name
-    # yaml_i["spec"]["output_directory"]["url"] = operator_setup
+    yaml_i["spec"]["output_directory"]["url"] = operator_setup
     yaml_i["spec"]["target_column"] = "target"
     yaml_i["spec"]["model_kwargs"] = {"min": 0, "max": 20}
 
@@ -969,6 +969,10 @@ def test_generate_files(operator_setup, model):
     operator_config = ForecastOperatorConfig.from_dict(yaml_i)
     results = operate(operator_config)
     files = os.listdir(operator_setup)
+    if "errors.json" in files:
+        with open(os.path.join(operator_setup, "errors.json")) as f:
+            print(f"Errors in build! {f.read()}")
+            assert False, "Failed due to errors.json being created"
     assert "report.html" in files, "Failed to generate report"
     assert (
         "forecast.csv" not in files
@@ -984,6 +988,7 @@ def test_generate_files(operator_setup, model):
     ), "Generated metrics file, but `generate_explanation_files` was set False"
     assert not results.get_forecast().empty
     assert not results.get_metrics().empty
+    print(f"global expl: {results.get_global_explanations()}")
     assert not results.get_global_explanations().empty
     assert not results.get_local_explanations().empty
 
@@ -993,6 +998,10 @@ def test_generate_files(operator_setup, model):
     operator_config = ForecastOperatorConfig.from_dict(yaml_i)
     results = operate(operator_config)
     files = os.listdir(operator_setup)
+    if "errors.json" in files:
+        with open(os.path.join(operator_setup, "errors.json")) as f:
+            print(f"Errors in build! {f.read()}")
+            assert False, "Failed due to errors.json being created"
     assert "report.html" in files, "Failed to generate report"
     assert "forecast.csv" in files, "Failed to generate forecast file"
     assert "metrics.csv" in files, "Failed to generated metrics file"
