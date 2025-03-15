@@ -26,6 +26,7 @@ from ads.opctl.operator.lowcode.forecast.errors import (
     ForecastSchemaYamlError,
     ForecastInputDataError,
 )
+from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorConfig
 
 from ads.opctl.operator.lowcode.forecast.utils import smape
 from ads.opctl.operator.cmd import run
@@ -731,12 +732,6 @@ def test_smape_error():
 @pytest.mark.parametrize("model", ["prophet"])
 def test_pandas_historical_input(operator_setup, model):
     from ads.opctl.operator.lowcode.forecast.__main__ import operate
-    from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import (
-        ForecastDatasets,
-    )
-    from ads.opctl.operator.lowcode.forecast.operator_config import (
-        ForecastOperatorConfig,
-    )
 
     historical_data_path, additional_data_path, _ = setup_artificial_data(
         operator_setup
@@ -746,7 +741,7 @@ def test_pandas_historical_input(operator_setup, model):
         historical_data_path=historical_data_path,
         additional_data_path=additional_data_path,
     )
-    yaml_i["spec"]["horizon"] = 10
+    yaml_i["spec"]["horizon"] = HORIZON
     yaml_i["spec"]["model"] = model
     df = pd.read_csv(historical_data_path)
     yaml_i["spec"]["historical_data"].pop("url")
@@ -763,12 +758,6 @@ def test_pandas_historical_input(operator_setup, model):
 @pytest.mark.parametrize("model", ["prophet"])
 def test_pandas_additional_input(operator_setup, model):
     from ads.opctl.operator.lowcode.forecast.__main__ import operate
-    from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import (
-        ForecastDatasets,
-    )
-    from ads.opctl.operator.lowcode.forecast.operator_config import (
-        ForecastOperatorConfig,
-    )
 
     tmpdirname = operator_setup
     historical_data_path, additional_data_path = setup_small_rossman()
@@ -898,9 +887,6 @@ def test_auto_select(operator_setup):
 @pytest.mark.parametrize("model", ["prophet"])
 def test_prophet_floor_cap(operator_setup, model):
     from ads.opctl.operator.lowcode.forecast.__main__ import operate
-    from ads.opctl.operator.lowcode.forecast.operator_config import (
-        ForecastOperatorConfig,
-    )
 
     yaml_i = TEMPLATE_YAML.copy()
     yaml_i["spec"]["horizon"] = 10
