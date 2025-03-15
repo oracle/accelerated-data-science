@@ -12,7 +12,6 @@ from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     defined_metadata_to_file_map,
     get_combined_params,
-    get_container_image,
     get_container_params_type,
     get_model_by_reference_paths,
     get_ocid_substring,
@@ -251,7 +250,7 @@ class AquaDeploymentApp(AquaApp):
             model=aqua_model, container_family=container_family
         )
 
-        container_image_uri = container_image_uri or get_container_image(
+        container_image_uri = container_image_uri or self.get_container_image(
             container_type=container_type_key
         )
         if not container_image_uri:

@@ -391,6 +391,29 @@ class AquaApp:
 
         return ModelConfigResult(config=config, model_details=oci_model)
 
+    def get_container_image(self, container_type: str = None) -> str:
+        """Gets the image name from the given model and container type.
+        Parameters
+        ----------
+        container_type: str
+            type of container, can be either odsc-vllm-serving, odsc-llm-fine-tuning, odsc-llm-evaluate
+
+        Returns
+        -------
+        str:
+            A Complete container name along with version
+        """
+
+        containers = self.get_container_config()
+        container = next(
+            (c for c in containers if c.is_latest and c.family_name == container_type),
+            None,
+        )
+        if not container:
+            raise AquaValueError(f"Invalid container type : {container_type}")
+        container_image = "dsmc://" + container.family_name + ":" + container.tag
+        return container_image
+
     def get_container_config(self) -> List[ContainerSummary]:
         """
         Fetches container config from containers.conf in OCI Datascience control plane

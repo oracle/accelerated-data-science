@@ -561,48 +561,6 @@ def service_config_path():
     return f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
 
 
-def get_container_image(
-    config_file_name: str = None, container_type: str = None
-) -> str:
-    """Gets the image name from the given model and container type.
-    Parameters
-    ----------
-    config_file_name: str
-        name of the config file
-    container_type: str
-        type of container, can be either deployment-container, finetune-container, evaluation-container
-
-    Returns
-    -------
-    Dict:
-        A dict of allowed configs.
-    """
-    from ads.aqua.app import AquaApp
-
-    container_image = UNKNOWN
-    config = config_file_name or AquaApp().get_container_config()
-    config_file_name = service_config_path()
-
-    if container_type not in config:
-        return UNKNOWN
-
-    mapping = config[container_type]
-    versions = [obj["version"] for obj in mapping]
-    # assumes numbered versions, update if `latest` is used
-    latest = get_max_version(versions)
-    for obj in mapping:
-        if obj["version"] == str(latest):
-            container_image = f"{obj['name']}:{obj['version']}"
-            break
-
-    if not container_image:
-        raise AquaValueError(
-            f"{config_file_name} is missing name and/or version details."
-        )
-
-    return container_image
-
-
 def fetch_service_compartment() -> Union[str, None]:
     """
     Loads the compartment mapping json from service bucket.

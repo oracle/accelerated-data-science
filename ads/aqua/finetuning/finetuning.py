@@ -22,7 +22,6 @@ from ads.aqua.common.errors import AquaFileExistsError, AquaValueError
 from ads.aqua.common.utils import (
     build_pydantic_error_message,
     defined_metadata_to_file_map,
-    get_container_image,
     upload_local_to_os,
 )
 from ads.aqua.constants import (
@@ -511,7 +510,7 @@ class AquaFineTuningApp(AquaApp):
     ) -> Runtime:
         """Builds fine tuning runtime for Job."""
         container = (
-            get_container_image(
+            self.get_container_image(
                 container_type=ft_container,
             )
             if not is_custom_container

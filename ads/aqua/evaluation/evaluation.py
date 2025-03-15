@@ -40,7 +40,6 @@ from ads.aqua.common.errors import (
 from ads.aqua.common.utils import (
     extract_id_and_name_from_tag,
     fire_and_forget,
-    get_container_image,
     is_valid_ocid,
     upload_local_to_os,
 )
@@ -623,7 +622,7 @@ class AquaEvaluationApp(AquaApp):
         #   get the container_type_key. Pass this key as container_type to get_container_image method.
 
         # fetch image name from config
-        container_image = get_container_image(
+        container_image = AquaApp().get_container_image(
             container_type="odsc-llm-evaluate",
         )
         logger.info(f"Aqua Image used for evaluating {source_id} :{container_image}")
