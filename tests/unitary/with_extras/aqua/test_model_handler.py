@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*--
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
+from unicodedata import category
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
@@ -22,6 +22,7 @@ from ads.aqua.extension.model_handler import (
 )
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import AquaModel, AquaModelSummary, HFModelSummary
+from ads.config import USER
 
 
 class ModelHandlerTestCase(TestCase):
@@ -128,7 +129,7 @@ class ModelHandlerTestCase(TestCase):
             mock_finish.side_effect = lambda x: x
             self.model_handler.list()
             mock_list.assert_called_with(
-                compartment_id=None, project_id=None, model_type=None
+                compartment_id=None, project_id=None, model_type=None, category=USER
             )
 
     @parameterized.expand(

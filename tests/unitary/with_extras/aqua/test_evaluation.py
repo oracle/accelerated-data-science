@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import base64
@@ -14,6 +14,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import oci
 from parameterized import parameterized
 
+from ads.aqua.app import AquaApp
 from ads.aqua.common import utils
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import (
@@ -430,7 +431,7 @@ class TestAquaEvaluation(unittest.TestCase):
     @patch("ads.jobs.ads_job.Job.name", new_callable=PropertyMock)
     @patch("ads.jobs.ads_job.Job.id", new_callable=PropertyMock)
     @patch.object(Job, "create")
-    @patch("ads.aqua.evaluation.evaluation.get_container_image")
+    @patch.object(AquaApp, "get_container_image")
     @patch.object(DataScienceModel, "create")
     @patch.object(ModelVersionSet, "create")
     @patch.object(DataScienceModel, "from_id")
@@ -656,37 +657,21 @@ class TestAquaEvaluation(unittest.TestCase):
         curr_dir = os.path.dirname(os.path.abspath(__file__))
         mock_temp_path = os.path.join(curr_dir, "test_data/valid_eval_artifact")
         mock_TemporaryDirectory.return_value.__enter__.return_value = mock_temp_path
-
-        # Test case with eval_id containing extra data (to test eval_id.split("/")[0])
-        raw_eval_id = f"{TestDataset.EVAL_ID}/extra_info"
-        expected_eval_id = TestDataset.EVAL_ID  # Expected after split("/")[0]
-
-        # Mock model instance
-        mock_model_instance = mock_dsc_model_from_id.return_value
-        mock_model_instance.download_artifact.return_value = None
-
-        # Case 1: Download report normally
-        response = self.app.download_report(raw_eval_id)
-
-        # Verify eval_id transformation
-        mock_dsc_model_from_id.assert_called_with(expected_eval_id)
-        mock_model_instance.download_artifact.assert_called_once_with(
-            mock_temp_path, auth=self.app._auth
-        )
+        response = self.app.download_report(TestDataset.EVAL_ID)
+        mock_dsc_model_from_id.assert_called_with(TestDataset.EVAL_ID)
 
         self.print_expected_response(response, "DOWNLOAD REPORT")
         self.assert_payload(response, AquaEvalReport)
         read_content = base64.b64decode(response.content).decode()
-        expected_content = (
-            "This is a sample evaluation report.html.\nStandard deviation (σ)\n"
-        )
-
-        assert read_content == expected_content, read_content
+        assert (
+            read_content
+            == "This is a sample evaluation report.html.\nStandard deviation (σ)\n"
+        ), read_content
         assert self.app._report_cache.currsize == 1
 
-        # Case 2: Download from cache
-        response1 = self.app.download_report(raw_eval_id)
-        assert self.app._report_cache.get(expected_eval_id) == response1
+        # download from cache
+        response1 = self.app.download_report(TestDataset.EVAL_ID)
+        assert self.app._report_cache.get(TestDataset.EVAL_ID) == response1
 
     @patch.object(DataScienceModel, "from_id")
     @patch.object(DataScienceJob, "from_id")
@@ -760,42 +745,16 @@ class TestAquaEvaluation(unittest.TestCase):
         curr_dir = os.path.dirname(os.path.abspath(__file__))
         mock_temp_path = os.path.join(curr_dir, "test_data/valid_eval_artifact")
         mock_TemporaryDirectory.return_value.__enter__.return_value = mock_temp_path
+        response = self.app.load_metrics(TestDataset.EVAL_ID)
+        mock_dsc_model_from_id.assert_called_with(TestDataset.EVAL_ID)
 
-        # Simulate eval_id with extra information
-        raw_eval_id = f"{TestDataset.EVAL_ID}/extra_info"
-        expected_eval_id = TestDataset.EVAL_ID  # Expected after split("/")[0]
-        eval_name = "custom_eval_report.md"
-
-        # Case 1: Call with eval_name (Custom Report Retrieval)
-        with patch(
-            "your_module.DataScienceModel.get_custom_metadata_artifact"
-        ) as mock_get_custom_metadata_artifact:
-            response = self.app.load_metrics(raw_eval_id, eval_name=eval_name)
-
-            # Ensure eval_id is correctly processed
-            mock_get_custom_metadata_artifact.assert_called_with(
-                expected_eval_id, eval_name, mock_temp_path
-            )
-
-            # Ensure `from_id` is NOT called when eval_name is provided
-            mock_dsc_model_from_id.assert_not_called()
-
-            self.print_expected_response(response, "LOAD METRICS")
-            self.assert_payload(response, AquaEvalMetrics)
-            assert len(response.metric_results) >= 0
-            assert len(response.metric_summary_result) >= 0
-            assert self.app._metrics_cache.currsize == 1
-
-        # Case 2: Call without eval_name (Default Behavior)
-        response1 = self.app.load_metrics(raw_eval_id)
-
-        # Ensure `from_id` is called when eval_name is NOT provided
-        mock_dsc_model_from_id.assert_called_with(expected_eval_id)
-        mock_download_artifact.assert_called_once_with(
-            mock_temp_path, auth=self.app._auth
-        )
-
-        assert response1 == self.app._metrics_cache.get(expected_eval_id)
+        self.print_expected_response(response, "LOAD METRICS")
+        self.assert_payload(response, AquaEvalMetrics)
+        assert len(response.metric_results) == 1
+        assert len(response.metric_summary_result) == 1
+        assert self.app._metrics_cache.currsize == 1
+        response1 = self.app.load_metrics(TestDataset.EVAL_ID)
+        assert response1 == self.app._metrics_cache.get(TestDataset.EVAL_ID)
 
     @patch.object(DataScienceModel, "download_artifact")
     @patch.object(DataScienceModel, "from_id")

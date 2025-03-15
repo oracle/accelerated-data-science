@@ -1026,12 +1026,14 @@ class AquaModelApp(AquaApp):
                     category="Other",
                 )
 
-            inference_containers = AquaContainerConfig.from_container_index_json(
-                config=self.get_container_config()
-            ).inference
-            smc_container_set = {
-                container.family for container in inference_containers.values()
-            }
+            inference_containers = (
+                AquaContainerConfig.from_service_config(
+                    service_containers=self.get_container_config()
+                )
+                .to_dict()
+                .get("inference")
+            )
+            smc_container_set = {container.family for container in inference_containers}
             # only add cmd vars if inference container is not an SMC
             if (
                 inference_container not in smc_container_set

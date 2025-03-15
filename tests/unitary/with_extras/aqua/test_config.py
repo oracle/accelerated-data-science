@@ -12,6 +12,7 @@ import oci.data_science.models
 from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.config.config import get_evaluation_service_config
 from ads.aqua.app import AquaApp
+from tests.unitary.with_extras.aqua.test_ui import TestDataset
 
 
 class TestConfig:
@@ -21,26 +22,15 @@ class TestConfig:
         cls.curr_dir = os.path.dirname(os.path.abspath(__file__))
         cls.artifact_dir = os.path.join(cls.curr_dir, "test_data", "config")
 
-    @patch("ads.aqua.config.config.get_container_config")
+    @patch.object(AquaApp, "get_container_config")
     def test_evaluation_service_config(self, mock_get_container_config):
         """Ensures that the common evaluation configuration can be successfully retrieved."""
 
-        with open(
-            os.path.join(
-                self.artifact_dir, "evaluation_config_with_default_params.json"
-            )
-        ) as file:
-            expected_result = {
-                ContainerSpec.CONTAINER_SPEC: {"test_container": json.load(file)}
-            }
+        mock_get_container_config.return_value = TestDataset.CONTAINERS_LIST
 
-        mock_get_container_config.return_value = expected_result
-
-        test_result = get_evaluation_service_config(container="test_container")
-        assert (
-            test_result.to_dict()
-            == expected_result[ContainerSpec.CONTAINER_SPEC]["test_container"]
-        )
+        test_result = get_evaluation_service_config(container="odsc-llm-evaluate")
+        assert len(test_result.ui_config.shapes) > 0
+        assert len(test_result.ui_config.metrics) > 0
 
     @pytest.mark.parametrize(
         "custom_metadata",

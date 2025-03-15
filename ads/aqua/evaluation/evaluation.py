@@ -74,7 +74,6 @@ from ads.aqua.evaluation.entities import (
     CreateAquaEvaluationDetails,
 )
 from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
-from ads.aqua.model.constants import CustomMetadata
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN, get_console_link, get_files, get_log_links
@@ -967,7 +966,7 @@ class AquaEvaluationApp(AquaApp):
                 temp_dir, files_in_artifact, EVALUATION_REPORT_MD
             )
 
-            # json report not availiable for failed evaluation
+            # json report not available for failed evaluation
             try:
                 json_report = json.loads(
                     self._read_from_artifact(
@@ -1209,17 +1208,10 @@ class AquaEvaluationApp(AquaApp):
 
     @staticmethod
     @fire_and_forget
-    def _delete_job_and_model(job, model):
+    def _delete_job_and_model(job: DataScienceJob, model: DataScienceModel):
         try:
             job.dsc_job.delete(force_delete=True)
             logger.info(f"Deleting Job: {job.job_id} for evaluation {model.id}")
-            # check if model metadata report exists
-            custom_metadata_head = model.head_custom_metadata_artifact(
-                CustomMetadata.REPORTS
-            )
-            if custom_metadata_head.status == "204":
-                model.delete_custom_metadata_artifact(CustomMetadata.REPORTS)
-                logger.info(f"Deleting evaluation report for : {model.id}")
             model.delete()
             logger.info(f"Deleting evaluation: {model.id}")
         except oci.exceptions.ServiceError as ex:

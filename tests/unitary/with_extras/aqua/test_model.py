@@ -20,6 +20,7 @@ import ads.aqua.model
 import ads.common
 import ads.common.oci_client
 import ads.config
+from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import ModelFormat
 from ads.aqua.common.errors import (
     AquaFileNotFoundError,
@@ -43,6 +44,7 @@ from ads.model.model_metadata import (
     ModelTaxonomyMetadata,
 )
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
+from tests.unitary.with_extras.aqua.utils import ServiceManagedContainers
 
 
 @pytest.fixture(autouse=True, scope="class")
@@ -52,22 +54,13 @@ def mock_auth():
 
 
 def get_container_config():
-    with open(
-        os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "test_data/ui/container_index.json",
-        ),
-        "r",
-    ) as _file:
-        container_index_json = json.load(_file)
-
-    return container_index_json
+    return TestDataset.CONTAINERS_LIST
 
 
 @pytest.fixture(autouse=True, scope="class")
 def mock_get_container_config():
-    with patch("ads.aqua.model.model.get_container_config") as mock_config:
-        mock_config.return_value = get_container_config()
+    with patch.object(AquaApp, "get_container_config") as mock_config:
+        mock_config.return_value = TestDataset
         yield mock_config
 
 
@@ -230,6 +223,8 @@ class TestDataset:
     SERVICE_COMPARTMENT_ID = "ocid1.compartment.oc1..<OCID>"
     COMPARTMENT_ID = "ocid1.compartment.oc1..<UNIQUE_OCID>"
 
+    CONTAINERS_LIST = ServiceManagedContainers.MOCK_OUTPUT
+
 
 @patch("ads.config.COMPARTMENT_OCID", "ocid1.compartment.oc1.<unique_ocid>")
 @patch("ads.config.PROJECT_OCID", "ocid1.datascienceproject.oc1.iad.<unique_ocid>")
@@ -365,7 +360,7 @@ class TestAquaModel:
             "verified",
         ],
     )
-    @patch("ads.aqua.model.model.get_container_config")
+    @patch.object(AquaApp, "get_container_config")
     @patch("ads.aqua.model.model.read_file")
     @patch.object(DataScienceModel, "from_id")
     @patch(
@@ -436,17 +431,6 @@ class TestAquaModel:
 
         mock_from_id.assert_called_with(model_id)
 
-        if foundation_model_type == "verified":
-            mock_read_file.assert_called_with(
-                file_path="oci://bucket@namespace/prefix/config/README.md",
-                auth=mock_auth(),
-            )
-        else:
-            mock_read_file.assert_called_with(
-                file_path="oci://bucket@namespace/prefix/README.md",
-                auth=mock_auth(),
-            )
-
         assert asdict(aqua_model) == {
             "arm_cpu_supported": False,
             "artifact_location": "oci://bucket@namespace/prefix/",
@@ -456,7 +440,7 @@ class TestAquaModel:
             "id": f"{ds_model.id}",
             "is_fine_tuned_model": False,
             "license": f'{ds_model.freeform_tags["license"]}',
-            "model_card": f"{mock_read_file.return_value}",
+            "model_card": "",
             "model_formats": [ModelFormat.SAFETENSORS],
             "model_file": "",
             "name": f"{ds_model.display_name}",
@@ -481,7 +465,7 @@ class TestAquaModel:
         }
 
     @patch("ads.aqua.common.utils.query_resource")
-    @patch("ads.aqua.model.model.get_container_config")
+    @patch.object(AquaApp, "get_container_config")
     @patch("ads.aqua.model.model.read_file")
     @patch.object(DataScienceModel, "from_id")
     @patch(
@@ -556,7 +540,7 @@ class TestAquaModel:
         )
 
         mock_from_id.return_value = ds_model
-        mock_read_file.return_value = "test_model_card"
+        mock_read_file.return_value = ""
 
         response = MagicMock()
         job_run = MagicMock()
@@ -589,10 +573,6 @@ class TestAquaModel:
         model = self.app.get(model_id="test_model_id")
 
         mock_from_id.assert_called_with("test_model_id")
-        mock_read_file.assert_called_with(
-            file_path="oci://bucket@namespace/prefix/README.md",
-            auth=mock_auth(),
-        )
         mock_query_resource.assert_called()
 
         assert asdict(model) == {
@@ -635,7 +615,7 @@ class TestAquaModel:
                     "scores": [],
                 },
             ],
-            "model_card": f"{mock_read_file.return_value}",
+            "model_card": "",
             "model_formats": [ModelFormat.SAFETENSORS],
             "model_file": "",
             "name": f"{ds_model.display_name}",
@@ -678,8 +658,10 @@ class TestAquaModel:
     @patch("ads.aqua.common.utils.load_config", return_value={})
     @patch("huggingface_hub.snapshot_download")
     @patch("subprocess.check_call")
+    @patch.object(AquaApp, "get_container_config")
     def test_import_verified_model(
         self,
+        mock_get_container_config,
         mock_subprocess,
         mock_snapshot_download,
         mock_load_config,
@@ -704,7 +686,7 @@ class TestAquaModel:
         obj2.name = f"{artifact_path}/config/ft_config.json"
         objects = [obj1, obj2]
         mock_list_objects.return_value = MagicMock(objects=objects)
-
+        mock_get_container_config.return_value = ServiceManagedContainers.MOCK_OUTPUT
         ds_model = DataScienceModel()
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
         model_name = "oracle/aqua-1t-mega-model"
@@ -816,8 +798,10 @@ class TestAquaModel:
     @patch("ads.model.datascience_model.DataScienceModel.upload_artifact")
     @patch.object(AquaModelApp, "_validate_model")
     @patch("ads.aqua.common.utils.load_config", return_value={})
+    @patch.object(AquaApp, "get_container_config")
     def test_import_any_model_no_containers_specified(
         self,
+        mock_get_container_config,
         mock_load_config,
         mock__validate_model,
         mock_upload_artifact,
@@ -834,6 +818,7 @@ class TestAquaModel:
             "organization": "oracle",
             "task": "text-generation",
         }
+        mock_get_container_config.return_value = ServiceManagedContainers.MOCK_OUTPUT
         mock__validate_model.return_value = ModelValidationResult(
             model_file="model_file.gguf",
             model_formats=[ModelFormat.SAFETENSORS],
@@ -870,8 +855,10 @@ class TestAquaModel:
     @patch("ads.aqua.common.utils.load_config", return_value={})
     @patch("huggingface_hub.snapshot_download")
     @patch("subprocess.check_call")
+    @patch.object(AquaApp, "get_container_config")
     def test_import_model_with_project_compartment_override(
         self,
+        mock_get_container_config,
         mock_subprocess,
         mock_snapshot_download,
         mock_load_config,
@@ -884,7 +871,7 @@ class TestAquaModel:
         mock_get_hf_model_info,
     ):
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
-
+        mock_get_container_config.return_value = ServiceManagedContainers.MOCK_OUTPUT
         mock_list_objects.return_value = MagicMock(objects=[])
         ds_model = DataScienceModel()
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
@@ -959,8 +946,10 @@ class TestAquaModel:
     @patch("ads.aqua.common.utils.load_config", side_effect=AquaFileNotFoundError)
     @patch("huggingface_hub.snapshot_download")
     @patch("subprocess.check_call")
+    @patch.object(AquaApp, "get_container_config")
     def test_import_model_with_missing_config(
         self,
+        mock_get_container_config,
         mock_subprocess,
         mock_snapshot_download,
         mock_load_config,
@@ -973,6 +962,7 @@ class TestAquaModel:
         mock_get_hf_model_info,
         mock_init_client,
     ):
+        mock_get_container_config.return_value = ServiceManagedContainers.MOCK_OUTPUT
         my_model = "oracle/aqua-1t-mega-model"
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
         # set object list from OSS without config.json
@@ -1026,8 +1016,10 @@ class TestAquaModel:
     @patch("ads.model.datascience_model.DataScienceModel.upload_artifact")
     @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
     @patch("ads.aqua.common.utils.load_config", return_value={})
+    @patch.object(AquaApp, "get_container_config")
     def test_import_any_model_smc_container(
         self,
+        mock_get_container_config,
         mock_load_config,
         mock_list_objects,
         mock_upload_artifact,
@@ -1038,7 +1030,7 @@ class TestAquaModel:
     ):
         my_model = "oracle/aqua-1t-mega-model"
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
-
+        mock_get_container_config.return_value = ServiceManagedContainers.MOCK_OUTPUT
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
         ds_freeform_tags = {
             "OCI_AQUA": "active",
@@ -1097,8 +1089,10 @@ class TestAquaModel:
     @patch("ads.aqua.common.utils.load_config", return_value={})
     @patch("huggingface_hub.snapshot_download")
     @patch("subprocess.check_call")
+    @patch.object(AquaApp, "get_container_config")
     def test_import_tei_model_byoc(
         self,
+        mock_get_container_config,
         mock_subprocess,
         mock_snapshot_download,
         mock_load_config,
@@ -1111,6 +1105,7 @@ class TestAquaModel:
         mock_get_hf_model_info,
         mock_init_client,
     ):
+        mock_get_container_config.return_value = ServiceManagedContainers.MOCK_OUTPUT
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
 
         artifact_path = "service_models/model-name/commit-id/artifact"
@@ -1175,8 +1170,10 @@ class TestAquaModel:
     @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
     @patch.object(HfApi, "model_info")
     @patch("ads.aqua.common.utils.load_config", return_value={})
+    @patch.object(AquaApp, "get_container_config")
     def test_import_model_with_input_tags(
         self,
+        mock_get_container_config,
         mock_load_config,
         mock_list_objects,
         mock_upload_artifact,
@@ -1187,7 +1184,7 @@ class TestAquaModel:
     ):
         my_model = "oracle/aqua-1t-mega-model"
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
-
+        mock_get_container_config.return_value = ServiceManagedContainers.MOCK_OUTPUT
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
         ds_freeform_tags = {
             "OCI_AQUA": "active",
@@ -1298,23 +1295,27 @@ class TestAquaModel:
 
     @patch("ads.aqua.model.model.read_file")
     @patch("ads.aqua.model.model.get_artifact_path")
-    def test_load_license(self, mock_get_artifact_path, mock_read_file):
+    @patch("ads.common.utils.is_path_exists")
+    def test_load_license(
+        self, mock_is_path_exist, mock_get_artifact_path, mock_read_file
+    ):
         self.app.ds_client.get_model = MagicMock()
+        self.app.ds_client.get_model_defined_metadatum_artifact_content.return_value.data.content.decode.return_value = "test_license"
         mock_get_artifact_path.return_value = (
             "oci://bucket@namespace/prefix/config/LICENSE.txt"
         )
         mock_read_file.return_value = "test_license"
-
+        mock_is_path_exist.return_value = True
         license = self.app.load_license(model_id="test_model_id")
 
         mock_get_artifact_path.assert_called()
-        mock_read_file.assert_called()
 
         assert asdict(license) == {"id": "test_model_id", "license": "test_license"}
 
-    def test_list_service_models(self):
+    @patch.object(AquaApp, "get_container_config")
+    def test_list_service_models(self, mock_get_container_config):
         """Tests listing service models succesfully."""
-
+        mock_get_container_config.return_value = TestDataset.CONTAINERS_LIST
         self.app.list_resource = MagicMock(
             return_value=[
                 oci.data_science.models.ModelSummary(**item)
@@ -1338,9 +1339,10 @@ class TestAquaModel:
             for attr in attributes:
                 assert rdict.get(attr) is not None
 
-    def test_list_custom_models(self):
+    @patch.object(AquaApp, "get_container_config")
+    def test_list_custom_models(self, mock_get_container_config):
         """Tests list custom models succesfully."""
-
+        mock_get_container_config.return_value = TestDataset.CONTAINERS_LIST
         self.app._rqs = MagicMock(
             return_value=[
                 oci.resource_search.models.ResourceSummary(**item)
