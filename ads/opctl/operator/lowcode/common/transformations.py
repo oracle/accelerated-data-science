@@ -98,7 +98,11 @@ class Transformations(ABC):
         return clean_df
 
     def _remove_trailing_whitespace(self, df):
-        return df.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
+        return df.apply(
+            lambda x: x.str.strip()
+            if hasattr(x, "dtype") and x.dtype == "object"
+            else x
+        )
 
     def _clean_column_names(self, df):
         """

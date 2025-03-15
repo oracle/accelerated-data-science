@@ -29,7 +29,6 @@ from ads.opctl.operator.lowcode.common.utils import (
     seconds_to_datetime,
     write_data,
 )
-from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import TestData
 from ads.opctl.operator.lowcode.forecast.utils import (
     _build_metrics_df,
     _build_metrics_per_horizon,
@@ -132,11 +131,10 @@ class ForecastOperatorBaseModel(ABC):
 
                 if self.datasets.test_data is not None:
                     try:
-                        (
-                            self.test_eval_metrics,
-                            summary_metrics
-                        ) = self._test_evaluate_metrics(
-                            elapsed_time=elapsed_time,
+                        (self.test_eval_metrics, summary_metrics) = (
+                            self._test_evaluate_metrics(
+                                elapsed_time=elapsed_time,
+                            )
                         )
                         if not self.target_cat_col:
                             self.test_eval_metrics.rename(
@@ -145,7 +143,7 @@ class ForecastOperatorBaseModel(ABC):
                                 inplace=True,
                             )
                     except Exception:
-                        logger.warn("Unable to generate Test Metrics.")
+                        logger.warning("Unable to generate Test Metrics.")
                         logger.debug(f"Full Traceback: {traceback.format_exc()}")
             report_sections = []
 
@@ -155,9 +153,8 @@ class ForecastOperatorBaseModel(ABC):
                     model_description,
                     other_sections,
                 ) = self._generate_report()
-
                 header_section = rc.Block(
-                    rc.Heading("Forecast Report", level=1),
+                    rc.Heading(self.spec.report_title, level=1),
                     rc.Text(
                         f"You selected the {self.spec.model} model.\nBased on your dataset, you could have also selected any of the models: {SupportedModels.keys()}."
                     ),
@@ -369,7 +366,7 @@ class ForecastOperatorBaseModel(ABC):
                     -self.spec.horizon :
                 ]
             except KeyError as ke:
-                logger.warn(
+                logger.warning(
                     f"Error Generating Metrics: Unable to find {s_id} in the test data. Error: {ke.args}"
                 )
             y_pred = self.forecast_output.get_forecast(s_id)["forecast_value"].values[
@@ -478,10 +475,11 @@ class ForecastOperatorBaseModel(ABC):
         unique_output_dir = self.spec.output_directory.url
         results = ForecastResults()
 
-        if ObjectStorageDetails.is_oci_path(unique_output_dir):
-            storage_options = default_signer()
-        else:
-            storage_options = {}
+        storage_options = (
+            default_signer()
+            if ObjectStorageDetails.is_oci_path(unique_output_dir)
+            else {}
+        )
 
         # report-creator html report
         if self.spec.generate_report:
@@ -512,12 +510,13 @@ class ForecastOperatorBaseModel(ABC):
             if self.target_cat_col
             else result_df.drop(DataColumns.Series, axis=1)
         )
-        write_data(
-            data=result_df,
-            filename=os.path.join(unique_output_dir, self.spec.forecast_filename),
-            format="csv",
-            storage_options=storage_options,
-        )
+        if self.spec.generate_forecast_file:
+            write_data(
+                data=result_df,
+                filename=os.path.join(unique_output_dir, self.spec.forecast_filename),
+                format="csv",
+                storage_options=storage_options,
+            )
         results.set_forecast(result_df)
 
         # metrics csv report
@@ -531,18 +530,19 @@ class ForecastOperatorBaseModel(ABC):
                 metrics_df_formatted = metrics_df.reset_index().rename(
                     {"index": "metrics", "Series 1": metrics_col_name}, axis=1
                 )
-                write_data(
-                    data=metrics_df_formatted,
-                    filename=os.path.join(
-                        unique_output_dir, self.spec.metrics_filename
-                    ),
-                    format="csv",
-                    storage_options=storage_options,
-                    index=False,
-                )
+                if self.spec.generate_metrics_file:
+                    write_data(
+                        data=metrics_df_formatted,
+                        filename=os.path.join(
+                            unique_output_dir, self.spec.metrics_filename
+                        ),
+                        format="csv",
+                        storage_options=storage_options,
+                        index=False,
+                    )
                 results.set_metrics(metrics_df_formatted)
             else:
-                logger.warn(
+                logger.warning(
                     f"Attempted to generate the {self.spec.metrics_filename} file with the training metrics, however the training metrics could not be properly generated."
                 )
 
@@ -552,56 +552,59 @@ class ForecastOperatorBaseModel(ABC):
                     test_metrics_df_formatted = test_metrics_df.reset_index().rename(
                         {"index": "metrics", "Series 1": metrics_col_name}, axis=1
                     )
-                    write_data(
-                        data=test_metrics_df_formatted,
-                        filename=os.path.join(
-                            unique_output_dir, self.spec.test_metrics_filename
-                        ),
-                        format="csv",
-                        storage_options=storage_options,
-                        index=False,
-                    )
+                    if self.spec.generate_metrics_file:
+                        write_data(
+                            data=test_metrics_df_formatted,
+                            filename=os.path.join(
+                                unique_output_dir, self.spec.test_metrics_filename
+                            ),
+                            format="csv",
+                            storage_options=storage_options,
+                            index=False,
+                        )
                     results.set_test_metrics(test_metrics_df_formatted)
                 else:
-                    logger.warn(
+                    logger.warning(
                         f"Attempted to generate the {self.spec.test_metrics_filename} file with the test metrics, however the test metrics could not be properly generated."
                     )
         # explanations csv reports
         if self.spec.generate_explanations:
             try:
                 if not self.formatted_global_explanation.empty:
-                    write_data(
-                        data=self.formatted_global_explanation,
-                        filename=os.path.join(
-                            unique_output_dir, self.spec.global_explanation_filename
-                        ),
-                        format="csv",
-                        storage_options=storage_options,
-                        index=True,
-                    )
+                    if self.spec.generate_explanation_files:
+                        write_data(
+                            data=self.formatted_global_explanation,
+                            filename=os.path.join(
+                                unique_output_dir, self.spec.global_explanation_filename
+                            ),
+                            format="csv",
+                            storage_options=storage_options,
+                            index=True,
+                        )
                     results.set_global_explanations(self.formatted_global_explanation)
                 else:
-                    logger.warn(
+                    logger.warning(
                         f"Attempted to generate global explanations for the {self.spec.global_explanation_filename} file, but an issue occured in formatting the explanations."
                     )
 
                 if not self.formatted_local_explanation.empty:
-                    write_data(
-                        data=self.formatted_local_explanation,
-                        filename=os.path.join(
-                            unique_output_dir, self.spec.local_explanation_filename
-                        ),
-                        format="csv",
-                        storage_options=storage_options,
-                        index=True,
-                    )
+                    if self.spec.generate_explanation_files:
+                        write_data(
+                            data=self.formatted_local_explanation,
+                            filename=os.path.join(
+                                unique_output_dir, self.spec.local_explanation_filename
+                            ),
+                            format="csv",
+                            storage_options=storage_options,
+                            index=True,
+                        )
                     results.set_local_explanations(self.formatted_local_explanation)
                 else:
-                    logger.warn(
+                    logger.warning(
                         f"Attempted to generate local explanations for the {self.spec.local_explanation_filename} file, but an issue occured in formatting the explanations."
                     )
             except AttributeError as e:
-                logger.warn(
+                logger.warning(
                     "Unable to generate explanations for this model type or for this dataset."
                 )
                 logger.debug(f"Got error: {e.args}")
@@ -769,7 +772,7 @@ class ForecastOperatorBaseModel(ABC):
                 local_ex_time = local_ex_time + time.time() - exp_end_time
 
                 if not len(kernel_explnr_vals):
-                    logger.warn(
+                    logger.warning(
                         "No explanations generated. Ensure that additional data has been provided."
                     )
                 else:
@@ -780,7 +783,7 @@ class ForecastOperatorBaseModel(ABC):
                         )
                     )
             else:
-                logger.warn(
+                logger.warning(
                     f"Skipping explanations for {s_id}, as forecast was not generated."
                 )
 

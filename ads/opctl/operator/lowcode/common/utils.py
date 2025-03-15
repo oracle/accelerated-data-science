@@ -3,6 +3,7 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 import logging
 import os
 import shutil
@@ -12,7 +13,6 @@ from typing import List, Union
 
 import fsspec
 import oracledb
-import json
 import pandas as pd
 
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -265,7 +265,7 @@ def find_output_dirname(output_dir: OutputDirectory):
     while os.path.exists(unique_output_dir):
         unique_output_dir = f"{output_dir}_{counter}"
         counter += 1
-    logger.warn(
+    logger.warning(
         f"Since the output directory was not specified, the output will be saved to {unique_output_dir} directory."
     )
     return unique_output_dir

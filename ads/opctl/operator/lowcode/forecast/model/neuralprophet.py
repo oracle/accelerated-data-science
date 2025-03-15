@@ -40,7 +40,7 @@ from .forecast_datasets import ForecastDatasets, ForecastOutput
 #         "rmse": MeanSquaredError,
 #     }
 #     if selected_metric not in metric_translation.keys():
-#         logger.warn(
+#         logger.warning(
 #             f"Could not find the metric: {selected_metric} in torchmetrics. Defaulting to MAE and RMSE"
 #         )
 #         return {"MAE": MeanAbsoluteError(), "RMSE": MeanSquaredError()}
@@ -207,7 +207,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 "error": str(e),
                 "error_trace": traceback.format_exc(),
             }
-            logger.warn(traceback.format_exc())
+            logger.warning(traceback.format_exc())
             raise e
 
     def _build_model(self) -> pd.DataFrame:
@@ -363,7 +363,9 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                     pd.Series(
                         m.state_dict(),
                         index=m.state_dict().keys(),
-                        name=s_id if self.target_cat_col else self.original_target_column,
+                        name=s_id
+                        if self.target_cat_col
+                        else self.original_target_column,
                     )
                 )
             all_model_states = pd.concat(model_states, axis=1)
@@ -377,11 +379,15 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 self.explain_model()
 
                 if not self.target_cat_col:
-                    self.formatted_global_explanation = self.formatted_global_explanation.rename(
-                        {"Series 1": self.original_target_column},
-                        axis=1,
+                    self.formatted_global_explanation = (
+                        self.formatted_global_explanation.rename(
+                            {"Series 1": self.original_target_column},
+                            axis=1,
+                        )
                     )
-                    self.formatted_local_explanation.drop("Series", axis=1, inplace=True)
+                    self.formatted_local_explanation.drop(
+                        "Series", axis=1, inplace=True
+                    )
 
                 # Create a markdown section for the global explainability
                 global_explanation_section = rc.Block(
@@ -412,7 +418,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 ]
             except Exception as e:
                 # Do not fail the whole run due to explanations failure
-                logger.warn(f"Failed to generate Explanations with error: {e}.")
+                logger.warning(f"Failed to generate Explanations with error: {e}.")
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
 
         model_description = rc.Text(

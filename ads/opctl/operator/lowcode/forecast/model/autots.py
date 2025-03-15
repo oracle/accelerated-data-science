@@ -211,8 +211,8 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                     "error": str(e),
                     "error_trace": traceback.format_exc(),
                 }
-            logger.warn(f"Encountered Error: {e}. Skipping.")
-            logger.warn(traceback.format_exc())
+            logger.warning(f"Encountered Error: {e}. Skipping.")
+            logger.warning(traceback.format_exc())
 
         logger.debug("===========Done===========")
 
@@ -242,7 +242,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                     self.models.df_wide_numeric, series=s_id
                 ),
                 self.datasets.list_series_ids(),
-                target_category_column=self.target_cat_col
+                target_category_column=self.target_cat_col,
             )
             section_1 = rc.Block(
                 rc.Heading("Forecast Overview", level=2),
@@ -260,7 +260,9 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 )
 
             except KeyError:
-                logger.warn("Issue generating Model Parameters Table Section. Skipping")
+                logger.warning(
+                    "Issue generating Model Parameters Table Section. Skipping"
+                )
                 sec2 = rc.Text("Error generating model parameters.")
 
             section_2 = rc.Block(sec2_text, sec2)
@@ -268,7 +270,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             all_sections = [section_1, section_2]
 
         if self.spec.generate_explanations:
-            logger.warn("Explanations not yet supported for the AutoTS Module")
+            logger.warning("Explanations not yet supported for the AutoTS Module")
 
         # Model Description
         model_description = rc.Text(

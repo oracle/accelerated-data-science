@@ -105,6 +105,29 @@ The metric can be optionally specified in the YAML file:
         target_column: y
         metric: rmse
 
+Setting a Minimum or Maximum Value
+----------------------------------
+
+You can set a minimum or maximum output value by setting ``min`` or ``max`` in the ``model_kwargs`` section of the yaml file
+
+.. code-block:: yaml
+
+    kind: operator
+    type: forecast
+    version: v1
+    spec:
+        datetime_column:
+            name: ds
+        historical_data:
+            url: https://raw.githubusercontent.com/facebook/prophet/main/examples/example_yosemite_temps.csv
+        horizon: 3
+        model: prophet
+        target_column: y
+        model_kwargs:
+            min: 0
+            max: 100
+
+
 Explanations
 ------------
 

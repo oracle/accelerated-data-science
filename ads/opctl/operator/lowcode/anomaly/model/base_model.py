@@ -71,7 +71,7 @@ class AnomalyOperatorBaseModel(ABC):
         try:
             anomaly_output = self._build_model()
         except Exception as e:
-            logger.warn(f"Found exception: {e}")
+            logger.warning(f"Found exception: {e}")
             if self.spec.datetime_column:
                 anomaly_output = self._fallback_build_model()
             raise e
@@ -347,7 +347,7 @@ class AnomalyOperatorBaseModel(ABC):
                 storage_options=storage_options,
             )
 
-        logger.warn(
+        logger.warning(
             f"The report has been successfully "
             f"generated and placed to the: {unique_output_dir}."
         )
@@ -356,7 +356,7 @@ class AnomalyOperatorBaseModel(ABC):
         """
         Fallback method for the sub model _build_model method.
         """
-        logger.warn(
+        logger.warning(
             f"The build_model method has failed for the model: {self.spec.model}. "
             "A fallback model will be built."
         )

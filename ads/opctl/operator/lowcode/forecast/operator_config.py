@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -18,9 +18,11 @@ from ads.opctl.operator.lowcode.common.utils import find_output_dirname
 
 from .const import SpeedAccuracyMode, SupportedMetrics, SupportedModels
 
+
 @dataclass
 class AutoScaling(DataClassSerializable):
     """Class representing simple autoscaling policy"""
+
     minimum_instance: int = 1
     maximum_instance: int = None
     cool_down_in_seconds: int = 600
@@ -28,9 +30,11 @@ class AutoScaling(DataClassSerializable):
     scale_out_threshold: int = 80
     scaling_metric: str = "CPU_UTILIZATION"
 
+
 @dataclass(repr=True)
 class ModelDeploymentServer(DataClassSerializable):
     """Class representing model deployment server specification for whatif-analysis."""
+
     display_name: str = None
     initial_shape: str = None
     description: str = None
@@ -42,10 +46,13 @@ class ModelDeploymentServer(DataClassSerializable):
 @dataclass(repr=True)
 class WhatIfAnalysis(DataClassSerializable):
     """Class representing operator specification for whatif-analysis."""
+
     model_display_name: str = None
     compartment_id: str = None
     project_id: str = None
-    model_deployment: ModelDeploymentServer = field(default_factory=ModelDeploymentServer)
+    model_deployment: ModelDeploymentServer = field(
+        default_factory=ModelDeploymentServer
+    )
 
 
 @dataclass(repr=True)
@@ -106,8 +113,11 @@ class ForecastOperatorSpec(DataClassSerializable):
     datetime_column: DateTimeColumn = field(default_factory=DateTimeColumn)
     target_category_columns: List[str] = field(default_factory=list)
     generate_report: bool = None
+    generate_forecast_file: bool = None
     generate_metrics: bool = None
+    generate_metrics_file: bool = None
     generate_explanations: bool = None
+    generate_explanation_files: bool = None
     explanations_accuracy_mode: str = None
     horizon: int = None
     model: str = None
@@ -126,7 +136,7 @@ class ForecastOperatorSpec(DataClassSerializable):
         self.output_directory = self.output_directory or OutputDirectory(
             url=find_output_dirname(self.output_directory)
         )
-        self.generate_model_pickle = True if self.generate_model_pickle or self.what_if_analysis else False
+        self.generate_model_pickle = self.generate_model_pickle or self.what_if_analysis
         self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE.lower()
         self.model = self.model or SupportedModels.Prophet
         self.confidence_interval_width = self.confidence_interval_width or 0.80
@@ -143,6 +153,21 @@ class ForecastOperatorSpec(DataClassSerializable):
         # For Metrics files Generation. When user doesn't specify defaults to True
         self.generate_metrics = (
             self.generate_metrics if self.generate_metrics is not None else True
+        )
+        self.generate_metrics_file = (
+            self.generate_metrics_file
+            if self.generate_metrics_file is not None
+            else True
+        )
+        self.generate_forecast_file = (
+            self.generate_forecast_file
+            if self.generate_forecast_file is not None
+            else True
+        )
+        self.generate_explanation_files = (
+            self.generate_explanation_files
+            if self.generate_explanation_files is not None
+            else True
         )
         # For Explanations Generation. When user doesn't specify defaults to False
         self.generate_explanations = (
@@ -164,6 +189,7 @@ class ForecastOperatorSpec(DataClassSerializable):
             if self.generate_model_pickle is not None
             else False
         )
+        self.report_title = self.report_title or "Forecast Report"
         self.report_theme = self.report_theme or "light"
         self.metrics_filename = self.metrics_filename or "metrics.csv"
         self.test_metrics_filename = self.test_metrics_filename or "test_metrics.csv"

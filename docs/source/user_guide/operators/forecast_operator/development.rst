@@ -125,6 +125,35 @@ Before running operators on a job, users must configure their output directory. 
         horizon: 3
         target_column: y
 
+
+Exclude Writing Certain Output Files
+====================================
+
+You can choose to exclude certain files from being written to the output folder. This may be because you are calling the API, and not using the output folder. The yaml options below are ``True`` by default, but can be set to ``False`` to prevent file generation.
+
+.. code-block:: yaml
+
+    kind: operator
+    type: forecast
+    version: v1
+    spec:
+        datetime_column:
+            name: ds
+        historical_data:
+            url: oci://<bucket_name>@<namespace_name>/example_yosemite_temps.csv
+        output_directory:
+            url: oci://<bucket_name>@<namespace_name>/my_results/
+        horizon: 3
+        target_column: y
+        generate_report: True
+        generate_forecast_file: False
+        generate_metrics_file: False
+        generate_explanations: True
+        generate_explanations_file: False
+
+The above example will save a report.html to ``oci://<bucket_name>@<namespace_name>/my_results/``, but it will NOT save other files.
+
+
 Ingesting and Interpreting Outputs
 ==================================
 
