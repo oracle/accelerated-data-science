@@ -6,9 +6,12 @@ import json
 import os
 import traceback
 from dataclasses import fields
+from datetime import datetime, timedelta
+from threading import Lock
 from typing import Any, Dict, List, Optional, Union
 
 import oci
+from cachetools import TTLCache
 from oci.data_science.models import (
     ContainerSummary,
     UpdateModelDetails,
@@ -60,6 +63,12 @@ class AquaApp:
         self.identity_client = oc.OCIClientFactory(**default_signer()).identity
         self.region = extract_region(self._auth)
         self._telemetry = None
+
+    # For caching the SMC list response from control plane
+    _service_containers_list_cache = TTLCache(
+        maxsize=20, ttl=timedelta(hours=5), timer=datetime.now
+    )
+    _cache_lock = Lock()
 
     def list_resource(
         self,
@@ -392,8 +401,15 @@ class AquaApp:
             A Dict of containers conf.
 
         """
-        config = self.ds_client.list_containers().data
-        return config
+        if "service_model_list" in self._service_containers_list_cache:
+            logger.info("Returning service managed containers from Cache.")
+            return self._service_containers_list_cache.get("service_model_list")
+
+        containers = self.ds_client.list_containers().data
+        self._service_containers_list_cache.__setitem__(
+            key="service_model_list", value=containers
+        )
+        return containers
 
     @property
     def telemetry(self):

@@ -3,10 +3,9 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
 import pathlib
-import traceback
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 import oci
 from cachetools import TTLCache
@@ -16,6 +15,7 @@ from oci.data_science.models import JobRun, Metadata, Model, UpdateModelDetails
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import (
+    ConfigFolder,
     CustomInferenceContainerTypeFamily,
     FineTuningContainerTypeFamily,
     InferenceContainerTypeFamily,
@@ -565,44 +565,11 @@ class AquaModelApp(AquaApp):
         Dict:
             Model tokenizer config.
         """
-        oci_model = self.ds_client.get_model(model_id).data
-        oci_aqua = (
-            (
-                Tags.AQUA_TAG in oci_model.freeform_tags
-                or Tags.AQUA_TAG.lower() in oci_model.freeform_tags
-            )
-            if oci_model.freeform_tags
-            else False
-        )
-
-        if not oci_aqua:
-            raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
-
-        config = {}
-        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
-        if not artifact_path:
-            logger.debug(
-                f"Failed to get artifact path from custom metadata for the model: {model_id}"
-            )
-            return config
-        config_path = os.path.join(os.path.dirname(artifact_path), "artifact")
-        if not is_path_exists(config_path):
-            config_path = os.path.join(artifact_path.rstrip("/"), "artifact")
-            if not is_path_exists(config_path):
-                config_path = f"{artifact_path.rstrip('/')}/"
-        config_file_path = os.path.join(config_path, AQUA_MODEL_TOKENIZER_CONFIG)
-        if is_path_exists(config_file_path):
-            try:
-                config = load_config(
-                    config_path,
-                    config_file_name=AQUA_MODEL_TOKENIZER_CONFIG,
-                )
-            except Exception:
-                logger.debug(
-                    f"Error loading the {AQUA_MODEL_TOKENIZER_CONFIG} at path {config_path}.\n"
-                    f"{traceback.format_exc()}"
-                )
+        config = self.get_config(
+            model_id, AQUA_MODEL_TOKENIZER_CONFIG, ConfigFolder.ARTIFACT
+        ).config
         if not config:
+            logger.debug(f"Tokenizer config for model: {model_id} is not available.")
             logger.debug(
                 f"{AQUA_MODEL_TOKENIZER_CONFIG} is not available for the model: {model_id}. "
                 f"Check if the custom metadata has the artifact path set."
@@ -633,7 +600,7 @@ class AquaModelApp(AquaApp):
             oci.resource_search.models.ResourceSummary,
         ],
         region: str,
-        container_config: Optional[Dict] = None,
+        inference_containers: Optional[List[Any]] = None,
     ) -> dict:
         """Constructs required fields for AquaModelSummary."""
 
@@ -689,9 +656,14 @@ class AquaModelApp(AquaApp):
         except Exception:
             model_file = UNKNOWN
 
-        inference_containers = AquaContainerConfig.from_container_index_json(
-            config=container_config or AquaApp().get_container_config()
-        ).inference
+        if not inference_containers:
+            inference_containers = (
+                AquaContainerConfig.from_service_config(
+                    service_containers=AquaApp().get_container_config()
+                )
+                .to_dict()
+                .get("inference")
+            )
 
         model_formats_str = freeform_tags.get(
             Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS
@@ -700,7 +672,7 @@ class AquaModelApp(AquaApp):
 
         supported_platform: Set[str] = set()
 
-        for container in inference_containers.values():
+        for container in inference_containers:
             for model_format in model_formats:
                 if model_format in container.model_formats:
                     supported_platform.update(container.platforms)
@@ -798,17 +770,21 @@ class AquaModelApp(AquaApp):
         logger.info(
             f"Fetched {len(models)} model in compartment_id={ODSC_MODEL_COMPARTMENT_OCID if category==SERVICE else compartment_id}."
         )
-
-        container_config = self.get_container_config()
         aqua_models = []
-
+        inference_containers = (
+            AquaContainerConfig.from_service_config(
+                service_containers=self.get_container_config()
+            )
+            .to_dict()
+            .get("inference")
+        )
         for model in models:
             aqua_models.append(
                 AquaModelSummary(
                     **self._process_model(
                         model=model,
                         region=self.region,
-                        container_config=container_config,
+                        inference_containers=inference_containers,
                     ),
                     project_id=project_id or UNKNOWN,
                 )
