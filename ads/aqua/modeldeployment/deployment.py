@@ -10,9 +10,8 @@ from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
+    defined_metadata_to_file_map,
     get_combined_params,
-    get_container_config,
-    get_container_image,
     get_container_params_type,
     get_model_by_reference_paths,
     get_ocid_substring,
@@ -32,14 +31,17 @@ from ads.aqua.constants import (
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
 from ads.aqua.model import AquaModelApp
-from ads.aqua.modeldeployment.entities import AquaDeployment, AquaDeploymentDetail
+from ads.aqua.model.constants import DefinedMetadata
+from ads.aqua.modeldeployment.entities import (
+    AquaDeployment,
+    AquaDeploymentDetail,
+)
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN, get_log_links
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
-    AQUA_MODEL_DEPLOYMENT_CONFIG,
     COMPARTMENT_OCID,
 )
 from ads.model.datascience_model import DataScienceModel
@@ -248,7 +250,7 @@ class AquaDeploymentApp(AquaApp):
             model=aqua_model, container_family=container_family
         )
 
-        container_image_uri = container_image_uri or get_container_image(
+        container_image_uri = container_image_uri or self.get_container_image(
             container_type=container_type_key
         )
         if not container_image_uri:
@@ -318,7 +320,7 @@ class AquaDeploymentApp(AquaApp):
         # Fetch the startup cli command for the container
         # container_index.json will have "containerSpec" section which will provide the cli params for
         # a given container family
-        container_config = get_container_config()
+        container_config = self.get_container_config()
         container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
             container_type_key, {}
         )
@@ -653,7 +655,17 @@ class AquaDeploymentApp(AquaApp):
         Dict:
             A dict of allowed deployment configs.
         """
-        config = self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG).config
+        config = self.get_config_from_metadata(
+            model_id, DefinedMetadata.DEPLOYMENT_CONFIGURATION
+        )
+        if config:
+            return config
+        config = self.get_config(
+            model_id,
+            defined_metadata_to_file_map().get(
+                DefinedMetadata.DEPLOYMENT_CONFIGURATION.lower()
+            ),
+        ).config
         if not config:
             logger.debug(
                 f"Deployment config for custom model: {model_id} is not available. Use defaults."
@@ -748,7 +760,7 @@ class AquaDeploymentApp(AquaApp):
                 model=model, container_family=container_family
             )
 
-            container_config = get_container_config()
+            container_config = self.get_container_config()
             container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
                 container_type_key, {}
             )

@@ -5,7 +5,7 @@ import os
 import pathlib
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 import oci
 from cachetools import TTLCache
@@ -35,11 +35,9 @@ from ads.aqua.common.utils import (
     create_word_icon,
     generate_tei_cmd_var,
     get_artifact_path,
-    get_container_config,
     get_hf_model_info,
     list_os_files_with_extension,
     load_config,
-    read_file,
     upload_folder,
 )
 from ads.aqua.config.container_config import AquaContainerConfig
@@ -63,6 +61,7 @@ from ads.aqua.constants import (
     VALIDATION_METRICS_FINAL,
 )
 from ads.aqua.model.constants import (
+    DefinedMetadata,
     FineTuningCustomMetadata,
     FineTuningMetricCategories,
     ModelCustomMetadataFields,
@@ -73,13 +72,20 @@ from ads.aqua.model.entities import (
     AquaFineTuningMetric,
     AquaModel,
     AquaModelLicense,
+    AquaModelReadme,
     AquaModelSummary,
     ImportModelDetails,
     ModelValidationResult,
 )
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import UNKNOWN, get_console_link
+from ads.common.utils import (
+    UNKNOWN,
+    get_console_link,
+    is_path_exists,
+    read_file,
+    text_sanitizer,
+)
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
@@ -88,9 +94,12 @@ from ads.config import (
     AQUA_FINETUNING_CONTAINER_METADATA_NAME,
     COMPARTMENT_OCID,
     PROJECT_OCID,
+    SERVICE,
     TENANCY_OCID,
+    USER,
 )
 from ads.model import DataScienceModel
+from ads.model.common.utils import MetadataArtifactPathType
 from ads.model.model_metadata import (
     MetadataCustomCategory,
     ModelCustomMetadata,
@@ -165,7 +174,6 @@ class AquaModelApp(AquaApp):
         service_model = DataScienceModel.from_id(model_id)
         target_project = project_id or PROJECT_OCID
         target_compartment = compartment_id or COMPARTMENT_OCID
-
         if service_model.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
             logger.info(
                 f"Aqua Model {model_id} already exists in user's compartment."
@@ -212,7 +220,7 @@ class AquaModelApp(AquaApp):
         return custom_model
 
     @telemetry(entry_point="plugin=model&action=get", name="aqua")
-    def get(self, model_id: str, load_model_card: Optional[bool] = True) -> "AquaModel":
+    def get(self, model_id: str) -> "AquaModel":
         """Gets the information of an Aqua model.
 
         Parameters
@@ -235,6 +243,7 @@ class AquaModelApp(AquaApp):
 
         logger.info(f"Fetching model details for model {model_id}.")
         ds_model = DataScienceModel.from_id(model_id)
+
         if not self._if_show(ds_model):
             raise AquaRuntimeError(
                 f"Target model `{ds_model.id} `is not an Aqua model as it does not contain "
@@ -246,34 +255,7 @@ class AquaModelApp(AquaApp):
             and ds_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG)
         )
 
-        # todo: consolidate this logic in utils for model and deployment use
-        is_verified_type = (
-            ds_model.freeform_tags.get(Tags.READY_TO_IMPORT, "false").upper()
-            == READY_TO_IMPORT_STATUS
-        )
-
         model_card = ""
-        if load_model_card:
-            artifact_path = get_artifact_path(
-                ds_model.custom_metadata_list._to_oci_metadata()
-            )
-            if artifact_path != UNKNOWN:
-                model_card_path = (
-                    f"{artifact_path.rstrip('/')}/config/{README}"
-                    if is_verified_type
-                    else f"{artifact_path.rstrip('/')}/{README}"
-                )
-                model_card = str(
-                    read_file(
-                        file_path=model_card_path,
-                        auth=default_signer(),
-                    )
-                )
-                if not model_card:
-                    logger.warn(
-                        f"Model card for {model_id} is empty or could not be loaded from {model_card_path}."
-                    )
-
         inference_container = ds_model.custom_metadata_list.get(
             ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
             ModelCustomMetadataItem(key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER),
@@ -571,7 +553,7 @@ class AquaModelApp(AquaApp):
         ]
 
     def get_hf_tokenizer_config(self, model_id):
-        """Gets the default chat template for the given Aqua model.
+        """Gets the default model tokenizer config for the given Aqua model.
 
         Parameters
         ----------
@@ -580,14 +562,20 @@ class AquaModelApp(AquaApp):
 
         Returns
         -------
-        str:
-            Chat template string.
+        Dict:
+            Model tokenizer config.
         """
         config = self.get_config(
             model_id, AQUA_MODEL_TOKENIZER_CONFIG, ConfigFolder.ARTIFACT
         ).config
         if not config:
             logger.debug(f"Tokenizer config for model: {model_id} is not available.")
+            logger.debug(
+                f"{AQUA_MODEL_TOKENIZER_CONFIG} is not available for the model: {model_id}. "
+                f"Check if the custom metadata has the artifact path set."
+            )
+            return config
+
         return config
 
     @staticmethod
@@ -612,6 +600,7 @@ class AquaModelApp(AquaApp):
             oci.resource_search.models.ResourceSummary,
         ],
         region: str,
+        inference_containers: Optional[List[Any]] = None,
     ) -> dict:
         """Constructs required fields for AquaModelSummary."""
 
@@ -667,9 +656,14 @@ class AquaModelApp(AquaApp):
         except Exception:
             model_file = UNKNOWN
 
-        inference_containers = AquaContainerConfig.from_container_index_json(
-            config=get_container_config()
-        ).inference
+        if not inference_containers:
+            inference_containers = (
+                AquaContainerConfig.from_service_config(
+                    service_containers=AquaApp().get_container_config()
+                )
+                .to_dict()
+                .get("inference")
+            )
 
         model_formats_str = freeform_tags.get(
             Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS
@@ -678,7 +672,7 @@ class AquaModelApp(AquaApp):
 
         supported_platform: Set[str] = set()
 
-        for container in inference_containers.values():
+        for container in inference_containers:
             for model_format in model_formats:
                 if model_format in container.model_formats:
                     supported_platform.update(container.platforms)
@@ -740,7 +734,8 @@ class AquaModelApp(AquaApp):
         """
 
         models = []
-        if compartment_id:
+        category = kwargs.get("category", USER)
+        if compartment_id and category != SERVICE:
             # tracks number of times custom model listing was called
             self.telemetry.record_event_async(
                 category="aqua/custom/model", action="list"
@@ -760,9 +755,7 @@ class AquaModelApp(AquaApp):
                     f"Returning service models list in {ODSC_MODEL_COMPARTMENT_OCID} from cache."
                 )
                 return self._service_models_cache.get(ODSC_MODEL_COMPARTMENT_OCID)
-            logger.info(
-                f"Fetching service models from compartment_id={ODSC_MODEL_COMPARTMENT_OCID}"
-            )
+            logger.info("Fetching service models.")
             lifecycle_state = kwargs.pop(
                 "lifecycle_state", Model.LIFECYCLE_STATE_ACTIVE
             )
@@ -775,20 +768,29 @@ class AquaModelApp(AquaApp):
             )
 
         logger.info(
-            f"Fetched {len(models)} model in compartment_id={compartment_id or ODSC_MODEL_COMPARTMENT_OCID}."
+            f"Fetched {len(models)} model in compartment_id={ODSC_MODEL_COMPARTMENT_OCID if category==SERVICE else compartment_id}."
         )
-
         aqua_models = []
-
+        inference_containers = (
+            AquaContainerConfig.from_service_config(
+                service_containers=self.get_container_config()
+            )
+            .to_dict()
+            .get("inference")
+        )
         for model in models:
             aqua_models.append(
                 AquaModelSummary(
-                    **self._process_model(model=model, region=self.region),
+                    **self._process_model(
+                        model=model,
+                        region=self.region,
+                        inference_containers=inference_containers,
+                    ),
                     project_id=project_id or UNKNOWN,
                 )
             )
 
-        if not compartment_id:
+        if category == SERVICE:
             self._service_models_cache.__setitem__(
                 key=ODSC_MODEL_COMPARTMENT_OCID, value=aqua_models
             )
@@ -839,11 +841,95 @@ class AquaModelApp(AquaApp):
     def list_valid_inference_containers():
         containers = list(
             AquaContainerConfig.from_container_index_json(
-                config=get_container_config(), enable_spec=True
+                config=AquaApp().get_container_config(), enable_spec=True
             ).inference.values()
         )
         family_values = [item.family for item in containers]
         return family_values
+
+    @telemetry(
+        entry_point="plugin=model&action=get_defined_metadata_artifact_content",
+        name="aqua",
+    )
+    def get_defined_metadata_artifact_content(self, model_id: str, metadata_key: str):
+        """
+        Gets the defined metadata artifact content for the given model
+
+        Args:
+            model_id: str
+                model ocid for which defined metadata artifact needs to be created
+            metadata_key: str
+                defined metadata key  like Readme , License , DeploymentConfiguration , FinetuningConfiguration
+        Returns:
+            The model defined metadata artifact content. Can be either str or Dict
+
+        """
+
+        content = self.get_config(model_id, metadata_key)
+        if not content:
+            logger.debug(
+                f"Defined metadata artifact {metadata_key} for model: {model_id} is not available."
+            )
+        return content
+
+    @telemetry(
+        entry_point="plugin=model&action=create_defined_metadata_artifact", name="aqua"
+    )
+    def create_defined_metadata_artifact(
+        self,
+        model_id: str,
+        metadata_key: str,
+        path_type: MetadataArtifactPathType,
+        artifact_path_or_content: str,
+    ):
+        """
+        Creates defined metadata artifact for the given model
+
+        Args:
+            model_id: str
+                model ocid for which defined metadata artifact needs to be created
+            metadata_key: str
+                defined metadata key  like Readme , License , DeploymentConfiguration , FinetuningConfiguration
+            path_type: str
+                path type of the given defined metadata can be local , oss or the content itself
+            artifact_path_or_content: str
+                It can be local path or oss path or the actual content itself
+        Returns:
+            The model defined metadata artifact creation info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'ETag': '77156317-8bb9-4c4a-882b-0d85f8140d93',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Length': '4029958',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+
+        ds_model = DataScienceModel.from_id(model_id)
+        is_registered_model = ds_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None)
+        is_verified_model = ds_model.freeform_tags.get(
+            Tags.AQUA_SERVICE_MODEL_TAG, None
+        )
+        if is_registered_model and not is_verified_model:
+            try:
+                ds_model.create_defined_metadata_artifact(
+                    metadata_key_name=metadata_key,
+                    artifact_path_or_content=artifact_path_or_content,
+                    path_type=path_type,
+                )
+            except Exception as ex:
+                raise AquaRuntimeError(
+                    f"Error occurred in creating defined metadata artifact for model: {model_id}: {ex}"
+                ) from ex
+        else:
+            raise AquaRuntimeError(
+                f"Cannot create defined metadata artifact for model: {model_id}"
+            )
 
     def _create_model_catalog_entry(
         self,
@@ -901,7 +987,9 @@ class AquaModelApp(AquaApp):
 
         # Remove `ready_to_import` tag that might get copied from service model.
         tags.pop(Tags.READY_TO_IMPORT, None)
-
+        defined_metadata_dict = {}
+        readme_file_path = os_path.rstrip("/") + "/" + README
+        license_file_path = os_path.rstrip("/") + "/" + LICENSE_TXT
         if verified_model:
             # Verified model is a model in the service catalog that either has no artifacts but contains all the necessary metadata for deploying and fine tuning.
             # If set, then we copy all the model metadata.
@@ -910,6 +998,13 @@ class AquaModelApp(AquaApp):
                 model = model.with_model_file_description(
                     json_dict=verified_model.model_file_description
                 )
+            defined_metadata_list = self.ds_client.get_model(
+                verified_model.id
+            ).data.defined_metadata_list
+            for defined_metadata in defined_metadata_list:
+                if defined_metadata.has_artifact:
+                    content = self.get_config(verified_model.id, defined_metadata.key)
+                    defined_metadata_dict[defined_metadata.key] = content
         else:
             metadata = ModelCustomMetadata()
             if not inference_container:
@@ -932,7 +1027,7 @@ class AquaModelApp(AquaApp):
                 )
 
             inference_containers = AquaContainerConfig.from_container_index_json(
-                config=get_container_config()
+                config=self.get_container_config()
             ).inference
             smc_container_set = {
                 container.family for container in inference_containers.values()
@@ -1005,6 +1100,17 @@ class AquaModelApp(AquaApp):
             .with_defined_tags(**(defined_tags or {}))
         ).create(model_by_reference=True)
         logger.debug(f"Created model catalog entry for the model:\n{model}")
+        for key, value in defined_metadata_dict.items():
+            model.create_defined_metadata_artifact(
+                key, text_sanitizer(value), MetadataArtifactPathType.CONTENT
+            )
+        model.create_defined_metadata_artifact(
+            DefinedMetadata.README, readme_file_path, MetadataArtifactPathType.OSS
+        )
+        if not verified_model:
+            model.create_defined_metadata_artifact(
+                DefinedMetadata.LICENSE, license_file_path, MetadataArtifactPathType.OSS
+            )
         return model
 
     @staticmethod
@@ -1518,6 +1624,7 @@ class AquaModelApp(AquaApp):
             ).rstrip("/")
         else:
             artifact_path = import_model_details.os_path.rstrip("/")
+
         # Create Model catalog entry with pass by reference
         ds_model = self._create_model_catalog_entry(
             os_path=artifact_path,
@@ -1557,10 +1664,9 @@ class AquaModelApp(AquaApp):
             **self._process_model(ds_model, self.region),
             project_id=ds_model.project_id,
             model_card=str(
-                read_file(
-                    file_path=f"{artifact_path}/{README}",
-                    auth=default_signer(),
-                )
+                self.ds_client.get_model_defined_metadatum_artifact_content(
+                    ds_model.id, DefinedMetadata.README
+                ).data.content
             ),
             inference_container=inference_container,
             inference_container_uri=inference_container_uri,
@@ -1633,6 +1739,55 @@ class AquaModelApp(AquaApp):
         separator = " " if description else ""
         return f"{description}{separator}{tags_text}"
 
+    @telemetry(entry_point="plugin=model&action=load_readme", name="aqua")
+    def load_readme(self, model_id: str) -> AquaModelReadme:
+        """Loads the readme or the model card for the given model.
+
+        Parameters
+        ----------
+        model_id: str
+            The model id.
+
+        Returns
+        -------
+        AquaModelReadme:
+            The instance of AquaModelReadme.
+        """
+        oci_model = self.ds_client.get_model(model_id).data
+        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+        if not artifact_path:
+            raise AquaRuntimeError(
+                f"Readme could not be loaded. Failed to get artifact path from custom metadata for"
+                f"the model {model_id}."
+            )
+
+        content = ""
+        try:
+            content = self.ds_client.get_model_defined_metadatum_artifact_content(
+                model_id, DefinedMetadata.README
+            ).data.content.decode("utf-8", errors="ignore")
+        except Exception as ex:
+            logger.error(
+                f"License could not be found for model: {model_id} in defined metadata : {str(ex)}"
+            )
+            artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+            readme_path = os.path.join(os.path.dirname(artifact_path), "artifact")
+            if not is_path_exists(readme_path):
+                readme_path = os.path.join(artifact_path.rstrip("/"), "artifact")
+                if not is_path_exists(readme_path):
+                    readme_path = f"{artifact_path.rstrip('/')}/"
+
+            readme_file_path = os.path.join(readme_path, README)
+            logger.info(f"Fetching {README} from {readme_file_path}")
+            if is_path_exists(readme_file_path):
+                try:
+                    content = str(read_file(readme_file_path, auth=default_signer()))
+                except Exception as e:
+                    logger.debug(
+                        f"Error occurred while fetching config {README} at path {readme_file_path} : {str(e)}"
+                    )
+        return AquaModelReadme(id=model_id, model_card=content)
+
     @telemetry(entry_point="plugin=model&action=load_license", name="aqua")
     def load_license(self, model_id: str) -> AquaModelLicense:
         """Loads the license full text for the given model.
@@ -1655,13 +1810,31 @@ class AquaModelApp(AquaApp):
                 f"the model {model_id}."
             )
 
-        content = str(
-            read_file(
-                file_path=f"{os.path.dirname(artifact_path)}/{LICENSE_TXT}",
-                auth=default_signer(),
+        content = ""
+        try:
+            content = self.ds_client.get_model_defined_metadatum_artifact_content(
+                model_id, DefinedMetadata.LICENSE
+            ).data.content.decode("utf-8", errors="ignore")
+        except Exception as ex:
+            logger.error(
+                f"License could not be found for model: {model_id} in defined metadata : {str(ex)}"
             )
-        )
+            artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+            license_path = os.path.join(os.path.dirname(artifact_path), "config")
+            if not is_path_exists(license_path):
+                license_path = os.path.join(artifact_path.rstrip("/"), "config")
+                if not is_path_exists(license_path):
+                    license_path = f"{artifact_path.rstrip('/')}/"
 
+            license_file_path = os.path.join(license_path, LICENSE_TXT)
+            logger.info(f"Fetching {LICENSE_TXT} from {license_file_path}")
+            if is_path_exists(license_file_path):
+                try:
+                    content = str(read_file(license_file_path, auth=default_signer()))
+                except Exception as e:
+                    logger.debug(
+                        f"Error occurred while fetching config {LICENSE_TXT} at path {license_path} : {str(e)}"
+                    )
         return AquaModelLicense(id=model_id, license=content)
 
     def _find_matching_aqua_model(self, model_id: str) -> Optional[str]:

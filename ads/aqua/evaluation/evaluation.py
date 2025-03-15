@@ -40,8 +40,6 @@ from ads.aqua.common.errors import (
 from ads.aqua.common.utils import (
     extract_id_and_name_from_tag,
     fire_and_forget,
-    get_container_config,
-    get_container_image,
     is_valid_ocid,
     upload_local_to_os,
 )
@@ -76,6 +74,7 @@ from ads.aqua.evaluation.entities import (
     CreateAquaEvaluationDetails,
 )
 from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
+from ads.aqua.model.constants import CustomMetadata
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN, get_console_link, get_files, get_log_links
@@ -192,7 +191,7 @@ class AquaEvaluationApp(AquaApp):
                         evaluation_source.runtime.to_dict()
                     )
                     inference_config = AquaContainerConfig.from_container_index_json(
-                        config=get_container_config(), enable_spec=True
+                        config=self.get_container_config(), enable_spec=True
                     ).inference
                     for container in inference_config.values():
                         if container.name == runtime.image[: runtime.image.rfind(":")]:
@@ -623,7 +622,7 @@ class AquaEvaluationApp(AquaApp):
         #   get the container_type_key. Pass this key as container_type to get_container_image method.
 
         # fetch image name from config
-        container_image = get_container_image(
+        container_image = AquaApp().get_container_image(
             container_type="odsc-llm-evaluate",
         )
         logger.info(f"Aqua Image used for evaluating {source_id} :{container_image}")
@@ -945,10 +944,23 @@ class AquaEvaluationApp(AquaApp):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Downloading evaluation artifact: {eval_id}.")
-            DataScienceModel.from_id(eval_id).download_artifact(
-                temp_dir,
-                auth=self._auth,
-            )
+
+            dsc_model = DataScienceModel.from_id(eval_id)
+            if dsc_model.if_model_custom_metadata_artifact_exist(
+                eval_id, EVALUATION_REPORT_MD
+            ):
+                dsc_model.get_custom_metadata_artifact(EVALUATION_REPORT_MD, temp_dir)
+                if dsc_model.if_model_custom_metadata_artifact_exist(
+                    eval_id, EVALUATION_REPORT_JSON
+                ):
+                    dsc_model.get_custom_metadata_artifact(
+                        EVALUATION_REPORT_JSON, temp_dir
+                    )
+            else:
+                dsc_model.download_artifact(
+                    temp_dir,
+                    auth=self._auth,
+                )
 
             files_in_artifact = get_files(temp_dir)
             md_report_content = self._read_from_artifact(
@@ -1054,10 +1066,16 @@ class AquaEvaluationApp(AquaApp):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Downloading evaluation artifact for {eval_id}.")
-            DataScienceModel.from_id(eval_id).download_artifact(
-                temp_dir,
-                auth=self._auth,
-            )
+            dsc_model = DataScienceModel.from_id(eval_id)
+            if dsc_model.if_model_custom_metadata_artifact_exist(
+                eval_id, EVALUATION_REPORT
+            ):
+                dsc_model.get_custom_metadata_artifact(EVALUATION_REPORT, temp_dir)
+            else:
+                dsc_model.download_artifact(
+                    temp_dir,
+                    auth=self._auth,
+                )
             content = self._read_from_artifact(
                 temp_dir, get_files(temp_dir), EVALUATION_REPORT
             )
@@ -1195,7 +1213,13 @@ class AquaEvaluationApp(AquaApp):
         try:
             job.dsc_job.delete(force_delete=True)
             logger.info(f"Deleting Job: {job.job_id} for evaluation {model.id}")
-
+            # check if model metadata report exists
+            custom_metadata_head = model.head_custom_metadata_artifact(
+                CustomMetadata.REPORTS
+            )
+            if custom_metadata_head.status == "204":
+                model.delete_custom_metadata_artifact(CustomMetadata.REPORTS)
+                logger.info(f"Deleting evaluation report for : {model.id}")
             model.delete()
             logger.info(f"Deleting evaluation: {model.id}")
         except oci.exceptions.ServiceError as ex:
