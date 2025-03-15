@@ -2,6 +2,13 @@
 Release Notes
 =============
 
+2.13.2
+-------
+Release date: March 14th, 2025
+
+* Fixed bug in DataScienceModel defined metadata.
+
+
 2.13.1
 -------
 Release date: March 13th, 2025
