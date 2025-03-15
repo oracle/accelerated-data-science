@@ -2,6 +2,37 @@
 Release Notes
 =============
 
+2.13.2
+-------
+Release date: March 14th, 2025
+
+* Fixed bug in DataScienceModel defined metadata.
+
+
+2.13.1
+-------
+Release date: March 13th, 2025
+
+
+* Upgraded OCI SDK to ``v2.148.0`` for improved compatibility and performance.
+* Added support to launch the **AI Quick Actions API server** from anywhere using:
+
+  .. code-block:: bash
+
+      python -m ads.aqua.server
+
+* Introduced ``HttpxOCIAuth`` class, enabling HTTPX clients to sign requests using **OCI signers**, ensuring compatibility with **OCI Model Deployment services and LLM models**.
+* **Forecast Operator:**
+
+  * Optimized the **auto-select** feature to prevent redundant data re-saving during cross-validation.
+  * Implemented **AutoMLx Global Explainer** for enhanced model interpretability.
+
+* **Bug Fixes:**
+
+  * Fixed the Python 3.11 Compatibility. Replaced the deprecated ``cgi.parse_header`` function with a custom **pure-Python implementation** for parsing ``Content-Disposition`` headers.
+  * Resolved a **recursion issue** that occurred when creating a new model with the latest **OCI SDK version**.
+
+
 2.13.0
 -------
 Release date: Feb 14th, 2025
