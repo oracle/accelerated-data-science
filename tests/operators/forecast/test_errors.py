@@ -742,7 +742,7 @@ def test_pandas_historical_input(operator_setup, model):
         operator_setup
     )
     yaml_i, output_data_path = populate_yaml(
-        operator_setup=operator_setup,
+        tmpdirname=operator_setup,
         historical_data_path=historical_data_path,
         additional_data_path=additional_data_path,
     )
