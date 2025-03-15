@@ -257,7 +257,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 )
 
                 self.formatted_global_explanation.rename(
-                    columns={self.spec.datetime_column.name: ForecastOutputColumns.DATE},
+                    columns={
+                        self.spec.datetime_column.name: ForecastOutputColumns.DATE
+                    },
                     inplace=True,
                 )
 
@@ -462,14 +464,27 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                         index="row", columns="Feature", values="Attribution"
                     )
                     explanations_df = explanations_df.reset_index(drop=True)
-
+                    explanations_df[ForecastOutputColumns.DATE] = (
+                        self.datasets.get_horizon_at_series(
+                            s_id=s_id
+                        )[self.spec.datetime_column.name].reset_index(drop=True)
+                    )
                     # Store the explanations in the local_explanation dictionary
                     self.local_explanation[s_id] = explanations_df
 
                     self.global_explanation[s_id] = dict(
                         zip(
-                            self.local_explanation[s_id].columns,
-                            np.nanmean(np.abs(self.local_explanation[s_id]), axis=0),
+                            self.local_explanation[s_id]
+                            .drop(ForecastOutputColumns.DATE, axis=1)
+                            .columns,
+                            np.nanmean(
+                                np.abs(
+                                    self.local_explanation[s_id].drop(
+                                        ForecastOutputColumns.DATE, axis=1
+                                    )
+                                ),
+                                axis=0,
+                            ),
                         )
                     )
                 else:
@@ -478,7 +493,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             except Exception as e:
                 if s_id in self.errors_dict:
                     self.errors_dict[s_id]["explainer_error"] = str(e)
-                    self.errors_dict[s_id]["explainer_error_trace"] = traceback.format_exc()
+                    self.errors_dict[s_id]["explainer_error_trace"] = (
+                        traceback.format_exc()
+                    )
                 else:
                     self.errors_dict[s_id] = {
                         "model_name": self.spec.model,
