@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -117,7 +117,7 @@ class ForecastOperatorSpec(DataClassSerializable):
     generate_metrics: bool = None
     generate_metrics_file: bool = None
     generate_explanations: bool = None
-    generate_explanations_file: bool = None
+    generate_explanation_files: bool = None
     explanations_accuracy_mode: str = None
     horizon: int = None
     model: str = None
@@ -136,9 +136,7 @@ class ForecastOperatorSpec(DataClassSerializable):
         self.output_directory = self.output_directory or OutputDirectory(
             url=find_output_dirname(self.output_directory)
         )
-        self.generate_model_pickle = (
-            True if self.generate_model_pickle or self.what_if_analysis else False
-        )
+        self.generate_model_pickle = self.generate_model_pickle or self.what_if_analysis
         self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE.lower()
         self.model = self.model or SupportedModels.Prophet
         self.confidence_interval_width = self.confidence_interval_width or 0.80
@@ -166,9 +164,9 @@ class ForecastOperatorSpec(DataClassSerializable):
             if self.generate_forecast_file is not None
             else True
         )
-        self.generate_explanations_file = (
-            self.generate_explanations_file
-            if self.generate_explanations_file is not None
+        self.generate_explanation_files = (
+            self.generate_explanation_files
+            if self.generate_explanation_files is not None
             else True
         )
         # For Explanations Generation. When user doesn't specify defaults to False
@@ -191,6 +189,7 @@ class ForecastOperatorSpec(DataClassSerializable):
             if self.generate_model_pickle is not None
             else False
         )
+        self.report_title = self.report_title or "Forecast Report"
         self.report_theme = self.report_theme or "light"
         self.metrics_filename = self.metrics_filename or "metrics.csv"
         self.test_metrics_filename = self.test_metrics_filename or "test_metrics.csv"

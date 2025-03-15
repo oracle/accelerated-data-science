@@ -153,9 +153,8 @@ class ForecastOperatorBaseModel(ABC):
                     model_description,
                     other_sections,
                 ) = self._generate_report()
-                report_title = self.config.spec.report_title or "Forecast Report"
                 header_section = rc.Block(
-                    rc.Heading(report_title, level=1),
+                    rc.Heading(self.spec.report_title, level=1),
                     rc.Text(
                         f"You selected the {self.spec.model} model.\nBased on your dataset, you could have also selected any of the models: {SupportedModels.keys()}."
                     ),
@@ -572,7 +571,7 @@ class ForecastOperatorBaseModel(ABC):
         if self.spec.generate_explanations:
             try:
                 if not self.formatted_global_explanation.empty:
-                    if not self.spec.generate_explanations_file:
+                    if self.spec.generate_explanation_files:
                         write_data(
                             data=self.formatted_global_explanation,
                             filename=os.path.join(
@@ -589,7 +588,7 @@ class ForecastOperatorBaseModel(ABC):
                     )
 
                 if not self.formatted_local_explanation.empty:
-                    if not self.spec.generate_explanations_file:
+                    if self.spec.generate_explanation_files:
                         write_data(
                             data=self.formatted_local_explanation,
                             filename=os.path.join(

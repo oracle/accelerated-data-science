@@ -929,19 +929,24 @@ def test_generate_files(operator_setup, model):
     )
 
     yaml_i = TEMPLATE_YAML.copy()
-    yaml_i["spec"]["horizon"] = 10
+    yaml_i["spec"]["horizon"] = 3
     yaml_i["spec"]["model"] = model
     yaml_i["spec"]["historical_data"] = {"format": "pandas"}
+    yaml_i["spec"]["additional_data"] = {"format": "pandas"}
     yaml_i["spec"]["target_column"] = TARGET_COL.name
     yaml_i["spec"]["datetime_column"]["name"] = HISTORICAL_DATETIME_COL.name
-    yaml_i["spec"]["report_title"] = "Skibidi ADS Skibidi"
     yaml_i["spec"]["output_directory"]["url"] = operator_setup
-    yaml_i["spec"]["generate_explanations_file"] = False
+    yaml_i["spec"]["generate_explanation_files"] = False
     yaml_i["spec"]["generate_forecast_file"] = False
     yaml_i["spec"]["generate_metrics_file"] = False
+    yaml_i["spec"]["generate_explanations"] = True
 
     df = pd.concat([HISTORICAL_DATETIME_COL[:15], TARGET_COL[:15]], axis=1)
+    df_add = pd.concat([HISTORICAL_DATETIME_COL[:18], ADD_COLS[:18]], axis=1)
+    print(f"df: {df}")
+    print(f"df_add: {df_add}")
     yaml_i["spec"]["historical_data"]["data"] = df
+    yaml_i["spec"]["additional_data"]["data"] = df_add
     operator_config = ForecastOperatorConfig.from_dict(yaml_i)
     results = operate(operator_config)
     files = os.listdir(operator_setup)
@@ -952,8 +957,28 @@ def test_generate_files(operator_setup, model):
     assert (
         "metrics.csv" not in files
     ), "Generated metrics file, but `generate_metrics_file` was set False"
+    assert (
+        "local_explanations.csv" not in files
+    ), "Generated metrics file, but `generate_explanation_files` was set False"
+    assert (
+        "global_explanations.csv" not in files
+    ), "Generated metrics file, but `generate_explanation_files` was set False"
     assert not results.get_forecast().empty
     assert not results.get_metrics().empty
+    assert not results.get_global_explanations().empty
+    assert not results.get_local_explanations().empty
+
+    yaml_i["spec"].pop("generate_explanation_files")
+    yaml_i["spec"].pop("generate_forecast_file")
+    yaml_i["spec"].pop("generate_metrics_file")
+    operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+    results = operate(operator_config)
+    files = os.listdir(operator_setup)
+    assert "report.html" in files, "Failed to generate report"
+    assert "forecast.csv" in files, "Failed to generate forecast file"
+    assert "metrics.csv" in files, "Failed to generated metrics file"
+    assert "local_explanation.csv" in files, "Failed to generated local expl file"
+    assert "global_explanation.csv" in files, "Failed to generated global expl file"
 
 
 if __name__ == "__main__":
