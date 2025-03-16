@@ -961,6 +961,7 @@ def test_generate_files(operator_setup, model):
     yaml_i["spec"]["generate_forecast_file"] = False
     yaml_i["spec"]["generate_metrics_file"] = False
     yaml_i["spec"]["generate_explanations"] = True
+    yaml_i["spec"]["model_kwargs"] = {"min": 0, "max": 20}
 
     df = pd.concat([HISTORICAL_DATETIME_COL[:15], TARGET_COL[:15]], axis=1)
     df_add = pd.concat([HISTORICAL_DATETIME_COL[:18], ADD_COLS[:18]], axis=1)
@@ -971,8 +972,7 @@ def test_generate_files(operator_setup, model):
     files = os.listdir(operator_setup)
     if "errors.json" in files:
         with open(os.path.join(operator_setup, "errors.json")) as f:
-            print(f"Errors in build! {f.read()}")
-            assert False, "Failed due to errors.json being created"
+            assert False, f"Failed due to errors.json being created: {f.read()}"
     assert "report.html" in files, "Failed to generate report"
     assert (
         "forecast.csv" not in files
@@ -988,7 +988,6 @@ def test_generate_files(operator_setup, model):
     ), "Generated metrics file, but `generate_explanation_files` was set False"
     assert not results.get_forecast().empty
     assert not results.get_metrics().empty
-    print(f"global expl: {results.get_global_explanations()}")
     assert not results.get_global_explanations().empty
     assert not results.get_local_explanations().empty
 

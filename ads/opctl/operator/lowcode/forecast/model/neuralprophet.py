@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -153,10 +153,8 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             cols_to_read = filter(
                 lambda x: x.startswith("future_regressor"), forecast.columns
             )
-            self.explanations_info[s_id] = forecast[cols_to_read]
-            self.explanations_info[s_id]["Date"] = forecast["ds"]
-            self.explanations_info[s_id] = self.explanations_info[s_id].set_index(
-                "Date"
+            self.explanations_info[s_id] = (
+                forecast[cols_to_read].rename({"ds": "Date"}, axis=1).set_index("Date")
             )
 
             self.outputs[s_id] = forecast

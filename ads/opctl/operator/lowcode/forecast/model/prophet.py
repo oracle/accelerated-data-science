@@ -22,7 +22,6 @@ from ads.opctl.operator.lowcode.forecast.utils import (
 from ..const import (
     DEFAULT_TRIALS,
     PROPHET_INTERNAL_DATE_COL,
-    ForecastOutputColumns,
     SupportedModels,
 )
 from .base_model import ForecastOperatorBaseModel
@@ -123,6 +122,14 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 upper_bound=self.get_horizon(forecast["yhat_upper"]).values,
                 lower_bound=self.get_horizon(forecast["yhat_lower"]).values,
             )
+            # Get all features that make up the forecast. Exclude CI (upper/lower) and drop yhat ([:-1])
+            core_columns = forecast.columns[
+                ~forecast.columns.str.endswith("_lower")
+                & ~forecast.columns.str.endswith("_upper")
+            ][:-1]
+            self.explanations_info[series_id] = (
+                forecast[core_columns].rename({"ds": "Date"}, axis=1).set_index("Date")
+            )
 
             self.models[series_id] = {}
             self.models[series_id]["model"] = model
@@ -151,6 +158,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         full_data_dict = self.datasets.get_data_by_series()
         self.models = {}
         self.outputs = {}
+        self.explanations_info = {}
         self.additional_regressors = self.datasets.get_additional_data_column_names()
         model_kwargs = self.set_kwargs()
         self.forecast_output = ForecastOutput(
@@ -257,6 +265,25 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         model_kwargs_i = study.best_params
         return model_kwargs_i
 
+    def explain_model(self):
+        self.local_explanation = {}
+        global_expl = []
+
+        for s_id, expl_df in self.explanations_info.items():
+            # Local Expl
+            self.local_explanation[s_id] = self.get_horizon(expl_df)
+            self.local_explanation[s_id]["Series"] = s_id
+            self.local_explanation[s_id].index.rename(self.dt_column_name, inplace=True)
+            # Global Expl
+            g_expl = self.drop_horizon(expl_df).mean()
+            g_expl.name = s_id
+            global_expl.append(g_expl)
+        self.global_explanation = pd.concat(global_expl, axis=1)
+        self.formatted_global_explanation = (
+            self.global_explanation / self.global_explanation.sum(axis=0) * 100
+        )
+        self.formatted_local_explanation = pd.concat(self.local_explanation.values())
+
     def _generate_report(self):
         import report_creator as rc
         from prophet.plot import add_changepoints_to_plot
@@ -335,22 +362,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 # If the key is present, call the "explain_model" method
                 self.explain_model()
 
-                # Convert the global explanation data to a DataFrame
-                global_explanation_df = pd.DataFrame(self.global_explanation)
-
-                self.formatted_global_explanation = (
-                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
-                )
-
-                aggregate_local_explanations = pd.DataFrame()
-                for s_id, local_ex_df in self.local_explanation.items():
-                    local_ex_df_copy = local_ex_df.copy()
-                    local_ex_df_copy[ForecastOutputColumns.SERIES] = s_id
-                    aggregate_local_explanations = pd.concat(
-                        [aggregate_local_explanations, local_ex_df_copy], axis=0
-                    )
-                self.formatted_local_explanation = aggregate_local_explanations
-
                 if not self.target_cat_col:
                     self.formatted_global_explanation = (
                         self.formatted_global_explanation.rename(
@@ -364,7 +375,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
                 # Create a markdown section for the global explainability
                 global_explanation_section = rc.Block(
-                    rc.Heading("Global Explanation of Models", level=2),
+                    rc.Heading("Global Explainability", level=2),
                     rc.Text(
                         "The following tables provide the feature attribution for the global explainability."
                     ),
@@ -373,7 +384,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
                 blocks = [
                     rc.DataTable(
-                        local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
+                        local_ex_df.drop("Series", axis=1),
                         label=s_id if self.target_cat_col else None,
                         index=True,
                     )
@@ -393,6 +404,8 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 # Do not fail the whole run due to explanations failure
                 logger.warning(f"Failed to generate Explanations with error: {e}.")
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
+                self.errors_dict["explainer_error"] = str(e)
+                self.errors_dict["explainer_error_error"] = traceback.format_exc()
 
         model_description = rc.Text(
             """Prophet is a procedure for forecasting time series data based on an additive model where non-linear trends are fit with yearly, weekly, and daily seasonality, plus holiday effects. It works best with time series that have strong seasonal effects and several seasons of historical data. Prophet is robust to missing data and shifts in the trend, and typically handles outliers well."""

@@ -635,7 +635,9 @@ class ForecastOperatorBaseModel(ABC):
         )
         if self.errors_dict:
             write_data(
-                data=pd.DataFrame.from_dict(self.errors_dict),
+                data=pd.DataFrame(
+                    self.errors_dict, index=np.arange(len(self.errors_dict.keys()))
+                ),
                 filename=os.path.join(
                     unique_output_dir, self.spec.errors_dict_filename
                 ),
