@@ -969,9 +969,11 @@ def test_generate_files(operator_setup, model):
     yaml_i["spec"]["additional_data"]["data"] = df_add
     operator_config = ForecastOperatorConfig.from_dict(yaml_i)
     results = operate(operator_config)
-    files = os.listdir(operator_setup)
+    files = os.listdir(yaml_i["spec"]["output_directory"]["url"])
     if "errors.json" in files:
-        with open(os.path.join(operator_setup, "errors.json")) as f:
+        with open(
+            os.path.join(yaml_i["spec"]["output_directory"]["url"], "errors.json")
+        ) as f:
             assert False, f"Failed due to errors.json being created: {f.read()}"
     assert "report.html" in files, "Failed to generate report"
     assert (
@@ -996,9 +998,11 @@ def test_generate_files(operator_setup, model):
     yaml_i["spec"].pop("generate_metrics_file")
     operator_config = ForecastOperatorConfig.from_dict(yaml_i)
     results = operate(operator_config)
-    files = os.listdir(operator_setup)
+    files = os.listdir(yaml_i["spec"]["output_directory"]["url"])
     if "errors.json" in files:
-        with open(os.path.join(operator_setup, "errors.json")) as f:
+        with open(
+            os.path.join(yaml_i["spec"]["output_directory"]["url"], "errors.json")
+        ) as f:
             print(f"Errors in build! {f.read()}")
             assert False, "Failed due to errors.json being created"
     assert "report.html" in files, "Failed to generate report"

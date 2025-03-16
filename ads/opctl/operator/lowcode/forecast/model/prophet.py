@@ -127,8 +127,18 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 ~forecast.columns.str.endswith("_lower")
                 & ~forecast.columns.str.endswith("_upper")
             ][:-1]
+            core_columns = set(core_columns) - set(
+                "additive_terms",
+                "extra_regressors_additive",
+                "multiplicative_terms",
+                "extra_regressors_multiplicative",
+                "cap",
+                "floor",
+            )
             self.explanations_info[series_id] = (
-                forecast[core_columns].rename({"ds": "Date"}, axis=1).set_index("Date")
+                forecast[list(core_columns)]
+                .rename({"ds": "Date"}, axis=1)
+                .set_index("Date")
             )
 
             self.models[series_id] = {}
