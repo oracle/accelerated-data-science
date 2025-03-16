@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -30,7 +30,7 @@ from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import extract_region, read_file, text_sanitizer
 from ads.common.work_request import DataScienceWorkRequest
-from ads.model.common.utils import MetadataArtifactPathType
+from ads.model.common.utils import MetadataArtifactPathType, ServiceDefinedTags
 from ads.model.deployment import ModelDeployment
 
 logger = logging.getLogger(__name__)
@@ -491,6 +491,14 @@ class OCIDataScienceModel(
         # Clean up the model version set, otherwise it throws an error that model is already
         # associated with the model version set.
         model_details.model_version_set_id = None
+
+        # Cleanup the service defined tags to prevent update errors.
+        if model_details.defined_tags:
+            # Iterate over a copy of the keys so we can safely remove items.
+            for key in list(model_details.defined_tags.keys()):
+                if key.lower() in ServiceDefinedTags:
+                    model_details.defined_tags.pop(key, None)
+
         return self.update_from_oci_model(
             self.client.update_model(self.id, model_details).data
         )

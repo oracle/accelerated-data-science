@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -27,6 +27,10 @@ class MetadataArtifactPathType(ExtendedEnum):
     LOCAL = "local"
     OSS = "oss"
     CONTENT = "content"
+
+
+class ServiceDefinedTags(ExtendedEnum):
+    ORACLE_TAGS = "oracle-tags"
 
 
 def _extract_locals(
