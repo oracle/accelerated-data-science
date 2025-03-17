@@ -150,12 +150,22 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             logger.debug(forecast.tail())
 
             # TODO; could also extract trend and seasonality?
-            cols_to_read = filter(
-                lambda x: x.startswith("future_regressor"), forecast.columns
+            cols_to_read = set(
+                forecast.columns[forecast.columns.str.startswith("future_regressor")]
+                + ["ds", "trend"]
             )
-            self.explanations_info[s_id] = (
-                forecast[cols_to_read].rename({"ds": "Date"}, axis=1).set_index("Date")
+            cols_to_read = cols_to_read - {
+                "future_regressors_additive",
+                "future_regressors_multiplicative",
+            }
+            combine_terms = cols_to_read - set(self.accepted_regressors[s_id])
+            temp_df = (
+                forecast[list(cols_to_read)]
+                .rename({"ds": "Date"}, axis=1)
+                .set_index("Date")
             )
+            temp_df[self.spec.target_column] = temp_df[combine_terms].sum(axis=1)
+            self.explanations_info[s_id] = temp_df.drop(combine_terms, axis=1)
 
             self.outputs[s_id] = forecast
             self.forecast_output.populate_series_output(
@@ -457,9 +467,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         for s_id, expl_df in self.explanations_info.items():
             expl_df = expl_df.rename(rename_cols, axis=1)
             # Local Expl
-            self.local_explanation[s_id] = self.get_horizon(expl_df).drop(
-                ["future_regressors_additive"], axis=1
-            )
+            self.local_explanation[s_id] = self.get_horizon(expl_df)
             self.local_explanation[s_id]["Series"] = s_id
             self.local_explanation[s_id].index.rename(self.dt_column_name, inplace=True)
             # Global Expl
@@ -467,9 +475,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             g_expl.name = s_id
             global_expl.append(g_expl)
         self.global_explanation = pd.concat(global_expl, axis=1)
-        self.global_explanation = self.global_explanation.drop(
-            index=["future_regressors_additive"], axis=0
-        )
         self.formatted_global_explanation = (
             self.global_explanation / self.global_explanation.sum(axis=0) * 100
         )
