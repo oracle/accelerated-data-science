@@ -263,6 +263,7 @@ class AquaFineTuningApp(AquaApp):
             compartment_id=target_compartment,
             project_id=target_project,
             model_by_reference=True,
+            defined_tags=create_fine_tuning_details.defined_tags
         )
 
         ft_job_freeform_tags = {
@@ -382,14 +383,12 @@ class AquaFineTuningApp(AquaApp):
             Tags.AQUA_FINE_TUNED_MODEL_TAG: f"{source.id}#{source.display_name}",
             **(create_fine_tuning_details.freeform_tags or {}),
         }
-        model_defined_tags = create_fine_tuning_details.defined_tags or {}
 
         self.update_model(
             model_id=ft_model.id,
             update_model_details=UpdateModelDetails(
                 custom_metadata_list=updated_custom_metadata_list,
                 freeform_tags=model_freeform_tags,
-                defined_tags=model_defined_tags,
             ),
         )
         logger.debug(
