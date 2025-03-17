@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -132,11 +132,12 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
             logger.debug("===========Done===========")
         except Exception as e:
-            self.errors_dict[s_id] = {
+            new_error = {
                 "model_name": self.spec.model,
                 "error": str(e),
                 "error_trace": traceback.format_exc(),
             }
+            self.errors_dict[s_id] = new_error
             logger.warning(f"Encountered Error: {e}. Skipping.")
             logger.warning(traceback.format_exc())
 

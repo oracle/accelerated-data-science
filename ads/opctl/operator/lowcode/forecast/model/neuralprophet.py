@@ -229,7 +229,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         self.models = {}
         self.trainers = {}
         self.outputs = {}
-        self.errors_dict = {}
         self.explanations_info = {}
         self.accepted_regressors = {}
         self.additional_regressors = self.datasets.get_additional_data_column_names()

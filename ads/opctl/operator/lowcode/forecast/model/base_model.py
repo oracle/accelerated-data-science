@@ -28,6 +28,7 @@ from ads.opctl.operator.lowcode.common.utils import (
     merged_category_column_name,
     seconds_to_datetime,
     write_data,
+    write_json,
 )
 from ads.opctl.operator.lowcode.forecast.utils import (
     _build_metrics_df,
@@ -634,17 +635,12 @@ class ForecastOperatorBaseModel(ABC):
             f"The outputs have been successfully generated and placed into the directory: {unique_output_dir}."
         )
         if self.errors_dict:
-            write_data(
-                data=pd.DataFrame(
-                    self.errors_dict, index=np.arange(len(self.errors_dict.keys()))
-                ),
+            write_json(
+                json_dict=self.errors_dict,
                 filename=os.path.join(
                     unique_output_dir, self.spec.errors_dict_filename
                 ),
-                format="json",
                 storage_options=storage_options,
-                index=True,
-                indent=4,
             )
             results.set_errors_dict(self.errors_dict)
         else:

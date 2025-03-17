@@ -142,6 +142,11 @@ def write_data(data, filename, format, storage_options=None, index=False, **kwar
     )
 
 
+def write_json(json_dict, filename, storage_options=None):
+    with fsspec.open(filename, mode="w", **storage_options) as f:
+        f.write(json.dumps(json_dict))
+
+
 def write_simple_json(data, path):
     if ObjectStorageDetails.is_oci_path(path):
         storage_options = default_signer()

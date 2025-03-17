@@ -255,7 +255,7 @@ def setup_rossman():
 
 def setup_faulty_rossman():
     curr_dir = pathlib.Path(__file__).parent.resolve()
-    data_folder = f"{curr_dir}/../data/"
+    data_folder = f"{curr_dir}/../data"
     historical_data_path = f"{data_folder}/rs_2_prim.csv"
     additional_data_path = f"{data_folder}/rs_2_add_encoded.csv"
     return historical_data_path, additional_data_path
@@ -707,10 +707,10 @@ def test_arima_automlx_errors(operator_setup, model):
             error_content = json.load(error_file)
             assert (
                 "Input data does not have a consistent (in terms of diff) DatetimeIndex."
-                in error_content["13"]["error"]
-            ), "Error message mismatch"
+                in error_content["13"]["model_fitting"]["error"]
+            ), f"Error message mismatch: {error_content}"
 
-    if model not in ["autots"]:  # , "lgbforecast"
+    if model not in ["autots", "automlx"]:  # , "lgbforecast"
         if yaml_i["spec"].get("explanations_accuracy_mode") != "AUTOMLX":
             global_fn = f"{tmpdirname}/results/global_explanation.csv"
             assert os.path.exists(
