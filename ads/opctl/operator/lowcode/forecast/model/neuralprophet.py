@@ -149,36 +149,42 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             logger.debug(f"-----------------Model {i}----------------------")
             logger.debug(forecast.tail())
 
-            # TODO; could also extract trend and seasonality?
-            cols_to_read = set(
-                forecast.columns[forecast.columns.str.startswith("future_regressor")]
-                + ["ds", "trend"]
-            )
-            cols_to_read = cols_to_read - {
-                "future_regressors_additive",
-                "future_regressors_multiplicative",
-            }
-            combine_terms = cols_to_read - set(self.accepted_regressors[s_id])
-            temp_df = (
-                forecast[list(cols_to_read)]
-                .rename({"ds": "Date"}, axis=1)
-                .set_index("Date")
-            )
-            temp_df[self.spec.target_column] = temp_df[combine_terms].sum(axis=1)
-            self.explanations_info[s_id] = temp_df.drop(combine_terms, axis=1)
-
             self.outputs[s_id] = forecast
+            upper_bound_col_name = f"yhat1 {model_kwargs['quantiles'][1]*100}%"
+            lower_bound_col_name = f"yhat1 {model_kwargs['quantiles'][0]*100}%"
             self.forecast_output.populate_series_output(
                 series_id=s_id,
                 fit_val=self.drop_horizon(forecast["yhat1"]).values,
                 forecast_val=self.get_horizon(forecast["yhat1"]).values,
-                upper_bound=self.get_horizon(
-                    forecast[f"yhat1 {model_kwargs['quantiles'][1]*100}%"]
-                ).values,
-                lower_bound=self.get_horizon(
-                    forecast[f"yhat1 {model_kwargs['quantiles'][0]*100}%"]
-                ).values,
+                upper_bound=self.get_horizon(forecast[upper_bound_col_name]).values,
+                lower_bound=self.get_horizon(forecast[lower_bound_col_name]).values,
             )
+            core_columns = set(forecast.columns) - set(
+                [
+                    "y",
+                    "yhat1",
+                    upper_bound_col_name,
+                    lower_bound_col_name,
+                    "future_regressors_additive",
+                    "future_regressors_multiplicative",
+                ]
+            )
+            exog_variables = set(
+                filter(lambda x: x.startswith("future_regressor_"), list(core_columns))
+            )
+            combine_terms = list(core_columns - exog_variables - set(["ds"]))
+            temp_df = (
+                forecast[list(core_columns)]
+                .rename({"ds": "Date"}, axis=1)
+                .set_index("Date")
+            )
+            if combine_terms:
+                temp_df[self.spec.target_column] = temp_df[combine_terms].sum(axis=1)
+                temp_df = temp_df.drop(combine_terms, axis=1)
+            else:
+                temp_df[self.spec.target_column] = 0
+            # Todo: check for columns that were dropped, and set them to 0
+            self.explanations_info[s_id] = temp_df
 
             self.trainers[s_id] = model.trainer
             self.models[s_id] = {}

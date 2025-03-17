@@ -197,7 +197,7 @@ def test_explanations_output_and_columns(model, freq, num_series):
         ), f"Column {column} missing in local explanations"
 
 
-@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize("model", MODELS)  # MODELS
 @pytest.mark.parametrize("num_series", [1])
 def test_explanations_filenames(model, num_series):
     """
