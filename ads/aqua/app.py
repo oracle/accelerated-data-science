@@ -281,8 +281,8 @@ class AquaApp:
         ----------
         model_id: str
             The OCID of the Aqua model.
-        config_file_name: str
-            name of the config file
+        metadata_key: str
+            The metadata key name where artifact content is stored
         Returns
         -------
         Dict:
@@ -294,8 +294,18 @@ class AquaApp:
                 model_id, metadata_key
             ).data.content.decode("utf-8")
             return json.loads(config)
+        except UnicodeDecodeError as ex:
+            logger.error(
+                f"Failed to decode content for {metadata_key} in defined metadata for model: {model_id} : {ex}"
+            )
+        except json.JSONDecoder as ex:
+            logger.error(
+                f"Invalid JSON format for {metadata_key} in defined metadata for model: {model_id} : {ex}"
+            )
         except Exception as ex:
-            logger.error(f"{metadata_key} not found for model :{model_id}. {ex}")
+            logger.error(
+                f"Error while fetching {metadata_key} in defined metadata for model: {model_id}: {ex}"
+            )
         return config
 
     def get_config(

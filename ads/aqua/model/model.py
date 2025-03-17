@@ -553,7 +553,9 @@ class AquaModelApp(AquaApp):
         ]
 
     def get_hf_tokenizer_config(self, model_id):
-        """Gets the default model tokenizer config for the given Aqua model.
+        """
+        Gets the default model tokenizer config for the given Aqua model.
+        Returns the content of tokenizer_config.json stored in model artifact.
 
         Parameters
         ----------
