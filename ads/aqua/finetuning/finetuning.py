@@ -489,7 +489,7 @@ class AquaFineTuningApp(AquaApp):
                 "finetuning_source": source.id,
                 "finetuning_experiment_id": experiment_model_version_set_id,
                 **model_freeform_tags,
-                **model_defined_tags,
+                **(create_fine_tuning_details.defined_tags or {}),
             },
             parameters=ft_parameters,
         )
