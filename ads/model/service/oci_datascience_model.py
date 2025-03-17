@@ -499,6 +499,8 @@ class OCIDataScienceModel(
                 if key.lower() in ServiceDefinedTags:
                     model_details.defined_tags.pop(key, None)
 
+        model_details.defined_tags = model_details.defined_tags or None
+
         return self.update_from_oci_model(
             self.client.update_model(self.id, model_details).data
         )
