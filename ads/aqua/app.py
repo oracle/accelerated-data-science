@@ -7,11 +7,10 @@ import os
 import traceback
 from dataclasses import fields
 from datetime import datetime, timedelta
-from threading import Lock
 from typing import Any, Dict, List, Optional, Union
 
 import oci
-from cachetools import TTLCache
+from cachetools import TTLCache, cached
 from oci.data_science.models import (
     ContainerSummary,
     UpdateModelDetails,
@@ -63,12 +62,6 @@ class AquaApp:
         self.identity_client = oc.OCIClientFactory(**default_signer()).identity
         self.region = extract_region(self._auth)
         self._telemetry = None
-
-    # For caching the SMC list response from control plane
-    _service_containers_list_cache = TTLCache(
-        maxsize=20, ttl=timedelta(hours=5), timer=datetime.now
-    )
-    _cache_lock = Lock()
 
     def list_resource(
         self,
@@ -392,7 +385,9 @@ class AquaApp:
         return ModelConfigResult(config=config, model_details=oci_model)
 
     def get_container_image(self, container_type: str = None) -> str:
-        """Gets the image name from the given model and container type.
+        """
+        Gets the latest smc container complete image name from the given container type.
+
         Parameters
         ----------
         container_type: str
@@ -401,7 +396,7 @@ class AquaApp:
         Returns
         -------
         str:
-            A Complete container name along with version
+            A complete container name along with version. ex: dsmc://odsc-vllm-serving:0.7.4.1
         """
 
         containers = self.get_container_config()
@@ -411,9 +406,10 @@ class AquaApp:
         )
         if not container:
             raise AquaValueError(f"Invalid container type : {container_type}")
-        container_image = "dsmc://" + container.family_name + ":" + container.tag
+        container_image = "dsmc://" + container.container_name + ":" + container.tag
         return container_image
 
+    @cached(cache=TTLCache(maxsize=20, ttl=timedelta(hours=5), timer=datetime.now))
     def get_container_config(self) -> List[ContainerSummary]:
         """
         Fetches container config from containers.conf in OCI Datascience control plane
@@ -424,14 +420,8 @@ class AquaApp:
             A Dict of containers conf.
 
         """
-        if "service_model_list" in self._service_containers_list_cache:
-            logger.info("Returning service managed containers from Cache.")
-            return self._service_containers_list_cache.get("service_model_list")
 
         containers = self.ds_client.list_containers().data
-        self._service_containers_list_cache.__setitem__(
-            key="service_model_list", value=containers
-        )
         return containers
 
     @property
