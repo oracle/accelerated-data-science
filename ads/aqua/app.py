@@ -298,7 +298,7 @@ class AquaApp:
             logger.error(
                 f"Failed to decode content for {metadata_key} in defined metadata for model: {model_id} : {ex}"
             )
-        except json.JSONDecoder as ex:
+        except json.JSONDecodeError as ex:
             logger.error(
                 f"Invalid JSON format for {metadata_key} in defined metadata for model: {model_id} : {ex}"
             )
