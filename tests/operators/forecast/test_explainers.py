@@ -221,6 +221,10 @@ def test_explanations_filenames(model, num_series):
         operator_config.spec.local_explanation_filename = local_explanation_filename
 
         results = forecast_operate(operator_config)
+        assert (
+            not results.get_global_explanations().empty
+        ), "Error generating Global Expl"
+        assert not results.get_local_explanations().empty, "Error generating Local Expl"
 
         global_explanation_path = os.path.join(
             output_directory, global_explanation_filename

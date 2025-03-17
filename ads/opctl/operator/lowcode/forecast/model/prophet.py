@@ -122,24 +122,41 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 upper_bound=self.get_horizon(forecast["yhat_upper"]).values,
                 lower_bound=self.get_horizon(forecast["yhat_lower"]).values,
             )
-            # Get all features that make up the forecast. Exclude CI (upper/lower) and drop yhat ([:-1])
+            # Get all features that make up the forecast. Exclude CI (upper/lower)
             core_columns = forecast.columns[
                 ~forecast.columns.str.endswith("_lower")
                 & ~forecast.columns.str.endswith("_upper")
-            ][:-1]
-            core_columns = set(core_columns) - set(
+            ]
+            core_columns = set(core_columns) - {
                 "additive_terms",
                 "extra_regressors_additive",
                 "multiplicative_terms",
                 "extra_regressors_multiplicative",
                 "cap",
                 "floor",
+                "yhat",
+            }
+            combine_terms = list(
+                core_columns.intersection(
+                    {
+                        "trend",
+                        "daily",
+                        "weekly",
+                        "yearly",
+                        "monthly",
+                        "holidays",
+                        "zeros",
+                    }
+                )
             )
-            self.explanations_info[series_id] = (
+
+            temp_df = (
                 forecast[list(core_columns)]
                 .rename({"ds": "Date"}, axis=1)
                 .set_index("Date")
             )
+            temp_df[self.spec.target_column] = temp_df[combine_terms].sum(axis=1)
+            self.explanations_info[series_id] = temp_df.drop(combine_terms, axis=1)
 
             self.models[series_id] = {}
             self.models[series_id]["model"] = model
