@@ -1654,8 +1654,9 @@ class AquaModelApp(AquaApp):
         self, import_model_details: ImportModelDetails = None, **kwargs
     ) -> AquaModel:
         """Loads the model from object storage and registers as Model in Data Science Model catalog
-        The inference container and finetuning container could be of type Service Manged Container(SMC) or custom.
-        If it is custom, full container URI is expected. If it of type SMC, only the container family name is expected.
+        The inference container and finetuning container could be of type Service Managed Container(SMC) or custom.
+        If it is custom, full container URI is expected. If it of type SMC, only the container family name is expected.\n
+        For detailed information about CLI flags see: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/cli-tips.md#register-model
 
         Args:
             import_model_details (ImportModelDetails): Model details for importing the model.

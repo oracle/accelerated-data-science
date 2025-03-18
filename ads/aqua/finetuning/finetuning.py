@@ -87,13 +87,62 @@ class AquaFineTuningApp(AquaApp):
     def create(
         self, create_fine_tuning_details: CreateFineTuningDetails = None, **kwargs
     ) -> "AquaFineTuningSummary":
-        """Creates Aqua fine tuning for model.
+        """Creates Aqua fine tuning for model.\n
+        For detailed information about CLI flags see: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/f271ca63d12e3c256718f23a14d93da4b4fc086b/ai-quick-actions/cli-tips.md#create-fine-tuned-model
 
         Parameters
         ----------
         create_fine_tuning_details: CreateFineTuningDetails
             The CreateFineTuningDetails data class which contains all
             required and optional fields to create the aqua fine tuning.
+            kwargs:
+                ft_source_id: str The fine tuning source id. Must be model OCID.
+                ft_name: str
+                    The name for fine tuning.
+                dataset_path: str
+                    The dataset path for fine tuning. Could be either a local path from notebook session
+                    or an object storage path.
+                report_path: str
+                    The report path for fine tuning. Must be an object storage path.
+                ft_parameters: dict
+                    The parameters for fine tuning.
+                shape_name: str
+                    The shape name for fine tuning job infrastructure.
+                replica: int
+                    The replica for fine tuning job runtime.
+                validation_set_size: float
+                    The validation set size for fine tuning job. Must be a float in between [0,1).
+                ft_description: (str, optional). Defaults to `None`.
+                    The description for fine tuning.
+                compartment_id: (str, optional). Defaults to `None`.
+                    The compartment id for fine tuning.
+                project_id: (str, optional). Defaults to `None`.
+                    The project id for fine tuning.
+                experiment_id: (str, optional). Defaults to `None`.
+                    The fine tuning model version set id. If provided,
+                    fine tuning model will be associated with it.
+                experiment_name: (str, optional). Defaults to `None`.
+                    The fine tuning model version set name. If provided,
+                    the fine tuning version set with the same name will be used if exists,
+                    otherwise a new model version set will be created with the name.
+                experiment_description: (str, optional). Defaults to `None`.
+                    The description for fine tuning model version set.
+                block_storage_size: (int, optional). Defaults to 256.
+                    The storage for fine tuning job infrastructure.
+                subnet_id: (str, optional). Defaults to `None`.
+                    The custom egress for fine tuning job.
+                log_group_id: (str, optional). Defaults to `None`.
+                    The log group id for fine tuning job infrastructure.
+                log_id: (str, optional). Defaults to `None`.
+                    The log id for fine tuning job infrastructure.
+                watch_logs: (bool, optional). Defaults to `False`.
+                    The flag to watch the job run logs when a fine-tuning job is created.
+                force_overwrite: (bool, optional). Defaults to `False`.
+                    Whether to force overwrite the existing file in object storage.
+                freeform_tags: (dict, optional)
+                    Freeform tags for the fine-tuning model
+                defined_tags: (dict, optional)
+                    Defined tags for the fine-tuning model
         kwargs:
             The kwargs for creating CreateFineTuningDetails instance if
             no create_fine_tuning_details provided.

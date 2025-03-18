@@ -141,13 +141,62 @@ class AquaEvaluationApp(AquaApp):
         create_aqua_evaluation_details: CreateAquaEvaluationDetails = None,
         **kwargs,
     ) -> "AquaEvaluationSummary":
-        """Creates Aqua evaluation for resource.
+        """Creates Aqua evaluation for resource.\n
+        For detailed information about CLI flags see: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/f271ca63d12e3c256718f23a14d93da4b4fc086b/ai-quick-actions/cli-tips.md#create-model-evaluation
 
         Parameters
         ----------
         create_aqua_evaluation_details: CreateAquaEvaluationDetails
             The CreateAquaEvaluationDetails data class which contains all
             required and optional fields to create the aqua evaluation.
+            kwargs:
+                evaluation_source_id: str
+                    The evaluation source id. Must be either model or model deployment ocid.
+                evaluation_name: str
+                    The name for evaluation.
+                dataset_path: str
+                    The dataset path for the evaluation. Could be either a local path from notebook session
+                    or an object storage path.
+                report_path: str
+                    The report path for the evaluation. Must be an object storage path.
+                model_parameters: dict
+                    The parameters for the evaluation.
+                shape_name: str
+                    The shape name for the evaluation job infrastructure.
+                memory_in_gbs: float
+                    The memory in gbs for the shape selected.
+                ocpus: float
+                    The ocpu count for the shape selected.
+                block_storage_size: int
+                    The storage for the evaluation job infrastructure.
+                compartment_id: (str, optional). Defaults to `None`.
+                    The compartment id for the evaluation.
+                project_id: (str, optional). Defaults to `None`.
+                    The project id for the evaluation.
+                evaluation_description: (str, optional). Defaults to `None`.
+                    The description for evaluation
+                experiment_id: (str, optional). Defaults to `None`.
+                    The evaluation model version set id. If provided,
+                    evaluation model will be associated with it.
+                experiment_name: (str, optional). Defaults to `None`.
+                    The evaluation model version set name. If provided,
+                    the model version set with the same name will be used if exists,
+                    otherwise a new model version set will be created with the name.
+                experiment_description: (str, optional). Defaults to `None`.
+                    The description for the evaluation model version set.
+                log_group_id: (str, optional). Defaults to `None`.
+                    The log group id for the evaluation job infrastructure.
+                log_id: (str, optional). Defaults to `None`.
+                    The log id for the evaluation job infrastructure.
+                metrics: (list, optional). Defaults to `None`.
+                    The metrics for the evaluation.
+                force_overwrite: (bool, optional). Defaults to `False`.
+                    Whether to force overwrite the existing file in object storage.
+                freeform_tags: (dict, optional)
+                    Freeform tags for the evaluation model
+                defined_tags: (dict, optional)
+                    Defined tags for the evaluation model
+
         kwargs:
             The kwargs for creating CreateAquaEvaluationDetails instance if
             no create_aqua_evaluation_details provided.
