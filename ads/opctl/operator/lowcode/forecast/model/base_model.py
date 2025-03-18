@@ -46,6 +46,7 @@ from ..const import (
     AUTO_SELECT,
     BACKTEST_REPORT_NAME,
     SUMMARY_METRICS_HORIZON_LIMIT,
+    ForecastOutputColumns,
     SpeedAccuracyMode,
     SupportedMetrics,
     SupportedModels,
@@ -742,43 +743,60 @@ class ForecastOperatorBaseModel(ABC):
             include_horizon=False
         ).items():
             if s_id in self.models:
-                explain_predict_fn = self.get_explain_predict_fn(series_id=s_id)
-                data_trimmed = data_i.tail(
-                    max(int(len(data_i) * ratio), 5)
-                ).reset_index(drop=True)
-                data_trimmed[datetime_col_name] = data_trimmed[datetime_col_name].apply(
-                    lambda x: x.timestamp()
-                )
+                try:
+                    explain_predict_fn = self.get_explain_predict_fn(series_id=s_id)
+                    data_trimmed = data_i.tail(
+                        max(int(len(data_i) * ratio), 5)
+                    ).reset_index(drop=True)
+                    data_trimmed[datetime_col_name] = data_trimmed[
+                        datetime_col_name
+                    ].apply(lambda x: x.timestamp())
 
-                # Explainer fails when boolean columns are passed
+                    # Explainer fails when boolean columns are passed
 
-                _, data_trimmed_encoded = _label_encode_dataframe(
-                    data_trimmed,
-                    no_encode={datetime_col_name, self.original_target_column},
-                )
-
-                kernel_explnr = PermutationExplainer(
-                    model=explain_predict_fn, masker=data_trimmed_encoded
-                )
-                kernel_explnr_vals = kernel_explnr.shap_values(data_trimmed_encoded)
-                exp_end_time = time.time()
-                global_ex_time = global_ex_time + exp_end_time - exp_start_time
-                self.local_explainer(
-                    kernel_explnr, series_id=s_id, datetime_col_name=datetime_col_name
-                )
-                local_ex_time = local_ex_time + time.time() - exp_end_time
-
-                if not len(kernel_explnr_vals):
-                    logger.warn(
-                        "No explanations generated. Ensure that additional data has been provided."
+                    _, data_trimmed_encoded = _label_encode_dataframe(
+                        data_trimmed,
+                        no_encode={datetime_col_name, self.original_target_column},
                     )
-                else:
-                    self.global_explanation[s_id] = dict(
-                        zip(
-                            data_trimmed.columns[1:],
-                            np.average(np.absolute(kernel_explnr_vals[:, 1:]), axis=0),
+
+                    kernel_explnr = PermutationExplainer(
+                        model=explain_predict_fn, masker=data_trimmed_encoded
+                    )
+                    kernel_explnr_vals = kernel_explnr.shap_values(data_trimmed_encoded)
+                    exp_end_time = time.time()
+                    global_ex_time = global_ex_time + exp_end_time - exp_start_time
+                    self.local_explainer(
+                        kernel_explnr,
+                        series_id=s_id,
+                        datetime_col_name=datetime_col_name,
+                    )
+                    local_ex_time = local_ex_time + time.time() - exp_end_time
+
+                    if not len(kernel_explnr_vals):
+                        logger.warn(
+                            "No explanations generated. Ensure that additional data has been provided."
                         )
-                    )
+                    else:
+                        self.global_explanation[s_id] = dict(
+                            zip(
+                                data_trimmed.columns[1:],
+                                np.average(
+                                    np.absolute(kernel_explnr_vals[:, 1:]), axis=0
+                                ),
+                            )
+                        )
+                except Exception as e:
+                    if s_id in self.errors_dict:
+                        self.errors_dict[s_id]["explainer_error"] = str(e)
+                        self.errors_dict[s_id]["explainer_error_trace"] = (
+                            traceback.format_exc()
+                        )
+                    else:
+                        self.errors_dict[s_id] = {
+                            "model_name": self.spec.model,
+                            "explainer_error": str(e),
+                            "explainer_error_trace": traceback.format_exc(),
+                        }
             else:
                 logger.warn(
                     f"Skipping explanations for {s_id}, as forecast was not generated."
@@ -814,6 +832,13 @@ class ForecastOperatorBaseModel(ABC):
         # Convert the SHAP values into a DataFrame
         local_kernel_explnr_df = pd.DataFrame(
             local_kernel_explnr_vals, columns=data.columns
+        )
+
+        # Add date column to local explanation DataFrame
+        local_kernel_explnr_df[ForecastOutputColumns.DATE] = (
+            self.datasets.get_horizon_at_series(
+                s_id=series_id
+            )[self.spec.datetime_column.name].reset_index(drop=True)
         )
         self.local_explanation[series_id] = local_kernel_explnr_df
 
