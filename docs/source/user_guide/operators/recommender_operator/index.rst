@@ -38,10 +38,6 @@ This operator is ideal for a variety of applications, including:
 - **Streaming Services**: Suggesting movies, TV shows, or music based on user viewing or listening habits.
 - **Content Platforms**: Proposing articles, blogs, or news stories tailored to user interests.
 
-**Recommender Documentation**
-
-This documentation will delve into these concepts comprehensively, showcasing how to utilize the versatility and adaptability of the recommender operator within the Python library module to build recommendation systems.
-
 .. versionadded:: 2.11.14
 
 .. toctree::
