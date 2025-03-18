@@ -28,8 +28,8 @@ from ads.opctl.operator.lowcode.common.utils import (
     merged_category_column_name,
     seconds_to_datetime,
     write_data,
+    write_json,
 )
-from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import TestData
 from ads.opctl.operator.lowcode.forecast.utils import (
     _build_metrics_df,
     _build_metrics_per_horizon,
@@ -46,6 +46,7 @@ from ..const import (
     AUTO_SELECT,
     BACKTEST_REPORT_NAME,
     SUMMARY_METRICS_HORIZON_LIMIT,
+    ForecastOutputColumns,
     SpeedAccuracyMode,
     SupportedMetrics,
     SupportedModels,
@@ -132,11 +133,10 @@ class ForecastOperatorBaseModel(ABC):
 
                 if self.datasets.test_data is not None:
                     try:
-                        (
-                            self.test_eval_metrics,
-                            summary_metrics
-                        ) = self._test_evaluate_metrics(
-                            elapsed_time=elapsed_time,
+                        (self.test_eval_metrics, summary_metrics) = (
+                            self._test_evaluate_metrics(
+                                elapsed_time=elapsed_time,
+                            )
                         )
                         if not self.target_cat_col:
                             self.test_eval_metrics.rename(
@@ -145,7 +145,7 @@ class ForecastOperatorBaseModel(ABC):
                                 inplace=True,
                             )
                     except Exception:
-                        logger.warn("Unable to generate Test Metrics.")
+                        logger.warning("Unable to generate Test Metrics.")
                         logger.debug(f"Full Traceback: {traceback.format_exc()}")
             report_sections = []
 
@@ -155,9 +155,8 @@ class ForecastOperatorBaseModel(ABC):
                     model_description,
                     other_sections,
                 ) = self._generate_report()
-
                 header_section = rc.Block(
-                    rc.Heading("Forecast Report", level=1),
+                    rc.Heading(self.spec.report_title, level=1),
                     rc.Text(
                         f"You selected the {self.spec.model} model.\nBased on your dataset, you could have also selected any of the models: {SupportedModels.keys()}."
                     ),
@@ -369,7 +368,7 @@ class ForecastOperatorBaseModel(ABC):
                     -self.spec.horizon :
                 ]
             except KeyError as ke:
-                logger.warn(
+                logger.warning(
                     f"Error Generating Metrics: Unable to find {s_id} in the test data. Error: {ke.args}"
                 )
             y_pred = self.forecast_output.get_forecast(s_id)["forecast_value"].values[
@@ -478,10 +477,11 @@ class ForecastOperatorBaseModel(ABC):
         unique_output_dir = self.spec.output_directory.url
         results = ForecastResults()
 
-        if ObjectStorageDetails.is_oci_path(unique_output_dir):
-            storage_options = default_signer()
-        else:
-            storage_options = {}
+        storage_options = (
+            default_signer()
+            if ObjectStorageDetails.is_oci_path(unique_output_dir)
+            else {}
+        )
 
         # report-creator html report
         if self.spec.generate_report:
@@ -512,12 +512,13 @@ class ForecastOperatorBaseModel(ABC):
             if self.target_cat_col
             else result_df.drop(DataColumns.Series, axis=1)
         )
-        write_data(
-            data=result_df,
-            filename=os.path.join(unique_output_dir, self.spec.forecast_filename),
-            format="csv",
-            storage_options=storage_options,
-        )
+        if self.spec.generate_forecast_file:
+            write_data(
+                data=result_df,
+                filename=os.path.join(unique_output_dir, self.spec.forecast_filename),
+                format="csv",
+                storage_options=storage_options,
+            )
         results.set_forecast(result_df)
 
         # metrics csv report
@@ -531,18 +532,19 @@ class ForecastOperatorBaseModel(ABC):
                 metrics_df_formatted = metrics_df.reset_index().rename(
                     {"index": "metrics", "Series 1": metrics_col_name}, axis=1
                 )
-                write_data(
-                    data=metrics_df_formatted,
-                    filename=os.path.join(
-                        unique_output_dir, self.spec.metrics_filename
-                    ),
-                    format="csv",
-                    storage_options=storage_options,
-                    index=False,
-                )
+                if self.spec.generate_metrics_file:
+                    write_data(
+                        data=metrics_df_formatted,
+                        filename=os.path.join(
+                            unique_output_dir, self.spec.metrics_filename
+                        ),
+                        format="csv",
+                        storage_options=storage_options,
+                        index=False,
+                    )
                 results.set_metrics(metrics_df_formatted)
             else:
-                logger.warn(
+                logger.warning(
                     f"Attempted to generate the {self.spec.metrics_filename} file with the training metrics, however the training metrics could not be properly generated."
                 )
 
@@ -552,56 +554,59 @@ class ForecastOperatorBaseModel(ABC):
                     test_metrics_df_formatted = test_metrics_df.reset_index().rename(
                         {"index": "metrics", "Series 1": metrics_col_name}, axis=1
                     )
-                    write_data(
-                        data=test_metrics_df_formatted,
-                        filename=os.path.join(
-                            unique_output_dir, self.spec.test_metrics_filename
-                        ),
-                        format="csv",
-                        storage_options=storage_options,
-                        index=False,
-                    )
+                    if self.spec.generate_metrics_file:
+                        write_data(
+                            data=test_metrics_df_formatted,
+                            filename=os.path.join(
+                                unique_output_dir, self.spec.test_metrics_filename
+                            ),
+                            format="csv",
+                            storage_options=storage_options,
+                            index=False,
+                        )
                     results.set_test_metrics(test_metrics_df_formatted)
                 else:
-                    logger.warn(
+                    logger.warning(
                         f"Attempted to generate the {self.spec.test_metrics_filename} file with the test metrics, however the test metrics could not be properly generated."
                     )
         # explanations csv reports
         if self.spec.generate_explanations:
             try:
                 if not self.formatted_global_explanation.empty:
-                    write_data(
-                        data=self.formatted_global_explanation,
-                        filename=os.path.join(
-                            unique_output_dir, self.spec.global_explanation_filename
-                        ),
-                        format="csv",
-                        storage_options=storage_options,
-                        index=True,
-                    )
+                    if self.spec.generate_explanation_files:
+                        write_data(
+                            data=self.formatted_global_explanation,
+                            filename=os.path.join(
+                                unique_output_dir, self.spec.global_explanation_filename
+                            ),
+                            format="csv",
+                            storage_options=storage_options,
+                            index=True,
+                        )
                     results.set_global_explanations(self.formatted_global_explanation)
                 else:
-                    logger.warn(
+                    logger.warning(
                         f"Attempted to generate global explanations for the {self.spec.global_explanation_filename} file, but an issue occured in formatting the explanations."
                     )
 
                 if not self.formatted_local_explanation.empty:
-                    write_data(
-                        data=self.formatted_local_explanation,
-                        filename=os.path.join(
-                            unique_output_dir, self.spec.local_explanation_filename
-                        ),
-                        format="csv",
-                        storage_options=storage_options,
-                        index=True,
-                    )
+                    if self.spec.generate_explanation_files:
+                        write_data(
+                            data=self.formatted_local_explanation,
+                            filename=os.path.join(
+                                unique_output_dir, self.spec.local_explanation_filename
+                            ),
+                            format="csv",
+                            storage_options=storage_options,
+                            index=True,
+                        )
                     results.set_local_explanations(self.formatted_local_explanation)
                 else:
-                    logger.warn(
+                    logger.warning(
                         f"Attempted to generate local explanations for the {self.spec.local_explanation_filename} file, but an issue occured in formatting the explanations."
                     )
             except AttributeError as e:
-                logger.warn(
+                logger.warning(
                     "Unable to generate explanations for this model type or for this dataset."
                 )
                 logger.debug(f"Got error: {e.args}")
@@ -631,15 +636,12 @@ class ForecastOperatorBaseModel(ABC):
             f"The outputs have been successfully generated and placed into the directory: {unique_output_dir}."
         )
         if self.errors_dict:
-            write_data(
-                data=pd.DataFrame.from_dict(self.errors_dict),
+            write_json(
+                json_dict=self.errors_dict,
                 filename=os.path.join(
                     unique_output_dir, self.spec.errors_dict_filename
                 ),
-                format="json",
                 storage_options=storage_options,
-                index=True,
-                indent=4,
             )
             results.set_errors_dict(self.errors_dict)
         else:
@@ -742,45 +744,62 @@ class ForecastOperatorBaseModel(ABC):
             include_horizon=False
         ).items():
             if s_id in self.models:
-                explain_predict_fn = self.get_explain_predict_fn(series_id=s_id)
-                data_trimmed = data_i.tail(
-                    max(int(len(data_i) * ratio), 5)
-                ).reset_index(drop=True)
-                data_trimmed[datetime_col_name] = data_trimmed[datetime_col_name].apply(
-                    lambda x: x.timestamp()
-                )
+                try:
+                    explain_predict_fn = self.get_explain_predict_fn(series_id=s_id)
+                    data_trimmed = data_i.tail(
+                        max(int(len(data_i) * ratio), 5)
+                    ).reset_index(drop=True)
+                    data_trimmed[datetime_col_name] = data_trimmed[
+                        datetime_col_name
+                    ].apply(lambda x: x.timestamp())
 
-                # Explainer fails when boolean columns are passed
+                    # Explainer fails when boolean columns are passed
 
-                _, data_trimmed_encoded = _label_encode_dataframe(
-                    data_trimmed,
-                    no_encode={datetime_col_name, self.original_target_column},
-                )
-
-                kernel_explnr = PermutationExplainer(
-                    model=explain_predict_fn, masker=data_trimmed_encoded
-                )
-                kernel_explnr_vals = kernel_explnr.shap_values(data_trimmed_encoded)
-                exp_end_time = time.time()
-                global_ex_time = global_ex_time + exp_end_time - exp_start_time
-                self.local_explainer(
-                    kernel_explnr, series_id=s_id, datetime_col_name=datetime_col_name
-                )
-                local_ex_time = local_ex_time + time.time() - exp_end_time
-
-                if not len(kernel_explnr_vals):
-                    logger.warn(
-                        "No explanations generated. Ensure that additional data has been provided."
+                    _, data_trimmed_encoded = _label_encode_dataframe(
+                        data_trimmed,
+                        no_encode={datetime_col_name, self.original_target_column},
                     )
-                else:
-                    self.global_explanation[s_id] = dict(
-                        zip(
-                            data_trimmed.columns[1:],
-                            np.average(np.absolute(kernel_explnr_vals[:, 1:]), axis=0),
+
+                    kernel_explnr = PermutationExplainer(
+                        model=explain_predict_fn, masker=data_trimmed_encoded
+                    )
+                    kernel_explnr_vals = kernel_explnr.shap_values(data_trimmed_encoded)
+                    exp_end_time = time.time()
+                    global_ex_time = global_ex_time + exp_end_time - exp_start_time
+                    self.local_explainer(
+                        kernel_explnr,
+                        series_id=s_id,
+                        datetime_col_name=datetime_col_name,
+                    )
+                    local_ex_time = local_ex_time + time.time() - exp_end_time
+
+                    if not len(kernel_explnr_vals):
+                        logger.warning(
+                            "No explanations generated. Ensure that additional data has been provided."
                         )
-                    )
+                    else:
+                        self.global_explanation[s_id] = dict(
+                            zip(
+                                data_trimmed.columns[1:],
+                                np.average(
+                                    np.absolute(kernel_explnr_vals[:, 1:]), axis=0
+                                ),
+                            )
+                        )
+                except Exception as e:
+                    if s_id in self.errors_dict:
+                        self.errors_dict[s_id]["explainer_error"] = str(e)
+                        self.errors_dict[s_id]["explainer_error_trace"] = (
+                            traceback.format_exc()
+                        )
+                    else:
+                        self.errors_dict[s_id] = {
+                            "model_name": self.spec.model,
+                            "explainer_error": str(e),
+                            "explainer_error_trace": traceback.format_exc(),
+                        }
             else:
-                logger.warn(
+                logger.warning(
                     f"Skipping explanations for {s_id}, as forecast was not generated."
                 )
 
@@ -814,6 +833,13 @@ class ForecastOperatorBaseModel(ABC):
         # Convert the SHAP values into a DataFrame
         local_kernel_explnr_df = pd.DataFrame(
             local_kernel_explnr_vals, columns=data.columns
+        )
+
+        # Add date column to local explanation DataFrame
+        local_kernel_explnr_df[ForecastOutputColumns.DATE] = (
+            self.datasets.get_horizon_at_series(
+                s_id=series_id
+            )[self.spec.datetime_column.name].reset_index(drop=True)
         )
         self.local_explanation[series_id] = local_kernel_explnr_df
 

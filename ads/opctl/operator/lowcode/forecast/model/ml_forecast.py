@@ -168,8 +168,8 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                 "error": str(e),
                 "error_trace": traceback.format_exc(),
             }
-            logger.warn(f"Encountered Error: {e}. Skipping.")
-            logger.warn(traceback.format_exc())
+            logger.warning(f"Encountered Error: {e}. Skipping.")
+            logger.warning(traceback.format_exc())
             raise e
 
     def _build_model(self) -> pd.DataFrame:
