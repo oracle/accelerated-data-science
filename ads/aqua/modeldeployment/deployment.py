@@ -118,16 +118,39 @@ class AquaDeploymentApp(AquaApp):
         **kwargs,
     ) -> "AquaDeployment":
         """
-        Creates a new Aqua model deployment.
+        Creates a new Aqua model deployment.\n
+        For detailed information about CLI flags see: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/cli-tips.md#create-model-deployment
 
-        Parameters
-        ----------
-        create_deployment_details : CreateModelDeploymentDetails, optional
-            An instance of CreateModelDeploymentDetails containing all required and optional
-            fields for creating a model deployment via Aqua.
-        **kwargs:
-            Keyword arguments used to construct a CreateModelDeploymentDetails instance if one
-            is not provided.
+        Args:
+            create_deployment_details : CreateModelDeploymentDetails, optional
+                An instance of CreateModelDeploymentDetails containing all required and optional
+                fields for creating a model deployment via Aqua.
+            kwargs:
+                instance_shape (str): The instance shape used for deployment.
+                display_name (str): The name of the model deployment.
+                compartment_id (Optional[str]): The compartment OCID.
+                project_id (Optional[str]): The project OCID.
+                description (Optional[str]): The description of the deployment.
+                model_id (Optional[str]): The model OCID to deploy.
+                models (Optional[List[AquaMultiModelRef]]): List of models for multimodel deployment.
+                instance_count (int): Number of instances used for deployment.
+                log_group_id (Optional[str]): OCI logging group ID for logs.
+                access_log_id (Optional[str]): OCID for access logs.
+                predict_log_id (Optional[str]): OCID for prediction logs.
+                bandwidth_mbps (Optional[int]): Bandwidth limit on the load balancer in Mbps.
+                web_concurrency (Optional[int]): Number of worker processes/threads for handling requests.
+                server_port (Optional[int]): Server port for the Docker container image.
+                health_check_port (Optional[int]): Health check port for the Docker container image.
+                env_var (Optional[Dict[str, str]]): Environment variables for deployment.
+                container_family (Optional[str]): Image family of the model deployment container runtime.
+                memory_in_gbs (Optional[float]): Memory (in GB) for the selected shape.
+                ocpus (Optional[float]): OCPU count for the selected shape.
+                model_file (Optional[str]): File used for model deployment.
+                private_endpoint_id (Optional[str]): Private endpoint ID for model deployment.
+                container_image_uri (Optional[str]): Image URI for model deployment container runtime.
+                cmd_var (Optional[List[str]]): Command variables for the container runtime.
+                freeform_tags (Optional[Dict]): Freeform tags for model deployment.
+                defined_tags (Optional[Dict]): Defined tags for model deployment.
 
         Returns
         -------
