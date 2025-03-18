@@ -44,7 +44,7 @@ def _build_metrics_df(y_true, y_pred, column_name):
         # Throws exception if y_true has only one class
         metrics[SupportedMetrics.ROC_AUC] = roc_auc_score(y_true, y_pred)
     except Exception as e:
-        logger.warn(f"An exception occurred: {e}")
+        logger.warning(f"An exception occurred: {e}")
         metrics[SupportedMetrics.ROC_AUC] = None
     precision, recall, thresholds = precision_recall_curve(y_true, y_pred)
     metrics[SupportedMetrics.PRC_AUC] = auc(recall, precision)

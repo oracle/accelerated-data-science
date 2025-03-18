@@ -22,7 +22,6 @@ from ads.opctl.operator.lowcode.forecast.utils import (
 from ..const import (
     DEFAULT_TRIALS,
     PROPHET_INTERNAL_DATE_COL,
-    ForecastOutputColumns,
     SupportedModels,
 )
 from .base_model import ForecastOperatorBaseModel
@@ -44,12 +43,23 @@ def _fit_model(data, params, additional_regressors):
     from prophet import Prophet
 
     monthly_seasonality = params.pop("monthly_seasonality", False)
+    data_floor = params.pop("min", None)
+    data_cap = params.pop("max", None)
+    if data_cap or data_floor:
+        params["growth"] = "logistic"
     model = Prophet(**params)
     if monthly_seasonality:
         model.add_seasonality(name="monthly", period=30.5, fourier_order=5)
         params["monthly_seasonality"] = monthly_seasonality
     for add_reg in additional_regressors:
         model.add_regressor(add_reg)
+    if data_floor:
+        data["floor"] = float(data_floor)
+        params["floor"] = data_floor
+    if data_cap:
+        data["cap"] = float(data_cap)
+        params["cap"] = data_cap
+
     model.fit(data)
     return model
 
@@ -112,6 +122,41 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 upper_bound=self.get_horizon(forecast["yhat_upper"]).values,
                 lower_bound=self.get_horizon(forecast["yhat_lower"]).values,
             )
+            # Get all features that make up the forecast. Exclude CI (upper/lower)
+            core_columns = forecast.columns[
+                ~forecast.columns.str.endswith("_lower")
+                & ~forecast.columns.str.endswith("_upper")
+            ]
+            core_columns = set(core_columns) - {
+                "additive_terms",
+                "extra_regressors_additive",
+                "multiplicative_terms",
+                "extra_regressors_multiplicative",
+                "cap",
+                "floor",
+                "yhat",
+            }
+            combine_terms = list(
+                core_columns.intersection(
+                    {
+                        "trend",
+                        "daily",
+                        "weekly",
+                        "yearly",
+                        "monthly",
+                        "holidays",
+                        "zeros",
+                    }
+                )
+            )
+
+            temp_df = (
+                forecast[list(core_columns)]
+                .rename({"ds": "Date"}, axis=1)
+                .set_index("Date")
+            )
+            temp_df[self.spec.target_column] = temp_df[combine_terms].sum(axis=1)
+            self.explanations_info[series_id] = temp_df.drop(combine_terms, axis=1)
 
             self.models[series_id] = {}
             self.models[series_id]["model"] = model
@@ -133,13 +178,14 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 "error": str(e),
                 "error_trace": traceback.format_exc(),
             }
-            logger.warn(f"Encountered Error: {e}. Skipping.")
-            logger.warn(traceback.format_exc())
+            logger.warning(f"Encountered Error: {e}. Skipping.")
+            logger.warning(traceback.format_exc())
 
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.datasets.get_data_by_series()
         self.models = {}
         self.outputs = {}
+        self.explanations_info = {}
         self.additional_regressors = self.datasets.get_additional_data_column_names()
         model_kwargs = self.set_kwargs()
         self.forecast_output = ForecastOutput(
@@ -149,9 +195,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             dt_column=self.spec.datetime_column.name,
         )
 
-        # if os.environ["OCI__IS_SPARK"]:
-        #     pass
-        # else:
         Parallel(n_jobs=-1, require="sharedmem")(
             delayed(ProphetOperatorModel._train_model)(
                 self, i, series_id, df, model_kwargs.copy()
@@ -222,7 +265,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             try:
                 return np.mean(df_p[self.spec.metric])
             except KeyError:
-                logger.warn(
+                logger.warning(
                     f"Could not find the metric {self.spec.metric} within "
                     f"the performance metrics: {df_p.columns}. Defaulting to `rmse`"
                 )
@@ -249,6 +292,25 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         model_kwargs_i = study.best_params
         return model_kwargs_i
 
+    def explain_model(self):
+        self.local_explanation = {}
+        global_expl = []
+
+        for s_id, expl_df in self.explanations_info.items():
+            # Local Expl
+            self.local_explanation[s_id] = self.get_horizon(expl_df)
+            self.local_explanation[s_id]["Series"] = s_id
+            self.local_explanation[s_id].index.rename(self.dt_column_name, inplace=True)
+            # Global Expl
+            g_expl = self.drop_horizon(expl_df).mean()
+            g_expl.name = s_id
+            global_expl.append(g_expl)
+        self.global_explanation = pd.concat(global_expl, axis=1)
+        self.formatted_global_explanation = (
+            self.global_explanation / self.global_explanation.sum(axis=0) * 100
+        )
+        self.formatted_local_explanation = pd.concat(self.local_explanation.values())
+
     def _generate_report(self):
         import report_creator as rc
         from prophet.plot import add_changepoints_to_plot
@@ -274,7 +336,9 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             )
 
             sec2 = _select_plot_list(
-                lambda s_id: self.models[s_id]["model"].plot_components(self.outputs[s_id]),
+                lambda s_id: self.models[s_id]["model"].plot_components(
+                    self.outputs[s_id]
+                ),
                 series_ids=series_ids,
                 target_category_column=self.target_cat_col,
             )
@@ -283,11 +347,14 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             )
 
             sec3_figs = {
-                s_id: self.models[s_id]["model"].plot(self.outputs[s_id]) for s_id in series_ids
+                s_id: self.models[s_id]["model"].plot(self.outputs[s_id])
+                for s_id in series_ids
             }
             for s_id in series_ids:
                 add_changepoints_to_plot(
-                    sec3_figs[s_id].gca(), self.models[s_id]["model"], self.outputs[s_id]
+                    sec3_figs[s_id].gca(),
+                    self.models[s_id]["model"],
+                    self.outputs[s_id],
                 )
             sec3 = _select_plot_list(
                 lambda s_id: sec3_figs[s_id],
@@ -322,22 +389,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 # If the key is present, call the "explain_model" method
                 self.explain_model()
 
-                # Convert the global explanation data to a DataFrame
-                global_explanation_df = pd.DataFrame(self.global_explanation)
-
-                self.formatted_global_explanation = (
-                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
-                )
-
-                aggregate_local_explanations = pd.DataFrame()
-                for s_id, local_ex_df in self.local_explanation.items():
-                    local_ex_df_copy = local_ex_df.copy()
-                    local_ex_df_copy[ForecastOutputColumns.SERIES] = s_id
-                    aggregate_local_explanations = pd.concat(
-                        [aggregate_local_explanations, local_ex_df_copy], axis=0
-                    )
-                self.formatted_local_explanation = aggregate_local_explanations
-
                 if not self.target_cat_col:
                     self.formatted_global_explanation = (
                         self.formatted_global_explanation.rename(
@@ -351,7 +402,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
                 # Create a markdown section for the global explainability
                 global_explanation_section = rc.Block(
-                    rc.Heading("Global Explanation of Models", level=2),
+                    rc.Heading("Global Explainability", level=2),
                     rc.Text(
                         "The following tables provide the feature attribution for the global explainability."
                     ),
@@ -360,7 +411,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
                 blocks = [
                     rc.DataTable(
-                        local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
+                        local_ex_df.drop("Series", axis=1),
                         label=s_id if self.target_cat_col else None,
                         index=True,
                     )
@@ -378,8 +429,10 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 ]
             except Exception as e:
                 # Do not fail the whole run due to explanations failure
-                logger.warn(f"Failed to generate Explanations with error: {e}.")
+                logger.warning(f"Failed to generate Explanations with error: {e}.")
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
+                self.errors_dict["explainer_error"] = str(e)
+                self.errors_dict["explainer_error_error"] = traceback.format_exc()
 
         model_description = rc.Text(
             """Prophet is a procedure for forecasting time series data based on an additive model where non-linear trends are fit with yearly, weekly, and daily seasonality, plus holiday effects. It works best with time series that have strong seasonal effects and several seasons of historical data. Prophet is robust to missing data and shifts in the trend, and typically handles outliers well."""
