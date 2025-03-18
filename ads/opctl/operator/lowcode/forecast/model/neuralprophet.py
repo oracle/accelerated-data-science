@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -40,7 +40,7 @@ from .forecast_datasets import ForecastDatasets, ForecastOutput
 #         "rmse": MeanSquaredError,
 #     }
 #     if selected_metric not in metric_translation.keys():
-#         logger.warn(
+#         logger.warning(
 #             f"Could not find the metric: {selected_metric} in torchmetrics. Defaulting to MAE and RMSE"
 #         )
 #         return {"MAE": MeanAbsoluteError(), "RMSE": MeanSquaredError()}
@@ -149,28 +149,42 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             logger.debug(f"-----------------Model {i}----------------------")
             logger.debug(forecast.tail())
 
-            # TODO; could also extract trend and seasonality?
-            cols_to_read = filter(
-                lambda x: x.startswith("future_regressor"), forecast.columns
-            )
-            self.explanations_info[s_id] = forecast[cols_to_read]
-            self.explanations_info[s_id]["Date"] = forecast["ds"]
-            self.explanations_info[s_id] = self.explanations_info[s_id].set_index(
-                "Date"
-            )
-
             self.outputs[s_id] = forecast
+            upper_bound_col_name = f"yhat1 {model_kwargs['quantiles'][1]*100}%"
+            lower_bound_col_name = f"yhat1 {model_kwargs['quantiles'][0]*100}%"
             self.forecast_output.populate_series_output(
                 series_id=s_id,
                 fit_val=self.drop_horizon(forecast["yhat1"]).values,
                 forecast_val=self.get_horizon(forecast["yhat1"]).values,
-                upper_bound=self.get_horizon(
-                    forecast[f"yhat1 {model_kwargs['quantiles'][1]*100}%"]
-                ).values,
-                lower_bound=self.get_horizon(
-                    forecast[f"yhat1 {model_kwargs['quantiles'][0]*100}%"]
-                ).values,
+                upper_bound=self.get_horizon(forecast[upper_bound_col_name]).values,
+                lower_bound=self.get_horizon(forecast[lower_bound_col_name]).values,
             )
+            core_columns = set(forecast.columns) - set(
+                [
+                    "y",
+                    "yhat1",
+                    upper_bound_col_name,
+                    lower_bound_col_name,
+                    "future_regressors_additive",
+                    "future_regressors_multiplicative",
+                ]
+            )
+            exog_variables = set(
+                filter(lambda x: x.startswith("future_regressor_"), list(core_columns))
+            )
+            combine_terms = list(core_columns - exog_variables - set(["ds"]))
+            temp_df = (
+                forecast[list(core_columns)]
+                .rename({"ds": "Date"}, axis=1)
+                .set_index("Date")
+            )
+            if combine_terms:
+                temp_df[self.spec.target_column] = temp_df[combine_terms].sum(axis=1)
+                temp_df = temp_df.drop(combine_terms, axis=1)
+            else:
+                temp_df[self.spec.target_column] = 0
+            # Todo: check for columns that were dropped, and set them to 0
+            self.explanations_info[s_id] = temp_df
 
             self.trainers[s_id] = model.trainer
             self.models[s_id] = {}
@@ -207,7 +221,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 "error": str(e),
                 "error_trace": traceback.format_exc(),
             }
-            logger.warn(traceback.format_exc())
+            logger.warning(traceback.format_exc())
             raise e
 
     def _build_model(self) -> pd.DataFrame:
@@ -215,7 +229,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         self.models = {}
         self.trainers = {}
         self.outputs = {}
-        self.errors_dict = {}
         self.explanations_info = {}
         self.accepted_regressors = {}
         self.additional_regressors = self.datasets.get_additional_data_column_names()
@@ -363,7 +376,9 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                     pd.Series(
                         m.state_dict(),
                         index=m.state_dict().keys(),
-                        name=s_id if self.target_cat_col else self.original_target_column,
+                        name=s_id
+                        if self.target_cat_col
+                        else self.original_target_column,
                     )
                 )
             all_model_states = pd.concat(model_states, axis=1)
@@ -377,11 +392,15 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 self.explain_model()
 
                 if not self.target_cat_col:
-                    self.formatted_global_explanation = self.formatted_global_explanation.rename(
-                        {"Series 1": self.original_target_column},
-                        axis=1,
+                    self.formatted_global_explanation = (
+                        self.formatted_global_explanation.rename(
+                            {"Series 1": self.original_target_column},
+                            axis=1,
+                        )
                     )
-                    self.formatted_local_explanation.drop("Series", axis=1, inplace=True)
+                    self.formatted_local_explanation.drop(
+                        "Series", axis=1, inplace=True
+                    )
 
                 # Create a markdown section for the global explainability
                 global_explanation_section = rc.Block(
@@ -412,7 +431,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 ]
             except Exception as e:
                 # Do not fail the whole run due to explanations failure
-                logger.warn(f"Failed to generate Explanations with error: {e}.")
+                logger.warning(f"Failed to generate Explanations with error: {e}.")
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
 
         model_description = rc.Text(
@@ -453,9 +472,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         for s_id, expl_df in self.explanations_info.items():
             expl_df = expl_df.rename(rename_cols, axis=1)
             # Local Expl
-            self.local_explanation[s_id] = self.get_horizon(expl_df).drop(
-                ["future_regressors_additive"], axis=1
-            )
+            self.local_explanation[s_id] = self.get_horizon(expl_df)
             self.local_explanation[s_id]["Series"] = s_id
             self.local_explanation[s_id].index.rename(self.dt_column_name, inplace=True)
             # Global Expl
@@ -463,9 +480,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             g_expl.name = s_id
             global_expl.append(g_expl)
         self.global_explanation = pd.concat(global_expl, axis=1)
-        self.global_explanation = self.global_explanation.drop(
-            index=["future_regressors_additive"], axis=0
-        )
         self.formatted_global_explanation = (
             self.global_explanation / self.global_explanation.sum(axis=0) * 100
         )

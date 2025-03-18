@@ -184,13 +184,18 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     "selected_model_params": model.selected_model_params_,
                 }
             except Exception as e:
-                self.errors_dict[s_id] = {
+                new_error = {
                     "model_name": self.spec.model,
                     "error": str(e),
                     "error_trace": traceback.format_exc(),
                 }
-                logger.warn(f"Encountered Error: {e}. Skipping.")
-                logger.warn(traceback.format_exc())
+                if s_id in self.errors_dict:
+                    self.errors_dict[s_id]["model_fitting"] = new_error
+                else:
+                    self.errors_dict[s_id] = {"model_fitting": new_error}
+                logger.warning(f"Encountered Error: {e}. Skipping.")
+                logger.warning(f"self.errors_dict[s_id]: {self.errors_dict[s_id]}")
+                logger.warning(traceback.format_exc())
 
         logger.debug("===========Forecast Generated===========")
 
@@ -314,7 +319,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     local_explanation_section,
                 ]
             except Exception as e:
-                logger.warn(f"Failed to generate Explanations with error: {e}.")
+                logger.warning(f"Failed to generate Explanations with error: {e}.")
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
 
         model_description = rc.Text(
