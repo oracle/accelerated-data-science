@@ -121,11 +121,10 @@ class AquaDeploymentApp(AquaApp):
         Creates a new Aqua model deployment.\n
         For detailed information about CLI flags see: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/cli-tips.md#create-model-deployment
 
-        Parameters
-        ----------
-        create_deployment_details : CreateModelDeploymentDetails, optional
-            An instance of CreateModelDeploymentDetails containing all required and optional
-            fields for creating a model deployment via Aqua.
+        Args:
+            create_deployment_details : CreateModelDeploymentDetails, optional
+                An instance of CreateModelDeploymentDetails containing all required and optional
+                fields for creating a model deployment via Aqua.
             kwargs:
                 instance_shape (str): The instance shape used for deployment.
                 display_name (str): The name of the model deployment.
@@ -152,10 +151,6 @@ class AquaDeploymentApp(AquaApp):
                 cmd_var (Optional[List[str]]): Command variables for the container runtime.
                 freeform_tags (Optional[Dict]): Freeform tags for model deployment.
                 defined_tags (Optional[Dict]): Defined tags for model deployment.
-
-        **kwargs:
-            Keyword arguments used to construct a CreateModelDeploymentDetails instance if one
-            is not provided.
 
         Returns
         -------
