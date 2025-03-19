@@ -17,9 +17,9 @@ The Anomaly Detection Operator accepts a dataset with:
 * (Optionally) 1 or more seires columns (such that the target is indexed by datetime and series)
 * (Optionall) An arbitrary number of additional variables
 
-Besides this input data, the user can also specify validation data, if available. Validation data should have all the columns of the input data plus a binary column titled "anomaly". The "anomaly" column should be -1 for anomalies and 1 for normal rows.
+Besides this input data, the user can also specify validation data, if available. Validation data should have all the columns of the input data plus a binary column titled "anomaly". The "anomaly" column should be 1 for anomalies and 0 for normal rows.
 
-Finally the user can provide "test_data" in order to recieve test metrics and evaluate the Operator's performance more easily. Test data should indexed by date and (optionally) series. Test data should have a -1 for anomalous rows and 1 for normal rows.
+Finally the user can provide "test_data" in order to recieve test metrics and evaluate the Operator's performance more easily. Test data should indexed by date and (optionally) series. Test data should have a 1 for anomalous rows and 0 for normal rows.
 
 **Multivariate vs. Univariate Anomaly Detection**
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -132,13 +132,14 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
             logger.debug("===========Done===========")
         except Exception as e:
-            self.errors_dict[s_id] = {
+            new_error = {
                 "model_name": self.spec.model,
                 "error": str(e),
                 "error_trace": traceback.format_exc(),
             }
-            logger.warn(f"Encountered Error: {e}. Skipping.")
-            logger.warn(traceback.format_exc())
+            self.errors_dict[s_id] = new_error
+            logger.warning(f"Encountered Error: {e}. Skipping.")
+            logger.warning(traceback.format_exc())
 
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.datasets.get_data_by_series()
@@ -166,7 +167,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             sec5_text = rc.Heading("ARIMA Model Parameters", level=2)
             blocks = [
                 rc.Html(
-                    m['model'].summary().as_html(),
+                    m["model"].summary().as_html(),
                     label=s_id if self.target_cat_col else None,
                 )
                 for i, (s_id, m) in enumerate(self.models.items())
@@ -201,11 +202,15 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                 self.formatted_local_explanation = aggregate_local_explanations
 
                 if not self.target_cat_col:
-                    self.formatted_global_explanation = self.formatted_global_explanation.rename(
-                        {"Series 1": self.original_target_column},
-                        axis=1,
+                    self.formatted_global_explanation = (
+                        self.formatted_global_explanation.rename(
+                            {"Series 1": self.original_target_column},
+                            axis=1,
+                        )
                     )
-                    self.formatted_local_explanation.drop("Series", axis=1, inplace=True)
+                    self.formatted_local_explanation.drop(
+                        "Series", axis=1, inplace=True
+                    )
 
                 # Create a markdown section for the global explainability
                 global_explanation_section = rc.Block(
@@ -235,7 +240,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                     local_explanation_section,
                 ]
             except Exception as e:
-                logger.warn(f"Failed to generate Explanations with error: {e}.")
+                logger.warning(f"Failed to generate Explanations with error: {e}.")
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
 
         model_description = rc.Text(
