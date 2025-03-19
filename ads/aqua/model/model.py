@@ -49,7 +49,7 @@ from ads.aqua.constants import (
     AQUA_MODEL_TOKENIZER_CONFIG,
     AQUA_MODEL_TYPE_CUSTOM,
     HF_METADATA_FOLDER,
-    LICENSE_TXT,
+    LICENSE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     README,
     READY_TO_DEPLOY_STATUS,
@@ -61,7 +61,7 @@ from ads.aqua.constants import (
     VALIDATION_METRICS_FINAL,
 )
 from ads.aqua.model.constants import (
-    DefinedMetadata,
+    AquaModelMetadataKeys,
     FineTuningCustomMetadata,
     FineTuningMetricCategories,
     ModelCustomMetadataFields,
@@ -661,7 +661,7 @@ class AquaModelApp(AquaApp):
         if not inference_containers:
             inference_containers = (
                 AquaContainerConfig.from_service_config(
-                    service_containers=AquaApp().get_container_config()
+                    service_containers=AquaApp().list_service_containers()
                 )
                 .to_dict()
                 .get("inference")
@@ -775,7 +775,7 @@ class AquaModelApp(AquaApp):
         aqua_models = []
         inference_containers = (
             AquaContainerConfig.from_service_config(
-                service_containers=self.get_container_config()
+                service_containers=self.list_service_containers()
             )
             .to_dict()
             .get("inference")
@@ -842,11 +842,11 @@ class AquaModelApp(AquaApp):
     @staticmethod
     def list_valid_inference_containers():
         containers = list(
-            AquaContainerConfig.from_container_index_json(
-                config=AquaApp().get_container_config(), enable_spec=True
+            AquaContainerConfig.from_service_config(
+                service_containers=AquaApp().list_service_containers()
             ).inference.values()
         )
-        family_values = [item.family for item in containers]
+        family_values = [item.family_name for item in containers]
         return family_values
 
     @telemetry(
@@ -991,7 +991,7 @@ class AquaModelApp(AquaApp):
         tags.pop(Tags.READY_TO_IMPORT, None)
         defined_metadata_dict = {}
         readme_file_path = os_path.rstrip("/") + "/" + README
-        license_file_path = os_path.rstrip("/") + "/" + LICENSE_TXT
+        license_file_path = os_path.rstrip("/") + "/" + LICENSE
         if verified_model:
             # Verified model is a model in the service catalog that either has no artifacts but contains all the necessary metadata for deploying and fine tuning.
             # If set, then we copy all the model metadata.
@@ -1030,7 +1030,7 @@ class AquaModelApp(AquaApp):
 
             inference_containers = (
                 AquaContainerConfig.from_service_config(
-                    service_containers=self.get_container_config()
+                    service_containers=self.list_service_containers()
                 )
                 .to_dict()
                 .get("inference")
@@ -1109,11 +1109,13 @@ class AquaModelApp(AquaApp):
                 key, text_sanitizer(value), MetadataArtifactPathType.CONTENT
             )
         model.create_defined_metadata_artifact(
-            DefinedMetadata.README, readme_file_path, MetadataArtifactPathType.OSS
+            AquaModelMetadataKeys.README, readme_file_path, MetadataArtifactPathType.OSS
         )
         if not verified_model:
             model.create_defined_metadata_artifact(
-                DefinedMetadata.LICENSE, license_file_path, MetadataArtifactPathType.OSS
+                AquaModelMetadataKeys.LICENSE,
+                license_file_path,
+                MetadataArtifactPathType.OSS,
             )
         return model
 
@@ -1669,7 +1671,7 @@ class AquaModelApp(AquaApp):
             project_id=ds_model.project_id,
             model_card=str(
                 self.ds_client.get_model_defined_metadatum_artifact_content(
-                    ds_model.id, DefinedMetadata.README
+                    ds_model.id, AquaModelMetadataKeys.README
                 ).data.content
             ),
             inference_container=inference_container,
@@ -1768,11 +1770,11 @@ class AquaModelApp(AquaApp):
         content = ""
         try:
             content = self.ds_client.get_model_defined_metadatum_artifact_content(
-                model_id, DefinedMetadata.README
+                model_id, AquaModelMetadataKeys.README
             ).data.content.decode("utf-8", errors="ignore")
         except Exception as ex:
             logger.error(
-                f"License could not be found for model: {model_id} in defined metadata : {str(ex)}"
+                f"Readme could not be found for model: {model_id} in defined metadata : {str(ex)}"
             )
             artifact_path = get_artifact_path(oci_model.custom_metadata_list)
             readme_path = os.path.join(os.path.dirname(artifact_path), "artifact")
@@ -1817,7 +1819,7 @@ class AquaModelApp(AquaApp):
         content = ""
         try:
             content = self.ds_client.get_model_defined_metadatum_artifact_content(
-                model_id, DefinedMetadata.LICENSE
+                model_id, AquaModelMetadataKeys.LICENSE
             ).data.content.decode("utf-8", errors="ignore")
         except Exception as ex:
             logger.error(
@@ -1830,14 +1832,14 @@ class AquaModelApp(AquaApp):
                 if not is_path_exists(license_path):
                     license_path = f"{artifact_path.rstrip('/')}/"
 
-            license_file_path = os.path.join(license_path, LICENSE_TXT)
-            logger.info(f"Fetching {LICENSE_TXT} from {license_file_path}")
+            license_file_path = os.path.join(license_path, LICENSE)
+            logger.info(f"Fetching {LICENSE} from {license_file_path}")
             if is_path_exists(license_file_path):
                 try:
                     content = str(read_file(license_file_path, auth=default_signer()))
                 except Exception as e:
                     logger.debug(
-                        f"Error occurred while fetching config {LICENSE_TXT} at path {license_path} : {str(e)}"
+                        f"Error occurred while fetching config {LICENSE} at path {license_path} : {str(e)}"
                     )
         return AquaModelLicense(id=model_id, license=content)
 

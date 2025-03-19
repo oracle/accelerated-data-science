@@ -53,7 +53,7 @@ from ads.aqua.constants import (
     DEPLOYMENT_CONFIG,
     FINE_TUNING_CONFIG,
     HF_LOGIN_DEFAULT_TIMEOUT,
-    LICENSE_TXT,
+    LICENSE,
     MAXIMUM_ALLOWED_DATASET_IN_BYTE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     README,
@@ -86,6 +86,14 @@ from ads.config import (
 from ads.model import DataScienceModel, ModelVersionSet
 
 logger = logging.getLogger("ads.aqua")
+
+
+DEFINED_METADATA_TO_FILE_MAP = {
+    "readme": README,
+    "license": LICENSE,
+    "finetuneconfiguration": FINE_TUNING_CONFIG,
+    "deploymentconfiguration": DEPLOYMENT_CONFIG,
+}
 
 
 class LifecycleStatus(ExtendedEnum):
@@ -485,15 +493,6 @@ def sanitize_response(oci_client, response: list):
 
     """
     return oci_client.base_client.sanitize_for_serialization(response)
-
-
-def defined_metadata_to_file_map():
-    return {
-        "readme": README,
-        "license": LICENSE_TXT,
-        "finetuneconfiguration": FINE_TUNING_CONFIG,
-        "deploymentconfiguration": DEPLOYMENT_CONFIG,
-    }
 
 
 def _build_resource_identifier(

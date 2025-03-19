@@ -28,6 +28,7 @@ from ads.aqua.common.utils import (
     is_valid_ocid,
     load_config,
 )
+from ads.aqua.constants import SERVICE_MANAGED_CONTAINER_URI_SCHEME
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import UNKNOWN, extract_region, is_path_exists
@@ -409,30 +410,46 @@ class AquaApp:
             A complete container name along with version. ex: dsmc://odsc-vllm-serving:0.7.4.1
         """
 
-        containers = self.get_container_config()
-        container = next(
-            (c for c in containers if c.is_latest and c.family_name == container_type),
-            None,
-        )
+        container = self.get_container_config(container_type)
         if not container:
             raise AquaValueError(f"Invalid container type : {container_type}")
-        container_image = "dsmc://" + container.container_name + ":" + container.tag
+        container_image = (
+            SERVICE_MANAGED_CONTAINER_URI_SCHEME
+            + container.container_name
+            + ":"
+            + container.tag
+        )
         return container_image
 
     @cached(cache=TTLCache(maxsize=20, ttl=timedelta(hours=5), timer=datetime.now))
-    def get_container_config(self) -> List[ContainerSummary]:
+    def list_service_containers(self) -> List[ContainerSummary]:
         """
-        Fetches container config from containers.conf in OCI Datascience control plane
+        List containers from containers.conf in OCI Datascience control plane
+        """
+        containers = self.ds_client.list_containers().data
+        return containers
+
+    def get_container_config(self, container_family_name: str) -> ContainerSummary:
+        """
+        Fetches latest container from container_family_name from containers.conf in OCI Datascience control plane
 
         Returns
         -------
-        Dict
-            A Dict of containers conf.
+        ContainerSummary
+            An Object that contains latest container info for the given container family
 
         """
 
-        containers = self.ds_client.list_containers().data
-        return containers
+        containers = self.list_service_containers()
+        container_item = next(
+            (
+                c
+                for c in containers
+                if c.is_latest and c.family_name == container_family_name
+            ),
+            None,
+        )
+        return container_item
 
     @property
     def telemetry(self):

@@ -20,8 +20,8 @@ from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import Resource, Tags
 from ads.aqua.common.errors import AquaFileExistsError, AquaValueError
 from ads.aqua.common.utils import (
+    DEFINED_METADATA_TO_FILE_MAP,
     build_pydantic_error_message,
-    defined_metadata_to_file_map,
     upload_local_to_os,
 )
 from ads.aqua.constants import (
@@ -42,7 +42,7 @@ from ads.aqua.finetuning.entities import (
     AquaFineTuningSummary,
     CreateFineTuningDetails,
 )
-from ads.aqua.model.constants import DefinedMetadata
+from ads.aqua.model.constants import AquaModelMetadataKeys
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN, get_console_link
@@ -592,14 +592,14 @@ class AquaFineTuningApp(AquaApp):
             A dict of allowed finetuning configs.
         """
         config = self.get_config_from_metadata(
-            model_id, DefinedMetadata.FINE_TUNING_CONFIGURATION
+            model_id, AquaModelMetadataKeys.FINE_TUNING_CONFIGURATION
         )
         if config:
             return config
         config = self.get_config(
             model_id,
-            defined_metadata_to_file_map().get(
-                DefinedMetadata.FINE_TUNING_CONFIGURATION.lower()
+            DEFINED_METADATA_TO_FILE_MAP.get(
+                AquaModelMetadataKeys.FINE_TUNING_CONFIGURATION.lower()
             ),
         ).config
         if not config:

@@ -48,11 +48,10 @@ class FineTuningCustomMetadata(ExtendedEnum):
     TRAINING_METRICS_EPOCH = "train_metrics_epoch"
     VALIDATION_METRICS_EPOCH = "val_metrics_epoch"
 
-class DefinedMetadata(ExtendedEnum):
+
+class AquaModelMetadataKeys(ExtendedEnum):
     FINE_TUNING_CONFIGURATION = "FineTuneConfiguration"
     DEPLOYMENT_CONFIGURATION = "DeploymentConfiguration"
     README = "Readme"
     LICENSE = "License"
-
-class CustomMetadata(ExtendedEnum):
     REPORTS = "Reports"

@@ -9,6 +9,7 @@ from pydantic import Field
 
 from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.config.utils.serializer import Serializable
+from ads.aqua.constants import SERVICE_MANAGED_CONTAINER_URI_SCHEME
 
 
 class AquaContainerConfigSpec(Serializable):
@@ -139,7 +140,7 @@ class AquaContainerConfig(Serializable):
             if not container.is_latest:
                 continue
             container_item = AquaContainerConfigItem(
-                name="dsmc://" + container.container_name,
+                name=SERVICE_MANAGED_CONTAINER_URI_SCHEME + container.container_name,
                 version=container.tag,
                 display_name=container.display_name,
                 family=container.family_name,
@@ -204,11 +205,11 @@ class AquaContainerConfig(Serializable):
                     ),
                 )
                 container_item.spec = container_spec
-            if "INFERENCE" in container.usages:
+            if "INFERENCE" in map(lambda x: x.upper(), container.usages):
                 inference_items[container_type] = container_item
-            if "FINE_TUNE" in container.usages:
+            if "FINE_TUNE" in map(lambda x: x.upper(), container.usages):
                 finetune_items[container_type] = container_item
-            if "EVALUATION" in container.usages:
+            if "EVALUATION" in map(lambda x: x.upper(), container.usages):
                 evaluate_items[container_type] = container_item
         return cls(
             inference=inference_items, finetune=finetune_items, evaluate=evaluate_items

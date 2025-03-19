@@ -10,7 +10,7 @@ from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
-    defined_metadata_to_file_map,
+    DEFINED_METADATA_TO_FILE_MAP,
     get_combined_params,
     get_container_params_type,
     get_model_by_reference_paths,
@@ -31,7 +31,7 @@ from ads.aqua.constants import (
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
 from ads.aqua.model import AquaModelApp
-from ads.aqua.model.constants import DefinedMetadata
+from ads.aqua.model.constants import AquaModelMetadataKeys
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
@@ -320,18 +320,13 @@ class AquaDeploymentApp(AquaApp):
         # Fetch the startup cli command for the container
         # container_index.json will have "containerSpec" section which will provide the cli params for
         # a given container family
-        container_config = self.get_container_config()
-        container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
-            container_type_key, {}
-        )
+        container_config = self.get_container_config(container_type_key)
+        container_spec = container_config.workload_configuration_details_list[0]
         # these params cannot be overridden for Aqua deployments
-        params = container_spec.get(ContainerSpec.CLI_PARM, "")
-        server_port = server_port or container_spec.get(
-            ContainerSpec.SERVER_PORT
-        )  # Give precendece to the input parameter
-        health_check_port = health_check_port or container_spec.get(
-            ContainerSpec.HEALTH_CHECK_PORT
-        )  # Give precendece to the input parameter
+        params = container_spec.cmd
+        server_port = server_port or container_spec.server_port
+        # Give precendece to the input parameter
+        health_check_port = health_check_port or container_spec.health_check_port
 
         deployment_config = self.get_deployment_config(config_source_id)
 
@@ -656,14 +651,14 @@ class AquaDeploymentApp(AquaApp):
             A dict of allowed deployment configs.
         """
         config = self.get_config_from_metadata(
-            model_id, DefinedMetadata.DEPLOYMENT_CONFIGURATION
+            model_id, AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION
         )
         if config:
             return config
         config = self.get_config(
             model_id,
-            defined_metadata_to_file_map().get(
-                DefinedMetadata.DEPLOYMENT_CONFIGURATION.lower()
+            DEFINED_METADATA_TO_FILE_MAP.get(
+                AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION.lower()
             ),
         ).config
         if not config:
@@ -760,11 +755,9 @@ class AquaDeploymentApp(AquaApp):
                 model=model, container_family=container_family
             )
 
-            container_config = self.get_container_config()
-            container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
-                container_type_key, {}
-            )
-            cli_params = container_spec.get(ContainerSpec.CLI_PARM, "")
+            container_config = self.get_container_config(container_family)
+            container_spec = container_config.workload_configuration_details_list[0]
+            cli_params = container_spec.cmd
 
             restricted_params = self._find_restricted_params(
                 cli_params, params, container_type_key

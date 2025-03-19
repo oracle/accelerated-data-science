@@ -15,6 +15,7 @@ from typing import List, Optional
 
 import oci
 from huggingface_hub import hf_api
+from pydantic import BaseModel
 
 from ads.aqua import logger
 from ads.aqua.app import CLIBuilderMixin
@@ -27,6 +28,20 @@ from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_log_links
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import MetadataTaxonomyKeys
+
+
+class AquaModelReadme(BaseModel):
+    """Represents the response of Get Model Readme."""
+
+    id: str = field(default_factory=str)
+    model_card: str = field(default_factory=str)
+
+
+class AquaModelLicense(BaseModel):
+    """Represents the response of Get Model License."""
+
+    id: str = field(default_factory=str)
+    license: str = field(default_factory=str)
 
 
 @dataclass(repr=False)
@@ -55,22 +70,6 @@ class AquaFineTuningMetric(DataClassSerializable):
     name: str = field(default_factory=str)
     category: str = field(default_factory=str)
     scores: list = field(default_factory=list)
-
-
-@dataclass(repr=False)
-class AquaModelReadme(DataClassSerializable):
-    """Represents the response of Get Model Readme."""
-
-    id: str = field(default_factory=str)
-    model_card: str = field(default_factory=str)
-
-
-@dataclass(repr=False)
-class AquaModelLicense(DataClassSerializable):
-    """Represents the response of Get Model License."""
-
-    id: str = field(default_factory=str)
-    license: str = field(default_factory=str)
 
 
 @dataclass(repr=False)

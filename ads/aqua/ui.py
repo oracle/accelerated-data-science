@@ -495,5 +495,5 @@ class AquaUIApp(AquaApp):
             The AQUA containers configurations.
         """
         return AquaContainerConfig.from_service_config(
-            service_containers=self.get_container_config()
+            service_containers=self.list_service_containers()
         )

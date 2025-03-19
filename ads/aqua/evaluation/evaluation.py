@@ -189,10 +189,14 @@ class AquaEvaluationApp(AquaApp):
                     runtime = ModelDeploymentContainerRuntime.from_dict(
                         evaluation_source.runtime.to_dict()
                     )
-                    inference_config = AquaContainerConfig.from_container_index_json(
-                        config=self.get_container_config(), enable_spec=True
-                    ).inference
-                    for container in inference_config.values():
+                    inference_config = (
+                        AquaContainerConfig.from_service_config(
+                            service_containers=self.list_service_containers()
+                        )
+                        .to_dict()
+                        .get("inference")
+                    )
+                    for container in inference_config:
                         if container.name == runtime.image[: runtime.image.rfind(":")]:
                             eval_inference_configuration = (
                                 container.spec.evaluation_configuration
@@ -614,14 +618,13 @@ class AquaEvaluationApp(AquaApp):
 
         return source.display_name
 
-    @staticmethod
-    def _get_evaluation_container(source_id: str) -> str:
+    def _get_evaluation_container(self, source_id: str) -> str:
         # todo: use the source, identify if it is a model or a deployment. If latter, then fetch the base model id
         #   from the deployment object, and call ds_client.get_model() to get model details. Use custom metadata to
         #   get the container_type_key. Pass this key as container_type to get_container_image method.
 
         # fetch image name from config
-        container_image = AquaApp().get_container_image(
+        container_image = self.get_container_image(
             container_type="odsc-llm-evaluate",
         )
         logger.info(f"Aqua Image used for evaluating {source_id} :{container_image}")

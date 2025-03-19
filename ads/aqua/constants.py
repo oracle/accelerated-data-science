@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """This module defines constants used in ads.aqua module."""
 
@@ -9,7 +9,7 @@ UNKNOWN_DICT = {}
 DEPLOYMENT_CONFIG = "deployment_config.json"
 FINE_TUNING_CONFIG = "ft_config.json"
 README = "README.md"
-LICENSE_TXT = "LICENSE.txt"
+LICENSE = "LICENSE.txt"
 AQUA_MODEL_TOKENIZER_CONFIG = "tokenizer_config.json"
 COMPARTMENT_MAPPING_KEY = "service-model-compartment"
 CONTAINER_INDEX = "container_index.json"
