@@ -22,11 +22,11 @@ class TestConfig:
         cls.curr_dir = os.path.dirname(os.path.abspath(__file__))
         cls.artifact_dir = os.path.join(cls.curr_dir, "test_data", "config")
 
-    @patch.object(AquaApp, "get_container_config")
-    def test_evaluation_service_config(self, mock_get_container_config):
+    @patch.object(AquaApp, "list_service_containers")
+    def test_evaluation_service_config(self, mock_list_service_containers):
         """Ensures that the common evaluation configuration can be successfully retrieved."""
 
-        mock_get_container_config.return_value = TestDataset.EVAL_CONTAINER_ITEM
+        mock_list_service_containers.return_value = TestDataset.CONTAINERS_LIST
 
         test_result = get_evaluation_service_config(container="odsc-llm-evaluate")
         assert len(test_result.ui_config.shapes) > 0

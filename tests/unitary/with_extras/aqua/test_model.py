@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import oci
 import pytest
+from ads.aqua.config.container_config import AquaContainerConfig
 from huggingface_hub.hf_api import HfApi, ModelInfo
 from parameterized import parameterized
 
@@ -54,7 +55,9 @@ def mock_auth():
 
 
 def get_container_config():
-    return TestDataset.CONTAINERS_LIST
+    return AquaContainerConfig.from_service_config(
+        service_containers=TestDataset.CONTAINERS_LIST
+    )
 
 
 @pytest.fixture(autouse=True, scope="class")
@@ -686,7 +689,7 @@ class TestAquaModel:
         obj2.name = f"{artifact_path}/config/ft_config.json"
         objects = [obj1, obj2]
         mock_list_objects.return_value = MagicMock(objects=objects)
-        mock_get_container_config.return_value = ServiceManagedContainers.MOCK_OUTPUT
+        mock_get_container_config.return_value = get_container_config()
         ds_model = DataScienceModel()
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
         model_name = "oracle/aqua-1t-mega-model"
@@ -818,7 +821,7 @@ class TestAquaModel:
             "organization": "oracle",
             "task": "text-generation",
         }
-        mock_get_container_config.return_value = ServiceManagedContainers.MOCK_OUTPUT
+        mock_get_container_config.return_value = get_container_config()
         mock__validate_model.return_value = ModelValidationResult(
             model_file="model_file.gguf",
             model_formats=[ModelFormat.SAFETENSORS],
@@ -871,7 +874,7 @@ class TestAquaModel:
         mock_get_hf_model_info,
     ):
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
-        mock_get_container_config.return_value = ServiceManagedContainers.MOCK_OUTPUT
+        mock_get_container_config.return_value = get_container_config()
         mock_list_objects.return_value = MagicMock(objects=[])
         ds_model = DataScienceModel()
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
@@ -962,7 +965,7 @@ class TestAquaModel:
         mock_get_hf_model_info,
         mock_init_client,
     ):
-        mock_get_container_config.return_value = ServiceManagedContainers.MOCK_OUTPUT
+        mock_get_container_config.return_value = get_container_config()
         my_model = "oracle/aqua-1t-mega-model"
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
         # set object list from OSS without config.json
@@ -1030,7 +1033,7 @@ class TestAquaModel:
     ):
         my_model = "oracle/aqua-1t-mega-model"
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
-        mock_get_container_config.return_value = ServiceManagedContainers.MOCK_OUTPUT
+        mock_get_container_config.return_value = get_container_config()
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
         ds_freeform_tags = {
             "OCI_AQUA": "active",
@@ -1105,7 +1108,7 @@ class TestAquaModel:
         mock_get_hf_model_info,
         mock_init_client,
     ):
-        mock_get_container_config.return_value = ServiceManagedContainers.MOCK_OUTPUT
+        mock_get_container_config.return_value = get_container_config()
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
 
         artifact_path = "service_models/model-name/commit-id/artifact"
@@ -1184,7 +1187,7 @@ class TestAquaModel:
     ):
         my_model = "oracle/aqua-1t-mega-model"
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
-        mock_get_container_config.return_value = ServiceManagedContainers.MOCK_OUTPUT
+        mock_get_container_config.return_value = get_container_config()
         os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
         ds_freeform_tags = {
             "OCI_AQUA": "active",
@@ -1310,7 +1313,7 @@ class TestAquaModel:
 
         mock_get_artifact_path.assert_called()
 
-        assert license.model_dump() == {
+        assert asdict(license) == {
             "id": "test_model_id",
             "license": "test_license",
         }
@@ -1318,7 +1321,7 @@ class TestAquaModel:
     @patch.object(AquaApp, "get_container_config")
     def test_list_service_models(self, mock_get_container_config):
         """Tests listing service models succesfully."""
-        mock_get_container_config.return_value = TestDataset.CONTAINERS_LIST
+        mock_get_container_config.return_value = get_container_config()
         self.app.list_resource = MagicMock(
             return_value=[
                 oci.data_science.models.ModelSummary(**item)
@@ -1345,7 +1348,7 @@ class TestAquaModel:
     @patch.object(AquaApp, "get_container_config")
     def test_list_custom_models(self, mock_get_container_config):
         """Tests list custom models succesfully."""
-        mock_get_container_config.return_value = TestDataset.CONTAINERS_LIST
+        mock_get_container_config.return_value = get_container_config()
         self.app._rqs = MagicMock(
             return_value=[
                 oci.resource_search.models.ResourceSummary(**item)

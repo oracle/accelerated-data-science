@@ -659,7 +659,9 @@ class AquaModelApp(AquaApp):
             model_file = UNKNOWN
 
         if not inference_containers:
-            inference_containers = AquaApp().get_container_config().get("inference")
+            inference_containers = (
+                AquaApp().get_container_config().to_dict().get("inference")
+            )
 
         model_formats_str = freeform_tags.get(
             Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS

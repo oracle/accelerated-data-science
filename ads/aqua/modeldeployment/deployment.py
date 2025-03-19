@@ -6,7 +6,6 @@ import shlex
 from typing import Dict, List, Optional, Union
 
 from ads.aqua.app import AquaApp, logger
-from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
@@ -368,7 +367,7 @@ class AquaDeploymentApp(AquaApp):
         if params:
             env_var.update({"PARAMS": params})
 
-        for env in container_spec.get(ContainerSpec.ENV_VARS, []):
+        for env in container_spec.env_vars:
             if isinstance(env, dict):
                 for key, _items in env.items():
                     if key not in env_var:
@@ -756,9 +755,9 @@ class AquaDeploymentApp(AquaApp):
                 model=model, container_family=container_family
             )
 
-            container_config = self.get_container_config(container_family)
-            container_spec = container_config.workload_configuration_details_list[0]
-            cli_params = container_spec.cmd
+            container_config = self.get_container_config_item(container_family)
+            container_spec = container_config.spec
+            cli_params = container_spec.cli_param
 
             restricted_params = self._find_restricted_params(
                 cli_params, params, container_type_key

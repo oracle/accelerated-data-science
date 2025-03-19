@@ -37,13 +37,6 @@ class AquaModelReadme(BaseModel):
     model_card: str = field(default_factory=str)
 
 
-class AquaModelLicense(BaseModel):
-    """Represents the response of Get Model License."""
-
-    id: str = field(default_factory=str)
-    license: str = field(default_factory=str)
-
-
 @dataclass(repr=False)
 class FineTuningShapeInfo(DataClassSerializable):
     instance_shape: str = field(default_factory=str)
@@ -70,6 +63,14 @@ class AquaFineTuningMetric(DataClassSerializable):
     name: str = field(default_factory=str)
     category: str = field(default_factory=str)
     scores: list = field(default_factory=list)
+
+
+@dataclass(repr=False)
+class AquaModelLicense(DataClassSerializable):
+    """Represents the response of Get Model License."""
+
+    id: str = field(default_factory=str)
+    license: str = field(default_factory=str)
 
 
 @dataclass(repr=False)

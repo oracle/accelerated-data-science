@@ -205,7 +205,7 @@ class AquaModelLicenseHandler(AquaAPIhandler):
         """Handle GET request."""
 
         model_id = model_id.split("/")[0]
-        return self.finish(AquaModelApp().load_license(model_id).model_dump())
+        return self.finish(AquaModelApp().load_license(model_id))
 
 
 class AquaModelReadmeHandler(AquaAPIhandler):
