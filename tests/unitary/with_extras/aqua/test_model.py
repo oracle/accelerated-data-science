@@ -1310,7 +1310,10 @@ class TestAquaModel:
 
         mock_get_artifact_path.assert_called()
 
-        assert asdict(license) == {"id": "test_model_id", "license": "test_license"}
+        assert license.model_dump() == {
+            "id": "test_model_id",
+            "license": "test_license",
+        }
 
     @patch.object(AquaApp, "get_container_config")
     def test_list_service_models(self, mock_get_container_config):

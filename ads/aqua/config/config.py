@@ -26,7 +26,14 @@ def get_evaluation_service_config(
     """
 
     container = container or DEFAULT_EVALUATION_CONTAINER
-    container_item = AquaApp().get_container_config(container)
+    container_item = next(
+        (
+            c
+            for c in AquaApp().list_service_containers()
+            if c.is_latest and c.family_name == container
+        ),
+        None,
+    )
     shapes = json.loads(
         container_item.workload_configuration_details_list[0]
         .use_case_configuration.get("additionalConfigurations")

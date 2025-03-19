@@ -26,7 +26,7 @@ class TestConfig:
     def test_evaluation_service_config(self, mock_get_container_config):
         """Ensures that the common evaluation configuration can be successfully retrieved."""
 
-        mock_get_container_config.return_value = TestDataset.CONTAINERS_LIST
+        mock_get_container_config.return_value = TestDataset.EVAL_CONTAINER_ITEM
 
         test_result = get_evaluation_service_config(container="odsc-llm-evaluate")
         assert len(test_result.ui_config.shapes) > 0

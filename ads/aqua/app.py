@@ -7,6 +7,7 @@ import os
 import traceback
 from dataclasses import fields
 from datetime import datetime, timedelta
+from itertools import chain
 from typing import Any, Dict, List, Optional, Union
 
 import oci
@@ -27,6 +28,10 @@ from ads.aqua.common.utils import (
     get_artifact_path,
     is_valid_ocid,
     load_config,
+)
+from ads.aqua.config.container_config import (
+    AquaContainerConfig,
+    AquaContainerConfigItem,
 )
 from ads.aqua.constants import SERVICE_MANAGED_CONTAINER_URI_SCHEME
 from ads.common import oci_client as oc
@@ -245,7 +250,9 @@ class AquaApp:
             .with_custom_metadata_list(model_custom_metadata)
             .with_defined_metadata_list(model_taxonomy_metadata)
             .with_provenance_metadata(ModelProvenanceMetadata(training_id=UNKNOWN))
-            .with_defined_tags(**(defined_tags or {})) # Create defined tags when a model is created.
+            .with_defined_tags(
+                **(defined_tags or {})
+            )  # Create defined tags when a model is created.
             .create(
                 **kwargs,
             )
@@ -411,7 +418,11 @@ class AquaApp:
             A complete container name along with version. ex: dsmc://odsc-vllm-serving:0.7.4.1
         """
 
-        container = self.get_container_config(container_type)
+        containers = self.list_service_containers()
+        container = next(
+            (c for c in containers if c.is_latest and c.family_name == container_type),
+            None,
+        )
         if not container:
             raise AquaValueError(f"Invalid container type : {container_type}")
         container_image = (
@@ -430,27 +441,46 @@ class AquaApp:
         containers = self.ds_client.list_containers().data
         return containers
 
-    def get_container_config(self, container_family_name: str) -> ContainerSummary:
+    def get_container_config(self) -> AquaContainerConfig:
         """
-        Fetches latest container from container_family_name from containers.conf in OCI Datascience control plane
+        Fetches latest containers from containers.conf in OCI Datascience control plane
 
         Returns
         -------
-        ContainerSummary
+        AquaContainerConfig
+            An Object that contains latest container info for the given container family
+
+        """
+        return AquaContainerConfig.from_service_config(
+            service_containers=self.list_service_containers()
+        )
+
+    def get_container_config_item(
+        self, container_family: str
+    ) -> AquaContainerConfigItem:
+        """
+        Fetches latest container for given container_family_name from containers.conf in OCI Datascience control plane
+
+        Returns
+        -------
+        AquaContainerConfigItem
             An Object that contains latest container info for the given container family
 
         """
 
-        containers = self.list_service_containers()
-        container_item = next(
+        aqua_container_config = self.get_container_config()
+        inference_config = aqua_container_config.to_dict().get("inference")
+        ft_config = aqua_container_config.to_dict().get("finetune")
+        eval_config = aqua_container_config.to_dict().get("evaluate")
+        container = next(
             (
-                c
-                for c in containers
-                if c.is_latest and c.family_name == container_family_name
+                container
+                for container in chain(inference_config, ft_config, eval_config)
+                if container.family == container_family
             ),
             None,
         )
-        return container_item
+        return container
 
     @property
     def telemetry(self):

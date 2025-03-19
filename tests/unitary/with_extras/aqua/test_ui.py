@@ -39,6 +39,35 @@ class TestDataset:
     DEPLOYMENT_SHAPE_NAMES = ["VM.GPU.A10.1", "BM.GPU4.8", "VM.GPU.A10.2"]
     LIMIT_NAMES = ["ds-gpu-a10-count", "ds-gpu4-count", "ds-gpu-a10-count"]
     CONTAINERS_LIST = ServiceManagedContainers.MOCK_OUTPUT
+    EVAL_CONTAINER_ITEM = ContainerSummary(
+        **{
+            "container_name": "odsc-llm-evaluate",
+            "display_name": "Evaluate:0.1.3.4",
+            "family_name": "odsc-llm-evaluate",
+            "description": "This container supports evaluation on model deployment",
+            "is_latest": True,
+            "target_workloads": ["JOB_RUN"],
+            "usages": ["EVALUATION"],
+            "tag": "0.1.3.4",
+            "lifecycle_state": "ACTIVE",
+            "workload_configuration_details_list": [
+                JobRunWorkloadConfigurationDetails(
+                    **{
+                        "use_case_configuration": {
+                            "useCaseType": "GENERIC",
+                            "additionalConfigurations": {
+                                "metrics": '[{"task":["text-generation"],"key":"bertscore","name":"BERTScore","description":"BERTScoreisametricforevaluatingthequalityoftextgenerationmodels,suchasmachinetranslationorsummarization.Itutilizespre-trainedBERTcontextualembeddingsforboththegeneratedandreferencetexts,andthencalculatesthecosinesimilaritybetweentheseembeddings.","args":{},"tags":[]},{"task":["text-generation"],"key":"rouge","name":"ROUGEScore","description":"ROUGEscorescompareacandidatedocumenttoacollectionofreferencedocumentstoevaluatethesimilaritybetweenthem.Themetricsrangefrom0to1,withhigherscoresindicatinggreatersimilarity.ROUGEismoresuitableformodelsthatdon\'tincludeparaphrasinganddonotgeneratenewtextunitsthatdon\'tappearinthereferences.","args":{},"tags":[]},{"task":["text-generation"],"key":"bleu","name":"BLEUScore","description":"BLEU(BilingualEvaluationUnderstudy)isanalgorithmforevaluatingthequalityoftextwhichhasbeenmachine-translatedfromonenaturallanguagetoanother.Qualityisconsideredtobethecorrespondencebetweenamachine\'soutputandthatofahuman:\'thecloseramachinetranslationistoaprofessionalhumantranslation,thebetteritis\'.","args":{},"tags":[]},{"task":["text-generation"],"key":"perplexity_score","name":"PerplexityScore","description":"Perplexityisametrictoevaluatethequalityoflanguagemodels,particularlyfor\\"TextGeneration\\"tasktype.PerplexityquantifieshowwellaLLMcanpredictthenextwordinasequenceofwords.AhighperplexityscoreindicatesthattheLLMisnotconfidentinitstextgeneration—thatis,themodelis\\"perplexed\\"—whereasalowperplexityscoreindicatesthattheLLMisconfidentinitsgeneration.","args":{},"tags":[]},{"task":["text-generation"],"key":"text_readability","name":"TextReadability","description":"Textquality/readabilitymetricsoffervaluableinsightsintothequalityandsuitabilityofgeneratedresponses.MonitoringthesemetricshelpsensurethatLanguageModel(LLM)outputsareclear,concise,andappropriateforthetargetaudience.Evaluatingtextcomplexityandgradelevelhelpstailorthegeneratedcontenttotheintendedreaders.Byconsideringaspectssuchassentencestructure,vocabulary,anddomain-specificneeds,wecanmakesuretheLLMproducesresponsesthatmatchthedesiredreadinglevelandprofessionalcontext.Additionally,metricslikesyllablecount,wordcount,andcharactercountallowyoutokeeptrackofthelengthandstructureofthegeneratedtext.","args":{},"tags":[]}]',
+                                "shapes": '[{"name":"VM.Standard.E3.Flex","ocpu":8,"memory_in_gbs":128,"block_storage_size":200,"filter":{"evaluation_container":["odsc-llm-evaluate"],"evaluation_target":["datasciencemodeldeployment"]}},{"name":"VM.Standard.E4.Flex","ocpu":8,"memory_in_gbs":128,"block_storage_size":200,"filter":{"evaluation_container":["odsc-llm-evaluate"],"evaluation_target":["datasciencemodeldeployment"]}},{"name":"VM.Standard3.Flex","ocpu":8,"memory_in_gbs":128,"block_storage_size":200,"filter":{"evaluation_container":["odsc-llm-evaluate"],"evaluation_target":["datasciencemodeldeployment"]}},{"name":"VM.Optimized3.Flex","ocpu":8,"memory_in_gbs":128,"block_storage_size":200,"filter":{"evaluation_container":["odsc-llm-evaluate"],"evaluation_target":["datasciencemodeldeployment"]}}]',
+                            },
+                        }
+                    }
+                )
+            ],
+            "tag_configuration_list": [],
+            "freeform_tags": None,
+            "defined_tags": None,
+        }
+    )
 
 
 class TestAquaUI(unittest.TestCase):
@@ -505,11 +534,11 @@ class TestAquaUI(unittest.TestCase):
         result = self.app.is_bucket_versioned("oci://bucket-name-@namespace/prefix")
         assert result["is_versioned"] == versioned
 
-    @patch.object(AquaApp, "get_container_config")
-    def test_list_containers(self, mock_get_container_config):
+    @patch.object(AquaApp, "list_service_containers")
+    def test_list_containers(self, mock_list_service_containers):
         """Test to lists AQUA containers."""
 
-        mock_get_container_config.return_value = TestDataset.CONTAINERS_LIST
+        mock_list_service_containers.return_value = TestDataset.CONTAINERS_LIST
 
         test_result = self.app.list_containers().to_dict()
 

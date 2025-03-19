@@ -659,13 +659,7 @@ class AquaModelApp(AquaApp):
             model_file = UNKNOWN
 
         if not inference_containers:
-            inference_containers = (
-                AquaContainerConfig.from_service_config(
-                    service_containers=AquaApp().list_service_containers()
-                )
-                .to_dict()
-                .get("inference")
-            )
+            inference_containers = AquaApp().get_container_config().get("inference")
 
         model_formats_str = freeform_tags.get(
             Tags.MODEL_FORMAT, ModelFormat.SAFETENSORS
@@ -773,13 +767,7 @@ class AquaModelApp(AquaApp):
             f"Fetched {len(models)} model in compartment_id={ODSC_MODEL_COMPARTMENT_OCID if category==SERVICE else compartment_id}."
         )
         aqua_models = []
-        inference_containers = (
-            AquaContainerConfig.from_service_config(
-                service_containers=self.list_service_containers()
-            )
-            .to_dict()
-            .get("inference")
-        )
+        inference_containers = self.get_container_config().to_dict().get("inference")
         for model in models:
             aqua_models.append(
                 AquaModelSummary(
@@ -841,11 +829,7 @@ class AquaModelApp(AquaApp):
 
     @staticmethod
     def list_valid_inference_containers():
-        containers = list(
-            AquaContainerConfig.from_service_config(
-                service_containers=AquaApp().list_service_containers()
-            ).inference.values()
-        )
+        containers = list(AquaApp.get_container_config())
         family_values = [item.family_name for item in containers]
         return family_values
 

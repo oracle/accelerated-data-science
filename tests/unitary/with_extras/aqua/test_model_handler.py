@@ -244,11 +244,10 @@ class ModelLicenseHandlerTestCase(TestCase):
 
     @patch.object(AquaModelApp, "load_license")
     def test_get(self, mock_load_license):
+        mock_load_license.return_value.model_dump.return_value = {"key": "value"}
         self.model_license_handler.get(model_id="test_model_id")
 
-        self.model_license_handler.finish.assert_called_with(
-            mock_load_license.return_value
-        )
+        self.model_license_handler.finish.assert_called_with({"key": "value"})
         mock_load_license.assert_called_with("test_model_id")
 
 

@@ -320,10 +320,11 @@ class AquaDeploymentApp(AquaApp):
         # Fetch the startup cli command for the container
         # container_index.json will have "containerSpec" section which will provide the cli params for
         # a given container family
-        container_config = self.get_container_config(container_type_key)
-        container_spec = container_config.workload_configuration_details_list[0]
+        container_config = self.get_container_config_item(container_type_key)
+
+        container_spec = container_config.spec
         # these params cannot be overridden for Aqua deployments
-        params = container_spec.cmd
+        params = container_spec.cli_param
         server_port = server_port or container_spec.server_port
         # Give precendece to the input parameter
         health_check_port = health_check_port or container_spec.health_check_port

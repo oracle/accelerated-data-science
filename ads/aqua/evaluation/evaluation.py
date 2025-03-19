@@ -44,7 +44,6 @@ from ads.aqua.common.utils import (
     upload_local_to_os,
 )
 from ads.aqua.config.config import get_evaluation_service_config
-from ads.aqua.config.container_config import AquaContainerConfig
 from ads.aqua.constants import (
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     EVALUATION_REPORT,
@@ -190,11 +189,7 @@ class AquaEvaluationApp(AquaApp):
                         evaluation_source.runtime.to_dict()
                     )
                     inference_config = (
-                        AquaContainerConfig.from_service_config(
-                            service_containers=self.list_service_containers()
-                        )
-                        .to_dict()
-                        .get("inference")
+                        self.get_container_config().to_dict().get("inference")
                     )
                     for container in inference_config:
                         if container.name == runtime.image[: runtime.image.rfind(":")]:

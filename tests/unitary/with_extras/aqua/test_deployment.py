@@ -14,6 +14,10 @@ from unittest.mock import MagicMock, patch
 
 import oci
 import pytest
+from oci.data_science.models import (
+    ContainerSummary,
+    ModelDeployWorkloadConfigurationDetails,
+)
 from parameterized import parameterized
 
 from ads.aqua.app import AquaApp
@@ -44,6 +48,40 @@ class TestDataset:
     DEPLOYMENT_IMAGE_NAME = "dsmc://image-name:1.0.0.0"
     DEPLOYMENT_SHAPE_NAME = "VM.GPU.A10.1"
     DEPLOYMENT_SHAPE_NAME_CPU = "VM.Standard.A1.Flex"
+    INFERENCE_CONTAINER_CONFIG = ContainerSummary(
+        **{
+            "container_name": "odsc-vllm-serving",
+            "display_name": "VLLM:0.6.4.post1.2",
+            "family_name": "odsc-vllm-serving",
+            "description": "This container is used for llm inference, batch inference and serving",
+            "is_latest": True,
+            "target_workloads": ["MODEL_DEPLOYMENT", "JOB_RUN"],
+            "usages": ["INFERENCE", "BATCH_INFERENCE"],
+            "tag": "0.6.4.post1.2",
+            "lifecycle_state": "ACTIVE",
+            "workload_configuration_details_list": [
+                ModelDeployWorkloadConfigurationDetails(
+                    **{
+                        "cmd": "--served-model-name odsc-llm --disable-custom-all-reduce --seed 42 ",
+                        "server_port": 8080,
+                        "health_check_port": 8080,
+                        "additional_configurations": {
+                            "HEALTH_CHECK_PORT": "8080",
+                            "MODEL_DEPLOY_ENABLE_STREAMING": "true",
+                            "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
+                            "PORT": "8080",
+                            "modelFormats": "SAFETENSORS",
+                            "platforms": "NVIDIA_GPU",
+                            "restrictedParams": '["--port","--host","--served-model-name","--seed"]',
+                        },
+                    }
+                )
+            ],
+            "tag_configuration_list": [],
+            "freeform_tags": None,
+            "defined_tags": None,
+        }
+    )
 
     model_deployment_object = [
         {
@@ -475,12 +513,7 @@ class TestAquaDeployment(unittest.TestCase):
         freeform_tags = {"ftag1": "fvalue1", "ftag2": "fvalue2"}
         defined_tags = {"dtag1": "dvalue1", "dtag2": "dvalue2"}
 
-        container_index_json = os.path.join(
-            self.curr_dir, "test_data/ui/container_index.json"
-        )
-        with open(container_index_json, "r") as _file:
-            container_index_config = json.load(_file)
-        mock_get_container_config.return_value = container_index_config
+        mock_get_container_config.return_value = TestDataset.INFERENCE_CONTAINER_CONFIG
 
         mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
         aqua_deployment = os.path.join(
@@ -553,12 +586,7 @@ class TestAquaDeployment(unittest.TestCase):
 
         self.app.get_deployment_config = MagicMock(return_value=config)
 
-        container_index_json = os.path.join(
-            self.curr_dir, "test_data/ui/container_index.json"
-        )
-        with open(container_index_json, "r") as _file:
-            container_index_config = json.load(_file)
-        mock_get_container_config.return_value = container_index_config
+        mock_get_container_config.return_value = TestDataset.INFERENCE_CONTAINER_CONFIG
 
         mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
         aqua_deployment = os.path.join(
@@ -628,9 +656,8 @@ class TestAquaDeployment(unittest.TestCase):
         container_index_json = os.path.join(
             self.curr_dir, "test_data/ui/container_index.json"
         )
-        with open(container_index_json, "r") as _file:
-            container_index_config = json.load(_file)
-        mock_get_container_config.return_value = container_index_config
+
+        mock_get_container_config.return_value = TestDataset.INFERENCE_CONTAINER_CONFIG
 
         mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
         aqua_deployment = os.path.join(
@@ -707,9 +734,8 @@ class TestAquaDeployment(unittest.TestCase):
         container_index_json = os.path.join(
             self.curr_dir, "test_data/ui/container_index.json"
         )
-        with open(container_index_json, "r") as _file:
-            container_index_config = json.load(_file)
-        mock_get_container_config.return_value = container_index_config
+
+        mock_get_container_config.return_value = TestDataset.INFERENCE_CONTAINER_CONFIG
 
         mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
         aqua_deployment = os.path.join(
