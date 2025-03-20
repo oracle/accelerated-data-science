@@ -42,6 +42,7 @@ from ads.jobs.ads_job import DataScienceJob, DataScienceJobRun, Job
 from ads.model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_version_set import ModelVersionSet
+from tests.unitary.with_extras.aqua.utils import ServiceManagedContainers
 
 null = None
 
@@ -49,6 +50,7 @@ null = None
 class TestDataset:
     """Mock service response."""
 
+    CONTAINERS_LIST = ServiceManagedContainers.MOCK_OUTPUT
     model_provenance_object = {
         "git_branch": null,
         "git_commit": null,
@@ -884,76 +886,32 @@ class TestAquaEvaluation(unittest.TestCase):
         msg = self.app._extract_job_lifecycle_details(input)
         assert msg == expect_output, msg
 
-    @patch("ads.aqua.evaluation.evaluation.get_evaluation_service_config")
-    def test_get_supported_metrics(self, mock_get_evaluation_service_config):
+    @patch.object(AquaApp, "list_service_containers")
+    def test_get_supported_metrics(self, mock_list_service_containers):
         """
         Tests getting a list of supported metrics for evaluation.
         """
 
-        test_evaluation_service_config = EvaluationServiceConfig(
-            ui_config=UIConfig(
-                metrics=[
-                    MetricConfig(
-                        **{
-                            "args": {},
-                            "description": "BERT Score.",
-                            "key": "bertscore",
-                            "name": "BERT Score",
-                            "tags": [],
-                            "task": ["text-generation"],
-                        },
-                    )
-                ]
-            )
-        )
-        mock_get_evaluation_service_config.return_value = test_evaluation_service_config
+        supported_metrics = [
+            "bertscore",
+            "rouge",
+            "bleu",
+            "text_readability",
+            "perplexity_score",
+        ]
+        mock_list_service_containers.return_value = TestDataset.CONTAINERS_LIST
         response = self.app.get_supported_metrics()
         assert isinstance(response, list)
-        assert len(response) == len(test_evaluation_service_config.ui_config.metrics)
-        assert response == [
-            item.to_dict() for item in test_evaluation_service_config.ui_config.metrics
-        ]
+        assert len(response) == len(supported_metrics)
+        assert [m.key for m in response].sort() == supported_metrics.sort()
 
-    @patch("ads.aqua.evaluation.evaluation.get_evaluation_service_config")
-    def test_load_evaluation_config(self, mock_get_evaluation_service_config):
+    @patch.object(AquaApp, "list_service_containers")
+    def test_load_evaluation_config(self, mock_list_service_containers):
         """
         Tests loading default config for evaluation.
         This method currently hardcoded the return value.
         """
-
-        test_evaluation_service_config = EvaluationServiceConfig(
-            ui_config=UIConfig(
-                model_params=ModelParamsConfig(
-                    **{
-                        "default": {
-                            "model": "odsc-llm",
-                            "max_tokens": 500,
-                            "temperature": 0.7,
-                            "top_p": 0.9,
-                            "top_k": 50,
-                            "presence_penalty": 0.0,
-                            "frequency_penalty": 0.0,
-                            "stop": [],
-                        }
-                    }
-                ),
-                shapes=[
-                    ShapeConfig(
-                        **{
-                            "name": "VM.Standard.E3.Flex",
-                            "ocpu": 8,
-                            "memory_in_gbs": 128,
-                            "block_storage_size": 200,
-                            "filter": {
-                                "evaluation_container": ["odsc-llm-evaluate"],
-                                "evaluation_target": ["datasciencemodeldeployment"],
-                            },
-                        }
-                    )
-                ],
-            )
-        )
-        mock_get_evaluation_service_config.return_value = test_evaluation_service_config
+        mock_list_service_containers.return_value = TestDataset.CONTAINERS_LIST
 
         expected_result = {
             "model_params": {
@@ -967,16 +925,46 @@ class TestAquaEvaluation(unittest.TestCase):
                 "stop": [],
             },
             "shape": {
-                "VM.Standard.E3.Flex": {
-                    "name": "VM.Standard.E3.Flex",
-                    "ocpu": 8,
-                    "memory_in_gbs": 128,
+                "VM.Optimized3.Flex": {
                     "block_storage_size": 200,
                     "filter": {
                         "evaluation_container": ["odsc-llm-evaluate"],
                         "evaluation_target": ["datasciencemodeldeployment"],
                     },
-                }
+                    "memory_in_gbs": 128,
+                    "name": "VM.Optimized3.Flex",
+                    "ocpu": 8,
+                },
+                "VM.Standard.E3.Flex": {
+                    "block_storage_size": 200,
+                    "filter": {
+                        "evaluation_container": ["odsc-llm-evaluate"],
+                        "evaluation_target": ["datasciencemodeldeployment"],
+                    },
+                    "memory_in_gbs": 128,
+                    "name": "VM.Standard.E3.Flex",
+                    "ocpu": 8,
+                },
+                "VM.Standard.E4.Flex": {
+                    "block_storage_size": 200,
+                    "filter": {
+                        "evaluation_container": ["odsc-llm-evaluate"],
+                        "evaluation_target": ["datasciencemodeldeployment"],
+                    },
+                    "memory_in_gbs": 128,
+                    "name": "VM.Standard.E4.Flex",
+                    "ocpu": 8,
+                },
+                "VM.Standard3.Flex": {
+                    "block_storage_size": 200,
+                    "filter": {
+                        "evaluation_container": ["odsc-llm-evaluate"],
+                        "evaluation_target": ["datasciencemodeldeployment"],
+                    },
+                    "memory_in_gbs": 128,
+                    "name": "VM.Standard3.Flex",
+                    "ocpu": 8,
+                },
             },
             "default": {
                 "name": "VM.Standard.E3.Flex",

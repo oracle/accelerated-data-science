@@ -43,7 +43,11 @@ from ads.aqua.common.utils import (
     is_valid_ocid,
     upload_local_to_os,
 )
-from ads.aqua.config.config import get_evaluation_service_config
+from ads.aqua.config.evaluation.evaluation_service_config import (
+    DEFAULT_EVALUATION_CONTAINER,
+    EvaluationServiceConfig,
+    MetricConfig,
+)
 from ads.aqua.constants import (
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     EVALUATION_REPORT,
@@ -913,11 +917,18 @@ class AquaEvaluationApp(AquaApp):
             "loggroup_url": loggroup_url,
         }
 
-    def get_supported_metrics(self) -> dict:
+    def get_supported_metrics(self) -> List[MetricConfig]:
         """Gets a list of supported metrics for evaluation."""
-        return [
-            item.to_dict() for item in get_evaluation_service_config().ui_config.metrics
-        ]
+        containers = self.list_service_containers()
+        container_item = next(
+            c
+            for c in containers
+            if c.is_latest and c.family_name == DEFAULT_EVALUATION_CONTAINER
+        )
+        evaluation_service_config = EvaluationServiceConfig.from_oci_container_config(
+            container_item
+        )
+        return evaluation_service_config.ui_config.metrics
 
     @telemetry(entry_point="plugin=evaluation&action=load_metrics", name="aqua")
     def load_metrics(self, eval_id: str) -> AquaEvalMetrics:
@@ -1218,12 +1229,20 @@ class AquaEvaluationApp(AquaApp):
                 f"Exception message: {ex}"
             )
 
-    def load_evaluation_config(self, container: Optional[str] = None) -> Dict:
+    def load_evaluation_config(
+        self, container: Optional[str] = DEFAULT_EVALUATION_CONTAINER
+    ) -> Dict:
         """Loads evaluation config."""
 
         logger.info("Loading evaluation container config.")
         # retrieve the evaluation config by container family name
-        evaluation_config = get_evaluation_service_config(container)
+        containers = self.list_service_containers()
+        container_item = next(
+            c for c in containers if c.is_latest and c.family_name == container
+        )
+        evaluation_config = EvaluationServiceConfig.from_oci_container_config(
+            container_item
+        )
 
         # convert the new config representation to the old one
         return {

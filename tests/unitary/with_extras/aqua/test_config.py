@@ -9,8 +9,7 @@ from unittest.mock import patch, MagicMock
 
 import oci.data_science.models
 
-from ads.aqua.common.entities import ContainerSpec
-from ads.aqua.config.config import get_evaluation_service_config
+
 from ads.aqua.app import AquaApp
 from tests.unitary.with_extras.aqua.test_ui import TestDataset
 
@@ -21,16 +20,6 @@ class TestConfig:
     def setup_class(cls):
         cls.curr_dir = os.path.dirname(os.path.abspath(__file__))
         cls.artifact_dir = os.path.join(cls.curr_dir, "test_data", "config")
-
-    @patch.object(AquaApp, "list_service_containers")
-    def test_evaluation_service_config(self, mock_list_service_containers):
-        """Ensures that the common evaluation configuration can be successfully retrieved."""
-
-        mock_list_service_containers.return_value = TestDataset.CONTAINERS_LIST
-
-        test_result = get_evaluation_service_config(container="odsc-llm-evaluate")
-        assert len(test_result.ui_config.shapes) > 0
-        assert len(test_result.ui_config.metrics) > 0
 
     @pytest.mark.parametrize(
         "custom_metadata",
