@@ -991,7 +991,9 @@ class AquaModelApp(AquaApp):
             ).data.defined_metadata_list
             for defined_metadata in defined_metadata_list:
                 if defined_metadata.has_artifact:
-                    content = self.get_config(verified_model.id, defined_metadata.key)
+                    content = self.get_config_from_metadata(
+                        verified_model.id, defined_metadata.key
+                    )
                     defined_metadata_dict[defined_metadata.key] = content
         else:
             metadata = ModelCustomMetadata()
@@ -1807,6 +1809,7 @@ class AquaModelApp(AquaApp):
             content = self.ds_client.get_model_defined_metadatum_artifact_content(
                 model_id, AquaModelMetadataKeys.LICENSE
             ).data.content.decode("utf-8", errors="ignore")
+            print("content: ", content)
         except Exception as ex:
             logger.error(
                 f"License could not be found for model: {model_id} in defined metadata : {str(ex)}"
