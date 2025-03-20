@@ -540,7 +540,7 @@ class TestAquaUI(unittest.TestCase):
 
         mock_list_service_containers.return_value = TestDataset.CONTAINERS_LIST
 
-        test_result = self.app.list_containers().to_dict()
+        test_result = self.app.list_containers()
 
         expected_result = {
             "evaluate": [
@@ -582,6 +582,7 @@ class TestAquaUI(unittest.TestCase):
                             "--seed",
                         ],
                         "server_port": "8080",
+                        "evaluation_configuration": {},
                     },
                     "usages": ["INFERENCE", "BATCH_INFERENCE"],
                 }
