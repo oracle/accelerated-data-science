@@ -1809,7 +1809,6 @@ class AquaModelApp(AquaApp):
             content = self.ds_client.get_model_defined_metadatum_artifact_content(
                 model_id, AquaModelMetadataKeys.LICENSE
             ).data.content.decode("utf-8", errors="ignore")
-            print("content: ", content)
         except Exception as ex:
             logger.error(
                 f"License could not be found for model: {model_id} in defined metadata : {str(ex)}"
