@@ -369,6 +369,7 @@ class AquaDeploymentApp(AquaApp):
 
         for env in container_spec.env_vars:
             if isinstance(env, dict):
+                env = {k: v for k, v in env.items() if v}
                 for key, _items in env.items():
                     if key not in env_var:
                         env_var.update(env)
