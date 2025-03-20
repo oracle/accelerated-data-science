@@ -170,9 +170,6 @@ class TestOCIDataScienceModel:
         mock_client.get_model_provenance = MagicMock(
             return_value=self.mock_model_provenance_response
         )
-        mock_client.get_model_provenance = MagicMock(
-            return_value=self.mock_model_provenance_response
-        )
         mock_client.get_model_artifact_content = MagicMock(
             return_value=self.mock_artifact_content_response
         )

@@ -21,6 +21,7 @@ from oci.data_science.models import (
     RegisterModelArtifactReferenceDetails, 
     OSSModelArtifactReferenceDetails, 
     ModelArtifactReferenceDetails
+)
 
 from oci.exceptions import ServiceError
 from requests.structures import CaseInsensitiveDict
@@ -763,7 +764,7 @@ class OCIDataScienceModel(
             self.id,
             metadata_key_name,
             text_sanitizer(contents),
-            content_disposition="form" '-data; name="file"; filename="readme.*"',
+            content_disposition='form-data; name="file"; filename="readme.*"',
         )
         response_data = convert_model_metadata_response(
             response.headers, response.status
@@ -921,7 +922,7 @@ class OCIDataScienceModel(
             self.id,
             metadata_key_name,
             text_sanitizer(contents),
-            content_disposition="form" '-data; name="file"; filename="readme.*"',
+            content_disposition='form-data; name="file"; filename="readme.*"',
         )
         response_data = convert_model_metadata_response(
             response.headers, response.status
