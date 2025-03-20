@@ -40,6 +40,9 @@ class AquaContainerConfigSpec(Serializable):
     restricted_params: Optional[List[str]] = Field(
         default_factory=list, description="List of restricted parameters."
     )
+    evaluation_configuration: Optional[Dict] = Field(
+        default_factory=dict, description="Dict of evaluation configuration."
+    )
 
     class Config:
         extra = "allow"
@@ -202,6 +205,11 @@ class AquaContainerConfig(Serializable):
                             0
                         ].additional_configurations.get("restrictedParams")
                         or "[]"
+                    ),
+                    evaluation_configuration=json.loads(
+                        container.workload_configuration_details_list[
+                            0
+                        ].additional_configurations.get("evaluationConfiguration", "{}")
                     ),
                 )
                 container_item.spec = container_spec
