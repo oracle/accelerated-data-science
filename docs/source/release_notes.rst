@@ -2,16 +2,23 @@
 Release Notes
 =============
 
+2.13.3
+-------
+Release date: March 21, 2025
+
+* Fixed defined tag permission issue when creating AI Quick Action fine-tuning and evaluation.
+
+
 2.13.2
 -------
-Release date: March 14th, 2025
+Release date: March 14, 2025
 
 * Fixed bug in DataScienceModel defined metadata.
 
 
 2.13.1
 -------
-Release date: March 13th, 2025
+Release date: March 13, 2025
 
 
 * Upgraded OCI SDK to ``v2.148.0`` for improved compatibility and performance.
@@ -35,21 +42,21 @@ Release date: March 13th, 2025
 
 2.13.0
 -------
-Release date: Feb 14th, 2025
+Release date: Feb 14, 2025
 
 * Fixed bug in DataScienceModel defined metadata where non-predefined metadata keys caused errors.
 
 
 2.12.11
 -------
-Release date: Feb 5th, 2025
+Release date: Feb 5, 2025
 
 * Fixed bug while loading model configuration in AI Quick Actions.
 
 
 2.12.10
 -------
-Release date: Feb 5th, 2025
+Release date: Feb 5, 2025
 
 * Support inference container URI to be edited for unverified models in AI Quick Actions.
 * Logging improvements for all CRUD operations in AI Quick Actions.
