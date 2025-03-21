@@ -172,7 +172,6 @@ class AquaDeploymentApp(AquaApp):
                 "Invalid parameters for creating a model deployment. Either `model_id` or `models` must be provided."
             )
 
-
         # Set defaults for compartment and project if not provided.
         compartment_id = create_deployment_details.compartment_id or COMPARTMENT_OCID
         project_id = create_deployment_details.project_id or PROJECT_OCID
@@ -180,12 +179,17 @@ class AquaDeploymentApp(AquaApp):
         defined_tags = create_deployment_details.defined_tags
 
         # validate instance shape availability in compartment
-        available_shapes = self.list_shapes(compartment_id=create_deployment_details.compartment_id)
+        available_shapes = [
+            shape.name.lower()
+            for shape in self.list_shapes(
+                compartment_id=create_deployment_details.compartment_id
+            )
+        ]
 
-        if create_deployment_details.instance_shape not in available_shapes:
+        if create_deployment_details.instance_shape.lower() not in available_shapes:
             raise AquaValueError(
-                f"Invalid Instance Shape. The selected shape '{create_deployment_details.instance_shape}' is not available in the {self.region} region. "
-                "Please choose another shape to deploy the model."
+                f"Invalid Instance Shape. The selected shape '{create_deployment_details.instance_shape}' "
+                f"is not available in the {self.region} region. Please choose another shape to deploy the model."
             )
 
         # Get container config

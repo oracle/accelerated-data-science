@@ -1258,6 +1258,21 @@ class TestAquaDeployment(unittest.TestCase):
             container_index_config = json.load(_file)
         mock_get_container_config.return_value = container_index_config
 
+        shapes = []
+
+        with open(
+            os.path.join(
+                self.curr_dir,
+                "test_data/deployment/aqua_deployment_shapes.json",
+            ),
+            "r",
+        ) as _file:
+            shapes = [
+                ComputeShapeSummary(**item) for item in json.load(_file)["shapes"]
+            ]
+
+        self.app.list_shapes = MagicMock(return_value=shapes)
+
         mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
         aqua_deployment = os.path.join(
             self.curr_dir, "test_data/deployment/aqua_create_deployment.yaml"
@@ -1326,6 +1341,21 @@ class TestAquaDeployment(unittest.TestCase):
         )
         with open(config_json, "r") as _file:
             config = json.load(_file)
+
+        shapes = []
+
+        with open(
+            os.path.join(
+                self.curr_dir,
+                "test_data/deployment/aqua_deployment_shapes.json",
+            ),
+            "r",
+        ) as _file:
+            shapes = [
+                ComputeShapeSummary(**item) for item in json.load(_file)["shapes"]
+            ]
+
+        self.app.list_shapes = MagicMock(return_value=shapes)
 
         self.app.get_deployment_config = MagicMock(
             return_value=AquaDeploymentConfig(**config)
@@ -1412,6 +1442,21 @@ class TestAquaDeployment(unittest.TestCase):
             container_index_config = json.load(_file)
         mock_get_container_config.return_value = container_index_config
 
+        shapes = []
+
+        with open(
+            os.path.join(
+                self.curr_dir,
+                "test_data/deployment/aqua_deployment_shapes.json",
+            ),
+            "r",
+        ) as _file:
+            shapes = [
+                ComputeShapeSummary(**item) for item in json.load(_file)["shapes"]
+            ]
+
+        self.app.list_shapes = MagicMock(return_value=shapes)
+
         mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
         aqua_deployment = os.path.join(
             self.curr_dir, "test_data/deployment/aqua_create_gguf_deployment.yaml"
@@ -1492,6 +1537,21 @@ class TestAquaDeployment(unittest.TestCase):
         with open(container_index_json, "r") as _file:
             container_index_config = json.load(_file)
         mock_get_container_config.return_value = container_index_config
+
+        shapes = []
+
+        with open(
+            os.path.join(
+                self.curr_dir,
+                "test_data/deployment/aqua_deployment_shapes.json",
+            ),
+            "r",
+        ) as _file:
+            shapes = [
+                ComputeShapeSummary(**item) for item in json.load(_file)["shapes"]
+            ]
+
+        self.app.list_shapes = MagicMock(return_value=shapes)
 
         mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
         aqua_deployment = os.path.join(
@@ -1589,6 +1649,21 @@ class TestAquaDeployment(unittest.TestCase):
         with open(container_index_json, "r") as _file:
             container_index_config = json.load(_file)
         mock_get_container_config.return_value = container_index_config
+
+        shapes = []
+
+        with open(
+            os.path.join(
+                self.curr_dir,
+                "test_data/deployment/aqua_deployment_shapes.json",
+            ),
+            "r",
+        ) as _file:
+            shapes = [
+                ComputeShapeSummary(**item) for item in json.load(_file)["shapes"]
+            ]
+
+        self.app.list_shapes = MagicMock(return_value=shapes)
 
         deployment_config_json = os.path.join(
             self.curr_dir, "test_data/deployment/deployment_gpu_config.json"
