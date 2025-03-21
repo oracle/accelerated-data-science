@@ -89,6 +89,11 @@ class InvalidArtifactType(Exception):  # pragma: no cover
     pass
 
 
+class InvalidArtifactPathTypeOrContentError(Exception):  # pragma: no cover
+    def __init__(self, msg="Invalid type of Metdata artifact content"):
+        super().__init__(msg)
+
+
 class CustomerNotificationType(ExtendedEnum):
     NONE = "NONE"
     ALL = "ALL"
@@ -2238,7 +2243,7 @@ class DataScienceModel(Builder):
     def create_custom_metadata_artifact(
         self,
         metadata_key_name: str,
-        artifact_path_or_content: str,
+        artifact_path_or_content: Union[str, bytes],
         path_type: MetadataArtifactPathType = MetadataArtifactPathType.LOCAL,
     ) -> ModelMetadataArtifactDetails:
         """Creates model custom metadata artifact for specified model.
@@ -2248,8 +2253,10 @@ class DataScienceModel(Builder):
         metadata_key_name: str
             The name of the model custom metadata key
 
-        artifact_path_or_content: str
-            The model custom metadata artifact path to be upload. It can also be the actual content of the custom metadata
+        artifact_path_or_content: Union[str,bytes]
+            The model custom metadata artifact path to be upload. It can also be the actual content of the defined metadata
+            The type is string when it represents local path or oss path.
+            The type is bytes when it represents content itself
 
         path_type: MetadataArtifactPathType
             Can be either of MetadataArtifactPathType.LOCAL , MetadataArtifactPathType.OSS , MetadataArtifactPathType.CONTENT
@@ -2273,16 +2280,23 @@ class DataScienceModel(Builder):
             }
 
         """
+        if path_type == MetadataArtifactPathType.CONTENT and not isinstance(
+            artifact_path_or_content, bytes
+        ):
+            raise InvalidArtifactPathTypeOrContentError(
+                f"Invalid type of artifact content: {type(artifact_path_or_content)}. It should be bytes."
+            )
+
         return self.dsc_model.create_custom_metadata_artifact(
             metadata_key_name=metadata_key_name,
-            artifact_path=artifact_path_or_content,
+            artifact_path_or_content=artifact_path_or_content,
             path_type=path_type,
         )
 
     def create_defined_metadata_artifact(
         self,
         metadata_key_name: str,
-        artifact_path_or_content: str,
+        artifact_path_or_content: Union[str, bytes],
         path_type: MetadataArtifactPathType = MetadataArtifactPathType.LOCAL,
     ) -> ModelMetadataArtifactDetails:
         """Creates model defined metadata artifact for specified model.
@@ -2292,8 +2306,10 @@ class DataScienceModel(Builder):
         metadata_key_name: str
             The name of the model defined metadata key
 
-        artifact_path_or_content: str
+        artifact_path_or_content: Union[str,bytes]
             The model defined metadata artifact path to be upload. It can also be the actual content of the defined metadata
+            The type is string when it represents local path or oss path.
+            The type is bytes when it represents content itself
 
         path_type: MetadataArtifactPathType
             Can be either of MetadataArtifactPathType.LOCAL , MetadataArtifactPathType.OSS , MetadataArtifactPathType.CONTENT
@@ -2317,16 +2333,23 @@ class DataScienceModel(Builder):
             }
 
         """
+        if path_type == MetadataArtifactPathType.CONTENT and not isinstance(
+            artifact_path_or_content, bytes
+        ):
+            raise InvalidArtifactPathTypeOrContentError(
+                f"Invalid type of artifact content: {type(artifact_path_or_content)}. It should be bytes."
+            )
+
         return self.dsc_model.create_defined_metadata_artifact(
             metadata_key_name=metadata_key_name,
-            artifact_path=artifact_path_or_content,
+            artifact_path_or_content=artifact_path_or_content,
             path_type=path_type,
         )
 
     def update_custom_metadata_artifact(
         self,
         metadata_key_name: str,
-        artifact_path_or_content: str,
+        artifact_path_or_content: Union[str, bytes],
         path_type: MetadataArtifactPathType = MetadataArtifactPathType.LOCAL,
     ) -> ModelMetadataArtifactDetails:
         """Update model custom metadata artifact for specified model.
@@ -2336,8 +2359,10 @@ class DataScienceModel(Builder):
         metadata_key_name: str
             The name of the model custom metadata key
 
-        artifact_path_or_content: str
-            The model custom metadata artifact path. It can also be the actual content of the custom metadata
+        artifact_path_or_content: Union[str,bytes]
+            The model custom metadata artifact path to be upload. It can also be the actual content of the defined metadata
+            The type is string when it represents local path or oss path.
+            The type is bytes when it represents content itself
 
         path_type: MetadataArtifactPathType
             Can be either of MetadataArtifactPathType.LOCAL , MetadataArtifactPathType.OSS , MetadataArtifactPathType.CONTENT
@@ -2361,16 +2386,23 @@ class DataScienceModel(Builder):
             }
 
         """
+        if path_type == MetadataArtifactPathType.CONTENT and not isinstance(
+            artifact_path_or_content, bytes
+        ):
+            raise InvalidArtifactPathTypeOrContentError(
+                f"Invalid type of artifact content: {type(artifact_path_or_content)}. It should be bytes."
+            )
+
         return self.dsc_model.update_custom_metadata_artifact(
             metadata_key_name=metadata_key_name,
-            artifact_path=artifact_path_or_content,
+            artifact_path_or_content=artifact_path_or_content,
             path_type=path_type,
         )
 
     def update_defined_metadata_artifact(
         self,
         metadata_key_name: str,
-        artifact_path_or_content: str,
+        artifact_path_or_content: Union[str, bytes],
         path_type: MetadataArtifactPathType = MetadataArtifactPathType.LOCAL,
     ) -> ModelMetadataArtifactDetails:
         """Update model defined metadata artifact for specified model.
@@ -2380,8 +2412,10 @@ class DataScienceModel(Builder):
         metadata_key_name: str
             The name of the model defined metadata key
 
-        artifact_path_or_content: str
-            The model defined metadata artifact path. It can also be the actual content of the defined metadata
+        artifact_path_or_content: Union[str,bytes]
+            The model defined metadata artifact path to be upload. It can also be the actual content of the defined metadata
+            The type is string when it represents local path or oss path.
+            The type is bytes when it represents content itself
 
         path_type: MetadataArtifactPathType
             Can be either of MetadataArtifactPathType.LOCAL , MetadataArtifactPathType.OSS , MetadataArtifactPathType.CONTENT
@@ -2405,9 +2439,16 @@ class DataScienceModel(Builder):
             }
 
         """
+        if path_type == MetadataArtifactPathType.CONTENT and not isinstance(
+            artifact_path_or_content, bytes
+        ):
+            raise InvalidArtifactPathTypeOrContentError(
+                f"Invalid type of artifact content: {type(artifact_path_or_content)}. It should be bytes."
+            )
+
         return self.dsc_model.update_defined_metadata_artifact(
             metadata_key_name=metadata_key_name,
-            artifact_path=artifact_path_or_content,
+            artifact_path_or_content=artifact_path_or_content,
             path_type=path_type,
         )
 
@@ -2442,7 +2483,7 @@ class DataScienceModel(Builder):
         )
         artifact_file_path = os.path.join(target_dir, f"{metadata_key_name}")
 
-        if not override and os.path.exists(artifact_file_path):
+        if not override and is_path_exists(artifact_file_path):
             raise FileExistsError(f"File already exists: {artifact_file_path}")
 
         with open(artifact_file_path, "wb") as _file:
@@ -2481,7 +2522,7 @@ class DataScienceModel(Builder):
         )
         artifact_file_path = os.path.join(target_dir, f"{metadata_key_name}")
 
-        if not override and os.path.exists(artifact_file_path):
+        if not override and is_path_exists(artifact_file_path):
             raise FileExistsError(f"File already exists: {artifact_file_path}")
 
         with open(artifact_file_path, "wb") as _file:
