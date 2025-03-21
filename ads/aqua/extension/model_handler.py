@@ -9,12 +9,14 @@ from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.enums import CustomInferenceContainerTypeFamily
-from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
+from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import get_hf_model_info, is_valid_ocid, list_hf_models
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import AquaModelSummary, HFModelSummary
+from ads.config import USER
+from ads.model.common.utils import MetadataArtifactPathType
 
 
 class AquaModelHandler(AquaAPIhandler):
@@ -37,13 +39,11 @@ class AquaModelHandler(AquaAPIhandler):
                 raise HTTPError(
                     400, Errors.MISSING_REQUIRED_PARAMETER.format("model_format")
                 )
-            
+
             model_format = model_format.upper()
-            
+
             if os_path:
-                return self.finish(
-                    AquaModelApp.get_model_files(os_path, model_format)
-                )
+                return self.finish(AquaModelApp.get_model_files(os_path, model_format))
             elif model_name:
                 return self.finish(
                     AquaModelApp.get_hf_model_files(model_name, model_format)
@@ -82,11 +82,13 @@ class AquaModelHandler(AquaAPIhandler):
         # project_id is no needed.
         project_id = self.get_argument("project_id", default=None)
         model_type = self.get_argument("model_type", default=None)
+        category = self.get_argument("category", default=USER)
         return self.finish(
             AquaModelApp().list(
                 compartment_id=compartment_id,
                 project_id=project_id,
                 model_type=model_type,
+                category=category,
             )
         )
 
@@ -204,6 +206,16 @@ class AquaModelLicenseHandler(AquaAPIhandler):
 
         model_id = model_id.split("/")[0]
         return self.finish(AquaModelApp().load_license(model_id))
+
+
+class AquaModelReadmeHandler(AquaAPIhandler):
+    """
+    Handler for fetching model card for AQUA models
+    """
+
+    def get(self, model_id):
+        model_id = model_id.split("/")[0]
+        return self.finish(AquaModelApp().load_readme(model_id).model_dump())
 
 
 class AquaHuggingFaceHandler(AquaAPIhandler):
@@ -329,9 +341,50 @@ class AquaModelTokenizerConfigHandler(AquaAPIhandler):
         raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
 
+class AquaModelDefinedMetadataArtifactHandler(AquaAPIhandler):
+    """
+    Handler for Model Defined metadata artifact content
+
+    Raises
+    ------
+    HTTPError
+        Raises HTTPError if inputs are missing or are invalid.
+    """
+
+    @handle_exceptions
+    def get(self, model_id: str, metadata_key: str):
+        """
+        model_id: ocid of the model
+        metadata_key: the metadata key for which artifact content needs to be downloaded.
+        Can be any of Readme, License , FinetuneConfiguration , DeploymentConfiguration
+        """
+
+        return self.finish(
+            AquaModelApp().get_defined_metadata_artifact_content(model_id, metadata_key)
+        )
+
+    @handle_exceptions
+    def post(self, model_id: str, metadata_key: str):
+        input_body = self.get_json_body()
+        path_type = input_body.get("path_type")
+        artifact_path_or_content = input_body.get("artifact_path_or_content")
+        if path_type not in MetadataArtifactPathType.values():
+            raise HTTPError(400, f"Invalid value of path_type: {path_type}")
+        return self.finish(
+            AquaModelApp().create_defined_metadata_artifact(
+                model_id, metadata_key, path_type, artifact_path_or_content
+            )
+        )
+
+
 __handlers__ = [
     ("model/?([^/]*)", AquaModelHandler),
     ("model/?([^/]*)/license", AquaModelLicenseHandler),
+    ("model/?([^/]*)/readme", AquaModelReadmeHandler),
     ("model/?([^/]*)/tokenizer", AquaModelTokenizerConfigHandler),
     ("model/hf/search/?([^/]*)", AquaHuggingFaceHandler),
+    (
+        "model/?([^/]*)/definedMetadata/?([^/]*)",
+        AquaModelDefinedMetadataArtifactHandler,
+    ),
 ]

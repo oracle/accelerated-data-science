@@ -1,14 +1,15 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """This module defines constants used in ads.aqua module."""
 
 UNKNOWN_VALUE = ""
 READY_TO_IMPORT_STATUS = "TRUE"
 UNKNOWN_DICT = {}
-README = "README.md"
-LICENSE_TXT = "config/LICENSE.txt"
 DEPLOYMENT_CONFIG = "deployment_config.json"
+FINE_TUNING_CONFIG = "ft_config.json"
+README = "README.md"
+LICENSE = "LICENSE.txt"
 AQUA_MODEL_TOKENIZER_CONFIG = "tokenizer_config.json"
 COMPARTMENT_MAPPING_KEY = "service-model-compartment"
 CONTAINER_INDEX = "container_index.json"
@@ -37,7 +38,6 @@ AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE = "model_type"
 AQUA_MODEL_ARTIFACT_FILE = "model_file"
 HF_METADATA_FOLDER = ".cache/"
 HF_LOGIN_DEFAULT_TIMEOUT = 2
-
 TRAINING_METRICS_FINAL = "training_metrics_final"
 VALIDATION_METRICS_FINAL = "validation_metrics_final"
 TRINING_METRICS = "training_metrics"

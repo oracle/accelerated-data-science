@@ -20,8 +20,8 @@ from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import Resource, Tags
 from ads.aqua.common.errors import AquaFileExistsError, AquaValueError
 from ads.aqua.common.utils import (
+    DEFINED_METADATA_TO_FILE_MAP,
     build_pydantic_error_message,
-    get_container_image,
     upload_local_to_os,
 )
 from ads.aqua.constants import (
@@ -42,13 +42,13 @@ from ads.aqua.finetuning.entities import (
     AquaFineTuningSummary,
     CreateFineTuningDetails,
 )
+from ads.aqua.model.constants import AquaModelMetadataKeys
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN, get_console_link
 from ads.config import (
     AQUA_FINETUNING_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
     AQUA_JOB_SUBNET_ID,
-    AQUA_MODEL_FINETUNING_CONFIG,
     COMPARTMENT_OCID,
     CONDA_BUCKET_NS,
     PROJECT_OCID,
@@ -509,7 +509,7 @@ class AquaFineTuningApp(AquaApp):
     ) -> Runtime:
         """Builds fine tuning runtime for Job."""
         container = (
-            get_container_image(
+            self.get_container_image(
                 container_type=ft_container,
             )
             if not is_custom_container
@@ -590,7 +590,17 @@ class AquaFineTuningApp(AquaApp):
         Dict:
             A dict of allowed finetuning configs.
         """
-        config = self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG).config
+        config = self.get_config_from_metadata(
+            model_id, AquaModelMetadataKeys.FINE_TUNING_CONFIGURATION
+        )
+        if config:
+            return config
+        config = self.get_config(
+            model_id,
+            DEFINED_METADATA_TO_FILE_MAP.get(
+                AquaModelMetadataKeys.FINE_TUNING_CONFIGURATION.lower()
+            ),
+        ).config
         if not config:
             logger.debug(
                 f"Fine-tuning config for custom model: {model_id} is not available. Use defaults."

@@ -61,7 +61,7 @@ class FineTuningTestCase(TestCase):
     @patch("ads.jobs.ads_job.Job.name", new_callable=PropertyMock)
     @patch("ads.jobs.ads_job.Job.id", new_callable=PropertyMock)
     @patch.object(Job, "create")
-    @patch("ads.aqua.finetuning.finetuning.get_container_image")
+    @patch.object(AquaApp, "get_container_image")
     @patch.object(AquaFineTuningApp, "get_finetuning_config")
     @patch.object(AquaApp, "create_model_catalog")
     @patch.object(AquaApp, "create_model_version_set")

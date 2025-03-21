@@ -3,11 +3,15 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 from typing import Any, Dict, List, Optional
 
+from oci.data_science.models import ContainerSummary
 from pydantic import Field
 
 from ads.aqua.config.utils.serializer import Serializable
+
+DEFAULT_EVALUATION_CONTAINER = "odsc-llm-evaluate"
 
 
 class ShapeFilterConfig(Serializable):
@@ -105,3 +109,39 @@ class EvaluationServiceConfig(Serializable):
 
     class Config:
         extra = "allow"
+
+    @staticmethod
+    def from_oci_container_config(
+        oci_container_config: ContainerSummary,
+    ) -> "EvaluationServiceConfig":
+        """
+        Returns EvaluationServiceConfig for given oci_container_config
+        """
+
+        shapes = json.loads(
+            oci_container_config.workload_configuration_details_list[
+                0
+            ].use_case_configuration.additional_configurations.get("shapes")
+        )
+        metrics = json.loads(
+            oci_container_config.workload_configuration_details_list[
+                0
+            ].use_case_configuration.additional_configurations.get("metrics")
+        )
+        model_params = ModelParamsConfig(
+            default={
+                "model": "odsc-llm",
+                "max_tokens": 500,
+                "temperature": 0.7,
+                "top_p": 0.9,
+                "top_k": 50,
+                "presence_penalty": 0.0,
+                "frequency_penalty": 0.0,
+                "stop": [],
+            }
+        )
+        return EvaluationServiceConfig(
+            ui_config=UIConfig(
+                model_params=model_params, shapes=shapes, metrics=metrics
+            )
+        )
