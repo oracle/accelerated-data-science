@@ -329,6 +329,10 @@ class AquaEvaluationApp(AquaApp):
             **create_aqua_evaluation_details.model_parameters,
         )
 
+        evaluation_model_defined_tags = (
+            create_aqua_evaluation_details.defined_tags or {}
+        )
+
         target_compartment = (
             create_aqua_evaluation_details.compartment_id or COMPARTMENT_OCID
         )
@@ -380,9 +384,7 @@ class AquaEvaluationApp(AquaApp):
                         create_aqua_evaluation_details.experiment_description
                     )
                     .with_freeform_tags(**evaluation_mvs_freeform_tags)
-                    .with_defined_tags(
-                        **(create_aqua_evaluation_details.defined_tags or {})
-                    )
+                    .with_defined_tags(**evaluation_model_defined_tags)
                     # TODO: decide what parameters will be needed
                     .create(**kwargs)
                 )
@@ -427,6 +429,7 @@ class AquaEvaluationApp(AquaApp):
             .with_custom_metadata_list(evaluation_model_custom_metadata)
             .with_defined_metadata_list(evaluation_model_taxonomy_metadata)
             .with_provenance_metadata(ModelProvenanceMetadata(training_id=UNKNOWN))
+            .with_defined_tags(**evaluation_model_defined_tags)
             # TODO uncomment this once the evaluation container will get the updated version of the ADS
             # .with_input_schema(create_aqua_evaluation_details.to_dict())
             # TODO: decide what parameters will be needed
@@ -459,7 +462,7 @@ class AquaEvaluationApp(AquaApp):
             .with_shape_name(create_aqua_evaluation_details.shape_name)
             .with_block_storage_size(create_aqua_evaluation_details.block_storage_size)
             .with_freeform_tag(**evaluation_job_freeform_tags)
-            .with_defined_tag(**(create_aqua_evaluation_details.defined_tags or {}))
+            .with_defined_tag(**evaluation_model_defined_tags)
         )
         if (
             create_aqua_evaluation_details.memory_in_gbs
@@ -501,7 +504,9 @@ class AquaEvaluationApp(AquaApp):
                 metrics=create_aqua_evaluation_details.metrics,
                 inference_configuration=eval_inference_configuration or {},
             )
-        ).create(**kwargs)  ## TODO: decide what parameters will be needed
+        ).create(
+            **kwargs
+        )  ## TODO: decide what parameters will be needed
         logger.debug(
             f"Successfully created evaluation job {evaluation_job.id} for {create_aqua_evaluation_details.evaluation_source_id}."
         )
@@ -509,7 +514,7 @@ class AquaEvaluationApp(AquaApp):
         evaluation_job_run = evaluation_job.run(
             name=evaluation_model.display_name,
             freeform_tags=evaluation_job_freeform_tags,
-            defined_tags=(create_aqua_evaluation_details.defined_tags or {}),
+            defined_tags=evaluation_model_defined_tags,
             wait=False,
         )
         logger.debug(
@@ -533,16 +538,12 @@ class AquaEvaluationApp(AquaApp):
             Tags.AQUA_EVALUATION: Tags.AQUA_EVALUATION,
             **(create_aqua_evaluation_details.freeform_tags or {}),
         }
-        evaluation_model_defined_tags = (
-            create_aqua_evaluation_details.defined_tags or {}
-        )
 
         self.ds_client.update_model(
             model_id=evaluation_model.id,
             update_model_details=UpdateModelDetails(
                 custom_metadata_list=updated_custom_metadata_list,
                 freeform_tags=evaluation_model_freeform_tags,
-                defined_tags=evaluation_model_defined_tags,
             ),
         )
 
