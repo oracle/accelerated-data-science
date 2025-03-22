@@ -25,6 +25,7 @@ class Tags(ExtendedEnum):
     AQUA_TAG = "OCI_AQUA"
     AQUA_SERVICE_MODEL_TAG = "aqua_service_model"
     AQUA_FINE_TUNED_MODEL_TAG = "aqua_fine_tuned_model"
+    AQUA_MODEL_ID_TAG = "aqua_model_id"
     AQUA_MODEL_NAME_TAG = "aqua_model_name"
     AQUA_EVALUATION = "aqua_evaluation"
     AQUA_FINE_TUNING = "aqua_finetuning"
@@ -34,6 +35,7 @@ class Tags(ExtendedEnum):
     AQUA_EVALUATION_MODEL_ID = "evaluation_model_id"
     MODEL_FORMAT = "model_format"
     MODEL_ARTIFACT_FILE = "model_file"
+    MULTIMODEL_TYPE_TAG = "aqua_multimodel"
 
 
 class InferenceContainerType(ExtendedEnum):
@@ -44,6 +46,7 @@ class InferenceContainerType(ExtendedEnum):
 
 class InferenceContainerTypeFamily(ExtendedEnum):
     AQUA_VLLM_CONTAINER_FAMILY = "odsc-vllm-serving"
+    AQUA_VLLM_V1_CONTAINER_FAMILY = "odsc-vllm-serving-v1"
     AQUA_TGI_CONTAINER_FAMILY = "odsc-tgi-serving"
     AQUA_LLAMA_CPP_CONTAINER_FAMILY = "odsc-llama-cpp-serving"
 

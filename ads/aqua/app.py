@@ -6,9 +6,11 @@ import json
 import os
 import traceback
 from dataclasses import fields
+from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Union
 
 import oci
+from cachetools import TTLCache, cached
 from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDetails
 
 from ads import set_auth
@@ -269,6 +271,7 @@ class AquaApp:
                 logger.info(f"Artifact not found in model {model_id}.")
                 return False
 
+    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=1), timer=datetime.now))
     def get_config(
         self,
         model_id: str,
@@ -337,6 +340,9 @@ class AquaApp:
         config_file_path = os.path.join(config_path, config_file_name)
         if is_path_exists(config_file_path):
             try:
+                logger.debug(
+                    f"Loading config: `{config_file_name}` from `{config_path}`"
+                )
                 config = load_config(
                     config_path,
                     config_file_name=config_file_name,

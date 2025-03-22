@@ -595,7 +595,7 @@ class TestAquaUI(unittest.TestCase):
                         ],
                         "server_port": "8080",
                     },
-                    "usages": [],
+                    "usages": ["multi_model"],
                 },
             ],
             "finetune": [
