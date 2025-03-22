@@ -23,6 +23,7 @@ permissions:
 # hack for https://github.com/actions/cache/issues/810#issuecomment-1222550359
 env:
   SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+  ENV TF_USE_LEGACY_KERAS:  1
 
 jobs:
   test:
