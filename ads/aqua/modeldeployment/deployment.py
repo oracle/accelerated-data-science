@@ -36,7 +36,7 @@ from ads.aqua.modeldeployment.entities import (
     AquaDeploymentDetail,
 )
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import UNKNOWN, get_log_links
+from ads.common.utils import UNKNOWN, UNKNOWN_LIST, get_log_links
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
@@ -321,12 +321,16 @@ class AquaDeploymentApp(AquaApp):
         # a given container family
         container_config = self.get_container_config_item(container_type_key)
 
-        container_spec = container_config.spec
+        container_spec = container_config.spec if container_config else UNKNOWN
         # these params cannot be overridden for Aqua deployments
-        params = container_spec.cli_param
-        server_port = server_port or container_spec.server_port
+        params = container_spec.cli_param if container_spec else UNKNOWN
+        server_port = server_port or (
+            container_spec.server_port if container_spec else UNKNOWN
+        )
         # Give precendece to the input parameter
-        health_check_port = health_check_port or container_spec.health_check_port
+        health_check_port = health_check_port or (
+            container_spec.health_check_port if container_spec else UNKNOWN
+        )
 
         deployment_config = self.get_deployment_config(config_source_id)
 
@@ -366,8 +370,8 @@ class AquaDeploymentApp(AquaApp):
         params = f"{params} {deployment_params}".strip()
         if params:
             env_var.update({"PARAMS": params})
-
-        for env in container_spec.env_vars:
+        env_vars = container_spec.env_vars if container_spec else UNKNOWN_LIST
+        for env in env_vars:
             if isinstance(env, dict):
                 env = {k: v for k, v in env.items() if v}
                 for key, _items in env.items():

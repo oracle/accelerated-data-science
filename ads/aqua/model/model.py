@@ -1096,15 +1096,29 @@ class AquaModelApp(AquaApp):
             model.create_defined_metadata_artifact(
                 key, text_sanitizer(value), MetadataArtifactPathType.CONTENT
             )
-        model.create_defined_metadata_artifact(
-            AquaModelMetadataKeys.README, readme_file_path, MetadataArtifactPathType.OSS
-        )
-        if not verified_model:
-            model.create_defined_metadata_artifact(
-                AquaModelMetadataKeys.LICENSE,
-                license_file_path,
-                MetadataArtifactPathType.OSS,
-            )
+
+        if is_path_exists(readme_file_path):
+            try:
+                model.create_defined_metadata_artifact(
+                    AquaModelMetadataKeys.README,
+                    readme_file_path,
+                    MetadataArtifactPathType.OSS,
+                )
+            except Exception as ex:
+                logger.error(
+                    f"Error Uploading Readme in defined metadata for model: {model.id} : {str(ex)}"
+                )
+        if not verified_model and is_path_exists(license_file_path):
+            try:
+                model.create_defined_metadata_artifact(
+                    AquaModelMetadataKeys.LICENSE,
+                    license_file_path,
+                    MetadataArtifactPathType.OSS,
+                )
+            except Exception as ex:
+                logger.error(
+                    f"Error Uploading License in defined metadata for model: {model.id} : {str(ex)}"
+                )
         return model
 
     @staticmethod

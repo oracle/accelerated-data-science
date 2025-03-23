@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -64,6 +64,7 @@ MIN_RATIO_FOR_DOWN_SAMPLING = 1 / 20
 MAX_DISPLAY_VALUES = 10
 
 UNKNOWN = ""
+UNKNOWN_LIST = []
 
 # par link of the index json file.
 PAR_LINK = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/WyjtfVIG0uda-P3-2FmAfwaLlXYQZbvPZmfX1qg0-sbkwEQO6jpwabGr2hMDBmBp/n/ociodscdev/b/service-conda-packs/o/service_pack/index.json"

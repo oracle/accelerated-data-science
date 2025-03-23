@@ -9,7 +9,12 @@ from pydantic import Field
 
 from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.config.utils.serializer import Serializable
-from ads.aqua.constants import SERVICE_MANAGED_CONTAINER_URI_SCHEME
+from ads.aqua.constants import (
+    SERVICE_MANAGED_CONTAINER_URI_SCHEME,
+    UNKNOWN_JSON_LIST,
+    UNKNOWN_JSON_STR,
+)
+from ads.common.utils import UNKNOWN
 
 
 class AquaContainerConfigSpec(Serializable):
@@ -169,24 +174,24 @@ class AquaContainerConfig(Serializable):
                         "MODEL_DEPLOY_PREDICT_ENDPOINT": container.workload_configuration_details_list[
                             0
                         ].additional_configurations.get(
-                            "MODEL_DEPLOY_PREDICT_ENDPOINT", ""
+                            "MODEL_DEPLOY_PREDICT_ENDPOINT", UNKNOWN
                         ),
                         "MODEL_DEPLOY_HEALTH_ENDPOINT": container.workload_configuration_details_list[
                             0
                         ].additional_configurations.get(
-                            "MODEL_DEPLOY_HEALTH_ENDPOINT", ""
+                            "MODEL_DEPLOY_HEALTH_ENDPOINT", UNKNOWN
                         ),
                         "MODEL_DEPLOY_ENABLE_STREAMING": container.workload_configuration_details_list[
                             0
                         ].additional_configurations.get(
-                            "MODEL_DEPLOY_ENABLE_STREAMING", ""
+                            "MODEL_DEPLOY_ENABLE_STREAMING", UNKNOWN
                         ),
                         "PORT": container.workload_configuration_details_list[
                             0
                         ].additional_configurations.get("PORT", ""),
                         "HEALTH_CHECK_PORT": container.workload_configuration_details_list[
                             0
-                        ].additional_configurations.get("HEALTH_CHECK_PORT", ""),
+                        ].additional_configurations.get("HEALTH_CHECK_PORT", UNKNOWN),
                     }
                 ]
                 container_spec = AquaContainerConfigSpec(
@@ -204,12 +209,14 @@ class AquaContainerConfig(Serializable):
                         container.workload_configuration_details_list[
                             0
                         ].additional_configurations.get("restrictedParams")
-                        or "[]"
+                        or UNKNOWN_JSON_LIST
                     ),
                     evaluation_configuration=json.loads(
                         container.workload_configuration_details_list[
                             0
-                        ].additional_configurations.get("evaluationConfiguration", "{}")
+                        ].additional_configurations.get(
+                            "evaluationConfiguration", UNKNOWN_JSON_STR
+                        )
                     ),
                 )
                 container_item.spec = container_spec
