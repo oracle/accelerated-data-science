@@ -325,11 +325,11 @@ class AquaDeploymentApp(AquaApp):
         # these params cannot be overridden for Aqua deployments
         params = container_spec.cli_param if container_spec else UNKNOWN
         server_port = server_port or (
-            container_spec.server_port if container_spec else UNKNOWN
+            container_spec.server_port if container_spec else None
         )
         # Give precendece to the input parameter
         health_check_port = health_check_port or (
-            container_spec.health_check_port if container_spec else UNKNOWN
+            container_spec.health_check_port if container_spec else None
         )
 
         deployment_config = self.get_deployment_config(config_source_id)
