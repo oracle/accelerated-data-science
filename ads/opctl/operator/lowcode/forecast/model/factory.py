@@ -3,7 +3,7 @@
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from ..const import AUTO_SELECT, SupportedModels
+from ..const import AUTO_SELECT, SpeedAccuracyMode, SupportedModels
 from ..model_evaluator import ModelEvaluator
 from ..operator_config import ForecastOperatorConfig
 from .arima import ArimaOperatorModel
@@ -66,6 +66,13 @@ class ForecastOperatorModelFactory:
         if model_type == AUTO_SELECT:
             model_type = cls.auto_select_model(datasets, operator_config)
             operator_config.spec.model_kwargs = {}
+            # set the explanations accuracy mode to AUTOMLX if the selected model is automlx
+            if (
+                model_type == SupportedModels.AutoMLX
+                and operator_config.spec.explanations_accuracy_mode
+                == SpeedAccuracyMode.FAST_APPROXIMATE
+            ):
+                operator_config.spec.explanations_accuracy_mode = "AUTOMLX"
         if model_type not in cls._MAP:
             raise UnSupportedModelError(model_type)
         return cls._MAP[model_type](config=operator_config, datasets=datasets)
