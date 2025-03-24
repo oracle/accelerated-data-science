@@ -28,7 +28,7 @@ from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.oci_mixin import OCIWorkRequestMixin
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
-from ads.common.utils import extract_region, read_file, text_sanitizer
+from ads.common.utils import extract_region, read_file
 from ads.common.work_request import DataScienceWorkRequest
 from ads.model.common.utils import MetadataArtifactPathType
 from ads.model.deployment import ModelDeployment
@@ -621,15 +621,19 @@ class OCIDataScienceModel(
         return False
 
     def get_metadata_content(
-        self, artifact_path_or_content: str, path_type: MetadataArtifactPathType
+        self,
+        artifact_path_or_content: Union[str, bytes],
+        path_type: MetadataArtifactPathType,
     ):
         """
         returns the content of the metadata artifact
 
         Parameters
         ----------
-        artifact_path_or_content: str
+        artifact_path_or_content: Union[str,bytes]
             The path of the file (local or oss) containing metadata artifact or content.
+            The type is string when it represents local path or oss path.
+            The type is bytes when it represents content itself
         path_type: str
             can be one of local , oss or actual content itself
 
@@ -656,10 +660,9 @@ class OCIDataScienceModel(
         elif path_type == MetadataArtifactPathType.OSS:
             if not utils.is_path_exists(artifact_path_or_content):
                 raise FileNotFoundError(f"File not found: {artifact_path_or_content}")
-
-            contents = str(
-                read_file(file_path=artifact_path_or_content, auth=default_signer())
-            )
+            contents = read_file(
+                file_path=artifact_path_or_content, auth=default_signer()
+            ).encode()
             logger.debug(f"The metadata artifact content - {contents}")
 
             return contents
@@ -670,7 +673,7 @@ class OCIDataScienceModel(
     def create_custom_metadata_artifact(
         self,
         metadata_key_name: str,
-        artifact_path: str,
+        artifact_path_or_content: Union[str, bytes],
         path_type: MetadataArtifactPathType,
     ) -> ModelMetadataArtifactDetails:
         """Creates model custom metadata artifact for specified model.
@@ -680,8 +683,10 @@ class OCIDataScienceModel(
         metadata_key_name: str
             The name of the model metadatum in the metadata.
 
-        artifact_path: str
-            The model custom metadata artifact path to be upload.
+        artifact_path_or_content: Union[str,bytes]
+            The path of the file (local or oss) containing metadata artifact or content.
+            The type is string when it represents local path or oss path.
+            The type is bytes when it represents content itself
 
         path_type: MetadataArtifactPathType
             can be one of local , oss or actual content itself
@@ -704,12 +709,13 @@ class OCIDataScienceModel(
 
         """
         contents = self.get_metadata_content(
-            artifact_path_or_content=artifact_path, path_type=path_type
+            artifact_path_or_content=artifact_path_or_content, path_type=path_type
         )
+
         response = self.client.create_model_custom_metadatum_artifact(
             self.id,
             metadata_key_name,
-            text_sanitizer(contents),
+            contents,
             content_disposition="form" '-data; name="file"; filename="readme.*"',
         )
         response_data = convert_model_metadata_response(
@@ -723,7 +729,7 @@ class OCIDataScienceModel(
     def create_defined_metadata_artifact(
         self,
         metadata_key_name: str,
-        artifact_path: str,
+        artifact_path_or_content: Union[str, bytes],
         path_type: MetadataArtifactPathType,
     ) -> ModelMetadataArtifactDetails:
         """Creates model defined metadata artifact for specified model.
@@ -733,8 +739,10 @@ class OCIDataScienceModel(
         metadata_key_name: str
             The name of the model metadatum in the metadata.
 
-        artifact_path: str
-            The model custom metadata artifact path to be upload.
+        artifact_path_or_content: Union[str,bytes]
+            The path of the file (local or oss) containing metadata artifact or content.
+            The type is string when it represents local path or oss path.
+            The type is bytes when it represents content itself
 
         path_type: MetadataArtifactPathType
             can be one of local , oss or actual content itself.
@@ -757,12 +765,13 @@ class OCIDataScienceModel(
 
         """
         contents = self.get_metadata_content(
-            artifact_path_or_content=artifact_path, path_type=path_type
+            artifact_path_or_content=artifact_path_or_content, path_type=path_type
         )
+
         response = self.client.create_model_defined_metadatum_artifact(
             self.id,
             metadata_key_name,
-            text_sanitizer(contents),
+            contents,
             content_disposition='form-data; name="file"; filename="readme.*"',
         )
         response_data = convert_model_metadata_response(
@@ -776,7 +785,7 @@ class OCIDataScienceModel(
     def update_defined_metadata_artifact(
         self,
         metadata_key_name: str,
-        artifact_path: str,
+        artifact_path_or_content: Union[str, bytes],
         path_type: MetadataArtifactPathType,
     ) -> ModelMetadataArtifactDetails:
         """Update model defined metadata artifact for specified model.
@@ -786,8 +795,10 @@ class OCIDataScienceModel(
         metadata_key_name: str
             The name of the model metadatum in the metadata.
 
-        artifact_path: str
-            The model defined metadata artifact path to be upload.
+        artifact_path_or_content: Union[str,bytes]
+            The path of the file (local or oss) containing metadata artifact or content.
+            The type is string when it represents local path or oss path.
+            The type is bytes when it represents content itself
 
         path_type:MetadataArtifactPathType
             can be one of local , oss or actual content itself.
@@ -809,12 +820,12 @@ class OCIDataScienceModel(
 
         """
         contents = self.get_metadata_content(
-            artifact_path_or_content=artifact_path, path_type=path_type
+            artifact_path_or_content=artifact_path_or_content, path_type=path_type
         )
         response = self.client.update_model_defined_metadatum_artifact(
             self.id,
             metadata_key_name,
-            text_sanitizer(contents),
+            contents,
             content_disposition='form-data; name="file"; filename="readme.*"',
         )
         response_data = convert_model_metadata_response(
@@ -828,7 +839,7 @@ class OCIDataScienceModel(
     def update_custom_metadata_artifact(
         self,
         metadata_key_name: str,
-        artifact_path: str,
+        artifact_path_or_content: Union[str, bytes],
         path_type: MetadataArtifactPathType,
     ) -> ModelMetadataArtifactDetails:
         """Update model custom metadata artifact for specified model.
@@ -838,8 +849,10 @@ class OCIDataScienceModel(
         metadata_key_name: str
             The name of the model metadatum in the metadata.
 
-        artifact_path: str
-            The model custom metadata artifact path to be upload.
+        artifact_path_or_content: Union[str,bytes]
+            The path of the file (local or oss) containing metadata artifact or content.
+            The type is string when it represents local path or oss path.
+            The type is bytes when it represents content itself
 
         path_type: MetadataArtifactPathType
             can be one of local , oss or actual content itself.
@@ -862,12 +875,12 @@ class OCIDataScienceModel(
 
         """
         contents = self.get_metadata_content(
-            artifact_path_or_content=artifact_path, path_type=path_type
+            artifact_path_or_content=artifact_path_or_content, path_type=path_type
         )
         response = self.client.update_model_custom_metadatum_artifact(
             self.id,
             metadata_key_name,
-            text_sanitizer(contents),
+            contents,
             content_disposition="form" '-data; name="file"; filename="readme.*"',
         )
         response_data = convert_model_metadata_response(
