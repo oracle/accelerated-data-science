@@ -72,7 +72,7 @@ class ForecastOperatorModelFactory:
                 and operator_config.spec.explanations_accuracy_mode
                 == SpeedAccuracyMode.FAST_APPROXIMATE
             ):
-                operator_config.spec.explanations_accuracy_mode = "AUTOMLX"
+                operator_config.spec.explanations_accuracy_mode = SpeedAccuracyMode.AUTOMLX
         if model_type not in cls._MAP:
             raise UnSupportedModelError(model_type)
         return cls._MAP[model_type](config=operator_config, datasets=datasets)
