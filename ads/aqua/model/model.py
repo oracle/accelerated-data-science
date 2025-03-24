@@ -84,7 +84,6 @@ from ads.common.utils import (
     get_console_link,
     is_path_exists,
     read_file,
-    text_sanitizer,
 )
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
@@ -255,7 +254,6 @@ class AquaModelApp(AquaApp):
             and ds_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG)
         )
 
-        model_card = ""
         inference_container = ds_model.custom_metadata_list.get(
             ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
             ModelCustomMetadataItem(key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER),
@@ -282,7 +280,6 @@ class AquaModelApp(AquaApp):
         aqua_model_attributes = dict(
             **self._process_model(ds_model, self.region),
             project_id=ds_model.project_id,
-            model_card=model_card,
             inference_container=inference_container,
             inference_container_uri=inference_container_uri,
             finetuning_container=finetuning_container,
@@ -986,13 +983,15 @@ class AquaModelApp(AquaApp):
                 model = model.with_model_file_description(
                     json_dict=verified_model.model_file_description
                 )
-            defined_metadata_list = self.ds_client.get_model(
-                verified_model.id
-            ).data.defined_metadata_list
+            defined_metadata_list = (
+                verified_model.defined_metadata_list._to_oci_metadata()
+            )
             for defined_metadata in defined_metadata_list:
                 if defined_metadata.has_artifact:
-                    content = self.get_config_from_metadata(
-                        verified_model.id, defined_metadata.key
+                    content = (
+                        self.ds_client.get_model_defined_metadatum_artifact_content(
+                            verified_model.id, defined_metadata.key
+                        ).data.content
                     )
                     defined_metadata_dict[defined_metadata.key] = content
         else:
@@ -1094,7 +1093,7 @@ class AquaModelApp(AquaApp):
         logger.debug(f"Created model catalog entry for the model:\n{model}")
         for key, value in defined_metadata_dict.items():
             model.create_defined_metadata_artifact(
-                key, text_sanitizer(value), MetadataArtifactPathType.CONTENT
+                key, value, MetadataArtifactPathType.CONTENT
             )
 
         if is_path_exists(readme_file_path):
@@ -1671,11 +1670,6 @@ class AquaModelApp(AquaApp):
         aqua_model_attributes = dict(
             **self._process_model(ds_model, self.region),
             project_id=ds_model.project_id,
-            model_card=str(
-                self.ds_client.get_model_defined_metadatum_artifact_content(
-                    ds_model.id, AquaModelMetadataKeys.README
-                ).data.content
-            ),
             inference_container=inference_container,
             inference_container_uri=inference_container_uri,
             finetuning_container=finetuning_container,

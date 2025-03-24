@@ -652,7 +652,7 @@ class OCIDataScienceModel(
                 )
 
             with open(artifact_path_or_content, "rb") as f:
-                contents = f.read().decode("utf-8")
+                contents = f.read()
                 logger.info(f"The metadata artifact content - {contents}")
 
             return contents

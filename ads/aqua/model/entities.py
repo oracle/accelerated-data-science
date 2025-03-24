@@ -103,7 +103,6 @@ class AquaModelSummary(DataClassSerializable):
 class AquaModel(AquaModelSummary, DataClassSerializable):
     """Represents an Aqua model."""
 
-    model_card: str = None
     inference_container: str = None
     inference_container_uri: str = None
     finetuning_container: str = None

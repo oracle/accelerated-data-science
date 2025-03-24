@@ -443,7 +443,6 @@ class TestAquaModel:
             "id": f"{ds_model.id}",
             "is_fine_tuned_model": False,
             "license": f'{ds_model.freeform_tags["license"]}',
-            "model_card": "",
             "model_formats": [ModelFormat.SAFETENSORS],
             "model_file": "",
             "name": f"{ds_model.display_name}",
@@ -618,7 +617,6 @@ class TestAquaModel:
                     "scores": [],
                 },
             ],
-            "model_card": "",
             "model_formats": [ModelFormat.SAFETENSORS],
             "model_file": "",
             "name": f"{ds_model.display_name}",
@@ -713,6 +711,7 @@ class TestAquaModel:
             .with_version_id("ocid1.blah.blah")
         )
         custom_metadata_list = ModelCustomMetadata()
+        defined_metadata_list = ModelTaxonomyMetadata()
         custom_metadata_list.add(
             **{"key": "deployment-container", "value": "odsc-tgi-serving"}
         )
@@ -728,6 +727,7 @@ class TestAquaModel:
                 }
             )
         ds_model.with_custom_metadata_list(custom_metadata_list)
+        ds_model.with_defined_metadata_list(defined_metadata_list)
         ds_model.set_spec(ds_model.CONST_MODEL_FILE_DESCRIPTION, {})
         ds_model.dsc_model = MagicMock(id="test_model_id")
         DataScienceModel.from_id = MagicMock(return_value=ds_model)
@@ -903,6 +903,7 @@ class TestAquaModel:
             .with_version_id("ocid1.blah.blah")
         )
         custom_metadata_list = ModelCustomMetadata()
+        defined_metadata_list = ModelTaxonomyMetadata()
         custom_metadata_list.add(
             **{"key": "deployment-container", "value": "odsc-tgi-serving"}
         )
@@ -910,6 +911,7 @@ class TestAquaModel:
             **{"key": "evaluation-container", "value": "odsc-llm-evaluate"}
         )
         ds_model.with_custom_metadata_list(custom_metadata_list)
+        ds_model.with_defined_metadata_list(defined_metadata_list)
         ds_model.set_spec(ds_model.CONST_MODEL_FILE_DESCRIPTION, {})
         DataScienceModel.from_id = MagicMock(return_value=ds_model)
         mock__find_matching_aqua_model.return_value = "test_model_id"
@@ -1147,10 +1149,12 @@ class TestAquaModel:
             .with_version_id("ocid1.version.id")
         )
         custom_metadata_list = ModelCustomMetadata()
+        defined_metadata_list = ModelTaxonomyMetadata()
         custom_metadata_list.add(
             **{"key": "deployment-container", "value": "odsc-tei-serving"}
         )
         ds_model.with_custom_metadata_list(custom_metadata_list)
+        ds_model.with_defined_metadata_list(defined_metadata_list)
         ds_model.set_spec(ds_model.CONST_MODEL_FILE_DESCRIPTION, {})
         DataScienceModel.from_id = MagicMock(return_value=ds_model)
         mock__find_matching_aqua_model.return_value = None
