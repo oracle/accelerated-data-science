@@ -662,8 +662,10 @@ class TestAquaModel:
     @patch("huggingface_hub.snapshot_download")
     @patch("subprocess.check_call")
     @patch.object(AquaApp, "get_container_config")
+    @patch("ads.common.utils.is_path_exists", return_value=True)
     def test_import_verified_model(
         self,
+        mock_is_path_exists,
         mock_get_container_config,
         mock_subprocess,
         mock_snapshot_download,
@@ -802,8 +804,10 @@ class TestAquaModel:
     @patch.object(AquaModelApp, "_validate_model")
     @patch("ads.aqua.common.utils.load_config", return_value={})
     @patch.object(AquaApp, "get_container_config")
+    @patch("ads.common.utils.is_path_exists", return_value=True)
     def test_import_any_model_no_containers_specified(
         self,
+        mock_is_path_exists,
         mock_get_container_config,
         mock_load_config,
         mock__validate_model,
@@ -859,8 +863,10 @@ class TestAquaModel:
     @patch("huggingface_hub.snapshot_download")
     @patch("subprocess.check_call")
     @patch.object(AquaApp, "get_container_config")
+    @patch("ads.common.utils.is_path_exists", return_value=True)
     def test_import_model_with_project_compartment_override(
         self,
+        mock_is_path_exists,
         mock_get_container_config,
         mock_subprocess,
         mock_snapshot_download,
@@ -950,8 +956,10 @@ class TestAquaModel:
     @patch("huggingface_hub.snapshot_download")
     @patch("subprocess.check_call")
     @patch.object(AquaApp, "get_container_config")
+    @patch("ads.common.utils.is_path_exists", return_value=True)
     def test_import_model_with_missing_config(
         self,
+        mock_is_path_exists,
         mock_get_container_config,
         mock_subprocess,
         mock_snapshot_download,
@@ -1020,8 +1028,10 @@ class TestAquaModel:
     @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
     @patch("ads.aqua.common.utils.load_config", return_value={})
     @patch.object(AquaApp, "get_container_config")
+    @patch("ads.common.utils.is_path_exists", return_value=True)
     def test_import_any_model_smc_container(
         self,
+        mock_is_path_exist,
         mock_get_container_config,
         mock_load_config,
         mock_list_objects,
@@ -1093,8 +1103,10 @@ class TestAquaModel:
     @patch("huggingface_hub.snapshot_download")
     @patch("subprocess.check_call")
     @patch.object(AquaApp, "get_container_config")
+    @patch("ads.common.utils.is_path_exists", return_value=True)
     def test_import_tei_model_byoc(
         self,
+        mock_is_path_exists,
         mock_get_container_config,
         mock_subprocess,
         mock_snapshot_download,
@@ -1174,8 +1186,10 @@ class TestAquaModel:
     @patch.object(HfApi, "model_info")
     @patch("ads.aqua.common.utils.load_config", return_value={})
     @patch.object(AquaApp, "get_container_config")
+    @patch("ads.common.utils.is_path_exists", return_value=True)
     def test_import_model_with_input_tags(
         self,
+        mock_is_path_exists,
         mock_get_container_config,
         mock_load_config,
         mock_list_objects,
