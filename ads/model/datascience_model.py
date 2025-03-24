@@ -2254,14 +2254,21 @@ class DataScienceModel(Builder):
             The name of the model custom metadata key
 
         artifact_path_or_content: Union[str,bytes]
-            The model custom metadata artifact path to be upload. It can also be the actual content of the defined metadata
+            The model custom metadata artifact path to be uploaded. It can also be the actual content of the custom metadata artifact
             The type is string when it represents local path or oss path.
             The type is bytes when it represents content itself
 
         path_type: MetadataArtifactPathType
             Can be either of MetadataArtifactPathType.LOCAL , MetadataArtifactPathType.OSS , MetadataArtifactPathType.CONTENT
             Specifies what type of path is to be provided for metadata artifact.
-            Can be either local , oss or the actual content itself
+
+        Example:
+        >>>       ds_model=DataScienceModel.from_id("ocid1.datasciencemodel.iad.xxyxz...")
+        >>>       ds_model.create_custom_metadata_artifact(
+        ...         "README",
+        ...         artifact_path_or_content="/Users/<username>/Downloads/README.md",
+        ...         path_type=MetadataArtifactPathType.LOCAL
+        ...       )
 
         Returns
         -------
@@ -2307,7 +2314,7 @@ class DataScienceModel(Builder):
             The name of the model defined metadata key
 
         artifact_path_or_content: Union[str,bytes]
-            The model defined metadata artifact path to be upload. It can also be the actual content of the defined metadata
+            The model defined metadata artifact path to be uploaded. It can also be the actual content of the defined metadata
             The type is string when it represents local path or oss path.
             The type is bytes when it represents content itself
 
@@ -2315,6 +2322,14 @@ class DataScienceModel(Builder):
             Can be either of MetadataArtifactPathType.LOCAL , MetadataArtifactPathType.OSS , MetadataArtifactPathType.CONTENT
             Specifies what type of path is to be provided for metadata artifact.
             Can be either local , oss or the actual content itself
+
+        Example:
+        >>>       ds_model=DataScienceModel.from_id("ocid1.datasciencemodel.iad.xxyxz...")
+        >>>       ds_model.create_defined_metadata_artifact(
+        ...         "README",
+        ...         artifact_path_or_content="oci://path/to/bucket/README.md",
+        ...         path_type=MetadataArtifactPathType.OSS
+        ...       )
 
         Returns
         -------
@@ -2360,7 +2375,7 @@ class DataScienceModel(Builder):
             The name of the model custom metadata key
 
         artifact_path_or_content: Union[str,bytes]
-            The model custom metadata artifact path to be upload. It can also be the actual content of the defined metadata
+            The model custom metadata artifact path to be uploaded. It can also be the actual content of the custom metadata
             The type is string when it represents local path or oss path.
             The type is bytes when it represents content itself
 
@@ -2413,7 +2428,7 @@ class DataScienceModel(Builder):
             The name of the model defined metadata key
 
         artifact_path_or_content: Union[str,bytes]
-            The model defined metadata artifact path to be upload. It can also be the actual content of the defined metadata
+            The model defined metadata artifact path to be uploaded. It can also be the actual content of the defined metadata
             The type is string when it represents local path or oss path.
             The type is bytes when it represents content itself
 
