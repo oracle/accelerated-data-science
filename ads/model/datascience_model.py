@@ -2236,14 +2236,12 @@ class DataScienceModel(Builder):
             self.model_file_description["models"].pop(modelSearchIdx)
 
     def if_model_custom_metadata_artifact_exist(
-        self, model_id: str, metadata_key_name: str, **kwargs
+        self, metadata_key_name: str, **kwargs
     ) -> bool:
         """Checks if the custom metadata artifact exists for the model.
 
         Parameters
         ----------
-        model_id : str
-            The model OCID.
         metadata_key_name: str
             Custom metadata key name
         **kwargs :
@@ -2259,13 +2257,12 @@ class DataScienceModel(Builder):
             response = self.dsc_model.head_custom_metadata_artifact(
                 metadata_key_name=metadata_key_name, **kwargs
             )
-            return response.status == 200
-        except oci.exceptions.ServiceError as ex:
-            if ex.status == 404 or ex.status == 400:
-                logger.info(
-                    f"Artifact not found in model {model_id} for cutom metadata {metadata_key_name}. {ex}"
-                )
-                return False
+            return int(response.status) == 200
+        except Exception as ex:
+            logger.info(
+                f"Error fetching custom metadata: {metadata_key_name} for model {self.id}. {ex}"
+            )
+            return False
 
     def create_custom_metadata_artifact(
         self,

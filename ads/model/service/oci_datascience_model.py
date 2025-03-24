@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -110,7 +110,7 @@ def check_for_model_id(msg: str = MODEL_NEEDS_TO_BE_SAVED):
 def convert_model_metadata_response(
     headers: Union[Dict, CaseInsensitiveDict], status: int
 ) -> ModelMetadataArtifactDetails:
-    return ModelMetadataArtifactDetails(headers=headers, status=str(status))
+    return ModelMetadataArtifactDetails(headers=dict(headers), status=str(status))
 
 
 class OCIDataScienceModel(

@@ -433,9 +433,7 @@ class AquaEvaluationApp(AquaApp):
                 metrics=create_aqua_evaluation_details.metrics,
                 inference_configuration=eval_inference_configuration or {},
             )
-        ).create(
-            **kwargs
-        )  ## TODO: decide what parameters will be needed
+        ).create(**kwargs)  ## TODO: decide what parameters will be needed
         logger.debug(
             f"Successfully created evaluation job {evaluation_job.id} for {create_aqua_evaluation_details.evaluation_source_id}."
         )
@@ -1076,11 +1074,14 @@ class AquaEvaluationApp(AquaApp):
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Downloading evaluation artifact for {eval_id}.")
             dsc_model = DataScienceModel.from_id(eval_id)
-            if dsc_model.if_model_custom_metadata_artifact_exist(
-                eval_id, EVALUATION_REPORT
-            ):
+            if_custom_metadata_exists = (
+                dsc_model.if_model_custom_metadata_artifact_exist(EVALUATION_REPORT)
+            )
+            if if_custom_metadata_exists:
+                logger.info(f"Fetching {EVALUATION_REPORT} from custom metadata.")
                 dsc_model.get_custom_metadata_artifact(EVALUATION_REPORT, temp_dir)
             else:
+                logger.info(f"Fetching {EVALUATION_REPORT} from OSS bucket.")
                 dsc_model.download_artifact(
                     temp_dir,
                     auth=self._auth,
