@@ -624,7 +624,7 @@ class OCIDataScienceModel(
         self,
         artifact_path_or_content: Union[str, bytes],
         path_type: MetadataArtifactPathType,
-    ):
+    ) -> bytes:
         """
         returns the content of the metadata artifact
 
@@ -639,7 +639,8 @@ class OCIDataScienceModel(
 
         Returns
         -------
-        metadata artifact content
+        bytes
+            metadata artifact content in bytes
         """
 
         if path_type == MetadataArtifactPathType.CONTENT:
