@@ -2528,7 +2528,9 @@ class DataScienceModel(Builder):
         artifact_file_path = os.path.join(target_dir, f"{metadata_key_name}")
 
         if not override and is_path_exists(artifact_file_path):
-            raise FileExistsError(f"File already exists: {artifact_file_path}")
+            raise FileExistsError(
+                f"File already exists: {artifact_file_path}. Please use boolean override parameter to override the file content."
+            )
 
         with open(artifact_file_path, "wb") as _file:
             _file.write(file_content)
@@ -2567,7 +2569,9 @@ class DataScienceModel(Builder):
         artifact_file_path = os.path.join(target_dir, f"{metadata_key_name}")
 
         if not override and is_path_exists(artifact_file_path):
-            raise FileExistsError(f"File already exists: {artifact_file_path}")
+            raise FileExistsError(
+                f"File already exists: {artifact_file_path}. Please use boolean override parameter to override the file content."
+            )
 
         with open(artifact_file_path, "wb") as _file:
             _file.write(file_content)
