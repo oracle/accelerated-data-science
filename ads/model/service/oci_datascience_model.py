@@ -645,23 +645,17 @@ class OCIDataScienceModel(
         if path_type == MetadataArtifactPathType.CONTENT:
             return artifact_path_or_content
 
-        elif path_type == MetadataArtifactPathType.LOCAL:
-            if not utils.is_path_exists(artifact_path_or_content):
-                raise FileNotFoundError(
-                    f"File not found:  {artifact_path_or_content} . "
-                )
-
-            with open(artifact_path_or_content, "rb") as f:
-                contents = f.read()
-                logger.info(f"The metadata artifact content - {contents}")
-
-            return contents
-
-        elif path_type == MetadataArtifactPathType.OSS:
+        elif (
+            path_type == MetadataArtifactPathType.LOCAL
+            or path_type == MetadataArtifactPathType.OSS
+        ):
             if not utils.is_path_exists(artifact_path_or_content):
                 raise FileNotFoundError(f"File not found: {artifact_path_or_content}")
+            signer = (
+                default_signer() if path_type == MetadataArtifactPathType.OSS else {}
+            )
             contents = read_file(
-                file_path=artifact_path_or_content, auth=default_signer()
+                file_path=artifact_path_or_content, auth=signer
             ).encode()
             logger.debug(f"The metadata artifact content - {contents}")
 
