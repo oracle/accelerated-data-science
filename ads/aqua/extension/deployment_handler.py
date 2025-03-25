@@ -45,12 +45,15 @@ class AquaDeploymentHandler(AquaAPIhandler):
         url_parse = urlparse(self.request.path)
         paths = url_parse.path.strip("/")
         if paths.startswith("aqua/deployments/config"):
-            if not id or not isinstance(id, (list, str)):
+            if not id or not isinstance(id, str):
                 raise HTTPError(
                     400,
-                    f"The request to {self.request.path} must include either a single model ID or a list of model IDs.",
+                    f"Invalid request format for {self.request.path}. "
+                    "Expected a single model ID or a comma-separated list of model IDs.",
                 )
-            return self.get_deployment_config(id)
+            return self.get_deployment_config(
+                model_id=id.split(",") if "," in id else id
+            )
         elif paths.startswith("aqua/deployments/shapes"):
             return self.list_shapes()
         elif paths.startswith("aqua/deployments"):
