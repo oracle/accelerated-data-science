@@ -51,6 +51,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
                     f"Invalid request format for {self.request.path}. "
                     "Expected a single model ID or a comma-separated list of model IDs.",
                 )
+            id = id.replace(" ", "")
             return self.get_deployment_config(
                 model_id=id.split(",") if "," in id else id
             )
