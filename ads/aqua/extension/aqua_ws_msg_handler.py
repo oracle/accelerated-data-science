@@ -10,6 +10,7 @@ from http.client import responses
 from typing import List
 
 from tornado.web import HTTPError
+from utils import construct_error
 
 from ads.aqua import logger
 from ads.aqua.common.decorator import handle_exceptions
@@ -55,34 +56,10 @@ class AquaWSMsgHandler:
 
     def write_error(self, status_code, **kwargs):
         """AquaWSMSGhandler errors are JSON, not human pages."""
-        reason = kwargs.get("reason")
-        service_payload = kwargs.get("service_payload", {})
-        default_msg = responses.get(status_code, "Unknown HTTP Error")
-        message = AquaAPIhandler.get_default_error_messages(
-            service_payload, str(status_code), kwargs.get("message", default_msg)
-        )
-        reply = {
-            "status": status_code,
-            "message": message,
-            "service_payload": service_payload,
-            "reason": reason,
-            "request_id": str(uuid.uuid4()),
-        }
-        exc_info = kwargs.get("exc_info")
-        if exc_info:
-            logger.error(
-                f"Error Request ID: {reply['request_id']}\n"
-                f"Error: {''.join(traceback.format_exception(*exc_info))}"
-            )
-            e = exc_info[1]
-            if isinstance(e, HTTPError):
-                reply["message"] = e.log_message or message
-                reply["reason"] = e.reason
 
-        logger.error(
-            f"Error Request ID: {reply['request_id']}\n"
-            f"Error: {reply['message']} {reply['reason']}"
-        )
+        service_payload = kwargs.get("service_payload", {})
+        reply, message, reason = construct_error(status_code, **kwargs)
+
         # telemetry may not be present if there is an error while initializing
         if hasattr(self, "telemetry"):
             aqua_api_details = kwargs.get("aqua_api_details", {})
