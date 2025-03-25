@@ -954,16 +954,17 @@ class AquaEvaluationApp(AquaApp):
 
             dsc_model = DataScienceModel.from_id(eval_id)
             if dsc_model.if_model_custom_metadata_artifact_exist(
-                eval_id, EVALUATION_REPORT_MD
+                EVALUATION_REPORT_MD
+            ) and dsc_model.if_model_custom_metadata_artifact_exist(
+                EVALUATION_REPORT_JSON
             ):
+                logger.info(
+                    f"Fetching {EVALUATION_REPORT_MD} and {EVALUATION_REPORT_JSON} from custom metadata..."
+                )
                 dsc_model.get_custom_metadata_artifact(EVALUATION_REPORT_MD, temp_dir)
-                if dsc_model.if_model_custom_metadata_artifact_exist(
-                    eval_id, EVALUATION_REPORT_JSON
-                ):
-                    dsc_model.get_custom_metadata_artifact(
-                        EVALUATION_REPORT_JSON, temp_dir
-                    )
+                dsc_model.get_custom_metadata_artifact(EVALUATION_REPORT_JSON, temp_dir)
             else:
+                logger.info("Fetching Evaluation Reports from OSS bucket...")
                 dsc_model.download_artifact(
                     temp_dir,
                     auth=self._auth,
@@ -1090,6 +1091,8 @@ class AquaEvaluationApp(AquaApp):
                 temp_dir, get_files(temp_dir), EVALUATION_REPORT
             )
 
+        print("type of content: ", type(content))
+        print("content: ", content)
         report = AquaEvalReport(
             evaluation_id=eval_id, content=base64.b64encode(content).decode()
         )
