@@ -18,8 +18,8 @@ from ads.aqua.modeldeployment.entities import (
     GPUModelAllocation,
     GPUShapeAllocation,
     ModelDeploymentConfigSummary,
+    MultiModelConfig,
 )
-from ads.common.utils import UNKNOWN
 from ads.config import AQUA_MODEL_DEPLOYMENT_CONFIG
 
 logger = logging.getLogger("ads.aqua")
@@ -69,11 +69,6 @@ class MultiModelDeploymentConfigLoader:
             A summary of the deployment configurations and GPU allocations. If GPU allocation
             cannot be determined, an appropriate error message is included in the summary.
         """
-        if len(model_ids) == 1:
-            return self._load_model_deployment_configuration(
-                shapes=shapes, model_ids=model_ids
-            )
-
         return self._load_multi_model_deployment_configuration(
             shapes=shapes, model_ids=model_ids, primary_model_id=primary_model_id
         )
@@ -145,95 +140,33 @@ class MultiModelDeploymentConfigLoader:
 
         if not gpu_allocation:
             summary.error_message = (
-                "Unable to determine a valid GPU allocation for the selected models based on their current configurations. "
-                "Please select a different set of models."
+                "The selected models do not have a valid GPU allocation based on their current configurations. "
+                "Please select a different model group. If you are deploying custom models that lack AQUA service configuration, "
+                "refer to the deployment guidelines here: "
+                "https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/multimodel-deployment-tips.md#custom_models"
             )
+
             logger.debug(
                 f"GPU allocation computation failed for selected models: {model_ids}"
             )
+
             return summary
 
         summary.gpu_allocation = gpu_allocation
         return summary
 
-    def _load_model_deployment_configuration(
-        self,
-        shapes: List[ComputeShapeSummary],
-        model_ids: List[str],
-    ) -> ModelDeploymentConfigSummary:
-        """
-        Retrieves deployment configuration for single model and allocate all available GPU count to it.
-
-        Parameters
-        ----------
-        shapes : List[ComputeShapeSummary]
-            Model deployment available shapes.
-        model_ids : List[str]
-            A list of OCIDs for the Aqua models.
-
-        Returns
-        -------
-        ModelDeploymentConfigSummary
-            A summary of the deployment configurations and GPU allocations. If GPU allocation
-            cannot be determined, an appropriate error message is included in the summary.
-        """
-        model_id = model_ids[0]
-        _, common_shapes, summary = self._fetch_model_shape_gpu(
-            shapes=shapes, model_ids=model_ids
-        )
-
-        # Find out the common shapes from deployment config and available deployment shapes
-        shape = [shape.upper() for shape in summary.deployment_config[model_id].shape]
-        if shape:
-            common_shapes = list(set(common_shapes).intersection(set(shape)))
-
-        if not common_shapes:
-            summary.error_message = (
-                "The selected model does not have any available deployment shape. "
-                "Please ensure that chosen model is compatible for multi-model deployment."
-            )
-            logger.debug(
-                f"No compatible deployment shapes found for selected model: {model_id}"
-            )
-            return summary
-
-        logger.debug(f"Available Common Shapes: {common_shapes}")
-
-        gpu_allocation = {}
-        for shape in common_shapes:
-            total_gpus_available = 0
-            shape_summary = next(
-                (
-                    deployment_shape
-                    for deployment_shape in shapes
-                    if deployment_shape.name.upper() == shape
-                ),
-                None,
-            )
-            if shape_summary and shape_summary.gpu_specs:
-                total_gpus_available = shape_summary.gpu_specs.gpu_count
-
-            if total_gpus_available != 0:
-                gpu_allocation[shape] = GPUShapeAllocation(
-                    models=[
-                        GPUModelAllocation(
-                            ocid=model_id, gpu_count=total_gpus_available
-                        )
-                    ],
-                    total_gpus_available=total_gpus_available,
-                )
-
-        summary.gpu_allocation = gpu_allocation
-        return summary
-
-    def _fetch_model_shape_gpu(self, shapes: List[ComputeShapeSummary], model_ids: str):
+    def _fetch_model_shape_gpu(
+        self, shapes: List[ComputeShapeSummary], model_ids: List[str]
+    ):
         """Fetches dict of model shape and gpu, list of available shapes and builds `ModelDeploymentConfigSummary` instance."""
         # Fetch deployment configurations concurrently.
         logger.debug(f"Loading model deployment configuration for models: {model_ids}")
         deployment_configs = self._fetch_deployment_configs_concurrently(model_ids)
 
         logger.debug(f"Loaded config: {deployment_configs}")
-        model_shape_gpu, deployment = self._extract_model_shape_gpu(deployment_configs)
+        model_shape_gpu, deployment = self._extract_model_shape_gpu(
+            deployment_configs=deployment_configs, shapes=shapes
+        )
 
         # Initialize the summary result with the deployment configurations.
         summary = ModelDeploymentConfigSummary(deployment_config=deployment)
@@ -262,7 +195,9 @@ class MultiModelDeploymentConfigLoader:
         }
 
     def _extract_model_shape_gpu(
-        self, deployment_configs: Dict[str, AquaDeploymentConfig]
+        self,
+        deployment_configs: Dict[str, AquaDeploymentConfig],
+        shapes: List[ComputeShapeSummary],
     ):
         """Extracts shape and GPU count details from deployment configurations.
         Supported shapes for multi model deployment will be collected from `configuration` entry in deployment config.
@@ -278,20 +213,58 @@ class MultiModelDeploymentConfigLoader:
             # Our current configuration does not support this flexibility.
             # For single model deployment, we use `config.shape` to find the available shapes.
             multi_deployment_shape = (
-                config.shape if is_single_model else list(config.configuration.keys())
+                list(set(config.configuration.keys()).union(set(config.shape or [])))
+                if is_single_model
+                else list(config.configuration.keys())
             )
-            if not is_single_model:
-                model_shape_gpu[model_id] = {
-                    shape.upper(): [
-                        item.gpu_count
-                        for item in config.configuration.get(
-                            shape, ConfigurationItem()
-                        ).multi_model_deployment
-                    ]
-                    for shape in multi_deployment_shape
-                }
+
+            shape_total_gpus_available_map = {
+                deployment_shape.name.upper(): deployment_shape.gpu_specs.gpu_count
+                or None
+                for deployment_shape in shapes
+                if deployment_shape and deployment_shape.gpu_specs
+            }
+
+            model_shape_gpu[model_id] = {
+                shape.upper(): [
+                    item.gpu_count
+                    for item in config.configuration.get(
+                        shape,
+                        ConfigurationItem(
+                            multi_model_deployment=(
+                                [
+                                    MultiModelConfig(
+                                        gpu_count=shape_total_gpus_available_map.get(
+                                            shape.upper()
+                                        )
+                                    )
+                                ]
+                                if is_single_model
+                                else []
+                            )
+                        ),
+                    ).multi_model_deployment
+                ]
+                for shape in multi_deployment_shape
+            }
+
+            # For single-model deployments: if the shape is listed in the `shapes` section of the config,
+            # we include the maximum available GPU count for that shape in the allocation consideration.
+            if is_single_model:
+                for shape in model_shape_gpu[model_id]:
+                    shape_total_gpu_count = shape_total_gpus_available_map.get(
+                        shape.upper()
+                    )
+                    if (
+                        shape in config.shape
+                        and shape_total_gpu_count
+                        and shape_total_gpu_count
+                        not in model_shape_gpu[model_id][shape]
+                    ):
+                        model_shape_gpu[model_id][shape].append(shape_total_gpu_count)
+
             deployment[model_id] = {
-                "shape": [shape.upper() for shape in multi_deployment_shape],
+                "shape": [shape.upper() for shape in config.shape],
                 "configuration": {
                     shape.upper(): config.configuration.get(shape, ConfigurationItem())
                     for shape in multi_deployment_shape
@@ -322,6 +295,7 @@ class MultiModelDeploymentConfigLoader:
         primary_model_id: Optional[str],
     ) -> Dict[str, GPUShapeAllocation]:
         """Computes GPU allocation for common shapes."""
+
         gpu_allocation = {}
 
         for common_shape in common_shapes:
@@ -337,12 +311,17 @@ class MultiModelDeploymentConfigLoader:
 
             # generate a list of possible gpu count from `total_gpus_available` for custom models
             # without multi model deployment config
+            # model_gpu = {
+            #     model: (
+            #         shape_gpu[common_shape]
+            #         if shape_gpu.get(common_shape, UNKNOWN)
+            #         else self._generate_gpu_list(total_gpus_available)
+            #     )
+            #     for model, shape_gpu in model_shape_gpu.items()
+            # }
+
             model_gpu = {
-                model: (
-                    shape_gpu[common_shape]
-                    if shape_gpu.get(common_shape, UNKNOWN)
-                    else self._generate_gpu_list(total_gpus_available)
-                )
+                model: (shape_gpu.get(common_shape, []) or [])
                 for model, shape_gpu in model_shape_gpu.items()
             }
 
@@ -392,7 +371,11 @@ class MultiModelDeploymentConfigLoader:
         If no primary Aqua model id provided, gpu count for each compatible shape will be evenly allocated.
         If provided, gpu count for each compatible shape will be prioritized for primary model.
 
-        For example, there is one compatible shape "BM.GPU.H100.8" for three models A, B, C, and each model has a gpu count as below:
+        Example
+        -------
+
+        Case 1:
+        There is one compatible shape "BM.GPU.H100.8" for three models A, B, C, and each model has a gpu count as below:
 
         A - BM.GPU.H100.8 - 1, 2, 4, 8
         B - BM.GPU.H100.8 - 1, 2, 4, 8
@@ -400,6 +383,16 @@ class MultiModelDeploymentConfigLoader:
 
         If no primary model is provided, the gpu allocation for A, B, C could be [2, 4, 2], [2, 2, 4] or [4, 2, 2]
         If B is the primary model, the gpu allocation is [2, 4, 2] as B always gets the maximum gpu count.
+
+        Case 2:
+        There is one compatible shape "BM.GPU.H100.8" for three models A, B, C, and each model has a gpu count as below:
+
+        A - BM.GPU.H100.8 - 1
+        B - BM.GPU.H100.8 - 1, 2, 4
+        C - BM.GPU.H100.8 - 1, 2, 4
+
+        If no primary model is provided, the gpu allocation for A, B, C could be [1, 1, 2] or [1, 2, 1]
+        If C is the primary model, the gpu allocation is [1, 1, 2] as C always gets the maximum gpu count.
 
         Parameters
         ----------
@@ -413,52 +406,75 @@ class MultiModelDeploymentConfigLoader:
         tuple:
             A tuple of gpu count allocation result.
         """
-
         model_gpu_dict_copy = copy.deepcopy(model_gpu_dict)
-        if primary_model_id:
+        # minimal gpu count needed to satisfy all models
+        minimal_gpus_needed = len(model_gpu_dict)
+        if primary_model_id and minimal_gpus_needed > 1:
             primary_model_gpu_list = sorted(model_gpu_dict_copy.pop(primary_model_id))
-            for gpu_count in reversed(primary_model_gpu_list):
-                combinations = self.get_combinations(model_gpu_dict_copy)
+            primary_model_gpu_list.reverse()
+            combinations = self.get_combinations(model_gpu_dict_copy)
+            for gpu_count in primary_model_gpu_list:
+                current_gpus_available = total_gpus_available
+                while (
+                    current_gpus_available >= minimal_gpus_needed
+                    or current_gpus_available == 1
+                ):
+                    for combination in combinations:
+                        if (
+                            len(combination) == len(model_gpu_dict_copy)
+                            and sum(combination.values())
+                            == current_gpus_available - gpu_count
+                        ):
+                            combination[primary_model_id] = gpu_count
+                            return (
+                                True,
+                                [
+                                    GPUModelAllocation(ocid=ocid, gpu_count=gpu_count)
+                                    for ocid, gpu_count in combination.items()
+                                ],
+                            )
+
+                    current_gpus_available -= 2
+                    current_gpus_available = (
+                        1 if current_gpus_available == 0 else current_gpus_available
+                    )
+        else:
+            combinations = self.get_combinations(model_gpu_dict_copy)
+            current_gpus_available = total_gpus_available
+            while (
+                current_gpus_available >= minimal_gpus_needed
+                or current_gpus_available == 1
+            ):
+                minimal_difference = float("inf")  # gets the positive infinity
+                optimal_combination = []
                 for combination in combinations:
                     if (
                         len(combination) == len(model_gpu_dict_copy)
-                        and sum(combination.values())
-                        == total_gpus_available - gpu_count
+                        and sum(combination.values()) == current_gpus_available
                     ):
-                        combination[primary_model_id] = gpu_count
-                        return (
-                            True,
-                            [
-                                GPUModelAllocation(ocid=ocid, gpu_count=gpu_count)
-                                for ocid, gpu_count in combination.items()
-                            ],
+                        difference = max(combination.values()) - min(
+                            combination.values()
                         )
+                        if difference < minimal_difference:
+                            minimal_difference = difference
+                            optimal_combination = combination
 
-        else:
-            combinations = self.get_combinations(model_gpu_dict_copy)
-            minimal_difference = float("inf")  # gets the positive infinity
-            optimal_combination = []
-            for combination in combinations:
-                if (
-                    len(combination) == len(model_gpu_dict_copy)
-                    and sum(combination.values()) == total_gpus_available
-                ):
-                    difference = max(combination.values()) - min(combination.values())
-                    if difference < minimal_difference:
-                        minimal_difference = difference
-                        optimal_combination = combination
+                            # find the optimal combination, no need to continue
+                            if minimal_difference == 0:
+                                break
 
-                        # find the optimal combination, no need to continue
-                        if minimal_difference == 0:
-                            break
+                if optimal_combination:
+                    return (
+                        True,
+                        [
+                            GPUModelAllocation(ocid=ocid, gpu_count=gpu_count)
+                            for ocid, gpu_count in optimal_combination.items()
+                        ],
+                    )
 
-            if optimal_combination:
-                return (
-                    True,
-                    [
-                        GPUModelAllocation(ocid=ocid, gpu_count=gpu_count)
-                        for ocid, gpu_count in optimal_combination.items()
-                    ],
+                current_gpus_available -= 2
+                current_gpus_available = (
+                    1 if current_gpus_available == 0 else current_gpus_available
                 )
 
         return (False, [])
