@@ -256,7 +256,8 @@ class MultiModelDeploymentConfigLoader:
                         shape.upper()
                     )
                     if (
-                        shape_total_gpu_count
+                        shape in config.shape
+                        and shape_total_gpu_count
                         and shape_total_gpu_count
                         not in model_shape_gpu[model_id][shape]
                     ):
