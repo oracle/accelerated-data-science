@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -150,22 +150,6 @@ def oci_key_location():
     return os.environ.get(
         "OCI_CONFIG_DIR", os.path.join(os.path.expanduser("~"), ".oci")
     )
-
-
-def text_sanitizer(content):
-    if isinstance(content, str):
-        return (
-            content.replace("“", '"')
-            .replace("”", '"')
-            .replace("’", "'")
-            .replace("‘", "'")
-            .replace("—", "-")
-            .encode("utf-8", "ignore")
-            .decode("utf-8", "ignore")
-        )
-    if isinstance(content, dict):
-        return json.dumps(content)
-    return str(content)
 
 
 @deprecated(
