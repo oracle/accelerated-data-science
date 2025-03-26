@@ -48,6 +48,7 @@ classifiers = [
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
 ]
 
 # PEP 508 – Dependency specification for Python Software Packages - https://peps.python.org/pep-0508/
@@ -133,7 +134,7 @@ optuna = ["optuna==2.9.0", "oracle_ads[viz]"]
 spark = ["pyspark>=3.0.0"]
 tensorflow = [
   "oracle_ads[viz]",
-  "tensorflow<=2.15.1; python_version < '3.12'"  # v2.16.1 with consequence on tf2onnx v1.16.1 (latest) has an issue with Keras 3 installed in py3.11+ (https://github.com/onnx/tensorflow-onnx/issues/2319)
+  "tensorflow<=2.15.1; python_version < '3.12'",  # v2.16.1 with consequence on tf2onnx v1.16.1 (latest) has an issue with Keras 3 installed in py3.11+ (https://github.com/onnx/tensorflow-onnx/issues/2319)
   "tensorflow; python_version >= '3.12'"  # v2.16.1 with consequence on tf2onnx v1.16.1 (latest) has an issue with Keras 3 installed in py3.11+ (https://github.com/onnx/tensorflow-onnx/issues/2319)
 ]
 text = [
