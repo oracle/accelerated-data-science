@@ -371,7 +371,11 @@ class MultiModelDeploymentConfigLoader:
         If no primary Aqua model id provided, gpu count for each compatible shape will be evenly allocated.
         If provided, gpu count for each compatible shape will be prioritized for primary model.
 
-        For example, there is one compatible shape "BM.GPU.H100.8" for three models A, B, C, and each model has a gpu count as below:
+        Example
+        -------
+
+        Case 1:
+        There is one compatible shape "BM.GPU.H100.8" for three models A, B, C, and each model has a gpu count as below:
 
         A - BM.GPU.H100.8 - 1, 2, 4, 8
         B - BM.GPU.H100.8 - 1, 2, 4, 8
@@ -379,6 +383,16 @@ class MultiModelDeploymentConfigLoader:
 
         If no primary model is provided, the gpu allocation for A, B, C could be [2, 4, 2], [2, 2, 4] or [4, 2, 2]
         If B is the primary model, the gpu allocation is [2, 4, 2] as B always gets the maximum gpu count.
+
+        Case 2:
+        There is one compatible shape "BM.GPU.H100.8" for three models A, B, C, and each model has a gpu count as below:
+
+        A - BM.GPU.H100.8 - 1
+        B - BM.GPU.H100.8 - 1, 2, 4
+        C - BM.GPU.H100.8 - 1, 2, 4
+
+        If no primary model is provided, the gpu allocation for A, B, C could be [1, 1, 2] or [1, 2, 1]
+        If C is the primary model, the gpu allocation is [1, 1, 2] as C always gets the maximum gpu count.
 
         Parameters
         ----------
@@ -393,50 +407,74 @@ class MultiModelDeploymentConfigLoader:
             A tuple of gpu count allocation result.
         """
         model_gpu_dict_copy = copy.deepcopy(model_gpu_dict)
-        if primary_model_id:
+        # minimal gpu count needed to satisfy all models
+        minimal_gpus_needed = len(model_gpu_dict)
+        if primary_model_id and minimal_gpus_needed > 1:
             primary_model_gpu_list = sorted(model_gpu_dict_copy.pop(primary_model_id))
-            for gpu_count in reversed(primary_model_gpu_list):
-                combinations = self.get_combinations(model_gpu_dict_copy)
+            primary_model_gpu_list.reverse()
+            combinations = self.get_combinations(model_gpu_dict_copy)
+            for gpu_count in primary_model_gpu_list:
+                current_gpus_available = total_gpus_available
+                while (
+                    current_gpus_available >= minimal_gpus_needed
+                    or current_gpus_available == 1
+                ):
+                    for combination in combinations:
+                        if (
+                            len(combination) == len(model_gpu_dict_copy)
+                            and sum(combination.values())
+                            == current_gpus_available - gpu_count
+                        ):
+                            combination[primary_model_id] = gpu_count
+                            return (
+                                True,
+                                [
+                                    GPUModelAllocation(ocid=ocid, gpu_count=gpu_count)
+                                    for ocid, gpu_count in combination.items()
+                                ],
+                            )
+
+                    current_gpus_available -= 2
+                    current_gpus_available = (
+                        1 if current_gpus_available == 0 else current_gpus_available
+                    )
+        else:
+            combinations = self.get_combinations(model_gpu_dict_copy)
+            current_gpus_available = total_gpus_available
+            while (
+                current_gpus_available >= minimal_gpus_needed
+                or current_gpus_available == 1
+            ):
+                minimal_difference = float("inf")  # gets the positive infinity
+                optimal_combination = []
                 for combination in combinations:
                     if (
                         len(combination) == len(model_gpu_dict_copy)
-                        and sum(combination.values())
-                        == total_gpus_available - gpu_count
+                        and sum(combination.values()) == current_gpus_available
                     ):
-                        combination[primary_model_id] = gpu_count
-                        return (
-                            True,
-                            [
-                                GPUModelAllocation(ocid=ocid, gpu_count=gpu_count)
-                                for ocid, gpu_count in combination.items()
-                            ],
+                        difference = max(combination.values()) - min(
+                            combination.values()
                         )
+                        if difference < minimal_difference:
+                            minimal_difference = difference
+                            optimal_combination = combination
 
-        else:
-            combinations = self.get_combinations(model_gpu_dict_copy)
-            minimal_difference = float("inf")  # gets the positive infinity
-            optimal_combination = []
-            for combination in combinations:
-                if (
-                    len(combination) == len(model_gpu_dict_copy)
-                    and sum(combination.values()) == total_gpus_available
-                ):
-                    difference = max(combination.values()) - min(combination.values())
-                    if difference < minimal_difference:
-                        minimal_difference = difference
-                        optimal_combination = combination
+                            # find the optimal combination, no need to continue
+                            if minimal_difference == 0:
+                                break
 
-                        # find the optimal combination, no need to continue
-                        if minimal_difference == 0:
-                            break
+                if optimal_combination:
+                    return (
+                        True,
+                        [
+                            GPUModelAllocation(ocid=ocid, gpu_count=gpu_count)
+                            for ocid, gpu_count in optimal_combination.items()
+                        ],
+                    )
 
-            if optimal_combination:
-                return (
-                    True,
-                    [
-                        GPUModelAllocation(ocid=ocid, gpu_count=gpu_count)
-                        for ocid, gpu_count in optimal_combination.items()
-                    ],
+                current_gpus_available -= 2
+                current_gpus_available = (
+                    1 if current_gpus_available == 0 else current_gpus_available
                 )
 
         return (False, [])
