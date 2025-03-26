@@ -103,7 +103,7 @@
       ]
     }
   },
-  "error_message": "None",
+  "error_message": null,
   "gpu_allocation": {
     "BM.GPU.A10.4": {
       "models": [

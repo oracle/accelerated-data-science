@@ -391,7 +391,6 @@ class MultiModelDeploymentConfigLoader:
         tuple:
             A tuple of gpu count allocation result.
         """
-
         model_gpu_dict_copy = copy.deepcopy(model_gpu_dict)
         if primary_model_id:
             primary_model_gpu_list = sorted(model_gpu_dict_copy.pop(primary_model_id))
@@ -419,7 +418,7 @@ class MultiModelDeploymentConfigLoader:
             for combination in combinations:
                 if (
                     len(combination) == len(model_gpu_dict_copy)
-                    and sum(combination.values()) <= total_gpus_available
+                    and sum(combination.values()) == total_gpus_available
                 ):
                     difference = max(combination.values()) - min(combination.values())
                     if difference < minimal_difference:

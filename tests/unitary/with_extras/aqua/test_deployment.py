@@ -1132,9 +1132,11 @@ class TestAquaDeployment(unittest.TestCase):
         }
         result = self.app.get_multimodel_deployment_config(["model_a"])
 
-        assert (
-            result.model_dump()
-            == TestDataset.aqua_deployment_multi_model_config_single_custom
+        assert result.error_message == (
+            "The selected models do not have a valid GPU allocation based on their current configurations. "
+            "Please select a different model group. If you are deploying custom models that lack AQUA service configuration, "
+            "refer to the deployment guidelines here: "
+            "https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/multimodel-deployment-tips.md#custom_models"
         )
 
     @patch(
