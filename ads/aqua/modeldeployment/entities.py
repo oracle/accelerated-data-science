@@ -520,11 +520,15 @@ class CreateModelDeploymentDetails(BaseModel):
 
         selected_shape = self.instance_shape
 
+        if models_config_summary.error_message:
+            logger.error(models_config_summary.error_message)
+            raise ConfigValidationError(models_config_summary.error_message)
+
         # Verify that the selected shape is supported by the GPU allocation.
         if selected_shape not in models_config_summary.gpu_allocation:
             supported_shapes = list(models_config_summary.gpu_allocation.keys())
             error_message = (
-                f"The model group is not compatible with the selected instance shape '{selected_shape}'. "
+                f"The model group is not compatible with the selected instance shape `{selected_shape}`. "
                 f"Supported shapes: {supported_shapes}."
             )
             logger.error(error_message)
@@ -536,12 +540,14 @@ class CreateModelDeploymentDetails(BaseModel):
         model_deployment_config = models_config_summary.deployment_config
 
         # Verify that every model in the group has a corresponding deployment configuration.
-        required_model_keys = {model.model_id for model in self.models}
-        missing_model_keys = required_model_keys - set(model_deployment_config.keys())
-        if missing_model_keys:
+        required_model_ids = {model.model_id for model in self.models}
+        missing_model_ids = required_model_ids - set(model_deployment_config.keys())
+        if missing_model_ids:
             error_message = (
-                f"Missing deployment configuration for models: {missing_model_keys}. "
-                "Ensure all selected models are properly configured."
+                f"Missing deployment configuration for models: {list(missing_model_ids)}. "
+                "Ensure all selected models are properly configured. If you are deploying custom "
+                "models that lack AQUA service configuration, refer to the deployment guidelines here: "
+                "https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/multimodel-deployment-tips.md#custom_models"
             )
             logger.error(error_message)
             raise ConfigValidationError(error_message)
@@ -556,7 +562,15 @@ class CreateModelDeploymentDetails(BaseModel):
 
             # Skip validation for models without deployment configuration details.
             if not aqua_deployment_config.configuration:
-                continue
+                error_message = (
+                    f"Missing deployment configuration for model `{model.model_id}`. "
+                    "Please verify that the model is correctly configured. If you are deploying custom models without AQUA service configuration, "
+                    "refer to the guidelines at: "
+                    "https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/multimodel-deployment-tips.md#custom_models"
+                )
+
+                logger.error(error_message)
+                raise ConfigValidationError(error_message)
 
             allowed_shapes = (
                 list(
@@ -570,7 +584,7 @@ class CreateModelDeploymentDetails(BaseModel):
 
             if selected_shape not in allowed_shapes:
                 error_message = (
-                    f"Model {model.model_id} is not compatible with the selected instance shape '{selected_shape}'. "
+                    f"Model `{model.model_id}` is not compatible with the selected instance shape `{selected_shape}`. "
                     f"Select a different instance shape from allowed shapes {allowed_shapes}."
                 )
                 logger.error(error_message)
@@ -584,23 +598,32 @@ class CreateModelDeploymentDetails(BaseModel):
             valid_gpu_configurations = [cfg.gpu_count for cfg in multi_model_configs]
 
             if model.gpu_count not in valid_gpu_configurations:
-                valid_gpu_str = ", ".join(map(str, valid_gpu_configurations or []))
+                valid_gpu_str = valid_gpu_configurations or []
 
                 if is_single_model:
+                    # If total GPU allocation is not supported by selected model
+                    if selected_shape not in aqua_deployment_config.shape:
+                        error_message = (
+                            f"Model `{model.model_id}` is configured with {model.gpu_count} GPUs, "
+                            f"which is invalid for a single-model deployment. "
+                            f"The allowed GPU configurations are: {valid_gpu_str}."
+                        )
+                        logger.error(error_message)
+                        raise ConfigValidationError(error_message)
+
                     if model.gpu_count != total_available_gpus:
                         error_message = (
-                            f"Model {model.model_id} is configured with {model.gpu_count} GPUs, "
+                            f"Model `{model.model_id}` is configured with {model.gpu_count} GPUs, "
                             f"which is invalid for a single-model deployment. "
                             f"The allowed GPU configurations are: {valid_gpu_str}. Alternatively, "
                             f"the selected instance shape supports up to {total_available_gpus} GPUs. "
-                            f"Please adjust the GPU allocation to one of these valid configurations "
-                            f"or choose a larger instance shape."
+                            f"Please adjust the GPU allocation to one of these valid configurations."
                         )
                         logger.error(error_message)
                         raise ConfigValidationError(error_message)
                 else:
                     error_message = (
-                        f"Model {model.model_id} is configured with {model.gpu_count} GPUs, which is invalid. "
+                        f"Model `{model.model_id}` is configured with {model.gpu_count} GPUs, which is invalid. "
                         f"Valid GPU configurations are: {valid_gpu_str}. Please adjust the GPU allocation "
                         f"or choose an instance shape that supports a higher GPU count."
                     )
@@ -610,8 +633,8 @@ class CreateModelDeploymentDetails(BaseModel):
         # Check that the total GPU count for the model group does not exceed the instance capacity.
         if sum_model_gpus > total_available_gpus:
             error_message = (
-                f"The selected instance shape `{selected_shape}` has {total_available_gpus} GPUs, "
-                f"but the combined GPU allocation for the model group is {sum_model_gpus} GPUs. "
+                f"The selected instance shape `{selected_shape}` has `{total_available_gpus}` GPUs, "
+                f"but the combined GPU allocation for the model group is `{sum_model_gpus}` GPUs. "
                 "Please adjust the GPU allocations per model or select an instance shape with a higher GPU capacity."
             )
             logger.error(error_message)
