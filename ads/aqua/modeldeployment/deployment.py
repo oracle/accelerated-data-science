@@ -760,9 +760,9 @@ class AquaDeploymentApp(AquaApp):
                 model=model, container_family=container_family
             )
 
-            container_config = self.get_container_config_item(container_family)
-            container_spec = container_config.spec
-            cli_params = container_spec.cli_param
+            container_config = self.get_container_config_item(container_type_key)
+            container_spec = container_config.spec if container_config else UNKNOWN
+            cli_params = container_spec.cli_param if container_spec else UNKNOWN
 
             restricted_params = self._find_restricted_params(
                 cli_params, params, container_type_key

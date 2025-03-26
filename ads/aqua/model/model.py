@@ -1768,6 +1768,7 @@ class AquaModelApp(AquaApp):
             content = self.ds_client.get_model_defined_metadatum_artifact_content(
                 model_id, AquaModelMetadataKeys.README
             ).data.content.decode("utf-8", errors="ignore")
+            logger.info(f"Fetched {README} from defined metadata for model: {model_id}")
         except Exception as ex:
             logger.error(
                 f"Readme could not be found for model: {model_id} in defined metadata : {str(ex)}"
@@ -1817,6 +1818,9 @@ class AquaModelApp(AquaApp):
             content = self.ds_client.get_model_defined_metadatum_artifact_content(
                 model_id, AquaModelMetadataKeys.LICENSE
             ).data.content.decode("utf-8", errors="ignore")
+            logger.info(
+                f"Fetched {LICENSE} from defined metadata for model: {model_id}"
+            )
         except Exception as ex:
             logger.error(
                 f"License could not be found for model: {model_id} in defined metadata : {str(ex)}"

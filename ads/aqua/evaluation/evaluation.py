@@ -1090,9 +1090,6 @@ class AquaEvaluationApp(AquaApp):
             content = self._read_from_artifact(
                 temp_dir, get_files(temp_dir), EVALUATION_REPORT
             )
-
-        print("type of content: ", type(content))
-        print("content: ", content)
         report = AquaEvalReport(
             evaluation_id=eval_id, content=base64.b64encode(content).decode()
         )
