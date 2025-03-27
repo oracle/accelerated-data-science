@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Unit tests for model frameworks. Includes tests for:
- - SklearnModel
+- SklearnModel
 """
+
 import base64
 import os
 import shutil
@@ -15,7 +16,7 @@ import numpy as np
 import onnx
 import onnxruntime as rt
 import pandas as pd
-import pytest
+import pytest, sys
 from ads.model.framework.sklearn_model import SklearnModel
 from ads.model.serde.model_serializer import SklearnOnnxModelSerializer
 from joblib import load
@@ -325,6 +326,7 @@ class TestSklearnModel:
             loaded_model = load(file)
         assert len(loaded_model.predict(self.X_test)) != 0
 
+    @pytest.mark.skipif(sys.version_info >= (3, 12), reason="Skipped for Python 3.12+")
     def test_serialize_and_load_model_as_onnx_xgboost_pipeline(self):
         """
         Test serialize and load pipeline using Sklearn API with xgboost model.
@@ -365,6 +367,7 @@ class TestSklearnModel:
             loaded_model = load(file)
         assert len(loaded_model.predict(self.X_iris)) != 0
 
+    @pytest.mark.skipif(sys.version_info >= (3, 12), reason="Skipped for Python 3.12+")
     def test_serialize_and_load_model_as_onnx_lgb_pipeline(self):
         """
         Test serialize and load pipeline using Sklearn API with lightgbm model.
@@ -405,6 +408,7 @@ class TestSklearnModel:
             loaded_model = load(file)
         assert len(loaded_model.predict(self.X_iris)) != 0
 
+    @pytest.mark.skipif(sys.version_info >= (3, 12), reason="Skipped for Python 3.12+")
     def test_serialize_and_load_model_as_onnx_lgb_reg_pipeline(self):
         """
         Test serialize and load pipeline using Sklearn API with lightgbm regressor model.

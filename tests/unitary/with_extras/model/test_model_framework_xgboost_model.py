@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Unit tests for model frameworks. Includes tests for:
- - XGBoostModel
+- XGBoostModel
 """
+
 import base64
 import os
 import shutil
@@ -33,7 +34,6 @@ class TestXGBoostModel:
         os.makedirs(tmp_model_dir, exist_ok=True)
 
     def setup_class(cls):
-
         X, y = make_classification(n_samples=100, n_informative=5, n_classes=2)
         (
             X_train_classification,
@@ -167,6 +167,7 @@ class TestXGBoostModel:
         pred_json = loaded_model.predict(self.X_test_classification)
         assert all(pred_sklearn == pred_json)
 
+    @pytest.mark.skipif(sys.version_info >= (3, 12), reason="Skipped for Python 3.12+")
     def test_serialize_and_load_model_as_onnx_sklearn_api(self):
         """
         Test serialize and load model using Sklearn API.
@@ -188,6 +189,7 @@ class TestXGBoostModel:
         d = np.abs(pred_onx - pred_xgboost)
         assert d.max() <= 1
 
+    @pytest.mark.skipif(sys.version_info >= (3, 12), reason="Skipped for Python 3.12+")
     def test_serialize_with_model_file_name(self):
         """
         Test correct and wrong model_file_name format.

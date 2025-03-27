@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from datetime import datetime
@@ -494,7 +494,6 @@ stepOverrideDetails:
         )
 
         with patch.object(OCIModelMixin, "deserialize") as mock_deserialize:
-
             mock_deserialize.return_value = oci.logging.models.Log(**OCI_LOG_DETAILS)
 
             consolidated_log = pipeline_run.logs(log_type="custom_log")
@@ -528,7 +527,6 @@ stepOverrideDetails:
             pipeline_run.logs(log_type="service_log")
 
         with patch.object(OCIModelMixin, "deserialize") as mock_deserialize:
-
             mock_deserialize.return_value = oci.logging.models.Log(**OCI_LOG_DETAILS)
             pipeline_run.log_details = oci.data_science.models.PipelineRunLogDetails(
                 **PIPELINE_RUN_LOG_DETAILS
@@ -558,7 +556,6 @@ stepOverrideDetails:
     @patch.object(OCIModelMixin, "sync")
     def test_logs_both(self, mock_sync, mock_stop_condition, mock_get_service_logging):
         with patch.object(OCIModelMixin, "deserialize") as mock_deserialize:
-
             mock_deserialize.return_value = oci.logging.models.Log(**OCI_LOG_DETAILS)
 
             pipeline_run = PipelineRun()
@@ -595,7 +592,6 @@ stepOverrideDetails:
     @patch.object(PipelineRun, "_stop_condition", return_value=True)
     def test_custom_logging(self, mock_stop_condition):
         with patch.object(OCIModelMixin, "deserialize") as mock_deserialize:
-
             mock_deserialize.return_value = oci.logging.models.Log(**OCI_LOG_DETAILS)
             pipeline_run = PipelineRun()
             pipeline_run.log_details = oci.data_science.models.PipelineRunLogDetails(
@@ -617,7 +613,6 @@ stepOverrideDetails:
     @patch.object(PipelineRun, "_get_service_logging")
     def test_service_logging(self, mock_get_service_logging):
         with patch.object(OCIModelMixin, "deserialize") as mock_deserialize:
-
             mock_deserialize.return_value = oci.logging.models.Log(**OCI_LOG_DETAILS)
 
             pipeline_run = PipelineRun()
@@ -644,7 +639,6 @@ stepOverrideDetails:
     @patch.object(PipelineRun, "_search_service_logs")
     def test_get_service_logging(self, mock_search_service_logs):
         with patch.object(OCIModelMixin, "deserialize") as mock_deserialize:
-
             mock_deserialize.return_value = oci.logging.models.Log(**OCI_LOG_DETAILS)
             pipeline_run = PipelineRun()
             pipeline_run.id = PIPELINE_RUN_OCID
@@ -701,7 +695,7 @@ stepOverrideDetails:
         mock_logs.return_value = ConsolidatedLog(OCILog(log_type="SERVICE"))
 
         pipeline_run.watch(log_type="service_log")
-        mock_logs.called_with(log_type="service_log")
+        mock_logs.assert_called_with(log_type="service_log")
         mock_stream_log.assert_called_with(mock_logs.return_value, [], 3, "service_log")
 
     @patch.object(PipelineRun, "_PipelineRun__stream_log")
@@ -712,7 +706,7 @@ stepOverrideDetails:
         mock_logs.return_value = ConsolidatedLog(OCILog(log_type="CUSTOM"))
 
         pipeline_run.watch(log_type="custom_log")
-        mock_logs.called_with(log_type="custom_log")
+        mock_logs.assert_called_with(log_type="custom_log")
         mock_stream_log.assert_called_with(mock_logs.return_value, [], 3, "custom_log")
 
     @patch.object(PipelineRun, "_PipelineRun__stream_log")
@@ -726,7 +720,7 @@ stepOverrideDetails:
         )
 
         pipeline_run.watch()
-        mock_logs.called_with(log_type=None)
+        mock_logs.assert_called_with(log_type=None)
         mock_stream_log.assert_called_with(mock_logs.return_value, [], 3, None)
 
     def test_build_filter_expression(self):

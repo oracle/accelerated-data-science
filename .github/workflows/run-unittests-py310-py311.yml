@@ -1,4 +1,4 @@
-name: "[Py3.10-3.11] - All Unit Tests"
+name: "[Py3.10-3.12] - All Unit Tests"
 
 on:
   workflow_dispatch:
@@ -23,6 +23,7 @@ permissions:
 # hack for https://github.com/actions/cache/issues/810#issuecomment-1222550359
 env:
   SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+  ENV TF_USE_LEGACY_KERAS:  1
 
 jobs:
   test:
@@ -33,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11"]
+        python-version: ["3.10", "3.11", "3.12"]
         name: ["unitary", "slow_tests"]
         include:
           - name: "unitary"
