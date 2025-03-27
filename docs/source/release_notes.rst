@@ -2,6 +2,14 @@
 Release Notes
 =============
 
+2.13.4
+-------
+Release date: March 27, 2025
+
+* Added compatibility with Python 3.12.
+* Forecast Operator: Introduced auto-select fallback to AutoMLX for faster approximate mode execution.
+
+
 2.13.3
 -------
 Release date: March 21, 2025
