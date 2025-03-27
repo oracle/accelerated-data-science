@@ -263,7 +263,7 @@ class AquaFineTuningApp(AquaApp):
             compartment_id=target_compartment,
             project_id=target_project,
             model_by_reference=True,
-            defined_tags=create_fine_tuning_details.defined_tags
+            defined_tags=create_fine_tuning_details.defined_tags,
         )
 
         ft_job_freeform_tags = {
@@ -594,6 +594,9 @@ class AquaFineTuningApp(AquaApp):
             model_id, AquaModelMetadataKeys.FINE_TUNING_CONFIGURATION
         )
         if config:
+            logger.info(
+                f"Fetched {AquaModelMetadataKeys.FINE_TUNING_CONFIGURATION} from defined metadata for model: {model_id}."
+            )
             return config
         config = self.get_config(
             model_id,

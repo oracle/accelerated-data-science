@@ -659,6 +659,9 @@ class AquaDeploymentApp(AquaApp):
             model_id, AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION
         )
         if config:
+            logger.info(
+                f"Fetched {AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION} from defined metadata for model: {model_id}."
+            )
             return config
         config = self.get_config(
             model_id,
