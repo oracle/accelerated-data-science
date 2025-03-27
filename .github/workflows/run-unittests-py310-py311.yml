@@ -1,4 +1,4 @@
-name: "[Py3.10-3.12] - All Unit Tests"
+name: "[Py3.10-3.13] - All Unit Tests"
 
 on:
   workflow_dispatch:
