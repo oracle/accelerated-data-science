@@ -2113,7 +2113,7 @@ class TestAquaDeployment(unittest.TestCase):
             ),
             (
                 [
-                    {"ocid": "model_a", "gpu_count": 3},  # invalid gpu count 3
+                    {"ocid": "model_a", "gpu_count": 3},
                 ],
                 "BM.GPU.H100.8",
                 "test_a",

@@ -1049,20 +1049,22 @@ class AquaDeploymentApp(AquaApp):
         **kwargs: Dict,
     ) -> ModelDeploymentConfigSummary:
         """
-        Retrieves the deployment configuration for multiple Aqua models and calculates
-        the GPU allocations for all compatible shapes.
+        Retrieves the deployment configuration for multiple models and calculates
+        GPU allocations across all compatible shapes.
 
-        If no primary Aqua model id provided, gpu count for each compatible shape will be evenly allocated.
-        If provided, gpu count for each compatible shape will be prioritized for primary model.
+        More details:
+        https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/multimodel-deployment-tips.md#get_multimodel_deployment_config
 
-        For example, there is one compatible shape "BM.GPU.H100.8" for three models A, B, C, and each model has a gpu count as below:
+        CLI example:
+        ads aqua deployment get_multimodel_deployment_config --model_ids '["ocid1.datasciencemodel.oc1.iad.OCID"]'
 
-        A - BM.GPU.H100.8 - 1, 2, 4, 8
-        B - BM.GPU.H100.8 - 1, 2, 4, 8
-        C - BM.GPU.H100.8 - 1, 2, 4, 8
+        If a primary model ID is provided, GPU allocation will prioritize that model
+        when selecting compatible shapes.
 
-        If no primary model is provided, the gpu allocation for A, B, C could be [2, 4, 2], [2, 2, 4] or [4, 2, 2]
-        If B is the primary model, the gpu allocation is [2, 4, 2] as B always gets the maximum gpu count.
+        Example:
+        Assume all three models: A, B, and C, support the same shape: "BM.GPU.H100.8" and each supports the following GPU counts for that shape: 1, 2, 4, 8.
+        If `no` primary model is specified, valid allocations could be: [2, 4, 2], [2, 2, 4], or [4, 2, 2]
+        If `B` is set as the primary model, the allocation will be: [2, 4, 2], where B receives the maximum available GPU count
 
         Parameters
         ----------

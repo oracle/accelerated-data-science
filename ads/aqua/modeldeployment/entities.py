@@ -604,38 +604,46 @@ class CreateModelDeploymentDetails(BaseModel):
                     # If total GPU allocation is not supported by selected model
                     if selected_shape not in aqua_deployment_config.shape:
                         error_message = (
-                            f"Model `{model.model_id}` is configured with {model.gpu_count} GPUs, "
-                            f"which is invalid for a single-model deployment. "
-                            f"The allowed GPU configurations are: {valid_gpu_str}."
+                            f"Model `{model.model_id}` is configured with {model.gpu_count} GPU(s), "
+                            f"which is invalid. The allowed GPU configurations are: {valid_gpu_str}."
                         )
                         logger.error(error_message)
                         raise ConfigValidationError(error_message)
 
                     if model.gpu_count != total_available_gpus:
                         error_message = (
-                            f"Model `{model.model_id}` is configured with {model.gpu_count} GPUs, "
-                            f"which is invalid for a single-model deployment. "
-                            f"The allowed GPU configurations are: {valid_gpu_str}. Alternatively, "
-                            f"the selected instance shape supports up to {total_available_gpus} GPUs. "
-                            f"Please adjust the GPU allocation to one of these valid configurations."
+                            f"Model '{model.model_id}' is configured to use {model.gpu_count} GPU(s), "
+                            f"which not fully utilize the selected instance shape with {total_available_gpus} available GPU(s). "
+                            "Consider adjusting the GPU allocation to better utilize the available resources and maximize performance."
                         )
                         logger.error(error_message)
                         raise ConfigValidationError(error_message)
+
                 else:
                     error_message = (
-                        f"Model `{model.model_id}` is configured with {model.gpu_count} GPUs, which is invalid. "
+                        f"Model `{model.model_id}` is configured with {model.gpu_count} GPU(s), which is invalid. "
                         f"Valid GPU configurations are: {valid_gpu_str}. Please adjust the GPU allocation "
                         f"or choose an instance shape that supports a higher GPU count."
                     )
                     logger.error(error_message)
                     raise ConfigValidationError(error_message)
 
+            if is_single_model and model.gpu_count != total_available_gpus:
+                error_message = (
+                    f"Model '{model.model_id}' is configured to use {model.gpu_count} GPU(s), "
+                    f"which not fully utilize the selected instance shape with {total_available_gpus} available GPU(s). "
+                    "This configuration may lead to suboptimal performance for a single-model deployment. "
+                    "Consider adjusting the GPU allocation to better utilize the available resources and maximize performance."
+                )
+                logger.warning(error_message)
+                # raise ConfigValidationError(error_message)
+
         # Check that the total GPU count for the model group does not exceed the instance capacity.
         if sum_model_gpus > total_available_gpus:
             error_message = (
-                f"The selected instance shape `{selected_shape}` has `{total_available_gpus}` GPUs, "
-                f"but the combined GPU allocation for the model group is `{sum_model_gpus}` GPUs. "
-                "Please adjust the GPU allocations per model or select an instance shape with a higher GPU capacity."
+                f"The selected instance shape `{selected_shape}` provides `{total_available_gpus}` GPU(s), "
+                f"but the total GPU allocation required by the model group is `{sum_model_gpus}` GPU(s). "
+                "Please adjust the GPU allocation per model or choose an instance shape with greater GPU capacity."
             )
             logger.error(error_message)
             raise ConfigValidationError(error_message)
