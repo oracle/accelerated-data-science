@@ -305,6 +305,7 @@ class AquaDeploymentApp(AquaApp):
             )
             return self._create_multi(
                 aqua_model=aqua_model,
+                model_config_summary=model_config_summary,
                 create_deployment_details=create_deployment_details,
                 container_config=container_config,
             )
@@ -553,6 +554,7 @@ class AquaDeploymentApp(AquaApp):
     def _create_multi(
         self,
         aqua_model: DataScienceModel,
+        model_config_summary: ModelDeploymentConfigSummary,
         create_deployment_details: CreateModelDeploymentDetails,
         container_config: Dict,
     ) -> AquaDeployment:
@@ -560,6 +562,8 @@ class AquaDeploymentApp(AquaApp):
 
         Parameters
         ----------
+        model_config_summary : model_config_summary
+            Summary Model Deployment configuration for the group of models.
         aqua_model : DataScienceModel
             An instance of Aqua data science model.
         create_deployment_details : CreateModelDeploymentDetails
@@ -606,14 +610,18 @@ class AquaDeploymentApp(AquaApp):
             # replaces `--tensor-parallel-size` with model gpu count
             container_params_dict.update({"--tensor-parallel-size": model.gpu_count})
             params = build_params_string(container_params_dict)
-            deployment_config = self.get_deployment_config(model.model_id)
-            multi_model_deployment = deployment_config.configuration.get(
+
+            deployment_config = model_config_summary.deployment_config.get(
+                model.model_id, AquaDeploymentConfig()
+            ).configuration.get(
                 create_deployment_details.instance_shape, ConfigurationItem()
-            ).multi_model_deployment
+            )
+
             # finds the corresponding deployment parameters based on the gpu count
             # and combines them with user's parameters. Existing deployment parameters
             # will be overriden by user's parameters.
-            for item in multi_model_deployment:
+            params_found = False
+            for item in deployment_config.multi_model_deployment:
                 if (
                     model.gpu_count
                     and item.gpu_count
@@ -623,7 +631,19 @@ class AquaDeploymentApp(AquaApp):
                         get_container_params_type(container_type_key), UNKNOWN
                     )
                     params = f"{params} {get_combined_params(config_parameters, user_params)}".strip()
+                    params_found = True
                     break
+
+            if not params_found and deployment_config.parameters:
+                config_parameters = deployment_config.parameters.get(
+                    get_container_params_type(container_type_key), UNKNOWN
+                )
+                params = f"{params} {get_combined_params(config_parameters, user_params)}".strip()
+                params_found = True
+
+            # if no config parameters found, append user parameters directly.
+            if not params_found:
+                params = f"{params} {user_params}".strip()
 
             artifact_path_prefix = model.artifact_location.rstrip("/")
             if ObjectStorageDetails.is_oci_path(artifact_path_prefix):
