@@ -628,15 +628,15 @@ class CreateModelDeploymentDetails(BaseModel):
                     logger.error(error_message)
                     raise ConfigValidationError(error_message)
 
-            if is_single_model and model.gpu_count != total_available_gpus:
-                error_message = (
-                    f"Model '{model.model_id}' is configured to use {model.gpu_count} GPU(s), "
-                    f"which not fully utilize the selected instance shape with {total_available_gpus} available GPU(s). "
-                    "This configuration may lead to suboptimal performance for a single-model deployment. "
-                    "Consider adjusting the GPU allocation to better utilize the available resources and maximize performance."
-                )
-                logger.warning(error_message)
-                # raise ConfigValidationError(error_message)
+        if sum_model_gpus < total_available_gpus:
+            error_message = (
+                f"Selected models are configured to use {sum_model_gpus} GPU(s), "
+                f"which not fully utilize the selected instance shape with {total_available_gpus} available GPU(s). "
+                "This configuration may lead to suboptimal performance for a multi-model deployment. "
+                "Consider adjusting the GPU allocation to better utilize the available resources and maximize performance."
+            )
+            logger.warning(error_message)
+            # raise ConfigValidationError(error_message)
 
         # Check that the total GPU count for the model group does not exceed the instance capacity.
         if sum_model_gpus > total_available_gpus:

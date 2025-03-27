@@ -417,7 +417,7 @@ class MultiModelDeploymentConfigLoader:
                 current_gpus_available = total_gpus_available
                 while (
                     current_gpus_available >= minimal_gpus_needed
-                    or current_gpus_available == 1
+                    # or current_gpus_available == 1
                 ):
                     for combination in combinations:
                         if (
@@ -434,16 +434,16 @@ class MultiModelDeploymentConfigLoader:
                                 ],
                             )
 
-                    current_gpus_available -= 2
-                    current_gpus_available = (
-                        1 if current_gpus_available == 0 else current_gpus_available
-                    )
+                    current_gpus_available -= 1
+                    # current_gpus_available = (
+                    #     1 if current_gpus_available == 0 else current_gpus_available
+                    # )
         else:
             combinations = self.get_combinations(model_gpu_dict_copy)
             current_gpus_available = total_gpus_available
             while (
                 current_gpus_available >= minimal_gpus_needed
-                or current_gpus_available == 1
+                # or current_gpus_available == 1
             ):
                 minimal_difference = float("inf")  # gets the positive infinity
                 optimal_combination = []
@@ -472,10 +472,10 @@ class MultiModelDeploymentConfigLoader:
                         ],
                     )
 
-                current_gpus_available -= 2
-                current_gpus_available = (
-                    1 if current_gpus_available == 0 else current_gpus_available
-                )
+                current_gpus_available -= 1
+                # current_gpus_available = (
+                #     1 if current_gpus_available == 0 else current_gpus_available
+                # )
 
         return (False, [])
 
