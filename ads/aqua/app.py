@@ -433,7 +433,7 @@ class AquaApp:
         )
         return container_image
 
-    @cached(cache=TTLCache(maxsize=20, ttl=timedelta(hours=5), timer=datetime.now))
+    @cached(cache=TTLCache(maxsize=20, ttl=timedelta(minutes=30), timer=datetime.now))
     def list_service_containers(self) -> List[ContainerSummary]:
         """
         List containers from containers.conf in OCI Datascience control plane
