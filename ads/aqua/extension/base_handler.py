@@ -10,10 +10,10 @@ from typing import Any
 from notebook.base.handlers import APIHandler
 from tornado import httputil
 from tornado.web import Application, HTTPError
-from utils import construct_error
 
 from ads.aqua import logger
 from ads.aqua.common.utils import is_pydantic_model
+from ads.aqua.extension.utils import construct_error
 from ads.config import AQUA_TELEMETRY_BUCKET, AQUA_TELEMETRY_BUCKET_NS
 from ads.telemetry.client import TelemetryClient
 

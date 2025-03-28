@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import re
 import traceback
 import uuid
 from dataclasses import fields
@@ -36,7 +37,7 @@ def ui_compatability_check():
     from the UI to avoid multiple config file loads."""
     return ODSC_MODEL_COMPARTMENT_OCID or fetch_service_compartment()
 
-@staticmethod
+
 def get_default_error_messages(
     service_payload: dict,
     status_code: str,
@@ -58,9 +59,7 @@ def get_default_error_messages(
         if operation_name:
             if operation_name.startswith("create"):
                 return messages["create"] + f" Operation Name: {operation_name}."
-            elif operation_name.startswith("list") or operation_name.startswith(
-                "get"
-            ):
+            elif operation_name.startswith("list") or operation_name.startswith("get"):
                 return messages["get"] + f" Operation Name: {operation_name}."
 
     if status_code in messages:
@@ -68,30 +67,72 @@ def get_default_error_messages(
     else:
         return default_msg
 
+
 def get_documentation_link(key: str):
-    return f"https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/policies/troubleshooting.md#{key}"
+    """Generates appropriate GitHub link to AQUA Troubleshooting Documentation per the user's error."""
+    github_header = re.sub(r"_", "-", key)
+    return f"https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md#{github_header}"
 
 
-def get_troubleshooting_tips(service_payload: str,
-                             status_code: str,
-                             tip: str = "For general tips on troubleshooting: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/policies/README.md#setting-up-policies-manually"):
+def get_troubleshooting_tips(service_payload: str, status_code: str):
     """Maps authorization errors to potential solutions on Troubleshooting Page per Aqua Documentation on oci-data-science-ai-samples"""
 
     operations = {
-        "list_model_deployments": "Unable to list model deployments. See tips for troubleshooting:",
-        "list_models": "Unable to list models. See tips for troubleshooting:",
-        "get_namespace": "Unable to access specified Object Storage Bucket. See tips for troubleshooting missing policies:",
-        "list_log_groups":"Unable to access logs. See tips for troubleshooting missing policies:" ,
+        "list_model_deployments": "Unable to list model deployments. See tips for troubleshooting: ",
+        "list_models": "Unable to list models. See tips for troubleshooting: ",
+        "get_namespace": "Unable to access specified Object Storage Bucket. See tips for troubleshooting: ",
+        "list_log_groups": "Unable to access logs. See tips for troubleshooting: ",
+        "list_buckets": "Unable to find versioned Object Storage Bucket. See tips for troubleshooting: ",
+        "list_model_version_sets": "Unable to create or fetch model version set. See tips for troubleshooting:",
+        "update_model_invalid_tags": "Unable to update model. See tips for troubleshooting: ",
+        "list_data_science_private_endpoints": "Unable to access specified Object Storage Bucket. See tips for troubleshooting:  ",
+        "create_model": "Unable to register or create model. See tips for troubleshooting: ",
+        "create_model_invalid_tags": "Unable to add freeform tags. Use AQUA CLI to add tags, see tips here: ",
     }
-    if status_code == "404":
-        failed_operation = service_payload.get('operation_name')
+    tip = "For general tips on troubleshooting: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md"
+
+    if status_code in (404, 400):
+        failed_operation = service_payload.get("operation_name")
+
+        if "Invalid tags" in service_payload["message"]:
+            failed_operation += "_invalid_tags"
+
         link = get_documentation_link(failed_operation)
-        tip = operations[failed_operation] + link
+
+        if failed_operation in operations and link:
+            tip = operations[failed_operation] + link
 
     return tip
 
 
 def construct_error(status_code, **kwargs):
+    """
+    Formats an error response based on the provided status code and optional details.
+
+    Args:
+        status_code (int): The HTTP status code of the error.
+        **kwargs: Additional optional parameters:
+            - reason (str, optional): A brief reason for the error.
+            - service_payload (dict, optional): Contextual error data from OCI SDK methods
+            - message (str, optional): A custom error message, from error raised from failed AQUA methods calling OCI SDK methods
+            - exc_info (tuple, optional): Exception information (e.g., from `sys.exc_info()`), used for logging.
+
+    Returns:
+        reply (dict) : The formatted error response with:
+                - "status" (int): The HTTP status code.
+                - "troubleshooting_tips" (list): Suggested troubleshooting steps.
+                - "message" (str): The formatted error message.
+                - "service_payload" (dict): Additional service context.
+                - "reason" (str or None): The reason for the error.
+                - "request_id" (str): A unique identifier for tracking the error.
+        message (str) : A custom message based on the OCI Service Error Message
+        reason (str) : The reason for error (from exception caught by AQUA methods)
+
+    Logs:
+        - Logs the error details with a unique request ID.
+        - If `exc_info` is provided and contains an `HTTPError`, updates the response message and reason accordingly.
+
+    """
     reason = kwargs.get("reason")
     service_payload = kwargs.get("service_payload", {})
     default_msg = responses.get(status_code, "Unknown HTTP Error")

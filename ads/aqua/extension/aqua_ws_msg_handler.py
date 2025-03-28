@@ -10,7 +10,6 @@ from http.client import responses
 from typing import List
 
 from tornado.web import HTTPError
-from utils import construct_error
 
 from ads.aqua import logger
 from ads.aqua.common.decorator import handle_exceptions
@@ -22,6 +21,7 @@ from ads.aqua.extension.models.ws_models import (
     ErrorResponse,
     RequestResponseType,
 )
+from ads.aqua.extension.utils import construct_error
 from ads.config import AQUA_TELEMETRY_BUCKET, AQUA_TELEMETRY_BUCKET_NS
 from ads.telemetry.client import TelemetryClient
 

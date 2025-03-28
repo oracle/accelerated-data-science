@@ -56,6 +56,7 @@ class AquaModelHandler(AquaAPIhandler):
                     ),
                 )
         elif not model_id:
+            print("***" , model_id)
             return self.list()
 
         return self.read(model_id)

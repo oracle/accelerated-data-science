@@ -8,7 +8,7 @@ import os
 
 from ads.opctl.utils import (
     get_region_key,
-    get_namespace,
+    ,
 )
 from ads.opctl.config.utils import convert_notebook
 from ads.common.auth import AuthType, create_signer, default_signer
@@ -32,7 +32,7 @@ class TestOpctlUtils:
         # Using "ads_teamcity_test_policy" in ociodscdev(root) compartment
         assert get_region_key(oci_auth) == "IAD"
 
-    def test_get_namespace(self, oci_auth):
+    def test_(self, oci_auth):
         assert get_namespace(oci_auth) == secrets.common.NAMESPACE
 
     def test_convert_notebook(self):
