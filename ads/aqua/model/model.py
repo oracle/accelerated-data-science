@@ -400,7 +400,7 @@ class AquaModelApp(AquaApp):
             metadata_key_name=ModelCustomMetadataFields.MULTIMODEL_METADATA,
             artifact_path_or_content=json.dumps(
                 [model.model_dump() for model in models]
-            ),
+            ).encode(),
             path_type=MetadataArtifactPathType.CONTENT,
         )
 
