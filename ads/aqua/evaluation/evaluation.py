@@ -142,7 +142,7 @@ class AquaEvaluationApp(AquaApp):
         **kwargs,
     ) -> "AquaEvaluationSummary":
         """Creates Aqua evaluation for resource.\n
-        For detailed information about CLI flags see: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/f271ca63d12e3c256718f23a14d93da4b4fc086b/ai-quick-actions/cli-tips.md#create-model-evaluation
+        For detailed information about CLI flags see: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/cli-tips.md#model-evaluation
 
         Parameters
         ----------
@@ -504,9 +504,7 @@ class AquaEvaluationApp(AquaApp):
                 metrics=create_aqua_evaluation_details.metrics,
                 inference_configuration=eval_inference_configuration or {},
             )
-        ).create(
-            **kwargs
-        )  ## TODO: decide what parameters will be needed
+        ).create(**kwargs)  ## TODO: decide what parameters will be needed
         logger.debug(
             f"Successfully created evaluation job {evaluation_job.id} for {create_aqua_evaluation_details.evaluation_source_id}."
         )
