@@ -38,7 +38,7 @@ class HandlerTestDataset:
         "status": 404,
         "code": "NotAuthenticated",
         "opc-request-id": "1234",
-        "message": "The  to complete authentication was not provided or was incorrect.",
+        "message": "The required information to complete authentication was not provided or was incorrect.",
         "operation_name": "create_resources",
         "timestamp": "2024-04-12T02:51:24.977404+00:00",
         "request_endpoint": "POST xxx",
