@@ -379,7 +379,7 @@ class AquaUIApp(AquaApp):
     @telemetry(entry_point="plugin=ui&action=list_private_endpoints", name="aqua")
     def list_private_endpoints(self, **kwargs) -> list:
         """Lists the private endpoints in the specified compartment.
-        Data seicne private endpoints have two types: `NOTEBOOK_SESSION` and `MODEL_DEPLOYMENT`.
+        Data science private endpoints have two types: `NOTEBOOK_SESSION` and `MODEL_DEPLOYMENT`.
         This api will by default list `MODEL_DEPLOYMENT` type as needed by AQUA model deployment.
 
         Parameters
