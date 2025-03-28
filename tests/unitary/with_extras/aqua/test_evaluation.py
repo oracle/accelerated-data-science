@@ -630,7 +630,6 @@ class TestAquaEvaluation(unittest.TestCase):
                 mock_model, mock_create_aqua_evaluation_details
             )
         except AquaError as e:
-            print(str(e))
             self.assertEqual(str(e), expected_message)
 
     def test_get_service_model_name(self):

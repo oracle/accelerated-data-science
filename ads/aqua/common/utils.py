@@ -19,6 +19,7 @@ from pathlib import Path
 from string import Template
 from typing import Any, Dict, List, Optional, Union
 
+import fsspec
 import oci
 from cachetools import TTLCache, cached
 from huggingface_hub.constants import HF_HUB_CACHE

@@ -218,7 +218,7 @@ class AquaDeploymentApp(AquaApp):
             model_ids = [model.model_id for model in create_deployment_details.models]
             try:
                 model_config_summary = self.get_multimodel_deployment_config(
-                    model_ids=model_ids
+                    model_ids=model_ids, compartment_id=compartment_id
                 )
                 if not model_config_summary.gpu_allocation:
                     raise AquaValueError(model_config_summary.error_message)

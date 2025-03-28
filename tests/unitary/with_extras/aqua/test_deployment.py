@@ -981,8 +981,6 @@ class TestAquaDeployment(unittest.TestCase):
             AquaDeployment.__annotations__.keys()
         )
         actual_attributes = result.to_dict()
-        # print(actual_attributes)
-        print(TestDataset.aqua_deployment_detail)
         assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
         assert actual_attributes == TestDataset.aqua_deployment_detail
         assert result.log.name == "log-name"
