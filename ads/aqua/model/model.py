@@ -828,8 +828,8 @@ class AquaModelApp(AquaApp):
 
     @staticmethod
     def list_valid_inference_containers():
-        containers = list(AquaApp.get_container_config())
-        family_values = [item.family_name for item in containers]
+        containers = AquaApp().get_container_config().to_dict().get("inference")
+        family_values = [item.family for item in containers]
         return family_values
 
     @telemetry(
