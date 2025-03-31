@@ -76,12 +76,9 @@ class AquaAPIhandler(APIHandler):
 
         self.set_header("Content-Type", "application/json")
         self.set_status(status_code, reason=reason)
-        print("**")
-        print(hasattr(self, "telemetry"))
 
         # telemetry may not be present if there is an error while initializing
         if hasattr(self, "telemetry"):
-            print("--")
             aqua_api_details = kwargs.get("aqua_api_details", {})
             self.telemetry.record_event_async(
                 category="aqua/error",
