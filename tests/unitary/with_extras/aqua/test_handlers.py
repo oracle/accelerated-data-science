@@ -117,7 +117,7 @@ class TestBaseHandlers(unittest.TestCase):
             ],
             [
                 "oci ServiceError",
-                dict(
+                dict(  # noqa: C408
                     status_code=404,
                     reason="Testing ServiceError happen when get_job_run.",
                     service_payload=TestDataset.mock_service_payload_get,
@@ -143,7 +143,7 @@ class TestBaseHandlers(unittest.TestCase):
             ],
         ]
     )
-    @patch("ads.aqua.extension.base_handler.logger")
+    @patch("ads.aqua.extension.utils.logger")
     @patch("uuid.uuid4")
     def test_write_error(self, name, input, expected_msg, mock_uuid, mock_logger):
         """Tests AquaAPIhandler.write_error"""
@@ -162,13 +162,16 @@ class TestBaseHandlers(unittest.TestCase):
         )
         expected_reply = {
             "status": input.get("status_code"),
+            "troubleshooting_tips": "For general tips on troubleshooting: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md",
             "message": expected_msg,
             "service_payload": input.get("service_payload", {}),
             "reason": input.get("reason"),
             "request_id": "1234",
         }
+
         self.test_instance.finish.assert_called_once_with(json.dumps(expected_reply))
         aqua_api_details = input.get("aqua_api_details", {})
+
         self.test_instance.telemetry.record_event_async.assert_called_with(
             category="aqua/error",
             action=str(
@@ -177,10 +180,12 @@ class TestBaseHandlers(unittest.TestCase):
             value=input.get("reason"),
             **aqua_api_details,
         )
+
         error_message = (
             f"Error Request ID: {expected_reply['request_id']}\n"
             f"Error: {expected_reply['message']} {expected_reply['reason']}"
         )
+
         mock_logger.error.assert_called_with(error_message)
 
 

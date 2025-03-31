@@ -53,6 +53,7 @@ class TestAquaDecorators(TestCase):
                 ),
                 {
                     "status": 500,
+                    "troubleshooting_tips": "For general tips on troubleshooting: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md",
                     "message": "An internal error occurred.",
                     "service_payload": {
                         "target_service": None,
@@ -76,6 +77,7 @@ class TestAquaDecorators(TestCase):
                 ConfigFileNotFound("Could not find config file at the given path."),
                 {
                     "status": 400,
+                    "troubleshooting_tips": "For general tips on troubleshooting: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md",
                     "message": "Something went wrong with your request.",
                     "service_payload": {},
                     "reason": "ConfigFileNotFound: Could not find config file at the given path.",
@@ -89,6 +91,7 @@ class TestAquaDecorators(TestCase):
                 ),
                 {
                     "status": 400,
+                    "troubleshooting_tips": "For general tips on troubleshooting: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md",
                     "message": "Something went wrong with your request.",
                     "service_payload": {},
                     "reason": "MissingEndpointForNonRegionalServiceClientError: An endpoint must be provided for a non-regional service client",
@@ -100,6 +103,7 @@ class TestAquaDecorators(TestCase):
                 RequestException("An exception occurred when making the request"),
                 {
                     "status": 400,
+                    "troubleshooting_tips": "For general tips on troubleshooting: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md",
                     "message": "Something went wrong with your request.",
                     "service_payload": {},
                     "reason": "RequestException: An exception occurred when making the request",
@@ -113,7 +117,8 @@ class TestAquaDecorators(TestCase):
                 ),
                 {
                     "status": 408,
-                    "message": "Server is taking too long to response, please try again.",
+                    "troubleshooting_tips": "For general tips on troubleshooting: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md",
+                    "message": "Server is taking too long to respond, please try again.",
                     "service_payload": {},
                     "reason": "ConnectTimeout: The request timed out while trying to connect to the remote server.",
                     "request_id": TestDataset.mock_request_id,
@@ -124,6 +129,7 @@ class TestAquaDecorators(TestCase):
                 MultipartUploadError(),
                 {
                     "status": 500,
+                    "troubleshooting_tips": "For general tips on troubleshooting: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md",
                     "message": "Internal Server Error",
                     "service_payload": {},
                     "reason": f"MultipartUploadError: MultipartUploadError exception has occurred. {UPLOAD_MANAGER_DEBUG_INFORMATION_LOG}",
@@ -135,6 +141,7 @@ class TestAquaDecorators(TestCase):
                 CompositeOperationError(),
                 {
                     "status": 500,
+                    "troubleshooting_tips": "For general tips on troubleshooting: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md",
                     "message": "Internal Server Error",
                     "service_payload": {},
                     "reason": "CompositeOperationError: ",
@@ -146,6 +153,7 @@ class TestAquaDecorators(TestCase):
                 AquaError(reason="Mocking AQUA error.", status=403, service_payload={}),
                 {
                     "status": 403,
+                    "troubleshooting_tips": "For general tips on troubleshooting: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md",
                     "message": "We're having trouble processing your request with the information provided.",
                     "service_payload": {},
                     "reason": "Mocking AQUA error.",
@@ -157,6 +165,7 @@ class TestAquaDecorators(TestCase):
                 HTTPError(400, "The request `/test` is invalid."),
                 {
                     "status": 400,
+                    "troubleshooting_tips": "For general tips on troubleshooting: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md",
                     "message": "The request `/test` is invalid.",
                     "service_payload": {},
                     "reason": "The request `/test` is invalid.",
@@ -168,6 +177,7 @@ class TestAquaDecorators(TestCase):
                 ValueError("Mocking ADS internal error."),
                 {
                     "status": 500,
+                    "troubleshooting_tips": "For general tips on troubleshooting: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md",
                     "message": "Internal Server Error",
                     "service_payload": {},
                     "reason": "ValueError: Mocking ADS internal error.",
