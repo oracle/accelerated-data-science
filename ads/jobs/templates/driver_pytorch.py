@@ -2,10 +2,8 @@
 
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-"""This module requires oracle-ads>=2.6.8 and python>=3.8
-"""
+"""This module requires oracle-ads>=2.6.8 and python>=3.8"""
 import getpass
-import glob
 import ipaddress
 import json
 import logging
@@ -78,7 +76,9 @@ CONST_ENCODING = "utf-8"
 LOG_PREFIX_HOST_IP = "Distributed Training HOST IP: "
 LOG_PREFIX_NODE_IP = "Node IP: "
 LOG_PREFIX_PUBLIC_KEY = "HOST PUBLIC KEY: "
+LOG_PREFIX_NODE_HOST_KEY = "NODE HOST KEY: "
 # Other constants used within this script
+NODE_HOST_KEY_PATH = "/etc/ssh/ssh_host_rsa_key.pub"
 USER_HOME = os.environ.get("HOME", f"/home/{getpass.getuser()}")
 SSH_DIR = os.environ.get("OCI__SSH_DIR", os.path.join(USER_HOME, ".ssh"))
 DEFAULT_LAUNCHER = "torchrun"
@@ -588,10 +588,14 @@ class DeepSpeedRunner(Runner):
 
     def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
         super().__init__(code_dir)
+        self.host_key = None
         self.deepspeed_setup()
 
     def deepspeed_setup(self):
         """Setup for DeepSpeed."""
+        self.host_key = (
+            NODE_HOST_KEY_PATH if os.path.exists(NODE_HOST_KEY_PATH) else None
+        )
         # Create the temp dir if one does not exist.
         # This is needed for JIT
         if self.TMPDIR and not os.path.isdir(self.TMPDIR):
@@ -624,16 +628,18 @@ class DeepSpeedRunner(Runner):
                 "Skipped installing extra dependencies for single node training."
             )
             return
-        # Generate SSH host keys for SSH server
 
         # Check if host keys exist
-        host_keys = glob.glob("/etc/ssh/ssh_host*")
-        if host_keys:
+        if self.host_key:
             logger.debug(
-                "Skipped SSH host key generation.\nHost keys found: %s", host_keys
+                "Skipped SSH host key generation.\nHost keys found: %s", self.host_key
             )
         else:
+            # Generate SSH host keys for SSH server
             self.run_command("sudo ssh-keygen -A", level=logging.DEBUG, check=True)
+            with open(NODE_HOST_KEY_PATH, encoding=CONST_ENCODING) as f:
+                public_key = f.read()
+            print(f"{LOG_PREFIX_NODE_HOST_KEY}{self.ip}-{public_key}")
 
         if self.run_command("which pdsh", level=logging.DEBUG) != 0:
             # Install "openssh-server" to accept SSH connections
@@ -665,8 +671,10 @@ class DeepSpeedRunner(Runner):
             public_key = f.read()
         print(f"{LOG_PREFIX_PUBLIC_KEY}{public_key}", flush=True)
         self.add_authoried_key(public_key)
+        # Public
         self.run_command(
-            f"ssh-keyscan -H {self.host_ip} >> {SSH_DIR}/known_hosts",
+            f"echo -n '{self.host_ip} ' | "
+            f"cat - {NODE_HOST_KEY_PATH} >> {SSH_DIR}/known_hosts",
             level=logging.DEBUG,
             check=True,
         )
@@ -721,8 +729,7 @@ class DeepSpeedRunner(Runner):
                 [
                     "",
                     f"Host {self.host_ip}",
-                    "IdentityFile /home/datascience/.ssh/id_rsa",
-                    "User datascience",
+                    "KexAlgorithms diffie-hellman-group-exchange-sha256\n",
                 ]
             )
             for node_ip in self.node_ip_list:
@@ -730,15 +737,15 @@ class DeepSpeedRunner(Runner):
                     [
                         "",
                         f"Host {node_ip}",
-                        "IdentityFile /home/datascience/.ssh/id_rsa",
-                        "User datascience",
+                        "KexAlgorithms diffie-hellman-group-exchange-sha256\n",
                     ]
                 )
+        self.run_command(f"cat {ssh_config_path}", level=logging.DEBUG)
         return self
 
     def test_ssh_connection(self, host):
         ret = self.run_command(
-            f"ssh -v -o PasswordAuthentication=no {host} hostname -I",
+            f"ssh -vvv -o PasswordAuthentication=no {host} hostname -I",
             level=logging.DEBUG,
         )
         if ret == 0:
@@ -762,22 +769,47 @@ class DeepSpeedRunner(Runner):
         the environment variables configured by the job runs are not propagated to the SSH session.
         DeepSpeed will load the environment variables from file for the SSH sessions.
         """
+        import deepspeed
+
+        try:
+            version = deepspeed.__version__
+            minor_version = int(version.split(".")[1])
+        except Exception:
+            version = 0
+            minor_version = 0
+
         with open(self.ENV_FILE, mode="w", encoding=CONST_ENCODING) as f:
             for k, v in os.environ.items():
-                # As of deepspeed==0.9.2, empty value or line break will cause parsing error,
+                # Empty value or line break may cause parsing error,
                 # as the .deepspeed_env file is parsed line by line.
                 if not v or "\n" in v:
+                    logger.debug("Skipped saving %s as deepspeed env.", k)
                     continue
                 # Ignore variables that are node specific
                 # The network interface name for each job run could be a unique string, e.g. ens300f0v1604
                 # Deepspeed will copy the SOCKET_IFNAME values to all nodes if they are set.
-                if k in ["NCCL_SOCKET_IFNAME", "GLOO_SOCKET_IFNAME", "JOB_RUN_OCID"]:
+                if k in [
+                    "NCCL_SOCKET_IFNAME",
+                    "GLOO_SOCKET_IFNAME",
+                    "JOB_RUN_OCID",
+                    "NODE_RANK",
+                ]:
+                    logger.debug("Skipped saving %s as deepspeed env.", k)
                     continue
-                # Quote the value if it contains space
-                # Environment variable containing space may not be exported correctly when using pdsh
-                # https://github.com/microsoft/DeepSpeed/blob/v0.9.2/deepspeed/launcher/multinode_runner.py#L79
-                if " " in v:
+                # For DeepSpeed < 0.15.2, no extra quotes are added by DeepSpeed
+                # shelex.quote() will make sure the variable is exported correctly.
+                if minor_version < 15 or version in ["0.15.1", "0.15.0"]:
                     v = shlex.quote(v)
+
+                # As v0.16.4, DeepSpeed is wrapping the value with double quotes.
+                # Escape the double quotes so that they can be exported correctly.
+                # This logic may need to be updated with the future version of DeepSpeed.
+                # https://github.com/deepspeedai/DeepSpeed/blob/v0.16.4/deepspeed/launcher/multinode_runner.py#L37
+                # https://github.com/deepspeedai/DeepSpeed/blob/v0.16.4/deepspeed/launcher/multinode_runner.py#L90
+                # https://github.com/deepspeedai/DeepSpeed/pull/5878
+                # https://github.com/deepspeedai/DeepSpeed/pull/7071
+                elif '"' in v:
+                    v = v.replace('"', '\\"')
 
                 f.write(f"{k}={v}\n")
         logger.debug("Environment variables saved to %s", self.ENV_FILE)
@@ -801,12 +833,27 @@ class DeepSpeedRunner(Runner):
             for run in self.node_runs:
                 self.wait_for_log(run, LOG_PREFIX_PUBLIC_KEY)
 
-            for node_ip in self.node_ip_list:
-                self.run_command(
-                    f"ssh-keyscan -H {node_ip} >> {SSH_DIR}/known_hosts",
-                    level=logging.DEBUG,
-                    check=True,
-                )
+            if self.host_key:
+                # If host key exists, it should be the same for all nodes.
+                for node_ip in self.node_ip_list:
+                    self.run_command(
+                        f"echo -n '{node_ip} ' | "
+                        f"cat - /etc/ssh/ssh_host_rsa_key.pub >> {SSH_DIR}/known_hosts",
+                        level=logging.DEBUG,
+                        check=True,
+                    )
+            else:
+                # If host key did not exist, it it generated on the fly,
+                # Each node will have a different key.
+                # We will need to check the logs for the public key.
+                for run in self.node_runs:
+                    ip_key = self.wait_for_log(run, f"{LOG_PREFIX_NODE_HOST_KEY}")
+                    ip_addr, public_key = ip_key.split("-", 1)
+                    with open(
+                        f"{SSH_DIR}/known_hosts", "a+", encoding=CONST_ENCODING
+                    ) as f:
+                        f.write(f"{ip_addr} {public_key}\n")
+                    logger.debug("Added host key for %s", ip_addr)
 
         cmd = self.prepare_cmd(launch_args)
         # For DeepSpeed, we only need to run the cmd on the host
@@ -861,13 +908,23 @@ class DeepSpeedRunner(Runner):
 
 
 class GenericRunner(TorchRunner, DeepSpeedRunner):
-    """Runner for running command other than ``torchrun``, ``deepspeed`` or ``accelerate``."""
+    """Runner for running command that may use ``torchrun`` or ``deepspeed``."""
 
     LAUNCHER = ""
 
-    def use_deepspeed(self) -> bool:
+    def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
+        TorchRunner.__init__(self, code_dir)
+        if self.use_deepspeed():
+            self.deepspeed_setup()
+
+    def use_deepspeed(self):
         """Indicate if DeepSpeed is used."""
-        return bool(os.environ.get(CONST_ENV_DEEPSPEED))
+        # Accelerate support using DeepSpeed by adding the "--use_deepspeed" argument.
+        return bool(
+            os.environ.get(CONST_ENV_DEEPSPEED)
+            or self.launch_cmd_contains("use_deepspeed")
+            or self.launch_cmd_contains("deepspeed")
+        )
 
     def set_env_var(self):
         """Set default environment variables."""
@@ -902,7 +959,7 @@ class GenericRunner(TorchRunner, DeepSpeedRunner):
             self.time_cmd(cmd=self.prepare_cmd(prefix=self.env_ld_preload()))
 
 
-class AccelerateRunner(TorchRunner, DeepSpeedRunner):
+class AccelerateRunner(GenericRunner):
     """Runner for HuggingFace Accelerate."""
 
     # accelerate launch will add main_process_port for deepspeed cmd even if it is not needed.
@@ -918,9 +975,7 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
     LAUNCHER = "accelerate launch"
 
     def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
-        TorchRunner.__init__(self, code_dir)
-        if self.use_deepspeed():
-            self.deepspeed_setup()
+        super().__init__(self, code_dir)
         # For "accelerate launch", only one of the following options can be used at one time
         # `--cpu`, `--multi_gpu`, `--tpu`, `--use_deepspeed`, `--use_fsdp`.
         # When a config file is not provided,
@@ -936,15 +991,6 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
         self.main_process_port = self.RDZV_PORT
         # Host IP is not ready at initialization
         self.main_process_ip = None
-
-    def use_deepspeed(self):
-        """Indicate if DeepSpeed is used."""
-        # Accelerate support using DeepSpeed by adding the "--use_deepspeed" argument.
-        return bool(
-            os.environ.get(CONST_ENV_DEEPSPEED)
-            or self.launch_cmd_contains("use_deepspeed")
-            or self.launch_cmd_contains("deepspeed")
-        )
 
     def accelerate_args(self):
         """Gets the default arguments for the accelerate command.
