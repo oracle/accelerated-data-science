@@ -180,7 +180,15 @@ Aqua OpenAI Client
 
 .. versionadded:: 2.13.4
 
-The **OpenAI** and **AsyncOpenAI** clients extend the official OpenAI Python SDK to support OCI-based model deployments. They automatically patch request headers and normalize URL paths based on the deployment OCID, ensuring that API calls are sent in the proper format.
+The Oracle-ADS **OpenAI** and **AsyncOpenAI** clients extend the official OpenAI Python SDK to support model deployments on **OCI**. These clients automatically patch request headers and normalize URL paths based on the provided deployment OCID, ensuring that API calls are formatted correctly for OCI Model Deployment.
+
+You can refer to the official `Open AI quick start examples <https://platform.openai.com/docs/quickstart?api-mode=responses>`_ for general usage patterns.
+When working with **OCI Model Deployments**, make sure to import the client from the **oracle-ads** library:
+
+.. code-block:: python3
+
+    from ads.aqua.client.openai_client import OpenAI
+
 
 Requirements
 ------------
