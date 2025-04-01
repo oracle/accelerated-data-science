@@ -206,7 +206,7 @@ The synchronous client, ``AquaOpenAI``, extends the OpenAI client. If no HTTP cl
     ads.set_auth(auth="security_token", profile="<replace-with-your-profile>")
 
     client = AquaOpenAI(
-        base_url="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<OCID>",
+        base_url="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<OCID>/predict",
     )
 
     response = client.chat.completions.create(
@@ -238,7 +238,7 @@ The asynchronous client, ``AsyncAquaOpenAI``, extends the AsyncOpenAI client. If
 
     async def test_async() -> None:
         client_async = AsyncAquaOpenAI(
-            base_url="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<OCID>",
+            base_url="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<OCID>/predict",
         )
         response = await client_async.chat.completions.create(
             model="odsc-llm",
