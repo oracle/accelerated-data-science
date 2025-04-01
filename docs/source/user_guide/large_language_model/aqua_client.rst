@@ -180,7 +180,7 @@ Aqua OpenAI Client
 
 .. versionadded:: 2.13.4
 
-The **AquaOpenAI** and **AsyncAquaOpenAI** clients extend the official OpenAI Python SDK to support OCI-based model deployments. They automatically patch request headers and normalize URL paths based on the deployment OCID, ensuring that API calls are sent in the proper format.
+The **OpenAI** and **AsyncOpenAI** clients extend the official OpenAI Python SDK to support OCI-based model deployments. They automatically patch request headers and normalize URL paths based on the deployment OCID, ensuring that API calls are sent in the proper format.
 
 Requirements
 ------------
@@ -197,15 +197,15 @@ Both synchronous and asynchronous versions are available.
 
 **Synchronous Client**
 
-The synchronous client, ``AquaOpenAI``, extends the OpenAI client. If no HTTP client is provided, it will automatically create one using ``ads.aqua.get_httpx_client()``.
+The synchronous client, ``OpenAI``, extends the OpenAI client. If no HTTP client is provided, it will automatically create one using ``ads.aqua.get_httpx_client()``.
 
 .. code-block:: python
 
     import ads
-    from ads.aqua.client.openai_client import AquaOpenAI
+    from ads.aqua.client.openai_client import OpenAI
     ads.set_auth(auth="security_token", profile="<replace-with-your-profile>")
 
-    client = AquaOpenAI(
+    client = OpenAI(
         base_url="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<OCID>/predict",
     )
 
@@ -225,19 +225,19 @@ The synchronous client, ``AquaOpenAI``, extends the OpenAI client. If no HTTP cl
 
 **Asynchronous Client**
 
-The asynchronous client, ``AsyncAquaOpenAI``, extends the AsyncOpenAI client. If no async HTTP client is provided, it will automatically create one using ``ads.aqua.get_async_httpx_client()``.
+The asynchronous client, ``AsynOpenAI``, extends the AsyncOpenAI client. If no async HTTP client is provided, it will automatically create one using ``ads.aqua.get_async_httpx_client()``.
 
 .. code-block:: python
 
     import ads
     import asyncio
     import nest_asyncio
-    from ads.aqua.client.openai_client import AsyncAquaOpenAI
+    from ads.aqua.client.openai_client import AsyncOpenAI
 
     ads.set_auth(auth="security_token")
 
     async def test_async() -> None:
-        client_async = AsyncAquaOpenAI(
+        client_async = AsyncOpenAI(
             base_url="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<OCID>/predict",
         )
         response = await client_async.chat.completions.create(

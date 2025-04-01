@@ -17,7 +17,7 @@ DEFAULT_TIMEOUT = httpx.Timeout(timeout=600, connect=5.0)
 DEFAULT_MAX_RETRIES = 2
 
 try:
-    from openai import AsyncOpenAI, OpenAI
+    import openai
 except ImportError as e:
     raise ModuleNotFoundError(
         "The custom OpenAI client requires the `openai-python` package. "
@@ -25,7 +25,7 @@ except ImportError as e:
     ) from e
 
 
-class AquaAIMixin:
+class AquaOpenAIMixin:
     """
     Mixin that provides common logic to patch request headers and URLs
     for both synchronous and asynchronous clients.
@@ -111,7 +111,7 @@ class AquaAIMixin:
         request.url = self.base_url.copy_with(path=self.base_url.path.rstrip("/"))
 
 
-class AquaOpenAI(OpenAI, AquaAIMixin):
+class OpenAI(openai.OpenAI, AquaOpenAIMixin):
     def __init__(
         self,
         *,
@@ -130,7 +130,7 @@ class AquaOpenAI(OpenAI, AquaAIMixin):
         **kwargs: Any,
     ) -> None:
         """
-        Construct a new synchronous AquaOpenAI client instance.
+        Construct a new synchronous OpenAI client instance.
 
         If no http_client is provided, one will be automatically created using ads.aqua.get_httpx_client().
 
@@ -183,7 +183,7 @@ class AquaOpenAI(OpenAI, AquaAIMixin):
         self._prepare_request_common(request)
 
 
-class AsyncAquaOpenAI(AsyncOpenAI, AquaAIMixin):
+class AsyncOpenAI(openai.AsyncOpenAI, AquaOpenAIMixin):
     def __init__(
         self,
         *,
@@ -202,7 +202,7 @@ class AsyncAquaOpenAI(AsyncOpenAI, AquaAIMixin):
         **kwargs: Any,
     ) -> None:
         """
-        Construct a new asynchronous AsyncAquaOpenAI client instance.
+        Construct a new asynchronous AsyncOpenAI client instance.
 
         If no http_client is provided, one will be automatically created using
         ads.aqua.get_async_httpx_client().
