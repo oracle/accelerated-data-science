@@ -4,9 +4,7 @@
 
 import json
 import logging
-import re
 from typing import Any, Dict, Optional
-from urllib.parse import urlparse, urlunparse
 
 import httpx
 from git import Union
@@ -35,80 +33,20 @@ class AquaAIMixin:
 
     def _patch_route(self, original_path: str) -> str:
         """
-        Dynamically determine the route header based on the URL path.
-        This method extracts the portion of the path that follows the deployment OCID.
-        It does so by normalizing the path, splitting it into segments, and then using a
-        regular expression to identify the OCID segment (e.g. "ocid1.datasciencemodeldeployment…").
-        All segments following the OCID (skipping an initial
-        'predict', if present) are joined to form the route header (prefixed with "/v1/").
-        If no extra segment is found, it defaults to "/predict".
+        Determine the appropriate route header based on the original URL path.
 
         Args:
             original_path (str): The original URL path.
 
         Returns:
-            str: The computed route header.
+            str: The route header value.
         """
-        normalized = original_path.strip("/").lower()
-        segments = normalized.split("/")
-        ocid_pattern = re.compile(
-            r"^ocid\d+\.datasciencemodeldeployment", re.IGNORECASE
+        route = (
+            original_path.lower()
+            .rstrip("/")
+            .replace(self.base_url.path.lower().rstrip("/"), "")
         )
-        base_index = None
-        for i, seg in enumerate(segments):
-            if ocid_pattern.match(seg):
-                base_index = i
-                break
-
-        if base_index is None:
-            route = f"/v1/{segments[-1]}" if segments and segments[-1] else "/predict"
-            logger.debug("OCID not found; using fallback route: %s", route)
-            return route
-
-        remainder = segments[base_index + 1 :]
-        if remainder and remainder[0] == "predict":
-            remainder = remainder[1:]
-
-        route = f"/v1/{'/'.join(remainder)}" if remainder else ""
-        logger.debug("Computed route from path '%s': %s", original_path, route)
-        return route
-
-    def _patch_url_path(self, original_url: str) -> httpx.URL:
-        """
-        Normalize the URL path so that it always ends with '/predict'.
-
-        This function uses the OCID in the URL to extract the base deployment path,
-        then discards any additional endpoint segments and appends '/predict'.
-        This design is robust against future changes, as it relies on identifying the OCID.
-
-        Args:
-            original_url (str): The original URL.
-
-        Returns:
-            httpx.URL: The normalized URL with its path ending in '/predict'.
-        """
-        parsed_url = urlparse(original_url)
-        # Split the path into non-empty segments.
-        path_segments = [seg for seg in parsed_url.path.split("/") if seg]
-        ocid_pattern = re.compile(
-            r"^ocid\d+\.datasciencemodeldeployment", re.IGNORECASE
-        )
-        base_index = None
-        for i, segment in enumerate(path_segments):
-            if ocid_pattern.match(segment):
-                base_index = i
-                break
-
-        if base_index is not None:
-            base_path = "/" + "/".join(path_segments[: base_index + 1])
-        else:
-            base_path = ""
-            logger.debug("OCID not found in URL path; using empty base.")
-
-        new_path = f"{base_path}/predict" if base_path else "/predict"
-        new_url = urlunparse(parsed_url._replace(path=new_path, query=""))
-        logger.debug("Normalized URL path to: %s", new_url)
-        return httpx.URL(new_url)
+        return f"/v1{route}" if route else ""
 
     def _patch_streaming(self, request: httpx.Request) -> None:
         """
@@ -164,12 +102,13 @@ class AquaAIMixin:
         Args:
             request (httpx.Request): The outgoing HTTP request.
         """
+        # Patches the headers
         logger.debug("Original headers: %s", request.headers)
         self._patch_headers(request)
         logger.debug("Headers after patching: %s", request.headers)
-        new_url = self._patch_url_path(str(request.url))
-        logger.debug("Rewriting URL from %s to %s", request.url, new_url)
-        request.url = new_url
+
+        # Patches the URL
+        request.url = self.base_url.copy_with(path=self.base_url.path.rstrip("/"))
 
 
 class AquaOpenAI(OpenAI, AquaAIMixin):
