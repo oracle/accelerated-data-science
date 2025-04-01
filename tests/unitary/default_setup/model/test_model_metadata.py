@@ -4,10 +4,10 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Unit tests for model metadata module. Includes tests for:
- - ModelTaxonomyMetadataItem
- - ModelCustomMetadataItem
- - ModelTaxonomyMetadata
- - ModelCustomMetadata
+- ModelTaxonomyMetadataItem
+- ModelCustomMetadataItem
+- ModelTaxonomyMetadata
+- ModelCustomMetadata
 """
 
 import json
@@ -31,10 +31,16 @@ from ads.model.model_metadata import (
     ModelTaxonomyMetadata,
     ModelTaxonomyMetadataItem,
     MetadataTaxonomyKeys,
-    UseCaseType
+    UseCaseType,
 )
-from ads.model.datascience_model import ModelRetentionSetting, CustomerNotificationType, SettingStatus, \
-    ModelBackupSetting, ModelRetentionOperationDetails, ModelBackupOperationDetails
+from ads.model.datascience_model import (
+    ModelRetentionSetting,
+    CustomerNotificationType,
+    SettingStatus,
+    ModelBackupSetting,
+    ModelRetentionOperationDetails,
+    ModelBackupOperationDetails,
+)
 from oci.data_science.models import Metadata as OciMetadataItem
 
 try:
@@ -113,6 +119,7 @@ class TestModelTaxonomyMetadataItem:
         expected_result = {
             "key": self.test_item.key,
             "value": self.test_item.value,
+            "has_artifact": False,
         }
         assert item_dict == expected_result
 
@@ -145,6 +152,7 @@ class TestModelTaxonomyMetadataItem:
         test_item = ModelTaxonomyMetadataItem(
             key=MetadataTaxonomyKeys.USE_CASE_TYPE,
             value=UseCaseType.CLUSTERING,
+            has_artifact=False,
         )
         assert test_item.validate() == True
 
@@ -172,7 +180,7 @@ class TestModelTaxonomyMetadataItem:
 
         # Any other key
         test_item = ModelTaxonomyMetadataItem(
-            key=MetadataTaxonomyKeys.ALGORITHM, value="any value"
+            key=MetadataTaxonomyKeys.ALGORITHM, value="any value", has_artifact=False
         )
         assert test_item.validate() == True
 
@@ -191,13 +199,11 @@ class TestModelTaxonomyMetadataItem:
         """Tests converting metadata item to OCI metadata item."""
         # case with non empty string value
         test_metadata_item = ModelTaxonomyMetadataItem(
-            key=self.test_key,
-            value=test_value,
+            key=self.test_key, value=test_value, has_artifact=False
         )
 
         expected_oci_metadata_item = OciMetadataItem(
-            key=self.test_key,
-            value=expected_value,
+            key=self.test_key, value=expected_value, has_artifact=False
         )
         result_oci_metadata_item = test_metadata_item._to_oci_metadata()
         assert expected_oci_metadata_item == result_oci_metadata_item
@@ -218,11 +224,10 @@ class TestModelTaxonomyMetadataItem:
     def test__from_oci_metadata(self, test_value, expected_value):
         """Tests creating a new metadata item from the OCI metadata item."""
         test_oci_metadata_item = OciMetadataItem(
-            key=self.test_key,
-            value=test_value,
+            key=self.test_key, value=test_value, has_artifact=False
         )
         expected_model_metadata_item = ModelTaxonomyMetadataItem(
-            key=self.test_key, value=expected_value
+            key=self.test_key, value=expected_value, has_artifact=False
         )
         result_metadata_item = ModelTaxonomyMetadataItem._from_oci_metadata(
             test_oci_metadata_item
@@ -252,11 +257,13 @@ class TestModelCustomMetadataItem:
             value=self.VALUE,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         assert item.key == self.KEY
         assert item.value == self.VALUE
         assert item.description == self.DESCRIPTION
         assert item.category == self.CATEGORY
+        assert item.has_artifact == False
 
     def test_item_description(self):
         # test replace description
@@ -293,6 +300,7 @@ class TestModelCustomMetadataItem:
             value=self.VALUE,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
 
         # test update
@@ -309,6 +317,7 @@ class TestModelCustomMetadataItem:
             value=self.VALUE,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         # test to dictionary format
         item_dict = item.to_dict()
@@ -323,6 +332,7 @@ class TestModelCustomMetadataItem:
             value=self.VALUE,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         # test to yaml format
         item_yaml = item.to_yaml()
@@ -334,6 +344,7 @@ class TestModelCustomMetadataItem:
             value=self.VALUE,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         # test size
         item.size() == len(json.dumps(item.to_dict()).encode("utf-16"))
@@ -409,6 +420,7 @@ class TestModelCustomMetadataItem:
             value=test_value,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
 
         expected_oci_metadata_item = OciMetadataItem(
@@ -416,6 +428,7 @@ class TestModelCustomMetadataItem:
             value=expected_value,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         result_oci_metadata_item = test_metadata_item._to_oci_metadata()
         assert expected_oci_metadata_item == result_oci_metadata_item
@@ -440,12 +453,14 @@ class TestModelCustomMetadataItem:
             value=test_value,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         expected_model_metadata_item = ModelCustomMetadataItem(
             key=self.KEY,
             value=expected_value,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         result_metadata_item = ModelCustomMetadataItem._from_oci_metadata(
             test_oci_metadata_item
@@ -460,6 +475,7 @@ class TestModelCustomMetadataItem:
             value=self.VALUE,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         assert metadata_item.validate() == True
 
@@ -478,6 +494,7 @@ class TestModelCustomMetadataItem:
             value=[1] * METADATA_VALUE_LENGTH_LIMIT,
             description=self.DESCRIPTION,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         with pytest.raises(MetadataValueTooLong) as exc:
             metadata_item.validate()
@@ -488,6 +505,7 @@ class TestModelCustomMetadataItem:
             value="test",
             description="ab" * METADATA_DESCRIPTION_LENGTH_LIMIT,
             category=self.CATEGORY,
+            has_artifact=False,
         )
         with pytest.raises(MetadataDescriptionTooLong) as exc:
             metadata_item.validate()
@@ -501,6 +519,7 @@ class TestModelCustomMetadata:
         value="pyspark30_p37_cpu_v1",
         description="The slug name which was uesd to train the model.",
         category=MetadataCustomCategory.PERFORMANCE,
+        has_artifact=False,
     )
 
     user_defined_item = ModelCustomMetadataItem(
@@ -508,6 +527,7 @@ class TestModelCustomMetadata:
         value="My own Meta",
         description="This is my own meta",
         category=MetadataCustomCategory.OTHER,
+        has_artifact=False,
     )
 
     dict_item = ModelCustomMetadataItem(
@@ -515,7 +535,7 @@ class TestModelCustomMetadata:
     )
 
     empty_value_item = ModelCustomMetadataItem(
-        key="My Meta With Empty Value", value=None
+        key="My Meta With Empty Value", value=None, has_artifact=False
     )
 
     def test__add(self):
@@ -627,6 +647,7 @@ class TestModelCustomMetadata:
         assert df["Value"].iloc[0] == self.performance_item.value
         assert df["Description"].iloc[0] == self.performance_item.description
         assert df["Category"].iloc[0] == self.performance_item.category
+        assert df["HasArtifact"].iloc[0] == self.performance_item.has_artifact
 
     def test_size(self):
         # test check size of model metadata
@@ -939,14 +960,46 @@ class TestModelTaxonomyMetadata:
         metadata_taxonomy = ModelTaxonomyMetadata._from_oci_metadata(
             test_oci_metadata_list
         )
-        assert (
-            metadata_taxonomy[MetadataTaxonomyKeys.FRAMEWORK].value
-            == test_oci_metadata_list[0].value
+
+        for item in test_oci_metadata_list:
+            assert metadata_taxonomy[item.key].value == item.value
+
+    def test__from_oci_metadata_with_unexpected_key(self):
+        """Tests converting from list of oci metadata to a list of model taxonomy metadata object."""
+        test_oci_metadata_list = [
+            OciMetadataItem(key=MetadataTaxonomyKeys.FRAMEWORK, value="test_framework"),
+            OciMetadataItem(
+                key=MetadataTaxonomyKeys.FRAMEWORK_VERSION,
+                value="test_framework_version",
+            ),
+            OciMetadataItem(
+                key="UNDEFINED_KEY",
+                value="test_undefined_key_value",
+            ),
+        ]
+        metadata_taxonomy = ModelTaxonomyMetadata._from_oci_metadata(
+            test_oci_metadata_list
         )
-        assert (
-            metadata_taxonomy[MetadataTaxonomyKeys.FRAMEWORK_VERSION].value
-            == test_oci_metadata_list[1].value
-        )
+        for item in test_oci_metadata_list:
+            assert metadata_taxonomy[item.key].value == item.value
+
+    def test__from_dict(self):
+        """Tests converting from list of oci metadata to a list of model taxonomy metadata object."""
+
+        test_data = {
+            "data": [
+                {"key": "Algorithm", "value": "test"},
+                {"key": "Framework"},
+                {"key": "FrameworkVersion"},
+                {"key": "UseCaseType", "value": "multinomial_classification"},
+                {"key": "Hyperparameters"},
+                {"key": "ArtifactTestResults"},
+                {"key": "UnexpectedKey", "value": "unexpected_value"},
+            ],
+        }
+        metadata_taxonomy = ModelTaxonomyMetadata.from_dict(test_data)
+        for item in test_data["data"]:
+            assert metadata_taxonomy[item["key"]].value == item.get("value")
 
     def test_to_dataframe(self):
         # test to_dataframe model metadata
@@ -1015,6 +1068,7 @@ class TestModelTaxonomyMetadata:
         open_mock.assert_called_with(mock_file_path, mode="w", **mock_storage_options)
         open_mock.return_value.write.assert_called_with(metadata_taxonomy.to_json())
 
+
 class TestModelBackupSetting:
     """Unit tests for ModelBackupSetting class."""
 
@@ -1023,13 +1077,15 @@ class TestModelBackupSetting:
         backup_setting = ModelBackupSetting()
         assert backup_setting.is_backup_enabled == False
         assert backup_setting.backup_region is None
-        assert backup_setting.customer_notification_type == CustomerNotificationType.NONE
+        assert (
+            backup_setting.customer_notification_type == CustomerNotificationType.NONE
+        )
 
         # Test with parameters
         backup_setting = ModelBackupSetting(
             is_backup_enabled=True,
             backup_region="us-west-1",
-            customer_notification_type=CustomerNotificationType.ALL
+            customer_notification_type=CustomerNotificationType.ALL,
         )
         assert backup_setting.is_backup_enabled == True
         assert backup_setting.backup_region == "us-west-1"
@@ -1040,12 +1096,12 @@ class TestModelBackupSetting:
         backup_setting = ModelBackupSetting(
             is_backup_enabled=True,
             backup_region="us-west-1",
-            customer_notification_type=CustomerNotificationType.ALL
+            customer_notification_type=CustomerNotificationType.ALL,
         )
         expected_dict = {
             "is_backup_enabled": True,
             "backup_region": "us-west-1",
-            "customer_notification_type": "ALL"
+            "customer_notification_type": "ALL",
         }
         assert backup_setting.to_dict() == expected_dict
 
@@ -1054,7 +1110,7 @@ class TestModelBackupSetting:
         data = {
             "is_backup_enabled": True,
             "backup_region": "us-west-1",
-            "customer_notification_type": "ALL"
+            "customer_notification_type": "ALL",
         }
         backup_setting = ModelBackupSetting.from_dict(data)
         assert backup_setting.is_backup_enabled == True
@@ -1066,22 +1122,26 @@ class TestModelBackupSetting:
         backup_setting = ModelBackupSetting(
             is_backup_enabled=True,
             backup_region="us-west-1",
-            customer_notification_type=CustomerNotificationType.ALL
+            customer_notification_type=CustomerNotificationType.ALL,
         )
-        expected_json = json.dumps({
-            "is_backup_enabled": True,
-            "backup_region": "us-west-1",
-            "customer_notification_type": "ALL"
-        })
+        expected_json = json.dumps(
+            {
+                "is_backup_enabled": True,
+                "backup_region": "us-west-1",
+                "customer_notification_type": "ALL",
+            }
+        )
         assert backup_setting.to_json() == expected_json
 
     def test_from_json(self):
         """Test constructing from JSON."""
-        json_str = json.dumps({
-            "is_backup_enabled": True,
-            "backup_region": "us-west-1",
-            "customer_notification_type": "ALL"
-        })
+        json_str = json.dumps(
+            {
+                "is_backup_enabled": True,
+                "backup_region": "us-west-1",
+                "customer_notification_type": "ALL",
+            }
+        )
         backup_setting = ModelBackupSetting.from_json(json_str)
         assert backup_setting.is_backup_enabled == True
         assert backup_setting.backup_region == "us-west-1"
@@ -1092,13 +1152,15 @@ class TestModelBackupSetting:
         backup_setting = ModelBackupSetting(
             is_backup_enabled=True,
             backup_region="us-west-1",
-            customer_notification_type=CustomerNotificationType.ALL
+            customer_notification_type=CustomerNotificationType.ALL,
         )
-        expected_yaml = yaml.dump({
-            "is_backup_enabled": True,
-            "backup_region": "us-west-1",
-            "customer_notification_type": "ALL"
-        })
+        expected_yaml = yaml.dump(
+            {
+                "is_backup_enabled": True,
+                "backup_region": "us-west-1",
+                "customer_notification_type": "ALL",
+            }
+        )
         assert backup_setting.to_yaml() == expected_yaml
 
     def test_validate(self):
@@ -1107,7 +1169,7 @@ class TestModelBackupSetting:
         backup_setting = ModelBackupSetting(
             is_backup_enabled=True,
             backup_region="us-west-1",
-            customer_notification_type=CustomerNotificationType.ALL
+            customer_notification_type=CustomerNotificationType.ALL,
         )
         assert backup_setting.validate() == True
 
@@ -1120,19 +1182,26 @@ class TestModelBackupSetting:
         assert backup_setting.validate() == False
 
         backup_setting.backup_region = "us-west-1"
-        backup_setting.customer_notification_type = "all_notif"  # Should be CustomerNotificationType Enum
+        backup_setting.customer_notification_type = (
+            "all_notif"  # Should be CustomerNotificationType Enum
+        )
         assert backup_setting.validate() == False
+
 
 class TestModelRetentionSetting:
     """Test cases for ModelRetentionSetting class."""
 
     def test_to_dict(self):
         """Test that to_dict method returns the correct dictionary."""
-        setting = ModelRetentionSetting(archive_after_days=30, delete_after_days=60, customer_notification_type=CustomerNotificationType.ALL)
+        setting = ModelRetentionSetting(
+            archive_after_days=30,
+            delete_after_days=60,
+            customer_notification_type=CustomerNotificationType.ALL,
+        )
         expected_dict = {
             "archive_after_days": 30,
             "delete_after_days": 60,
-            "customer_notification_type": "ALL"
+            "customer_notification_type": "ALL",
         }
         assert setting.to_dict() == expected_dict
 
@@ -1141,7 +1210,7 @@ class TestModelRetentionSetting:
         data = {
             "archive_after_days": 30,
             "delete_after_days": 60,
-            "customer_notification_type": "ALL"
+            "customer_notification_type": "ALL",
         }
         setting = ModelRetentionSetting.from_dict(data)
         assert setting.archive_after_days == 30
@@ -1153,21 +1222,26 @@ class TestModelRetentionSetting:
         setting = ModelRetentionSetting(
             archive_after_days=30,
             delete_after_days=60,
-            customer_notification_type=CustomerNotificationType.ALL)
-        expected_json = json.dumps({
-            "archive_after_days": 30,
-            "delete_after_days": 60,
-            "customer_notification_type": "ALL"
-        })
+            customer_notification_type=CustomerNotificationType.ALL,
+        )
+        expected_json = json.dumps(
+            {
+                "archive_after_days": 30,
+                "delete_after_days": 60,
+                "customer_notification_type": "ALL",
+            }
+        )
         assert setting.to_json() == expected_json
 
     def test_from_json(self):
         """Test that from_json correctly deserializes the settings from a JSON string."""
-        json_str = json.dumps({
-            "archive_after_days": 30,
-            "delete_after_days": 60,
-            "customer_notification_type": "ALL"
-        })
+        json_str = json.dumps(
+            {
+                "archive_after_days": 30,
+                "delete_after_days": 60,
+                "customer_notification_type": "ALL",
+            }
+        )
         setting = ModelRetentionSetting.from_json(json_str)
         assert setting.archive_after_days == 30
         assert setting.delete_after_days == 60
@@ -1175,31 +1249,54 @@ class TestModelRetentionSetting:
 
     def test_to_yaml(self):
         """Test that to_yaml serializes the settings to a YAML string."""
-        setting = ModelRetentionSetting(archive_after_days=30, delete_after_days=60, customer_notification_type=CustomerNotificationType.ALL)
-        expected_yaml = yaml.dump({
-            "archive_after_days": 30,
-            "delete_after_days": 60,
-            "customer_notification_type": "ALL"
-        })
+        setting = ModelRetentionSetting(
+            archive_after_days=30,
+            delete_after_days=60,
+            customer_notification_type=CustomerNotificationType.ALL,
+        )
+        expected_yaml = yaml.dump(
+            {
+                "archive_after_days": 30,
+                "delete_after_days": 60,
+                "customer_notification_type": "ALL",
+            }
+        )
         assert setting.to_yaml() == expected_yaml
 
     def test_validate_valid(self):
         """Test that validate method returns True for valid retention settings."""
-        setting = ModelRetentionSetting(archive_after_days=30, delete_after_days=60, customer_notification_type=CustomerNotificationType.ALL)
+        setting = ModelRetentionSetting(
+            archive_after_days=30,
+            delete_after_days=60,
+            customer_notification_type=CustomerNotificationType.ALL,
+        )
         assert setting.validate() is True
 
     def test_validate_invalid_days(self):
         """Test that validate returns False for invalid archive or delete days."""
-        setting = ModelRetentionSetting(archive_after_days=-1, delete_after_days=60, customer_notification_type=CustomerNotificationType.ALL)
+        setting = ModelRetentionSetting(
+            archive_after_days=-1,
+            delete_after_days=60,
+            customer_notification_type=CustomerNotificationType.ALL,
+        )
         assert setting.validate() is False
 
-        setting = ModelRetentionSetting(archive_after_days=30, delete_after_days=-10, customer_notification_type=CustomerNotificationType.ALL)
+        setting = ModelRetentionSetting(
+            archive_after_days=30,
+            delete_after_days=-10,
+            customer_notification_type=CustomerNotificationType.ALL,
+        )
         assert setting.validate() is False
 
     def test_validate_invalid_customer_notification_type(self):
         """Test that validate method returns False for an invalid notification type."""
-        setting = ModelRetentionSetting(archive_after_days=30, delete_after_days=60, customer_notification_type="INVALID")
+        setting = ModelRetentionSetting(
+            archive_after_days=30,
+            delete_after_days=60,
+            customer_notification_type="INVALID",
+        )
         assert setting.validate() is False
+
 
 class TestModelRetentionOperationDetails:
     """Test cases for ModelRetentionOperationDetails class."""
@@ -1212,7 +1309,7 @@ class TestModelRetentionOperationDetails:
             delete_state=SettingStatus.PENDING,
             delete_state_details="Deletion pending",
             time_archival_scheduled=1633046400,
-            time_deletion_scheduled=1635638400
+            time_deletion_scheduled=1635638400,
         )
         expected_dict = {
             "archive_state": "SUCCEEDED",
@@ -1220,7 +1317,7 @@ class TestModelRetentionOperationDetails:
             "delete_state": "PENDING",
             "delete_state_details": "Deletion pending",
             "time_archival_scheduled": 1633046400,
-            "time_deletion_scheduled": 1635638400
+            "time_deletion_scheduled": 1635638400,
         }
         assert details.to_dict() == expected_dict
 
@@ -1232,7 +1329,7 @@ class TestModelRetentionOperationDetails:
             "delete_state": "PENDING",
             "delete_state_details": "Deletion pending",
             "time_archival_scheduled": 1633046400,
-            "time_deletion_scheduled": 1635638400
+            "time_deletion_scheduled": 1635638400,
         }
         details = ModelRetentionOperationDetails.from_dict(data)
         assert details.archive_state == SettingStatus.SUCCEEDED
@@ -1250,28 +1347,32 @@ class TestModelRetentionOperationDetails:
             delete_state=SettingStatus.PENDING,
             delete_state_details="Deletion pending",
             time_archival_scheduled=1633046400,
-            time_deletion_scheduled=1635638400
+            time_deletion_scheduled=1635638400,
         )
-        expected_json = json.dumps({
-            "archive_state": "SUCCEEDED",
-            "archive_state_details": "Archived successfully",
-            "delete_state": "PENDING",
-            "delete_state_details": "Deletion pending",
-            "time_archival_scheduled": 1633046400,
-            "time_deletion_scheduled": 1635638400
-        })
+        expected_json = json.dumps(
+            {
+                "archive_state": "SUCCEEDED",
+                "archive_state_details": "Archived successfully",
+                "delete_state": "PENDING",
+                "delete_state_details": "Deletion pending",
+                "time_archival_scheduled": 1633046400,
+                "time_deletion_scheduled": 1635638400,
+            }
+        )
         assert details.to_json() == expected_json
 
     def test_from_json(self):
         """Test that from_json correctly deserializes the details from a JSON string."""
-        json_str = json.dumps({
-            "archive_state": "SUCCEEDED",
-            "archive_state_details": "Archived successfully",
-            "delete_state": "PENDING",
-            "delete_state_details": "Deletion pending",
-            "time_archival_scheduled": 1633046400,
-            "time_deletion_scheduled": 1635638400
-        })
+        json_str = json.dumps(
+            {
+                "archive_state": "SUCCEEDED",
+                "archive_state_details": "Archived successfully",
+                "delete_state": "PENDING",
+                "delete_state_details": "Deletion pending",
+                "time_archival_scheduled": 1633046400,
+                "time_deletion_scheduled": 1635638400,
+            }
+        )
         details = ModelRetentionOperationDetails.from_json(json_str)
         assert details.archive_state == SettingStatus.SUCCEEDED
         assert details.archive_state_details == "Archived successfully"
@@ -1288,16 +1389,18 @@ class TestModelRetentionOperationDetails:
             delete_state=SettingStatus.PENDING,
             delete_state_details="Deletion pending",
             time_archival_scheduled=1633046400,
-            time_deletion_scheduled=1635638400
+            time_deletion_scheduled=1635638400,
         )
-        expected_yaml = yaml.dump({
-            "archive_state": "SUCCEEDED",
-            "archive_state_details": "Archived successfully",
-            "delete_state": "PENDING",
-            "delete_state_details": "Deletion pending",
-            "time_archival_scheduled": 1633046400,
-            "time_deletion_scheduled": 1635638400
-        })
+        expected_yaml = yaml.dump(
+            {
+                "archive_state": "SUCCEEDED",
+                "archive_state_details": "Archived successfully",
+                "delete_state": "PENDING",
+                "delete_state_details": "Deletion pending",
+                "time_archival_scheduled": 1633046400,
+                "time_deletion_scheduled": 1635638400,
+            }
+        )
         assert details.to_yaml() == expected_yaml
 
     def test_validate_valid(self):
@@ -1306,7 +1409,7 @@ class TestModelRetentionOperationDetails:
             archive_state=SettingStatus.SUCCEEDED,
             delete_state=SettingStatus.PENDING,
             time_archival_scheduled=1633046400,
-            time_deletion_scheduled=1635638400
+            time_deletion_scheduled=1635638400,
         )
         assert details.validate() is True
 
@@ -1316,7 +1419,7 @@ class TestModelRetentionOperationDetails:
             archive_state="INVALID_STATE",  # Invalid state
             delete_state=SettingStatus.PENDING,
             time_archival_scheduled=1633046400,
-            time_deletion_scheduled=1635638400
+            time_deletion_scheduled=1635638400,
         )
         assert details.validate() is False
 
@@ -1326,9 +1429,10 @@ class TestModelRetentionOperationDetails:
             archive_state=SettingStatus.SUCCEEDED,
             delete_state=SettingStatus.PENDING,
             time_archival_scheduled="invalid_time",  # Invalid time
-            time_deletion_scheduled=1635638400
+            time_deletion_scheduled=1635638400,
         )
         assert details.validate() is False
+
 
 class TestModelBackupOperationDetails:
     """Test cases for ModelBackupOperationDetails class."""
@@ -1338,12 +1442,12 @@ class TestModelBackupOperationDetails:
         details = ModelBackupOperationDetails(
             backup_state=SettingStatus.SUCCEEDED,
             backup_state_details="Backup completed successfully",
-            time_last_backup=1633046400
+            time_last_backup=1633046400,
         )
         expected_dict = {
             "backup_state": "SUCCEEDED",
             "backup_state_details": "Backup completed successfully",
-            "time_last_backup": 1633046400
+            "time_last_backup": 1633046400,
         }
         assert details.to_dict() == expected_dict
 
@@ -1352,7 +1456,7 @@ class TestModelBackupOperationDetails:
         data = {
             "backup_state": "SUCCEEDED",
             "backup_state_details": "Backup completed successfully",
-            "time_last_backup": 1633046400
+            "time_last_backup": 1633046400,
         }
         details = ModelBackupOperationDetails.from_dict(data)
         assert details.backup_state == SettingStatus.SUCCEEDED
@@ -1364,22 +1468,26 @@ class TestModelBackupOperationDetails:
         details = ModelBackupOperationDetails(
             backup_state=SettingStatus.SUCCEEDED,
             backup_state_details="Backup completed successfully",
-            time_last_backup=1633046400
+            time_last_backup=1633046400,
         )
-        expected_json = json.dumps({
-            "backup_state": "SUCCEEDED",
-            "backup_state_details": "Backup completed successfully",
-            "time_last_backup": 1633046400
-        })
+        expected_json = json.dumps(
+            {
+                "backup_state": "SUCCEEDED",
+                "backup_state_details": "Backup completed successfully",
+                "time_last_backup": 1633046400,
+            }
+        )
         assert details.to_json() == expected_json
 
     def test_from_json(self):
         """Test that from_json correctly deserializes the details from a JSON string."""
-        json_str = json.dumps({
-            "backup_state": "SUCCEEDED",
-            "backup_state_details": "Backup completed successfully",
-            "time_last_backup": 1633046400
-        })
+        json_str = json.dumps(
+            {
+                "backup_state": "SUCCEEDED",
+                "backup_state_details": "Backup completed successfully",
+                "time_last_backup": 1633046400,
+            }
+        )
         details = ModelBackupOperationDetails.from_json(json_str)
         assert details.backup_state == SettingStatus.SUCCEEDED
         assert details.backup_state_details == "Backup completed successfully"
@@ -1390,28 +1498,28 @@ class TestModelBackupOperationDetails:
         details = ModelBackupOperationDetails(
             backup_state=SettingStatus.SUCCEEDED,
             backup_state_details="Backup completed successfully",
-            time_last_backup=1633046400
+            time_last_backup=1633046400,
         )
-        expected_yaml = yaml.dump({
-            "backup_state": "SUCCEEDED",
-            "backup_state_details": "Backup completed successfully",
-            "time_last_backup": 1633046400
-        })
+        expected_yaml = yaml.dump(
+            {
+                "backup_state": "SUCCEEDED",
+                "backup_state_details": "Backup completed successfully",
+                "time_last_backup": 1633046400,
+            }
+        )
         assert details.to_yaml() == expected_yaml
 
     def test_validate_valid(self):
         """Test that validate method returns True for valid backup operation details."""
         details = ModelBackupOperationDetails(
-            backup_state=SettingStatus.SUCCEEDED,
-            time_last_backup=1633046400
+            backup_state=SettingStatus.SUCCEEDED, time_last_backup=1633046400
         )
         assert details.validate() is True
 
     def test_validate_invalid_state(self):
         """Test that validate method returns False for an invalid backup state."""
         details = ModelBackupOperationDetails(
-            backup_state="INVALID_STATE",
-            time_last_backup=1633046400
+            backup_state="INVALID_STATE", time_last_backup=1633046400
         )
         assert details.validate() is False
 
@@ -1419,8 +1527,6 @@ class TestModelBackupOperationDetails:
         """Test that validate method returns False for an invalid time value."""
         details = ModelBackupOperationDetails(
             backup_state=SettingStatus.SUCCEEDED,
-            time_last_backup="invalid_time"  # Invalid time
+            time_last_backup="invalid_time",  # Invalid time
         )
         assert details.validate() is False
-
-

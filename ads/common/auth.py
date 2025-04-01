@@ -1,23 +1,25 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
-from datetime import datetime
 import os
-from dataclasses import dataclass
 import time
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Callable, Dict, Optional, Union
 
-import ads.telemetry
 import oci
+from oci.config import (
+    DEFAULT_LOCATION,  # "~/.oci/config"
+    DEFAULT_PROFILE,  # "DEFAULT"
+)
+
+import ads.telemetry
 from ads.common import logger
 from ads.common.decorator.deprecate import deprecated
-from ads.common.extended_enum import ExtendedEnumMeta
-from oci.config import DEFAULT_LOCATION  # "~/.oci/config"
-from oci.config import DEFAULT_PROFILE  # "DEFAULT"
+from ads.common.extended_enum import ExtendedEnum
 
 SECURITY_TOKEN_LEFT_TIME = 600
 
@@ -26,7 +28,7 @@ class SecurityTokenError(Exception):  # pragma: no cover
     pass
 
 
-class AuthType(str, metaclass=ExtendedEnumMeta):
+class AuthType(ExtendedEnum):
     API_KEY = "api_key"
     RESOURCE_PRINCIPAL = "resource_principal"
     INSTANCE_PRINCIPAL = "instance_principal"
@@ -73,7 +75,11 @@ class AuthState(metaclass=SingletonMeta):
         self.oci_key_profile = self.oci_key_profile or os.environ.get(
             "OCI_CONFIG_PROFILE", DEFAULT_PROFILE
         )
-        self.oci_config = self.oci_config or {"region": os.environ["OCI_RESOURCE_REGION"]} if os.environ.get("OCI_RESOURCE_REGION") else {}
+        self.oci_config = (
+            self.oci_config or {"region": os.environ["OCI_RESOURCE_REGION"]}
+            if os.environ.get("OCI_RESOURCE_REGION")
+            else {}
+        )
         self.oci_signer_kwargs = self.oci_signer_kwargs or {}
         self.oci_client_kwargs = self.oci_client_kwargs or {}
 
@@ -82,11 +88,15 @@ def set_auth(
     auth: Optional[str] = AuthType.API_KEY,
     oci_config_location: Optional[str] = DEFAULT_LOCATION,
     profile: Optional[str] = DEFAULT_PROFILE,
-    config: Optional[Dict] = {"region": os.environ["OCI_RESOURCE_REGION"]} if os.environ.get("OCI_RESOURCE_REGION") else {},
+    config: Optional[Dict] = (
+        {"region": os.environ["OCI_RESOURCE_REGION"]}
+        if os.environ.get("OCI_RESOURCE_REGION")
+        else {}
+    ),
     signer: Optional[Any] = None,
     signer_callable: Optional[Callable] = None,
-    signer_kwargs: Optional[Dict] = {},
-    client_kwargs: Optional[Dict] = {},
+    signer_kwargs: Optional[Dict] = None,
+    client_kwargs: Optional[Dict] = None,
 ) -> None:
     """
     Sets the default authentication type.
@@ -187,6 +197,9 @@ def set_auth(
     >>> # instance principals authentication dictionary created based on callable with kwargs parameters:
     >>> ads.set_auth(signer_callable=signer_callable, signer_kwargs=signer_kwargs)
     """
+    signer_kwargs = signer_kwargs or {}
+    client_kwargs = client_kwargs or {}
+
     auth_state = AuthState()
 
     valid_auth_keys = AuthFactory.classes.keys()
@@ -202,8 +215,8 @@ def set_auth(
         oci_config_location != DEFAULT_LOCATION or profile != DEFAULT_PROFILE
     ):
         raise ValueError(
-            f"'config' and 'oci_config_location', 'profile' pair are mutually exclusive."
-            f"Please specify 'config' OR 'oci_config_location', 'profile' pair."
+            "'config' and 'oci_config_location', 'profile' pair are mutually exclusive."
+            "Please specify 'config' OR 'oci_config_location', 'profile' pair."
         )
 
     auth_state.oci_config = config
@@ -250,9 +263,11 @@ def api_keys(
     """
     signer_args = dict(
         oci_config=oci_config if isinstance(oci_config, Dict) else {},
-        oci_config_location=oci_config
-        if isinstance(oci_config, str)
-        else os.path.expanduser(DEFAULT_LOCATION),
+        oci_config_location=(
+            oci_config
+            if isinstance(oci_config, str)
+            else os.path.expanduser(DEFAULT_LOCATION)
+        ),
         oci_key_profile=profile,
         client_kwargs=client_kwargs,
     )
@@ -326,9 +341,11 @@ def security_token(
     """
     signer_args = dict(
         oci_config=oci_config if isinstance(oci_config, Dict) else {},
-        oci_config_location=oci_config
-        if isinstance(oci_config, str)
-        else os.path.expanduser(DEFAULT_LOCATION),
+        oci_config_location=(
+            oci_config
+            if isinstance(oci_config, str)
+            else os.path.expanduser(DEFAULT_LOCATION)
+        ),
         oci_key_profile=profile,
         client_kwargs=client_kwargs,
     )
@@ -424,7 +441,7 @@ def create_signer(
             "signer": signer,
             "client_kwargs": client_kwargs,
         }
-        logger.info(f"Using authentication signer type {type(signer)}.")
+        logger.debug(f"Using authentication signer type {type(signer)}.")
         return signer_dict
     else:
         signer_args = dict(
@@ -492,7 +509,7 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
                 **(client_kwargs or {}),
             },
         }
-        logger.info(f"Using authentication signer type {type(signer)}.")
+        logger.debug(f"Using authentication signer type {type(signer)}.")
         return signer_dict
     else:
         signer_args = dict(
@@ -621,7 +638,7 @@ class APIKey(AuthSignerGenerator):
             )
 
         oci.config.validate_config(configuration)
-        logger.info(f"Using 'api_key' authentication.")
+        logger.debug("Using 'api_key' authentication.")
         return {
             "config": configuration,
             "signer": oci.signer.Signer(
@@ -684,14 +701,19 @@ class ResourcePrincipal(AuthSignerGenerator):
             "signer": oci.auth.signers.get_resource_principals_signer(),
             "client_kwargs": self.client_kwargs,
         }
-        logger.info(f"Using 'resource_principal' authentication.")
+        logger.debug("Using 'resource_principal' authentication.")
         return signer_dict
 
     @staticmethod
     def supported():
         return any(
             os.environ.get(var)
-            for var in ['JOB_RUN_OCID', 'NB_SESSION_OCID', 'DATAFLOW_RUN_ID', 'PIPELINE_RUN_OCID']
+            for var in [
+                "JOB_RUN_OCID",
+                "NB_SESSION_OCID",
+                "DATAFLOW_RUN_ID",
+                "PIPELINE_RUN_OCID",
+            ]
         )
 
 
@@ -747,7 +769,7 @@ class InstancePrincipal(AuthSignerGenerator):
             ),
             "client_kwargs": self.client_kwargs,
         }
-        logger.info(f"Using 'instance_principal' authentication.")
+        logger.debug("Using 'instance_principal' authentication.")
         return signer_dict
 
 
@@ -814,7 +836,7 @@ class SecurityToken(AuthSignerGenerator):
                 oci.config.from_file(self.oci_config_location, self.oci_key_profile)
             )
 
-        logger.info(f"Using 'security_token' authentication.")
+        logger.debug("Using 'security_token' authentication.")
 
         for parameter in self.SECURITY_TOKEN_REQUIRED:
             if parameter not in configuration:
@@ -883,7 +905,7 @@ class SecurityToken(AuthSignerGenerator):
                     )
 
         date_time = datetime.fromtimestamp(time_expired).strftime("%Y-%m-%d %H:%M:%S")
-        logger.info(f"Session is valid until {date_time}.")
+        logger.debug(f"Session is valid until {date_time}.")
 
     def _read_security_token_file(self, security_token_file: str) -> str:
         """Reads security token from file.
@@ -903,7 +925,7 @@ class SecurityToken(AuthSignerGenerator):
             raise ValueError("Invalid `security_token_file`. Specify a valid path.")
         try:
             token = None
-            with open(expanded_path, "r") as f:
+            with open(expanded_path) as f:
                 token = f.read()
             return token
         except:
@@ -1020,10 +1042,10 @@ class OCIAuthContext:
         """
         if self.profile:
             ads.set_auth(auth=AuthType.API_KEY, profile=self.profile)
-            logger.info(f"OCI profile set to {self.profile}")
+            logger.debug(f"OCI profile set to {self.profile}")
         else:
             ads.set_auth(auth=AuthType.RESOURCE_PRINCIPAL)
-            logger.info(f"OCI auth set to resource principal")
+            logger.debug("OCI auth set to resource principal")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

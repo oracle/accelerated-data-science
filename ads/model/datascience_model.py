@@ -1,10 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import cgi
 import json
 import logging
 import os
@@ -19,12 +17,16 @@ from jsonschema import ValidationError, validate
 
 from ads.common import oci_client as oc
 from ads.common import utils
-from ads.common.extended_enum import ExtendedEnumMeta
+from ads.common.extended_enum import ExtendedEnum
 from ads.common.object_storage_details import ObjectStorageDetails
+from ads.common.utils import is_path_exists
+from ads.config import (
+    AQUA_SERVICE_MODELS_BUCKET as SERVICE_MODELS_BUCKET,
+)
 from ads.config import (
     COMPARTMENT_OCID,
     PROJECT_OCID,
-    AQUA_SERVICE_MODELS_BUCKET as SERVICE_MODELS_BUCKET,
+    USER,
 )
 from ads.feature_engineering.schema import Schema
 from ads.jobs.builders.base import Builder
@@ -33,6 +35,7 @@ from ads.model.artifact_downloader import (
     SmallArtifactDownloader,
 )
 from ads.model.artifact_uploader import LargeArtifactUploader, SmallArtifactUploader
+from ads.model.common.utils import MetadataArtifactPathType
 from ads.model.model_metadata import (
     MetadataCustomCategory,
     ModelCustomMetadata,
@@ -41,6 +44,7 @@ from ads.model.model_metadata import (
     ModelTaxonomyMetadata,
 )
 from ads.model.service.oci_datascience_model import (
+    ModelMetadataArtifactDetails,
     ModelProvenanceNotFoundError,
     OCIDataScienceModel,
 )
@@ -71,6 +75,11 @@ class BucketNotVersionedError(Exception):  # pragma: no cover
         super().__init__(msg)
 
 
+class PathNotFoundError(Exception):
+    def __init__(self, msg="The given path doesn't exist."):
+        super().__init__(msg)
+
+
 class ModelFileDescriptionError(Exception):  # pragma: no cover
     def __init__(self, msg="Model File Description file is not set up."):
         super().__init__(msg)
@@ -80,14 +89,14 @@ class InvalidArtifactType(Exception):  # pragma: no cover
     pass
 
 
-class CustomerNotificationType(str, metaclass=ExtendedEnumMeta):
+class CustomerNotificationType(ExtendedEnum):
     NONE = "NONE"
     ALL = "ALL"
     ON_FAILURE = "ON_FAILURE"
     ON_SUCCESS = "ON_SUCCESS"
 
 
-class SettingStatus(str, metaclass=ExtendedEnumMeta):
+class SettingStatus(ExtendedEnum):
     """Enum to represent the status of retention settings."""
 
     PENDING = "PENDING"
@@ -116,17 +125,17 @@ class ModelBackupSetting:
     """
 
     def __init__(
-            self,
-            is_backup_enabled: Optional[bool] = None,
-            backup_region: Optional[str] = None,
-            customer_notification_type: Optional[CustomerNotificationType] = None,
+        self,
+        is_backup_enabled: Optional[bool] = None,
+        backup_region: Optional[str] = None,
+        customer_notification_type: Optional[CustomerNotificationType] = None,
     ):
         self.is_backup_enabled = (
             is_backup_enabled if is_backup_enabled is not None else False
         )
         self.backup_region = backup_region
         self.customer_notification_type = (
-                customer_notification_type or CustomerNotificationType.NONE
+            customer_notification_type or CustomerNotificationType.NONE
         )
 
     def to_dict(self) -> Dict:
@@ -143,10 +152,7 @@ class ModelBackupSetting:
         return cls(
             is_backup_enabled=data.get("is_backup_enabled"),
             backup_region=data.get("backup_region"),
-            customer_notification_type=CustomerNotificationType(
-                data.get("customer_notification_type")
-            )
-                                       or None,
+            customer_notification_type=data.get("customer_notification_type") or None,
         )
 
     def to_json(self) -> str:
@@ -166,12 +172,15 @@ class ModelBackupSetting:
 
     def validate(self) -> bool:
         """Validates the backup settings details. Returns True if valid, False otherwise."""
-        return all([
-            isinstance(self.is_backup_enabled, bool),
-            not self.backup_region or isinstance(self.backup_region, str),
-            isinstance(self.customer_notification_type, str) and self.customer_notification_type in
-            CustomerNotificationType.values()
-        ])
+        return all(
+            [
+                isinstance(self.is_backup_enabled, bool),
+                not self.backup_region or isinstance(self.backup_region, str),
+                isinstance(self.customer_notification_type, str)
+                and self.customer_notification_type
+                in CustomerNotificationType.values(),
+            ]
+        )
 
     def __repr__(self):
         return self.to_yaml()
@@ -198,15 +207,15 @@ class ModelRetentionSetting:
     """
 
     def __init__(
-            self,
-            archive_after_days: Optional[int] = None,
-            delete_after_days: Optional[int] = None,
-            customer_notification_type: Optional[CustomerNotificationType] = None,
+        self,
+        archive_after_days: Optional[int] = None,
+        delete_after_days: Optional[int] = None,
+        customer_notification_type: Optional[CustomerNotificationType] = None,
     ):
         self.archive_after_days = archive_after_days
         self.delete_after_days = delete_after_days
         self.customer_notification_type = (
-                customer_notification_type or CustomerNotificationType.NONE
+            customer_notification_type or CustomerNotificationType.NONE
         )
 
     def to_dict(self) -> Dict:
@@ -223,10 +232,7 @@ class ModelRetentionSetting:
         return cls(
             archive_after_days=data.get("archive_after_days"),
             delete_after_days=data.get("delete_after_days"),
-            customer_notification_type=CustomerNotificationType(
-                data.get("customer_notification_type")
-            )
-                                       or None,
+            customer_notification_type=data.get("customer_notification_type") or None,
         )
 
     def to_json(self) -> str:
@@ -245,13 +251,23 @@ class ModelRetentionSetting:
 
     def validate(self) -> bool:
         """Validates the retention settings details. Returns True if valid, False otherwise."""
-        return all([
-            self.archive_after_days is None or (
-                    isinstance(self.archive_after_days, int) and self.archive_after_days >= 0),
-            self.delete_after_days is None or (isinstance(self.delete_after_days, int) and self.delete_after_days >= 0),
-            isinstance(self.customer_notification_type, str) and self.customer_notification_type in
-            CustomerNotificationType.values()
-        ])
+        return all(
+            [
+                self.archive_after_days is None
+                or (
+                    isinstance(self.archive_after_days, int)
+                    and self.archive_after_days >= 0
+                ),
+                self.delete_after_days is None
+                or (
+                    isinstance(self.delete_after_days, int)
+                    and self.delete_after_days >= 0
+                ),
+                isinstance(self.customer_notification_type, str)
+                and self.customer_notification_type
+                in CustomerNotificationType.values(),
+            ]
+        )
 
     def __repr__(self):
         return self.to_yaml()
@@ -278,13 +294,13 @@ class ModelRetentionOperationDetails:
     """
 
     def __init__(
-            self,
-            archive_state: Optional[SettingStatus] = None,
-            archive_state_details: Optional[str] = None,
-            delete_state: Optional[SettingStatus] = None,
-            delete_state_details: Optional[str] = None,
-            time_archival_scheduled: Optional[int] = None,
-            time_deletion_scheduled: Optional[int] = None,
+        self,
+        archive_state: Optional[SettingStatus] = None,
+        archive_state_details: Optional[str] = None,
+        delete_state: Optional[SettingStatus] = None,
+        delete_state_details: Optional[str] = None,
+        time_archival_scheduled: Optional[int] = None,
+        time_deletion_scheduled: Optional[int] = None,
     ):
         self.archive_state = archive_state
         self.archive_state_details = archive_state_details
@@ -308,9 +324,9 @@ class ModelRetentionOperationDetails:
     def from_dict(cls, data: Dict) -> "ModelRetentionOperationDetails":
         """Constructs retention operation details from a dictionary."""
         return cls(
-            archive_state=SettingStatus(data.get("archive_state")) or None,
+            archive_state=data.get("archive_state") or None,
             archive_state_details=data.get("archive_state_details"),
-            delete_state=SettingStatus(data.get("delete_state")) or None,
+            delete_state=data.get("delete_state") or None,
             delete_state_details=data.get("delete_state_details"),
             time_archival_scheduled=data.get("time_archival_scheduled"),
             time_deletion_scheduled=data.get("time_deletion_scheduled"),
@@ -334,8 +350,10 @@ class ModelRetentionOperationDetails:
         """Validates the retention operation details."""
         return all(
             [
-                self.archive_state is None or self.archive_state in SettingStatus.values(),
-                self.delete_state is None or self.delete_state in SettingStatus.values(),
+                self.archive_state is None
+                or self.archive_state in SettingStatus.values(),
+                self.delete_state is None
+                or self.delete_state in SettingStatus.values(),
                 self.time_archival_scheduled is None
                 or isinstance(self.time_archival_scheduled, int),
                 self.time_deletion_scheduled is None
@@ -368,10 +386,10 @@ class ModelBackupOperationDetails:
     """
 
     def __init__(
-            self,
-            backup_state: Optional[SettingStatus] = None,
-            backup_state_details: Optional[str] = None,
-            time_last_backup: Optional[int] = None,
+        self,
+        backup_state: Optional[SettingStatus] = None,
+        backup_state_details: Optional[str] = None,
+        time_last_backup: Optional[int] = None,
     ):
         self.backup_state = backup_state
         self.backup_state_details = backup_state_details
@@ -389,7 +407,7 @@ class ModelBackupOperationDetails:
     def from_dict(cls, data: Dict) -> "ModelBackupOperationDetails":
         """Constructs backup operation details from a dictionary."""
         return cls(
-            backup_state=SettingStatus(data.get("backup_state")) or None,
+            backup_state=data.get("backup_state") or None,
             backup_state_details=data.get("backup_state_details"),
             time_last_backup=data.get("time_last_backup"),
         )
@@ -411,8 +429,14 @@ class ModelBackupOperationDetails:
     def validate(self) -> bool:
         """Validates the backup operation details."""
         return not (
-                (self.backup_state is not None and self.backup_state not in SettingStatus.values()) or
-                (self.time_last_backup is not None and not isinstance(self.time_last_backup, int))
+            (
+                self.backup_state is not None
+                and self.backup_state not in SettingStatus.values()
+            )
+            or (
+                self.time_last_backup is not None
+                and not isinstance(self.time_last_backup, int)
+            )
         )
 
     def __repr__(self):
@@ -1042,7 +1066,7 @@ class DataScienceModel(Builder):
         elif json_string:
             json_data = json.loads(json_string)
         elif json_uri:
-            with open(json_uri, "r") as json_file:
+            with open(json_uri) as json_file:
                 json_data = json.load(json_file)
         else:
             raise ValueError("Must provide either a valid json string or URI location.")
@@ -1077,7 +1101,7 @@ class DataScienceModel(Builder):
         return self.get_spec(self.CONST_RETENTION_SETTING)
 
     def with_retention_setting(
-            self, retention_setting: Union[Dict, ModelRetentionSetting]
+        self, retention_setting: Union[Dict, ModelRetentionSetting]
     ) -> "DataScienceModel":
         """
         Sets the retention setting details for the model.
@@ -1106,7 +1130,7 @@ class DataScienceModel(Builder):
         return self.get_spec(self.CONST_BACKUP_SETTING)
 
     def with_backup_setting(
-            self, backup_setting: Union[Dict, ModelBackupSetting]
+        self, backup_setting: Union[Dict, ModelBackupSetting]
     ) -> "DataScienceModel":
         """
         Sets the model's backup setting details.
@@ -1368,8 +1392,8 @@ class DataScienceModel(Builder):
             shutil.rmtree(self.local_copy_dir, ignore_errors=True)
 
     def restore_model(
-            self,
-            restore_model_for_hours_specified: Optional[int] = None,
+        self,
+        restore_model_for_hours_specified: Optional[int] = None,
     ) -> None:
         """
         Restore archived model artifact.
@@ -1398,8 +1422,12 @@ class DataScienceModel(Builder):
 
         # Optional: Validate restore_model_for_hours_specified
         if restore_model_for_hours_specified is not None and (
-                not isinstance(restore_model_for_hours_specified, int) or restore_model_for_hours_specified <= 0):
-            raise ValueError("restore_model_for_hours_specified must be a positive integer.")
+            not isinstance(restore_model_for_hours_specified, int)
+            or restore_model_for_hours_specified <= 0
+        ):
+            raise ValueError(
+                "restore_model_for_hours_specified must be a positive integer."
+            )
 
         self.dsc_model.restore_archived_model_artifact(
             restore_model_for_hours_specified=restore_model_for_hours_specified,
@@ -1571,7 +1599,11 @@ class DataScienceModel(Builder):
 
     @classmethod
     def list(
-        cls, compartment_id: str = None, project_id: str = None, **kwargs
+        cls,
+        compartment_id: str = None,
+        project_id: str = None,
+        category: str = USER,
+        **kwargs,
     ) -> List["DataScienceModel"]:
         """Lists datascience models in a given compartment.
 
@@ -1581,6 +1613,8 @@ class DataScienceModel(Builder):
             The compartment OCID.
         project_id: (str, optional). Defaults to `None`.
             The project OCID.
+        category: (str, optional). Defaults to `USER`.
+            The category of Model. Allowed values are: "USER", "SERVICE"
         kwargs
             Additional keyword arguments for filtering models.
 
@@ -1592,13 +1626,17 @@ class DataScienceModel(Builder):
         return [
             cls()._update_from_oci_dsc_model(model)
             for model in OCIDataScienceModel.list_resource(
-                compartment_id, project_id=project_id, **kwargs
+                compartment_id, project_id=project_id, category=category, **kwargs
             )
         ]
 
     @classmethod
     def list_df(
-        cls, compartment_id: str = None, project_id: str = None, **kwargs
+        cls,
+        compartment_id: str = None,
+        project_id: str = None,
+        category: str = USER,
+        **kwargs,
     ) -> "pandas.DataFrame":
         """Lists datascience models in a given compartment.
 
@@ -1608,6 +1646,8 @@ class DataScienceModel(Builder):
             The compartment OCID.
         project_id: (str, optional). Defaults to `None`.
             The project OCID.
+        category: (str, optional). Defaults to `None`.
+            The category of Model.
         kwargs
             Additional keyword arguments for filtering models.
 
@@ -1618,7 +1658,7 @@ class DataScienceModel(Builder):
         """
         records = []
         for model in OCIDataScienceModel.list_resource(
-            compartment_id, project_id=project_id, **kwargs
+            compartment_id, project_id=project_id, category=category, **kwargs
         ):
             records.append(
                 {
@@ -1721,7 +1761,7 @@ class DataScienceModel(Builder):
             self.CONST_BACKUP_SETTING: ModelBackupSetting.to_dict,
             self.CONST_RETENTION_SETTING: ModelRetentionSetting.to_dict,
             self.CONST_BACKUP_OPERATION_DETAILS: ModelBackupOperationDetails.to_dict,
-            self.CONST_RETENTION_OPERATION_DETAILS: ModelRetentionOperationDetails.to_dict
+            self.CONST_RETENTION_OPERATION_DETAILS: ModelRetentionOperationDetails.to_dict,
         }
 
         # Update the main properties
@@ -1756,9 +1796,11 @@ class DataScienceModel(Builder):
         # Update artifact info
         try:
             artifact_info = self.dsc_model.get_artifact_info()
-            _, file_name_info = cgi.parse_header(artifact_info["Content-Disposition"])
+            _, file_name_info = utils.parse_content_disposition(
+                artifact_info["Content-Disposition"]
+            )
 
-            if self.dsc_model.is_model_by_reference():
+            if self.dsc_model.is_model_created_by_reference():
                 _, file_extension = os.path.splitext(file_name_info["filename"])
                 if file_extension.lower() == ".json":
                     bucket_uri, _ = self._download_file_description_artifact()
@@ -1767,7 +1809,6 @@ class DataScienceModel(Builder):
                 self.set_spec(self.CONST_ARTIFACT, file_name_info["filename"])
         except:
             pass
-
         return self
 
     def to_dict(self) -> Dict:
@@ -2193,3 +2234,313 @@ class DataScienceModel(Builder):
         else:
             # model found case
             self.model_file_description["models"].pop(modelSearchIdx)
+
+    def create_custom_metadata_artifact(
+        self,
+        metadata_key_name: str,
+        artifact_path_or_content: str,
+        path_type: MetadataArtifactPathType = MetadataArtifactPathType.LOCAL,
+    ) -> ModelMetadataArtifactDetails:
+        """Creates model custom metadata artifact for specified model.
+
+        Parameters
+        ----------
+        metadata_key_name: str
+            The name of the model custom metadata key
+
+        artifact_path_or_content: str
+            The model custom metadata artifact path to be upload. It can also be the actual content of the custom metadata
+
+        path_type: MetadataArtifactPathType
+            Can be either of MetadataArtifactPathType.LOCAL , MetadataArtifactPathType.OSS , MetadataArtifactPathType.CONTENT
+            Specifies what type of path is to be provided for metadata artifact.
+            Can be either local , oss or the actual content itself
+
+        Returns
+        -------
+        ModelMetadataArtifactDetails
+            The model custom metadata artifact creation info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'ETag': '77156317-8bb9-4c4a-882b-0d85f8140d93',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Length': '4029958',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        return self.dsc_model.create_custom_metadata_artifact(
+            metadata_key_name=metadata_key_name,
+            artifact_path=artifact_path_or_content,
+            path_type=path_type,
+        )
+
+    def create_defined_metadata_artifact(
+        self,
+        metadata_key_name: str,
+        artifact_path_or_content: str,
+        path_type: MetadataArtifactPathType = MetadataArtifactPathType.LOCAL,
+    ) -> ModelMetadataArtifactDetails:
+        """Creates model defined metadata artifact for specified model.
+
+        Parameters
+        ----------
+        metadata_key_name: str
+            The name of the model defined metadata key
+
+        artifact_path_or_content: str
+            The model defined metadata artifact path to be upload. It can also be the actual content of the defined metadata
+
+        path_type: MetadataArtifactPathType
+            Can be either of MetadataArtifactPathType.LOCAL , MetadataArtifactPathType.OSS , MetadataArtifactPathType.CONTENT
+            Specifies what type of path is to be provided for metadata artifact.
+            Can be either local , oss or the actual content itself
+
+        Returns
+        -------
+        ModelMetadataArtifactDetails
+            The model defined metadata artifact creation info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'ETag': '77156317-8bb9-4c4a-882b-0d85f8140d93',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Length': '4029958',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        return self.dsc_model.create_defined_metadata_artifact(
+            metadata_key_name=metadata_key_name,
+            artifact_path=artifact_path_or_content,
+            path_type=path_type,
+        )
+
+    def update_custom_metadata_artifact(
+        self,
+        metadata_key_name: str,
+        artifact_path_or_content: str,
+        path_type: MetadataArtifactPathType = MetadataArtifactPathType.LOCAL,
+    ) -> ModelMetadataArtifactDetails:
+        """Update model custom metadata artifact for specified model.
+
+        Parameters
+        ----------
+        metadata_key_name: str
+            The name of the model custom metadata key
+
+        artifact_path_or_content: str
+            The model custom metadata artifact path. It can also be the actual content of the custom metadata
+
+        path_type: MetadataArtifactPathType
+            Can be either of MetadataArtifactPathType.LOCAL , MetadataArtifactPathType.OSS , MetadataArtifactPathType.CONTENT
+            Specifies what type of path is to be provided for metadata artifact.
+            Can be either local , oss or the actual content itself
+
+        Returns
+        -------
+        ModelMetadataArtifactDetails
+            The model custom metadata artifact update info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'ETag': '77156317-8bb9-4c4a-882b-0d85f8140d93',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Length': '4029958',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        return self.dsc_model.update_custom_metadata_artifact(
+            metadata_key_name=metadata_key_name,
+            artifact_path=artifact_path_or_content,
+            path_type=path_type,
+        )
+
+    def update_defined_metadata_artifact(
+        self,
+        metadata_key_name: str,
+        artifact_path_or_content: str,
+        path_type: MetadataArtifactPathType = MetadataArtifactPathType.LOCAL,
+    ) -> ModelMetadataArtifactDetails:
+        """Update model defined metadata artifact for specified model.
+
+        Parameters
+        ----------
+        metadata_key_name: str
+            The name of the model defined metadata key
+
+        artifact_path_or_content: str
+            The model defined metadata artifact path. It can also be the actual content of the defined metadata
+
+        path_type: MetadataArtifactPathType
+            Can be either of MetadataArtifactPathType.LOCAL , MetadataArtifactPathType.OSS , MetadataArtifactPathType.CONTENT
+            Specifies what type of path is to be provided for metadata artifact.
+            Can be either local , oss or the actual content itself
+
+        Returns
+        -------
+        ModelMetadataArtifactDetails
+            The model defined metadata artifact update info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'ETag': '77156317-8bb9-4c4a-882b-0d85f8140d93',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Length': '4029958',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        return self.dsc_model.update_defined_metadata_artifact(
+            metadata_key_name=metadata_key_name,
+            artifact_path=artifact_path_or_content,
+            path_type=path_type,
+        )
+
+    def get_custom_metadata_artifact(
+        self, metadata_key_name: str, target_dir: str, override: bool = False
+    ) -> bytes:
+        """Downloads model custom metadata artifact content for specified model metadata key.
+
+        Parameters
+        ----------
+        metadata_key_name: str
+            The name of the custom metadata key of the model
+
+        target_dir: str
+            The local file path where downloaded model custom metadata artifact will be saved.
+
+        override: bool
+            A boolean flag that controls downloaded metadata artifact file overwriting
+            - If True, overwrites the file if it already exists.
+            - If False (default), raises a `FileExistsError` if the file exists.
+        Returns
+        -------
+        bytes
+            File content of the custom metadata artifact
+
+        """
+        if not is_path_exists(target_dir):
+            raise PathNotFoundError(f"Path : {target_dir} does not exist")
+
+        file_content = self.dsc_model.get_custom_metadata_artifact(
+            metadata_key_name=metadata_key_name
+        )
+        artifact_file_path = os.path.join(target_dir, f"{metadata_key_name}")
+
+        if not override and os.path.exists(artifact_file_path):
+            raise FileExistsError(f"File already exists: {artifact_file_path}")
+
+        with open(artifact_file_path, "wb") as _file:
+            _file.write(file_content)
+            logger.debug(f"Artifact downloaded to location - {artifact_file_path}")
+        return file_content
+
+    def get_defined_metadata_artifact(
+        self, metadata_key_name: str, target_dir: str, override: bool = False
+    ) -> bytes:
+        """Downloads model defined metadata artifact content for specified model metadata key.
+
+        Parameters
+        ----------
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+
+        target_dir: str
+            The local file path where downloaded model defined metadata artifact will be saved.
+
+        override: bool
+            A boolean flag that controls downloaded metadata artifact file overwriting
+            - If True, overwrites the file if it already exists.
+            - If False (default), raises a `FileExistsError` if the file exists.
+        Returns
+        -------
+        bytes
+            File content of the custom metadata artifact
+
+        """
+        if not is_path_exists(target_dir):
+            raise PathNotFoundError(f"Path : {target_dir} does not exist")
+
+        file_content = self.dsc_model.get_defined_metadata_artifact(
+            metadata_key_name=metadata_key_name
+        )
+        artifact_file_path = os.path.join(target_dir, f"{metadata_key_name}")
+
+        if not override and os.path.exists(artifact_file_path):
+            raise FileExistsError(f"File already exists: {artifact_file_path}")
+
+        with open(artifact_file_path, "wb") as _file:
+            _file.write(file_content)
+            logger.debug(f"Artifact downloaded to location - {artifact_file_path}")
+        return file_content
+
+    def delete_custom_metadata_artifact(
+        self, metadata_key_name: str
+    ) -> ModelMetadataArtifactDetails:
+        """Deletes model custom metadata artifact for specified model metadata key.
+
+        Parameters
+        ----------
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+        Returns
+        -------
+        ModelMetadataArtifactDetails
+            The model custom metadata artifact delete call info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'X-Content-Type-Options': 'nosniff',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        return self.dsc_model.delete_custom_metadata_artifact(
+            metadata_key_name=metadata_key_name
+        )
+
+    def delete_defined_metadata_artifact(
+        self, metadata_key_name: str
+    ) -> ModelMetadataArtifactDetails:
+        """Deletes model defined metadata artifact for specified model metadata key.
+
+        Parameters
+        ----------
+        metadata_key_name: str
+            The name of the model metadatum in the metadata.
+        Returns
+        -------
+        ModelMetadataArtifactDetails
+            The model defined metadata artifact delete call info.
+            Example:
+            {
+                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
+                'opc-request-id': 'E4F7',
+                'X-Content-Type-Options': 'nosniff',
+                'Vary': 'Origin',
+                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+                'status': 204
+            }
+
+        """
+        return self.dsc_model.delete_defined_metadata_artifact(
+            metadata_key_name=metadata_key_name
+        )

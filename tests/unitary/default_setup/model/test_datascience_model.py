@@ -26,7 +26,9 @@ from ads.model.datascience_model import (
     ModelArtifactSizeError,
     BucketNotVersionedError,
     ModelFileDescriptionError,
-    InvalidArtifactType, ModelRetentionSetting, ModelBackupSetting,
+    InvalidArtifactType,
+    ModelRetentionSetting,
+    ModelBackupSetting,
 )
 from ads.model.model_metadata import (
     ModelCustomMetadata,
@@ -44,7 +46,7 @@ from oci.object_storage.models.object_version_summary import ObjectVersionSummar
 from ads.config import AQUA_SERVICE_MODELS_BUCKET as SERVICE_MODELS_BUCKET
 
 MODEL_OCID = "ocid1.datasciencemodel.oc1.iad.<unique_ocid>"
- 
+
 OCI_MODEL_PAYLOAD = {
     "id": MODEL_OCID,
     "compartment_id": "ocid1.compartment.oc1..<unique_ocid>",
@@ -62,25 +64,35 @@ OCI_MODEL_PAYLOAD = {
             "value": "oci://bucket@namespace/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3",
             "description": "The conda environment where the model was trained.",
             "category": "Training Environment",
+            "hasArtifact": False,
         },
     ],
     "defined_metadata_list": [
-        {"key": "Algorithm", "value": "test"},
-        {"key": "Framework"},
-        {"key": "FrameworkVersion"},
-        {"key": "UseCaseType", "value": "multinomial_classification"},
-        {"key": "Hyperparameters"},
-        {"key": "ArtifactTestResults"},
+        {"key": "Algorithm", "value": "test", "hasArtifact": False},
+        {"key": "Framework", "hasArtifact": False},
+        {"key": "FrameworkVersion", "hasArtifact": False},
+        {
+            "key": "UseCaseType",
+            "value": "multinomial_classification",
+            "hasArtifact": False,
+        },
+        {"key": "Hyperparameters", "hasArtifact": False},
+        {"key": "ArtifactTestResults", "hasArtifact": False},
+        {"key": "UnexpectedKey", "value": "unexpected_value", "hasArtifact": False},
+        {"key": "License", "hasArtifact": False},
+        {"key": "Readme", "hasArtifact": False},
+        {"key": "FineTuneConfiguration", "hasArtifact": False},
+        {"key": "DeploymentConfiguration", "hasArtifact": False},
     ],
     "backup_setting": {
         "is_backup_enabled": True,
         "backup_region": "us-phoenix-1",
-        "customer_notification_type": "ALL"
+        "customer_notification_type": "ALL",
     },
     "retention_setting": {
         "archive_after_days": 30,
         "delete_after_days": 90,
-        "customer_notification_type": "ALL"
+        "customer_notification_type": "ALL",
     },
     "input_schema": '{"schema": [{"dtype": "int64", "feature_type": "Integer", "name": 0, "domain": {"values": "", "stats": {}, "constraints": []}, "required": true, "description": "0", "order": 0}], "version": "1.1"}',
     "output_schema": '{"schema": [{"dtype": "int64", "feature_type": "Integer", "name": 0, "domain": {"values": "", "stats": {}, "constraints": []}, "required": true, "description": "0", "order": 0}], "version": "1.1"}',
@@ -137,17 +149,31 @@ DSC_MODEL_PAYLOAD = {
                 "value": "oci://bucket@namespace/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3",
                 "description": "The conda environment where the model was trained.",
                 "category": "Training Environment",
+                "has_artifact": False,
             },
         ]
     },
     "definedMetadataList": {
         "data": [
-            {"key": "Algorithm", "value": "test"},
-            {"key": "Framework", "value": None},
-            {"key": "FrameworkVersion", "value": None},
-            {"key": "UseCaseType", "value": "multinomial_classification"},
-            {"key": "Hyperparameters", "value": None},
-            {"key": "ArtifactTestResults", "value": None},
+            {"key": "Algorithm", "value": "test", "has_artifact": False},
+            {"key": "Framework", "value": None, "has_artifact": False},
+            {"key": "FrameworkVersion", "value": None, "has_artifact": False},
+            {
+                "key": "UseCaseType",
+                "value": "multinomial_classification",
+                "has_artifact": False,
+            },
+            {"key": "Hyperparameters", "value": None, "has_artifact": False},
+            {"key": "ArtifactTestResults", "value": None, "has_artifact": False},
+            {
+                "key": "UnexpectedKey",
+                "value": "unexpected_value",
+                "has_artifact": False,
+            },
+            {"key": "License", "value": None, "has_artifact": False},
+            {"key": "Readme", "value": None, "has_artifact": False},
+            {"key": "FineTuneConfiguration", "value": None, "has_artifact": False},
+            {"key": "DeploymentConfiguration", "value": None, "has_artifact": False},
         ]
     },
     "provenanceMetadata": {
@@ -161,12 +187,12 @@ DSC_MODEL_PAYLOAD = {
     "backupSetting": {
         "is_backup_enabled": True,
         "backup_region": "us-phoenix-1",
-        "customer_notification_type": "ALL"
+        "customer_notification_type": "ALL",
     },
     "retentionSetting": {
         "archive_after_days": 30,
         "delete_after_days": 90,
-        "customer_notification_type": "ALL"
+        "customer_notification_type": "ALL",
     },
     "artifact": "ocid1.datasciencemodel.oc1.iad.<unique_ocid>.zip",
 }
@@ -327,8 +353,8 @@ class TestDataScienceModel:
             .with_defined_metadata_list(self.payload["definedMetadataList"])
             .with_provenance_metadata(self.payload["provenanceMetadata"])
             .with_artifact(self.payload["artifact"])
-            .with_backup_setting(self.payload['backupSetting'])
-            .with_retention_setting(self.payload['retentionSetting'])
+            .with_backup_setting(self.payload["backupSetting"])
+            .with_retention_setting(self.payload["retentionSetting"])
         )
         assert self.prepare_dict(dsc_model.to_dict()["spec"]) == self.prepare_dict(
             self.payload
@@ -356,8 +382,12 @@ class TestDataScienceModel:
                 ModelProvenanceMetadata.from_dict(self.payload["provenanceMetadata"])
             )
             .with_artifact(self.payload["artifact"])
-            .with_backup_setting(ModelBackupSetting.from_dict(self.payload['backupSetting']))
-            .with_retention_setting(ModelRetentionSetting.from_dict(self.payload['retentionSetting']))
+            .with_backup_setting(
+                ModelBackupSetting.from_dict(self.payload["backupSetting"])
+            )
+            .with_retention_setting(
+                ModelRetentionSetting.from_dict(self.payload["retentionSetting"])
+            )
         )
         assert self.prepare_dict(dsc_model.to_dict()["spec"]) == self.prepare_dict(
             self.payload
@@ -385,6 +415,7 @@ class TestDataScienceModel:
         mock_list_resource.assert_called_with(
             "test_compartment_id",
             project_id="test_project_id",
+            category="USER",
             **{"extra_tag": "test_cvalue"},
         )
         assert len(result) == 1
@@ -419,6 +450,7 @@ class TestDataScienceModel:
         mock_list_resource.assert_called_with(
             "test_compartment_id",
             project_id="test_project_id",
+            category="USER",
             **{"extra_tag": "test_cvalue"},
         )
         assert expected_result.equals(result)
@@ -592,7 +624,11 @@ class TestDataScienceModel:
             assert self.prepare_dict(test_oci_dsc_model.to_dict()) == self.prepare_dict(
                 self.mock_dsc_model._to_oci_dsc_model().to_dict()
             )
-
+            print("test_oci_dsc_model.to_dict(): ", test_oci_dsc_model.to_dict())
+            print(
+                "mock_dsc_model._to_oci_dsc_model().to_dict(): ",
+                self.mock_dsc_model._to_oci_dsc_model().to_dict(),
+            )
             test_oci_dsc_model.display_name = "new_name"
             assert self.prepare_dict(test_oci_dsc_model.to_dict()) == self.prepare_dict(
                 self.mock_dsc_model._to_oci_dsc_model(display_name="new_name").to_dict()
@@ -605,7 +641,7 @@ class TestDataScienceModel:
             True,
         ],
     )
-    @patch.object(OCIDataScienceModel, "is_model_by_reference")
+    @patch.object(OCIDataScienceModel, "is_model_created_by_reference")
     @patch.object(OCIDataScienceModel, "get_artifact_info")
     @patch.object(OCIDataScienceModel, "get_model_provenance")
     @patch.object(DataScienceModel, "_download_file_description_artifact")
@@ -640,6 +676,10 @@ class TestDataScienceModel:
                 {"key": "UseCaseType", "value": "multinomial_classification"},
                 {"key": "Hyperparameters", "value": "new test"},
                 {"key": "ArtifactTestResults", "value": "new test"},
+                {"key": "License", "value": None},
+                {"key": "Readme", "value": None},
+                {"key": "FineTuneConfiguration", "value": None},
+                {"key": "DeploymentConfiguration", "value": None},
             ],
             "backup_setting": {
                 "is_backup_enabled": True,
@@ -702,17 +742,46 @@ class TestDataScienceModel:
                         "value": "new oci://bucket@namespace/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3",
                         "description": "new The conda environment where the model was trained.",
                         "category": "Training Environment",
+                        "has_artifact": False,
                     },
                 ]
             },
             "definedMetadataList": {
                 "data": [
-                    {"key": "Algorithm", "value": "new test"},
-                    {"key": "Framework", "value": "new test"},
-                    {"key": "FrameworkVersion", "value": "new test"},
-                    {"key": "UseCaseType", "value": "multinomial_classification"},
-                    {"key": "Hyperparameters", "value": "new test"},
-                    {"key": "ArtifactTestResults", "value": "new test"},
+                    {"key": "Algorithm", "value": "new test", "has_artifact": False},
+                    {"key": "Framework", "value": "new test", "has_artifact": False},
+                    {
+                        "key": "FrameworkVersion",
+                        "value": "new test",
+                        "has_artifact": False,
+                    },
+                    {
+                        "key": "UseCaseType",
+                        "value": "multinomial_classification",
+                        "has_artifact": False,
+                    },
+                    {
+                        "key": "Hyperparameters",
+                        "value": "new test",
+                        "has_artifact": False,
+                    },
+                    {
+                        "key": "ArtifactTestResults",
+                        "value": "new test",
+                        "has_artifact": False,
+                    },
+                    {"key": "License", "value": None, "has_artifact": False},
+                    {"key": "Readme", "value": None, "has_artifact": False},
+                    {
+                        "key": "FineTuneConfiguration",
+                        "value": None,
+                        "has_artifact": False,
+                    },
+                    {
+                        "key": "DeploymentConfiguration",
+                        "value": None,
+                        "has_artifact": False,
+                    },
                 ]
             },
             "backupSetting": {

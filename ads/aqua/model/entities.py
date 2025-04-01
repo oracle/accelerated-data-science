@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -23,7 +23,6 @@ from ads.aqua.constants import LIFECYCLE_DETAILS_MISSING_JOBRUN, UNKNOWN_VALUE
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model.enums import FineTuningDefinedMetadata
 from ads.aqua.training.exceptions import exit_code_dict
-from ads.aqua.ui import ModelFormat
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_log_links
 from ads.model.datascience_model import DataScienceModel
@@ -46,7 +45,7 @@ class AquaFineTuneValidation(DataClassSerializable):
 @dataclass(repr=False)
 class ModelValidationResult:
     model_file: Optional[str] = None
-    model_formats: List[ModelFormat] = field(default_factory=list)
+    model_formats: List[str] = field(default_factory=list)
     telemetry_model_name: str = None
     tags: Optional[dict] = None
 
@@ -89,7 +88,7 @@ class AquaModelSummary(DataClassSerializable):
     nvidia_gpu_supported: bool = False
     arm_cpu_supported: bool = False
     model_file: Optional[str] = None
-    model_formats: List[ModelFormat] = field(default_factory=list)
+    model_formats: List[str] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -283,6 +282,7 @@ class ImportModelDetails(CLIBuilderMixin):
     os_path: str
     download_from_hf: Optional[bool] = True
     local_dir: Optional[str] = None
+    cleanup_model_cache: Optional[bool] = False
     inference_container: Optional[str] = None
     finetuning_container: Optional[str] = None
     compartment_id: Optional[str] = None
@@ -293,6 +293,7 @@ class ImportModelDetails(CLIBuilderMixin):
     ignore_patterns: Optional[List[str]] = None
     freeform_tags: Optional[dict] = None
     defined_tags: Optional[dict] = None
+    ignore_model_artifact_check: Optional[bool] = None
 
     def __post_init__(self):
         self._command = "model register"

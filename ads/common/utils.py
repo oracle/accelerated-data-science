@@ -1,10 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
 # Copyright (c) 2020, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from __future__ import absolute_import, print_function
 
 import collections
 import contextlib
@@ -23,9 +21,8 @@ import tempfile
 from datetime import datetime
 from enum import Enum
 from io import DEFAULT_BUFFER_SIZE
-from pathlib import Path
 from textwrap import fill
-from typing import Dict, Optional, Union
+from typing import Any, Dict, Optional, Tuple, Union
 from urllib import request
 from urllib.parse import urlparse
 
@@ -66,6 +63,8 @@ MIN_RATIO_FOR_DOWN_SAMPLING = 1 / 20
 # Maximum distinct values by cardinality will be used for plotting
 MAX_DISPLAY_VALUES = 10
 
+UNKNOWN = ""
+
 # par link of the index json file.
 PAR_LINK = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/WyjtfVIG0uda-P3-2FmAfwaLlXYQZbvPZmfX1qg0-sbkwEQO6jpwabGr2hMDBmBp/n/ociodscdev/b/service-conda-packs/o/service_pack/index.json"
 
@@ -84,6 +83,7 @@ mpl.rcParams["image.cmap"] = "BuGn"
 mpl.rcParams["axes.prop_cycle"] = cycler(
     color=["teal", "blueviolet", "forestgreen", "peru", "y", "dodgerblue", "r"]
 )
+
 
 # sqlalchemy engines
 _engines = {}
@@ -152,6 +152,22 @@ def oci_key_location():
     )
 
 
+def text_sanitizer(content):
+    if isinstance(content, str):
+        return (
+            content.replace("“", '"')
+            .replace("”", '"')
+            .replace("’", "'")
+            .replace("‘", "'")
+            .replace("—", "-")
+            .encode("utf-8", "ignore")
+            .decode("utf-8", "ignore")
+        )
+    if isinstance(content, dict):
+        return json.dumps(content)
+    return str(content)
+
+
 @deprecated(
     "2.5.10",
     details="Deprecated, use: from ads.common.auth import AuthState; AuthState().oci_config_path",
@@ -213,6 +229,37 @@ def random_valid_ocid(prefix="ocid1.dataflowapplication.oc1.iad"):
     left, right = prefix.rsplit(".", 1)
     fake = "".join([random.choice(string.ascii_lowercase) for i in range(60)])
     return f"{left}.{fake}"
+
+
+def parse_bool(value: Any) -> bool:
+    """
+    Converts a value to boolean. For strings, it interprets 'true', '1', or 'yes'
+    (case insensitive) as True; everything else as False.
+
+    Parameters
+    ----------
+    value : Any
+        The value to convert to boolean.
+
+    Returns
+    -------
+    bool
+        The boolean interpretation of the value.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes")
+    return bool(value)
+
+
+def read_file(file_path: str, **kwargs) -> str:
+    try:
+        with fsspec.open(file_path, "r", **kwargs.get("auth", {})) as f:
+            return f.read()
+    except Exception as e:
+        logger.debug(f"Failed to read file {file_path}. {e}")
+        return UNKNOWN
 
 
 def get_dataframe_styles(max_width=75):
@@ -501,13 +548,13 @@ def print_user_message(
     if is_documentation_mode() and is_notebook():
         if display_type.lower() == "tip":
             if "\n" in msg:
-                t = "<b>{}:</b>".format(title.upper().strip()) if title else ""
+                t = f"<b>{title.upper().strip()}:</b>" if title else ""
 
                 user_message = "{}{}".format(
                     t,
                     "".join(
                         [
-                            "<br>&nbsp;&nbsp;+&nbsp;{}".format(x.strip())
+                            f"<br>&nbsp;&nbsp;+&nbsp;{x.strip()}"
                             for x in msg.strip().split("\n")
                         ]
                     ),
@@ -646,7 +693,7 @@ def ellipsis_strings(raw, n=24):
         else:
             n2 = int(n) // 2 - 3
             n1 = n - n2 - 3
-            result.append("{0}...{1}".format(s[:n1], s[-n2:]))
+            result.append(f"{s[:n1]}...{s[-n2:]}")
 
     return result
 
@@ -942,9 +989,9 @@ def generate_requirement_file(
     with open(os.path.join(file_path, file_name), "w") as req_file:
         for lib in requirements:
             if requirements[lib]:
-                req_file.write("{}=={}\n".format(lib, requirements[lib]))
+                req_file.write(f"{lib}=={requirements[lib]}\n")
             else:
-                req_file.write("{}\n".format(lib))
+                req_file.write(f"{lib}\n")
 
 
 def _get_feature_type_and_dtype(column):
@@ -966,7 +1013,7 @@ def to_dataframe(
         pd.Series,
         np.ndarray,
         pd.DataFrame,
-    ]
+    ],
 ):
     """
     Convert to pandas DataFrame.
@@ -1391,7 +1438,7 @@ def remove_file(file_path: str, auth: Optional[Dict] = None) -> None:
     fs = fsspec.filesystem(scheme, **auth)
     try:
         fs.rm(file_path)
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         raise FileNotFoundError(f"`{file_path}` not found.")
     except Exception as e:
         raise e
@@ -1786,3 +1833,36 @@ def get_log_links(
         console_link_url = f"https://cloud.oracle.com/logging/log-groups/{log_group_id}?region={region}"
 
     return console_link_url
+
+
+def parse_content_disposition(header: str) -> Tuple[str, Dict[str, str]]:
+    """
+    Parses a Content-Disposition header into its main disposition and a dictionary of parameters.
+
+    For example:
+        'attachment; filename="example.txt"'
+    will be parsed into:
+        ('attachment', {'filename': 'example.txt'})
+
+    Parameters
+    ----------
+    header (str): The Content-Disposition header string.
+
+    Returns
+    -------
+    Tuple[str, Dict[str, str]]: A tuple containing the disposition and a dictionary of parameters.
+    """
+    if not header:
+        return "", {}
+
+    parts = header.split(";")
+    # The first part is the main disposition (e.g., "attachment").
+    disposition = parts[0].strip().lower()
+    params: Dict[str, str] = {}
+
+    # Process each subsequent part to extract key-value pairs.
+    for part in parts[1:]:
+        if "=" in part:
+            key, value = part.split("=", 1)
+            params[key.strip().lower()] = value.strip().strip('"')
+    return disposition, params

@@ -1,10 +1,11 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
 import os
-from dataclasses import MISSING, asdict, fields
+import time
+import traceback
 from typing import Dict
 
 from oci.data_science.models import (
@@ -12,12 +13,14 @@ from oci.data_science.models import (
     UpdateModelDetails,
     UpdateModelProvenanceDetails,
 )
+from pydantic import ValidationError
 
 from ads.aqua import logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import Resource, Tags
 from ads.aqua.common.errors import AquaFileExistsError, AquaValueError
 from ads.aqua.common.utils import (
+    build_pydantic_error_message,
     get_container_image,
     upload_local_to_os,
 )
@@ -27,7 +30,6 @@ from ads.aqua.constants import (
     DEFAULT_FT_REPLICA,
     DEFAULT_FT_VALIDATION_SET_SIZE,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
-    UNKNOWN,
     UNKNOWN_DICT,
 )
 from ads.aqua.data import AquaResourceIdentifier
@@ -42,7 +44,7 @@ from ads.aqua.finetuning.entities import (
 )
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import get_console_link
+from ads.common.utils import UNKNOWN, get_console_link
 from ads.config import (
     AQUA_FINETUNING_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
     AQUA_JOB_SUBNET_ID,
@@ -104,23 +106,11 @@ class AquaFineTuningApp(AquaApp):
         if not create_fine_tuning_details:
             try:
                 create_fine_tuning_details = CreateFineTuningDetails(**kwargs)
-            except Exception as ex:
-                allowed_create_fine_tuning_details = ", ".join(
-                    field.name for field in fields(CreateFineTuningDetails)
-                ).rstrip()
+            except ValidationError as ex:
+                custom_errors = build_pydantic_error_message(ex)
                 raise AquaValueError(
-                    "Invalid create fine tuning parameters. Allowable parameters are: "
-                    f"{allowed_create_fine_tuning_details}."
+                    f"Invalid parameters for creating a fine-tuned model. Error details: {custom_errors}."
                 ) from ex
-
-        source = self.get_source(create_fine_tuning_details.ft_source_id)
-
-        # todo: revisit validation for fine tuned models
-        # if source.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
-        #     raise AquaValueError(
-        #         f"Fine tuning is only supported for Aqua service models in {ODSC_MODEL_COMPARTMENT_OCID}. "
-        #         "Use a valid Aqua service model id instead."
-        #     )
 
         target_compartment = (
             create_fine_tuning_details.compartment_id or COMPARTMENT_OCID
@@ -160,19 +150,18 @@ class AquaFineTuningApp(AquaApp):
                 f"Logging is required for fine tuning if replica is larger than {DEFAULT_FT_REPLICA}."
             )
 
-        ft_parameters = None
-        try:
-            ft_parameters = AquaFineTuningParams(
-                **create_fine_tuning_details.ft_parameters,
-            )
-        except Exception as ex:
-            allowed_fine_tuning_parameters = ", ".join(
-                field.name for field in fields(AquaFineTuningParams)
-            ).rstrip()
+        if create_fine_tuning_details.watch_logs and not (
+            create_fine_tuning_details.log_id
+            and create_fine_tuning_details.log_group_id
+        ):
             raise AquaValueError(
-                "Invalid fine tuning parameters. Fine tuning parameters should "
-                f"be a dictionary with keys: {allowed_fine_tuning_parameters}."
-            ) from ex
+                "Logging is required for fine tuning if watch_logs is set to True. "
+                "Please provide log_id and log_group_id with the request parameters."
+            )
+
+        ft_parameters = self._get_finetuning_params(
+            create_fine_tuning_details.ft_parameters
+        )
 
         experiment_model_version_set_id = create_fine_tuning_details.experiment_id
         experiment_model_version_set_name = create_fine_tuning_details.experiment_name
@@ -229,6 +218,8 @@ class AquaFineTuningApp(AquaApp):
             defined_tags=create_fine_tuning_details.defined_tags,
         )
 
+        source = self.get_source(create_fine_tuning_details.ft_source_id)
+
         ft_model_custom_metadata = ModelCustomMetadata()
         ft_model_custom_metadata.add(
             key=FineTuneCustomMetadata.FINE_TUNE_SOURCE,
@@ -272,6 +263,7 @@ class AquaFineTuningApp(AquaApp):
             compartment_id=target_compartment,
             project_id=target_project,
             model_by_reference=True,
+            defined_tags=create_fine_tuning_details.defined_tags
         )
 
         ft_job_freeform_tags = {
@@ -391,15 +383,16 @@ class AquaFineTuningApp(AquaApp):
             Tags.AQUA_FINE_TUNED_MODEL_TAG: f"{source.id}#{source.display_name}",
             **(create_fine_tuning_details.freeform_tags or {}),
         }
-        model_defined_tags = create_fine_tuning_details.defined_tags or {}
 
         self.update_model(
             model_id=ft_model.id,
             update_model_details=UpdateModelDetails(
                 custom_metadata_list=updated_custom_metadata_list,
                 freeform_tags=model_freeform_tags,
-                defined_tags=model_defined_tags,
             ),
+        )
+        logger.debug(
+            f"Successfully updated model custom metadata list and freeform tags for the model {ft_model.id}."
         )
 
         self.update_model_provenance(
@@ -407,6 +400,9 @@ class AquaFineTuningApp(AquaApp):
             update_model_provenance_details=UpdateModelProvenanceDetails(
                 training_id=ft_job_run.id
             ),
+        )
+        logger.debug(
+            f"Successfully updated model provenance for the model {ft_model.id}."
         )
 
         # tracks the shape and replica used for fine-tuning the service models
@@ -434,6 +430,20 @@ class AquaFineTuningApp(AquaApp):
             detail=f"{create_fine_tuning_details.shape_name}x{create_fine_tuning_details.replica}",
             value=source.display_name,
         )
+
+        if create_fine_tuning_details.watch_logs:
+            logger.info(
+                f"Watching fine-tuning job run logs for {ft_job_run.id}. Press Ctrl+C to stop watching logs.\n"
+            )
+            try:
+                ft_job_run.watch()
+            except KeyboardInterrupt:
+                logger.info(f"\nStopped watching logs for {ft_job_run.id}.\n")
+                time.sleep(1)
+            except Exception:
+                logger.debug(
+                    f"Something unexpected occurred while watching logs.\n{traceback.format_exc()}"
+                )
 
         return AquaFineTuningSummary(
             id=ft_model.id,
@@ -479,13 +489,9 @@ class AquaFineTuningApp(AquaApp):
                 "finetuning_source": source.id,
                 "finetuning_experiment_id": experiment_model_version_set_id,
                 **model_freeform_tags,
-                **model_defined_tags,
+                **(create_fine_tuning_details.defined_tags or {}),
             },
-            parameters={
-                key: value
-                for key, value in asdict(ft_parameters).items()
-                if value is not None
-            },
+            parameters=ft_parameters,
         )
 
     def _build_fine_tuning_runtime(
@@ -548,7 +554,7 @@ class AquaFineTuningApp(AquaApp):
     ) -> str:
         """Builds the oci launch cmd for fine tuning container runtime."""
         oci_launch_cmd = f"--training_data {dataset_path} --output_dir {report_path} --val_set_size {val_set_size} "
-        for key, value in asdict(parameters).items():
+        for key, value in parameters.to_dict().items():
             if value is not None:
                 if key == "batch_size":
                     oci_launch_cmd += f"--micro_{key} {value} "
@@ -584,10 +590,10 @@ class AquaFineTuningApp(AquaApp):
         Dict:
             A dict of allowed finetuning configs.
         """
-        config = self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG)
+        config = self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG).config
         if not config:
             logger.debug(
-                f"Fine-tuning config for custom model: {model_id} is not available."
+                f"Fine-tuning config for custom model: {model_id} is not available. Use defaults."
             )
         return config
 
@@ -613,14 +619,35 @@ class AquaFineTuningApp(AquaApp):
         default_params = {"params": {}}
         finetuning_config = self.get_finetuning_config(model_id)
         config_parameters = finetuning_config.get("configuration", UNKNOWN_DICT)
-        dataclass_fields = {field.name for field in fields(AquaFineTuningParams)}
+        dataclass_fields = self._get_finetuning_params(
+            config_parameters, validate=False
+        ).to_dict()
         for name, value in config_parameters.items():
-            if name == "micro_batch_size":
-                name = "batch_size"
             if name in dataclass_fields:
+                if name == "micro_batch_size":
+                    name = "batch_size"
                 default_params["params"][name] = value
 
         return default_params
+
+    @staticmethod
+    def _get_finetuning_params(
+        params: Dict = None, validate: bool = True
+    ) -> AquaFineTuningParams:
+        """
+        Get and validate the fine-tuning params, and return an error message if validation fails. In order to skip
+        @model_validator decorator's validation, pass validate=False.
+        """
+        try:
+            finetuning_params = AquaFineTuningParams(
+                **{**params, **{"_validate": validate}}
+            )
+        except ValidationError as ex:
+            custom_errors = build_pydantic_error_message(ex)
+            raise AquaValueError(
+                f"Invalid finetuning parameters. Error details: {custom_errors}."
+            ) from ex
+        return finetuning_params
 
     def validate_finetuning_params(self, params: Dict = None) -> Dict:
         """Validate if the fine-tuning parameters passed by the user can be overridden. Parameter values are not
@@ -635,19 +662,5 @@ class AquaFineTuningApp(AquaApp):
         -------
             Return a list of restricted params.
         """
-        try:
-            AquaFineTuningParams(
-                **params,
-            )
-        except Exception as e:
-            logger.debug(str(e))
-            allowed_fine_tuning_parameters = ", ".join(
-                f"{field.name} (required)" if field.default is MISSING else field.name
-                for field in fields(AquaFineTuningParams)
-            ).rstrip()
-            raise AquaValueError(
-                f"Invalid fine tuning parameters. Allowable parameters are: "
-                f"{allowed_fine_tuning_parameters}."
-            ) from e
-
+        self._get_finetuning_params(params or {})
         return {"valid": True}

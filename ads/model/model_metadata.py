@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -11,20 +10,22 @@ import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Dict, List, Tuple, Union, Optional, Any
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-import ads.dataset.factory as factory
 import fsspec
 import git
 import oci.data_science.models
 import pandas as pd
 import yaml
+from oci.util import to_dict
+
 from ads.common import logger
 from ads.common.error import ChangesNotCommitted
-from ads.common.extended_enum import ExtendedEnumMeta
-from ads.common.serializer import DataClassSerializable
+from ads.common.extended_enum import ExtendedEnum
 from ads.common.object_storage_details import ObjectStorageDetails
-from oci.util import to_dict
+from ads.common.serializer import DataClassSerializable
+from ads.common.utils import parse_bool
+from ads.dataset import factory
 
 try:
     from yaml import CDumper as dumper
@@ -81,28 +82,34 @@ class MetadataDescriptionTooLong(ValueError):
         )
 
 
-class MetadataCustomPrintColumns(str, metaclass=ExtendedEnumMeta):
+class MetadataCustomPrintColumns(ExtendedEnum):
     KEY = "Key"
     VALUE = "Value"
     DESCRIPTION = "Description"
     CATEGORY = "Category"
+    HAS_ARTIFACT = "HasArtifact"
 
 
-class MetadataTaxonomyPrintColumns(str, metaclass=ExtendedEnumMeta):
+class MetadataTaxonomyPrintColumns(ExtendedEnum):
     KEY = "Key"
     VALUE = "Value"
+    HAS_ARTIFACT = "HasArtifact"
 
 
-class MetadataTaxonomyKeys(str, metaclass=ExtendedEnumMeta):
+class MetadataTaxonomyKeys(ExtendedEnum):
     USE_CASE_TYPE = "UseCaseType"
     FRAMEWORK = "Framework"
     FRAMEWORK_VERSION = "FrameworkVersion"
     ALGORITHM = "Algorithm"
     HYPERPARAMETERS = "Hyperparameters"
     ARTIFACT_TEST_RESULT = "ArtifactTestResults"
+    # README = "Readme"
+    # LICENSE = "License"
+    # DEPLOYMENT_CONFIGURATION = "DeploymentConfiguration"
+    # FINETUNE_CONFIGURATION = "FineTuneConfiguration"
 
 
-class MetadataCustomKeys(str, metaclass=ExtendedEnumMeta):
+class MetadataCustomKeys(ExtendedEnum):
     SLUG_NAME = "SlugName"
     CONDA_ENVIRONMENT = "CondaEnvironment"
     CONDA_ENVIRONMENT_PATH = "CondaEnvironmentPath"
@@ -121,7 +128,7 @@ class MetadataCustomKeys(str, metaclass=ExtendedEnumMeta):
     MODEL_FILE_NAME = "ModelFileName"
 
 
-class MetadataCustomCategory(str, metaclass=ExtendedEnumMeta):
+class MetadataCustomCategory(ExtendedEnum):
     PERFORMANCE = "Performance"
     TRAINING_PROFILE = "Training Profile"
     TRAINING_AND_VALIDATION_DATASETS = "Training and Validation Datasets"
@@ -129,7 +136,7 @@ class MetadataCustomCategory(str, metaclass=ExtendedEnumMeta):
     OTHER = "Other"
 
 
-class UseCaseType(str, metaclass=ExtendedEnumMeta):
+class UseCaseType(ExtendedEnum):
     BINARY_CLASSIFICATION = "binary_classification"
     REGRESSION = "regression"
     MULTINOMIAL_CLASSIFICATION = "multinomial_classification"
@@ -146,7 +153,7 @@ class UseCaseType(str, metaclass=ExtendedEnumMeta):
     OTHER = "other"
 
 
-class Framework(str, metaclass=ExtendedEnumMeta):
+class Framework(ExtendedEnum):
     SCIKIT_LEARN = "scikit-learn"
     XGBOOST = "xgboost"
     TENSORFLOW = "tensorflow"
@@ -173,6 +180,7 @@ class Framework(str, metaclass=ExtendedEnumMeta):
     WORD2VEC = "word2vec"
     ENSEMBLE = "ensemble"
     SPARK = "pyspark"
+    EMBEDDING_ONNX = "embedding_onnx"
     OTHER = "other"
 
 
@@ -335,13 +343,14 @@ class ModelMetadataItem(ABC):
         """Creates a new metadata item from the OCI metadata item."""
         oci_metadata_item = to_dict(oci_metadata_item)
         key_value_map = {field: oci_metadata_item.get(field) for field in cls._FIELDS}
-
         if isinstance(key_value_map["value"], str):
             try:
                 key_value_map["value"] = json.loads(oci_metadata_item.get("value"))
+                key_value_map["has_artifact"] = parse_bool(
+                    oci_metadata_item.get("has_artifact")
+                )
             except Exception:
                 pass
-
         return cls(**key_value_map)
 
     def __hash__(self):
@@ -397,15 +406,12 @@ class ModelTaxonomyMetadataItem(ModelMetadataItem):
         Validates metadata item.
     """
 
-    _FIELDS = ["key", "value"]
+    _FIELDS = ["key", "value", "has_artifact"]
 
-    def __init__(
-        self,
-        key: str,
-        value: str = None,
-    ):
+    def __init__(self, key: str, value: str = None, has_artifact: bool = False):
         self.key = key
         self.value = value
+        self.has_artifact = has_artifact
 
     @property
     def key(self) -> str:
@@ -430,6 +436,14 @@ class ModelTaxonomyMetadataItem(ModelMetadataItem):
         if key is None or key == "":
             raise ValueError("The key cannot be empty.")
         self._key = key
+
+    @property
+    def has_artifact(self) -> bool:
+        return self._has_artifact
+
+    @has_artifact.setter
+    def has_artifact(self, has_artifact: bool):
+        self._has_artifact = has_artifact is True
 
     @property
     def value(self) -> str:
@@ -470,7 +484,7 @@ class ModelTaxonomyMetadataItem(ModelMetadataItem):
         """
         self.update(value=None)
 
-    def update(self, value: str) -> None:
+    def update(self, value: str, has_artifact: bool = False) -> None:
         """Updates metadata item value.
 
         Parameters
@@ -484,6 +498,7 @@ class ModelTaxonomyMetadataItem(ModelMetadataItem):
             Nothing.
         """
         self.value = value
+        self.has_artifact = has_artifact
 
     def validate(self) -> bool:
         """Validates metadata item.
@@ -554,7 +569,7 @@ class ModelCustomMetadataItem(ModelTaxonomyMetadataItem):
         Validates metadata item.
     """
 
-    _FIELDS = ["key", "value", "description", "category"]
+    _FIELDS = ["key", "value", "description", "category", "has_artifact"]
 
     def __init__(
         self,
@@ -562,10 +577,12 @@ class ModelCustomMetadataItem(ModelTaxonomyMetadataItem):
         value: str = None,
         description: str = None,
         category: str = None,
+        has_artifact: bool = False,
     ):
         super().__init__(key=key, value=value)
         self.description = description
         self.category = category
+        self.has_artifact = has_artifact
 
     @property
     def description(self) -> str:
@@ -584,6 +601,17 @@ class ModelCustomMetadataItem(ModelTaxonomyMetadataItem):
             raise TypeError("The description must be a string.")
 
         self._description = description
+
+    @property
+    def has_artifact(self) -> bool:
+        return self._has_artifact
+
+    @has_artifact.setter
+    def has_artifact(self, has_artifact: bool):
+        if not has_artifact:
+            self._has_artifact = False
+        else:
+            self._has_artifact = has_artifact
 
     @property
     def category(self) -> str:
@@ -630,7 +658,9 @@ class ModelCustomMetadataItem(ModelTaxonomyMetadataItem):
         """
         self.update(value=None, description=None, category=None)
 
-    def update(self, value: str, description: str, category: str) -> None:
+    def update(
+        self, value: str, description: str, category: str, has_artifact: bool = False
+    ) -> None:
         """Updates metadata item.
 
         Parameters
@@ -650,6 +680,7 @@ class ModelCustomMetadataItem(ModelTaxonomyMetadataItem):
         self.value = value
         self.description = description
         self.category = category
+        self.has_artifact = has_artifact
 
     def _to_oci_metadata(self):
         """Converts metadata item to OCI metadata item."""
@@ -658,6 +689,8 @@ class ModelCustomMetadataItem(ModelTaxonomyMetadataItem):
             oci_metadata_item.value = _METADATA_EMPTY_VALUE
         if not oci_metadata_item.category:
             oci_metadata_item.category = MetadataCustomCategory.OTHER
+        if not oci_metadata_item.has_artifact:
+            oci_metadata_item.has_artifact = False
         return oci_metadata_item
 
     def validate(self) -> bool:
@@ -1367,7 +1400,13 @@ class ModelCustomMetadata(ModelMetadata):
         return (
             pd.DataFrame(
                 (
-                    (item.key, item.value, item.description, item.category)
+                    (
+                        item.key,
+                        item.value,
+                        item.description,
+                        item.category,
+                        item.has_artifact,
+                    )
                     for item in self._items
                 ),
                 columns=[value for value in MetadataCustomPrintColumns.values()],
@@ -1398,7 +1437,7 @@ class ModelCustomMetadata(ModelMetadata):
         if (
             not data
             or not isinstance(data, Dict)
-            or not "data" in data
+            or "data" not in data
             or not isinstance(data["data"], List)
         ):
             raise ValueError(
@@ -1508,7 +1547,12 @@ class ModelTaxonomyMetadata(ModelMetadata):
         metadata = cls()
         for oci_item in metadata_list:
             item = ModelTaxonomyMetadataItem._from_oci_metadata(oci_item)
-            metadata[item.key].update(value=item.value)
+            if item.key in metadata.keys:
+                metadata[item.key].update(
+                    value=item.value, has_artifact=item.has_artifact
+                )
+            else:
+                metadata._items.add(item)
         return metadata
 
     def to_dataframe(self) -> pd.DataFrame:
@@ -1521,7 +1565,7 @@ class ModelTaxonomyMetadata(ModelMetadata):
         """
         return (
             pd.DataFrame(
-                ((item.key, item.value) for item in self._items),
+                ((item.key, item.value, item.has_artifact) for item in self._items),
                 columns=[value for value in MetadataTaxonomyPrintColumns.values()],
             )
             .sort_values(by=[MetadataTaxonomyPrintColumns.KEY])
@@ -1550,7 +1594,7 @@ class ModelTaxonomyMetadata(ModelMetadata):
         if (
             not data
             or not isinstance(data, Dict)
-            or not "data" in data
+            or "data" not in data
             or not isinstance(data["data"], List)
         ):
             raise ValueError(
@@ -1561,7 +1605,10 @@ class ModelTaxonomyMetadata(ModelMetadata):
         metadata = cls()
         for item in data["data"]:
             item = ModelTaxonomyMetadataItem.from_dict(item)
-            metadata[item.key].update(value=item.value)
+            if item.key in metadata.keys:
+                metadata[item.key].update(value=item.value)
+            else:
+                metadata._items.add(item)
         return metadata
 
 

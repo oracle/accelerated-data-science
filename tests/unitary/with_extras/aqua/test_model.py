@@ -1,46 +1,46 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 import os
 import shlex
 import tempfile
-import json
 from dataclasses import asdict
 from importlib import reload
 from unittest.mock import MagicMock, patch
 
 import oci
-from ads.aqua.constants import HF_METADATA_FOLDER
 import pytest
-from ads.aqua.ui import ModelFormat
-from parameterized import parameterized
 from huggingface_hub.hf_api import HfApi, ModelInfo
+from parameterized import parameterized
 
 import ads.aqua.model
-from ads.aqua.model.entities import (
-    AquaModelSummary,
-    ImportModelDetails,
-    AquaModel,
-    ModelValidationResult,
-)
-from ads.aqua.common.utils import get_hf_model_info
 import ads.common
 import ads.common.oci_client
 import ads.config
+from ads.aqua.common.enums import ModelFormat
+from ads.aqua.common.errors import (
+    AquaFileNotFoundError,
+    AquaRuntimeError,
+    AquaValueError,
+)
+from ads.aqua.common.utils import get_hf_model_info
+from ads.aqua.constants import HF_METADATA_FOLDER
 from ads.aqua.model import AquaModelApp
+from ads.aqua.model.entities import (
+    AquaModel,
+    AquaModelSummary,
+    ImportModelDetails,
+    ModelValidationResult,
+)
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import (
     ModelCustomMetadata,
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
-)
-from ads.aqua.common.errors import (
-    AquaRuntimeError,
-    AquaFileNotFoundError,
-    AquaValueError,
 )
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
 
@@ -51,18 +51,23 @@ def mock_auth():
         yield mock_default_signer
 
 
+def get_container_config():
+    with open(
+        os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "test_data/ui/container_index.json",
+        ),
+        "r",
+    ) as _file:
+        container_index_json = json.load(_file)
+
+    return container_index_json
+
+
 @pytest.fixture(autouse=True, scope="class")
 def mock_get_container_config():
-    with patch("ads.aqua.ui.get_container_config") as mock_config:
-        with open(
-            os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                "test_data/ui/container_index.json",
-            ),
-            "r",
-        ) as _file:
-            container_index_json = json.load(_file)
-        mock_config.return_value = container_index_json
+    with patch("ads.aqua.model.model.get_container_config") as mock_config:
+        mock_config.return_value = get_container_config()
         yield mock_config
 
 
@@ -360,6 +365,7 @@ class TestAquaModel:
             "verified",
         ],
     )
+    @patch("ads.aqua.model.model.get_container_config")
     @patch("ads.aqua.model.model.read_file")
     @patch.object(DataScienceModel, "from_id")
     @patch(
@@ -371,10 +377,11 @@ class TestAquaModel:
         mock_get_artifact_path,
         mock_from_id,
         mock_read_file,
-        foundation_model_type,
         mock_get_container_config,
+        foundation_model_type,
         mock_auth,
     ):
+        mock_get_container_config.return_value = get_container_config()
         ds_model = MagicMock()
         ds_model.id = "test_id"
         ds_model.compartment_id = "test_compartment_id"
@@ -474,6 +481,7 @@ class TestAquaModel:
         }
 
     @patch("ads.aqua.common.utils.query_resource")
+    @patch("ads.aqua.model.model.get_container_config")
     @patch("ads.aqua.model.model.read_file")
     @patch.object(DataScienceModel, "from_id")
     @patch(
@@ -485,10 +493,11 @@ class TestAquaModel:
         mock_get_artifact_path,
         mock_from_id,
         mock_read_file,
-        mock_query_resource,
         mock_get_container_config,
+        mock_query_resource,
         mock_auth,
     ):
+        mock_get_container_config.return_value = get_container_config()
         ds_model = MagicMock()
         ds_model.id = "test_id"
         ds_model.compartment_id = "test_model_compartment_id"
@@ -653,19 +662,18 @@ class TestAquaModel:
         }
 
     @pytest.mark.parametrize(
-        ("artifact_location_set", "download_from_hf"),
+        ("artifact_location_set", "download_from_hf", "cleanup_model_cache"),
         [
-            (True, True),
-            (True, False),
-            (False, True),
-            (False, False),
+            (True, True, True),
+            (True, False, True),
+            (False, True, False),
+            (False, False, True),
         ],
     )
     @patch("ads.model.service.oci_datascience_model.OCIDataScienceModel.create")
     @patch("ads.model.datascience_model.DataScienceModel.sync")
     @patch("ads.model.datascience_model.DataScienceModel.upload_artifact")
     @patch.object(AquaModelApp, "_find_matching_aqua_model")
-    @patch("ads.aqua.common.utils.copy_file")
     @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
     @patch("ads.aqua.common.utils.load_config", return_value={})
     @patch("huggingface_hub.snapshot_download")
@@ -676,13 +684,13 @@ class TestAquaModel:
         mock_snapshot_download,
         mock_load_config,
         mock_list_objects,
-        mock_copy_file,
         mock__find_matching_aqua_model,
         mock_upload_artifact,
         mock_sync,
         mock_ocidsc_create,
         artifact_location_set,
         download_from_hf,
+        cleanup_model_cache,
         mock_get_hf_model_info,
         mock_init_client,
     ):
@@ -742,11 +750,13 @@ class TestAquaModel:
         app = AquaModelApp()
         if download_from_hf:
             with tempfile.TemporaryDirectory() as tmpdir:
+                mock_snapshot_download.return_value = f"{str(tmpdir)}/{model_name}"
                 model: AquaModel = app.register(
                     model=model_name,
                     os_path=os_path,
                     local_dir=str(tmpdir),
                     download_from_hf=True,
+                    cleanup_model_cache=cleanup_model_cache,
                     allow_patterns=["*.json"],
                     ignore_patterns=["test.json"],
                 )
@@ -761,6 +771,20 @@ class TestAquaModel:
                         f"oci os object bulk-upload --src-dir {str(tmpdir)}/{model_name} --prefix prefix/path/{model_name}/ -bn aqua-bkt -ns aqua-ns --auth api_key --profile DEFAULT --no-overwrite --exclude {HF_METADATA_FOLDER}*"
                     )
                 )
+                if cleanup_model_cache:
+                    cache_dir = os.path.join(
+                        os.path.expanduser("~"),
+                        ".cache",
+                        "huggingface",
+                        "hub",
+                        "models--oracle--aqua-1t-mega-model",
+                    )
+                    assert (
+                        os.path.exists(f"{str(tmpdir)}/{os.path.dirname(model_name)}")
+                        is False
+                    )
+                    assert os.path.exists(cache_dir) is False
+
         else:
             model: AquaModel = app.register(
                 model="ocid1.datasciencemodel.xxx.xxxx.",
@@ -771,8 +795,6 @@ class TestAquaModel:
             mock_subprocess.assert_not_called()
             mock_load_config.assert_called()
 
-        if not artifact_location_set:
-            mock_copy_file.assert_called()
         ds_freeform_tags.pop(
             "ready_to_import"
         )  # The imported model should not have this tag
@@ -920,10 +942,18 @@ class TestAquaModel:
         assert model.project_id == project_override
 
     @pytest.mark.parametrize(
-        "download_from_hf",
-        [True, False],
+        ("ignore_artifact_check", "download_from_hf"),
+        [
+            (True, True),
+            (True, False),
+            (False, True),
+            (False, False),
+            (None, False),
+            (None, True),
+        ],
     )
     @patch("ads.model.service.oci_datascience_model.OCIDataScienceModel.create")
+    @patch("ads.model.datascience_model.DataScienceModel.sync")
     @patch("ads.model.datascience_model.DataScienceModel.upload_artifact")
     @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
     @patch("ads.aqua.common.utils.load_config", side_effect=AquaFileNotFoundError)
@@ -936,45 +966,65 @@ class TestAquaModel:
         mock_load_config,
         mock_list_objects,
         mock_upload_artifact,
+        mock_sync,
         mock_ocidsc_create,
-        mock_get_container_config,
+        ignore_artifact_check,
         download_from_hf,
         mock_get_hf_model_info,
         mock_init_client,
     ):
-        """Test for validating if error is returned when model artifacts are incomplete or not available."""
-
-        os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
-        model_name = "oracle/aqua-1t-mega-model"
+        my_model = "oracle/aqua-1t-mega-model"
         ObjectStorageDetails.is_bucket_versioned = MagicMock(return_value=True)
-        mock_list_objects.return_value = MagicMock(objects=[])
+        # set object list from OSS without config.json
+        os_path = "oci://aqua-bkt@aqua-ns/prefix/path"
+
+        # set object list from HF without config.json
+        if download_from_hf:
+            mock_get_hf_model_info.return_value.siblings = [
+                MagicMock(rfilename="model.safetensors")
+            ]
+        else:
+            obj1 = MagicMock(etag="12345-1234-1234-1234-123456789", size=150)
+            obj1.name = f"prefix/path/model.safetensors"
+            objects = [obj1]
+            mock_list_objects.return_value = MagicMock(objects=objects)
+
         reload(ads.aqua.model.model)
         app = AquaModelApp()
-        app.list = MagicMock(return_value=[])
-
-        if download_from_hf:
-            with pytest.raises(AquaValueError):
-                mock_get_hf_model_info.return_value.siblings = []
-                with tempfile.TemporaryDirectory() as tmpdir:
-                    model: AquaModel = app.register(
-                        model=model_name,
-                        os_path=os_path,
-                        local_dir=str(tmpdir),
-                        download_from_hf=True,
-                    )
-        else:
-            with pytest.raises(AquaRuntimeError):
-                model: AquaModel = app.register(
-                    model=model_name,
-                    os_path=os_path,
-                    download_from_hf=False,
+        with patch.object(AquaModelApp, "list") as aqua_model_mock_list:
+            aqua_model_mock_list.return_value = [
+                AquaModelSummary(
+                    id="test_id1",
+                    name="organization1/name1",
+                    organization="organization1",
                 )
+            ]
+
+            if ignore_artifact_check:
+                model: AquaModel = app.register(
+                    model=my_model,
+                    os_path=os_path,
+                    inference_container="odsc-vllm-or-tgi-container",
+                    finetuning_container="odsc-llm-fine-tuning",
+                    download_from_hf=download_from_hf,
+                    ignore_model_artifact_check=ignore_artifact_check,
+                )
+                assert model.ready_to_deploy is True
+            else:
+                with pytest.raises(AquaRuntimeError):
+                    model: AquaModel = app.register(
+                        model=my_model,
+                        os_path=os_path,
+                        inference_container="odsc-vllm-or-tgi-container",
+                        finetuning_container="odsc-llm-fine-tuning",
+                        download_from_hf=download_from_hf,
+                        ignore_model_artifact_check=ignore_artifact_check,
+                    )
 
     @patch("ads.model.service.oci_datascience_model.OCIDataScienceModel.create")
     @patch("ads.model.datascience_model.DataScienceModel.sync")
     @patch("ads.model.datascience_model.DataScienceModel.upload_artifact")
     @patch("ads.common.object_storage_details.ObjectStorageDetails.list_objects")
-    @patch.object(HfApi, "model_info")
     @patch("ads.aqua.common.utils.load_config", return_value={})
     def test_import_any_model_smc_container(
         self,
@@ -1183,14 +1233,14 @@ class TestAquaModel:
                     "model": "oracle/oracle-1it",
                     "inference_container": "odsc-vllm-serving",
                 },
-                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --inference_container odsc-vllm-serving",
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache False --inference_container odsc-vllm-serving",
             ),
             (
                 {
                     "os_path": "oci://aqua-bkt@aqua-ns/path",
                     "model": "ocid1.datasciencemodel.oc1.iad.<OCID>",
                 },
-                "ads aqua model register --model ocid1.datasciencemodel.oc1.iad.<OCID> --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True",
+                "ads aqua model register --model ocid1.datasciencemodel.oc1.iad.<OCID> --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache False",
             ),
             (
                 {
@@ -1198,7 +1248,7 @@ class TestAquaModel:
                     "model": "oracle/oracle-1it",
                     "download_from_hf": False,
                 },
-                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf False",
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf False --cleanup_model_cache False",
             ),
             (
                 {
@@ -1207,7 +1257,7 @@ class TestAquaModel:
                     "download_from_hf": True,
                     "model_file": "test_model_file",
                 },
-                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --model_file test_model_file",
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache False --model_file test_model_file",
             ),
             (
                 {
@@ -1216,7 +1266,7 @@ class TestAquaModel:
                     "inference_container": "odsc-tei-serving",
                     "inference_container_uri": "<region>.ocir.io/<your_tenancy>/<your_image>",
                 },
-                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --inference_container odsc-tei-serving --inference_container_uri <region>.ocir.io/<your_tenancy>/<your_image>",
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache False --inference_container odsc-tei-serving --inference_container_uri <region>.ocir.io/<your_tenancy>/<your_image>",
             ),
             (
                 {
@@ -1227,8 +1277,18 @@ class TestAquaModel:
                     "defined_tags": {"dtag1": "dvalue1", "dtag2": "dvalue2"},
                 },
                 "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path "
-                "--download_from_hf True --inference_container odsc-vllm-serving --freeform_tags "
+                "--download_from_hf True --cleanup_model_cache False --inference_container odsc-vllm-serving --freeform_tags "
                 '{"ftag1": "fvalue1", "ftag2": "fvalue2"} --defined_tags {"dtag1": "dvalue1", "dtag2": "dvalue2"}',
+            ),
+            (
+                {
+                    "os_path": "oci://aqua-bkt@aqua-ns/path",
+                    "model": "oracle/oracle-1it",
+                    "inference_container": "odsc-vllm-serving",
+                    "ignore_model_artifact_check": True,
+                    "cleanup_model_cache": True,
+                },
+                "ads aqua model register --model oracle/oracle-1it --os_path oci://aqua-bkt@aqua-ns/path --download_from_hf True --cleanup_model_cache True --inference_container odsc-vllm-serving --ignore_model_artifact_check True",
             ),
         ],
     )

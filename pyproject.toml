@@ -21,7 +21,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads" # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.12.9"
+version = "2.13.3"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -45,7 +45,6 @@ classifiers = [
   "Intended Audience :: Developers",
   "License :: OSI Approved :: Universal Permissive License (UPL)",
   "Operating System :: OS Independent",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -64,10 +63,9 @@ dependencies = [
   "jinja2>=2.11.2",
   "matplotlib>=3.1.3,<=3.8.4",
   "numpy>=1.19.2,<2.0.0",
-  "oci>=2.125.3",
+  "oci>=2.148.0",
   "ocifs>=1.1.3",
-  "pandas>1.2.1; python_version<'3.9'", # starting pandas v2.1.0 requires-python = '>=3.9'
-  "pandas>=2.2.0; python_version>='3.9'",
+  "pandas>=2.2.0",
   "psutil>=5.7.2",
   "python_jsonschema_objects>=0.3.13",
   "requests",
@@ -75,6 +73,8 @@ dependencies = [
   "tabulate>=0.8.9",
   "tqdm>=4.59.0",
   "pydantic>=2.6.3",
+  "tenacity",
+  "httpx",
 ]
 
 [project.optional-dependencies]
@@ -143,7 +143,7 @@ torch = [
   "torchvision"
 ]
 viz = [
-  "bokeh>=3.0.0,<3.2.0",  # starting 3.2.0 bokeh not supporting python3.8; relax after ADS will drop py3.8 support
+  "bokeh",
   "folium>=0.12.1",
   "graphviz<0.17",
   "scipy>=1.5.4",
@@ -157,13 +157,12 @@ forecast = [
   "oci-cli",
   "py-cpuinfo",
   "rich",
-  "autots[additional]",
+  "autots",
   "mlforecast",
   "neuralprophet>=0.7.0",
   "numpy<2.0.0",
   "oci-cli",
   "optuna",
-  "oracle-ads",
   "pmdarima",
   "prophet",
   "shap",
@@ -171,13 +170,13 @@ forecast = [
   "statsmodels",
   "plotly",
   "oracledb",
-  "report-creator==1.0.28",
+  "report-creator==1.0.37",
 ]
 anomaly  = [
   "oracle_ads[opctl]",
   "autots",
   "oracledb",
-  "report-creator==1.0.28",
+  "report-creator==1.0.37",
   "rrcf==0.4.4",
   "scikit-learn<1.6.0",
   "salesforce-merlion[all]==2.0.4"
@@ -186,7 +185,7 @@ recommender = [
   "oracle_ads[opctl]",
   "scikit-surprise",
   "plotly",
-  "report-creator==1.0.28",
+  "report-creator==1.0.37",
 ]
 feature-store-marketplace = [
     "oracle-ads[opctl]",
@@ -202,10 +201,18 @@ pii = [
   "scrubadub_spacy",
   "spacy-transformers==1.2.5",
   "spacy==3.6.1",
-  "report-creator==1.0.28",
+  "report-creator>=1.0.37",
 ]
 llm = ["langchain>=0.2", "langchain-community", "langchain_openai", "pydantic>=2,<3", "evaluate>=0.4.0"]
-aqua = ["jupyter_server"]
+aqua = [
+  "jupyter_server",
+  "tornado",
+  "notebook>=6.4,<=6.6",
+  "fire",
+  "cachetools",
+  "huggingface_hub",
+  "python-dotenv"
+]
 
 # To reduce backtracking (decrese deps install time) during test/dev env setup reducing number of versions pip is
 # trying to use. Ref - https://pip.pypa.io/en/stable/topics/dependency-resolution/#possible-ways-to-reduce-backtracking.
@@ -226,10 +233,8 @@ testsuite = [
   "pdfplumber",
   "py4j",
   "pyarrow>=15.0.0",
-  "statsmodels; python_version=='3.8'",
-  "statsmodels>=0.14.1; python_version>='3.9'",  # cython3.0 compatibility added in v0.14.1
-  "tables",
-  "tables>3.9.0; python_version>='3.9'",
+  "statsmodels>=0.14.1",
+  "tables>3.9.0",
   "xlrd>=1.2.0",
 ]
 

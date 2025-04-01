@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import base64
 import json
@@ -40,11 +40,13 @@ from ads.aqua.common.errors import (
 from ads.aqua.common.utils import (
     extract_id_and_name_from_tag,
     fire_and_forget,
+    get_container_config,
     get_container_image,
     is_valid_ocid,
     upload_local_to_os,
 )
 from ads.aqua.config.config import get_evaluation_service_config
+from ads.aqua.config.container_config import AquaContainerConfig
 from ads.aqua.constants import (
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     EVALUATION_REPORT,
@@ -53,7 +55,6 @@ from ads.aqua.constants import (
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     LIFECYCLE_DETAILS_MISSING_JOBRUN,
     NB_SESSION_IDENTIFIER,
-    UNKNOWN,
 )
 from ads.aqua.evaluation.constants import (
     EVAL_TERMINATION_STATE,
@@ -75,10 +76,9 @@ from ads.aqua.evaluation.entities import (
     CreateAquaEvaluationDetails,
 )
 from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
-from ads.aqua.ui import AquaContainerConfig
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import get_console_link, get_files, get_log_links
+from ads.common.utils import UNKNOWN, get_console_link, get_files, get_log_links
 from ads.config import (
     AQUA_JOB_SUBNET_ID,
     COMPARTMENT_OCID,
@@ -192,18 +192,18 @@ class AquaEvaluationApp(AquaApp):
                         evaluation_source.runtime.to_dict()
                     )
                     inference_config = AquaContainerConfig.from_container_index_json(
-                        enable_spec=True
+                        config=get_container_config(), enable_spec=True
                     ).inference
                     for container in inference_config.values():
                         if container.name == runtime.image[: runtime.image.rfind(":")]:
                             eval_inference_configuration = (
                                 container.spec.evaluation_configuration
                             )
-            except Exception:
+            except Exception as ex:
                 logger.debug(
                     f"Could not load inference config details for the evaluation source id: "
                     f"{create_aqua_evaluation_details.evaluation_source_id}. Please check if the container"
-                    f" runtime has the correct SMC image information."
+                    f" runtime has the correct SMC image information.\nError: {str(ex)}"
                 )
         elif (
             DataScienceResource.MODEL
@@ -260,6 +260,10 @@ class AquaEvaluationApp(AquaApp):
             **create_aqua_evaluation_details.model_parameters,
         )
 
+        evaluation_model_defined_tags = (
+            create_aqua_evaluation_details.defined_tags or {}
+        )
+
         target_compartment = (
             create_aqua_evaluation_details.compartment_id or COMPARTMENT_OCID
         )
@@ -289,7 +293,7 @@ class AquaEvaluationApp(AquaApp):
                         f"Invalid experiment name. Please provide an experiment with `{Tags.AQUA_EVALUATION}` in tags."
                     )
             except Exception:
-                logger.debug(
+                logger.info(
                     f"Model version set {experiment_model_version_set_name} doesn't exist. "
                     "Creating new model version set."
                 )
@@ -311,9 +315,7 @@ class AquaEvaluationApp(AquaApp):
                         create_aqua_evaluation_details.experiment_description
                     )
                     .with_freeform_tags(**evaluation_mvs_freeform_tags)
-                    .with_defined_tags(
-                        **(create_aqua_evaluation_details.defined_tags or {})
-                    )
+                    .with_defined_tags(**evaluation_model_defined_tags)
                     # TODO: decide what parameters will be needed
                     .create(**kwargs)
                 )
@@ -358,6 +360,7 @@ class AquaEvaluationApp(AquaApp):
             .with_custom_metadata_list(evaluation_model_custom_metadata)
             .with_defined_metadata_list(evaluation_model_taxonomy_metadata)
             .with_provenance_metadata(ModelProvenanceMetadata(training_id=UNKNOWN))
+            .with_defined_tags(**evaluation_model_defined_tags)
             # TODO uncomment this once the evaluation container will get the updated version of the ADS
             # .with_input_schema(create_aqua_evaluation_details.to_dict())
             # TODO: decide what parameters will be needed
@@ -390,7 +393,7 @@ class AquaEvaluationApp(AquaApp):
             .with_shape_name(create_aqua_evaluation_details.shape_name)
             .with_block_storage_size(create_aqua_evaluation_details.block_storage_size)
             .with_freeform_tag(**evaluation_job_freeform_tags)
-            .with_defined_tag(**(create_aqua_evaluation_details.defined_tags or {}))
+            .with_defined_tag(**evaluation_model_defined_tags)
         )
         if (
             create_aqua_evaluation_details.memory_in_gbs
@@ -429,7 +432,9 @@ class AquaEvaluationApp(AquaApp):
                 metrics=create_aqua_evaluation_details.metrics,
                 inference_configuration=eval_inference_configuration or {},
             )
-        ).create(**kwargs)  ## TODO: decide what parameters will be needed
+        ).create(
+            **kwargs
+        )  ## TODO: decide what parameters will be needed
         logger.debug(
             f"Successfully created evaluation job {evaluation_job.id} for {create_aqua_evaluation_details.evaluation_source_id}."
         )
@@ -437,7 +442,7 @@ class AquaEvaluationApp(AquaApp):
         evaluation_job_run = evaluation_job.run(
             name=evaluation_model.display_name,
             freeform_tags=evaluation_job_freeform_tags,
-            defined_tags=(create_aqua_evaluation_details.defined_tags or {}),
+            defined_tags=evaluation_model_defined_tags,
             wait=False,
         )
         logger.debug(
@@ -461,16 +466,12 @@ class AquaEvaluationApp(AquaApp):
             Tags.AQUA_EVALUATION: Tags.AQUA_EVALUATION,
             **(create_aqua_evaluation_details.freeform_tags or {}),
         }
-        evaluation_model_defined_tags = (
-            create_aqua_evaluation_details.defined_tags or {}
-        )
 
         self.ds_client.update_model(
             model_id=evaluation_model.id,
             update_model_details=UpdateModelDetails(
                 custom_metadata_list=updated_custom_metadata_list,
                 freeform_tags=evaluation_model_freeform_tags,
-                defined_tags=evaluation_model_defined_tags,
             ),
         )
 
@@ -711,21 +712,27 @@ class AquaEvaluationApp(AquaApp):
             try:
                 log = utils.query_resource(log_id, return_all=False)
                 log_name = log.display_name if log else ""
-            except Exception:
+            except Exception as ex:
+                logger.debug(f"Failed to get associated log name. Error: {ex}")
                 pass
 
         if loggroup_id:
             try:
                 loggroup = utils.query_resource(loggroup_id, return_all=False)
                 loggroup_name = loggroup.display_name if loggroup else ""
-            except Exception:
+            except Exception as ex:
+                logger.debug(f"Failed to get associated loggroup name. Error: {ex}")
                 pass
 
         try:
             introspection = json.loads(
                 self._get_attribute_from_model_metadata(resource, "ArtifactTestResults")
             )
-        except Exception:
+        except Exception as ex:
+            logger.debug(
+                f"There was an issue loading the model attribute as json object for evaluation {eval_id}. "
+                f"Setting introspection to empty.\n Error:{ex}"
+            )
             introspection = {}
 
         summary = AquaEvaluationDetail(
@@ -878,13 +885,13 @@ class AquaEvaluationApp(AquaApp):
         try:
             log_id = job_run_details.log_details.log_id
         except Exception as e:
-            logger.debug(f"Failed to get associated log. {str(e)}")
+            logger.debug(f"Failed to get associated log.\nError: {str(e)}")
             log_id = ""
 
         try:
             loggroup_id = job_run_details.log_details.log_group_id
         except Exception as e:
-            logger.debug(f"Failed to get associated log. {str(e)}")
+            logger.debug(f"Failed to get associated log.\nError: {str(e)}")
             loggroup_id = ""
 
         loggroup_url = get_log_links(region=self.region, log_group_id=loggroup_id)
@@ -958,7 +965,7 @@ class AquaEvaluationApp(AquaApp):
                 )
             except Exception as e:
                 logger.debug(
-                    "Failed to load `report.json` from evaluation artifact" f"{str(e)}"
+                    f"Failed to load `report.json` from evaluation artifact.\nError: {str(e)}"
                 )
                 json_report = {}
 
@@ -1047,6 +1054,7 @@ class AquaEvaluationApp(AquaApp):
                 return report
 
         with tempfile.TemporaryDirectory() as temp_dir:
+            logger.info(f"Downloading evaluation artifact for {eval_id}.")
             DataScienceModel.from_id(eval_id).download_artifact(
                 temp_dir,
                 auth=self._auth,
@@ -1200,6 +1208,7 @@ class AquaEvaluationApp(AquaApp):
     def load_evaluation_config(self, container: Optional[str] = None) -> Dict:
         """Loads evaluation config."""
 
+        logger.info("Loading evaluation container config.")
         # retrieve the evaluation config by container family name
         evaluation_config = get_evaluation_service_config(container)
 
@@ -1279,9 +1288,9 @@ class AquaEvaluationApp(AquaApp):
                     raise AquaRuntimeError(
                         f"Not supported source type: {resource_type}"
                     )
-        except Exception:
+        except Exception as ex:
             logger.debug(
-                f"Failed to retrieve source information for evaluation {evaluation.identifier}."
+                f"Failed to retrieve source information for evaluation {evaluation.identifier}.\nError: {str(ex)}"
             )
             source_name = ""
 

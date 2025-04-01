@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA utils and constants."""
 
@@ -11,6 +11,7 @@ import os
 import random
 import re
 import shlex
+import shutil
 import subprocess
 from datetime import datetime, timedelta
 from functools import wraps
@@ -18,9 +19,10 @@ from pathlib import Path
 from string import Template
 from typing import List, Union
 
-import fsspec
 import oci
 from cachetools import TTLCache, cached
+from huggingface_hub.constants import HF_HUB_CACHE
+from huggingface_hub.file_download import repo_folder_name
 from huggingface_hub.hf_api import HfApi, ModelInfo
 from huggingface_hub.utils import (
     GatedRepoError,
@@ -30,6 +32,7 @@ from huggingface_hub.utils import (
 )
 from oci.data_science.models import JobRun, Model
 from oci.object_storage.models import ObjectSummary
+from pydantic import ValidationError
 
 from ads.aqua.common.enums import (
     InferenceContainerParamType,
@@ -54,17 +57,22 @@ from ads.aqua.constants import (
     SUPPORTED_FILE_FORMATS,
     TEI_CONTAINER_DEFAULT_HOST,
     TGI_INFERENCE_RESTRICTED_PARAMS,
-    UNKNOWN,
     UNKNOWN_JSON_STR,
     VLLM_INFERENCE_RESTRICTED_PARAMS,
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.common.auth import AuthState, default_signer
 from ads.common.decorator.threaded import threaded
-from ads.common.extended_enum import ExtendedEnumMeta
+from ads.common.extended_enum import ExtendedEnum
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import copy_file, get_console_link, upload_to_os
+from ads.common.utils import (
+    UNKNOWN,
+    copy_file,
+    get_console_link,
+    read_file,
+    upload_to_os,
+)
 from ads.config import (
     AQUA_MODEL_DEPLOYMENT_FOLDER,
     AQUA_SERVICE_MODELS_BUCKET,
@@ -76,7 +84,7 @@ from ads.model import DataScienceModel, ModelVersionSet
 logger = logging.getLogger("ads.aqua")
 
 
-class LifecycleStatus(str, metaclass=ExtendedEnumMeta):
+class LifecycleStatus(ExtendedEnum):
     UNKNOWN = ""
 
     @property
@@ -222,15 +230,6 @@ def get_artifact_path(custom_metadata_list: List) -> str:
 
     logger.debug("Failed to get artifact path from custom metadata.")
     return UNKNOWN
-
-
-def read_file(file_path: str, **kwargs) -> str:
-    try:
-        with fsspec.open(file_path, "r", **kwargs.get("auth", {})) as f:
-            return f.read()
-    except Exception as e:
-        logger.debug(f"Failed to read file {file_path}. {e}")
-        return UNKNOWN
 
 
 @threaded()
@@ -549,7 +548,7 @@ def service_config_path():
     return f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=timedelta(hours=5), timer=datetime.now))
+@cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=10), timer=datetime.now))
 def get_container_config():
     config = load_config(
         file_path=service_config_path(),
@@ -788,7 +787,9 @@ def get_ocid_substring(ocid: str, key_len: int) -> str:
     return ocid[-key_len:] if ocid and len(ocid) > key_len else ""
 
 
-def upload_folder(os_path: str, local_dir: str, model_name: str, exclude_pattern: str = None) -> str:
+def upload_folder(
+    os_path: str, local_dir: str, model_name: str, exclude_pattern: str = None
+) -> str:
     """Upload the local folder to the object storage
 
     Args:
@@ -816,6 +817,48 @@ def upload_folder(os_path: str, local_dir: str, model_name: str, exclude_pattern
         )
 
     return f"oci://{os_details.bucket}@{os_details.namespace}" + "/" + object_path
+
+
+def cleanup_local_hf_model_artifact(
+    model_name: str,
+    local_dir: str = None,
+):
+    """
+    Helper function that deletes local artifacts downloaded from Hugging Face to free up disk space.
+    Parameters
+    ----------
+    model_name (str): Name of the huggingface model
+    local_dir (str): Local directory where the object is downloaded
+
+    """
+    if local_dir and os.path.exists(local_dir):
+        model_dir = os.path.join(local_dir, model_name)
+        model_dir = (
+            os.path.dirname(model_dir)
+            if "/" in model_name or os.sep in model_name
+            else model_dir
+        )
+        shutil.rmtree(model_dir, ignore_errors=True)
+        if os.path.exists(model_dir):
+            logger.debug(
+                f"Could not delete local model artifact directory: {model_dir}"
+            )
+        else:
+            logger.debug(f"Deleted local model artifact directory: {model_dir}.")
+
+    hf_local_path = os.path.join(
+        HF_HUB_CACHE, repo_folder_name(repo_id=model_name, repo_type="model")
+    )
+    shutil.rmtree(hf_local_path, ignore_errors=True)
+
+    if os.path.exists(hf_local_path):
+        logger.debug(
+            f"Could not clear the local Hugging Face cache directory {hf_local_path} for the model {model_name}."
+        )
+    else:
+        logger.debug(
+            f"Cleared contents of local Hugging Face cache directory {hf_local_path} for the model {model_name}."
+        )
 
 
 def is_service_managed_container(container):
@@ -1159,3 +1202,15 @@ def validate_cmd_var(cmd_var: List[str], overrides: List[str]) -> List[str]:
 
     combined_cmd_var = cmd_var + overrides
     return combined_cmd_var
+
+
+def build_pydantic_error_message(ex: ValidationError):
+    """Added to handle error messages from pydantic model validator.
+    Combine both loc and msg for errors where loc (field) is present in error details, else only build error
+    message using msg field."""
+
+    return {
+        ".".join(map(str, e["loc"])): e["msg"]
+        for e in ex.errors()
+        if "loc" in e and e["loc"]
+    } or "; ".join(e["msg"] for e in ex.errors())

@@ -3,13 +3,13 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """This module defines constants used in ads.aqua module."""
 
-UNKNOWN = ""
 UNKNOWN_VALUE = ""
 READY_TO_IMPORT_STATUS = "TRUE"
 UNKNOWN_DICT = {}
 README = "README.md"
 LICENSE_TXT = "config/LICENSE.txt"
 DEPLOYMENT_CONFIG = "deployment_config.json"
+AQUA_MODEL_TOKENIZER_CONFIG = "tokenizer_config.json"
 COMPARTMENT_MAPPING_KEY = "service-model-compartment"
 CONTAINER_INDEX = "container_index.json"
 EVALUATION_REPORT_JSON = "report.json"

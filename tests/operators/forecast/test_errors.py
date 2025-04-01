@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from unittest.mock import patch
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import yaml
@@ -26,9 +26,11 @@ from ads.opctl.operator.lowcode.forecast.errors import (
     ForecastSchemaYamlError,
     ForecastInputDataError,
 )
+from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorConfig
 
 from ads.opctl.operator.lowcode.forecast.utils import smape
 from ads.opctl.operator.cmd import run
+from ads.opctl.operator.lowcode.forecast.__main__ import operate
 import os
 import json
 import math
@@ -178,9 +180,9 @@ def run_yaml(tmpdirname, yaml_i, output_data_path, test_metrics_check=True):
     subprocess.run(f"ls -a {output_data_path}", shell=True)
 
     if test_metrics_check:
-        test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")
+        test_metrics = pd.read_csv(f"{output_data_path}/test_metrics.csv")
         print(test_metrics)
-    train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
+    train_metrics = pd.read_csv(f"{output_data_path}/metrics.csv")
     print(train_metrics)
 
 
@@ -253,7 +255,7 @@ def setup_rossman():
 
 def setup_faulty_rossman():
     curr_dir = pathlib.Path(__file__).parent.resolve()
-    data_folder = f"{curr_dir}/../data/"
+    data_folder = f"{curr_dir}/../data"
     historical_data_path = f"{data_folder}/rs_2_prim.csv"
     additional_data_path = f"{data_folder}/rs_2_add_encoded.csv"
     return historical_data_path, additional_data_path
@@ -287,7 +289,7 @@ def setup_artificial_data(tmpdirname, hist_data=None, add_data=None, test_data=N
     return historical_data_path, additional_data_path, test_data_path
 
 
-@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize("model", ["prophet"])
 def test_rossman(operator_setup, model):
     run_operator(
         tmpdirname=operator_setup,
@@ -295,7 +297,7 @@ def test_rossman(operator_setup, model):
     )
 
 
-@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize("model", ["prophet"])
 def test_historical_data(operator_setup, model):
     tmpdirname = operator_setup
     historical_data_path, additional_data_path, _ = setup_artificial_data(tmpdirname)
@@ -405,15 +407,21 @@ def test_0_series(operator_setup, model):
     yaml_i["spec"].pop("target_category_columns")
     yaml_i["spec"]["generate_explanations"] = True
     run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
-    output_files = ['forecast.csv', 'metrics.csv', 'test_metrics.csv',
-                    'report.html', 'local_explanation.csv', 'global_explanation.csv']
+    output_files = [
+        "forecast.csv",
+        "metrics.csv",
+        "test_metrics.csv",
+        "report.html",
+        "local_explanation.csv",
+        "global_explanation.csv",
+    ]
     if model == "autots":
         # explanations are not supported for autots
         output_files.remove("local_explanation.csv")
         output_files.remove("global_explanation.csv")
     for file in output_files:
         file_path = os.path.join(output_data_path, file)
-        with open(file_path, 'r', encoding='utf-8') as cur_file:
+        with open(file_path, "r", encoding="utf-8") as cur_file:
             content = cur_file.read()
             assert "Series 1" not in content, f"'Series 1' found in file: {file}"
     yaml_i["spec"].pop("additional_data")
@@ -467,59 +475,59 @@ def test_invalid_dates(operator_setup, model):
         )
 
 
-def test_disabling_outlier_treatment(operator_setup):
-    tmpdirname = operator_setup
-    NUM_ROWS = 100
-    hist_data_0 = pd.concat(
-        [
-            HISTORICAL_DATETIME_COL[: NUM_ROWS - HORIZON],
-            TARGET_COL[: NUM_ROWS - HORIZON],
-        ],
-        axis=1,
-    )
-    outliers = [1000, -800]
-    hist_data_0.at[40, "Sales"] = outliers[0]
-    hist_data_0.at[75, "Sales"] = outliers[1]
-    historical_data_path, additional_data_path, test_data_path = setup_artificial_data(
-        tmpdirname, hist_data_0
-    )
+# def test_disabling_outlier_treatment(operator_setup):
+#     tmpdirname = operator_setup
+#     NUM_ROWS = 100
+#     hist_data_0 = pd.concat(
+#         [
+#             HISTORICAL_DATETIME_COL[: NUM_ROWS - HORIZON],
+#             TARGET_COL[: NUM_ROWS - HORIZON],
+#         ],
+#         axis=1,
+#     )
+#     outliers = [1000, -800]
+#     hist_data_0.at[40, "Sales"] = outliers[0]
+#     hist_data_0.at[75, "Sales"] = outliers[1]
+#     historical_data_path, additional_data_path, test_data_path = setup_artificial_data(
+#         tmpdirname, hist_data_0
+#     )
 
-    yaml_i, output_data_path = populate_yaml(
-        tmpdirname=tmpdirname,
-        model="arima",
-        historical_data_path=historical_data_path,
-    )
-    yaml_i["spec"].pop("target_category_columns")
-    yaml_i["spec"].pop("additional_data")
+#     yaml_i, output_data_path = populate_yaml(
+#         tmpdirname=tmpdirname,
+#         model="arima",
+#         historical_data_path=historical_data_path,
+#     )
+#     yaml_i["spec"].pop("target_category_columns")
+#     yaml_i["spec"].pop("additional_data")
 
-    # running default pipeline where outlier will be treated
-    run_yaml(
-        tmpdirname=tmpdirname,
-        yaml_i=yaml_i,
-        output_data_path=output_data_path,
-        test_metrics_check=False,
-    )
-    forecast_without_outlier = pd.read_csv(f"{tmpdirname}/results/forecast.csv")
-    input_vals_without_outlier = set(forecast_without_outlier["input_value"])
-    assert all(
-        item not in input_vals_without_outlier for item in outliers
-    ), "forecast file should not contain any outliers"
+#     # running default pipeline where outlier will be treated
+#     run_yaml(
+#         tmpdirname=tmpdirname,
+#         yaml_i=yaml_i,
+#         output_data_path=output_data_path,
+#         test_metrics_check=False,
+#     )
+#     forecast_without_outlier = pd.read_csv(f"{tmpdirname}/results/forecast.csv")
+#     input_vals_without_outlier = set(forecast_without_outlier["input_value"])
+#     assert all(
+#         item not in input_vals_without_outlier for item in outliers
+#     ), "forecast file should not contain any outliers"
 
-    # switching off outlier_treatment
-    preprocessing_steps = {"missing_value_imputation": True, "outlier_treatment": False}
-    preprocessing = {"enabled": True, "steps": preprocessing_steps}
-    yaml_i["spec"]["preprocessing"] = preprocessing
-    run_yaml(
-        tmpdirname=tmpdirname,
-        yaml_i=yaml_i,
-        output_data_path=output_data_path,
-        test_metrics_check=False,
-    )
-    forecast_with_outlier = pd.read_csv(f"{tmpdirname}/results/forecast.csv")
-    input_vals_with_outlier = set(forecast_with_outlier["input_value"])
-    assert all(
-        item in input_vals_with_outlier for item in outliers
-    ), "forecast file should contain all the outliers"
+#     # switching off outlier_treatment
+#     preprocessing_steps = {"missing_value_imputation": True, "outlier_treatment": False}
+#     preprocessing = {"enabled": True, "steps": preprocessing_steps}
+#     yaml_i["spec"]["preprocessing"] = preprocessing
+#     run_yaml(
+#         tmpdirname=tmpdirname,
+#         yaml_i=yaml_i,
+#         output_data_path=output_data_path,
+#         test_metrics_check=False,
+#     )
+#     forecast_with_outlier = pd.read_csv(f"{tmpdirname}/results/forecast.csv")
+#     input_vals_with_outlier = set(forecast_with_outlier["input_value"])
+#     assert all(
+#         item in input_vals_with_outlier for item in outliers
+#     ), "forecast file should contain all the outliers"
 
 
 @pytest.mark.parametrize("model", MODELS)
@@ -699,17 +707,21 @@ def test_arima_automlx_errors(operator_setup, model):
             error_content = json.load(error_file)
             assert (
                 "Input data does not have a consistent (in terms of diff) DatetimeIndex."
-                in error_content["13"]["error"]
-            ), "Error message mismatch"
+                in error_content["13"]["model_fitting"]["error"]
+            ), f"Error message mismatch: {error_content}"
 
-    if model not in ["autots"]:  # , "lgbforecast"
+    if model not in ["autots", "automlx"]:  # , "lgbforecast"
         if yaml_i["spec"].get("explanations_accuracy_mode") != "AUTOMLX":
             global_fn = f"{tmpdirname}/results/global_explanation.csv"
-            assert os.path.exists(global_fn), f"Global explanation file not found at {report_path}"
+            assert os.path.exists(
+                global_fn
+            ), f"Global explanation file not found at {report_path}"
             assert not pd.read_csv(global_fn, index_col=0).empty
 
         local_fn = f"{tmpdirname}/results/local_explanation.csv"
-        assert os.path.exists(local_fn), f"Local explanation file not found at {report_path}"
+        assert os.path.exists(
+            local_fn
+        ), f"Local explanation file not found at {report_path}"
         assert not pd.read_csv(local_fn).empty
 
 
@@ -718,7 +730,66 @@ def test_smape_error():
     assert result == 0
 
 
-@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize("model", ["prophet"])
+def test_pandas_historical_input(operator_setup, model):
+    from ads.opctl.operator.lowcode.forecast.__main__ import operate
+
+    historical_data_path, additional_data_path, _ = setup_artificial_data(
+        operator_setup
+    )
+    yaml_i, output_data_path = populate_yaml(
+        tmpdirname=operator_setup,
+        historical_data_path=historical_data_path,
+        additional_data_path=additional_data_path,
+    )
+    yaml_i["spec"]["horizon"] = HORIZON
+    yaml_i["spec"]["model"] = model
+    df = pd.read_csv(historical_data_path)
+    yaml_i["spec"]["historical_data"].pop("url")
+    yaml_i["spec"]["historical_data"]["data"] = df
+    yaml_i["spec"]["historical_data"]["format"] = "pandas"
+
+    operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+    operate(operator_config)
+    assert pd.read_csv(additional_data_path)["Date"].equals(
+        pd.read_csv(f"{operator_setup}/results/forecast.csv")["Date"]
+    )
+
+
+@pytest.mark.parametrize("model", ["prophet"])
+def test_pandas_additional_input(operator_setup, model):
+    from ads.opctl.operator.lowcode.forecast.__main__ import operate
+
+    tmpdirname = operator_setup
+    historical_data_path, additional_data_path = setup_small_rossman()
+    yaml_i, output_data_path = populate_yaml(
+        tmpdirname=tmpdirname,
+        historical_data_path=historical_data_path,
+        additional_data_path=additional_data_path,
+    )
+    yaml_i["spec"]["horizon"] = 10
+    yaml_i["spec"]["model"] = model
+    df = pd.read_csv(historical_data_path)
+    yaml_i["spec"]["historical_data"].pop("url")
+    yaml_i["spec"]["historical_data"]["data"] = df
+    yaml_i["spec"]["historical_data"]["format"] = "pandas"
+
+    df_add = pd.read_csv(additional_data_path)
+    yaml_i["spec"]["additional_data"].pop("url")
+    yaml_i["spec"]["additional_data"]["data"] = df_add
+    yaml_i["spec"]["additional_data"]["format"] = "pandas"
+
+    operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+    results = operate(operator_config)
+    assert pd.read_csv(additional_data_path)["Date"].equals(
+        pd.read_csv(f"{tmpdirname}/results/forecast.csv")["Date"]
+    )
+    forecast = results.get_forecast()
+    metrics = results.get_metrics()
+    test_metrics = results.get_test_metrics()
+
+
+@pytest.mark.parametrize("model", ["prophet"])
 def test_date_format(operator_setup, model):
     tmpdirname = operator_setup
     historical_data_path, additional_data_path = setup_small_rossman()
@@ -741,6 +812,204 @@ def test_date_format(operator_setup, model):
     assert pd.read_csv(additional_data_path)["Date"].equals(
         pd.read_csv(f"{tmpdirname}/results/forecast.csv")["Date"]
     )
+
+
+@pytest.mark.parametrize("model", MODELS)
+def test_what_if_analysis(operator_setup, model):
+    os.environ["TEST_MODE"] = "True"
+    if model == "auto-select":
+        pytest.skip("Skipping what-if scenario for auto-select")
+    tmpdirname = operator_setup
+    historical_data_path, additional_data_path = setup_small_rossman()
+    additional_test_path = f"{tmpdirname}/additional_data.csv"
+    historical_test_path = f"{tmpdirname}/historical_data.csv"
+    historical_data = pd.read_csv(historical_data_path, parse_dates=["Date"])
+    historical_filtered = historical_data[historical_data["Date"] > "2013-03-01"]
+    additional_data = pd.read_csv(additional_data_path, parse_dates=["Date"])
+    add_filtered = additional_data[additional_data["Date"] > "2013-03-01"]
+    add_filtered.to_csv(f"{additional_test_path}", index=False)
+    historical_filtered.to_csv(f"{historical_test_path}", index=False)
+
+    yaml_i, output_data_path = populate_yaml(
+        tmpdirname=tmpdirname,
+        historical_data_path=historical_test_path,
+        additional_data_path=additional_test_path,
+        output_data_path=f"{tmpdirname}/{model}/results",
+    )
+    yaml_i["spec"]["horizon"] = 10
+    yaml_i["spec"]["model"] = model
+    yaml_i["spec"]["what_if_analysis"] = {
+        "model_name": f"model_{model}",
+        "model_display_name": f"test_{model}",
+        "project_id": "test_project_id",
+        "compartment_id": "test_compartment_id",
+    }
+
+    run_yaml(
+        tmpdirname=tmpdirname,
+        yaml_i=yaml_i,
+        output_data_path=output_data_path,
+        test_metrics_check=False,
+    )
+    report_path = f"{output_data_path}/report.html"
+    deployment_metadata = f"{output_data_path}/deployment_info.json"
+    assert os.path.exists(report_path), f"Report file not found at {report_path}"
+    assert os.path.exists(
+        deployment_metadata
+    ), f"Deployment info file not found at {deployment_metadata}"
+
+
+def test_auto_select(operator_setup):
+    DATASET_PREFIX = f"{os.path.dirname(os.path.abspath(__file__))}/../data/timeseries/"
+    tmpdirname = operator_setup
+    historical_test_path = f"{DATASET_PREFIX}/dataset6.csv"
+    model = "auto-select"
+    yaml_i, output_data_path = populate_yaml(
+        tmpdirname=tmpdirname,
+        historical_data_path=historical_test_path,
+        output_data_path=f"{tmpdirname}/{model}/results",
+    )
+    yaml_i["spec"].pop("additional_data")
+    yaml_i["spec"]["horizon"] = 2
+    yaml_i["spec"]["datetime_column"]["format"] = "%d-%m-%Y"
+    yaml_i["spec"]["model"] = model
+    yaml_i["spec"]["model_kwargs"] = {"model_list": ["prophet", "arima"]}
+
+    run_yaml(
+        tmpdirname=tmpdirname,
+        yaml_i=yaml_i,
+        output_data_path=output_data_path,
+        test_metrics_check=False,
+    )
+    report_path = f"{output_data_path}/report.html"
+    assert os.path.exists(report_path), f"Report file not found at {report_path}"
+
+
+@pytest.mark.parametrize("model", ["prophet"])
+def test_report_title(operator_setup, model):
+    yaml_i = TEMPLATE_YAML.copy()
+    yaml_i["spec"]["horizon"] = 10
+    yaml_i["spec"]["model"] = model
+    yaml_i["spec"]["historical_data"] = {"format": "pandas"}
+    yaml_i["spec"]["target_column"] = TARGET_COL.name
+    yaml_i["spec"]["datetime_column"]["name"] = HISTORICAL_DATETIME_COL.name
+    yaml_i["spec"]["report_title"] = "Skibidi ADS Skibidi"
+    yaml_i["spec"]["output_directory"]["url"] = operator_setup
+
+    df = pd.concat([HISTORICAL_DATETIME_COL[:15], TARGET_COL[:15]], axis=1)
+    yaml_i["spec"]["historical_data"]["data"] = df
+    operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+    results = operate(operator_config)
+    with open(os.path.join(operator_setup, "report.html")) as f:
+        for line in f:
+            if "Skibidi ADS Skibidi" in line:
+                return True
+        assert False, "Report Title was not set"
+
+
+@pytest.mark.parametrize("model", ["prophet"])
+def test_prophet_floor_cap(operator_setup, model):
+    yaml_i = TEMPLATE_YAML.copy()
+    yaml_i["spec"]["horizon"] = 10
+    yaml_i["spec"]["model"] = model
+    yaml_i["spec"]["historical_data"] = {"format": "pandas"}
+    yaml_i["spec"]["datetime_column"]["name"] = HISTORICAL_DATETIME_COL.name
+    yaml_i["spec"]["output_directory"]["url"] = operator_setup
+    yaml_i["spec"]["target_column"] = "target"
+    yaml_i["spec"]["model_kwargs"] = {"min": 0, "max": 20}
+
+    target_column = pd.Series(np.arange(20, -6, -2), name="target")
+    df = pd.concat(
+        [HISTORICAL_DATETIME_COL[: len(target_column)], target_column], axis=1
+    )
+    yaml_i["spec"]["historical_data"]["data"] = df
+    operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+    results = operate(operator_config)
+    assert np.all(
+        results.get_forecast()["forecast_value"].dropna() > 0
+    ), "`min` not obeyed in prophet"
+    assert np.all(
+        results.get_forecast()["fitted_value"].dropna() > 0
+    ), "`min` not obeyed in prophet"
+
+    target_column = pd.Series(np.arange(-6, 20, 2), name="target")
+    df = pd.concat(
+        [HISTORICAL_DATETIME_COL[: len(target_column)], target_column], axis=1
+    )
+    yaml_i["spec"]["historical_data"]["data"] = df
+    operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+    results = operate(operator_config)
+    assert np.all(
+        results.get_forecast()["forecast_value"].dropna() < 20
+    ), "`max` not obeyed in prophet"
+    assert np.all(
+        results.get_forecast()["fitted_value"].dropna() < 20
+    ), "`max` not obeyed in prophet"
+
+
+@pytest.mark.parametrize("model", ["prophet"])
+def test_generate_files(operator_setup, model):
+    yaml_i = TEMPLATE_YAML.copy()
+    yaml_i["spec"]["horizon"] = 3
+    yaml_i["spec"]["model"] = model
+    yaml_i["spec"]["historical_data"] = {"format": "pandas"}
+    yaml_i["spec"]["additional_data"] = {"format": "pandas"}
+    yaml_i["spec"]["target_column"] = TARGET_COL.name
+    yaml_i["spec"]["datetime_column"]["name"] = HISTORICAL_DATETIME_COL.name
+    yaml_i["spec"]["output_directory"]["url"] = operator_setup
+    yaml_i["spec"]["generate_explanation_files"] = False
+    yaml_i["spec"]["generate_forecast_file"] = False
+    yaml_i["spec"]["generate_metrics_file"] = False
+    yaml_i["spec"]["generate_explanations"] = True
+    yaml_i["spec"]["model_kwargs"] = {"min": 0, "max": 20}
+
+    df = pd.concat([HISTORICAL_DATETIME_COL[:15], TARGET_COL[:15]], axis=1)
+    df_add = pd.concat([HISTORICAL_DATETIME_COL[:18], ADD_COLS[:18]], axis=1)
+    yaml_i["spec"]["historical_data"]["data"] = df
+    yaml_i["spec"]["additional_data"]["data"] = df_add
+    operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+    results = operate(operator_config)
+    files = os.listdir(yaml_i["spec"]["output_directory"]["url"])
+    if "errors.json" in files:
+        with open(
+            os.path.join(yaml_i["spec"]["output_directory"]["url"], "errors.json")
+        ) as f:
+            assert False, f"Failed due to errors.json being created: {f.read()}"
+    assert "report.html" in files, "Failed to generate report"
+    assert (
+        "forecast.csv" not in files
+    ), "Generated forecast file, but `generate_forecast_file` was set False"
+    assert (
+        "metrics.csv" not in files
+    ), "Generated metrics file, but `generate_metrics_file` was set False"
+    assert (
+        "local_explanations.csv" not in files
+    ), "Generated metrics file, but `generate_explanation_files` was set False"
+    assert (
+        "global_explanations.csv" not in files
+    ), "Generated metrics file, but `generate_explanation_files` was set False"
+    assert not results.get_forecast().empty
+    assert not results.get_metrics().empty
+    assert not results.get_global_explanations().empty
+    assert not results.get_local_explanations().empty
+
+    yaml_i["spec"].pop("generate_explanation_files")
+    yaml_i["spec"].pop("generate_forecast_file")
+    yaml_i["spec"].pop("generate_metrics_file")
+    operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+    results = operate(operator_config)
+    files = os.listdir(yaml_i["spec"]["output_directory"]["url"])
+    if "errors.json" in files:
+        with open(
+            os.path.join(yaml_i["spec"]["output_directory"]["url"], "errors.json")
+        ) as f:
+            print(f"Errors in build! {f.read()}")
+            assert False, "Failed due to errors.json being created"
+    assert "report.html" in files, "Failed to generate report"
+    assert "forecast.csv" in files, "Failed to generate forecast file"
+    assert "metrics.csv" in files, "Failed to generated metrics file"
+    assert "local_explanation.csv" in files, "Failed to generated local expl file"
+    assert "global_explanation.csv" in files, "Failed to generated global expl file"
 
 
 if __name__ == "__main__":

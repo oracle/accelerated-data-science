@@ -4,42 +4,23 @@
 Large Language Model
 ####################
 
-Oracle Cloud Infrastructure (OCI) provides fully managed infrastructure to work with Large Language Model (LLM).
+Oracle Cloud Infrastructure (OCI) `Data Science <https://www.oracle.com/artificial-intelligence/data-science>`_ is a fully managed, serverless platform that empowers data science teams to build, train, and manage machine learning models on Oracle Cloud Infrastructure.
 
-Train and Deploy LLM
-********************
-You can train LLM at scale with multi-node and multi-GPU using `Data Science Jobs (Jobs) <https://docs.oracle.com/en-us/iaas/data-science/using/jobs-about.htm>`_, and deploy it with `Data Science Model Deployment (Model Deployments) <https://docs.oracle.com/en-us/iaas/data-science/using/model-dep-about.htm>`_. The following blog posts show examples training and deploying Llama2 models:
+The platform features `AI Quick Actions <https://docs.oracle.com/en-us/iaas/data-science/using/ai-quick-actions.htm>`_, which enable you to deploy, evaluate, and fine-tune foundation models directly within OCI Data Science. Designed for users eager to quickly harness AI capabilities, these actions provide a streamlined, code-free, and efficient environment for working with foundation models. You can access AI Quick Actions directly from the Data Science Notebook.
 
-* `Multi-GPU multinode fine-tuning Llama2 on OCI Data Science <https://blogs.oracle.com/ai-and-datascience/post/multi-gpu-multi-node-finetuning-llama2-oci>`_
-* `Deploy Llama 2 in OCI Data Science <https://blogs.oracle.com/ai-and-datascience/post/llama2-oci-data-science-cloud-platform>`_
-* `Quantize and deploy Llama 2 70B on cost-effective NVIDIA A10 Tensor Core GPUs in OCI Data Science <https://blogs.oracle.com/ai-and-datascience/post/quantize-deploy-llama2-70b-costeffective-a10s-oci>`_
+Detailed documentation on deploying LLM models in OCI Data Science using AI Quick Actions is available `here <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/model-deployment-tips.md>`_ and `here <https://docs.oracle.com/en-us/iaas/data-science/using/ai-quick-actions-model-deploy.htm>`_.
 
-
-Integration with LangChain
-**************************
-ADS is designed to work with LangChain, enabling developers to incorporate various LangChain components and models deployed on OCI seamlessly into their applications. Additionally, ADS can package LangChain applications and deploy it as a REST API endpoint using OCI Data Science Model Deployment.
-
-* `Bridging cloud and conversational AI: LangChain and OCI Data Science platform <https://blogs.oracle.com/ai-and-datascience/post/cloud-conversational-ai-langchain-oci-data-science>`_
-* `Deploy LangChain applications as OCI model deployments <https://blogs.oracle.com/ai-and-datascience/post/deploy-langchain-application-as-model-deployment>`_
-
-
-.. admonition:: Installation
-  :class: note
-
-  Install ADS and other dependencies for LLM integrations.
-
-  .. code-block:: bash
-
-    $ python3 -m pip install "oracle-ads[llm]"
-
+This section provides comprehensive information on integrating OCI with **LangChain, Autogen, LlamaIndex**, and other third-party **LLM frameworks**.
 
 
 .. toctree::
     :maxdepth: 2
 
+    aqua_client
     training_llm
     langchain_models
     autogen_integration
+    llamaindex_integration
     deploy_langchain_application
     retrieval
     guardrails

@@ -96,6 +96,12 @@ fsspec
 * Source code: https://github.com/intake/filesystem_spec
 * Project home: https://github.com/intake/filesystem_spec
 
+httpx
+* Copyright (c) 2021 ProjectDiscovery, Inc.
+* License: MIT License
+* Source code: https://github.com/projectdiscovery/httpx
+* Project home: https://github.com/projectdiscovery/httpx
+
 geopandas
 * Copyright  (c) 2013-2016, GeoPandas developers
 * License: BSD 3-Clause "New" or "Revised" License
@@ -390,6 +396,12 @@ tabulate
 * License: MIT License
 * Source code: https://github.com/astanin/python-tabulate
 * Project home: https://github.com/astanin/python-tabulate
+
+tenacity
+* No listed copyright holder
+* License: Apache-2.0 license
+* Source code: https://github.com/jd/tenacity
+* Project home: https://github.com/jd/tenacity
 
 tensorflow
 * Copyright (c) 2023 Google, Inc.
