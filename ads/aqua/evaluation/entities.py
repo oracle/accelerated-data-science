@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -91,6 +91,11 @@ class CreateAquaEvaluationDetails(Serializable):
     force_overwrite: Optional[bool] = False
     freeform_tags: Optional[dict] = None
     defined_tags: Optional[dict] = None
+    container_image_uri: Optional[str] = Field(
+        None,
+        description="Image URI for evaluation container runtime. "
+        "The service managed container will be used by default.",
+    )
 
     class Config:
         extra = "ignore"

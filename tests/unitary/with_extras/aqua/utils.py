@@ -122,7 +122,7 @@ class HandlerTestDataset:
         block_storage_size=1,
         experiment_name="test_experiment_name",
         memory_in_gbs=1,
-        ocpus=1,
+        ocpus=1.0,
     )
     mock_invalid_input = dict(name="myvalue")
     mock_dataclass_obj = MockData(id="myid", name="myname")

@@ -283,7 +283,9 @@ class AquaApp:
                 logger.info(f"Artifact not found in model {model_id}.")
                 return False
 
-    def get_config_from_metadata(self, model_id: str, metadata_key: str) -> Dict:
+    def get_config_from_metadata(
+        self, model_id: str, metadata_key: str
+    ) -> ModelConfigResult:
         """Gets the config for the given Aqua model from model catalog metadata content.
 
         Parameters
@@ -294,15 +296,16 @@ class AquaApp:
             The metadata key name where artifact content is stored
         Returns
         -------
-        Dict:
-            A dict of allowed configs.
+        ModelConfigResult
+            A Pydantic model containing the model_details (extracted from OCI) and the config dictionary.
         """
         config = {}
+        oci_model = self.ds_client.get_model(model_id).data
         try:
             config = self.ds_client.get_model_defined_metadatum_artifact_content(
                 model_id, metadata_key
             ).data.content.decode("utf-8")
-            return json.loads(config)
+            return ModelConfigResult(config=json.loads(config), model_details=oci_model)
         except UnicodeDecodeError as ex:
             logger.error(
                 f"Failed to decode content for {metadata_key} in defined metadata for model: {model_id} : {ex}"
@@ -315,8 +318,9 @@ class AquaApp:
             logger.error(
                 f"Error while fetching {metadata_key} in defined metadata for model: {model_id}: {ex}"
             )
-        return config
+        return ModelConfigResult(config=config, model_details=oci_model)
 
+    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=1), timer=datetime.now))
     def get_config(
         self,
         model_id: str,
@@ -355,22 +359,7 @@ class AquaApp:
             raise AquaRuntimeError(f"Target model {oci_model.id} is not an Aqua model.")
 
         config: Dict[str, Any] = {}
-
-        # if the current model has a service model tag, then
-        if Tags.AQUA_SERVICE_MODEL_TAG in oci_model.freeform_tags:
-            base_model_ocid = oci_model.freeform_tags[Tags.AQUA_SERVICE_MODEL_TAG]
-            logger.info(
-                f"Base model found for the model: {oci_model.id}. "
-                f"Loading {config_file_name} for base model {base_model_ocid}."
-            )
-            if config_folder == ConfigFolder.ARTIFACT:
-                artifact_path = get_artifact_path(oci_model.custom_metadata_list)
-            else:
-                base_model = self.ds_client.get_model(base_model_ocid).data
-                artifact_path = get_artifact_path(base_model.custom_metadata_list)
-        else:
-            logger.info(f"Loading {config_file_name} for model {oci_model.id}...")
-            artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
         if not artifact_path:
             logger.debug(
                 f"Failed to get artifact path from custom metadata for the model: {model_id}"
@@ -385,6 +374,9 @@ class AquaApp:
         config_file_path = os.path.join(config_path, config_file_name)
         if is_path_exists(config_file_path):
             try:
+                logger.info(
+                    f"Loading config: `{config_file_name}` from `{config_path}`"
+                )
                 config = load_config(
                     config_path,
                     config_file_name=config_file_name,

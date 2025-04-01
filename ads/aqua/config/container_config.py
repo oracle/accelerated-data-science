@@ -14,7 +14,14 @@ from ads.aqua.constants import (
     UNKNOWN_JSON_LIST,
     UNKNOWN_JSON_STR,
 )
+from ads.common.extended_enum import ExtendedEnum
 from ads.common.utils import UNKNOWN
+
+
+class Usage(ExtendedEnum):
+    INFERENCE = "inference"
+    BATCH_INFERENCE = "batch_inference"
+    MULTI_MODEL = "multi_model"
 
 
 class AquaContainerConfigSpec(Serializable):
@@ -96,6 +103,7 @@ class AquaContainerConfigItem(Serializable):
 
     class Config:
         extra = "allow"
+        protected_namespaces = ()
 
 
 class AquaContainerConfig(Serializable):
@@ -220,11 +228,11 @@ class AquaContainerConfig(Serializable):
                     ),
                 )
                 container_item.spec = container_spec
-            if "INFERENCE" in map(lambda x: x.upper(), container.usages):
+            if "INFERENCE" in (x.upper() for x in container.usages):
                 inference_items[container_type] = container_item
-            if "FINE_TUNE" in map(lambda x: x.upper(), container.usages):
+            if "FINE_TUNE" in (x.upper() for x in container.usages):
                 finetune_items[container_type] = container_item
-            if "EVALUATION" in map(lambda x: x.upper(), container.usages):
+            if "EVALUATION" in (x.upper() for x in container.usages):
                 evaluate_items[container_type] = container_item
         return cls(
             inference=inference_items, finetune=finetune_items, evaluate=evaluate_items

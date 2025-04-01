@@ -248,7 +248,7 @@ All the unit tests can be found [here](https://github.com/oracle/accelerated-dat
 The following commands detail how the unit tests can be run.
 ```
 # Run all tests in AQUA project
-python -m pytest -q tests/unitary/with_extras/aqua/test_deployment.py
+python -m pytest -q tests/unitary/with_extras/aqua/*
 
 # Run all tests specific to a module within in AQUA project (ex. test_deployment.py, test_model.py, etc.)
 python -m pytest -q tests/unitary/with_extras/aqua/test_deployment.py
