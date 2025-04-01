@@ -461,9 +461,9 @@ class AquaApp:
         """
 
         aqua_container_config = self.get_container_config()
-        inference_config = aqua_container_config.to_dict().get("inference")
-        ft_config = aqua_container_config.to_dict().get("finetune")
-        eval_config = aqua_container_config.to_dict().get("evaluate")
+        inference_config = aqua_container_config.inference.values()
+        ft_config = aqua_container_config.finetune.values()
+        eval_config = aqua_container_config.evaluate.values()
         container = next(
             (
                 container

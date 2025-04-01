@@ -273,7 +273,7 @@ class AquaModelApp(AquaApp):
         supported_container_families = [
             container_config_item.family
             for container_config_item in service_inference_containers
-            if Usage.MULTI_MODEL in container_config_item.usages
+            if Usage.MULTI_MODEL.upper() in container_config_item.usages
         ]
 
         if not supported_container_families:

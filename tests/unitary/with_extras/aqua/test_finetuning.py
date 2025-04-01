@@ -279,8 +279,10 @@ class FineTuningTestCase(TestCase):
         config_json = os.path.join(self.curr_dir, "test_data/finetuning/ft_config.json")
         with open(config_json, "r") as _file:
             config = json.load(_file)
-
-        self.app.get_config = MagicMock(return_value=ModelConfigResult(config=config))
+        self.app.get_config_from_metadata = MagicMock(return_value={})
+        self.app.get_config = MagicMock(
+            return_value=ModelConfigResult(config=config, model_details=None)
+        )
         result = self.app.get_finetuning_config(model_id="test-model-id")
         assert result == config
 

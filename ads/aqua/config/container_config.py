@@ -166,7 +166,8 @@ class AquaContainerConfig(Serializable):
                 spec=None,
             )
             container_type = container.family_name
-            if container.usages[0].lower() in "inference":
+            usages = [x.upper() for x in container.usages]
+            if "INFERENCE" in usages or "MULTI_MODEL" in usages:
                 container_item.platforms.append(
                     container.workload_configuration_details_list[
                         0
@@ -228,11 +229,11 @@ class AquaContainerConfig(Serializable):
                     ),
                 )
                 container_item.spec = container_spec
-            if "INFERENCE" in (x.upper() for x in container.usages):
+            if "INFERENCE" in usages or "MULTI_MODEL" in usages:
                 inference_items[container_type] = container_item
-            if "FINE_TUNE" in (x.upper() for x in container.usages):
+            if "FINE_TUNE" in usages:
                 finetune_items[container_type] = container_item
-            if "EVALUATION" in (x.upper() for x in container.usages):
+            if "EVALUATION" in usages:
                 evaluate_items[container_type] = container_item
         return cls(
             inference=inference_items, finetune=finetune_items, evaluate=evaluate_items

@@ -541,7 +541,7 @@ class TestAquaUI(unittest.TestCase):
         mock_list_service_containers.return_value = TestDataset.CONTAINERS_LIST
 
         test_result = self.app.list_containers()
-
+        print("test_result: ", test_result)
         expected_result = {
             "evaluate": [
                 {
@@ -584,7 +584,7 @@ class TestAquaUI(unittest.TestCase):
                         "server_port": "8080",
                         "evaluation_configuration": {},
                     },
-                    "usages": ["multi_model"],
+                    "usages": ["INFERENCE", "BATCH_INFERENCE"],
                 },
             ],
             "finetune": [
@@ -603,5 +603,4 @@ class TestAquaUI(unittest.TestCase):
         test_result = json.loads(
             json.dumps(test_result, default=AquaAPIhandler.serialize)
         )
-        for key in expected_result:
-            assert expected_result[key] == test_result[key]
+        assert expected_result == test_result
