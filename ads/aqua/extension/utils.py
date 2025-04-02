@@ -15,6 +15,11 @@ from tornado.web import HTTPError
 
 from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.common.utils import fetch_service_compartment
+from ads.aqua.constants import (
+    AQUA_TROUBLESHOOTING_LINK,
+    ERROR_MESSAGES,
+    OCI_OPERATION_FAILURES,
+)
 from ads.aqua.extension.errors import Errors
 
 
@@ -46,60 +51,38 @@ def get_default_error_messages(
 )-> str:
     """Method that maps the error messages based on the operation performed or the status codes encountered."""
 
-    messages = {
-        "400": "Something went wrong with your request.",
-        "403": "We're having trouble processing your request with the information provided.",
-        "404": "Authorization Failed: The resource you're looking for isn't accessible.",
-        "408": "Server is taking too long to respond, please try again.",
-        "create": "Authorization Failed: Could not create resource.",
-    }
-
     if service_payload and "operation_name" in service_payload:
         operation_name = service_payload.get("operation_name")
 
-        if operation_name:
-            if operation_name.startswith("create"):
-                return f"{messages['create']} Operation Name: {operation_name}."
-            elif status_code in messages:
-                return f"{messages[status_code]} Operation Name: {operation_name}."
+        if operation_name and status_code in ERROR_MESSAGES:
+            return f"{ERROR_MESSAGES[status_code]}\n{service_payload.get('message')}\nOperation Name: {operation_name}."
 
-    return messages.get(status_code, default_msg)
+    return ERROR_MESSAGES.get(status_code, default_msg)
 
 
 def get_documentation_link(key: str) -> str:
     """Generates appropriate GitHub link to AQUA Troubleshooting Documentation per the user's error."""
     github_header = re.sub(r"_", "-", key)
-    return f"https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md#{github_header}"
+    return f"{AQUA_TROUBLESHOOTING_LINK}#{github_header}"
 
 
-def get_troubleshooting_tips(service_payload: str,
+def get_troubleshooting_tips(service_payload: dict,
                              status_code: str) -> str:
     """Maps authorization errors to potential solutions on Troubleshooting Page per Aqua Documentation on oci-data-science-ai-samples"""
 
-    operations = {
-        "list_model_deployments": "Unable to list model deployments. See tips for troubleshooting: ",
-        "list_models": "Unable to list models. See tips for troubleshooting: ",
-        "get_namespace": "Unable to access specified Object Storage Bucket. See tips for troubleshooting: ",
-        "list_log_groups":"Unable to access logs. See tips for troubleshooting: " ,
-        "list_buckets": "Unable to find versioned Object Storage Bucket. See tips for troubleshooting: ",
-        "list_model_version_sets": "Unable to create or fetch model version set. See tips for troubleshooting:",
-        "update_model": "Unable to update model. See tips for troubleshooting: ",
-        "list_data_science_private_endpoints": "Unable to access specified Object Storage Bucket. See tips for troubleshooting:  ",
-        "create_model" : "Unable to register or create model. See tips for troubleshooting: ",
-    }
-    tip = "For general tips on troubleshooting: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md"
+    tip = f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}"
 
     if status_code in (404, 400):
         failed_operation = service_payload.get('operation_name')
 
-        if failed_operation in operations:
+        if failed_operation in OCI_OPERATION_FAILURES:
             link = get_documentation_link(failed_operation)
-            tip = operations[failed_operation] + link
+            tip = OCI_OPERATION_FAILURES[failed_operation] + link
 
     return tip
 
 
-def construct_error(status_code, **kwargs) -> tuple[dict[str, int], str, str]:
+def construct_error(status_code: int, **kwargs) -> tuple[dict[str, int], str, str]:
     """
     Formats an error response based on the provided status code and optional details.
 

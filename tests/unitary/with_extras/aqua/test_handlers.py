@@ -22,6 +22,10 @@ import ads.aqua.extension
 import ads.aqua.extension.common_handler
 import ads.config
 from ads.aqua.common.errors import AquaError
+from ads.aqua.constants import (
+    AQUA_TROUBLESHOOTING_LINK,
+    ERROR_MESSAGES,
+)
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.extension.base_handler import AquaAPIhandler
@@ -113,7 +117,7 @@ class TestBaseHandlers(unittest.TestCase):
                         None,
                     ),
                 ),
-                "Authorization Failed: Could not create resource. Operation Name: create_resources.",
+                f"{ERROR_MESSAGES['404']}\nThe required information to complete authentication was not provided or was incorrect.\nOperation Name: create_resources.",
             ],
             [
                 "oci ServiceError",
@@ -139,7 +143,7 @@ class TestBaseHandlers(unittest.TestCase):
                         ],
                     ),
                 ),
-                "Authorization Failed: The resource you're looking for isn't accessible. Operation Name: get_job_run.",
+                f"{ERROR_MESSAGES['404']}\nThe required information to complete authentication was not provided or was incorrect.\nOperation Name: get_job_run.",
             ],
         ]
     )
@@ -162,7 +166,7 @@ class TestBaseHandlers(unittest.TestCase):
         )
         expected_reply = {
             "status": input.get("status_code"),
-            "troubleshooting_tips": "For general tips on troubleshooting: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md",
+            "troubleshooting_tips": f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}",
             "message": expected_msg,
             "service_payload": input.get("service_payload", {}),
             "reason": input.get("reason"),
