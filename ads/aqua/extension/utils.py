@@ -95,15 +95,14 @@ def construct_error(status_code: int, **kwargs) -> ReplyDetails:
             - exc_info (tuple, optional): Exception information (e.g., from `sys.exc_info()`), used for logging.
 
     Returns:
-        reply (dict) : The formatted error response with:
+        ReplyDetails: A Pydantic object containing details about the formatted error response.
+        kwargs:
                 - "status" (int): The HTTP status code.
-                - "troubleshooting_tips" (list): Suggested troubleshooting steps.
-                - "message" (str): The formatted error message.
-                - "service_payload" (dict): Additional service context.
-                - "reason" (str or None): The reason for the error.
+                - "troubleshooting_tips" (str): a GitHub link to AQUA troubleshooting docs, may be linked to a specific header.
+                - "message" (str): error message.
+                - "service_payload" (Dict[str, Any], optional) : Additional context from OCI Python SDK call.
+                - "reason" (str): The reason for the error.
                 - "request_id" (str): A unique identifier for tracking the error.
-        message (str) : A custom message based on the OCI Service Error Message
-        reason (str) : The reason for error (from exception caught by AQUA methods)
 
     Logs:
         - Logs the error details with a unique request ID.
