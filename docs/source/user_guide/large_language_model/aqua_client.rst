@@ -214,7 +214,7 @@ The synchronous client, ``OpenAI``, extends the OpenAI client. If no HTTP client
     ads.set_auth(auth="security_token", profile="<replace-with-your-profile>")
 
     client = OpenAI(
-        base_url="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<OCID>/predict",
+        base_url="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<OCID>/predict/v1",
     )
 
     response = client.chat.completions.create(
@@ -246,7 +246,7 @@ The asynchronous client, ``AsynOpenAI``, extends the AsyncOpenAI client. If no a
 
     async def test_async() -> None:
         client_async = AsyncOpenAI(
-            base_url="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<OCID>/predict",
+            base_url="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<OCID>/predict/v1",
         )
         response = await client_async.chat.completions.create(
             model="odsc-llm",

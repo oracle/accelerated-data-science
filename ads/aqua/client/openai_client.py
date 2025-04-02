@@ -4,17 +4,20 @@
 
 import json
 import logging
+import re
 from typing import Any, Dict, Optional
 
 import httpx
 from git import Union
 
 from ads.aqua.client.client import get_async_httpx_client, get_httpx_client
+from ads.common.extended_enum import ExtendedEnum
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = httpx.Timeout(timeout=600, connect=5.0)
 DEFAULT_MAX_RETRIES = 2
+
 
 try:
     import openai
@@ -25,90 +28,136 @@ except ImportError as e:
     ) from e
 
 
+class ModelDeploymentBaseEndpoint(ExtendedEnum):
+    """Supported base endpoints for model deployments."""
+
+    PREDICT = "predict"
+    PREDICT_WITH_RESPONSE_STREAM = "predictwithresponsestream"
+
+
 class AquaOpenAIMixin:
     """
-    Mixin that provides common logic to patch request headers and URLs
-    for both synchronous and asynchronous clients.
+    Mixin that provides common logic to patch HTTP request headers and URLs
+    for compatibility with the OCI Model Deployment service using the OpenAI API schema.
     """
 
     def _patch_route(self, original_path: str) -> str:
         """
-        Determine the appropriate route header based on the original URL path.
+        Extracts and formats the OpenAI-style route path from a full request path.
 
         Args:
-            original_path (str): The original URL path.
+            original_path (str): The full URL path from the incoming request.
 
         Returns:
-            str: The route header value.
+            str: The normalized OpenAI-compatible route path (e.g., '/v1/chat/completions').
         """
-        route = (
-            original_path.lower()
-            .rstrip("/")
-            .replace(self.base_url.path.lower().rstrip("/"), "")
-        )
-        return f"/v1{route}" if route else ""
+        normalized_path = original_path.lower().rstrip("/")
+
+        match = re.search(r"/predict(withresponsestream)?", normalized_path)
+        if not match:
+            logger.debug("Route header cannot be resolved from path: %s", original_path)
+            return ""
+
+        route_suffix = normalized_path[match.end() :].lstrip("/")
+        if not route_suffix:
+            logger.warning(
+                "Missing OpenAI route suffix after '/predict'. "
+                "Expected something like '/v1/completions'."
+            )
+            return ""
+
+        if not route_suffix.startswith("v"):
+            logger.warning(
+                "Route suffix does not start with a version prefix (e.g., '/v1'). "
+                "This may lead to compatibility issues with OpenAI-style endpoints. "
+                "Consider updating the URL to include a version prefix, "
+                "such as '/predict/v1' or '/predictwithresponsestream/v1'."
+            )
+            # route_suffix = f"v1/{route_suffix}"
+
+        return f"/{route_suffix}"
 
     def _patch_streaming(self, request: httpx.Request) -> None:
         """
-        Set the 'enable-streaming' header based on whether the JSON request body contains
-        a 'stream': true parameter.
+        Sets the 'enable-streaming' header based on the JSON request body contents.
 
-        If the Content-Type is JSON, the request body is parsed. If the key 'stream' is set to True,
-        the header 'enable-streaming' is set to "true". Otherwise, it is set to "false".
-        If parsing fails, a warning is logged and the default value remains "false".
+        If the request body contains `"stream": true`, the `enable-streaming` header is set to "true".
+        Otherwise, it defaults to "false".
 
         Args:
-            request (httpx.Request): The outgoing HTTP request.
+            request (httpx.Request): The outgoing HTTPX request.
         """
         streaming_enabled = "false"
         content_type = request.headers.get("Content-Type", "")
+
         if "application/json" in content_type and request.content:
             try:
-                body_str = (
+                body = (
                     request.content.decode("utf-8")
                     if isinstance(request.content, bytes)
                     else request.content
                 )
-                data = json.loads(body_str)
-                if data.get("stream") is True:
+                payload = json.loads(body)
+                if payload.get("stream") is True:
                     streaming_enabled = "true"
             except Exception as e:
-                logger.exception("Failed to parse JSON from request body: %s", e)
+                logger.exception(
+                    "Failed to parse request JSON body for streaming flag: %s", e
+                )
+
         request.headers.setdefault("enable-streaming", streaming_enabled)
-        logger.debug(
-            "Patched streaming header to: %s", request.headers["enable-streaming"]
-        )
+        logger.debug("Patched 'enable-streaming' header: %s", streaming_enabled)
 
     def _patch_headers(self, request: httpx.Request) -> None:
         """
-        Patch the headers of the request by setting the 'enable-streaming' and 'route' headers.
+        Patches request headers by injecting OpenAI-compatible values:
+        - `enable-streaming` for streaming-aware endpoints
+        - `route` for backend routing
 
         Args:
-            request (httpx.Request): The HTTP request to patch.
+            request (httpx.Request): The outgoing HTTPX request.
         """
         self._patch_streaming(request)
-        request.headers.setdefault("route", self._patch_route(request.url.path))
-        logger.debug("Patched route header to: %s", request.headers["route"])
+        route_header = self._patch_route(request.url.path)
+        request.headers.setdefault("route", route_header)
+        logger.debug("Patched 'route' header: %s", route_header)
+
+    def _patch_url(self) -> httpx.URL:
+        """
+        Strips any suffixes from the base URL to retain only the `/predict` or `/predictwithresponsestream` path.
+
+        Returns:
+            httpx.URL: The normalized base URL with the correct model deployment path.
+        """
+        base_path = f"{self.base_url.path.lower().rstrip('/')}/"
+        match = re.search(r"/predict(withresponsestream)?/", base_path)
+        if match:
+            trimmed = base_path[: match.end() - 1]
+            return self.base_url.copy_with(path=trimmed)
+
+        logger.debug("Could not determine a valid endpoint from path: %s", base_path)
+        return self.base_url
 
     def _prepare_request_common(self, request: httpx.Request) -> None:
         """
-        Prepare the HTTP request by patching headers and normalizing the URL path.
+        Common preparation routine for all requests.
 
-        This method:
-          1. Automatically sets the 'enable-streaming' header based on the request body.
-          2. Determines the 'route' header based on the original URL path using OCID-based extraction.
-          3. Rewrites the URL path to always end with '/predict' based on the deployment base.
+        This includes:
+        - Patching headers with streaming and routing info.
+        - Normalizing the URL path to include only `/predict` or `/predictwithresponsestream`.
 
         Args:
-            request (httpx.Request): The outgoing HTTP request.
+            request (httpx.Request): The outgoing HTTPX request.
         """
-        # Patches the headers
+        # Patch headers
         logger.debug("Original headers: %s", request.headers)
         self._patch_headers(request)
         logger.debug("Headers after patching: %s", request.headers)
 
-        # Patches the URL
-        request.url = self.base_url.copy_with(path=self.base_url.path.rstrip("/"))
+        # Patch URL
+        logger.debug("URL before patching: %s", request.url)
+        request.url = self._patch_url()
+        logger.debug("URL after patching: %s", request.url)
 
 
 class OpenAI(openai.OpenAI, AquaOpenAIMixin):
