@@ -14,7 +14,7 @@ from ads.common.extended_enum import ExtendedEnum
 class Usage(ExtendedEnum):
     INFERENCE = "inference"
     BATCH_INFERENCE = "batch_inference"
-    MULTI_MODEL = "multi_model"
+    MULTI_MODEL = "other"
 
 
 class AquaContainerConfigSpec(Serializable):

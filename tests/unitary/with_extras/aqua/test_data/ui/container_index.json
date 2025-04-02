@@ -131,7 +131,9 @@
       ],
       "type": "inference",
       "usages": [
-        "multi_model"
+        "inference",
+        "batch_inference",
+        "other"
       ],
       "version": "0.4.1.3"
     }
