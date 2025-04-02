@@ -23,13 +23,13 @@ from parameterized import parameterized
 from tornado.web import HTTPError
 
 from ads.aqua.common.errors import AquaError
-from ads.aqua.extension.base_handler import AquaAPIhandler
-
 from ads.aqua.constants import (
     AQUA_TROUBLESHOOTING_LINK,
-    ERROR_MESSAGES,
-    OCI_OPERATION_FAILURES
+    OCI_OPERATION_FAILURES,
+    STATUS_CODE_MESSAGES,
 )
+from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.aqua.extension.errors import ReplyDetails
 
 
 class TestDataset:
@@ -91,7 +91,7 @@ class TestAquaDecorators(TestCase):
                 {
                     "status": 400,
                     "troubleshooting_tips": f"{OCI_OPERATION_FAILURES['create_model']}{AQUA_TROUBLESHOOTING_LINK}#create-model",
-                    "message": f"{ERROR_MESSAGES['400']}\nInvalid tags\nOperation Name: create_model.",
+                    "message": f"{STATUS_CODE_MESSAGES['400']}\nInvalid tags\nOperation Name: create_model.",
                     "service_payload": {
                         "target_service": None,
                         "status": 400,
@@ -121,7 +121,7 @@ class TestAquaDecorators(TestCase):
                 {
                     "status": 400,
                     "troubleshooting_tips": f"{OCI_OPERATION_FAILURES['update_model']}{AQUA_TROUBLESHOOTING_LINK}#update-model",
-                    "message": f"{ERROR_MESSAGES['400']}\nInvalid tags\nOperation Name: update_model.",
+                    "message": f"{STATUS_CODE_MESSAGES['400']}\nInvalid tags\nOperation Name: update_model.",
                     "service_payload": {
                         "target_service": None,
                         "status": 400,
@@ -151,7 +151,7 @@ class TestAquaDecorators(TestCase):
                 {
                     "status": 400,
                     "troubleshooting_tips": f"{OCI_OPERATION_FAILURES['update_model']}{AQUA_TROUBLESHOOTING_LINK}#update-model",
-                    "message": f"{ERROR_MESSAGES['400']}\nInvalid tags\nOperation Name: update_model.",
+                    "message": f"{STATUS_CODE_MESSAGES['400']}\nInvalid tags\nOperation Name: update_model.",
                     "service_payload": {
                         "target_service": None,
                         "status": 400,
@@ -181,7 +181,7 @@ class TestAquaDecorators(TestCase):
                 {
                     "status": 404,
                     "troubleshooting_tips": f"{OCI_OPERATION_FAILURES['put_object']}{AQUA_TROUBLESHOOTING_LINK}#put-object",
-                    "message": f"{ERROR_MESSAGES['404']}\nEither the bucket named 'xxx' does not exist in the namespace 'xxx' or you are not authorized to access it\nOperation Name: put_object.",
+                    "message": f"{STATUS_CODE_MESSAGES['404']}\nEither the bucket named 'xxx' does not exist in the namespace 'xxx' or you are not authorized to access it\nOperation Name: put_object.",
                     "service_payload": {
                         "target_service": None,
                         "status": 404,
@@ -205,7 +205,7 @@ class TestAquaDecorators(TestCase):
                 {
                     "status": 400,
                     "troubleshooting_tips": f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}",
-                    "message": ERROR_MESSAGES["400"],
+                    "message": STATUS_CODE_MESSAGES["400"],
                     "service_payload": {},
                     "reason": "ConfigFileNotFound: Could not find config file at the given path.",
                     "request_id": TestDataset.mock_request_id,
@@ -219,7 +219,7 @@ class TestAquaDecorators(TestCase):
                 {
                     "status": 400,
                     "troubleshooting_tips": f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}",
-                    "message": ERROR_MESSAGES["400"],
+                    "message": STATUS_CODE_MESSAGES["400"],
                     "service_payload": {},
                     "reason": "MissingEndpointForNonRegionalServiceClientError: An endpoint must be provided for a non-regional service client",
                     "request_id": TestDataset.mock_request_id,
@@ -231,7 +231,7 @@ class TestAquaDecorators(TestCase):
                 {
                     "status": 400,
                     "troubleshooting_tips": f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}",
-                    "message": ERROR_MESSAGES["400"],
+                    "message": STATUS_CODE_MESSAGES["400"],
                     "service_payload": {},
                     "reason": "RequestException: An exception occurred when making the request",
                     "request_id": TestDataset.mock_request_id,
@@ -319,7 +319,7 @@ class TestAquaDecorators(TestCase):
         from ads.aqua.common.decorator import handle_exceptions
 
         mock_uuid.return_value = TestDataset.mock_request_id
-        expected_call = json.dumps(expected_reply)
+        expected_call = ReplyDetails(**expected_reply)
 
         @handle_exceptions
         def mock_function(self):

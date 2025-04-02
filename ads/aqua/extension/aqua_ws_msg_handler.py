@@ -51,7 +51,7 @@ class AquaWSMsgHandler:
         """AquaWSMSGhandler errors are JSON, not human pages."""
 
         service_payload = kwargs.get("service_payload", {})
-        reply, message, reason = construct_error(status_code, **kwargs)
+        reply_details = construct_error(status_code, **kwargs)
 
         # telemetry may not be present if there is an error while initializing
         if hasattr(self, "telemetry"):
@@ -59,14 +59,14 @@ class AquaWSMsgHandler:
             self.telemetry.record_event_async(
                 category="aqua/error",
                 action=str(status_code),
-                value=reason,
+                value=reply_details.reason,
                 **aqua_api_details,
             )
         response = AquaWsError(
             status=status_code,
-            message=message,
+            message=reply_details.message,
             service_payload=service_payload,
-            reason=reason,
+            reason=reply_details.reason,
         )
         base_message = BaseRequest.from_json(self.message, ignore_unknown=True)
         return ErrorResponse(

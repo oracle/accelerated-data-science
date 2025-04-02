@@ -96,15 +96,15 @@ OCI_OPERATION_FAILURES = {
         "put_object": "Unable to access or find Object Storage Bucket. See tips for troubleshooting: ",
         "list_model_version_sets": "Unable to create or fetch model version set. See tips for troubleshooting:",
         "update_model": "Unable to update model. See tips for troubleshooting: ",
-        "list_data_science_private_endpoints": "Unable to access specified Object Storage Bucket. See tips for troubleshooting:  ",
-        "create_model" : "Unable to register or create model. See tips for troubleshooting: ",
+        "list_data_science_private_endpoints": "Unable to access private endpoint. See tips for troubleshooting:  ",
+        "create_model" : "Unable to register model. See tips for troubleshooting: ",
         "create_deployment": "Unable to create deployment. See tips for troubleshooting: ",
         "create_model_version_sets" : "Unable to create model version set. See tips for troubleshooting: ",
         "create_job": "Unable to create job. See tips for troubleshooting: ",
         "create_job_run": "Unable to create job run. See tips for troubleshooting: ",
 }
 
-ERROR_MESSAGES = {
+STATUS_CODE_MESSAGES = {
         "400": "Could not process your request due to invalid input.",
         "403": "We're having trouble processing your request with the information provided.",
         "404": "Authorization Failed: The resource you're looking for isn't accessible.",

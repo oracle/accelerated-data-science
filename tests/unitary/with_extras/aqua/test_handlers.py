@@ -24,7 +24,7 @@ import ads.config
 from ads.aqua.common.errors import AquaError
 from ads.aqua.constants import (
     AQUA_TROUBLESHOOTING_LINK,
-    ERROR_MESSAGES,
+    STATUS_CODE_MESSAGES,
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.evaluation import AquaEvaluationApp
@@ -42,7 +42,7 @@ from ads.aqua.extension.evaluation_handler import (
 from ads.aqua.extension.model_handler import AquaModelHandler, AquaModelLicenseHandler
 from ads.aqua.model import AquaModelApp
 from tests.unitary.with_extras.aqua.utils import HandlerTestDataset as TestDataset
-
+from ads.aqua.extension.errors import ReplyDetails
 
 class TestBaseHandlers(unittest.TestCase):
     """Contains test cases for base handler."""
@@ -88,6 +88,7 @@ class TestBaseHandlers(unittest.TestCase):
                 "HTTPError",
                 dict(
                     status_code=400,
+                    reason = "Unknown Error",
                     exc_info=(None, HTTPError(400, "Bad Request"), None),
                 ),
                 "Bad Request",
@@ -117,7 +118,7 @@ class TestBaseHandlers(unittest.TestCase):
                         None,
                     ),
                 ),
-                f"{ERROR_MESSAGES['404']}\nThe required information to complete authentication was not provided or was incorrect.\nOperation Name: create_resources.",
+                f"{STATUS_CODE_MESSAGES['404']}\nThe required information to complete authentication was not provided or was incorrect.\nOperation Name: create_resources.",
             ],
             [
                 "oci ServiceError",
@@ -143,7 +144,7 @@ class TestBaseHandlers(unittest.TestCase):
                         ],
                     ),
                 ),
-                f"{ERROR_MESSAGES['404']}\nThe required information to complete authentication was not provided or was incorrect.\nOperation Name: get_job_run.",
+                f"{STATUS_CODE_MESSAGES['404']}\nThe required information to complete authentication was not provided or was incorrect.\nOperation Name: get_job_run.",
             ],
         ]
     )
@@ -164,16 +165,17 @@ class TestBaseHandlers(unittest.TestCase):
         self.test_instance.set_status.assert_called_once_with(
             input.get("status_code"), reason=input.get("reason")
         )
-        expected_reply = {
-            "status": input.get("status_code"),
-            "troubleshooting_tips": f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}",
-            "message": expected_msg,
-            "service_payload": input.get("service_payload", {}),
-            "reason": input.get("reason"),
-            "request_id": "1234",
-        }
+        expected_reply = ReplyDetails(
+            status = input.get("status_code"),
+            troubleshooting_tips = f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}",
+            message = expected_msg,
+            service_payload = input.get("service_payload", {}),
+            reason = input.get("reason", "Unknown Error"),
+            request_id = "1234",
+        )
 
-        self.test_instance.finish.assert_called_once_with(json.dumps(expected_reply))
+
+        self.test_instance.finish.assert_called_once_with(expected_reply)
         aqua_api_details = input.get("aqua_api_details", {})
 
         self.test_instance.telemetry.record_event_async.assert_called_with(
@@ -186,8 +188,8 @@ class TestBaseHandlers(unittest.TestCase):
         )
 
         error_message = (
-            f"Error Request ID: {expected_reply['request_id']}\n"
-            f"Error: {expected_reply['message']} {expected_reply['reason']}"
+            f"Error Request ID: {expected_reply.request_id}\n"
+            f"Error: {expected_reply.message} {expected_reply.reason}"
         )
 
         mock_logger.error.assert_called_with(error_message)

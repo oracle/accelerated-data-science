@@ -17,10 +17,10 @@ from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
 from ads.aqua.common.utils import fetch_service_compartment
 from ads.aqua.constants import (
     AQUA_TROUBLESHOOTING_LINK,
-    ERROR_MESSAGES,
     OCI_OPERATION_FAILURES,
+    STATUS_CODE_MESSAGES,
 )
-from ads.aqua.extension.errors import Errors
+from ads.aqua.extension.errors import Errors, ReplyDetails
 
 
 def validate_function_parameters(data_class, input_data: Dict):
@@ -54,10 +54,10 @@ def get_default_error_messages(
     if service_payload and "operation_name" in service_payload:
         operation_name = service_payload.get("operation_name")
 
-        if operation_name and status_code in ERROR_MESSAGES:
-            return f"{ERROR_MESSAGES[status_code]}\n{service_payload.get('message')}\nOperation Name: {operation_name}."
+        if operation_name and status_code in STATUS_CODE_MESSAGES:
+            return f"{STATUS_CODE_MESSAGES[status_code]}\n{service_payload.get('message')}\nOperation Name: {operation_name}."
 
-    return ERROR_MESSAGES.get(status_code, default_msg)
+    return STATUS_CODE_MESSAGES.get(status_code, default_msg)
 
 
 def get_documentation_link(key: str) -> str:
@@ -82,7 +82,7 @@ def get_troubleshooting_tips(service_payload: dict,
     return tip
 
 
-def construct_error(status_code: int, **kwargs) -> tuple[dict[str, int], str, str]:
+def construct_error(status_code: int, **kwargs) -> ReplyDetails:
     """
     Formats an error response based on the provided status code and optional details.
 
@@ -110,7 +110,7 @@ def construct_error(status_code: int, **kwargs) -> tuple[dict[str, int], str, st
         - If `exc_info` is provided and contains an `HTTPError`, updates the response message and reason accordingly.
 
     """
-    reason = kwargs.get("reason")
+    reason = kwargs.get("reason", "Unknown Error")
     service_payload = kwargs.get("service_payload", {})
     default_msg = responses.get(status_code, "Unknown HTTP Error")
     message = get_default_error_messages(
@@ -119,27 +119,29 @@ def construct_error(status_code: int, **kwargs) -> tuple[dict[str, int], str, st
 
     tips = get_troubleshooting_tips(service_payload, status_code)
 
-    reply = {
-        "status": status_code,
-        "troubleshooting_tips": tips,
-        "message": message,
-        "service_payload": service_payload,
-        "reason": reason,
-        "request_id": str(uuid.uuid4()),
-    }
+
+    reply = ReplyDetails(
+        status = status_code,
+        troubleshooting_tips = tips,
+        message = message,
+        service_payload = service_payload,
+        reason = reason,
+        request_id = str(uuid.uuid4()),
+    )
+
     exc_info = kwargs.get("exc_info")
     if exc_info:
         logger.error(
-            f"Error Request ID: {reply['request_id']}\n"
+            f"Error Request ID: {reply.request_id}\n"
             f"Error: {''.join(traceback.format_exception(*exc_info))}"
         )
         e = exc_info[1]
         if isinstance(e, HTTPError):
-            reply["message"] = e.log_message or message
-            reply["reason"] = e.reason if e.reason else reply["reason"]
+            reply.message = e.log_message or message
+            reply.reason = e.reason if e.reason else reply.reason
 
     logger.error(
-        f"Error Request ID: {reply['request_id']}\n"
-        f"Error: {reply['message']} {reply['reason']}"
+        f"Error Request ID: {reply.request_id}\n"
+        f"Error: {reply.message} {reply.reason}"
     )
-    return reply, message, reason
+    return reply

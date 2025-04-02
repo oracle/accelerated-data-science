@@ -16,8 +16,9 @@ from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import get_hf_model_info
 from ads.aqua.constants import (
     AQUA_TROUBLESHOOTING_LINK,
-    ERROR_MESSAGES,
+    STATUS_CODE_MESSAGES,
 )
+from ads.aqua.extension.errors import ReplyDetails
 from ads.aqua.extension.model_handler import (
     AquaHuggingFaceHandler,
     AquaModelHandler,
@@ -359,7 +360,15 @@ class TestAquaHuggingFaceHandler:
         self.mock_handler.get_json_body = MagicMock(side_effect=ValueError())
         self.mock_handler.post()
         self.mock_handler.finish.assert_called_with(
-            f'{{"status": 400, "troubleshooting_tips": "For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}", "message": "Invalid format of input data.", "service_payload": {{}}, "reason": "Invalid format of input data.", "request_id": "###"}}'
+            ReplyDetails(
+                status=400,
+                troubleshooting_tips= f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}",
+                message= "Invalid format of input data.",
+                service_payload = {},
+                reason = "Invalid format of input data.",
+                request_id = "###"
+
+            )
         )
         get_hf_model_info.cache_clear()
 
@@ -367,7 +376,15 @@ class TestAquaHuggingFaceHandler:
         self.mock_handler.get_json_body = MagicMock(return_value={})
         self.mock_handler.post()
         self.mock_handler.finish.assert_called_with(
-            f'{{"status": 400, "troubleshooting_tips": "For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}", "message": "No input data provided.", "service_payload": {{}}, "reason": "No input data provided.", "request_id": "###"}}'
+            ReplyDetails(
+                status=400,
+                troubleshooting_tips= f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}",
+                message=  "No input data provided.",
+                service_payload = {},
+                reason =  "No input data provided.",
+                request_id = "###"
+
+            )
         )
         get_hf_model_info.cache_clear()
 
@@ -375,7 +392,15 @@ class TestAquaHuggingFaceHandler:
         self.mock_handler.get_json_body = MagicMock(return_value={"some_field": None})
         self.mock_handler.post()
         self.mock_handler.finish.assert_called_with(
-            f'{{"status": 400, "troubleshooting_tips": "For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}", "message": "Missing required parameter: \'model_id\'", "service_payload": {{}}, "reason": "Missing required parameter: \'model_id\'", "request_id": "###"}}'
+            ReplyDetails(
+                status=400,
+                troubleshooting_tips= f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}",
+                message= "Missing required parameter: \'model_id\'",
+                service_payload = {},
+                reason =  "Missing required parameter: \'model_id\'",
+                request_id = "###"
+
+            )
         )
         get_hf_model_info.cache_clear()
 
@@ -391,7 +416,15 @@ class TestAquaHuggingFaceHandler:
             mock_model_info.side_effect = GatedRepoError(message="test message")
             self.mock_handler.post()
             self.mock_handler.finish.assert_called_with(
-                f'{{"status": 400, "troubleshooting_tips": "For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}", "message": "{ERROR_MESSAGES["400"]}", "service_payload": {{}}, "reason": "test error message", "request_id": "###"}}'
+                ReplyDetails(
+                    status=400,
+                    troubleshooting_tips= f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}",
+                    message= STATUS_CODE_MESSAGES["400"],
+                    service_payload = {},
+                    reason =  "test error message",
+                    request_id = "###"
+
+                )
             )
         get_hf_model_info.cache_clear()
 
@@ -404,7 +437,15 @@ class TestAquaHuggingFaceHandler:
             self.mock_handler.post()
 
             self.mock_handler.finish.assert_called_with(
-                f'{{"status": 400, "troubleshooting_tips": "For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}", "message": "{ERROR_MESSAGES["400"]}", "service_payload": {{}}, "reason": "The chosen model \'test_model_id\' is currently disabled and cannot be imported into AQUA. Please verify the model\'s status on the Hugging Face Model Hub or select a different model.", "request_id": "###"}}'
+                ReplyDetails(
+                    status=400,
+                    troubleshooting_tips= f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}",
+                    message= STATUS_CODE_MESSAGES["400"],
+                    service_payload = {},
+                    reason = "The chosen model \'test_model_id\' is currently disabled and cannot be imported into AQUA. Please verify the model\'s status on the Hugging Face Model Hub or select a different model.",
+                    request_id = "###"
+
+                )
             )
         get_hf_model_info.cache_clear()
 
