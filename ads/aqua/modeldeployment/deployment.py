@@ -237,7 +237,10 @@ class AquaDeploymentApp(AquaApp):
             supported_container_families = [
                 container_config_item.family
                 for container_config_item in service_inference_containers
-                if Usage.MULTI_MODEL in container_config_item.usages
+                if any(
+                    usage in container_config_item.usages
+                    for usage in [Usage.MULTI_MODEL, Usage.OTHER]
+                )
             ]
 
             if not supported_container_families:
