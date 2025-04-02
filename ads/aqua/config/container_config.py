@@ -15,6 +15,7 @@ class Usage(ExtendedEnum):
     INFERENCE = "inference"
     BATCH_INFERENCE = "batch_inference"
     MULTI_MODEL = "multi_model"
+    OTHER = "other"
 
 
 class AquaContainerConfigSpec(Serializable):
