@@ -133,7 +133,7 @@
       "usages": [
         "inference",
         "batch_inference",
-        "other"
+        "multi_model"
       ],
       "version": "0.4.1.3"
     }

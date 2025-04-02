@@ -595,7 +595,7 @@ class TestAquaUI(unittest.TestCase):
                         ],
                         "server_port": "8080",
                     },
-                    "usages": ["inference", "batch_inference", "other"],
+                    "usages": ["inference", "batch_inference", "multi_model"],
                 },
             ],
             "finetune": [
