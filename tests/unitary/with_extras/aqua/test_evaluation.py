@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import base64
@@ -17,6 +17,7 @@ from parameterized import parameterized
 from ads.aqua.common import utils
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import (
+    AquaError,
     AquaFileNotFoundError,
     AquaMissingKeyError,
     AquaRuntimeError,
@@ -35,8 +36,10 @@ from ads.aqua.evaluation.entities import (
     AquaEvalMetrics,
     AquaEvalReport,
     AquaEvaluationSummary,
+    CreateAquaEvaluationDetails,
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
+from ads.aqua.model.constants import ModelCustomMetadataFields
 from ads.jobs.ads_job import DataScienceJob, DataScienceJobRun, Job
 from ads.model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
@@ -354,6 +357,31 @@ class TestDataset:
     COMPARTMENT_ID = "ocid1.compartment.oc1..<UNIQUE_OCID>"
     EVAL_ID = "ocid1.datasciencemodel.oc1.iad.<OCID>"
     INVALID_EVAL_ID = "ocid1.datasciencemodel.oc1.phx.<OCID>"
+    MODEL_DEPLOYMENT_ID = "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>"
+
+    multi_model_deployment_model_attributes = [
+        {
+            "env_var": {"--test_key_one": "test_value_one"},
+            "gpu_count": 1,
+            "model_id": "ocid1.compartment.oc1..<OCID>",
+            "model_name": "model_one",
+            "artifact_location": "artifact_location_one",
+        },
+        {
+            "env_var": {"--test_key_two": "test_value_two"},
+            "gpu_count": 1,
+            "model_id": "ocid1.compartment.oc1..<OCID>",
+            "model_name": "model_two",
+            "artifact_location": "artifact_location_two",
+        },
+        {
+            "env_var": {"--test_key_three": "test_value_three"},
+            "gpu_count": 1,
+            "model_id": "ocid1.compartment.oc1..<OCID>",
+            "model_name": "model_three",
+            "artifact_location": "artifact_location_three",
+        },
+    ]
 
 
 class TestAquaEvaluation(unittest.TestCase):
@@ -533,6 +561,76 @@ class TestAquaEvaluation(unittest.TestCase):
             },
             "time_created": f"{oci_dsc_model.time_created}",
         }
+
+    @parameterized.expand(
+        [
+            (
+                {},
+                "No model name was provided for evaluation. For multi-model deployment, a model must be specified in the model parameters.",
+            ),
+            (
+                {"model": "wrong_model_name"},
+                "Provided model name 'wrong_model_name' does not match any valid model names ['model_one', 'model_two', 'model_three'] for evaluation source ID 'ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>'. Please provide the correct model name.",
+            ),
+        ]
+    )
+    @patch("ads.aqua.evaluation.evaluation.AquaEvaluationApp.create")
+    @patch(
+        "ads.model.datascience_model.OCIDataScienceModel.get_custom_metadata_artifact"
+    )
+    def test_validate_model_name(
+        self,
+        mock_model_parameters,
+        expected_message,
+        mock_get_custom_metadata_artifact,
+        mock_model,
+    ):
+        curr_dir = os.path.dirname(__file__)
+
+        eval_model_freeform_tags = {"ftag1": "fvalue1", "ftag2": "fvalue2"}
+        eval_model_defined_tags = {"dtag1": "dvalue1", "dtag2": "dvalue2"}
+
+        eval_model_freeform_tags[Tags.MULTIMODEL_TYPE_TAG] = "true"
+        eval_model_freeform_tags[Tags.AQUA_TAG] = "active"
+
+        create_aqua_evaluation_details = dict(  # noqa: C408
+            evaluation_source_id=TestDataset.MODEL_DEPLOYMENT_ID,
+            evaluation_name="test_evaluation_name",
+            dataset_path="oci://dataset_bucket@namespace/prefix/dataset.jsonl",
+            report_path="oci://report_bucket@namespace/prefix/",
+            model_parameters=mock_model_parameters,
+            shape_name="VM.Standard.E3.Flex",
+            block_storage_size=1,
+            experiment_name="test_experiment_name",
+            memory_in_gbs=1,
+            ocpus=1,
+            freeform_tags=eval_model_freeform_tags,
+            defined_tags=eval_model_defined_tags,
+        )
+
+        aqua_multi_model = os.path.join(
+            curr_dir, "test_data/deployment/aqua_multi_model.yaml"
+        )
+
+        mock_model = DataScienceModel.from_yaml(uri=aqua_multi_model)
+
+        multi_model_deployment_model_attributes_str = json.dumps(
+            TestDataset.multi_model_deployment_model_attributes
+        ).encode("utf-8")
+        mock_get_custom_metadata_artifact.return_value = (
+            multi_model_deployment_model_attributes_str
+        )
+
+        mock_create_aqua_evaluation_details = MagicMock(
+            **create_aqua_evaluation_details, spec=CreateAquaEvaluationDetails
+        )
+
+        try:
+            AquaEvaluationApp.validate_model_name(
+                mock_model, mock_create_aqua_evaluation_details
+            )
+        except AquaError as e:
+            self.assertEqual(str(e), expected_message)
 
     def test_get_service_model_name(self):
         # get service model name from fine tuned model deployment
