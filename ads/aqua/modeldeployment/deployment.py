@@ -1310,7 +1310,7 @@ class AquaDeploymentApp(AquaApp):
                 memory_in_gbs=oci_shape.memory_in_gbs,
                 shape_series=oci_shape.shape_series,
                 name=oci_shape.name,
-                gpu_specs=gpu_specs.shapes.get(oci_shape.name.upper())
+                gpu_specs=gpu_specs.shapes.get(oci_shape.name)
                 or gpu_specs.shapes.get(oci_shape.name.upper()),
             )
             for oci_shape in oci_shapes
