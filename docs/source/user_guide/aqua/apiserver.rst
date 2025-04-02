@@ -6,7 +6,7 @@ AI Quick Actions is accessible through the Python SDK APIs and CLI. If the CLI o
 
 **Prerequisite**
 
-1. Install oracle-ads - ``pip install "oracle-ads[aquaapi]"``
+1. Install oracle-ads - ``pip install "oracle-ads[aqua]"``
 2. Set up AI Quick Actions `policies <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/policies/README.md>`_
 
 API Specification
@@ -110,4 +110,4 @@ Docker Image
         docker run --rm -it --env-file .env \
             -v ~/.oci:/root/.oci \
             -v $KEY_PATH:$KEY_PATH \
-            -p 8081:8080 aqua:$TAG
+            -p 8080:8080 aqua:$TAG
