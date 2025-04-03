@@ -47,7 +47,7 @@ class ServiceManagedContainers:
                 "description": "This container is used for llm inference, batch inference and serving",
                 "is_latest": True,
                 "target_workloads": ["MODEL_DEPLOYMENT", "JOB_RUN"],
-                "usages": ["INFERENCE", "BATCH_INFERENCE"],
+                "usages": ["INFERENCE", "BATCH_INFERENCE", "OTHER"],
                 "tag": "0.6.4.post1.2",
                 "lifecycle_state": "ACTIVE",
                 "workload_configuration_details_list": [

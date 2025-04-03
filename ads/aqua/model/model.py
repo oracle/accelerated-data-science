@@ -273,7 +273,10 @@ class AquaModelApp(AquaApp):
         supported_container_families = [
             container_config_item.family
             for container_config_item in service_inference_containers
-            if Usage.MULTI_MODEL.upper() in container_config_item.usages
+            if any(
+                usage.upper() in container_config_item.usages
+                for usage in [Usage.MULTI_MODEL, Usage.OTHER]
+            )
         ]
 
         if not supported_container_families:
@@ -770,7 +773,6 @@ class AquaModelApp(AquaApp):
             model_id, AQUA_MODEL_TOKENIZER_CONFIG, ConfigFolder.ARTIFACT
         ).config
         if not config:
-            logger.debug(f"Tokenizer config for model: {model_id} is not available.")
             logger.debug(
                 f"{AQUA_MODEL_TOKENIZER_CONFIG} is not available for the model: {model_id}. "
                 f"Check if the custom metadata has the artifact path set."

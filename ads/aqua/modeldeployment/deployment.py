@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
 import json
 import shlex
 from datetime import datetime, timedelta
@@ -15,7 +16,6 @@ from ads.aqua.common.entities import (
     AquaMultiModelRef,
     ComputeShapeSummary,
     ContainerPath,
-    ContainerSpec,
 )
 from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
@@ -34,7 +34,7 @@ from ads.aqua.common.utils import (
     load_gpu_shapes_index,
     validate_cmd_var,
 )
-from ads.aqua.config.container_config import Usage
+from ads.aqua.config.container_config import AquaContainerConfig, Usage
 from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_FILE,
     AQUA_MODEL_TYPE_CUSTOM,
@@ -230,7 +230,10 @@ class AquaDeploymentApp(AquaApp):
             supported_container_families = [
                 container_config_item.family
                 for container_config_item in service_inference_containers
-                if Usage.MULTI_MODEL.upper() in container_config_item.usages
+                if any(
+                    usage.upper() in container_config_item.usages
+                    for usage in [Usage.MULTI_MODEL, Usage.OTHER]
+                )
             ]
 
             if not supported_container_families:
@@ -550,7 +553,7 @@ class AquaDeploymentApp(AquaApp):
         aqua_model: DataScienceModel,
         model_config_summary: ModelDeploymentConfigSummary,
         create_deployment_details: CreateModelDeploymentDetails,
-        container_config: Dict,
+        container_config: AquaContainerConfig,
     ) -> AquaDeployment:
         """Builds the environment variables required by multi deployment container and creates the deployment.
 
@@ -578,11 +581,10 @@ class AquaDeploymentApp(AquaApp):
             model=aqua_model,
             container_family=create_deployment_details.container_family,
         )
-        container_spec = container_config.get(
-            ContainerSpec.CONTAINER_SPEC, UNKNOWN_DICT
-        ).get(container_type_key, UNKNOWN_DICT)
+        container_config = self.get_container_config_item(container_type_key)
+        container_spec = container_config.spec if container_config else UNKNOWN
 
-        container_params = container_spec.get(ContainerSpec.CLI_PARM, UNKNOWN).strip()
+        container_params = container_spec.cli_param if container_spec else UNKNOWN
 
         for model in create_deployment_details.models:
             user_params = build_params_string(model.env_var)
@@ -649,8 +651,10 @@ class AquaDeploymentApp(AquaApp):
 
         env_var.update({AQUA_MULTI_MODEL_CONFIG: json.dumps({"models": model_config})})
 
-        for env in container_spec.get(ContainerSpec.ENV_VARS, []):
+        env_vars = container_spec.env_vars if container_spec else UNKNOWN_LIST
+        for env in env_vars:
             if isinstance(env, dict):
+                env = {k: v for k, v in env.items() if v}
                 for key, _ in env.items():
                     if key not in env_var:
                         env_var.update(env)
@@ -661,12 +665,11 @@ class AquaDeploymentApp(AquaApp):
             create_deployment_details.container_image_uri
             or self.get_container_image(container_type=container_type_key)
         )
-        server_port = create_deployment_details.server_port or container_spec.get(
-            ContainerSpec.SERVER_PORT
+        server_port = create_deployment_details.server_port or (
+            container_spec.server_port if container_spec else None
         )
-        health_check_port = (
-            create_deployment_details.health_check_port
-            or container_spec.get(ContainerSpec.HEALTH_CHECK_PORT)
+        health_check_port = create_deployment_details.health_check_port or (
+            container_spec.health_check_port if container_spec else None
         )
         tags = {
             Tags.AQUA_MODEL_ID_TAG: aqua_model.id,
@@ -1315,7 +1318,8 @@ class AquaDeploymentApp(AquaApp):
                 memory_in_gbs=oci_shape.memory_in_gbs,
                 shape_series=oci_shape.shape_series,
                 name=oci_shape.name,
-                gpu_specs=gpu_specs.shapes.get(oci_shape.name),
+                gpu_specs=gpu_specs.shapes.get(oci_shape.name)
+                or gpu_specs.shapes.get(oci_shape.name.upper()),
             )
             for oci_shape in oci_shapes
         ]

@@ -1249,7 +1249,9 @@ def load_gpu_shapes_index(
         try:
             auth = auth or authutil.default_signer()
             # Construct the object storage path. Adjust bucket name and path as needed.
-            storage_path = f"oci://{CONDA_BUCKET_NAME}@{CONDA_BUCKET_NS}/{file_name}/1"
+            storage_path = (
+                f"oci://{CONDA_BUCKET_NAME}@{CONDA_BUCKET_NS}/service_pack/{file_name}"
+            )
             logger.debug("Loading GPU shapes index from Object Storage")
             with fsspec.open(storage_path, mode="r", **auth) as file_obj:
                 data = json.load(file_obj)

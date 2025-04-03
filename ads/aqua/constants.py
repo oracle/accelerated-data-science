@@ -42,6 +42,7 @@ AQUA_MODEL_ARTIFACT_FILE = "model_file"
 HF_METADATA_FOLDER = ".cache/"
 HF_LOGIN_DEFAULT_TIMEOUT = 2
 MODEL_NAME_DELIMITER = ";"
+AQUA_TROUBLESHOOTING_LINK = "https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md"
 
 TRAINING_METRICS_FINAL = "training_metrics_final"
 VALIDATION_METRICS_FINAL = "validation_metrics_final"
@@ -87,3 +88,27 @@ LLAMA_CPP_INFERENCE_RESTRICTED_PARAMS = {
     "--host",
 }
 TEI_CONTAINER_DEFAULT_HOST = "8080"
+
+OCI_OPERATION_FAILURES = {
+    "list_model_deployments": "Unable to list model deployments. See tips for troubleshooting: ",
+    "list_models": "Unable to list models. See tips for troubleshooting: ",
+    "get_namespace": "Unable to access specified Object Storage Bucket. See tips for troubleshooting: ",
+    "list_log_groups": "Unable to access logs. See tips for troubleshooting: ",
+    "list_buckets": "Unable to list Object Storage Bucket. See tips for troubleshooting: ",
+    "put_object": "Unable to access or find Object Storage Bucket. See tips for troubleshooting: ",
+    "list_model_version_sets": "Unable to create or fetch model version set. See tips for troubleshooting:",
+    "update_model": "Unable to update model. See tips for troubleshooting: ",
+    "list_data_science_private_endpoints": "Unable to access private endpoint. See tips for troubleshooting:  ",
+    "create_model": "Unable to register model. See tips for troubleshooting: ",
+    "create_deployment": "Unable to create deployment. See tips for troubleshooting: ",
+    "create_model_version_sets": "Unable to create model version set. See tips for troubleshooting: ",
+    "create_job": "Unable to create job. See tips for troubleshooting: ",
+    "create_job_run": "Unable to create job run. See tips for troubleshooting: ",
+}
+
+STATUS_CODE_MESSAGES = {
+    "400": "Could not process your request due to invalid input.",
+    "403": "We're having trouble processing your request with the information provided.",
+    "404": "Authorization Failed: The resource you're looking for isn't accessible.",
+    "408": "Server is taking too long to respond, please try again.",
+}

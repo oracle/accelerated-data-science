@@ -1705,128 +1705,131 @@ class TestAquaDeployment(unittest.TestCase):
         )
         assert actual_attributes == expected_result
 
-    # TODO: Uncomment this test case once CP API Spec changes for usages is done
-    # @patch.object(AquaApp,"get_container_config")
-    # @patch("ads.aqua.model.AquaModelApp.create_multi")
-    # @patch.object(AquaApp, "get_container_image")
-    # @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
-    # @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_deployment_config")
-    # @patch(
-    #     "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_multimodel_deployment_feasibility"
-    # )
-    # def test_create_deployment_for_multi_model(
-    #     self,
-    #     mock_validate_multimodel_deployment_feasibility,
-    #     mock_get_deployment_config,
-    #     mock_deploy,
-    #     mock_get_container_image,
-    #     mock_create_multi,
-    #     mock_get_container_config,
-    # ):
-    #     """Test to create a deployment for multi models."""
-    #     mock_get_container_config.return_value=AquaContainerConfig.from_service_config(service_containers=TestDataset.CONTAINER_LIST)
-    #
-    #     mock_validate_multimodel_deployment_feasibility.return_value = MagicMock()
-    #     self.app.get_multimodel_deployment_config = MagicMock(
-    #         return_value=AquaDeploymentConfig(
-    #             **TestDataset.aqua_deployment_multi_model_config_summary
-    #         )
-    #     )
-    #     aqua_multi_model = os.path.join(
-    #         self.curr_dir, "test_data/deployment/aqua_multi_model.yaml"
-    #     )
-    #     mock_create_multi.return_value = DataScienceModel.from_yaml(
-    #         uri=aqua_multi_model
-    #     )
-    #     config_json = os.path.join(
-    #         self.curr_dir,
-    #         "test_data/deployment/aqua_multi_model_deployment_config.json",
-    #     )
-    #     with open(config_json, "r") as _file:
-    #         config = json.load(_file)
-    #
-    #     self.app.get_deployment_config = MagicMock(
-    #         return_value=AquaDeploymentConfig(**config)
-    #     )
-    #
-    #     with open(
-    #         os.path.join(
-    #             self.curr_dir,
-    #             "test_data/deployment/aqua_deployment_shapes.json",
-    #         ),
-    #         "r",
-    #     ) as _file:
-    #         shapes = [
-    #             ComputeShapeSummary(**item) for item in json.load(_file)["shapes"]
-    #         ]
-    #
-    #     self.app.list_shapes = MagicMock(return_value=shapes)
-    #
-    #     deployment_config_json = os.path.join(
-    #         self.curr_dir, "test_data/deployment/deployment_gpu_config.json"
-    #     )
-    #     mock_get_deployment_config.return_value = deployment_config_json
-    #
-    #     mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
-    #     aqua_deployment = os.path.join(
-    #         self.curr_dir, "test_data/deployment/aqua_create_multi_deployment.yaml"
-    #     )
-    #     model_deployment_obj = ModelDeployment.from_yaml(uri=aqua_deployment)
-    #     model_deployment_dsc_obj = copy.deepcopy(
-    #         TestDataset.multi_model_deployment_object
-    #     )
-    #     model_deployment_dsc_obj["lifecycle_state"] = "CREATING"
-    #     model_deployment_obj.dsc_model_deployment = (
-    #         oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
-    #     )
-    #     mock_deploy.return_value = model_deployment_obj
-    #
-    #     model_info_1 = AquaMultiModelRef(
-    #         model_id="test_model_id_1",
-    #         model_name="test_model_1",
-    #         gpu_count=2,
-    #         artifact_location="test_location_1",
-    #     )
-    #
-    #     model_info_2 = AquaMultiModelRef(
-    #         model_id="test_model_id_2",
-    #         model_name="test_model_2",
-    #         gpu_count=2,
-    #         artifact_location="test_location_2",
-    #     )
-    #
-    #     model_info_3 = AquaMultiModelRef(
-    #         model_id="test_model_id_3",
-    #         model_name="test_model_3",
-    #         gpu_count=2,
-    #         artifact_location="test_location_3",
-    #     )
-    #
-    #     result = self.app.create(
-    #         models=[model_info_1, model_info_2, model_info_3],
-    #         instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
-    #         display_name="multi-model-deployment-name",
-    #         log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
-    #         access_log_id="ocid1.log.oc1.<region>.<OCID>",
-    #         predict_log_id="ocid1.log.oc1.<region>.<OCID>",
-    #     )
-    #
-    #     mock_create_multi.assert_called_with(
-    #         models=[model_info_1, model_info_2, model_info_3],
-    #         compartment_id=TestDataset.USER_COMPARTMENT_ID,
-    #         project_id=TestDataset.USER_PROJECT_ID,
-    #         freeform_tags=None,
-    #         defined_tags=None,
-    #     )
-    #     mock_get_container_image.assert_called()
-    #     mock_deploy.assert_called()
-    #
-    #     expected_attributes = set(AquaDeployment.__annotations__.keys())
-    #     actual_attributes = result.to_dict()
-    #     assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
-    #     expected_result = copy.deepcopy(TestDataset.aqua_multi_deployment_object)
-    #     expected_result["state"] = "CREATING"
-    #     assert actual_attributes == expected_result
+    @patch.object(AquaApp, "get_container_config")
+    @patch("ads.aqua.model.AquaModelApp.create_multi")
+    @patch.object(AquaApp, "get_container_image")
+    @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_deployment_config")
+    @patch(
+        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_multimodel_deployment_feasibility"
+    )
+    def test_create_deployment_for_multi_model(
+        self,
+        mock_validate_multimodel_deployment_feasibility,
+        mock_get_deployment_config,
+        mock_deploy,
+        mock_get_container_image,
+        mock_create_multi,
+        mock_get_container_config,
+    ):
+        """Test to create a deployment for multi models."""
+        mock_get_container_config.return_value = (
+            AquaContainerConfig.from_service_config(
+                service_containers=TestDataset.CONTAINER_LIST
+            )
+        )
+
+        mock_validate_multimodel_deployment_feasibility.return_value = MagicMock()
+        self.app.get_multimodel_deployment_config = MagicMock(
+            return_value=AquaDeploymentConfig(
+                **TestDataset.aqua_deployment_multi_model_config_summary
+            )
+        )
+        aqua_multi_model = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_multi_model.yaml"
+        )
+        mock_create_multi.return_value = DataScienceModel.from_yaml(
+            uri=aqua_multi_model
+        )
+        config_json = os.path.join(
+            self.curr_dir,
+            "test_data/deployment/aqua_multi_model_deployment_config.json",
+        )
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        self.app.get_deployment_config = MagicMock(
+            return_value=AquaDeploymentConfig(**config)
+        )
+
+        with open(
+            os.path.join(
+                self.curr_dir,
+                "test_data/deployment/aqua_deployment_shapes.json",
+            ),
+            "r",
+        ) as _file:
+            shapes = [
+                ComputeShapeSummary(**item) for item in json.load(_file)["shapes"]
+            ]
+
+        self.app.list_shapes = MagicMock(return_value=shapes)
+
+        deployment_config_json = os.path.join(
+            self.curr_dir, "test_data/deployment/deployment_gpu_config.json"
+        )
+        mock_get_deployment_config.return_value = deployment_config_json
+
+        mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
+        aqua_deployment = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_create_multi_deployment.yaml"
+        )
+        model_deployment_obj = ModelDeployment.from_yaml(uri=aqua_deployment)
+        model_deployment_dsc_obj = copy.deepcopy(
+            TestDataset.multi_model_deployment_object
+        )
+        model_deployment_dsc_obj["lifecycle_state"] = "CREATING"
+        model_deployment_obj.dsc_model_deployment = (
+            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+        )
+        mock_deploy.return_value = model_deployment_obj
+
+        model_info_1 = AquaMultiModelRef(
+            model_id="test_model_id_1",
+            model_name="test_model_1",
+            gpu_count=2,
+            artifact_location="test_location_1",
+        )
+
+        model_info_2 = AquaMultiModelRef(
+            model_id="test_model_id_2",
+            model_name="test_model_2",
+            gpu_count=2,
+            artifact_location="test_location_2",
+        )
+
+        model_info_3 = AquaMultiModelRef(
+            model_id="test_model_id_3",
+            model_name="test_model_3",
+            gpu_count=2,
+            artifact_location="test_location_3",
+        )
+
+        result = self.app.create(
+            models=[model_info_1, model_info_2, model_info_3],
+            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
+            display_name="multi-model-deployment-name",
+            log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
+            access_log_id="ocid1.log.oc1.<region>.<OCID>",
+            predict_log_id="ocid1.log.oc1.<region>.<OCID>",
+        )
+
+        mock_create_multi.assert_called_with(
+            models=[model_info_1, model_info_2, model_info_3],
+            compartment_id=TestDataset.USER_COMPARTMENT_ID,
+            project_id=TestDataset.USER_PROJECT_ID,
+            freeform_tags=None,
+            defined_tags=None,
+        )
+        mock_get_container_image.assert_called()
+        mock_deploy.assert_called()
+
+        expected_attributes = set(AquaDeployment.__annotations__.keys())
+        actual_attributes = result.to_dict()
+        assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
+        expected_result = copy.deepcopy(TestDataset.aqua_multi_deployment_object)
+        expected_result["state"] = "CREATING"
+        assert actual_attributes == expected_result
 
     @parameterized.expand(
         [
