@@ -15,6 +15,7 @@ from tornado import httputil
 from tornado.web import Application, HTTPError
 
 from ads.aqua import logger
+from ads.aqua.common.utils import is_pydantic_model
 from ads.config import AQUA_TELEMETRY_BUCKET, AQUA_TELEMETRY_BUCKET_NS
 from ads.telemetry.client import TelemetryClient
 
@@ -40,7 +41,7 @@ class AquaAPIhandler(APIHandler):
     def prepare(self, *args, **kwargs):
         """The base class prepare is not required for Aqua"""
         pass
-        
+
     @staticmethod
     def serialize(obj: Any):
         """Serialize the object.
@@ -51,6 +52,9 @@ class AquaAPIhandler(APIHandler):
 
         if is_dataclass(obj):
             return asdict(obj)
+
+        if is_pydantic_model(obj):
+            return obj.model_dump()
 
         return str(obj)
 
