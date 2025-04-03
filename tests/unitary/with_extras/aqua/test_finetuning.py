@@ -21,7 +21,7 @@ from ads.aqua.common.entities import ModelConfigResult
 from ads.aqua.common.errors import AquaValueError
 from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.finetuning.constants import FineTuneCustomMetadata
-from ads.aqua.finetuning.entities import AquaFineTuningParams
+from ads.aqua.finetuning.entities import AquaFineTuningParams, AquaFineTuningConfig
 from ads.aqua.model.entities import AquaFineTuneModel
 from ads.jobs.ads_job import Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJobRun
@@ -113,11 +113,13 @@ class FineTuningTestCase(TestCase):
         ft_model.time_created = "test_time_created"
         mock_ds_model_create.return_value = ft_model
 
-        mock_get_finetuning_config.return_value = {
-            "shape": {
-                "VM.GPU.A10.1": {"batch_size": 1, "replica": 1},
+        mock_get_finetuning_config.return_value = AquaFineTuningConfig(
+            **{
+                "shape": {
+                    "VM.GPU.A10.1": {"batch_size": 1, "replica": 1},
+                }
             }
-        }
+        )
         mock_get_container_image.return_value = "test_container_image"
 
         mock_job_id.return_value = "test_ft_job_id"
@@ -279,11 +281,13 @@ class FineTuningTestCase(TestCase):
         config_json = os.path.join(self.curr_dir, "test_data/finetuning/ft_config.json")
         with open(config_json, "r") as _file:
             config = json.load(_file)
-        self.app.get_config_from_metadata = MagicMock(return_value={})
+        self.app.get_config_from_metadata = MagicMock(
+            return_value=ModelConfigResult(config=config, model_details=None)
+        )
         self.app.get_config = MagicMock(
             return_value=ModelConfigResult(config=config, model_details=None)
         )
-        result = self.app.get_finetuning_config(model_id="test-model-id")
+        result = self.app.get_finetuning_config(model_id="test-model-id").to_dict()
         assert result == config
 
     def test_get_finetuning_default_params(self):
@@ -306,12 +310,16 @@ class FineTuningTestCase(TestCase):
         with open(config_json, "r") as _file:
             config = json.load(_file)
 
-        self.app.get_finetuning_config = MagicMock(return_value=config)
+        self.app.get_finetuning_config = MagicMock(
+            return_value=AquaFineTuningConfig(**config)
+        )
         result = self.app.get_finetuning_default_params(model_id="test_model_id")
         assert result == params_dict
 
         # check when config json is not available
-        self.app.get_finetuning_config = MagicMock(return_value={})
+        self.app.get_finetuning_config = MagicMock(
+            return_value=AquaFineTuningConfig(**{})
+        )
         result = self.app.get_finetuning_default_params(model_id="test_model_id")
         assert result == {"params": {}}
 

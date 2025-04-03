@@ -38,6 +38,7 @@ from ads.aqua.finetuning.constants import (
     FineTuneCustomMetadata,
 )
 from ads.aqua.finetuning.entities import (
+    AquaFineTuningConfig,
     AquaFineTuningParams,
     AquaFineTuningSummary,
     CreateFineTuningDetails,
@@ -371,11 +372,11 @@ class AquaFineTuningApp(AquaApp):
             is_custom_container = True
 
         ft_parameters.batch_size = ft_parameters.batch_size or (
-            ft_config.get("shape", UNKNOWN_DICT)
+            (ft_config.shape if ft_config else UNKNOWN_DICT)
             .get(create_fine_tuning_details.shape_name, UNKNOWN_DICT)
             .get("batch_size", DEFAULT_FT_BATCH_SIZE)
         )
-        finetuning_params = ft_config.get("finetuning_params")
+        finetuning_params = ft_config.finetuning_params if ft_config else UNKNOWN
 
         ft_job.with_runtime(
             self._build_fine_tuning_runtime(
@@ -626,7 +627,7 @@ class AquaFineTuningApp(AquaApp):
     @telemetry(
         entry_point="plugin=finetuning&action=get_finetuning_config", name="aqua"
     )
-    def get_finetuning_config(self, model_id: str) -> Dict:
+    def get_finetuning_config(self, model_id: str) -> AquaFineTuningConfig:
         """Gets the finetuning config for given Aqua model.
 
         Parameters
@@ -641,12 +642,12 @@ class AquaFineTuningApp(AquaApp):
         """
         config = self.get_config_from_metadata(
             model_id, AquaModelMetadataKeys.FINE_TUNING_CONFIGURATION
-        )
+        ).config
         if config:
             logger.info(
                 f"Fetched {AquaModelMetadataKeys.FINE_TUNING_CONFIGURATION} from defined metadata for model: {model_id}."
             )
-            return config
+            return AquaFineTuningConfig(**(config or UNKNOWN_DICT))
         config = self.get_config(
             model_id,
             DEFINED_METADATA_TO_FILE_MAP.get(
@@ -657,7 +658,7 @@ class AquaFineTuningApp(AquaApp):
             logger.debug(
                 f"Fine-tuning config for custom model: {model_id} is not available. Use defaults."
             )
-        return config
+        return AquaFineTuningConfig(**(config or UNKNOWN_DICT))
 
     @telemetry(
         entry_point="plugin=finetuning&action=get_finetuning_default_params",
@@ -680,7 +681,9 @@ class AquaFineTuningApp(AquaApp):
         """
         default_params = {"params": {}}
         finetuning_config = self.get_finetuning_config(model_id)
-        config_parameters = finetuning_config.get("configuration", UNKNOWN_DICT)
+        config_parameters = (
+            finetuning_config.configuration if finetuning_config else UNKNOWN_DICT
+        )
         dataclass_fields = self._get_finetuning_params(
             config_parameters, validate=False
         ).to_dict()
