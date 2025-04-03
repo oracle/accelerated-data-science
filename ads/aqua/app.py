@@ -308,15 +308,15 @@ class AquaApp:
             return ModelConfigResult(config=json.loads(config), model_details=oci_model)
         except UnicodeDecodeError as ex:
             logger.error(
-                f"Failed to decode content for {metadata_key} in defined metadata for model: {model_id} : {ex}"
+                f"Failed to decode content for '{metadata_key}' in defined metadata for model '{model_id}' : {ex}"
             )
         except json.JSONDecodeError as ex:
             logger.error(
-                f"Invalid JSON format for {metadata_key} in defined metadata for model: {model_id} : {ex}"
+                f"Invalid JSON format for '{metadata_key}' in defined metadata for model '{model_id}' : {ex}"
             )
         except Exception as ex:
             logger.error(
-                f"Error while fetching {metadata_key} in defined metadata for model: {model_id}: {ex}"
+                f"Failed to retrieve defined metadata key '{metadata_key}' for model '{model_id}': {ex}"
             )
         return ModelConfigResult(config=config, model_details=oci_model)
 
@@ -468,7 +468,7 @@ class AquaApp:
             (
                 container
                 for container in chain(inference_config, ft_config, eval_config)
-                if container.family == container_family
+                if container.family.lower() == container_family.lower()
             ),
             None,
         )
