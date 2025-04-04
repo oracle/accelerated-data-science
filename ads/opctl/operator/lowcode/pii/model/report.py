@@ -123,7 +123,6 @@ def make_model_card(model_name="", readme_path=""):
         )
         return rc.Group(
             rc.Text("-"),
-            columns=1,
         )
 
     try:
@@ -156,7 +155,6 @@ def make_model_card(model_name="", readme_path=""):
     return rc.Group(
         rc.Text(text),
         eval_res_tb,
-        columns=2,
     )
 
 
@@ -216,7 +214,7 @@ def build_entity_df(entites, id) -> pd.DataFrame:
             "Type": "-",
             "Redacted To": "-",
         }
-        df = df.append(df2, ignore_index=True)
+        df = pd.concat([df, pd.DataFrame([df2])], ignore_index=True)
     return df
 
 
@@ -232,7 +230,6 @@ class RowReportFields:
                     self._make_stats_card(),
                     self._make_text_card(),
                 ],
-                type=rc.SelectType.TABS,
             ),
             label="Row Id: " + str(self.spec.id),
         )
@@ -256,7 +253,7 @@ class RowReportFields:
                     index=True,
                 )
             )
-        return rc.Group(stats, label="STATS")
+        return rc.Group(*stats, label="STATS")
 
     def _make_text_card(self):
         annotations = []
@@ -277,7 +274,7 @@ class RowReportFields:
             },
             return_html=True,
         )
-        return rc.Group(rc.HTML(render_html), label="TEXT")
+        return rc.Group(rc.Html(render_html), label="TEXT")
 
 
 class PIIOperatorReport:
@@ -292,7 +289,7 @@ class PIIOperatorReport:
             RowReportFields(r, report_spec.run_summary.show_sensitive_info)
             for r in rows
         ]
-
+        self.report_sections = None
         self.report_uri = report_uri
 
     def make_view(self):
@@ -317,7 +314,6 @@ class PIIOperatorReport:
                         label="Details",
                     ),
                 ],
-                type=rc.SelectType.TABS,
             )
         )
         self.report_sections = [title_text, report_description, time_proceed, structure]
@@ -331,7 +327,7 @@ class PIIOperatorReport:
             disable_print()
             with rc.ReportCreator("My Report") as report:
                 report.save(
-                    rc.Block(report_sections or self.report_sections), report_local_path
+                    rc.Block(*(report_sections or self.report_sections)), report_local_path
                 )
             enable_print()
 
@@ -354,7 +350,6 @@ class PIIOperatorReport:
                     self._make_yaml_card(),
                     self._make_model_card(),
                 ],
-                type=rc.SelectType.TABS,
             ),
         )
 
@@ -367,7 +362,6 @@ class PIIOperatorReport:
                 blocks=[
                     row.build_report() for row in self.rows_details
                 ],  # RowReportFields
-                type=rc.SelectType.DROPDOWN,
                 label="Details",
             ),
         )
@@ -414,7 +408,6 @@ class PIIOperatorReport:
                         self.report_spec.run_summary.elapsed_time
                     ),
                 ),
-                columns=2,
             ),
             rc.Heading("Entities Distribution", level=3),
             plot_pie(self.report_spec.run_summary.statics),
@@ -423,7 +416,7 @@ class PIIOperatorReport:
             entites_df = self._build_total_entity_df()
             summary_stats.append(rc.Heading("Resolved Entities", level=3))
             summary_stats.append(rc.DataTable(entites_df, index=True))
-        return rc.Group(summary_stats, label="STATS")
+        return rc.Group(*summary_stats, label="STATS")
 
     def _make_yaml_card(self) -> rc.Group:
         """Shows the full pii config yaml."""
@@ -449,13 +442,12 @@ class PIIOperatorReport:
 
         if len(model_cards) <= 1:
             return rc.Group(
-                model_cards,
+                *model_cards,
                 label="MODEL CARD",
             )
         return rc.Group(
             rc.Select(
                 model_cards,
-                type=rc.SelectType.TABS,
             ),
             label="MODEL CARD",
         )
