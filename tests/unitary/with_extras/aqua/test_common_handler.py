@@ -46,13 +46,7 @@ class TestEvaluationHandler(unittest.TestCase):
             with patch(
                 "ads.aqua.extension.base_handler.AquaAPIhandler.finish"
             ) as mock_finish:
-                with patch(
-                    "ads.aqua.extension.utils.fetch_service_compartment"
-                ) as mock_fetch_service_compartment:
-                    mock_fetch_service_compartment.return_value = (
-                        TestDataset.SERVICE_COMPARTMENT_ID
-                    )
-                    mock_finish.side_effect = lambda x: x
-                    self.common_handler.request.path = "aqua/hello"
-                    result = self.common_handler.get()
-                    assert result["status"] == "ok"
+                mock_finish.side_effect = lambda x: x
+                self.common_handler.request.path = "aqua/hello"
+                result = self.common_handler.get()
+                assert result["status"] == "ok"
