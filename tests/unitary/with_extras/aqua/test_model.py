@@ -1458,7 +1458,6 @@ class TestAquaModel:
         )
 
         received_args = self.app.list_resource.call_args.kwargs
-        print("received_args: ", received_args)
         assert received_args.get("compartment_id") == TestDataset.SERVICE_COMPARTMENT_ID
         assert received_args.get("category") == ads.config.SERVICE
         assert len(results) == 2
