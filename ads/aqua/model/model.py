@@ -933,7 +933,7 @@ class AquaModelApp(AquaApp):
         """
 
         models = []
-        category = kwargs.get("category", USER)
+        category = kwargs.pop("category", USER)
         if compartment_id and category != SERVICE:
             # tracks number of times custom model listing was called
             self.telemetry.record_event_async(
@@ -961,8 +961,9 @@ class AquaModelApp(AquaApp):
 
             models = self.list_resource(
                 self.ds_client.list_models,
-                compartment_id=ODSC_MODEL_COMPARTMENT_OCID,
+                compartment_id=compartment_id or COMPARTMENT_OCID,
                 lifecycle_state=lifecycle_state,
+                category=category,
                 **kwargs,
             )
 

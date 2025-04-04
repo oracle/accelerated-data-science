@@ -1452,11 +1452,14 @@ class TestAquaModel:
             ]
         )
 
-        results = self.app.list()
+        results = self.app.list(
+            compartment_id=TestDataset.SERVICE_COMPARTMENT_ID,
+            category=ads.config.SERVICE,
+        )
 
         received_args = self.app.list_resource.call_args.kwargs
         assert received_args.get("compartment_id") == TestDataset.SERVICE_COMPARTMENT_ID
-
+        assert received_args.get("category") == ads.config.SERVICE
         assert len(results) == 2
 
         attributes = AquaModelSummary.__annotations__.keys()

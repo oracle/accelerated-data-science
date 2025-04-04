@@ -49,9 +49,7 @@ from ads.aqua.common.errors import (
 )
 from ads.aqua.constants import (
     AQUA_GA_LIST,
-    COMPARTMENT_MAPPING_KEY,
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
-    CONTAINER_INDEX,
     DEPLOYMENT_CONFIG,
     FINE_TUNING_CONFIG,
     HF_LOGIN_DEFAULT_TIMEOUT,
@@ -558,36 +556,6 @@ def _build_job_identifier(
             f"DEBUG INFO:{str(e)}"
         )
         return AquaResourceIdentifier()
-
-
-def service_config_path():
-    return f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
-
-
-def fetch_service_compartment() -> Union[str, None]:
-    """
-    Loads the compartment mapping json from service bucket.
-    This json file has a service-model-compartment key which contains a dictionary of namespaces
-    and the compartment OCID of the service models in that namespace.
-    """
-    config_file_name = (
-        f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
-    )
-
-    try:
-        config = load_config(
-            file_path=config_file_name,
-            config_file_name=CONTAINER_INDEX,
-        )
-    except Exception as e:
-        logger.debug(
-            f"Config file {config_file_name}/{CONTAINER_INDEX} to fetch service compartment OCID "
-            f"could not be found. \n{str(e)}."
-        )
-        return
-    compartment_mapping = config.get(COMPARTMENT_MAPPING_KEY)
-    if compartment_mapping:
-        return compartment_mapping.get(CONDA_BUCKET_NS)
 
 
 def get_max_version(versions):

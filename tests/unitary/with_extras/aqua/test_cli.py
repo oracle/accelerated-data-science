@@ -82,38 +82,6 @@ class TestAquaCLI(TestCase):
         with self.assertRaises(AquaCLIError):
             AquaCommand(**arg)
 
-    @parameterized.expand(
-        [
-            (
-                "default",
-                {"ODSC_MODEL_COMPARTMENT_OCID": ""},
-                "ODSC_MODEL_COMPARTMENT_OCID environment variable is not set for Aqua.",
-            ),
-            (
-                "using jupyter instance",
-                {
-                    "ODSC_MODEL_COMPARTMENT_OCID": "",
-                    "NB_SESSION_OCID": "nb-session-ocid",
-                },
-                "Aqua is not available for the notebook session nb-session-ocid. For more information, please refer to the documentation.",
-            ),
-        ]
-    )
-    def test_aqua_command_without_compartment_env_var(
-        self, name, mock_env_dict, expected_msg
-    ):
-        """Test whether exit is called when ODSC_MODEL_COMPARTMENT_OCID is not set.
-        Also check if NB_SESSION_OCID is set then log the appropriate message."""
-
-        with patch.dict(os.environ, mock_env_dict):
-            reload(ads.config)
-            reload(ads.aqua)
-            reload(ads.aqua.cli)
-            with self.assertRaises(AquaConfigError) as cm:
-                AquaCommand()
-
-            self.assertEqual(str(cm.exception), expected_msg)
-
     @patch("sys.argv", ["ads", "aqua", "--some-option"])
     @patch("ads.cli.serialize")
     @patch("fire.Fire")
