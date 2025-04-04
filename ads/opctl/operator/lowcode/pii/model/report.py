@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -327,7 +327,8 @@ class PIIOperatorReport:
             disable_print()
             with rc.ReportCreator("My Report") as report:
                 report.save(
-                    rc.Block(*(report_sections or self.report_sections)), report_local_path
+                    rc.Block(*(report_sections or self.report_sections)),
+                    report_local_path,
                 )
             enable_print()
 
