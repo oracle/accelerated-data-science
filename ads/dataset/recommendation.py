@@ -184,9 +184,7 @@ class Recommendation:
                                     self.recommendation_type_labels[
                                         self.recommendation_type_index
                                     ]
-                                )
-                            ),
-                            layout=ipywidgets.Layout(display="flex"),
+                                ),layout = ipywidgets.Layout(display="flex"),),
                         )
                         self.action_list[
                             self.recommendation_types[self.recommendation_type_index]
