@@ -4,7 +4,7 @@
 The Oracle Accelerated Data Science (ADS) SDK used by data scientists and analysts for
 data exploration and experimental machine learning to democratize machine learning and
 analytics by providing easy-to-use, 
-performant, and user friendly tools that
+performant, and user-friendly tools that
 brings together the best of data science practices.
 
 The ADS SDK helps you connect to different data sources, perform exploratory data analysis,
@@ -176,7 +176,7 @@ pip install -r test-requirements.txt
 ```
 
 ### Step 2: Create local .env files 
-Running the local JuypterLab server requires setting OCI authentication, proxy, and OCI namespace parameters. Adapt this .env file with your specific OCI profile and OCIDs to set these variables.
+Running the local JupyterLab server requires setting OCI authentication, proxy, and OCI namespace parameters. Adapt this .env file with your specific OCI profile and OCIDs to set these variables.
 
 ```
 CONDA_BUCKET_NS="your_conda_bucket"
