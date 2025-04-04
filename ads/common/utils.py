@@ -64,7 +64,6 @@ MIN_RATIO_FOR_DOWN_SAMPLING = 1 / 20
 MAX_DISPLAY_VALUES = 10
 
 UNKNOWN = ""
-UNKNOWN_LIST = []
 
 # par link of the index json file.
 PAR_LINK = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/WyjtfVIG0uda-P3-2FmAfwaLlXYQZbvPZmfX1qg0-sbkwEQO6jpwabGr2hMDBmBp/n/ociodscdev/b/service-conda-packs/o/service_pack/index.json"

@@ -60,7 +60,7 @@ from ads.aqua.modeldeployment.entities import (
 )
 from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import UNKNOWN, UNKNOWN_LIST, get_log_links
+from ads.common.utils import UNKNOWN, get_log_links
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
@@ -520,7 +520,7 @@ class AquaDeploymentApp(AquaApp):
         params = f"{params} {deployment_params}".strip()
         if params:
             env_var.update({"PARAMS": params})
-        env_vars = container_spec.env_vars if container_spec else UNKNOWN_LIST
+        env_vars = container_spec.env_vars if container_spec else []
         for env in env_vars:
             if isinstance(env, dict):
                 env = {k: v for k, v in env.items() if v}
@@ -651,7 +651,7 @@ class AquaDeploymentApp(AquaApp):
 
         env_var.update({AQUA_MULTI_MODEL_CONFIG: json.dumps({"models": model_config})})
 
-        env_vars = container_spec.env_vars if container_spec else UNKNOWN_LIST
+        env_vars = container_spec.env_vars if container_spec else []
         for env in env_vars:
             if isinstance(env, dict):
                 env = {k: v for k, v in env.items() if v}

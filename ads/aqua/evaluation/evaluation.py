@@ -81,7 +81,13 @@ from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
 from ads.aqua.model.constants import ModelCustomMetadataFields
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import UNKNOWN, get_console_link, get_files, get_log_links
+from ads.common.utils import (
+    UNKNOWN,
+    get_console_link,
+    get_files,
+    get_log_links,
+    read_file,
+)
 from ads.config import (
     AQUA_JOB_SUBNET_ID,
     COMPARTMENT_OCID,
@@ -1268,14 +1274,38 @@ class AquaEvaluationApp(AquaApp):
                 logger.info(f"Fetching {EVALUATION_REPORT} from custom metadata.")
                 dsc_model.get_custom_metadata_artifact(EVALUATION_REPORT, temp_dir)
             else:
-                logger.info(f"Fetching {EVALUATION_REPORT} from OSS bucket.")
+                logger.info(f"Fetching {EVALUATION_REPORT} from Model artifact.")
                 dsc_model.download_artifact(
                     temp_dir,
                     auth=self._auth,
                 )
-            content = self._read_from_artifact(
-                temp_dir, get_files(temp_dir), EVALUATION_REPORT
-            )
+            files_in_artifact = get_files(temp_dir)
+            if not len(files_in_artifact):
+                try:
+                    evaluation_output_path = dsc_model.custom_metadata_list.get(
+                        EvaluationCustomMetadata.EVALUATION_OUTPUT_PATH
+                    ).value
+                    report_path = (
+                        evaluation_output_path.rstrip("/")
+                        + "/"
+                        + eval_id
+                        + "/"
+                        + EVALUATION_REPORT
+                    )
+                    logger.info(
+                        f"Fetching {EVALUATION_REPORT} from {report_path} for evaluation {eval_id}"
+                    )
+                    content = read_file(
+                        file_path=report_path, auth=default_signer()
+                    ).encode()
+                except ValueError as err:
+                    raise AquaValueError(
+                        f"{EvaluationCustomMetadata.EVALUATION_OUTPUT_PATH} is missing from custom metadata for the model {eval_id}"
+                    ) from err
+            else:
+                content = self._read_from_artifact(
+                    temp_dir, files_in_artifact, EVALUATION_REPORT
+                )
         report = AquaEvalReport(
             evaluation_id=eval_id, content=base64.b64encode(content).decode()
         )

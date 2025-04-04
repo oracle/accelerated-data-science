@@ -200,8 +200,14 @@ class MultiModelDeploymentConfigLoader:
             model_id, AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION
         )
         if config:
+            logger.info(
+                f"Fetched metadata key '{AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION}' from defined metadata for model '{model_id}'"
+            )
             return config
         else:
+            logger.info(
+                f"Fetching '{AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION}' from object storage bucket for {model_id}'"
+            )
             return self.deployment_app.get_config(
                 model_id, AQUA_MODEL_DEPLOYMENT_CONFIG
             )
