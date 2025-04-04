@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
 # Copyright (c) 2020, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -8,8 +7,8 @@ import copy
 import importlib
 
 from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
     OptionalDependency,
+    runtime_dependency,
 )
 from ads.dataset import logger
 
@@ -59,11 +58,10 @@ class Recommendation:
             if change["type"] == "change" and change["name"] == "value":
                 if change["new"] == "Fill missing values with constant":
                     self._show_constant_fill_widget(column)
-                else:
-                    if change["old"] == "Fill missing values with constant":
-                        text = self.fill_nan_dict.pop(column, None)
-                        if text is not None:
-                            text.close()
+                elif change["old"] == "Fill missing values with constant":
+                    text = self.fill_nan_dict.pop(column, None)
+                    if text is not None:
+                        text.close()
                 self.reco_dict[recommendation_type][column]["Selected Action"] = change[
                     "new"
                 ]
@@ -151,7 +149,6 @@ class Recommendation:
     @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     @runtime_dependency(module="ipywidgets", install_from=OptionalDependency.NOTEBOOK)
     def _display(self):
-
         from IPython.core.display import display
 
         if self.recommendation_type_index != len(self.recommendation_types):
@@ -164,11 +161,7 @@ class Recommendation:
                 ]
                 if self.recommendation_type_index == 0:
                     for column in recommendation:
-                        print(
-                            "Column '{0}' is constant and will be dropped".format(
-                                column
-                            )
-                        )
+                        print(f"Column '{column}' is constant and will be dropped")
                     self.recommendation_type_index += 1
                     self._display()
                     return
@@ -184,7 +177,9 @@ class Recommendation:
                                     self.recommendation_type_labels[
                                         self.recommendation_type_index
                                     ]
-                                ),layout = ipywidgets.Layout(display="flex"),),
+                                ),
+                                layout=ipywidgets.Layout(display="flex"),
+                            ),
                         )
                         self.action_list[
                             self.recommendation_types[self.recommendation_type_index]
@@ -192,7 +187,7 @@ class Recommendation:
                         self.column_list = []
                         self.message_list = []
                         self.extra_info_list = []
-                        for column in recommendation.keys():
+                        for column in recommendation:
                             messages = ipywidgets.Label(
                                 recommendation[column]["Message"],
                                 layout=ipywidgets.Layout(
@@ -238,9 +233,7 @@ class Recommendation:
                             self.column_list.append(
                                 ipywidgets.Label(
                                     column
-                                    + "(type: {0})".format(
-                                        self.ds.sampled_df[column].dtype
-                                    ),
+                                    + f"(type: {self.ds.sampled_df[column].dtype})",
                                     layout=ipywidgets.Layout(flex="auto"),
                                     color="grey",
                                 )
