@@ -10,6 +10,7 @@
     "sequence_len": 2048,
     "val_set_size": 0.1
   },
+  "finetuning_params": "",
   "shape": {
     "VM.GPU.A10.2": {
       "batch_size": 2,

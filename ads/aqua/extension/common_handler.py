@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -12,14 +12,12 @@ from huggingface_hub.utils import LocalTokenNotFoundError
 from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
-from ads.aqua.common.errors import AquaResourceAccessError, AquaRuntimeError
+from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import (
     get_huggingface_login_timeout,
-    known_realm,
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
-from ads.aqua.extension.utils import ui_compatability_check
 
 
 class ADSVersionHandler(AquaAPIhandler):
@@ -50,14 +48,7 @@ class CompatibilityCheckHandler(AquaAPIhandler):
             AquaResourceAccessError: raised when aqua is not accessible in the given session/region.
 
         """
-        if ui_compatability_check():
-            return self.finish({"status": "ok"})
-        elif known_realm():
-            return self.finish({"status": "compatible"})
-        else:
-            raise AquaResourceAccessError(
-                "The AI Quick actions extension is not compatible in the given region."
-            )
+        return self.finish({"status": "ok"})
 
 
 class NetworkStatusHandler(AquaAPIhandler):

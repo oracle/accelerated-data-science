@@ -3,7 +3,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
-from typing import List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import Field, model_validator
 
@@ -53,6 +53,28 @@ class AquaFineTuningParams(Serializable):
                 f"Found restricted parameter name: {restricted_params}"
             )
         return data
+
+
+class AquaFineTuningConfig(Serializable):
+    """Represents model's shape list and detailed configuration for fine-tuning.
+
+    Attributes:
+        shape (List[str], optional): A list of shape names (e.g., BM.GPU.A10.4).
+        configuration (Dict[str, Any], optional): Configuration details of fine-tuning.
+    """
+
+    shape: Optional[Dict[str, Any]] = Field(
+        default_factory=dict, description="List of supported shapes for the model."
+    )
+    finetuning_params: Optional[str] = Field(
+        default_factory=str, description="Fine tuning parameters."
+    )
+    configuration: Optional[Dict[str, Any]] = Field(
+        default_factory=dict, description="Configuration details keyed by shape."
+    )
+
+    class Config:
+        extra = "allow"
 
 
 class AquaFineTuningSummary(Serializable):

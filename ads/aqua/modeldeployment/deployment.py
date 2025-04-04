@@ -16,16 +16,14 @@ from ads.aqua.common.entities import (
     AquaMultiModelRef,
     ComputeShapeSummary,
     ContainerPath,
-    ContainerSpec,
 )
 from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
+    DEFINED_METADATA_TO_FILE_MAP,
     build_params_string,
     build_pydantic_error_message,
     get_combined_params,
-    get_container_config,
-    get_container_image,
     get_container_params_type,
     get_model_by_reference_paths,
     get_ocid_substring,
@@ -50,7 +48,7 @@ from ads.aqua.constants import (
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
 from ads.aqua.model import AquaModelApp
-from ads.aqua.model.constants import ModelCustomMetadataFields
+from ads.aqua.model.constants import AquaModelMetadataKeys, ModelCustomMetadataFields
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentConfig,
@@ -67,7 +65,6 @@ from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
-    AQUA_MODEL_DEPLOYMENT_CONFIG,
     COMPARTMENT_OCID,
     PROJECT_OCID,
 )
@@ -193,7 +190,7 @@ class AquaDeploymentApp(AquaApp):
             )
 
         # Get container config
-        container_config = get_container_config()
+        container_config = self.get_container_config()
 
         # Create an AquaModelApp instance once to perform the deployment creation.
         model_app = AquaModelApp()
@@ -228,17 +225,13 @@ class AquaDeploymentApp(AquaApp):
             except ConfigValidationError as err:
                 raise AquaValueError(f"{err}") from err
 
-            service_inference_containers = (
-                AquaContainerConfig.from_container_index_json(
-                    config=container_config
-                ).inference.values()
-            )
+            service_inference_containers = container_config.inference.values()
 
             supported_container_families = [
                 container_config_item.family
                 for container_config_item in service_inference_containers
                 if any(
-                    usage in container_config_item.usages
+                    usage.upper() in container_config_item.usages
                     for usage in [Usage.MULTI_MODEL, Usage.OTHER]
                 )
             ]
@@ -409,7 +402,7 @@ class AquaDeploymentApp(AquaApp):
 
         container_image_uri = (
             create_deployment_details.container_image_uri
-            or get_container_image(container_type=container_type_key)
+            or self.get_container_image(container_type=container_type_key)
         )
         if not container_image_uri:
             try:
@@ -479,18 +472,18 @@ class AquaDeploymentApp(AquaApp):
         # Fetch the startup cli command for the container
         # container_index.json will have "containerSpec" section which will provide the cli params for
         # a given container family
-        container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
-            container_type_key, {}
-        )
+        container_config = self.get_container_config_item(container_type_key)
+
+        container_spec = container_config.spec if container_config else UNKNOWN
         # these params cannot be overridden for Aqua deployments
-        params = container_spec.get(ContainerSpec.CLI_PARM, "")
-        server_port = create_deployment_details.server_port or container_spec.get(
-            ContainerSpec.SERVER_PORT
-        )  # Give precedence to the input parameter
-        health_check_port = (
-            create_deployment_details.health_check_port
-            or container_spec.get(ContainerSpec.HEALTH_CHECK_PORT)
-        )  # Give precedence to the input parameter
+        params = container_spec.cli_param if container_spec else UNKNOWN
+        server_port = create_deployment_details.server_port or (
+            container_spec.server_port if container_spec else None
+        )
+        # Give precendece to the input parameter
+        health_check_port = create_deployment_details.health_check_port or (
+            container_spec.health_check_port if container_spec else None
+        )
 
         deployment_config = self.get_deployment_config(model_id=config_source_id)
 
@@ -527,9 +520,10 @@ class AquaDeploymentApp(AquaApp):
         params = f"{params} {deployment_params}".strip()
         if params:
             env_var.update({"PARAMS": params})
-
-        for env in container_spec.get(ContainerSpec.ENV_VARS, []):
+        env_vars = container_spec.env_vars if container_spec else []
+        for env in env_vars:
             if isinstance(env, dict):
+                env = {k: v for k, v in env.items() if v}
                 for key, _ in env.items():
                     if key not in env_var:
                         env_var.update(env)
@@ -559,7 +553,7 @@ class AquaDeploymentApp(AquaApp):
         aqua_model: DataScienceModel,
         model_config_summary: ModelDeploymentConfigSummary,
         create_deployment_details: CreateModelDeploymentDetails,
-        container_config: Dict,
+        container_config: AquaContainerConfig,
     ) -> AquaDeployment:
         """Builds the environment variables required by multi deployment container and creates the deployment.
 
@@ -587,11 +581,10 @@ class AquaDeploymentApp(AquaApp):
             model=aqua_model,
             container_family=create_deployment_details.container_family,
         )
-        container_spec = container_config.get(
-            ContainerSpec.CONTAINER_SPEC, UNKNOWN_DICT
-        ).get(container_type_key, UNKNOWN_DICT)
+        container_config = self.get_container_config_item(container_type_key)
+        container_spec = container_config.spec if container_config else UNKNOWN
 
-        container_params = container_spec.get(ContainerSpec.CLI_PARM, UNKNOWN).strip()
+        container_params = container_spec.cli_param if container_spec else UNKNOWN
 
         for model in create_deployment_details.models:
             user_params = build_params_string(model.env_var)
@@ -658,8 +651,10 @@ class AquaDeploymentApp(AquaApp):
 
         env_var.update({AQUA_MULTI_MODEL_CONFIG: json.dumps({"models": model_config})})
 
-        for env in container_spec.get(ContainerSpec.ENV_VARS, []):
+        env_vars = container_spec.env_vars if container_spec else []
+        for env in env_vars:
             if isinstance(env, dict):
+                env = {k: v for k, v in env.items() if v}
                 for key, _ in env.items():
                     if key not in env_var:
                         env_var.update(env)
@@ -668,14 +663,13 @@ class AquaDeploymentApp(AquaApp):
 
         container_image_uri = (
             create_deployment_details.container_image_uri
-            or get_container_image(container_type=container_type_key)
+            or self.get_container_image(container_type=container_type_key)
         )
-        server_port = create_deployment_details.server_port or container_spec.get(
-            ContainerSpec.SERVER_PORT
+        server_port = create_deployment_details.server_port or (
+            container_spec.server_port if container_spec else None
         )
-        health_check_port = (
-            create_deployment_details.health_check_port
-            or container_spec.get(ContainerSpec.HEALTH_CHECK_PORT)
+        health_check_port = create_deployment_details.health_check_port or (
+            container_spec.health_check_port if container_spec else None
         )
         tags = {
             Tags.AQUA_MODEL_ID_TAG: aqua_model.id,
@@ -1054,7 +1048,20 @@ class AquaDeploymentApp(AquaApp):
         AquaDeploymentConfig:
             An instance of AquaDeploymentConfig.
         """
-        config = self.get_config(model_id, AQUA_MODEL_DEPLOYMENT_CONFIG).config
+        config = self.get_config_from_metadata(
+            model_id, AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION
+        ).config
+        if config:
+            logger.info(
+                f"Fetched {AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION} from defined metadata for model: {model_id}."
+            )
+            return AquaDeploymentConfig(**(config or UNKNOWN_DICT))
+        config = self.get_config(
+            model_id,
+            DEFINED_METADATA_TO_FILE_MAP.get(
+                AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION.lower()
+            ),
+        ).config
         if not config:
             logger.debug(
                 f"Deployment config for custom model: {model_id} is not available. Use defaults."
@@ -1079,7 +1086,7 @@ class AquaDeploymentApp(AquaApp):
         https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/multimodel-deployment-tips.md#get_multimodel_deployment_config
 
         CLI example:
-        ads aqua deployment get_multimodel_deployment_config --model_ids '["ocid1.datasciencemodel.oc1.iad.OCID"]'
+        ads aqua deployment get_multimodel_deployment_config --model_ids '["md_ocid1","md_ocid2"]'
 
         If a primary model ID is provided, GPU allocation will prioritize that model
         when selecting compatible shapes.
@@ -1230,11 +1237,9 @@ class AquaDeploymentApp(AquaApp):
                 model=model, container_family=container_family
             )
 
-            container_config = get_container_config()
-            container_spec = container_config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
-                container_type_key, {}
-            )
-            cli_params = container_spec.get(ContainerSpec.CLI_PARM, "")
+            container_config = self.get_container_config_item(container_type_key)
+            container_spec = container_config.spec if container_config else UNKNOWN
+            cli_params = container_spec.cli_param if container_spec else UNKNOWN
 
             restricted_params = self._find_restricted_params(
                 cli_params, params, container_type_key

@@ -11,7 +11,8 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional
 
 from ads.aqua.app import AquaApp
-from ads.aqua.common.entities import ComputeShapeSummary
+from ads.aqua.common.entities import ComputeShapeSummary, ModelConfigResult
+from ads.aqua.model.constants import AquaModelMetadataKeys
 from ads.aqua.modeldeployment.entities import (
     AquaDeploymentConfig,
     ConfigurationItem,
@@ -183,16 +184,33 @@ class MultiModelDeploymentConfigLoader:
         """Fetches deployment configurations in parallel using ThreadPoolExecutor."""
         with ThreadPoolExecutor(max_workers=self.MAX_WORKERS) as executor:
             results = executor.map(
-                lambda model_id: self.deployment_app.get_config(
-                    model_id, AQUA_MODEL_DEPLOYMENT_CONFIG
-                ).config,
+                self._fetch_deployment_config_from_metadata_and_oss,
                 model_ids,
             )
 
         return {
-            model_id: AquaDeploymentConfig(**config)
+            model_id: AquaDeploymentConfig(**config.config)
             for model_id, config in zip(model_ids, results)
         }
+
+    def _fetch_deployment_config_from_metadata_and_oss(
+        self, model_id
+    ) -> ModelConfigResult:
+        config = self.deployment_app.get_config_from_metadata(
+            model_id, AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION
+        )
+        if config:
+            logger.info(
+                f"Fetched metadata key '{AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION}' from defined metadata for model '{model_id}'"
+            )
+            return config
+        else:
+            logger.info(
+                f"Fetching '{AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION}' from object storage bucket for {model_id}'"
+            )
+            return self.deployment_app.get_config(
+                model_id, AQUA_MODEL_DEPLOYMENT_CONFIG
+            )
 
     def _extract_model_shape_gpu(
         self,

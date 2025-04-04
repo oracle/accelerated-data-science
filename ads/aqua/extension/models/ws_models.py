@@ -6,6 +6,7 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
+import ads.config
 from ads.aqua.evaluation.entities import AquaEvaluationDetail, AquaEvaluationSummary
 from ads.aqua.model.entities import AquaModel, AquaModelSummary
 from ads.aqua.modeldeployment.entities import AquaDeployment, AquaDeploymentDetail
@@ -57,6 +58,7 @@ class ListModelsRequest(BaseRequest):
     compartment_id: Optional[str] = None
     project_id: Optional[str] = None
     model_type: Optional[str] = None
+    category: str = ads.config.USER
     kind = RequestResponseType.ListDeployments
 
 
