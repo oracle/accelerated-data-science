@@ -1070,9 +1070,9 @@ class AquaModelApp(AquaApp):
         metadata_key: str,
         path_type: MetadataArtifactPathType,
         artifact_path_or_content: str,
-    ):
+    ) -> None:
         """
-        Creates defined metadata artifact for the given model
+        Creates defined metadata artifact for the registered unverified model
 
         Args:
             model_id: str
@@ -1084,22 +1084,13 @@ class AquaModelApp(AquaApp):
             artifact_path_or_content: str
                 It can be local path or oss path or the actual content itself
         Returns:
-            The model defined metadata artifact creation info.
-            Example:
-            {
-                'Date': 'Mon, 02 Dec 2024 06:38:24 GMT',
-                'opc-request-id': 'E4F7',
-                'ETag': '77156317-8bb9-4c4a-882b-0d85f8140d93',
-                'X-Content-Type-Options': 'nosniff',
-                'Content-Length': '4029958',
-                'Vary': 'Origin',
-                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-                'status': 204
-            }
-
+            None
         """
 
         ds_model = DataScienceModel.from_id(model_id)
+        oci_aqua = ds_model.freeform_tags.get(Tags.AQUA_TAG, None)
+        if not oci_aqua:
+            raise AquaRuntimeError(f"Target model {model_id} is not an Aqua model.")
         is_registered_model = ds_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None)
         is_verified_model = ds_model.freeform_tags.get(
             Tags.AQUA_SERVICE_MODEL_TAG, None
@@ -1113,11 +1104,11 @@ class AquaModelApp(AquaApp):
                 )
             except Exception as ex:
                 raise AquaRuntimeError(
-                    f"Error occurred in creating defined metadata artifact for model: {model_id}: {ex}"
+                    f"Error occurred in creating defined metadata artifact for model {model_id}: {ex}"
                 ) from ex
         else:
             raise AquaRuntimeError(
-                f"Cannot create defined metadata artifact for model: {model_id}"
+                f"Cannot create defined metadata artifact for model {model_id}"
             )
 
     def _create_model_catalog_entry(
