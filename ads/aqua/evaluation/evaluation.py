@@ -24,6 +24,7 @@ from oci.data_science.models import (
 from ads.aqua import logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common import utils
+from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import (
     DataScienceResource,
     Resource,
@@ -55,7 +56,6 @@ from ads.aqua.constants import (
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
     LIFECYCLE_DETAILS_MISSING_JOBRUN,
     NB_SESSION_IDENTIFIER,
-    UNKNOWN,
 )
 from ads.aqua.evaluation.constants import (
     EVAL_TERMINATION_STATE,
@@ -77,9 +77,10 @@ from ads.aqua.evaluation.entities import (
     CreateAquaEvaluationDetails,
 )
 from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
+from ads.aqua.model.constants import ModelCustomMetadataFields
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import get_console_link, get_files, get_log_links
+from ads.common.utils import UNKNOWN, get_console_link, get_files, get_log_links
 from ads.config import (
     AQUA_JOB_SUBNET_ID,
     COMPARTMENT_OCID,
@@ -97,6 +98,7 @@ from ads.model.generic_model import ModelDeploymentRuntimeType
 from ads.model.model_metadata import (
     MetadataTaxonomyKeys,
     ModelCustomMetadata,
+    ModelCustomMetadataItem,
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
 )
@@ -139,13 +141,62 @@ class AquaEvaluationApp(AquaApp):
         create_aqua_evaluation_details: CreateAquaEvaluationDetails = None,
         **kwargs,
     ) -> "AquaEvaluationSummary":
-        """Creates Aqua evaluation for resource.
+        """Creates Aqua evaluation for resource.\n
+        For detailed information about CLI flags see: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/cli-tips.md#model-evaluation
 
         Parameters
         ----------
         create_aqua_evaluation_details: CreateAquaEvaluationDetails
             The CreateAquaEvaluationDetails data class which contains all
             required and optional fields to create the aqua evaluation.
+            kwargs:
+                evaluation_source_id: str
+                    The evaluation source id. Must be either model or model deployment ocid.
+                evaluation_name: str
+                    The name for evaluation.
+                dataset_path: str
+                    The dataset path for the evaluation. Could be either a local path from notebook session
+                    or an object storage path.
+                report_path: str
+                    The report path for the evaluation. Must be an object storage path.
+                model_parameters: dict
+                    The parameters for the evaluation.
+                shape_name: str
+                    The shape name for the evaluation job infrastructure.
+                memory_in_gbs: float
+                    The memory in gbs for the shape selected.
+                ocpus: float
+                    The ocpu count for the shape selected.
+                block_storage_size: int
+                    The storage for the evaluation job infrastructure.
+                compartment_id: (str, optional). Defaults to `None`.
+                    The compartment id for the evaluation.
+                project_id: (str, optional). Defaults to `None`.
+                    The project id for the evaluation.
+                evaluation_description: (str, optional). Defaults to `None`.
+                    The description for evaluation
+                experiment_id: (str, optional). Defaults to `None`.
+                    The evaluation model version set id. If provided,
+                    evaluation model will be associated with it.
+                experiment_name: (str, optional). Defaults to `None`.
+                    The evaluation model version set name. If provided,
+                    the model version set with the same name will be used if exists,
+                    otherwise a new model version set will be created with the name.
+                experiment_description: (str, optional). Defaults to `None`.
+                    The description for the evaluation model version set.
+                log_group_id: (str, optional). Defaults to `None`.
+                    The log group id for the evaluation job infrastructure.
+                log_id: (str, optional). Defaults to `None`.
+                    The log id for the evaluation job infrastructure.
+                metrics: (list, optional). Defaults to `None`.
+                    The metrics for the evaluation.
+                force_overwrite: (bool, optional). Defaults to `False`.
+                    Whether to force overwrite the existing file in object storage.
+                freeform_tags: (dict, optional)
+                    Freeform tags for the evaluation model
+                defined_tags: (dict, optional)
+                    Defined tags for the evaluation model
+
         kwargs:
             The kwargs for creating CreateAquaEvaluationDetails instance if
             no create_aqua_evaluation_details provided.
@@ -184,6 +235,23 @@ class AquaEvaluationApp(AquaApp):
             evaluation_source = ModelDeployment.from_id(
                 create_aqua_evaluation_details.evaluation_source_id
             )
+
+            if Tags.MULTIMODEL_TYPE_TAG in evaluation_source.freeform_tags:
+                multi_model_id = evaluation_source.freeform_tags.get(
+                    Tags.AQUA_MODEL_ID_TAG, UNKNOWN
+                )
+
+                if not multi_model_id:
+                    raise AquaRuntimeError(
+                        f"Invalid multi model deployment {multi_model_id}."
+                        f"Make sure the {Tags.AQUA_MODEL_ID_TAG} tag is added to the deployment."
+                    )
+
+                aqua_model = DataScienceModel.from_id(multi_model_id)
+                AquaEvaluationApp.validate_model_name(
+                    aqua_model, create_aqua_evaluation_details
+                )
+
             try:
                 if (
                     evaluation_source.runtime.type
@@ -261,6 +329,10 @@ class AquaEvaluationApp(AquaApp):
             **create_aqua_evaluation_details.model_parameters,
         )
 
+        evaluation_model_defined_tags = (
+            create_aqua_evaluation_details.defined_tags or {}
+        )
+
         target_compartment = (
             create_aqua_evaluation_details.compartment_id or COMPARTMENT_OCID
         )
@@ -312,9 +384,7 @@ class AquaEvaluationApp(AquaApp):
                         create_aqua_evaluation_details.experiment_description
                     )
                     .with_freeform_tags(**evaluation_mvs_freeform_tags)
-                    .with_defined_tags(
-                        **(create_aqua_evaluation_details.defined_tags or {})
-                    )
+                    .with_defined_tags(**evaluation_model_defined_tags)
                     # TODO: decide what parameters will be needed
                     .create(**kwargs)
                 )
@@ -359,6 +429,7 @@ class AquaEvaluationApp(AquaApp):
             .with_custom_metadata_list(evaluation_model_custom_metadata)
             .with_defined_metadata_list(evaluation_model_taxonomy_metadata)
             .with_provenance_metadata(ModelProvenanceMetadata(training_id=UNKNOWN))
+            .with_defined_tags(**evaluation_model_defined_tags)
             # TODO uncomment this once the evaluation container will get the updated version of the ADS
             # .with_input_schema(create_aqua_evaluation_details.to_dict())
             # TODO: decide what parameters will be needed
@@ -391,7 +462,7 @@ class AquaEvaluationApp(AquaApp):
             .with_shape_name(create_aqua_evaluation_details.shape_name)
             .with_block_storage_size(create_aqua_evaluation_details.block_storage_size)
             .with_freeform_tag(**evaluation_job_freeform_tags)
-            .with_defined_tag(**(create_aqua_evaluation_details.defined_tags or {}))
+            .with_defined_tag(**evaluation_model_defined_tags)
         )
         if (
             create_aqua_evaluation_details.memory_in_gbs
@@ -411,8 +482,11 @@ class AquaEvaluationApp(AquaApp):
                 JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING
             )
 
-        container_image = self._get_evaluation_container(
-            create_aqua_evaluation_details.evaluation_source_id
+        container_image = (
+            create_aqua_evaluation_details.container_image_uri
+            or self._get_evaluation_container(
+                create_aqua_evaluation_details.evaluation_source_id
+            )
         )
 
         evaluation_job.with_runtime(
@@ -438,7 +512,7 @@ class AquaEvaluationApp(AquaApp):
         evaluation_job_run = evaluation_job.run(
             name=evaluation_model.display_name,
             freeform_tags=evaluation_job_freeform_tags,
-            defined_tags=(create_aqua_evaluation_details.defined_tags or {}),
+            defined_tags=evaluation_model_defined_tags,
             wait=False,
         )
         logger.debug(
@@ -462,16 +536,12 @@ class AquaEvaluationApp(AquaApp):
             Tags.AQUA_EVALUATION: Tags.AQUA_EVALUATION,
             **(create_aqua_evaluation_details.freeform_tags or {}),
         }
-        evaluation_model_defined_tags = (
-            create_aqua_evaluation_details.defined_tags or {}
-        )
 
         self.ds_client.update_model(
             model_id=evaluation_model.id,
             update_model_details=UpdateModelDetails(
                 custom_metadata_list=updated_custom_metadata_list,
                 freeform_tags=evaluation_model_freeform_tags,
-                defined_tags=evaluation_model_defined_tags,
             ),
         )
 
@@ -550,6 +620,120 @@ class AquaEvaluationApp(AquaApp):
             },
             parameters=AquaEvalParams(),
         )
+
+    @staticmethod
+    def validate_model_name(
+        evaluation_source: DataScienceModel,
+        create_aqua_evaluation_details: CreateAquaEvaluationDetails,
+    ) -> None:
+        """
+        Validates the user input for the model name when creating an Aqua evaluation.
+
+        This function verifies that:
+        - The model group is not empty.
+        - The model multi metadata is present in the DataScienceModel metadata.
+        - The user provided a non-empty model name.
+        - The provided model name exists in the DataScienceModel metadata.
+        - The deployment configuration contains core metadata required for validation.
+
+        Parameters
+        ----------
+        evaluation_source : DataScienceModel
+            The DataScienceModel object containing metadata about each model in the deployment.
+        create_aqua_evaluation_details : CreateAquaEvaluationDetails
+            Contains required and optional fields for creating the Aqua evaluation.
+
+        Raises
+        ------
+        AquaValueError
+            If the user fails to provide a model name or if the provided model name does not match
+            any of the valid model names in the deployment metadata.
+        AquaRuntimeError
+            If the metadata is missing the model group count or if the model group count is invalid.
+        """
+        user_model_parameters = create_aqua_evaluation_details.model_parameters
+        custom_metadata_list = evaluation_source.custom_metadata_list
+        user_model_name = user_model_parameters.get("model")
+
+        # Ensure that a non-empty model name was provided.
+        if not user_model_name:
+            error_message = (
+                "No model name was provided for evaluation. For multi-model deployment, "
+                "a model must be specified in the model parameters."
+            )
+            logger.debug(error_message)
+            raise AquaValueError(error_message)
+
+        # Retrieve and convert the model group count from metadata.
+        model_count = custom_metadata_list.get(
+            ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT
+        )
+        try:
+            model_group_count = int(model_count.value)
+        except Exception as ex:
+            error_message = (
+                "Missing or invalid `MULTIMODEL_GROUP_COUNT` "
+                f"in custom metadata for evaluation source ID '{create_aqua_evaluation_details.evaluation_source_id}'. "
+                f"Details: {ex}"
+            )
+            logger.error(error_message)
+
+        if model_group_count < 1:
+            logger.error(
+                f"Invalid model group count: {model_group_count} for evaluation source ID "
+                f"'{create_aqua_evaluation_details.evaluation_source_id}'. A valid multi-model deployment "
+                f"requires at least one model."
+            )
+            raise AquaRuntimeError(
+                f"Unable to retrieve details for the multi-model deployment evaluation. A valid multi-model deployment "
+                f"must include at least one model. However, the provided evaluation source ID "
+                f"'{create_aqua_evaluation_details.evaluation_source_id}' does not contain any information about deployed models."
+            )
+
+        multi_model_metadata_value = custom_metadata_list.get(
+            ModelCustomMetadataFields.MULTIMODEL_METADATA,
+            ModelCustomMetadataItem(key=ModelCustomMetadataFields.MULTIMODEL_METADATA),
+        ).value
+
+        if not multi_model_metadata_value:
+            error_message = (
+                f"Required model metadata is missing for evaluation source ID: {evaluation_source.id}. "
+                f"A valid multi-model deployment requires {ModelCustomMetadataFields.MULTIMODEL_METADATA}. "
+                "Please recreate the model deployment and retry the evaluation, as an issue occurred during the initialization of the model group."
+            )
+            logger.debug(error_message)
+            raise AquaRuntimeError(error_message)
+
+        try:
+            multi_model_metadata = json.loads(
+                evaluation_source.dsc_model.get_custom_metadata_artifact(
+                    metadata_key_name=ModelCustomMetadataFields.MULTIMODEL_METADATA
+                ).decode("utf-8")
+            )
+        except Exception as ex:
+            error_message = (
+                f"Error fetching {ModelCustomMetadataFields.MULTIMODEL_METADATA} "
+                f"from custom metadata for evaluation source ID '{evaluation_source.id}'. "
+                f"Details: {ex}"
+            )
+            logger.error(error_message)
+            raise AquaRuntimeError(error_message) from ex
+
+        # Build the list of valid model names from custom metadata.
+        model_names = [
+            AquaMultiModelRef(**metadata).model_name
+            for metadata in multi_model_metadata
+        ]
+
+        # Check if the provided model name is among the valid names.
+        if user_model_name not in model_names:
+            error_message = (
+                f"Provided model name '{user_model_name}' does not match any valid model names {model_names} "
+                f"for evaluation source ID '{create_aqua_evaluation_details.evaluation_source_id}'. "
+                "Please provide the correct model name."
+            )
+            logger.debug(error_message)
+            raise AquaValueError(error_message)
 
     def _build_evaluation_runtime(
         self,
@@ -1393,7 +1577,7 @@ class AquaEvaluationApp(AquaApp):
             )
         except Exception as e:
             logger.debug(
-                f"Failed to retreive job run: {jobrun_id}. " f"DEBUG INFO: {str(e)}"
+                f"Failed to retreive job run: {jobrun_id}. DEBUG INFO: {str(e)}"
             )
             jobrun = None
 

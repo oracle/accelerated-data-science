@@ -1,15 +1,14 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 
 import requests
 
-from ads.aqua.app import AquaApp, logger
+from ads.aqua.app import AquaApp
 from ads.aqua.modeldeployment.entities import ModelParams
 from ads.common.auth import default_signer
 from ads.telemetry import telemetry
@@ -63,7 +62,7 @@ class MDInferenceResponse(AquaApp):
         model_response_content
         """
 
-        params_dict = asdict(self.model_params)
+        params_dict = self.model_params.to_dict()
         params_dict = {
             key: value for key, value in params_dict.items() if value is not None
         }

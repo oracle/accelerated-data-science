@@ -2,23 +2,78 @@
 Release Notes
 =============
 
+2.13.5
+-------
+Release date: April 3, 2025
+
+* Added support for OpenAI and AsyncOpenAI clients to enable seamless integration with OCI-based LLM model deployments.
+* AI Quick Actions: Enhanced error message handling for clearer diagnostics and improved user experience.
+* AI Quick Actions: Introduced support for Multi-Model Deployment, allowing users to deploy multiple models within a single endpoint.
+
+
+2.13.4
+-------
+Release date: March 27, 2025
+
+* Added compatibility with Python 3.12.
+* Forecast Operator: Introduced auto-select fallback to AutoMLX for faster approximate mode execution.
+
+
+2.13.3
+-------
+Release date: March 21, 2025
+
+* Fixed defined tag permission issue when creating AI Quick Action fine-tuning and evaluation.
+
+
+2.13.2
+-------
+Release date: March 14, 2025
+
+* Fixed bug in DataScienceModel defined metadata.
+
+
+2.13.1
+-------
+Release date: March 13, 2025
+
+
+* Upgraded OCI SDK to ``v2.148.0`` for improved compatibility and performance.
+* Added support to launch the **AI Quick Actions API server** from anywhere using:
+
+  .. code-block:: bash
+
+      python -m ads.aqua.server
+
+* Introduced ``HttpxOCIAuth`` class, enabling HTTPX clients to sign requests using **OCI signers**, ensuring compatibility with **OCI Model Deployment services and LLM models**.
+* **Forecast Operator:**
+
+  * Optimized the **auto-select** feature to prevent redundant data re-saving during cross-validation.
+  * Implemented **AutoMLx Global Explainer** for enhanced model interpretability.
+
+* **Bug Fixes:**
+
+  * Fixed the Python 3.11 Compatibility. Replaced the deprecated ``cgi.parse_header`` function with a custom **pure-Python implementation** for parsing ``Content-Disposition`` headers.
+  * Resolved a **recursion issue** that occurred when creating a new model with the latest **OCI SDK version**.
+
+
 2.13.0
 -------
-Release date: Feb 14th, 2025
+Release date: Feb 14, 2025
 
 * Fixed bug in DataScienceModel defined metadata where non-predefined metadata keys caused errors.
 
 
 2.12.11
 -------
-Release date: Feb 5th, 2025
+Release date: Feb 5, 2025
 
 * Fixed bug while loading model configuration in AI Quick Actions.
 
 
 2.12.10
 -------
-Release date: Feb 5th, 2025
+Release date: Feb 5, 2025
 
 * Support inference container URI to be edited for unverified models in AI Quick Actions.
 * Logging improvements for all CRUD operations in AI Quick Actions.

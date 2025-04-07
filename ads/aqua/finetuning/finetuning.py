@@ -30,7 +30,6 @@ from ads.aqua.constants import (
     DEFAULT_FT_REPLICA,
     DEFAULT_FT_VALIDATION_SET_SIZE,
     JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING,
-    UNKNOWN,
     UNKNOWN_DICT,
 )
 from ads.aqua.data import AquaResourceIdentifier
@@ -45,7 +44,7 @@ from ads.aqua.finetuning.entities import (
 )
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import get_console_link
+from ads.common.utils import UNKNOWN, get_console_link
 from ads.config import (
     AQUA_FINETUNING_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
     AQUA_JOB_SUBNET_ID,
@@ -88,13 +87,62 @@ class AquaFineTuningApp(AquaApp):
     def create(
         self, create_fine_tuning_details: CreateFineTuningDetails = None, **kwargs
     ) -> "AquaFineTuningSummary":
-        """Creates Aqua fine tuning for model.
+        """Creates Aqua fine tuning for model.\n
+        For detailed information about CLI flags see: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/f271ca63d12e3c256718f23a14d93da4b4fc086b/ai-quick-actions/cli-tips.md#create-fine-tuned-model
 
         Parameters
         ----------
         create_fine_tuning_details: CreateFineTuningDetails
             The CreateFineTuningDetails data class which contains all
             required and optional fields to create the aqua fine tuning.
+            kwargs:
+                ft_source_id: str The fine tuning source id. Must be model OCID.
+                ft_name: str
+                    The name for fine tuning.
+                dataset_path: str
+                    The dataset path for fine tuning. Could be either a local path from notebook session
+                    or an object storage path.
+                report_path: str
+                    The report path for fine tuning. Must be an object storage path.
+                ft_parameters: dict
+                    The parameters for fine tuning.
+                shape_name: str
+                    The shape name for fine tuning job infrastructure.
+                replica: int
+                    The replica for fine tuning job runtime.
+                validation_set_size: float
+                    The validation set size for fine tuning job. Must be a float in between [0,1).
+                ft_description: (str, optional). Defaults to `None`.
+                    The description for fine tuning.
+                compartment_id: (str, optional). Defaults to `None`.
+                    The compartment id for fine tuning.
+                project_id: (str, optional). Defaults to `None`.
+                    The project id for fine tuning.
+                experiment_id: (str, optional). Defaults to `None`.
+                    The fine tuning model version set id. If provided,
+                    fine tuning model will be associated with it.
+                experiment_name: (str, optional). Defaults to `None`.
+                    The fine tuning model version set name. If provided,
+                    the fine tuning version set with the same name will be used if exists,
+                    otherwise a new model version set will be created with the name.
+                experiment_description: (str, optional). Defaults to `None`.
+                    The description for fine tuning model version set.
+                block_storage_size: (int, optional). Defaults to 256.
+                    The storage for fine tuning job infrastructure.
+                subnet_id: (str, optional). Defaults to `None`.
+                    The custom egress for fine tuning job.
+                log_group_id: (str, optional). Defaults to `None`.
+                    The log group id for fine tuning job infrastructure.
+                log_id: (str, optional). Defaults to `None`.
+                    The log id for fine tuning job infrastructure.
+                watch_logs: (bool, optional). Defaults to `False`.
+                    The flag to watch the job run logs when a fine-tuning job is created.
+                force_overwrite: (bool, optional). Defaults to `False`.
+                    Whether to force overwrite the existing file in object storage.
+                freeform_tags: (dict, optional)
+                    Freeform tags for the fine-tuning model
+                defined_tags: (dict, optional)
+                    Defined tags for the fine-tuning model
         kwargs:
             The kwargs for creating CreateFineTuningDetails instance if
             no create_fine_tuning_details provided.
@@ -264,6 +312,7 @@ class AquaFineTuningApp(AquaApp):
             compartment_id=target_compartment,
             project_id=target_project,
             model_by_reference=True,
+            defined_tags=create_fine_tuning_details.defined_tags
         )
 
         ft_job_freeform_tags = {
@@ -383,14 +432,12 @@ class AquaFineTuningApp(AquaApp):
             Tags.AQUA_FINE_TUNED_MODEL_TAG: f"{source.id}#{source.display_name}",
             **(create_fine_tuning_details.freeform_tags or {}),
         }
-        model_defined_tags = create_fine_tuning_details.defined_tags or {}
 
         self.update_model(
             model_id=ft_model.id,
             update_model_details=UpdateModelDetails(
                 custom_metadata_list=updated_custom_metadata_list,
                 freeform_tags=model_freeform_tags,
-                defined_tags=model_defined_tags,
             ),
         )
         logger.debug(
@@ -491,7 +538,7 @@ class AquaFineTuningApp(AquaApp):
                 "finetuning_source": source.id,
                 "finetuning_experiment_id": experiment_model_version_set_id,
                 **model_freeform_tags,
-                **model_defined_tags,
+                **(create_fine_tuning_details.defined_tags or {}),
             },
             parameters=ft_parameters,
         )
@@ -592,7 +639,7 @@ class AquaFineTuningApp(AquaApp):
         Dict:
             A dict of allowed finetuning configs.
         """
-        config = self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG)
+        config = self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG).config
         if not config:
             logger.debug(
                 f"Fine-tuning config for custom model: {model_id} is not available. Use defaults."

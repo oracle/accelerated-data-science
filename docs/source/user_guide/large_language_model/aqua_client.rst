@@ -129,3 +129,131 @@ The following examples demonstrate how to perform the same operations using the 
         input=["one", "two"]
     )
     print(response)
+
+
+HTTPX Client Integration with OCI Authentication
+================================================
+
+.. versionadded:: 2.13.1
+
+The latest client release now includes streamlined support for OCI authentication with HTTPX. Our helper functions for creating synchronous and asynchronous HTTPX clients automatically configure authentication based on your default settings. Additionally, you can pass extra keyword arguments to further customize the HTTPX client (e.g., timeouts, proxies, etc.), making it fully compatible with OCI Model Deployment service and third-party libraries (e.g., the OpenAI client).
+
+Usage
+-----
+
+**Synchronous HTTPX Client**
+
+.. code-block:: python3
+
+    import ads
+    import ads.aqua
+
+    ads.set_auth(auth="security_token", profile="<replace-with-your-profile>")
+
+    client = ads.aqua.get_httpx_client(timeout=10.0)
+
+    response = client.post(
+        url="https://<MD_OCID>/predict",
+        json={
+            "model": "odsc-llm",
+            "prompt": "Tell me a joke."
+        },
+    )
+
+    response.raise_for_status()
+    json_response = response.json()
+
+**Asynchronous HTTPX Client**
+
+.. code-block:: python3
+
+    import ads
+    import ads.aqua
+
+    ads.set_auth(auth="security_token", profile="<replace-with-your-profile>")
+
+    async_client = client = ads.aqua.get_async_httpx_client(timeout=10.0)
+
+
+Aqua OpenAI Client
+==================
+
+.. versionadded:: 2.13.4
+
+The Oracle-ADS **OpenAI** and **AsyncOpenAI** clients extend the official OpenAI Python SDK to support model deployments on **OCI**. These clients automatically patch request headers and normalize URL paths based on the provided deployment OCID, ensuring that API calls are formatted correctly for OCI Model Deployment.
+
+You can refer to the official `Open AI quick start examples <https://platform.openai.com/docs/quickstart?api-mode=responses>`_ for general usage patterns.
+When working with **OCI Model Deployments**, make sure to import the client from the **oracle-ads** library:
+
+.. code-block:: python3
+
+    from ads.aqua.client.openai_client import OpenAI
+
+
+Requirements
+------------
+To use these clients, you must have the ``openai-python`` package installed. This package is an optional dependency. If it is not installed, you will receive an informative error when attempting to instantiate one of these clients. To install the package, run:
+
+.. code-block:: bash
+
+   pip install openai
+
+
+Usage
+-----
+Both synchronous and asynchronous versions are available.
+
+**Synchronous Client**
+
+The synchronous client, ``OpenAI``, extends the OpenAI client. If no HTTP client is provided, it will automatically create one using ``ads.aqua.get_httpx_client()``.
+
+.. code-block:: python
+
+    import ads
+    from ads.aqua.client.openai_client import OpenAI
+    ads.set_auth(auth="security_token", profile="<replace-with-your-profile>")
+
+    client = OpenAI(
+        base_url="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<OCID>/predict/v1",
+    )
+
+    response = client.chat.completions.create(
+        model="odsc-llm",
+        messages=[
+            {
+                "role": "user",
+                "content": "Tell me a joke.",
+            }
+        ],
+        # stream=True, # enable for streaming
+    )
+
+    print(response)
+
+
+**Asynchronous Client**
+
+The asynchronous client, ``AsynOpenAI``, extends the AsyncOpenAI client. If no async HTTP client is provided, it will automatically create one using ``ads.aqua.get_async_httpx_client()``.
+
+.. code-block:: python
+
+    import ads
+    import asyncio
+    import nest_asyncio
+    from ads.aqua.client.openai_client import AsyncOpenAI
+
+    ads.set_auth(auth="security_token")
+
+    async def test_async() -> None:
+        client_async = AsyncOpenAI(
+            base_url="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<OCID>/predict/v1",
+        )
+        response = await client_async.chat.completions.create(
+            model="odsc-llm",
+            messages=[{"role": "user", "content": "Tell me a long joke"}],
+            stream=True
+        )
+        async for event in response:
+            print(event)
+
+    asyncio.run(test_async())

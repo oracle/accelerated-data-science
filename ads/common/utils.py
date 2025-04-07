@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -22,7 +22,7 @@ from datetime import datetime
 from enum import Enum
 from io import DEFAULT_BUFFER_SIZE
 from textwrap import fill
-from typing import Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 from urllib import request
 from urllib.parse import urlparse
 
@@ -63,6 +63,8 @@ MIN_RATIO_FOR_DOWN_SAMPLING = 1 / 20
 # Maximum distinct values by cardinality will be used for plotting
 MAX_DISPLAY_VALUES = 10
 
+UNKNOWN = ""
+
 # par link of the index json file.
 PAR_LINK = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/WyjtfVIG0uda-P3-2FmAfwaLlXYQZbvPZmfX1qg0-sbkwEQO6jpwabGr2hMDBmBp/n/ociodscdev/b/service-conda-packs/o/service_pack/index.json"
 
@@ -81,6 +83,7 @@ mpl.rcParams["image.cmap"] = "BuGn"
 mpl.rcParams["axes.prop_cycle"] = cycler(
     color=["teal", "blueviolet", "forestgreen", "peru", "y", "dodgerblue", "r"]
 )
+
 
 # sqlalchemy engines
 _engines = {}
@@ -210,6 +213,37 @@ def random_valid_ocid(prefix="ocid1.dataflowapplication.oc1.iad"):
     left, right = prefix.rsplit(".", 1)
     fake = "".join([random.choice(string.ascii_lowercase) for i in range(60)])
     return f"{left}.{fake}"
+
+
+def parse_bool(value: Any) -> bool:
+    """
+    Converts a value to boolean. For strings, it interprets 'true', '1', or 'yes'
+    (case insensitive) as True; everything else as False.
+
+    Parameters
+    ----------
+    value : Any
+        The value to convert to boolean.
+
+    Returns
+    -------
+    bool
+        The boolean interpretation of the value.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes")
+    return bool(value)
+
+
+def read_file(file_path: str, **kwargs) -> str:
+    try:
+        with fsspec.open(file_path, "r", **kwargs.get("auth", {})) as f:
+            return f.read()
+    except Exception as e:
+        logger.debug(f"Failed to read file {file_path}. {e}")
+        return UNKNOWN
 
 
 def get_dataframe_styles(max_width=75):
