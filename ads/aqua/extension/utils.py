@@ -6,14 +6,12 @@ import re
 import traceback
 import uuid
 from dataclasses import fields
-from datetime import datetime, timedelta
 from http.client import responses
 from typing import Dict, Optional
 
-from cachetools import TTLCache, cached
 from tornado.web import HTTPError
 
-from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
+from ads.aqua import logger
 from ads.aqua.constants import (
     AQUA_TROUBLESHOOTING_LINK,
     OCI_OPERATION_FAILURES,
@@ -33,14 +31,6 @@ def validate_function_parameters(data_class, input_data: Dict):
             raise HTTPError(
                 400, Errors.MISSING_REQUIRED_PARAMETER.format(required_parameter)
             )
-
-
-@cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=1), timer=datetime.now))
-def ui_compatability_check():
-    """This method caches the service compartment OCID details that is set by either the environment variable or if
-    fetched from the configuration. The cached result is returned when multiple calls are made in quick succession
-    from the UI to avoid multiple config file loads."""
-    return ODSC_MODEL_COMPARTMENT_OCID
 
 
 def get_default_error_messages(

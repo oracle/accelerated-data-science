@@ -13,7 +13,7 @@ from cachetools import TTLCache
 from huggingface_hub import snapshot_download
 from oci.data_science.models import JobRun, Metadata, Model, UpdateModelDetails
 
-from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
+from ads.aqua import logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import (
@@ -94,6 +94,7 @@ from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
     AQUA_EVALUATION_CONTAINER_METADATA_NAME,
     AQUA_FINETUNING_CONTAINER_METADATA_NAME,
+    AQUA_SERVICE_MODELS,
     COMPARTMENT_OCID,
     PROJECT_OCID,
     SERVICE,
@@ -181,7 +182,9 @@ class AquaModelApp(AquaApp):
         service_model = DataScienceModel.from_id(model_id)
         target_project = project_id or PROJECT_OCID
         target_compartment = compartment_id or COMPARTMENT_OCID
-        if service_model.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
+
+        # Skip model copying if it is registered model
+        if service_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM) is not None:
             logger.info(
                 f"Aqua Model {model_id} already exists in the user's compartment."
                 "Skipped copying."
@@ -949,11 +952,11 @@ class AquaModelApp(AquaApp):
                 category="aqua/service/model", action="list"
             )
 
-            if ODSC_MODEL_COMPARTMENT_OCID in self._service_models_cache:
+            if AQUA_SERVICE_MODELS in self._service_models_cache:
                 logger.info(
-                    f"Returning service models list in {ODSC_MODEL_COMPARTMENT_OCID} from cache."
+                    f"Returning service models list in {AQUA_SERVICE_MODELS} from cache."
                 )
-                return self._service_models_cache.get(ODSC_MODEL_COMPARTMENT_OCID)
+                return self._service_models_cache.get(AQUA_SERVICE_MODELS)
             logger.info("Fetching service models.")
             lifecycle_state = kwargs.pop(
                 "lifecycle_state", Model.LIFECYCLE_STATE_ACTIVE
@@ -968,7 +971,7 @@ class AquaModelApp(AquaApp):
             )
 
         logger.info(
-            f"Fetched {len(models)} model in compartment_id={ODSC_MODEL_COMPARTMENT_OCID if category==SERVICE else compartment_id}."
+            f"Fetched {len(models)} models from {AQUA_SERVICE_MODELS if category==SERVICE else compartment_id}."
         )
         aqua_models = []
         inference_containers = self.get_container_config().to_dict().get("inference")
@@ -986,7 +989,7 @@ class AquaModelApp(AquaApp):
 
         if category == SERVICE:
             self._service_models_cache.__setitem__(
-                key=ODSC_MODEL_COMPARTMENT_OCID, value=aqua_models
+                key=AQUA_SERVICE_MODELS, value=aqua_models
             )
 
         return aqua_models
@@ -1002,15 +1005,10 @@ class AquaModelApp(AquaApp):
         """
         res = {}
         with self._cache_lock:
-            if ODSC_MODEL_COMPARTMENT_OCID in self._service_models_cache:
-                self._service_models_cache.pop(key=ODSC_MODEL_COMPARTMENT_OCID)
-                logger.info(
-                    f"Cleared models cache for service compartment {ODSC_MODEL_COMPARTMENT_OCID}."
-                )
+            if AQUA_SERVICE_MODELS in self._service_models_cache:
+                self._service_models_cache.pop(key=AQUA_SERVICE_MODELS)
+                logger.info("Cleared models cache for service compartment.")
                 res = {
-                    "key": {
-                        "compartment_id": ODSC_MODEL_COMPARTMENT_OCID,
-                    },
                     "cache_deleted": True,
                 }
         return res

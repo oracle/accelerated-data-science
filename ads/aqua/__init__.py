@@ -38,7 +38,3 @@ def set_log_level(log_level: str):
 
 if OCI_RESOURCE_PRINCIPAL_VERSION:
     set_auth("resource_principal")
-
-ODSC_MODEL_COMPARTMENT_OCID = (
-    os.environ.get("ODSC_MODEL_COMPARTMENT_OCID") or "ODSC_MODEL_COMPARTMENT_OCID"
-)

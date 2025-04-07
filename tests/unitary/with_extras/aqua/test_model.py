@@ -25,7 +25,7 @@ import ads.common.oci_client
 import ads.config
 
 from ads.aqua.common.entities import AquaMultiModelRef
-from ads.aqua.common.enums import ModelFormat
+from ads.aqua.common.enums import ModelFormat, Tags
 from ads.aqua.common.errors import (
     AquaFileNotFoundError,
     AquaRuntimeError,
@@ -307,6 +307,7 @@ class TestAquaModel:
             "organization": "test_organization",
             "task": "test_task",
             "ready_to_fine_tune": "true",
+            "aqua_custom_base_model": "true",
         }
         custom_metadata_list = ModelCustomMetadata()
         custom_metadata_list.add(
@@ -332,7 +333,7 @@ class TestAquaModel:
         mock_model.compartment_id = TestDataset.SERVICE_COMPARTMENT_ID
         mock_from_id.return_value = mock_model
         mock_create.return_value = mock_model
-
+        mock_model.freeform_tags.pop(Tags.BASE_MODEL_CUSTOM)
         # will copy service model
         model = self.app.create(
             model_id="test_model_id",
