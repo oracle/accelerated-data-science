@@ -17,8 +17,9 @@ from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 from string import Template
-from typing import List, Union
+from typing import Any, Dict, List, Optional, Union
 
+import fsspec
 import oci
 from cachetools import TTLCache, cached
 from huggingface_hub.constants import HF_HUB_CACHE
@@ -32,9 +33,11 @@ from huggingface_hub.utils import (
 )
 from oci.data_science.models import JobRun, Model
 from oci.object_storage.models import ObjectSummary
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
+from ads.aqua.common.entities import GPUShapesIndex
 from ads.aqua.common.enums import (
+    CONTAINER_FAMILY_COMPATIBILITY,
     InferenceContainerParamType,
     InferenceContainerType,
     RqsAdditionalDetails,
@@ -61,6 +64,7 @@ from ads.aqua.constants import (
     VLLM_INFERENCE_RESTRICTED_PARAMS,
 )
 from ads.aqua.data import AquaResourceIdentifier
+from ads.common import auth as authutil
 from ads.common.auth import AuthState, default_signer
 from ads.common.decorator.threaded import threaded
 from ads.common.extended_enum import ExtendedEnum
@@ -76,6 +80,7 @@ from ads.common.utils import (
 from ads.config import (
     AQUA_MODEL_DEPLOYMENT_FOLDER,
     AQUA_SERVICE_MODELS_BUCKET,
+    CONDA_BUCKET_NAME,
     CONDA_BUCKET_NS,
     TENANCY_OCID,
 )
@@ -247,7 +252,7 @@ def load_config(file_path: str, config_file_name: str, **kwargs) -> dict:
     return config
 
 
-def list_os_files_with_extension(oss_path: str, extension: str) -> [str]:
+def list_os_files_with_extension(oss_path: str, extension: str) -> List[str]:
     """
     List files in the specified directory with the given extension.
 
@@ -934,6 +939,25 @@ def get_combined_params(params1: str = None, params2: str = None) -> str:
     return " ".join(combined_params)
 
 
+def build_params_string(params: dict) -> str:
+    """Builds params string from params dict
+
+    Parameters
+    ----------
+    params:
+        Parameter dict with key-value pairs
+
+    Returns
+    -------
+        A params string.
+    """
+    return (
+        " ".join(f"{name} {value}" for name, value in params.items()).strip()
+        if params
+        else UNKNOWN
+    )
+
+
 def copy_model_config(artifact_path: str, os_path: str, auth: dict = None):
     """Copies the aqua model config folder from the artifact path to the user provided object storage path.
     The config folder is overwritten if the files already exist at the destination path.
@@ -1214,3 +1238,119 @@ def build_pydantic_error_message(ex: ValidationError):
         for e in ex.errors()
         if "loc" in e and e["loc"]
     } or "; ".join(e["msg"] for e in ex.errors())
+
+
+def is_pydantic_model(obj: object) -> bool:
+    """
+    Returns True if obj is a Pydantic model class or an instance of a Pydantic model.
+
+    Args:
+        obj: The object or class to check.
+
+    Returns:
+        bool: True if obj is a subclass or instance of BaseModel, False otherwise.
+    """
+    cls = obj if isinstance(obj, type) else type(obj)
+    return issubclass(cls, BaseModel)
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=5), timer=datetime.now))
+def load_gpu_shapes_index(
+    auth: Optional[Dict] = None,
+) -> GPUShapesIndex:
+    """
+    Loads the GPU shapes index from Object Storage or a local resource folder.
+
+    The function first attempts to load the file from an Object Storage bucket using fsspec.
+    If the loading fails (due to connection issues, missing file, etc.), it falls back to
+    loading the index from a local file.
+
+    Parameters
+    ----------
+    auth: (Dict, optional). Defaults to None.
+        The default authentication is set using `ads.set_auth` API. If you need to override the
+        default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+        authentication signer and kwargs required to instantiate IdentityClient object.
+
+    Returns
+    -------
+    GPUShapesIndex: The parsed GPU shapes index.
+
+    Raises
+    ------
+    FileNotFoundError: If the GPU shapes index cannot be found in either Object Storage or locally.
+    json.JSONDecodeError: If the JSON is malformed.
+    """
+    file_name = "gpu_shapes_index.json"
+    data: Dict[str, Any] = {}
+
+    # Check if the CONDA_BUCKET_NS environment variable is set.
+    if CONDA_BUCKET_NS:
+        try:
+            auth = auth or authutil.default_signer()
+            # Construct the object storage path. Adjust bucket name and path as needed.
+            storage_path = (
+                f"oci://{CONDA_BUCKET_NAME}@{CONDA_BUCKET_NS}/service_pack/{file_name}"
+            )
+            logger.debug("Loading GPU shapes index from Object Storage")
+            with fsspec.open(storage_path, mode="r", **auth) as file_obj:
+                data = json.load(file_obj)
+            logger.debug("Successfully loaded GPU shapes index.")
+        except Exception as ex:
+            logger.debug(
+                f"Failed to load GPU shapes index from Object Storage. Details: {ex}"
+            )
+
+    # If loading from Object Storage failed, load from the local resource folder.
+    if not data:
+        try:
+            local_path = os.path.join(
+                os.path.dirname(__file__), "../resources", file_name
+            )
+            logger.debug(f"Loading GPU shapes index from {local_path}.")
+            with open(local_path) as file_obj:
+                data = json.load(file_obj)
+            logger.debug("Successfully loaded GPU shapes index.")
+        except Exception as e:
+            logger.debug(
+                f"Failed to load GPU shapes index from {local_path}. Details: {e}"
+            )
+
+    return GPUShapesIndex(**data)
+
+
+def get_preferred_compatible_family(selected_families: set[str]) -> str:
+    """
+    Determines the preferred container family from a given set of container families.
+
+    This method is used in the context of multi-model deployment to handle cases
+    where models selected for deployment use different, but compatible, container families.
+
+    It checks the input `families` set against the `CONTAINER_FAMILY_COMPATIBILITY` map.
+    If a compatibility group exists that fully includes all the families in the input,
+    the corresponding key (i.e., the preferred family) is returned.
+
+    Parameters
+    ----------
+    families : set[str]
+        A set of container family identifiers.
+
+    Returns
+    -------
+    Optional[str]
+        The preferred container family if all families are compatible within one group;
+        otherwise, returns `None` indicating that no compatible family group was found.
+
+    Example
+    -------
+    >>> get_preferred_compatible_family({"odsc-vllm-serving", "odsc-vllm-serving-v1"})
+    'odsc-vllm-serving-v1'
+
+    >>> get_preferred_compatible_family({"odsc-vllm-serving", "odsc-tgi-serving"})
+    None  # Incompatible families
+    """
+    for preferred, compatible_list in CONTAINER_FAMILY_COMPATIBILITY.items():
+        if selected_families.issubset(set(compatible_list)):
+            return preferred
+
+    return None
