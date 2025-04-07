@@ -2,6 +2,8 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from typing import Dict, List
+
 from ads.common.extended_enum import ExtendedEnum
 
 
@@ -106,3 +108,15 @@ class ModelFormat(ExtendedEnum):
 class Platform(ExtendedEnum):
     ARM_CPU = "ARM_CPU"
     NVIDIA_GPU = "NVIDIA_GPU"
+
+
+# This dictionary defines compatibility groups for container families.
+# The structure is:
+#   - Key: The preferred container family to use when multiple compatible families are selected.
+#   - Value: A list of all compatible families (including the preferred one).
+CONTAINER_FAMILY_COMPATIBILITY: Dict[str, List[str]] = {
+    InferenceContainerTypeFamily.AQUA_VLLM_V1_CONTAINER_FAMILY: [
+        InferenceContainerTypeFamily.AQUA_VLLM_V1_CONTAINER_FAMILY,
+        InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY,
+    ],
+}

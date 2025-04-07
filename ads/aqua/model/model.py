@@ -39,6 +39,7 @@ from ads.aqua.common.utils import (
     get_artifact_path,
     get_container_config,
     get_hf_model_info,
+    get_preferred_compatible_family,
     list_os_files_with_extension,
     load_config,
     read_file,
@@ -337,15 +338,25 @@ class AquaModelApp(AquaApp):
 
             selected_models_deployment_containers.add(deployment_container)
 
-        # Check if the all models in the group shares same container family
-        if len(selected_models_deployment_containers) > 1:
+        if not selected_models_deployment_containers:
             raise AquaValueError(
-                "The selected models are associated with different container families: "
-                f"{list(selected_models_deployment_containers)}."
-                "For multi-model deployment, all models in the group must share the same container family."
+                "None of the selected models are associated with a recognized container family. "
+                "Please review the selected models, or select a different group of models."
             )
 
-        deployment_container = selected_models_deployment_containers.pop()
+        # Check if the all models in the group shares same container family
+        if len(selected_models_deployment_containers) > 1:
+            deployment_container = get_preferred_compatible_family(
+                selected_families=selected_models_deployment_containers
+            )
+            if not deployment_container:
+                raise AquaValueError(
+                    "The selected models are associated with different container families: "
+                    f"{list(selected_models_deployment_containers)}."
+                    "For multi-model deployment, all models in the group must share the same container family."
+                )
+        else:
+            deployment_container = selected_models_deployment_containers.pop()
 
         # Generate model group details
         timestamp = datetime.now().strftime("%Y%m%d")
