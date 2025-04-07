@@ -2,6 +2,15 @@
 Release Notes
 =============
 
+2.13.6
+-------
+Release date: April 7, 2025
+
+* Fixed PII operator report generator script to use the latest code from ``report-creator``.
+* AI Quick Actions: Enhance the container family validation for multi-model deployment.
+* AI Quick Actions: Removing OSS bucket config dependency.
+
+
 2.13.5
 -------
 Release date: April 3, 2025
