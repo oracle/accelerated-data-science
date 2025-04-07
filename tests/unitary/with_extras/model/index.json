@@ -289,7 +289,7 @@
     {
       "arch_type": "CPU",
       "create_date": "Sat, Feb 12, 2022, 05:04:46  UTC",
-      "description": "This environment is designed to provided to test and execute your ONNX model artifacts. ONNX is an open  source, open model format which allows you to save a model from different machine learning (ML) libraries  into a single, portable format that is independent of the training library. ONNX models can be deployed  through Oracle Cloud Infrastruture Data Science Model Deployment service. Use this conda environment to  convert models from most ML libraries into ONNX format. Then use the ONNX runtime to perform inferencing.   Review the processing steps that your model makes by having ONNX generate a graph of the model workflow.\nTo get started with the ONNX environment, review the notebook example **getting-started.ipynb** in the **Notebook Examples launcher button**.\n",
+      "description": "This environment is designed to provided to test and execute your ONNX model artifacts. ONNX is an open  source, open model format which allows you to save a model from different machine learning (ML) libraries  into a single, portable format that is independent of the training library. ONNX models can be deployed  through Oracle Cloud Infrastructure Data Science Model Deployment service. Use this conda environment to  convert models from most ML libraries into ONNX format. Then use the ONNX runtime to perform inferencing.   Review the processing steps that your model makes by having ONNX generate a graph of the model workflow.\nTo get started with the ONNX environment, review the notebook example **getting-started.ipynb** in the **Notebook Examples launcher button**.\n",
       "libraries": [
         "onnx (v1.10.2)",
         "onnxconverter-common (v1.9.0)",
@@ -315,7 +315,7 @@
     {
       "arch_type": "CPU",
       "create_date": "Mon, Jun 06, 2022, 20:51:19  UTC",
-      "description": "This environment is designed to provided to test and execute your ONNX model artifacts. ONNX is an open source, open model format which allows you to save a model from different machine learning (ML) libraries into a single, portable format that is independent of the training library. ONNX models can be deployed through Oracle Cloud Infrastruture Data Science Model Deployment service. Use this conda environment to convert models from most ML libraries into ONNX format. Then use the ONNX runtime to perform inferencing. Review the processing steps that your model makes by having ONNX generate a graph of the model workflow.\nTo get started with the ONNX environment, review the getting-started notebook.\n",
+      "description": "This environment is designed to provided to test and execute your ONNX model artifacts. ONNX is an open source, open model format which allows you to save a model from different machine learning (ML) libraries into a single, portable format that is independent of the training library. ONNX models can be deployed through Oracle Cloud Infrastructure Data Science Model Deployment service. Use this conda environment to convert models from most ML libraries into ONNX format. Then use the ONNX runtime to perform inferencing. Review the processing steps that your model makes by having ONNX generate a graph of the model workflow.\nTo get started with the ONNX environment, review the getting-started notebook.\n",
       "libraries": [
         "onnx (v1.10.2)",
         "onnxconverter-common (v1.9.0)",
@@ -341,7 +341,7 @@
     {
       "arch_type": "CPU",
       "create_date": "Mon, Jun 06, 2022, 20:52:30  UTC",
-      "description": "This environment is designed to provided to test and execute your ONNX model artifacts. ONNX is an open source, open model format which allows you to save a model from different machine learning (ML) libraries into a single, portable format that is independent of the training library. ONNX models can be deployed through Oracle Cloud Infrastruture Data Science Model Deployment service. Use this conda environment to convert models from most ML libraries into ONNX format. Then use the ONNX runtime to perform inferencing. Review the processing steps that your model makes by having ONNX generate a graph of the model workflow.\nTo get started with the ONNX environment, review the getting-started notebook.\n",
+      "description": "This environment is designed to provided to test and execute your ONNX model artifacts. ONNX is an open source, open model format which allows you to save a model from different machine learning (ML) libraries into a single, portable format that is independent of the training library. ONNX models can be deployed through Oracle Cloud Infrastructure Data Science Model Deployment service. Use this conda environment to convert models from most ML libraries into ONNX format. Then use the ONNX runtime to perform inferencing. Review the processing steps that your model makes by having ONNX generate a graph of the model workflow.\nTo get started with the ONNX environment, review the getting-started notebook.\n",
       "libraries": [
         "onnx (v1.10.2)",
         "onnxconverter-common (v1.9.0)",
