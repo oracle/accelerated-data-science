@@ -10,5 +10,5 @@ Quick Start
 * :doc:`Evaluate Trained Models<../model_training/model_evaluation/quick_start>`
 * :doc:`Register, Manage, and Deploy Models<../model_registration/quick_start>`
 * :doc:`Store and Retrieve your data source credentials<../secrets/quick_start>`
-* :doc:`Conect to existing OCI Big Data Service<../big_data_service/quick_start>`
+* :doc:`Connect to existing OCI Big Data Service<../big_data_service/quick_start>`
 

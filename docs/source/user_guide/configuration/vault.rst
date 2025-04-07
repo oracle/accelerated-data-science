@@ -239,7 +239,7 @@ also retrieves the updated secret, converts it into a dictionary, and prints it.
         wait_for_states=[oci.vault.models.Secret.LIFECYCLE_STATE_ACTIVE]).data
 
     # The secret OCID does not change.
-    print("Orginal Secret OCID: {}".format(secret_id))
+    print("Original Secret OCID: {}".format(secret_id))
     print("Updated Secret OCID: {}".format(secret_update.id))
 
     ### Read a secret's value.
@@ -251,7 +251,7 @@ also retrieves the updated secret, converts it into a dictionary, and prints it.
 
 .. parsed-literal::
 
-    Orginal Secret OCID: ocid1.vaultsecret..<unique_ID>
+    Original Secret OCID: ocid1.vaultsecret..<unique_ID>
     Updated Secret OCID: ocid1.vaultsecret..<unique_ID>
     {'database': 'datamart', 'username': 'admin', 'password': 'UpdatedPassword'}
 
