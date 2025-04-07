@@ -13,6 +13,10 @@ from unittest.mock import MagicMock, patch
 
 import oci
 import pytest
+from oci.data_science.models import (
+    ContainerSummary,
+    ModelDeployWorkloadConfigurationDetails,
+)
 from parameterized import parameterized
 
 from ads.aqua.common.entities import (
@@ -20,11 +24,17 @@ from ads.aqua.common.entities import (
     ComputeShapeSummary,
     ModelConfigResult,
 )
+from ads.aqua.app import AquaApp
+from ads.aqua.common.entities import ModelConfigResult
 import ads.aqua.modeldeployment.deployment
 import ads.config
 from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
+from ads.aqua.config.container_config import (
+    AquaContainerConfigItem,
+    AquaContainerConfig,
+)
 from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
@@ -39,6 +49,7 @@ from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import ModelCustomMetadata
+from tests.unitary.with_extras.aqua.utils import ServiceManagedContainers
 
 null = None
 
@@ -89,6 +100,73 @@ class TestDataset:
     DEPLOYMENT_GPU_COUNT = 1
     DEPLOYMENT_GPU_COUNT_B = 2
     DEPLOYMENT_SHAPE_NAME_CPU = "VM.Standard.A1.Flex"
+    CONTAINER_LIST = ServiceManagedContainers.MOCK_OUTPUT
+    INFERENCE_CONTAINER_CONFIG = ContainerSummary(
+        **{
+            "container_name": "odsc-vllm-serving",
+            "display_name": "VLLM:0.6.4.post1.2",
+            "family_name": "odsc-vllm-serving",
+            "description": "This container is used for llm inference, batch inference and serving",
+            "is_latest": True,
+            "target_workloads": ["MODEL_DEPLOYMENT", "JOB_RUN"],
+            "usages": ["INFERENCE", "BATCH_INFERENCE"],
+            "tag": "0.6.4.post1.2",
+            "lifecycle_state": "ACTIVE",
+            "workload_configuration_details_list": [
+                ModelDeployWorkloadConfigurationDetails(
+                    **{
+                        "cmd": "--served-model-name odsc-llm --disable-custom-all-reduce --seed 42 ",
+                        "server_port": 8080,
+                        "health_check_port": 8080,
+                        "additional_configurations": {
+                            "HEALTH_CHECK_PORT": "8080",
+                            "MODEL_DEPLOY_ENABLE_STREAMING": "true",
+                            "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
+                            "PORT": "8080",
+                            "modelFormats": "SAFETENSORS",
+                            "platforms": "NVIDIA_GPU",
+                            "restrictedParams": '["--port","--host","--served-model-name","--seed"]',
+                        },
+                    }
+                )
+            ],
+            "tag_configuration_list": [],
+            "freeform_tags": None,
+            "defined_tags": None,
+        }
+    )
+
+    INFERENCE_CONTAINER_CONFIG_ITEM = AquaContainerConfigItem(
+        **{
+            "name": "dsmc://odsc-vllm-serving",
+            "version": "0.6.4.post1.2",
+            "display_name": "VLLM:0.6.4.post1.2",
+            "family": "odsc-vllm-serving",
+            "platforms": ["NVIDIA_GPU"],
+            "model_formats": ["SAFETENSORS"],
+            "spec": {
+                "cli_param": "--served-model-name odsc-llm --disable-custom-all-reduce --seed 42 ",
+                "server_port": "8080",
+                "health_check_port": "8080",
+                "env_vars": [
+                    {
+                        "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
+                        "MODEL_DEPLOY_HEALTH_ENDPOINT": "",
+                        "MODEL_DEPLOY_ENABLE_STREAMING": "true",
+                        "PORT": "8080",
+                        "HEALTH_CHECK_PORT": "8080",
+                    }
+                ],
+                "restricted_params": [
+                    "--port",
+                    "--host",
+                    "--served-model-name",
+                    "--seed",
+                ],
+            },
+            "usages": ["INFERENCE", "BATCH_INFERENCE"],
+        },
+    )
 
     model_deployment_object = [
         {
@@ -1074,13 +1152,19 @@ class TestAquaDeployment(unittest.TestCase):
         )
         with open(config_json, "r") as _file:
             config = json.load(_file)
-
-        self.app.get_config = MagicMock(return_value=ModelConfigResult(config=config))
+        self.app.get_config_from_metadata = MagicMock(
+            return_value=ModelConfigResult(config=None, model_details=None)
+        )
+        self.app.get_config = MagicMock(
+            return_value=ModelConfigResult(config=config, model_details=None)
+        )
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
         expected_config = AquaDeploymentConfig(**config)
         assert result == expected_config
 
-        self.app.get_config = MagicMock(return_value=ModelConfigResult(config=None))
+        self.app.get_config = MagicMock(
+            return_value=ModelConfigResult(config=None, model_details=None)
+        )
         result = self.app.get_deployment_config(TestDataset.MODEL_ID)
         expected_config = AquaDeploymentConfig(**{})
         assert result == expected_config
@@ -1224,18 +1308,26 @@ class TestAquaDeployment(unittest.TestCase):
         assert result[0] == False
         assert result[1] == []
 
-    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
+    @patch.object(AquaApp, "get_container_config_item")
     @patch("ads.aqua.model.AquaModelApp.create")
-    @patch("ads.aqua.modeldeployment.deployment.get_container_image")
+    @patch.object(AquaApp, "get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
+    @patch.object(AquaApp, "get_container_config")
     def test_create_deployment_for_foundation_model(
         self,
+        mock_get_container_config,
         mock_deploy,
         mock_get_container_image,
         mock_create,
-        mock_get_container_config,
+        mock_get_container_config_item,
     ):
         """Test to create a deployment for foundational model"""
+        mock_get_container_config.return_value = (
+            AquaContainerConfig.from_service_config(
+                service_containers=TestDataset.CONTAINER_LIST
+            )
+        )
+
         aqua_model = os.path.join(
             self.curr_dir, "test_data/deployment/aqua_foundation_model.yaml"
         )
@@ -1253,12 +1345,9 @@ class TestAquaDeployment(unittest.TestCase):
         freeform_tags = {"ftag1": "fvalue1", "ftag2": "fvalue2"}
         defined_tags = {"dtag1": "dvalue1", "dtag2": "dvalue2"}
 
-        container_index_json = os.path.join(
-            self.curr_dir, "test_data/ui/container_index.json"
+        mock_get_container_config_item.return_value = (
+            TestDataset.INFERENCE_CONTAINER_CONFIG_ITEM
         )
-        with open(container_index_json, "r") as _file:
-            container_index_config = json.load(_file)
-        mock_get_container_config.return_value = container_index_config
 
         shapes = []
 
@@ -1319,19 +1408,26 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result["tags"].update(defined_tags)
         assert actual_attributes == expected_result
 
-    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
+    @patch.object(AquaApp, "get_container_config_item")
     @patch("ads.aqua.model.AquaModelApp.create")
-    @patch("ads.aqua.modeldeployment.deployment.get_container_image")
+    @patch.object(AquaApp, "get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
+    @patch.object(AquaApp, "get_container_config")
     def test_create_deployment_for_fine_tuned_model(
         self,
+        mock_get_container_config,
         mock_deploy,
         mock_get_container_image,
         mock_create,
-        mock_get_container_config,
+        mock_get_container_config_item,
     ):
         """Test to create a deployment for fine-tuned model"""
 
+        mock_get_container_config.return_value = (
+            AquaContainerConfig.from_service_config(
+                service_containers=TestDataset.CONTAINER_LIST
+            )
+        )
         aqua_model = os.path.join(
             self.curr_dir, "test_data/deployment/aqua_finetuned_model.yaml"
         )
@@ -1363,12 +1459,9 @@ class TestAquaDeployment(unittest.TestCase):
             return_value=AquaDeploymentConfig(**config)
         )
 
-        container_index_json = os.path.join(
-            self.curr_dir, "test_data/ui/container_index.json"
+        mock_get_container_config_item.return_value = (
+            TestDataset.INFERENCE_CONTAINER_CONFIG_ITEM
         )
-        with open(container_index_json, "r") as _file:
-            container_index_config = json.load(_file)
-        mock_get_container_config.return_value = container_index_config
 
         mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
         aqua_deployment = os.path.join(
@@ -1408,18 +1501,25 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result["state"] = "CREATING"
         assert actual_attributes == expected_result
 
-    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
+    @patch.object(AquaApp, "get_container_config_item")
     @patch("ads.aqua.model.AquaModelApp.create")
-    @patch("ads.aqua.modeldeployment.deployment.get_container_image")
+    @patch.object(AquaApp, "get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
+    @patch.object(AquaApp, "get_container_config")
     def test_create_deployment_for_gguf_model(
         self,
+        mock_get_container_config,
         mock_deploy,
         mock_get_container_image,
         mock_create,
-        mock_get_container_config,
+        mock_get_container_config_item,
     ):
         """Test to create a deployment for fine-tuned model"""
+        mock_get_container_config.return_value = (
+            AquaContainerConfig.from_service_config(
+                service_containers=TestDataset.CONTAINER_LIST
+            )
+        )
 
         aqua_model = os.path.join(
             self.curr_dir, "test_data/deployment/aqua_foundation_model.yaml"
@@ -1437,14 +1537,9 @@ class TestAquaDeployment(unittest.TestCase):
             return_value=AquaDeploymentConfig(**config)
         )
 
-        container_index_json = os.path.join(
-            self.curr_dir, "test_data/ui/container_index.json"
+        mock_get_container_config_item.return_value = (
+            TestDataset.INFERENCE_CONTAINER_CONFIG_ITEM
         )
-        with open(container_index_json, "r") as _file:
-            container_index_config = json.load(_file)
-        mock_get_container_config.return_value = container_index_config
-
-        shapes = []
 
         with open(
             os.path.join(
@@ -1505,18 +1600,27 @@ class TestAquaDeployment(unittest.TestCase):
         )
         assert actual_attributes == expected_result
 
-    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
+    @patch.object(AquaApp, "get_container_config_item")
     @patch("ads.aqua.model.AquaModelApp.create")
-    @patch("ads.aqua.modeldeployment.deployment.get_container_image")
+    @patch.object(AquaApp, "get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
+    @patch.object(AquaApp, "get_container_config")
     def test_create_deployment_for_tei_byoc_embedding_model(
         self,
+        mock_get_container_config,
         mock_deploy,
         mock_get_container_image,
         mock_create,
-        mock_get_container_config,
+        mock_get_container_config_item,
     ):
         """Test to create a deployment for fine-tuned model"""
+
+        mock_get_container_config.return_value = (
+            AquaContainerConfig.from_service_config(
+                service_containers=TestDataset.CONTAINER_LIST
+            )
+        )
+
         aqua_model = os.path.join(
             self.curr_dir, "test_data/deployment/aqua_tei_byoc_embedding_model.yaml"
         )
@@ -1533,12 +1637,9 @@ class TestAquaDeployment(unittest.TestCase):
             return_value=AquaDeploymentConfig(**config)
         )
 
-        container_index_json = os.path.join(
-            self.curr_dir, "test_data/ui/container_index.json"
+        mock_get_container_config_item.return_value = (
+            TestDataset.INFERENCE_CONTAINER_CONFIG_ITEM
         )
-        with open(container_index_json, "r") as _file:
-            container_index_config = json.load(_file)
-        mock_get_container_config.return_value = container_index_config
 
         shapes = []
 
@@ -1604,9 +1705,9 @@ class TestAquaDeployment(unittest.TestCase):
         )
         assert actual_attributes == expected_result
 
-    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
+    @patch.object(AquaApp, "get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create_multi")
-    @patch("ads.aqua.modeldeployment.deployment.get_container_image")
+    @patch.object(AquaApp, "get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_deployment_config")
     @patch(
@@ -1622,6 +1723,12 @@ class TestAquaDeployment(unittest.TestCase):
         mock_get_container_config,
     ):
         """Test to create a deployment for multi models."""
+        mock_get_container_config.return_value = (
+            AquaContainerConfig.from_service_config(
+                service_containers=TestDataset.CONTAINER_LIST
+            )
+        )
+
         mock_validate_multimodel_deployment_feasibility.return_value = MagicMock()
         self.app.get_multimodel_deployment_config = MagicMock(
             return_value=AquaDeploymentConfig(
@@ -1644,15 +1751,6 @@ class TestAquaDeployment(unittest.TestCase):
         self.app.get_deployment_config = MagicMock(
             return_value=AquaDeploymentConfig(**config)
         )
-
-        container_index_json = os.path.join(
-            self.curr_dir, "test_data/ui/container_index.json"
-        )
-        with open(container_index_json, "r") as _file:
-            container_index_config = json.load(_file)
-        mock_get_container_config.return_value = container_index_config
-
-        shapes = []
 
         with open(
             os.path.join(
@@ -1836,7 +1934,7 @@ class TestAquaDeployment(unittest.TestCase):
             ),
             (
                 "custom-container-key",
-                ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
+                ["--max-model-len 4096", "--trust-remote-code"],
             ),
             (
                 "odsc-vllm-serving",
@@ -1849,9 +1947,9 @@ class TestAquaDeployment(unittest.TestCase):
         ]
     )
     @patch("ads.model.datascience_model.DataScienceModel.from_id")
-    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
+    @patch.object(AquaApp, "get_container_config_item")
     def test_validate_deployment_params(
-        self, container_type_key, params, mock_get_container_config, mock_from_id
+        self, container_type_key, params, mock_get_container_config_item, mock_from_id
     ):
         """Test for checking if overridden deployment params are valid."""
         mock_model = MagicMock()
@@ -1862,12 +1960,9 @@ class TestAquaDeployment(unittest.TestCase):
         mock_model.custom_metadata_list = custom_metadata_list
         mock_from_id.return_value = mock_model
 
-        container_index_json = os.path.join(
-            self.curr_dir, "test_data/ui/container_index.json"
+        mock_get_container_config_item.return_value = (
+            TestDataset.INFERENCE_CONTAINER_CONFIG_ITEM
         )
-        with open(container_index_json, "r") as _file:
-            container_index_config = json.load(_file)
-        mock_get_container_config.return_value = container_index_config
 
         if container_type_key in {"odsc-vllm-serving", "odsc-tgi-serving"} and params:
             with pytest.raises(AquaValueError):
@@ -1899,9 +1994,9 @@ class TestAquaDeployment(unittest.TestCase):
         ]
     )
     @patch("ads.model.datascience_model.DataScienceModel.from_id")
-    @patch("ads.aqua.modeldeployment.deployment.get_container_config")
+    @patch.object(AquaApp, "get_container_config_item")
     def test_validate_deployment_params_for_unverified_models(
-        self, container_type_key, params, mock_get_container_config, mock_from_id
+        self, container_type_key, params, mock_get_container_config_item, mock_from_id
     ):
         """Test to check if container family is used when metadata does not have image information
         for unverified models."""
@@ -1912,9 +2007,10 @@ class TestAquaDeployment(unittest.TestCase):
         container_index_json = os.path.join(
             self.curr_dir, "test_data/ui/container_index.json"
         )
-        with open(container_index_json, "r") as _file:
-            container_index_config = json.load(_file)
-        mock_get_container_config.return_value = container_index_config
+
+        mock_get_container_config_item.return_value = (
+            TestDataset.INFERENCE_CONTAINER_CONFIG_ITEM
+        )
 
         if container_type_key in {"odsc-vllm-serving", "odsc-tgi-serving"} and params:
             result = self.app.validate_deployment_params(

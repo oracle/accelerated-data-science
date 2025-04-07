@@ -32,6 +32,7 @@ class AquaModelWSMsgHandler(AquaWSMsgHandler):
                 compartment_id=request.get("compartment_id"),
                 project_id=request.get("project_id"),
                 model_type=request.get("model_type"),
+                category=request.get("category"),
             )
             response = ListModelsResponse(
                 message_id=request.get("message_id"),

@@ -53,9 +53,13 @@ from ads.aqua.constants import (
     COMPARTMENT_MAPPING_KEY,
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     CONTAINER_INDEX,
+    DEPLOYMENT_CONFIG,
+    FINE_TUNING_CONFIG,
     HF_LOGIN_DEFAULT_TIMEOUT,
+    LICENSE,
     MAXIMUM_ALLOWED_DATASET_IN_BYTE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
+    README,
     SERVICE_MANAGED_CONTAINER_URI_SCHEME,
     SUPPORTED_FILE_FORMATS,
     TEI_CONTAINER_DEFAULT_HOST,
@@ -87,6 +91,14 @@ from ads.config import (
 from ads.model import DataScienceModel, ModelVersionSet
 
 logger = logging.getLogger("ads.aqua")
+
+
+DEFINED_METADATA_TO_FILE_MAP = {
+    "readme": README,
+    "license": LICENSE,
+    "finetuneconfiguration": FINE_TUNING_CONFIG,
+    "deploymentconfiguration": DEPLOYMENT_CONFIG,
+}
 
 
 class LifecycleStatus(ExtendedEnum):
@@ -551,57 +563,6 @@ def _build_job_identifier(
 
 def service_config_path():
     return f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
-
-
-@cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=10), timer=datetime.now))
-def get_container_config():
-    config = load_config(
-        file_path=service_config_path(),
-        config_file_name=CONTAINER_INDEX,
-    )
-
-    return config
-
-
-def get_container_image(
-    config_file_name: str = None, container_type: str = None
-) -> str:
-    """Gets the image name from the given model and container type.
-    Parameters
-    ----------
-    config_file_name: str
-        name of the config file
-    container_type: str
-        type of container, can be either deployment-container, finetune-container, evaluation-container
-
-    Returns
-    -------
-    Dict:
-        A dict of allowed configs.
-    """
-
-    container_image = UNKNOWN
-    config = config_file_name or get_container_config()
-    config_file_name = service_config_path()
-
-    if container_type not in config:
-        return UNKNOWN
-
-    mapping = config[container_type]
-    versions = [obj["version"] for obj in mapping]
-    # assumes numbered versions, update if `latest` is used
-    latest = get_max_version(versions)
-    for obj in mapping:
-        if obj["version"] == str(latest):
-            container_image = f"{obj['name']}:{obj['version']}"
-            break
-
-    if not container_image:
-        raise AquaValueError(
-            f"{config_file_name} is missing name and/or version details."
-        )
-
-    return container_image
 
 
 def fetch_service_compartment() -> Union[str, None]:
