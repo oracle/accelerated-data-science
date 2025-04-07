@@ -14,7 +14,7 @@ As a low-code extensible framework, operators enable a wide range of use cases. 
 **Which Model is Right for You?**
 
 * Autots is a very comprehensive framework for time series data, winning the M6 benchmark. Parameters can be sent directly to AutoTS' AnomalyDetector class through the ``model_kwargs`` section of the yaml file.
-* AutoMLX is a propreitary modeling framework developed by Oracle's Labs team and distributed through OCI Data Science. Parameters can be sent directly to AutoMLX's AnomalyDetector class through the ``model_kwargs`` section of the yaml file.
+* AutoMLX is a proprietary modeling framework developed by Oracle's Labs team and distributed through OCI Data Science. Parameters can be sent directly to AutoMLX's AnomalyDetector class through the ``model_kwargs`` section of the yaml file.
 * Together these 2 frameworks train and tune more than 25 models, and deliver the est results.
 
 
@@ -39,9 +39,9 @@ As a low-code extensible framework, operators enable a wide range of use cases. 
 
 **Feature Engineering**
 
-* The Operator will perform most feature engineering on your behalf, such as infering holidays, day of week, 
+* The Operator will perform most feature engineering on your behalf, such as inferring holidays, day of week,
 
 
 **Latency**
 
-* The Operator is effectively a container distributed through the OCI Data Science platform. When deployed through Jobs or Model Deployment, customers can scale up the compute shape, memory size, and load balancer to make the prediciton progressively faster. Please consult an OCI Data Science Platform expert for more specifc advice.
+* The Operator is effectively a container distributed through the OCI Data Science platform. When deployed through Jobs or Model Deployment, customers can scale up the compute shape, memory size, and load balancer to make the prediction progressively faster. Please consult an OCI Data Science Platform expert for more specific advice.
