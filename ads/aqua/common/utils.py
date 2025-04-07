@@ -37,6 +37,7 @@ from pydantic import BaseModel, ValidationError
 
 from ads.aqua.common.entities import GPUShapesIndex
 from ads.aqua.common.enums import (
+    CONTAINER_FAMILY_COMPATIBILITY,
     InferenceContainerParamType,
     InferenceContainerType,
     RqsAdditionalDetails,
@@ -1316,3 +1317,40 @@ def load_gpu_shapes_index(
             )
 
     return GPUShapesIndex(**data)
+
+
+def get_preferred_compatible_family(selected_families: set[str]) -> str:
+    """
+    Determines the preferred container family from a given set of container families.
+
+    This method is used in the context of multi-model deployment to handle cases
+    where models selected for deployment use different, but compatible, container families.
+
+    It checks the input `families` set against the `CONTAINER_FAMILY_COMPATIBILITY` map.
+    If a compatibility group exists that fully includes all the families in the input,
+    the corresponding key (i.e., the preferred family) is returned.
+
+    Parameters
+    ----------
+    families : set[str]
+        A set of container family identifiers.
+
+    Returns
+    -------
+    Optional[str]
+        The preferred container family if all families are compatible within one group;
+        otherwise, returns `None` indicating that no compatible family group was found.
+
+    Example
+    -------
+    >>> get_preferred_compatible_family({"odsc-vllm-serving", "odsc-vllm-serving-v1"})
+    'odsc-vllm-serving-v1'
+
+    >>> get_preferred_compatible_family({"odsc-vllm-serving", "odsc-tgi-serving"})
+    None  # Incompatible families
+    """
+    for preferred, compatible_list in CONTAINER_FAMILY_COMPATIBILITY.items():
+        if selected_families.issubset(set(compatible_list)):
+            return preferred
+
+    return None
