@@ -468,7 +468,6 @@ class AquaDeploymentApp(AquaApp):
             env_var.update({"BASE_MODEL_FILE": f"{model_file}"})
             tags.update({Tags.MODEL_ARTIFACT_FILE: model_file})
 
-        # todo: use AquaContainerConfig.from_container_index_json instead.
         # Fetch the startup cli command for the container
         # container_index.json will have "containerSpec" section which will provide the cli params for
         # a given container family
@@ -521,9 +520,9 @@ class AquaDeploymentApp(AquaApp):
         if params:
             env_var.update({"PARAMS": params})
         env_vars = container_spec.env_vars if container_spec else []
-        env_vars = [{k: v} for env in env_vars for k, v in env.items() if v]
         for env in env_vars:
             if isinstance(env, dict):
+                env = {k: v for k, v in env.items() if v}
                 for key, _ in env.items():
                     if key not in env_var:
                         env_var.update(env)
