@@ -2,18 +2,23 @@
 # -*- coding: utf-8 -*--
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
+from unicodedata import category
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
 import pytest
 from huggingface_hub.hf_api import HfApi, ModelInfo
 from huggingface_hub.utils import GatedRepoError
-from notebook.base.handlers import IPythonHandler, HTTPError
+from notebook.base.handlers import HTTPError, IPythonHandler
 from parameterized import parameterized
 
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import get_hf_model_info
+from ads.aqua.constants import (
+    AQUA_TROUBLESHOOTING_LINK,
+    STATUS_CODE_MESSAGES,
+)
+from ads.aqua.extension.errors import ReplyDetails
 from ads.aqua.extension.model_handler import (
     AquaHuggingFaceHandler,
     AquaModelHandler,
@@ -22,6 +27,7 @@ from ads.aqua.extension.model_handler import (
 )
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import AquaModel, AquaModelSummary, HFModelSummary
+from ads.config import USER
 
 
 class ModelHandlerTestCase(TestCase):
@@ -128,7 +134,7 @@ class ModelHandlerTestCase(TestCase):
             mock_finish.side_effect = lambda x: x
             self.model_handler.list()
             mock_list.assert_called_with(
-                compartment_id=None, project_id=None, model_type=None
+                compartment_id=None, project_id=None, model_type=None, category=USER
             )
 
     @parameterized.expand(
@@ -355,7 +361,14 @@ class TestAquaHuggingFaceHandler:
         self.mock_handler.get_json_body = MagicMock(side_effect=ValueError())
         self.mock_handler.post()
         self.mock_handler.finish.assert_called_with(
-            '{"status": 400, "message": "Invalid format of input data.", "service_payload": {}, "reason": "Invalid format of input data.", "request_id": "###"}'
+            ReplyDetails(
+                status=400,
+                troubleshooting_tips=f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}",
+                message="Invalid format of input data.",
+                service_payload={},
+                reason="Invalid format of input data.",
+                request_id="###",
+            )
         )
         get_hf_model_info.cache_clear()
 
@@ -363,8 +376,14 @@ class TestAquaHuggingFaceHandler:
         self.mock_handler.get_json_body = MagicMock(return_value={})
         self.mock_handler.post()
         self.mock_handler.finish.assert_called_with(
-            '{"status": 400, "message": "No input data provided.", "service_payload": {}, '
-            '"reason": "No input data provided.", "request_id": "###"}'
+            ReplyDetails(
+                status=400,
+                troubleshooting_tips=f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}",
+                message="No input data provided.",
+                service_payload={},
+                reason="No input data provided.",
+                request_id="###",
+            )
         )
         get_hf_model_info.cache_clear()
 
@@ -372,8 +391,14 @@ class TestAquaHuggingFaceHandler:
         self.mock_handler.get_json_body = MagicMock(return_value={"some_field": None})
         self.mock_handler.post()
         self.mock_handler.finish.assert_called_with(
-            '{"status": 400, "message": "Missing required parameter: \'model_id\'", '
-            '"service_payload": {}, "reason": "Missing required parameter: \'model_id\'", "request_id": "###"}'
+            ReplyDetails(
+                status=400,
+                troubleshooting_tips=f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}",
+                message="Missing required parameter: 'model_id'",
+                service_payload={},
+                reason="Missing required parameter: 'model_id'",
+                request_id="###",
+            )
         )
         get_hf_model_info.cache_clear()
 
@@ -389,8 +414,14 @@ class TestAquaHuggingFaceHandler:
             mock_model_info.side_effect = GatedRepoError(message="test message")
             self.mock_handler.post()
             self.mock_handler.finish.assert_called_with(
-                '{"status": 400, "message": "Something went wrong with your request.", '
-                '"service_payload": {}, "reason": "test error message", "request_id": "###"}'
+                ReplyDetails(
+                    status=400,
+                    troubleshooting_tips=f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}",
+                    message=STATUS_CODE_MESSAGES["400"],
+                    service_payload={},
+                    reason="test error message",
+                    request_id="###",
+                )
             )
         get_hf_model_info.cache_clear()
 
@@ -401,11 +432,16 @@ class TestAquaHuggingFaceHandler:
         with patch.object(HfApi, "model_info") as mock_model_info:
             mock_model_info.return_value = MagicMock(disabled=True, id="test_model_id")
             self.mock_handler.post()
+
             self.mock_handler.finish.assert_called_with(
-                '{"status": 400, "message": "Something went wrong with your request.", "service_payload": {}, '
-                '"reason": "The chosen model \'test_model_id\' is currently disabled and cannot be '
-                "imported into AQUA. Please verify the model's status on the Hugging Face Model "
-                'Hub or select a different model.", "request_id": "###"}'
+                ReplyDetails(
+                    status=400,
+                    troubleshooting_tips=f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}",
+                    message=STATUS_CODE_MESSAGES["400"],
+                    service_payload={},
+                    reason="The chosen model 'test_model_id' is currently disabled and cannot be imported into AQUA. Please verify the model's status on the Hugging Face Model Hub or select a different model.",
+                    request_id="###",
+                )
             )
         get_hf_model_info.cache_clear()
 

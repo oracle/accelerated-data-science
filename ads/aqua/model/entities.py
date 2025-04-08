@@ -15,6 +15,7 @@ from typing import List, Optional
 
 import oci
 from huggingface_hub import hf_api
+from pydantic import BaseModel
 
 from ads.aqua import logger
 from ads.aqua.app import CLIBuilderMixin
@@ -27,6 +28,13 @@ from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_log_links
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import MetadataTaxonomyKeys
+
+
+class AquaModelReadme(BaseModel):
+    """Represents the response of Get Model Readme."""
+
+    id: str = field(default_factory=str)
+    model_card: str = field(default_factory=str)
 
 
 @dataclass(repr=False)
@@ -95,7 +103,6 @@ class AquaModelSummary(DataClassSerializable):
 class AquaModel(AquaModelSummary, DataClassSerializable):
     """Represents an Aqua model."""
 
-    model_card: str = None
     inference_container: str = None
     inference_container_uri: str = None
     finetuning_container: str = None

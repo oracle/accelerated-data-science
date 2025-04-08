@@ -37,6 +37,7 @@ from pydantic import BaseModel, ValidationError
 
 from ads.aqua.common.entities import GPUShapesIndex
 from ads.aqua.common.enums import (
+    CONTAINER_FAMILY_COMPATIBILITY,
     InferenceContainerParamType,
     InferenceContainerType,
     RqsAdditionalDetails,
@@ -52,9 +53,13 @@ from ads.aqua.constants import (
     COMPARTMENT_MAPPING_KEY,
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     CONTAINER_INDEX,
+    DEPLOYMENT_CONFIG,
+    FINE_TUNING_CONFIG,
     HF_LOGIN_DEFAULT_TIMEOUT,
+    LICENSE,
     MAXIMUM_ALLOWED_DATASET_IN_BYTE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
+    README,
     SERVICE_MANAGED_CONTAINER_URI_SCHEME,
     SUPPORTED_FILE_FORMATS,
     TEI_CONTAINER_DEFAULT_HOST,
@@ -86,6 +91,14 @@ from ads.config import (
 from ads.model import DataScienceModel, ModelVersionSet
 
 logger = logging.getLogger("ads.aqua")
+
+
+DEFINED_METADATA_TO_FILE_MAP = {
+    "readme": README,
+    "license": LICENSE,
+    "finetuneconfiguration": FINE_TUNING_CONFIG,
+    "deploymentconfiguration": DEPLOYMENT_CONFIG,
+}
 
 
 class LifecycleStatus(ExtendedEnum):
@@ -550,57 +563,6 @@ def _build_job_identifier(
 
 def service_config_path():
     return f"oci://{AQUA_SERVICE_MODELS_BUCKET}@{CONDA_BUCKET_NS}/service_models/config"
-
-
-@cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=10), timer=datetime.now))
-def get_container_config():
-    config = load_config(
-        file_path=service_config_path(),
-        config_file_name=CONTAINER_INDEX,
-    )
-
-    return config
-
-
-def get_container_image(
-    config_file_name: str = None, container_type: str = None
-) -> str:
-    """Gets the image name from the given model and container type.
-    Parameters
-    ----------
-    config_file_name: str
-        name of the config file
-    container_type: str
-        type of container, can be either deployment-container, finetune-container, evaluation-container
-
-    Returns
-    -------
-    Dict:
-        A dict of allowed configs.
-    """
-
-    container_image = UNKNOWN
-    config = config_file_name or get_container_config()
-    config_file_name = service_config_path()
-
-    if container_type not in config:
-        return UNKNOWN
-
-    mapping = config[container_type]
-    versions = [obj["version"] for obj in mapping]
-    # assumes numbered versions, update if `latest` is used
-    latest = get_max_version(versions)
-    for obj in mapping:
-        if obj["version"] == str(latest):
-            container_image = f"{obj['name']}:{obj['version']}"
-            break
-
-    if not container_image:
-        raise AquaValueError(
-            f"{config_file_name} is missing name and/or version details."
-        )
-
-    return container_image
 
 
 def fetch_service_compartment() -> Union[str, None]:
@@ -1288,7 +1250,9 @@ def load_gpu_shapes_index(
         try:
             auth = auth or authutil.default_signer()
             # Construct the object storage path. Adjust bucket name and path as needed.
-            storage_path = f"oci://{CONDA_BUCKET_NAME}@{CONDA_BUCKET_NS}/{file_name}/1"
+            storage_path = (
+                f"oci://{CONDA_BUCKET_NAME}@{CONDA_BUCKET_NS}/service_pack/{file_name}"
+            )
             logger.debug("Loading GPU shapes index from Object Storage")
             with fsspec.open(storage_path, mode="r", **auth) as file_obj:
                 data = json.load(file_obj)
@@ -1314,3 +1278,40 @@ def load_gpu_shapes_index(
             )
 
     return GPUShapesIndex(**data)
+
+
+def get_preferred_compatible_family(selected_families: set[str]) -> str:
+    """
+    Determines the preferred container family from a given set of container families.
+
+    This method is used in the context of multi-model deployment to handle cases
+    where models selected for deployment use different, but compatible, container families.
+
+    It checks the input `families` set against the `CONTAINER_FAMILY_COMPATIBILITY` map.
+    If a compatibility group exists that fully includes all the families in the input,
+    the corresponding key (i.e., the preferred family) is returned.
+
+    Parameters
+    ----------
+    families : set[str]
+        A set of container family identifiers.
+
+    Returns
+    -------
+    Optional[str]
+        The preferred container family if all families are compatible within one group;
+        otherwise, returns `None` indicating that no compatible family group was found.
+
+    Example
+    -------
+    >>> get_preferred_compatible_family({"odsc-vllm-serving", "odsc-vllm-serving-v1"})
+    'odsc-vllm-serving-v1'
+
+    >>> get_preferred_compatible_family({"odsc-vllm-serving", "odsc-tgi-serving"})
+    None  # Incompatible families
+    """
+    for preferred, compatible_list in CONTAINER_FAMILY_COMPATIBILITY.items():
+        if selected_families.issubset(set(compatible_list)):
+            return preferred
+
+    return None

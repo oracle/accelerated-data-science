@@ -63,7 +63,7 @@ In the preparation stage, you prepare the configuration object necessary to crea
 * ``pyspark_file_path``: The local path to your ``PySpark`` script.
 * ``script_bucket``: The bucket used to read/write the ``PySpark`` script in Object Storage.
 
-ADS checks that the bucket exists, and that you can write to it from your notebook sesssion. Optionally, you can change values for these parameters:
+ADS checks that the bucket exists, and that you can write to it from your notebook session. Optionally, you can change values for these parameters:
 
 * ``compartment_id``: The OCID of the compartment to create a Data Flow application. If it's not provided, the same compartment as your dataflow object is used.
 * ``driver_shape``: The driver shape used to create the application. The default value is ``"VM.Standard2.4"``.

@@ -41,13 +41,14 @@ from ads.aqua.common.errors import (
 from ads.aqua.common.utils import (
     extract_id_and_name_from_tag,
     fire_and_forget,
-    get_container_config,
-    get_container_image,
     is_valid_ocid,
     upload_local_to_os,
 )
-from ads.aqua.config.config import get_evaluation_service_config
-from ads.aqua.config.container_config import AquaContainerConfig
+from ads.aqua.config.evaluation.evaluation_service_config import (
+    DEFAULT_EVALUATION_CONTAINER,
+    EvaluationServiceConfig,
+    MetricConfig,
+)
 from ads.aqua.constants import (
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     EVALUATION_REPORT,
@@ -80,7 +81,13 @@ from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
 from ads.aqua.model.constants import ModelCustomMetadataFields
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import UNKNOWN, get_console_link, get_files, get_log_links
+from ads.common.utils import (
+    UNKNOWN,
+    get_console_link,
+    get_files,
+    get_log_links,
+    read_file,
+)
 from ads.config import (
     AQUA_JOB_SUBNET_ID,
     COMPARTMENT_OCID,
@@ -260,10 +267,10 @@ class AquaEvaluationApp(AquaApp):
                     runtime = ModelDeploymentContainerRuntime.from_dict(
                         evaluation_source.runtime.to_dict()
                     )
-                    inference_config = AquaContainerConfig.from_container_index_json(
-                        config=get_container_config(), enable_spec=True
-                    ).inference
-                    for container in inference_config.values():
+                    inference_config = (
+                        self.get_container_config().to_dict().get("inference")
+                    )
+                    for container in inference_config:
                         if container.name == runtime.image[: runtime.image.rfind(":")]:
                             eval_inference_configuration = (
                                 container.spec.evaluation_configuration
@@ -801,14 +808,13 @@ class AquaEvaluationApp(AquaApp):
 
         return source.display_name
 
-    @staticmethod
-    def _get_evaluation_container(source_id: str) -> str:
+    def _get_evaluation_container(self, source_id: str) -> str:
         # todo: use the source, identify if it is a model or a deployment. If latter, then fetch the base model id
         #   from the deployment object, and call ds_client.get_model() to get model details. Use custom metadata to
         #   get the container_type_key. Pass this key as container_type to get_container_image method.
 
         # fetch image name from config
-        container_image = get_container_image(
+        container_image = self.get_container_image(
             container_type="odsc-llm-evaluate",
         )
         logger.info(f"Aqua Image used for evaluating {source_id} :{container_image}")
@@ -1102,11 +1108,18 @@ class AquaEvaluationApp(AquaApp):
             "loggroup_url": loggroup_url,
         }
 
-    def get_supported_metrics(self) -> dict:
+    def get_supported_metrics(self) -> List[MetricConfig]:
         """Gets a list of supported metrics for evaluation."""
-        return [
-            item.to_dict() for item in get_evaluation_service_config().ui_config.metrics
-        ]
+        containers = self.list_service_containers()
+        container_item = next(
+            c
+            for c in containers
+            if c.is_latest and c.family_name == DEFAULT_EVALUATION_CONTAINER
+        )
+        evaluation_service_config = EvaluationServiceConfig.from_oci_container_config(
+            container_item
+        )
+        return evaluation_service_config.ui_config.metrics
 
     @telemetry(entry_point="plugin=evaluation&action=load_metrics", name="aqua")
     def load_metrics(self, eval_id: str) -> AquaEvalMetrics:
@@ -1130,17 +1143,31 @@ class AquaEvaluationApp(AquaApp):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Downloading evaluation artifact: {eval_id}.")
-            DataScienceModel.from_id(eval_id).download_artifact(
-                temp_dir,
-                auth=self._auth,
-            )
+
+            dsc_model = DataScienceModel.from_id(eval_id)
+            if dsc_model.if_model_custom_metadata_artifact_exist(
+                EVALUATION_REPORT_MD
+            ) and dsc_model.if_model_custom_metadata_artifact_exist(
+                EVALUATION_REPORT_JSON
+            ):
+                logger.info(
+                    f"Fetching {EVALUATION_REPORT_MD} and {EVALUATION_REPORT_JSON} from custom metadata..."
+                )
+                dsc_model.get_custom_metadata_artifact(EVALUATION_REPORT_MD, temp_dir)
+                dsc_model.get_custom_metadata_artifact(EVALUATION_REPORT_JSON, temp_dir)
+            else:
+                logger.info("Fetching Evaluation Reports from OSS bucket...")
+                dsc_model.download_artifact(
+                    temp_dir,
+                    auth=self._auth,
+                )
 
             files_in_artifact = get_files(temp_dir)
             md_report_content = self._read_from_artifact(
                 temp_dir, files_in_artifact, EVALUATION_REPORT_MD
             )
 
-            # json report not availiable for failed evaluation
+            # json report not available for failed evaluation
             try:
                 json_report = json.loads(
                     self._read_from_artifact(
@@ -1239,14 +1266,46 @@ class AquaEvaluationApp(AquaApp):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Downloading evaluation artifact for {eval_id}.")
-            DataScienceModel.from_id(eval_id).download_artifact(
-                temp_dir,
-                auth=self._auth,
+            dsc_model = DataScienceModel.from_id(eval_id)
+            if_custom_metadata_exists = (
+                dsc_model.if_model_custom_metadata_artifact_exist(EVALUATION_REPORT)
             )
-            content = self._read_from_artifact(
-                temp_dir, get_files(temp_dir), EVALUATION_REPORT
-            )
-
+            if if_custom_metadata_exists:
+                logger.info(f"Fetching {EVALUATION_REPORT} from custom metadata.")
+                dsc_model.get_custom_metadata_artifact(EVALUATION_REPORT, temp_dir)
+            else:
+                logger.info(f"Fetching {EVALUATION_REPORT} from Model artifact.")
+                dsc_model.download_artifact(
+                    temp_dir,
+                    auth=self._auth,
+                )
+            files_in_artifact = get_files(temp_dir)
+            if not len(files_in_artifact):
+                try:
+                    evaluation_output_path = dsc_model.custom_metadata_list.get(
+                        EvaluationCustomMetadata.EVALUATION_OUTPUT_PATH
+                    ).value
+                    report_path = (
+                        evaluation_output_path.rstrip("/")
+                        + "/"
+                        + eval_id
+                        + "/"
+                        + EVALUATION_REPORT
+                    )
+                    logger.info(
+                        f"Fetching {EVALUATION_REPORT} from {report_path} for evaluation {eval_id}"
+                    )
+                    content = read_file(
+                        file_path=report_path, auth=default_signer()
+                    ).encode()
+                except ValueError as err:
+                    raise AquaValueError(
+                        f"{EvaluationCustomMetadata.EVALUATION_OUTPUT_PATH} is missing from custom metadata for the model {eval_id}"
+                    ) from err
+            else:
+                content = self._read_from_artifact(
+                    temp_dir, files_in_artifact, EVALUATION_REPORT
+                )
         report = AquaEvalReport(
             evaluation_id=eval_id, content=base64.b64encode(content).decode()
         )
@@ -1376,11 +1435,10 @@ class AquaEvaluationApp(AquaApp):
 
     @staticmethod
     @fire_and_forget
-    def _delete_job_and_model(job, model):
+    def _delete_job_and_model(job: DataScienceJob, model: DataScienceModel):
         try:
             job.dsc_job.delete(force_delete=True)
             logger.info(f"Deleting Job: {job.job_id} for evaluation {model.id}")
-
             model.delete()
             logger.info(f"Deleting evaluation: {model.id}")
         except oci.exceptions.ServiceError as ex:
@@ -1389,12 +1447,20 @@ class AquaEvaluationApp(AquaApp):
                 f"Exception message: {ex}"
             )
 
-    def load_evaluation_config(self, container: Optional[str] = None) -> Dict:
+    def load_evaluation_config(
+        self, container: Optional[str] = DEFAULT_EVALUATION_CONTAINER
+    ) -> Dict:
         """Loads evaluation config."""
 
         logger.info("Loading evaluation container config.")
         # retrieve the evaluation config by container family name
-        evaluation_config = get_evaluation_service_config(container)
+        containers = self.list_service_containers()
+        container_item = next(
+            c for c in containers if c.is_latest and c.family_name == container
+        )
+        evaluation_config = EvaluationServiceConfig.from_oci_container_config(
+            container_item
+        )
 
         # convert the new config representation to the old one
         return {
