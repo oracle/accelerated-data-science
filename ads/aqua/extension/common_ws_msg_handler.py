@@ -5,13 +5,12 @@
 
 import json
 from importlib import metadata
-from typing import List, Union
+from typing import List, Optional, Union
 
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.extension.aqua_ws_msg_handler import AquaWSMsgHandler
 from ads.aqua.extension.models.ws_models import (
     AdsVersionResponse,
-    CompatibilityCheckResponse,
     RequestResponseType,
 )
 
@@ -25,7 +24,7 @@ class AquaCommonWsMsgHandler(AquaWSMsgHandler):
         super().__init__(message)
 
     @handle_exceptions
-    def process(self) -> Union[AdsVersionResponse, CompatibilityCheckResponse]:
+    def process(self) -> Optional[AdsVersionResponse]:
         request = json.loads(self.message)
         if request.get("kind") == "AdsVersion":
             version = metadata.version("oracle_ads")
@@ -35,9 +34,3 @@ class AquaCommonWsMsgHandler(AquaWSMsgHandler):
                 data=version,
             )
             return response
-        if request.get("kind") == "CompatibilityCheck":
-            return CompatibilityCheckResponse(
-                message_id=request.get("message_id"),
-                kind=RequestResponseType.CompatibilityCheck,
-                data={"status": "ok"},
-            )

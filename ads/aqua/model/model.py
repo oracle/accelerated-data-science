@@ -185,7 +185,7 @@ class AquaModelApp(AquaApp):
         target_compartment = compartment_id or COMPARTMENT_OCID
 
         # Skip model copying if it is registered model
-        if service_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM) is not None:
+        if service_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None) is not None:
             logger.info(
                 f"Aqua Model {model_id} already exists in the user's compartment."
                 "Skipped copying."
@@ -919,12 +919,13 @@ class AquaModelApp(AquaApp):
     def list(
         self,
         compartment_id: str = None,
+        category: str = None,
         project_id: str = None,
         model_type: str = None,
         **kwargs,
     ) -> List["AquaModelSummary"]:
         """Lists all Aqua models within a specified compartment and/or project.
-        If `compartment_id` is not specified, the method defaults to returning
+        If `category` is not specified, the method defaults to returning
         the service models within the pre-configured default compartment. By default, the list
         of models in the service compartment are cached. Use clear_model_list_cache() to invalidate
         the cache.
@@ -933,6 +934,8 @@ class AquaModelApp(AquaApp):
         ----------
         compartment_id: (str, optional). Defaults to `None`.
             The compartment OCID.
+        category: (str,optional). Defaults to `SERVICE`
+            The category of the models to fetch. Can be either `USER` or `SERVICE`
         project_id: (str, optional). Defaults to `None`.
             The project OCID.
         model_type: (str, optional). Defaults to `None`.
@@ -946,9 +949,9 @@ class AquaModelApp(AquaApp):
             The list of the `ads.aqua.model.AquaModelSummary`.
         """
 
-        models = []
-        category = kwargs.pop("category", USER)
-        if compartment_id and category != SERVICE:
+        category = category or kwargs.pop("category", SERVICE)
+        compartment_id = compartment_id or COMPARTMENT_OCID
+        if category == USER:
             # tracks number of times custom model listing was called
             self.telemetry.record_event_async(
                 category="aqua/custom/model", action="list"
@@ -957,6 +960,9 @@ class AquaModelApp(AquaApp):
             logger.info(f"Fetching custom models from compartment_id={compartment_id}.")
             model_type = model_type.upper() if model_type else ModelType.FT
             models = self._rqs(compartment_id, model_type=model_type)
+            logger.info(
+                f"Fetched {len(models)} models from {compartment_id or COMPARTMENT_OCID}."
+            )
         else:
             # tracks number of times service model listing was called
             self.telemetry.record_event_async(
@@ -964,26 +970,22 @@ class AquaModelApp(AquaApp):
             )
 
             if AQUA_SERVICE_MODELS in self._service_models_cache:
-                logger.info(
-                    f"Returning service models list in {AQUA_SERVICE_MODELS} from cache."
-                )
+                logger.info("Returning service models list from cache.")
                 return self._service_models_cache.get(AQUA_SERVICE_MODELS)
-            logger.info("Fetching service models.")
+            logger.info("Fetching service models from cache.")
             lifecycle_state = kwargs.pop(
                 "lifecycle_state", Model.LIFECYCLE_STATE_ACTIVE
             )
 
             models = self.list_resource(
                 self.ds_client.list_models,
-                compartment_id=compartment_id or COMPARTMENT_OCID,
+                compartment_id=compartment_id,
                 lifecycle_state=lifecycle_state,
                 category=category,
                 **kwargs,
             )
+            logger.info(f"Fetched {len(models)} service models.")
 
-        logger.info(
-            f"Fetched {len(models)} models from {AQUA_SERVICE_MODELS if category==SERVICE else compartment_id}."
-        )
         aqua_models = []
         inference_containers = self.get_container_config().to_dict().get("inference")
         for model in models:
@@ -997,7 +999,6 @@ class AquaModelApp(AquaApp):
                     project_id=project_id or UNKNOWN,
                 )
             )
-
         if category == SERVICE:
             self._service_models_cache.__setitem__(
                 key=AQUA_SERVICE_MODELS, value=aqua_models

@@ -541,7 +541,6 @@ class TestAquaUI(unittest.TestCase):
         mock_list_service_containers.return_value = TestDataset.CONTAINERS_LIST
 
         test_result = self.app.list_containers()
-        print("test_result: ", test_result)
         expected_result = {
             "evaluate": [
                 {
@@ -566,13 +565,11 @@ class TestAquaUI(unittest.TestCase):
                     "spec": {
                         "cli_param": "--served-model-name odsc-llm --disable-custom-all-reduce --seed 42 ",
                         "env_vars": [
-                            {
-                                "HEALTH_CHECK_PORT": "8080",
-                                "MODEL_DEPLOY_ENABLE_STREAMING": "true",
-                                "MODEL_DEPLOY_HEALTH_ENDPOINT": "",
-                                "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
-                                "PORT": "8080",
-                            }
+                            {"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"},
+                            {"MODEL_DEPLOY_HEALTH_ENDPOINT": ""},
+                            {"MODEL_DEPLOY_ENABLE_STREAMING": "true"},
+                            {"PORT": "8080"},
+                            {"HEALTH_CHECK_PORT": "8080"},
                         ],
                         "health_check_port": "8080",
                         "restricted_params": [

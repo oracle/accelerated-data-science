@@ -203,12 +203,13 @@ class AquaContainerConfig(Serializable):
                     {
                         "PORT": container.workload_configuration_details_list[
                             0
-                        ].additional_configurations.get("PORT", ""),
+                        ].additional_configurations.get("PORT", "")
+                    },
+                    {
                         "HEALTH_CHECK_PORT": container.workload_configuration_details_list[
                             0
                         ].additional_configurations.get("HEALTH_CHECK_PORT", UNKNOWN),
                     },
-                    {},
                 ]
                 container_spec = AquaContainerConfigSpec(
                     cli_param=container.workload_configuration_details_list[0].cmd,

@@ -1483,7 +1483,7 @@ class TestAquaModel:
             ]
         )
 
-        results = self.app.list(TestDataset.COMPARTMENT_ID)
+        results = self.app.list(TestDataset.COMPARTMENT_ID, category=ads.config.USER)
 
         self.app._rqs.assert_called_with(TestDataset.COMPARTMENT_ID, model_type="FT")
 
