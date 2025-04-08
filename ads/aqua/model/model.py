@@ -972,7 +972,6 @@ class AquaModelApp(AquaApp):
             if AQUA_SERVICE_MODELS in self._service_models_cache:
                 logger.info("Returning service models list from cache.")
                 return self._service_models_cache.get(AQUA_SERVICE_MODELS)
-            logger.info("Fetching service models from cache.")
             lifecycle_state = kwargs.pop(
                 "lifecycle_state", Model.LIFECYCLE_STATE_ACTIVE
             )
