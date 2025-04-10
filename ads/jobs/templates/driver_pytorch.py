@@ -358,28 +358,24 @@ class Runner(driver_utils.JobRunner):
         """Sets the socket interface environment variables,
         NCCL_SOCKET_IFNAME and GLOO_SOCKET_IFNAME.
 
-        When `SET_SOCKET_IFNAME` is found in env var:
-        * If the value is not empty, it will be used and the `interface` argument will be ignored.
-        * If the value is empty, the `interface` argument will be used.
+        When `SET_SOCKET_IFNAME` is found in env var and the value is not empty,
+        the value will be used and the `interface` argument will be ignored.
 
-        When `SET_SOCKET_IFNAME` is not in env var,
-        and NCCL_SOCKET_IFNAME/GLOO_SOCKET_IFNAME is not set in the env var,
-        the first 3 letter prefix of the `interface` will be set.
         NCCL/GLOO will match the interface using prefix.
         https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-socket-ifname
 
         """
         # Specify the network interface for NCCL/GLOO
-        if CONST_ENV_SET_SOCKET_IFNAME in os.environ:
-            if os.environ[CONST_ENV_SET_SOCKET_IFNAME]:
-                interface = os.environ[CONST_ENV_SET_SOCKET_IFNAME]
-        else:
-            # Set the env vars only if user has not set it already
-            interface = os.environ.get("GLOO_SOCKET_IFNAME", interface[:3])
-            interface = os.environ.get("NCCL_SOCKET_IFNAME", interface[:3])
-        logger.debug("Setting NCCL_SOCKET_IFNAME/GLOO_SOCKET_IFNAME to %s", interface)
-        os.environ["GLOO_SOCKET_IFNAME"] = interface
-        os.environ["NCCL_SOCKET_IFNAME"] = interface
+        if os.environ.get(CONST_ENV_SET_SOCKET_IFNAME):
+            interface = os.environ[CONST_ENV_SET_SOCKET_IFNAME]
+
+        # Set the env vars only if user has not set it already
+        if not os.environ.get("GLOO_SOCKET_IFNAME"):
+            logger.debug("Setting GLOO_SOCKET_IFNAME to %s", interface)
+            os.environ["GLOO_SOCKET_IFNAME"] = interface
+        if not os.environ.get("NCCL_SOCKET_IFNAME"):
+            logger.debug("Setting NCCL_SOCKET_IFNAME to %s", interface)
+            os.environ["NCCL_SOCKET_IFNAME"] = interface
 
     def _get_interface_name(self):
         node_interface = None
@@ -395,6 +391,7 @@ class Runner(driver_utils.JobRunner):
         if CONST_ENV_META_FILE not in os.environ:
             return None
         metadata_file = os.environ.get(CONST_ENV_META_FILE)
+        error_count = 0
         while True:
             if not os.path.exists(metadata_file):
                 logger.debug("Waiting for file %s to be available...", metadata_file)
@@ -409,7 +406,10 @@ class Runner(driver_utils.JobRunner):
                     logger.debug("Error occurred when reading metadata file:")
                     f.seek(0)
                     logger.debug(f.read())
-                    raise ex
+                    error_count += 1
+                    node_list = []
+                    if error_count > 3:
+                        raise ex
 
             if len(node_list) < self.node_count:
                 logger.debug(
