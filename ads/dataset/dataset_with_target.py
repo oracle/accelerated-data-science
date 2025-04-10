@@ -1,23 +1,24 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from __future__ import absolute_import, print_function
 
-import abc
 import importlib
+from abc import ABCMeta
 from collections import defaultdict
 from numbers import Number
 from typing import Tuple, Union
 
 import pandas as pd
-from ads.common import utils, logger
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import FunctionTransformer
+
+from ads.common import logger, utils
 from ads.common.data import ADSData
 from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
     OptionalDependency,
+    runtime_dependency,
 )
 from ads.dataset import helper
 from ads.dataset.dataset import ADSDataset
@@ -25,13 +26,12 @@ from ads.dataset.feature_engineering_transformer import FeatureEngineeringTransf
 from ads.dataset.feature_selection import FeatureImportance
 from ads.dataset.helper import (
     DatasetDefaults,
-    deprecate_default_value, 
-    deprecate_variable, 
+    deprecate_default_value,
+    deprecate_variable,
     generate_sample,
     get_target_type,
     is_text_data,
 )
-from ads.dataset.label_encoder import DataFrameLabelEncoder
 from ads.dataset.pipeline import TransformerPipeline
 from ads.dataset.progress import DummyProgressBar
 from ads.dataset.recommendation import Recommendation
@@ -40,17 +40,12 @@ from ads.dataset.target import TargetVariable
 from ads.type_discovery.typed_feature import (
     CategoricalTypedFeature,
     ContinuousTypedFeature,
+    DateTimeTypedFeature,
     DocumentTypedFeature,
     GISTypedFeature,
     OrdinalTypedFeature,
     TypedFeature,
-    DateTimeTypedFeature, 
-    TypedFeature
 )
-from sklearn.model_selection import train_test_split
-from pandas.io.formats.printing import pprint_thing
-from sklearn.preprocessing import FunctionTransformer
-from abc import ABCMeta
 
 
 class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
@@ -184,10 +179,10 @@ class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
         **init_kwargs,
     ):
         from ads.dataset.classification_dataset import (
-            BinaryClassificationDataset, 
-            BinaryTextClassificationDataset, 
-            MultiClassClassificationDataset, 
-            MultiClassTextClassificationDataset
+            BinaryClassificationDataset,
+            BinaryTextClassificationDataset,
+            MultiClassClassificationDataset,
+            MultiClassTextClassificationDataset,
         )
         from ads.dataset.forecasting_dataset import ForecastingDataset
         from ads.dataset.regression_dataset import RegressionDataset
@@ -205,7 +200,7 @@ class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
             raise ValueError(
                 f"{target} column doesn't exist in data frame. Specify a valid one instead."
             )
-            
+
         if target_type is None:
             target_type = get_target_type(target, sampled_df, **init_kwargs)
 
@@ -214,7 +209,7 @@ class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
                 "It is not recommended to use an empty column as the target variable."
             )
             raise ValueError(
-                f"We do not support using empty columns as the chosen target"
+                "We do not support using empty columns as the chosen target"
             )
         if utils.is_same_class(target_type, ContinuousTypedFeature):
             return RegressionDataset(
@@ -238,10 +233,10 @@ class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
             )
 
         # Adding ordinal typed feature, but ultimately we should rethink how we want to model this type
-        elif utils.is_same_class(target_type, CategoricalTypedFeature) or utils.is_same_class(
-            target_type, OrdinalTypedFeature
-        ):
-            if target_type.meta_data["internal"]["unique"] == 2:
+        elif utils.is_same_class(
+            target_type, CategoricalTypedFeature
+        ) or utils.is_same_class(target_type, OrdinalTypedFeature):
+            if target_type.meta_data["internal"].nunique() == 2:
                 if is_text_data(sampled_df, target):
                     return BinaryTextClassificationDataset(
                         df=df,
@@ -284,11 +279,7 @@ class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
             utils.is_same_class(target, DocumentTypedFeature)
             or "text" in target_type["type"]
             or "text" in target
-        ):
-            raise ValueError(
-                f"The column {target} cannot be used as the target column."
-            )
-        elif (
+        ) or (
             utils.is_same_class(target_type, GISTypedFeature)
             or "coord" in target_type["type"]
             or "coord" in target
@@ -553,7 +544,7 @@ class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
         force_recompute = deprecate_variable(
             overwrite,
             force_recompute,
-            f"<code>overwrite=None</code> is deprecated. Use <code>force_recompute</code> instead.",
+            "<code>overwrite=None</code> is deprecated. Use <code>force_recompute</code> instead.",
             DeprecationWarning,
         )
 
@@ -719,7 +710,7 @@ class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
         force_recompute = deprecate_variable(
             overwrite,
             force_recompute,
-            f"<code>overwrite=None</code> is deprecated. Use <code>force_recompute</code> instead.",
+            "<code>overwrite=None</code> is deprecated. Use <code>force_recompute</code> instead.",
             DeprecationWarning,
         )
 
@@ -958,7 +949,7 @@ class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
             return df[feature_names]
 
         return (
-            "select_{0}_best_features".format(k),
+            f"select_{k}_best_features",
             FunctionTransformer(
                 func=_select_features,
                 validate=False,

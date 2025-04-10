@@ -1,55 +1,52 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import ast
 import base64
 import html
+import importlib
+import inspect
 import io
 import math
 import os
-import warnings
 import re
+import warnings
 from collections import defaultdict
-import inspect
-import importlib
-from typing import Callable, List, Tuple, Union
-import fsspec
 
 # from pandas.io.common import _compression_to_extension
-
 from numbers import Number
+from typing import Callable, List, Tuple, Union
 from urllib.parse import urlparse
 
+import fsspec
 import numpy as np
 import pandas as pd
-
 from pandas.core.dtypes.common import (
-    is_numeric_dtype,
     is_bool_dtype,
     is_categorical_dtype,
     is_datetime64_any_dtype,
     is_float_dtype,
+    is_numeric_dtype,
 )
 
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
 from ads.common import utils
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 from ads.dataset import logger
 from ads.type_discovery.type_discovery_driver import TypeDiscoveryDriver
 from ads.type_discovery.typed_feature import (
+    CategoricalTypedFeature,
     ContinuousTypedFeature,
     DateTimeTypedFeature,
-    CategoricalTypedFeature,
+    DocumentTypedFeature,
     GISTypedFeature,
+    OrdinalTypedFeature,
     TypedFeature,
     UnknownTypedFeature,
-    OrdinalTypedFeature,
-    DocumentTypedFeature,
 )
 
 
@@ -451,20 +448,19 @@ def generate_sample(
             sample_size = calculate_sample_size(
                 n, min_size_to_sample, confidence_level, confidence_interval
             )
+        elif min_size_to_sample < requested_sample_size < n:
+            logger.info(
+                f"Downsampling from {n} rows, to the user specified {requested_sample_size} rows for graphing."
+            )
+            sample_size = requested_sample_size
+        elif requested_sample_size >= n:
+            logger.info(f"Using the entire dataset of {n} rows for graphing.")
+            sample_size = n
         else:
-            if min_size_to_sample < requested_sample_size < n:
-                logger.info(
-                    f"Downsampling from {n} rows, to the user specified {requested_sample_size} rows for graphing."
-                )
-                sample_size = requested_sample_size
-            elif requested_sample_size >= n:
-                logger.info(f"Using the entire dataset of {n} rows for graphing.")
-                sample_size = n
-            else:
-                sample_size = min_size_to_sample
-                logger.info(
-                    f"Downsampling from {n} rows, to {sample_size} rows for graphing."
-                )
+            sample_size = min_size_to_sample
+            logger.info(
+                f"Downsampling from {n} rows, to {sample_size} rows for graphing."
+            )
 
     if sample_size and len(df) > sample_size:
         frac = min(1.0, sample_size * 1.05 / n)
@@ -581,14 +577,10 @@ def visualize_transformation(transformer_pipeline, text=None):
 
     def format_label(stage):
         if "FunctionTransformer" in str(transformer_pipeline.steps[stage][1].__class__):
-            return "<<font face='courier' point-size='10'>&nbsp;<b>{}</b>&nbsp;</font>>".format(
-                html.escape(transformer_pipeline.steps[stage][1].func.__name__)
-            )
+            return f"<<font face='courier' point-size='10'>&nbsp;<b>{html.escape(transformer_pipeline.steps[stage][1].func.__name__)}</b>&nbsp;</font>>"
         else:
             is_ads = "ads" in str(transformer_pipeline.steps[stage][1].__class__)
-            return "<<font face='courier' point-size='10'>&nbsp;<b>{}</b>&nbsp;</font>>".format(
-                transformer_pipeline.steps[stage][1].__class__.__name__
-            )
+            return f"<<font face='courier' point-size='10'>&nbsp;<b>{transformer_pipeline.steps[stage][1].__class__.__name__}</b>&nbsp;</font>>"
 
     edges = [x[0] for x in transformer_pipeline.steps]
     for i, edge in enumerate(list(zip(edges[:-1], edges[1:]))):
@@ -600,7 +592,7 @@ def visualize_transformation(transformer_pipeline, text=None):
 
     graph = graphviz.Source(dot)
 
-    from IPython.core.display import display, SVG
+    from IPython.core.display import SVG, display
 
     display(SVG(graph.pipe(format="svg")))
 
@@ -700,7 +692,7 @@ def _get_imblearn_sampler(X, y):
     k_neighbors = min(min_sample_size - 1, 5)
     if k_neighbors == 0:
         logger.warning(
-            f"""k_neighbors is 0 as in the target there exists a class label that appeared only once.
+            """k_neighbors is 0 as in the target there exists a class label that appeared only once.
                 SMOTE will fail. Default to RandomOverSampler.
             """
         )
@@ -806,8 +798,9 @@ def parse_apache_log_datetime(x):
     Due to problems parsing the timezone (`%z`) with `datetime.strptime`, the
     timezone will be obtained using the `pytz` library.
     """
-    import pytz
     from datetime import datetime
+
+    import pytz
 
     dt = datetime.strptime(x[1:-7], "%d/%b/%Y:%H:%M:%S")
     dt_tz = int(x[-6:-3]) * 60 + int(x[-3:-1])
@@ -876,7 +869,7 @@ def get_dataset(
         logger.warning(
             "It is not recommended to use an empty column as the target variable."
         )
-        raise ValueError(f"We do not support using empty columns as the chosen target")
+        raise ValueError("We do not support using empty columns as the chosen target")
     if utils.is_same_class(target_type, ContinuousTypedFeature):
         return RegressionDataset(
             df=df,
@@ -902,7 +895,7 @@ def get_dataset(
     elif utils.is_same_class(
         target_type, CategoricalTypedFeature
     ) or utils.is_same_class(target_type, OrdinalTypedFeature):
-        if target_type.meta_data["internal"]["unique"] == 2:
+        if target_type.meta_data["internal"].nunique() == 2:
             if is_text_data(sampled_df, target):
                 return BinaryTextClassificationDataset(
                     df=df,
@@ -945,9 +938,7 @@ def get_dataset(
         utils.is_same_class(target, DocumentTypedFeature)
         or "text" in target_type["type"]
         or "text" in target
-    ):
-        raise ValueError(f"The column {target} cannot be used as the target column.")
-    elif (
+    ) or (
         utils.is_same_class(target_type, GISTypedFeature)
         or "coord" in target_type["type"]
         or "coord" in target
@@ -1174,15 +1165,15 @@ class CustomFormatReaders:
     def read_json(path: str, **kwargs) -> pd.DataFrame:
         try:
             return pd.read_json(path, **kwargs)
-        except ValueError as e:
+        except ValueError:
             return pd.read_json(
                 path, **utils.inject_and_copy_kwargs(kwargs, **{"lines": True})
             )
 
     @staticmethod
     def read_libsvm(path: str, **kwargs) -> pd.DataFrame:
-        from sklearn.datasets import load_svmlight_file
         from joblib import Memory
+        from sklearn.datasets import load_svmlight_file
 
         mem = Memory("./mycache")
 
@@ -1271,7 +1262,7 @@ class CustomFormatReaders:
 
     @staticmethod
     def read_log(path, **kwargs):
-        from ads.dataset.helper import parse_apache_log_str, parse_apache_log_datetime
+        from ads.dataset.helper import parse_apache_log_datetime, parse_apache_log_str
 
         df = pd.read_csv(
             path,
@@ -1314,9 +1305,10 @@ class CustomFormatReaders:
     @staticmethod
     @runtime_dependency(module="scipy", install_from=OptionalDependency.VIZ)
     def read_arff(path, **kwargs):
-        from scipy.io import arff
-        import requests
         from io import BytesIO, TextIOWrapper
+
+        import requests
+        from scipy.io import arff
 
         data = None
         if os.path.isfile(path):
@@ -1344,7 +1336,7 @@ class CustomFormatReaders:
         -------
         dataframe : pandas.DataFrame
         """
-        import xml.etree.cElementTree as et
+        import xml.etree.ElementTree as et
 
         def get_children(df, node, parent, i):
             for name in node.attrib.keys():
@@ -1432,18 +1424,18 @@ def load_dataset(path: ElaboratedPath, reader_fn: Callable, **kwargs) -> pd.Data
         dfs.append(data)
     if len(dfs) == 0:
         raise ValueError(
-            f"We were unable to load the specified dataset. Read more here: "
-            f"https://docs.cloud.oracle.com/en-us/iaas/tools/ads"
-            f"-sdk/latest/user_guide/loading_data/loading_data.html#specify-data-types-in-load-dataset"
+            "We were unable to load the specified dataset. Read more here: "
+            "https://docs.cloud.oracle.com/en-us/iaas/tools/ads"
+            "-sdk/latest/user_guide/loading_data/loading_data.html#specify-data-types-in-load-dataset"
         )
 
     df = pd.concat(dfs)
 
     if df is None:
         raise ValueError(
-            f"We were unable to load the specified dataset. Read more here: "
-            f"https://docs.cloud.oracle.com/en-us/iaas/tools/ads"
-            f"-sdk/latest/user_guide/loading_data/loading_data.html#specify-data-types-in-load-dataset"
+            "We were unable to load the specified dataset. Read more here: "
+            "https://docs.cloud.oracle.com/en-us/iaas/tools/ads"
+            "-sdk/latest/user_guide/loading_data/loading_data.html#specify-data-types-in-load-dataset"
         )
     if df.empty:
         raise DatasetLoadException("Empty DataFrame, not producing a ADSDataset")

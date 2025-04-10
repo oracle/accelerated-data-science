@@ -1,58 +1,57 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from __future__ import print_function, absolute_import
 
+import datetime
+import inspect
 import os
 import re
 import warnings
+from typing import Callable, Tuple
+
+import fsspec
 import oci
-import datetime
 import pandas as pd
 from fsspec.utils import infer_storage_options
-import inspect
-import fsspec
+from ocifs import OCIFileSystem
 
 from ads.common import utils
+from ads.common.decorator.deprecate import deprecated
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 from ads.common.utils import is_same_class
 from ads.dataset import logger
 from ads.dataset.classification_dataset import (
     BinaryClassificationDataset,
-    MultiClassClassificationDataset,
     BinaryTextClassificationDataset,
+    MultiClassClassificationDataset,
     MultiClassTextClassificationDataset,
 )
 from ads.dataset.dataset import ADSDataset
 from ads.dataset.forecasting_dataset import ForecastingDataset
 from ads.dataset.helper import (
+    DatasetDefaults,
+    DatasetLoadException,
+    ElaboratedPath,
+    generate_sample,
     get_feature_type,
     is_text_data,
-    generate_sample,
-    DatasetDefaults,
-    ElaboratedPath,
-    DatasetLoadException,
 )
 from ads.dataset.regression_dataset import RegressionDataset
 from ads.type_discovery.type_discovery_driver import TypeDiscoveryDriver
 from ads.type_discovery.typed_feature import (
+    CategoricalTypedFeature,
     ContinuousTypedFeature,
     DateTimeTypedFeature,
-    CategoricalTypedFeature,
-    OrdinalTypedFeature,
-    GISTypedFeature,
     DocumentTypedFeature,
+    GISTypedFeature,
+    OrdinalTypedFeature,
+    TypedFeature,
 )
-from ads.type_discovery.typed_feature import TypedFeature
-from typing import Callable, Tuple
-from ocifs import OCIFileSystem
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
-from ads.common.decorator.deprecate import deprecated
 
 default_snapshots_dir = None
 default_storage_options = None
@@ -364,11 +363,7 @@ class DatasetFactory:
             from IPython.core.display import display
 
             display(
-                HTML(
-                    list_df.style.set_table_attributes("class=table")
-                    .hide()
-                    .to_html()
-                )
+                HTML(list_df.style.set_table_attributes("class=table").hide().to_html())
             )
         return list_df
 
@@ -432,7 +427,7 @@ class DatasetFactory:
                     os.makedirs(os.path.dirname(local_filepath), exist_ok=True)
                     with open(local_filepath, "wb") as f2:
                         f2.write(f1.read())
-            except oci.exceptions.ServiceError as e:
+            except oci.exceptions.ServiceError:
                 raise FileNotFoundError(f"Unable to open file: {remote_file.path}")
         return display_error, error_msg
 
@@ -600,7 +595,7 @@ class DatasetFactory:
                 "It is not recommended to use an empty column as the target variable."
             )
             raise ValueError(
-                f"We do not support using empty columns as the chosen target"
+                "We do not support using empty columns as the chosen target"
             )
         if is_same_class(target_type, ContinuousTypedFeature):
             return RegressionDataset(
@@ -627,7 +622,7 @@ class DatasetFactory:
         elif is_same_class(target_type, CategoricalTypedFeature) or is_same_class(
             target_type, OrdinalTypedFeature
         ):
-            if target_type.meta_data["internal"]["unique"] == 2:
+            if target_type.meta_data["internal"].nunique() == 2:
                 if is_text_data(sampled_df, target):
                     return BinaryTextClassificationDataset(
                         df=df,
@@ -670,11 +665,7 @@ class DatasetFactory:
             is_same_class(target, DocumentTypedFeature)
             or "text" in target_type["type"]
             or "text" in target
-        ):
-            raise ValueError(
-                f"The column {target} cannot be used as the target column."
-            )
-        elif (
+        ) or (
             is_same_class(target_type, GISTypedFeature)
             or "coord" in target_type["type"]
             or "coord" in target
@@ -711,15 +702,15 @@ class CustomFormatReaders:
     def read_json(path: str, **kwargs) -> pd.DataFrame:
         try:
             return pd.read_json(path, **kwargs)
-        except ValueError as e:
+        except ValueError:
             return pd.read_json(
                 path, **utils.inject_and_copy_kwargs(kwargs, **{"lines": True})
             )
 
     @staticmethod
     def read_libsvm(path: str, **kwargs) -> pd.DataFrame:
-        from sklearn.datasets import load_svmlight_file
         from joblib import Memory
+        from sklearn.datasets import load_svmlight_file
 
         mem = Memory("./mycache")
 
@@ -808,7 +799,7 @@ class CustomFormatReaders:
 
     @staticmethod
     def read_log(path, **kwargs):
-        from ads.dataset.helper import parse_apache_log_str, parse_apache_log_datetime
+        from ads.dataset.helper import parse_apache_log_datetime, parse_apache_log_str
 
         df = pd.read_csv(
             path,
@@ -851,9 +842,10 @@ class CustomFormatReaders:
     @staticmethod
     @runtime_dependency(module="scipy", install_from=OptionalDependency.VIZ)
     def read_arff(path, **kwargs):
-        from scipy.io import arff
-        import requests
         from io import BytesIO, TextIOWrapper
+
+        import requests
+        from scipy.io import arff
 
         data = None
         if os.path.isfile(path):
@@ -881,7 +873,7 @@ class CustomFormatReaders:
         -------
         dataframe : pandas.DataFrame
         """
-        import xml.etree.cElementTree as et
+        import xml.etree.ElementTree as et
 
         def get_children(df, node, parent, i):
             for name in node.attrib.keys():
@@ -969,18 +961,18 @@ def load_dataset(path: ElaboratedPath, reader_fn: Callable, **kwargs) -> pd.Data
         dfs.append(data)
     if len(dfs) == 0:
         raise ValueError(
-            f"We were unable to load the specified dataset. Read more here: "
-            f"https://docs.cloud.oracle.com/en-us/iaas/tools/ads"
-            f"-sdk/latest/user_guide/loading_data/loading_data.html#specify-data-types-in-load-dataset"
+            "We were unable to load the specified dataset. Read more here: "
+            "https://docs.cloud.oracle.com/en-us/iaas/tools/ads"
+            "-sdk/latest/user_guide/loading_data/loading_data.html#specify-data-types-in-load-dataset"
         )
 
     df = pd.concat(dfs)
 
     if df is None:
         raise ValueError(
-            f"We were unable to load the specified dataset. Read more here: "
-            f"https://docs.cloud.oracle.com/en-us/iaas/tools/ads"
-            f"-sdk/latest/user_guide/loading_data/loading_data.html#specify-data-types-in-load-dataset"
+            "We were unable to load the specified dataset. Read more here: "
+            "https://docs.cloud.oracle.com/en-us/iaas/tools/ads"
+            "-sdk/latest/user_guide/loading_data/loading_data.html#specify-data-types-in-load-dataset"
         )
     if df.empty:
         raise DatasetLoadException("Empty DataFrame, not producing a ADSDataset")
