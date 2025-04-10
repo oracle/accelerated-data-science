@@ -76,9 +76,11 @@ CONST_ENCODING = "utf-8"
 LOG_PREFIX_HOST_IP = "Distributed Training HOST IP: "
 LOG_PREFIX_NODE_IP = "Node IP: "
 LOG_PREFIX_PUBLIC_KEY = "HOST PUBLIC KEY: "
-LOG_PREFIX_NODE_HOST_KEY = "NODE HOST KEY: "
+LOG_PREFIX_HOST_KEY_RSA = "NODE HOST KEY RSA: "
+LOG_PREFIX_HOST_KEY_ECDSA = "NODE HOST KEY ECDSA: "
 # Other constants used within this script
-NODE_HOST_KEY_PATH = "/etc/ssh/ssh_host_rsa_key.pub"
+HOST_KEY_PATH_RSA = "/etc/ssh/ssh_host_rsa_key.pub"
+HOST_KEY_PATH_ECDSA = "/etc/ssh/ssh_host_ecdsa_key.pub"
 USER_HOME = os.environ.get("HOME", f"/home/{getpass.getuser()}")
 SSH_DIR = os.environ.get("OCI__SSH_DIR", os.path.join(USER_HOME, ".ssh"))
 DEFAULT_LAUNCHER = "torchrun"
@@ -155,7 +157,8 @@ class Runner(driver_utils.JobRunner):
 
         # IP address of other nodes as a list
         self.node_ip_list = []
-        self.node_runs = []
+        # For DTv2, node_runs should not be used.
+        self.node_runs = None
         self.host_ocid = None
         self.host_job_run = None
 
@@ -204,6 +207,9 @@ class Runner(driver_utils.JobRunner):
 
         logger.debug("Runner initialized.")
 
+    def is_dtv2(self):
+        return CONST_ENV_META_FILE in os.environ
+
     def launch_cmd_contains(self, arg) -> bool:
         """Checks if the cmd for launching the training contains specific keyword argument."""
         return f"--{arg}" in self.launch_cmd
@@ -250,7 +256,7 @@ class Runner(driver_utils.JobRunner):
         logger.info("IP of %s: %s", job_run.id[-6:], ip_address)
         return ip_address
 
-    def wait_for_log(self, job_run, log_prefix, timeout=15 * 60) -> str:
+    def wait_for_log(self, job_run, log_prefix, timeout=15 * 60, limit=1) -> str:
         """Waits until a log message with specific prefix is found in the logs of a job run.
 
         Parameters
@@ -276,10 +282,11 @@ class Runner(driver_utils.JobRunner):
             "Waiting for logs with prefix '%s' from %s.", log_prefix, job_run.id
         )
         second_started = time.time()
-        log = None
-        while not log:
-            log = self.check_job_run_logs(job_run=job_run, log_prefix=log_prefix)
-            if log:
+        logs = None
+        while True:
+            logs = self.check_job_run_logs(job_run=job_run, log_prefix=log_prefix)
+            if logs and len(logs) >= limit:
+                logs = logs[:limit]
                 break
             if time.time() - second_started > timeout:
                 logs = job_run.logs()
@@ -289,10 +296,12 @@ class Runner(driver_utils.JobRunner):
                     f"Last log obtained: {last_log}"
                 )
             time.sleep(60)
-        return log
+        if limit == 1:
+            return logs[0]
+        return logs
 
     @staticmethod
-    def check_job_run_logs(job_run, log_prefix: str) -> str:
+    def check_job_run_logs(job_run, log_prefix: str) -> list:
         """Checks the logs of a specific job run and find the log message with specific prefix.
 
         Parameters
@@ -309,10 +318,12 @@ class Runner(driver_utils.JobRunner):
         """
         logger.debug("Checking logs for job run %s", job_run.id)
         logs = job_run.logs()
-        for log in logs:
-            if log["message"].startswith(log_prefix):
-                return log["message"][len(log_prefix) :]
-        return None
+        logs = [
+            log["message"][len(log_prefix) :]
+            for log in logs
+            if log["message"].startswith(log_prefix)
+        ]
+        return logs
 
     def find_self_ip(self):
         """
@@ -408,6 +419,8 @@ class Runner(driver_utils.JobRunner):
                 )
                 time.sleep(20)
                 continue
+            logger.debug("All nodes are found in metadata file.")
+            logger.debug(node_list)
             return {int(meta[CONST_RANK]): meta[CONST_IP_ADDRESS] for meta in node_list}
 
     def fetch_code(self):
@@ -513,6 +526,7 @@ class TorchRunner(Runner):
 
     def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
         super().__init__(code_dir)
+        logger.debug("Initializing Torch Runner...")
         self.build_c_library()
 
     def build_c_library(self):
@@ -588,20 +602,30 @@ class DeepSpeedRunner(Runner):
 
     def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
         super().__init__(code_dir)
-        self.host_key = None
-        self.deepspeed_setup()
+        logger.debug("Initializing DeepSpeed Runner...")
+        # Setup DeepSpeed if it used.
+        if self.use_deepspeed():
+            self.host_key = None
+            self.deepspeed_setup()
+
+    def use_deepspeed(self):
+        """Indicate if DeepSpeed is used."""
+        # Accelerate support using DeepSpeed by adding the "--use_deepspeed" argument.
+        return bool(
+            os.environ.get(CONST_ENV_DEEPSPEED)
+            or self.launch_cmd_contains("use_deepspeed")
+            or self.launch_cmd_contains("deepspeed")
+        )
 
     def deepspeed_setup(self):
         """Setup for DeepSpeed."""
-        self.host_key = (
-            NODE_HOST_KEY_PATH if os.path.exists(NODE_HOST_KEY_PATH) else None
-        )
+        self.host_key = HOST_KEY_PATH_RSA if os.path.exists(HOST_KEY_PATH_RSA) else None
         # Create the temp dir if one does not exist.
         # This is needed for JIT
         if self.TMPDIR and not os.path.isdir(self.TMPDIR):
             logger.info("Creating temp directory: %s", self.TMPDIR)
             os.makedirs(self.TMPDIR, exist_ok=True)
-        self.install_dependencies()
+        self.install_deepspeed_dependencies()
         # host_job_run is needed for DeepSpeed to fetch the public SSH key from the logs.
         if self.host_ocid and self.node_count > 1:
             self.host_job_run = DataScienceJobRun.from_ocid(self.host_ocid)
@@ -621,7 +645,35 @@ class DeepSpeedRunner(Runner):
                 )
                 break
 
-    def install_dependencies(self):
+    def _print_host_key(self, host_key_path, prefix):
+        with open(host_key_path, encoding=CONST_ENCODING) as f:
+            public_key = f.read()
+        print(f"{prefix}{self.ip}-{public_key}")
+
+    def _add_known_hosts_from_file(self, ip_addr, key_file):
+        if not os.path.exists(key_file):
+            logger.warning(
+                "Unable to add host key %s to known_hosts: key file not found.",
+                key_file,
+            )
+            return
+        self.run_command(
+            f"echo -n '{ip_addr} ' | " f"cat - {key_file} >> {SSH_DIR}/known_hosts",
+            level=logging.DEBUG,
+            check=True,
+        )
+
+    def _add_known_hosts_from_log(self, job_run, prefix, ip_address=None):
+        ip_key = self.wait_for_log(job_run, f"{prefix}")
+        ip_addr, public_key = ip_key.split("-", 1)
+        if ip_address:
+            ip_addr = ip_address
+        with open(f"{SSH_DIR}/known_hosts", "a+", encoding=CONST_ENCODING) as f:
+            line = f"{ip_addr} {public_key}"
+            f.write(f"{line}\n")
+        logger.debug("Added host key: %s", line)
+
+    def install_deepspeed_dependencies(self):
         """Installs extra dependencies and start SSH service."""
         if self.node_count == 1:
             logger.debug(
@@ -637,9 +689,8 @@ class DeepSpeedRunner(Runner):
         else:
             # Generate SSH host keys for SSH server
             self.run_command("sudo ssh-keygen -A", level=logging.DEBUG, check=True)
-            with open(NODE_HOST_KEY_PATH, encoding=CONST_ENCODING) as f:
-                public_key = f.read()
-            print(f"{LOG_PREFIX_NODE_HOST_KEY}{self.ip}-{public_key}")
+            self._print_host_key(HOST_KEY_PATH_RSA, LOG_PREFIX_HOST_KEY_RSA)
+            self._print_host_key(HOST_KEY_PATH_ECDSA, LOG_PREFIX_HOST_KEY_ECDSA)
 
         if self.run_command("which pdsh", level=logging.DEBUG) != 0:
             # Install "openssh-server" to accept SSH connections
@@ -670,14 +721,10 @@ class DeepSpeedRunner(Runner):
         with open(os.path.join(SSH_DIR, "id_rsa.pub"), encoding=CONST_ENCODING) as f:
             public_key = f.read()
         print(f"{LOG_PREFIX_PUBLIC_KEY}{public_key}", flush=True)
-        self.add_authoried_key(public_key)
-        # Public
-        self.run_command(
-            f"echo -n '{self.host_ip} ' | "
-            f"cat - {NODE_HOST_KEY_PATH} >> {SSH_DIR}/known_hosts",
-            level=logging.DEBUG,
-            check=True,
-        )
+        self._add_authoried_key(public_key)
+        # Add host key to known hosts
+        self._add_known_hosts_from_file(self.host_ip, HOST_KEY_PATH_RSA)
+        self._add_known_hosts_from_file(self.host_ip, HOST_KEY_PATH_ECDSA)
         self.test_ssh_connection(self.host_ip)
         # Check DeepSpeed compatibility
         self.run_command(
@@ -685,20 +732,18 @@ class DeepSpeedRunner(Runner):
         )
         return self
 
-    @staticmethod
-    def add_authoried_key(public_key):
+    def _add_authoried_key(self, public_key):
         auth_keys_file = os.path.join(SSH_DIR, "authorized_keys")
         os.makedirs(SSH_DIR, exist_ok=True)
         with open(auth_keys_file, "a+", encoding=CONST_ENCODING) as f:
             f.write(public_key)
             f.write("\n")
-        logger.debug("Public key saved to %s", auth_keys_file)
+        logger.debug("Public key saved to %s:%s", self.ip, auth_keys_file)
 
     def fetch_host_public_key(self):
         public_key = self.wait_for_log(self.host_job_run, LOG_PREFIX_PUBLIC_KEY)
         print(f"{LOG_PREFIX_PUBLIC_KEY}{public_key}", flush=True)
-        # logger.debug("%s", LOG_PREFIX_PUBLIC_KEY + public_key)
-        self.add_authoried_key(public_key)
+        self._add_authoried_key(public_key)
 
     def generate_hostfile(self):
         if not self.node_ip_list:
@@ -716,9 +761,12 @@ class DeepSpeedRunner(Runner):
         # Hostfile
         logger.debug("Writing hostfile to %s", self.HOST_FILE)
         os.makedirs(os.path.dirname(self.HOST_FILE), exist_ok=True)
-        host_file_content = [f"{ip} slots={self.gpu_count}" for ip in self.node_ip_list]
+        host_file_content = [
+            f"{ip} slots={self.gpu_count}\n" for ip in self.node_ip_list
+        ]
         with open(self.HOST_FILE, "w", encoding=CONST_ENCODING) as f:
-            f.write(f"{self.host_ip} slots={self.gpu_count}\n")
+            if self.host_ip not in self.node_ip_list:
+                f.write(f"{self.host_ip} slots={self.gpu_count}\n")
             f.writelines(host_file_content)
         self.run_command(f"cat {self.HOST_FILE}", level=logging.DEBUG)
         # SSH config
@@ -727,16 +775,18 @@ class DeepSpeedRunner(Runner):
         with open(ssh_config_path, "w", encoding=CONST_ENCODING) as f:
             f.writelines(
                 [
-                    "",
-                    f"Host {self.host_ip}",
+                    "\n",
+                    f"Host {self.host_ip}\n",
                     "KexAlgorithms diffie-hellman-group-exchange-sha256\n",
                 ]
             )
             for node_ip in self.node_ip_list:
+                if node_ip == self.host_ip:
+                    continue
                 f.writelines(
                     [
-                        "",
-                        f"Host {node_ip}",
+                        "\n",
+                        f"Host {node_ip}\n",
                         "KexAlgorithms diffie-hellman-group-exchange-sha256\n",
                     ]
                 )
@@ -758,9 +808,8 @@ class DeepSpeedRunner(Runner):
         for node_ip in self.node_ip_list:
             logger.debug("Sending stop file to %s", node_ip)
             self.run_command(
-                f"ssh -v {node_ip} 'touch {filename}'",
+                f"ssh -v -o PasswordAuthentication=no {node_ip} 'touch {filename}'",
                 level=logging.DEBUG,
-                check=True,
             )
 
     def save_deepspeed_env(self):
@@ -815,6 +864,9 @@ class DeepSpeedRunner(Runner):
         logger.debug("Environment variables saved to %s", self.ENV_FILE)
         self.run_command(f"cat {self.ENV_FILE}")
 
+    def wait_for_nodes(self):
+        pass
+
     def run_deepspeed_host(self, launch_args=None):
         """Prepares the host and launch the deepspeed training.
 
@@ -830,30 +882,41 @@ class DeepSpeedRunner(Runner):
             self.generate_key_pair().generate_hostfile()
             self.save_deepspeed_env()
             # Wait for nodes to be ready
-            for run in self.node_runs:
-                self.wait_for_log(run, LOG_PREFIX_PUBLIC_KEY)
+            # For DTv2, self.node_runs will be None
+            if self.is_dtv2():
+                self.wait_for_log(
+                    self.host_job_run, LOG_PREFIX_PUBLIC_KEY, limit=self.node_count
+                )
+            else:
+                for run in self.node_runs:
+                    self.wait_for_log(run, LOG_PREFIX_PUBLIC_KEY)
 
             if self.host_key:
                 # If host key exists, it should be the same for all nodes.
                 for node_ip in self.node_ip_list:
-                    self.run_command(
-                        f"echo -n '{node_ip} ' | "
-                        f"cat - /etc/ssh/ssh_host_rsa_key.pub >> {SSH_DIR}/known_hosts",
-                        level=logging.DEBUG,
-                        check=True,
-                    )
-            else:
+                    self._add_known_hosts_from_file(node_ip, HOST_KEY_PATH_RSA)
+                    self._add_known_hosts_from_file(node_ip, HOST_KEY_PATH_ECDSA)
+            elif self.is_dtv2():
                 # If host key did not exist, it it generated on the fly,
                 # Each node will have a different key.
                 # We will need to check the logs for the public key.
+                logger.debug("Adding node host keys to known_hosts...")
+                for node_ip in self.node_ip_list:
+                    self._add_known_hosts_from_log(
+                        self.host_job_run,
+                        LOG_PREFIX_HOST_KEY_RSA + node_ip,
+                        ip_address=node_ip,
+                    )
+                    self._add_known_hosts_from_log(
+                        self.host_job_run,
+                        LOG_PREFIX_HOST_KEY_ECDSA + node_ip,
+                        ip_address=node_ip,
+                    )
+            else:
+                logger.debug("Adding job run host keys to known_hosts...")
                 for run in self.node_runs:
-                    ip_key = self.wait_for_log(run, f"{LOG_PREFIX_NODE_HOST_KEY}")
-                    ip_addr, public_key = ip_key.split("-", 1)
-                    with open(
-                        f"{SSH_DIR}/known_hosts", "a+", encoding=CONST_ENCODING
-                    ) as f:
-                        f.write(f"{ip_addr} {public_key}\n")
-                    logger.debug("Added host key for %s", ip_addr)
+                    self._add_known_hosts_from_log(run, LOG_PREFIX_HOST_KEY_RSA)
+                    self._add_known_hosts_from_log(run, LOG_PREFIX_HOST_KEY_ECDSA)
 
         cmd = self.prepare_cmd(launch_args)
         # For DeepSpeed, we only need to run the cmd on the host
@@ -913,18 +976,8 @@ class GenericRunner(TorchRunner, DeepSpeedRunner):
     LAUNCHER = ""
 
     def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
-        TorchRunner.__init__(self, code_dir)
-        if self.use_deepspeed():
-            self.deepspeed_setup()
-
-    def use_deepspeed(self):
-        """Indicate if DeepSpeed is used."""
-        # Accelerate support using DeepSpeed by adding the "--use_deepspeed" argument.
-        return bool(
-            os.environ.get(CONST_ENV_DEEPSPEED)
-            or self.launch_cmd_contains("use_deepspeed")
-            or self.launch_cmd_contains("deepspeed")
-        )
+        super().__init__(code_dir)
+        logger.debug("Initializing Generic Runner...")
 
     def set_env_var(self):
         """Set default environment variables."""
@@ -975,7 +1028,10 @@ class AccelerateRunner(GenericRunner):
     LAUNCHER = "accelerate launch"
 
     def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
-        super().__init__(self, code_dir)
+        # Here we need to call GenericRunner.__init__() explicitly
+        # to avoid calling the DeepSpeedRunner.__init__().
+        super().__init__(code_dir)
+        logger.debug("Initializing Accelerate Runner...")
         # For "accelerate launch", only one of the following options can be used at one time
         # `--cpu`, `--multi_gpu`, `--tpu`, `--use_deepspeed`, `--use_fsdp`.
         # When a config file is not provided,
@@ -1069,7 +1125,7 @@ def main():
         runner_class = AccelerateRunner
     else:
         runner_class = GenericRunner
-
+    logger.debug("Using %s", str(runner_class))
     runner = runner_class()
 
     runner: Runner
