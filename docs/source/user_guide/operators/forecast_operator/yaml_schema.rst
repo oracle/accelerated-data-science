@@ -19,6 +19,221 @@ Below is an example of a ``forecast.yaml`` file with every parameter specified:
         horizon: 3
         target_column: target
 
+
+
+.. list-table:: Forecast Operator Configuration Reference
+   :widths: 20 10 10 20 40
+   :header-rows: 1
+
+   * - Field
+     - Type
+     - Required
+     - Default
+     - Description
+
+   * - historical_data
+     - dict
+     - Yes
+     - {"url": "data.csv"}
+     - Indexed by date and optionally target category. Includes targets and endogeneous data.
+
+   * - additional_data
+     - dict
+     - No
+     -
+     - Optional exogeneous data. Must align with historical_data structure.
+
+   * - test_data
+     - dict
+     - No
+     -
+     - Optional, used for evaluation if provided.
+
+   * - output_directory
+     - dict
+     - No
+     -
+     - Where output files will be saved. Accepts the same data schema as inputs.
+
+   * - report_filename
+     - string
+     - No
+     - report.html
+     - Output report file name.
+
+   * - report_title
+     - string
+     - No
+     -
+     - Title of the output report.
+
+   * - report_theme
+     - string
+     - No
+     - light
+     - Theme of the report. Options: light, dark.
+
+   * - metrics_filename
+     - string
+     - No
+     - metrics.csv
+     - Filename for metrics output.
+
+   * - test_metrics_filename
+     - string
+     - No
+     - test_metrics.csv
+     - Filename for test set evaluation metrics.
+
+   * - forecast_filename
+     - string
+     - No
+     - forecast.csv
+     - Output forecast data file.
+
+   * - global_explanation_filename
+     - string
+     - No
+     - global_explanations.csv
+     - File for global explanations.
+
+   * - local_explanation_filename
+     - string
+     - No
+     - local_explanations.csv
+     - File for local explanations.
+
+   * - target_column
+     - string
+     - Yes
+     - target
+     - Column to forecast.
+
+   * - datetime_column.name
+     - string
+     - Yes
+     - Date
+     - Timestamp column name.
+
+   * - datetime_column.format
+     - string
+     - No
+     -
+     - Optional datetime format.
+
+   * - target_category_columns
+     - list
+     - No
+     - ["Series ID"]
+     - Categories for multi-series forecasting.
+
+   * - horizon
+     - integer
+     - Yes
+     - 1
+     - Forecast horizon (how far ahead).
+
+   * - model
+     - string
+     - No
+     - prophet
+     - Model to use. Options: prophet, arima, neuralprophet, automlx, autots, auto-select.
+
+   * - model_kwargs
+     - dict
+     - No
+     -
+     - Parameters specific to the chosen model.
+
+   * - preprocessing.enabled
+     - boolean
+     - No
+     - true
+     - Whether to apply preprocessing.
+
+   * - preprocessing.steps.missing_value_imputation
+     - boolean
+     - No
+     - true
+     - Impute missing values.
+
+   * - preprocessing.steps.outlier_treatment
+     - boolean
+     - No
+     - false
+     - Handle outliers.
+
+   * - generate_explanations
+     - boolean
+     - No
+     - false
+     - Toggle local and global explanations.
+
+   * - explanations_accuracy_mode
+     - string
+     - No
+     - FAST_APPROXIMATE
+     - Explanation mode. Options: HIGH_ACCURACY, BALANCED, FAST_APPROXIMATE, AUTOMLX.
+
+   * - generate_report
+     - boolean
+     - No
+     - true
+     - Enable report generation.
+
+   * - generate_metrics
+     - boolean
+     - No
+     - true
+     - Enable metrics file generation.
+
+   * - metric
+     - string
+     - No
+     - MAPE
+     - Evaluation metric. Options: MAPE, RMSE, MSE, SMAPE (case-insensitive).
+
+   * - what_if_analysis
+     - dict
+     - No
+     -
+     - Save models to model catalog if enabled. Includes deployment config.
+
+   * - previous_output_dir
+     - string
+     - No
+     -
+     - Load previous run outputs.
+
+   * - generate_model_parameters
+     - boolean
+     - No
+     -
+     - Export fitted model parameters.
+
+   * - generate_model_pickle
+     - boolean
+     - No
+     -
+     - Export trained model as pickle file.
+
+   * - confidence_interval_width
+     - float
+     - No
+     - 0.80
+     - Width of confidence intervals in forecast.
+
+   * - tuning.n_trials
+     - integer
+     - No
+     - 10
+     - Number of tuning trials for hyperparameter search.
+
+
+Further Description
+-------------------
+
+
 * **kind**: The YAML file always starts with ``kind: operator``. This identifies the type of service. Common kinds include ``operator`` and ``job``, but here, ``operator`` is required.
 * **type**: The type of operator is ``forecast``, which should always be specified when using this forecast operator.
 * **version**: The only available version is ``v1``.
