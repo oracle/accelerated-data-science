@@ -24,7 +24,7 @@ Locally
 
   pip install "oracle_ads[forecast]"
 
----
+.. rst-class:: page-break
 
 🚀 Getting Started
 ==================
@@ -53,7 +53,7 @@ Using the CLI
   ads operator run -f forecast.yaml
 
 
----
+.. rst-class:: page-break
 
 Using the API
 ---------------
@@ -75,7 +75,7 @@ Using the API
   result = operate(config)
 
 
----
+.. rst-class:: page-break
 
 Using the Notebook UI
 ------------------------
@@ -91,7 +91,7 @@ Simply fill in the fields and click "run":
 
 .. image:: ./images/notebook_form_filled.png
 
----
+.. rst-class:: page-break
 
 🧠 Tweak the Model
 ===================
@@ -105,12 +105,12 @@ Select a specific model
     name: arima
 
 The model name can be any of the following:
-- **Prophet** - Recommended for smaller datasets, and datasets with seasonality or holidays
-- **ARIMA** - Recommended for highly cyclical datasets
-- **AutoMLx** - Oracle Lab's proprietary modelling framework
-- **NeuralProphet** - Recommended for large or wide datasets
-- **AutoTS** - M6 Benchmark winner. Recommended if the other frameworks aren't providing enough accuracy
-- **Auto-Select** - The best of all of the above. Recommended for comparing the above frameworks. Caution, it can be very slow.
+    - **Prophet** - Recommended for smaller datasets, and datasets with seasonality or holidays
+    - **ARIMA** - Recommended for highly cyclical datasets
+    - **AutoMLx** - Oracle Lab's proprietary modelling framework
+    - **NeuralProphet** - Recommended for large or wide datasets
+    - **AutoTS** - M6 Benchmark winner. Recommended if the other frameworks aren't providing enough accuracy
+    - **Auto-Select** - The best of all of the above. Recommended for comparing the above frameworks. Caution, it can be very slow.
 
 
 Auto-Select the Best Model
@@ -163,7 +163,8 @@ With ``prophet``, for instance, there are options to dictate seasonality and cha
     seasonality_mode: multiplicative
     changepoint_prior_scale: 0.05
 
----
+
+.. rst-class:: page-break
 
 
 ➕ Add Additional Column(s)
@@ -275,7 +276,7 @@ The store owner may also wish to run a multi-variate forecast and  thus include 
 
 Notice that this additional_data would only be capable of forecasting a horizon of 1 (on 01-03-2024).
 
-----
+.. rst-class:: page-break
 
 Sourcing Data
 =================
@@ -393,7 +394,7 @@ When additional data is provided, the Operator can optionally generate explanati
         target_column: y
         generate_explanations: True
 
----
+.. rst-class:: page-break
 
 🧾 Disable File Generation
 ============================
@@ -405,7 +406,7 @@ When additional data is provided, the Operator can optionally generate explanati
         generate_explanations_file: False
         generate_metrics_file: False
 
----
+.. rst-class:: page-break
 
 📏 Change Evaluation Metric
 ============================
@@ -434,7 +435,7 @@ The metric can be optionally specified in the YAML file (default: "smape"):
         target_column: y
         metric: rmse
 
----
+.. rst-class:: page-break
 
 🧵 Run as a Job
 ============================
