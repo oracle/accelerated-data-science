@@ -11,7 +11,7 @@ Installing Through PyPi
 
 If you are running the Operator outside of a Notebook Session, you can install it by downloading ``oracle_ads[forecast]`` from PyPi.
 
-*Note: Python 3.10 is recommended.*
+*Note: Python 3.11 is recommended.*
 
 To install, run the following command:
 
@@ -23,16 +23,11 @@ After installation, the Operator will be ready to use.
 
 **Job and Model Deployment**
 
-To run the Operator in a job, you need to create and publish a Conda pack with ``oracle_ads[forecast]`` installed. The simplest way to do this is from a Notebook Session using the following commands:
+Jobs and Model Deployments can also use conda packs for their workloads. This can be used automatically from a Notebook Session by running:
 
 .. code-block:: bash
 
-    odsc conda create -n forecast -e
-    conda activate /home/datascience/conda/forecast
-    python3 -m pip install "oracle-ads[forecast]"
-    odsc conda publish -s /home/datascience/conda/forecast
-
-Ensure that you have properly configured your Conda pack namespace and bucket in the Launcher -> Settings -> Object Storage Settings. For more details, see :doc:`ADS Conda Set Up <../../cli/opctl/configure>`.
+    ads operator run -f forecast.yaml -b job
 
 Installing Through Conda Packs
 ------------------------------
@@ -49,6 +44,6 @@ To install:
 
 .. code-block:: bash
 
-    conda activate /home/datascience/conda/forecast_p310_cpu_x86_64_v4
+    conda activate /home/datascience/conda/forecast_p311_cpu_x86_64_v6
 
-That's it. Your Operator is ready to go!
+That's it. Your environment is ready to run Operators!
