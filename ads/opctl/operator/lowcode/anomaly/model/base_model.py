@@ -10,7 +10,6 @@ import time
 from abc import ABC, abstractmethod
 from typing import Tuple
 
-from ads.opctl.operator.lowcode.common.transformations import Transformations
 import fsspec
 import numpy as np
 import pandas as pd
@@ -54,10 +53,6 @@ class AnomalyOperatorBaseModel(ABC):
         self.config: AnomalyOperatorConfig = config
         self.spec: AnomalyOperatorSpec = config.spec
         self.datasets = datasets
-
-        if self.spec.preprocessing.steps.missing_value_imputation:
-            for series_id, df in self.datasets.full_data_dict.items():
-                self.datasets.full_data_dict[series_id] = Transformations._fill_na(self, df)
 
         if self.spec.validation_data is not None:
             self.X_valid_dict = self.datasets.valid_data.X_valid_dict
