@@ -1,30 +1,27 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-from __future__ import print_function, absolute_import
-
+import copy
 import json
 import re
-import copy
 from collections import defaultdict
 from time import time
 
 import numpy as np
 import pandas as pd
-from sklearn.utils import Bunch
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.utils import Bunch
 
-from ads.common import utils, logger
+from ads.common import utils
 from ads.common.card_identifier import card_identify
-from ads.common.utils import JsonConverter
 from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
     OptionalDependency,
+    runtime_dependency,
 )
+from ads.common.utils import JsonConverter
 
 
 class TypedFeature(Bunch):
@@ -97,7 +94,7 @@ class OrdinalTypedFeature(DiscreteTypedFeature):
         x_min, x_max = np.nanmin(nulls_removed), np.nanmax(nulls_removed)
 
         stats = {
-            "unique percentage": 100 * desc["unique"] / desc["count"],
+            "unique percentage": 100 * series.nunique() / series.size,
             "x_min": x_min,
             "x_max": x_max,
             "mode": series.mode().iloc[0],
@@ -113,13 +110,13 @@ class OrdinalTypedFeature(DiscreteTypedFeature):
                 "stats": stats,
                 "internal": {
                     "sample": series.head(5),
-                    "unique": desc["unique"],
+                    "unique": series.nunique(),
                     "counts": utils.truncate_series_top_n(
                         value_counts, n=min(16, len(value_counts))
                     ),
-                    "high_cardinality": bool(desc["unique"] > 30),
+                    "high_cardinality": bool(series.nunique() > 30),
                     "very_high_cardinality": bool(
-                        desc["unique"] >= 0.95 * desc["count"]
+                        series.nunique() >= 0.95 * series.size
                     ),
                 },
             },
@@ -134,13 +131,14 @@ class CategoricalTypedFeature(DiscreteTypedFeature):
     def build(name, series):
         desc = series.astype("category").loc[~series.isnull()].describe(include="all")
         value_counts = series.value_counts(ascending=False)
-        if isinstance(desc["top"], str):
-            mode = desc["top"] if len(desc["top"]) < 30 else desc["top"][:24] + "..."
+        top = desc["top"] if "top" in desc else None
+        if isinstance(top, str):
+            mode = top if len(top) < 30 else top[:24] + "..."
         else:
-            mode = desc["top"]
+            mode = top
 
         stats = {
-            "unique percentage": 100 * desc["unique"] / desc["count"],
+            "unique percentage": 100 * series.nunique() / series.size,
             "mode": mode,
         }
         stats.update({k: v for k, v in desc.items()})
@@ -154,13 +152,13 @@ class CategoricalTypedFeature(DiscreteTypedFeature):
                 "stats": stats,
                 "internal": {
                     "sample": series.sample(n=min(100, series.size)),
-                    "unique": desc["unique"],
+                    "unique": series.nunique(),
                     "counts": utils.truncate_series_top_n(
                         value_counts, n=min(16, len(value_counts))
                     ),
-                    "high_cardinality": bool(desc["unique"] > 30),
+                    "high_cardinality": bool(series.nunique() > 30),
                     "very_high_cardinality": bool(
-                        desc["unique"] >= 0.95 * desc["count"]
+                        series.nunique() >= 0.95 * series.size
                     ),
                 },
             },
@@ -185,7 +183,7 @@ class IPAddressTypedFeature(TypedFeature):
                 "missing_percentage": 100 * series.isna().sum() / series.size,
                 "low_level_type": series.dtype.name,
                 "stats": {
-                    "unique percentage": 100 * desc["unique"] / desc["count"],
+                    "unique percentage": 100 * series.nunique() / series.size,
                     "mode": series.mode().iloc[0],
                 },
                 "internal": {
@@ -193,7 +191,7 @@ class IPAddressTypedFeature(TypedFeature):
                     "counts": utils.truncate_series_top_n(
                         value_counts, n=min(16, len(value_counts))
                     ),
-                    "unique": desc["unique"],
+                    "unique": series.nunique(),
                 },
             },
         )
@@ -224,7 +222,7 @@ class PhoneNumberTypedFeature(TypedFeature):
                 "missing_percentage": 100 * series.isna().sum() / series.size,
                 "low_level_type": series.dtype.name,
                 "stats": {
-                    "unique percentage": 100 * desc["unique"] / desc["count"],
+                    "unique percentage": 100 * series.nunique() / series.size,
                     "mode": series.mode().iloc[0],
                 },
                 "internal": {
@@ -232,7 +230,7 @@ class PhoneNumberTypedFeature(TypedFeature):
                     "counts": utils.truncate_series_top_n(
                         value_counts, n=min(16, len(value_counts))
                     ),
-                    "unique": desc["unique"],
+                    "unique": series.nunique(),
                 },
             },
         )
@@ -254,10 +252,10 @@ class GISTypedFeature(TypedFeature):
                 "low_level_type": series.dtype.name,
                 "stats": {
                     "observations": desc["count"],
-                    "unique percentage": 100 * desc["unique"] / desc["count"]
+                    "unique percentage": 100 * series.nunique() / series.size,
                     # TODO mid point
                 },
-                "internal": {"sample": samples, "unique": desc["unique"]},
+                "internal": {"sample": samples, "unique": series.nunique()},
             },
         )
 
@@ -556,13 +554,13 @@ class CreditCardTypedFeature(TypedFeature):
                 "missing_percentage": 100 * series.isna().sum() / series.size,
                 "low_level_type": series.dtype.name,
                 "stats": {
-                    "unique percentage": 100 * desc["unique"] / desc["count"],
-                    "mode": desc["top"],
+                    "unique percentage": 100 * series.nunique() / series.size,
+                    "mode": desc["top"] if "top" in desc else None,
                 },
                 "internal": {
                     "sample": series.sample(n=min(100, series.size)),
                     "counts": dict(d_scheme),
-                    "unique": desc["unique"],
+                    "unique": series.nunique(),
                 },
             },
         )
@@ -583,14 +581,14 @@ class DateTimeTypedFeature(TypedFeature):
                 "missing_percentage": 100 * series.isna().sum() / series.size,
                 "low_level_type": series.dtype.name,
                 "stats": {
-                    "unique percentage": 100 * desc["unique"] / desc["count"],
-                    "first": desc["first"],
-                    "last": desc["last"],
-                    "mode": desc["top"],
+                    "unique percentage": 100 * series.nunique() / series.size,
+                    "first": desc["first"] if "first" in desc else None,
+                    "last": desc["last"] if "last" in desc else None,
+                    "mode": desc["top"] if "top" in desc else None,
                 },
                 "internal": {
                     "sample": series.sample(n=min(100, series.size)),
-                    "unique": desc["unique"],
+                    "unique": series.nunique(),
                 },
             },
         )
