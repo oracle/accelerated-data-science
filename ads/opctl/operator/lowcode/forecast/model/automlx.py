@@ -159,6 +159,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 self.models[s_id] = {}
                 self.models[s_id]["model"] = model
                 self.models[s_id]["le"] = self.le[s_id]
+                self.models[s_id]["score"] = self.get_validation_score_and_metric(model)
 
                 # In case of Naive model, model.forecast function call does not return confidence intervals.
                 if f"{target}_ci_upper" not in summary_frame:
@@ -511,3 +512,31 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     f"Failed to generate explanations for series {s_id} with error: {e}."
                 )
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
+
+    def get_validation_score_and_metric(self, model):
+        trials = model.completed_trials_summary_
+        model_params = model.selected_model_params_
+        if len(trials) > 0:
+            score_col = [col for col in trials.columns if "Score" in col][0]
+            validation_score = trials[trials.Hyperparameters == model_params][score_col].iloc[0]
+        else:
+            validation_score = 0
+        return -1 * validation_score
+
+    def generate_train_metrics(self) -> pd.DataFrame:
+        """
+        Generate Training Metrics when fitted data is not available.
+        """
+        total_metrics = pd.DataFrame()
+        for s_id in self.forecast_output.list_series_ids():
+            try:
+                metrics = {self.spec.metric.upper(): self.models[s_id]["score"]}
+                metrics_df = pd.DataFrame.from_dict(metrics, orient="index", columns=[s_id])
+                logger.warning("AutoMLX failed to generate training metrics. Recovering validation loss instead")
+                total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
+            except Exception as e:
+                logger.debug(
+                    f"Failed to generate training metrics for target_series: {s_id}"
+                )
+                logger.debug(f"Error: {e}")
+        return total_metrics
