@@ -9,14 +9,15 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 from ads.common.serializer import DataClassSerializable
-from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.common.operator_config import (
+    InputData,
     OperatorConfig,
     OutputDirectory,
-    InputData,
 )
-from .const import SupportedModels
+from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.lowcode.common.utils import find_output_dirname
+
+from .const import SupportedModels
 
 
 @dataclass(repr=True)
@@ -61,6 +62,7 @@ class AnomalyOperatorSpec(DataClassSerializable):
     test_data: TestData = field(default_factory=TestData)
     validation_data: ValidationData = field(default_factory=ValidationData)
     output_directory: OutputDirectory = field(default_factory=OutputDirectory)
+    preprocessing: DataPreprocessor = field(default_factory=DataPreprocessor)
     report_file_name: str = None
     report_title: str = None
     report_theme: str = None
