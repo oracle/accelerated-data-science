@@ -179,7 +179,7 @@ class AquaDeploymentApp(AquaApp):
         available_shapes = [
             shape.name.lower()
             for shape in self.list_shapes(
-                compartment_id=create_deployment_details.compartment_id
+                compartment_id=compartment_id
             )
         ]
 
