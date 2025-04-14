@@ -22,7 +22,7 @@ The following code shows how you can import the custom client and register it wi
 
 .. code-block:: python3
 
-    from ads.llm.autogen.client_v02 import LangChainModelClient, register_custom_client
+    from ads.llm.autogen.v02 import LangChainModelClient, register_custom_client
 
     # Register the custom LLM globally
     register_custom_client(LangChainModelClient)
@@ -141,7 +141,7 @@ If you are using an object storage location as ``report_dir``, you can also have
     with session_logger:
         # Create and run your AutoGen application
         ...
-        
+
     # Access the log file path
     print(session_logger.log_file)
 
