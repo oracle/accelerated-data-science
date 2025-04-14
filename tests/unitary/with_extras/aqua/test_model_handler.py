@@ -27,7 +27,7 @@ from ads.aqua.extension.model_handler import (
 )
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import AquaModel, AquaModelSummary, HFModelSummary
-from ads.config import USER
+from ads.config import USER, SERVICE
 
 
 class ModelHandlerTestCase(TestCase):
@@ -134,7 +134,7 @@ class ModelHandlerTestCase(TestCase):
             mock_finish.side_effect = lambda x: x
             self.model_handler.list()
             mock_list.assert_called_with(
-                compartment_id=None, project_id=None, model_type=None, category=USER
+                compartment_id=None, project_id=None, model_type=None, category=SERVICE
             )
 
     @parameterized.expand(

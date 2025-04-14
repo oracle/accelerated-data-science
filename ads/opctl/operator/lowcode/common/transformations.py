@@ -91,6 +91,8 @@ class Transformations(ABC):
                     logger.info("Skipping outlier treatment because it is disabled")
             elif self.name == "additional_data":
                 clean_df = self._missing_value_imputation_add(clean_df)
+            elif self.name == "input_data" and self.preprocessing.steps.missing_value_imputation:
+                clean_df = self._fill_na(clean_df)
         else:
             logger.info(
                 "Skipping all preprocessing steps because preprocessing is disabled"
