@@ -104,6 +104,8 @@ Following is an example LLM config for the OCI Generative AI service:
         },
     }
 
+You can find an example notebook showing function calling with AutoGen `here <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/LLM/AutoGen/AutoGenFunctionCalling.ipynb>`_.
+
 Logging And Reporting
 =====================
 
