@@ -53,6 +53,7 @@ class AnomalyOperatorBaseModel(ABC):
         self.config: AnomalyOperatorConfig = config
         self.spec: AnomalyOperatorSpec = config.spec
         self.datasets = datasets
+
         if self.spec.validation_data is not None:
             self.X_valid_dict = self.datasets.valid_data.X_valid_dict
             self.y_valid_dict = self.datasets.valid_data.y_valid_dict
@@ -74,7 +75,6 @@ class AnomalyOperatorBaseModel(ABC):
             logger.warning(f"Found exception: {e}")
             if self.spec.datetime_column:
                 anomaly_output = self._fallback_build_model()
-            raise e
 
         elapsed_time = time.time() - start_time
 
