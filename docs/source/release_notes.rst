@@ -2,6 +2,12 @@
 Release Notes
 =============
 
+2.13.8
+-------
+Release date: April 15, 2025
+
+* AI Quick Actions: Adds support for ``image-text-to-text`` models in multi-model deployment.
+
 2.13.7
 -------
 Release date: April 14, 2025
