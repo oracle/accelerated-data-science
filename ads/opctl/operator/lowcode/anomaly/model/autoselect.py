@@ -12,7 +12,6 @@ from ads.opctl.operator.lowcode.anomaly.const import (
     OutputColumns,
 )
 
-from .anomaly_merlion import AnomalyMerlionOperatorModel
 from .base_model import AnomalyOperatorBaseModel
 
 logging.getLogger("report_creator").setLevel(logging.WARNING)
@@ -23,6 +22,8 @@ class AutoSelectOperatorModel(AnomalyOperatorBaseModel):
         pass
 
     def generate_report(self):
+        from .factory import AnomalyOperatorModelFactory
+
         anom_outputs = {}
         all_plots = {}
         model_list = self.spec.model_kwargs.pop("model_list", ["lof", "prophet"])
@@ -30,7 +31,7 @@ class AutoSelectOperatorModel(AnomalyOperatorBaseModel):
             config_i = self.config
             config_i.spec.model = m
             try:
-                anom_outputs[m] = AnomalyMerlionOperatorModel(
+                anom_outputs[m] = AnomalyOperatorModelFactory.get_model(
                     config_i, self.datasets
                 )._build_model()
                 all_plots[m] = self._get_plots_from_output(anom_outputs[m], m)
