@@ -361,6 +361,7 @@ spec:
       allowed:
         - autots
         - auto
+        - auto-select
         - automlx
         - one_class_svm
         - isolation_forest

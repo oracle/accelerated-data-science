@@ -13,6 +13,7 @@ class SupportedModels(ExtendedEnum):
     # Autots Models
     AutoTS = "autots"
     Auto = "auto"
+    AutoSelect = "auto-select"
     IQR = "iqr"
     ZSCORE = "zscore"
     ROLLING_ZSCORE = "rolling_zscore"
@@ -189,4 +190,4 @@ class OutputColumns(ExtendedEnum):
 
 
 TODS_DEFAULT_MODEL = "ocsvm"
-SUBSAMPLE_THRESHOLD = 10
+SUBSAMPLE_THRESHOLD = 1000

@@ -10,6 +10,7 @@ from ..operator_config import AnomalyOperatorConfig
 from .anomaly_dataset import AnomalyDatasets
 from .anomaly_merlion import AnomalyMerlionOperatorModel
 from .automlx import AutoMLXOperatorModel
+from .autoselect import AutoSelectOperatorModel
 from .autots import AutoTSOperatorModel
 from .base_model import AnomalyOperatorBaseModel
 from .isolationforest import IsolationForestOperatorModel
@@ -71,6 +72,7 @@ class AnomalyOperatorModelFactory:
         SupportedModels.MSES: AnomalyMerlionOperatorModel,
         SupportedModels.BOCPD: AnomalyMerlionOperatorModel,
         SupportedModels.AUTOMLX: AutoMLXOperatorModel,
+        SupportedModels.AutoSelect: AutoSelectOperatorModel,
     }
 
     _NonTime_MAP = {

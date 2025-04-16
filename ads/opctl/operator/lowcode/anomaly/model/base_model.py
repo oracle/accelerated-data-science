@@ -327,22 +327,25 @@ class AnomalyOperatorBaseModel(ABC):
                 ) as f2:
                     f2.write(f1.read())
 
-        if self.spec.generate_inliers:
-            inliers = anomaly_output.get_inliers(self.datasets)
+        if anomaly_output is not None:
+            if self.spec.generate_inliers:
+                inliers = anomaly_output.get_inliers(self.datasets)
+                write_data(
+                    data=inliers,
+                    filename=os.path.join(
+                        unique_output_dir, self.spec.inliers_filename
+                    ),
+                    format="csv",
+                    storage_options=storage_options,
+                )
+
+            outliers = anomaly_output.get_outliers(self.datasets)
             write_data(
-                data=inliers,
-                filename=os.path.join(unique_output_dir, self.spec.inliers_filename),
+                data=outliers,
+                filename=os.path.join(unique_output_dir, self.spec.outliers_filename),
                 format="csv",
                 storage_options=storage_options,
             )
-
-        outliers = anomaly_output.get_outliers(self.datasets)
-        write_data(
-            data=outliers,
-            filename=os.path.join(unique_output_dir, self.spec.outliers_filename),
-            format="csv",
-            storage_options=storage_options,
-        )
 
         if test_metrics is not None and not test_metrics.empty:
             write_data(
