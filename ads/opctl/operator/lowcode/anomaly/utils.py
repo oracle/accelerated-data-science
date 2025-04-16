@@ -183,4 +183,4 @@ def plot_anomaly_threshold_gain(
         template="plotly_white",
     )
 
-    fig.show()
+    return fig

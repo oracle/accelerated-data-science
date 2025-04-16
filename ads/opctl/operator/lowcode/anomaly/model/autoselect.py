@@ -12,6 +12,7 @@ from ads.opctl.operator.lowcode.anomaly.const import (
     OutputColumns,
 )
 
+from ..utils import plot_anomaly_threshold_gain
 from .base_model import AnomalyOperatorBaseModel
 
 logging.getLogger("report_creator").setLevel(logging.WARNING)
@@ -112,6 +113,13 @@ class AutoSelectOperatorModel(AnomalyOperatorBaseModel):
             sec = rc.DataTable(self._evaluation_metrics(anomaly_outputs[m]), index=True)
             model_sections.append(sec_text)
             model_sections.append(sec)
+            cat1 = anomaly_outputs[m].list_categories()[0]
+            print(anomaly_outputs[m].get_scores_by_cat(cat1))
+            fig = plot_anomaly_threshold_gain(
+                anomaly_outputs[m].get_scores_by_cat(cat1)["score"],
+                title=f"Threshold Analysis for {m}",
+            )
+            model_sections.append(rc.Widget(fig))
 
         report_sections = [title_text, summary] + model_sections
 
