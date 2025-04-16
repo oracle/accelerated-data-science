@@ -114,7 +114,6 @@ class AutoSelectOperatorModel(AnomalyOperatorBaseModel):
             model_sections.append(sec_text)
             model_sections.append(sec)
             cat1 = anomaly_outputs[m].list_categories()[0]
-            print(anomaly_outputs[m].get_scores_by_cat(cat1))
             fig = plot_anomaly_threshold_gain(
                 anomaly_outputs[m].get_scores_by_cat(cat1)["score"],
                 title=f"Threshold Analysis for {m}",
