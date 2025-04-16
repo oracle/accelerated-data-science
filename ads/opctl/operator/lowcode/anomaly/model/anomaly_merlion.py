@@ -3,7 +3,6 @@
 # Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import importlib
 import logging
 
 import numpy as np
@@ -14,7 +13,6 @@ from merlion.utils import TimeSeries
 
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.opctl.operator.lowcode.anomaly.const import (
-    MERLIONAD_IMPORT_MODEL_MAP,
     MERLIONAD_MODEL_MAP,
     OutputColumns,
     SupportedModels,
@@ -46,10 +44,19 @@ def prepare_model_kwargs(model_name, model_kwargs):
     return model_kwargs
 
 
-def init_merlion_model(model_name, model_kwargs):
+@runtime_dependency(
+    module="merlion",
+    err_msg=(
+        "Please run `pip3 install salesforce-merlion[all]` to "
+        "install the required packages."
+    ),
+)
+def init_merlion_model(model_name, target_seq_index, model_kwargs):
     from merlion.models.factory import ModelFactory
 
     model_name = MERLIONAD_MODEL_MAP.get(model_name)
+
+    model_kwargs["target_seq_index"] = target_seq_index
 
     if model_name == "DeepPointAnomalyDetector":
         from merlion.models.anomaly.deep_point_anomaly_detector import (
@@ -71,38 +78,31 @@ def init_merlion_model(model_name, model_kwargs):
 class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
     """Class representing Merlion Anomaly Detection operator model."""
 
-    @runtime_dependency(
-        module="merlion",
-        err_msg=(
-            "Please run `pip3 install salesforce-merlion[all]` to "
-            "install the required packages."
-        ),
-    )
-    def _get_config_model(self, model_name):
-        """
-        Returns a dictionary with model names as keys and a list of model config and model object as values.
+    # def _get_config_model(self, model_name):
+    #     """
+    #     Returns a dictionary with model names as keys and a list of model config and model object as values.
 
-        Parameters
-        ----------
-        model_name : str
-            model name from the Merlion model list.
+    #     Parameters
+    #     ----------
+    #     model_name : str
+    #         model name from the Merlion model list.
 
-        Returns
-        -------
-        dict
-            A dictionary with model names as keys and a list of model config and model object as values.
-        """
-        model_config_map = {}
-        model_module = importlib.import_module(
-            name=MERLIONAD_IMPORT_MODEL_MAP.get(model_name),
-            package="merlion.models.anomaly",
-        )
-        model_config = getattr(
-            model_module, MERLIONAD_MODEL_MAP.get(model_name) + "Config"
-        )
-        model = getattr(model_module, MERLIONAD_MODEL_MAP.get(model_name))
-        model_config_map[model_name] = [model_config, model]
-        return model_config_map
+    #     Returns
+    #     -------
+    #     dict
+    #         A dictionary with model names as keys and a list of model config and model object as values.
+    #     """
+    #     model_config_map = {}
+    #     model_module = importlib.import_module(
+    #         name=MERLIONAD_IMPORT_MODEL_MAP.get(model_name),
+    #         package="merlion.models.anomaly",
+    #     )
+    #     model_config = getattr(
+    #         model_module, MERLIONAD_MODEL_MAP.get(model_name) + "Config"
+    #     )
+    #     model = getattr(model_module, MERLIONAD_MODEL_MAP.get(model_name))
+    #     model_config_map[model_name] = [model_config, model]
+    #     return model_config_map
 
     def _preprocess_data(self, df, date_column):
         df[date_column] = pd.to_datetime(df[date_column])
@@ -152,7 +152,6 @@ class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
                 self.spec.model, target_seq_index, model_kwargs
             )
             scores = None
-
             if (
                 hasattr(self.datasets, "valid_data")
                 and self.datasets.valid_data.get_data_for_series(s_id) is not None
@@ -167,7 +166,9 @@ class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
                 scores_v = model.train(
                     train_data=TimeSeries.from_pd(v_data), anomaly_labels=v_labels
                 )
-                scores = TimeSeries.from_pd(scores_v.to_pd().loc[df_clean.index])
+                scores_df = scores_v.to_pd()
+                available_index = scores_df.index.intersection(df_clean.index)
+                scores = TimeSeries.from_pd(scores_df.loc[available_index])
                 # except Exception as e:
                 #     logging.debug(f"Failed to use validation data with error: {e}")
             if scores is None:

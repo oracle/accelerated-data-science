@@ -362,9 +362,9 @@ spec:
         - autots
         - auto
         - automlx
-        - oneclasssvm
-        - isolationforest
-        - randomcutforest
+        - one_class_svm
+        - isolation_forest
+        - random_cut_forest
         - iqr
         - lof
         - zscore
@@ -382,11 +382,11 @@ spec:
         - mses
         - bocpd
         - prophet
-        - statthreshold
-        - windstats
-        - dynamicbaseline
+        - stat_threshold
+        - wind_stats
+        - dynamic_baseline
         - zms
-        - autoencoder
+        - auto_encoder
       meta:
         description: "The model to be used for anomaly detection"
 

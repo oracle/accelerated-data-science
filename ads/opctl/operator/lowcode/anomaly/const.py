@@ -20,21 +20,21 @@ class SupportedModels(ExtendedEnum):
     EE = "ee"
 
     # univariate Merlion
-    StatThreshold = "StatThreshold"
-    WindStats = "WindStats"
-    DBL = "DynamicBaseline"
+    StatThreshold = "stat_threshold"
+    WindStats = "wind_stats"
+    DBL = "dynamic_baseline"
     SPECTRAL_RESIDUAL = "spectral_residual"
-    ZMS = "ZMS"
+    ZMS = "zms"
 
     # multivariate Merlion
     DAGMM = "dagmm"
     DEEP_POINT_ANOMALY_DETECTOR = "deep_point_anomaly_detector"
     LSTM_ED = "lstm_ed"
     VAE = "vae"
-    RandomCutForest = "RandomCutForest"
-    AutoEncoder = "AutoEncoder"
+    RandomCutForest = "random_cut_forest"
+    AutoEncoder = "auto_encoder"
     LOF = "lof"
-    IsolationForest = "IsolationForest"
+    IsolationForest = "isolation_forest"
 
     # point anomaly
     DAGMM = "dagmm"
@@ -59,9 +59,9 @@ class SupportedModels(ExtendedEnum):
 class NonTimeADSupportedModels(ExtendedEnum):
     """Supported non time-based anomaly detection models."""
 
-    OneClassSVM = "oneclasssvm"
-    IsolationForest = "isolationforest"
-    RandomCutForest = "randomcutforest"
+    OneClassSVM = "one_class_svm"
+    IsolationForest = "isolation_forest"
+    RandomCutForest = "random_cut_forest"
     # TODO : Add DBScan
     # DBScan = "dbscan"
 
@@ -100,21 +100,21 @@ class MerlionADModels(ExtendedEnum):
     """Supported Merlion AD sub models."""
 
     # univariate
-    StatThreshold = "StatThreshold"
-    WindStats = "WindStats"
-    DBL = "DynamicBaseline"
+    StatThreshold = "stat_threshold"
+    WindStats = "wind_stats"
+    DBL = "dynamic_baseline"
     SPECTRAL_RESIDUAL = "spectral_residual"
-    ZMS = "ZMS"
+    ZMS = "zms"
 
     # point anomaly
     DAGMM = "dagmm"
     DEEP_POINT_ANOMALY_DETECTOR = "deep_point_anomaly_detector"
     LSTM_ED = "lstm_ed"
     VAE = "vae"
-    RandomCutForest = "RandomCutForest"
-    AutoEncoder = "AutoEncoder"
-    LOF = "LocalOutlierFactor"
-    IsolationForest = "IsolationForest"
+    RandomCutForest = "random_cut_forest"
+    AutoEncoder = "auto_encoder"
+    LOF = "lof"
+    IsolationForest = "isolation_forest"
 
     # forecast_based
     ARIMA = "arima"
