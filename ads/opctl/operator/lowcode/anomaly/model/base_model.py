@@ -163,7 +163,14 @@ class AnomalyOperatorBaseModel(ABC):
         title_text = rc.Heading("Anomaly Detection Report", level=1)
 
         yaml_appendix_title = rc.Heading("Reference: YAML File", level=2)
-        yaml_appendix = rc.Yaml(self.config.to_dict())
+        config_dict = self.config.to_dict()
+        # pop the data incase it isn't json serializable
+        config_dict["spec"]["input_data"].pop("data")
+        if config_dict["spec"].get("validation_data"):
+            config_dict["spec"]["validation_data"].pop("data")
+        if config_dict["spec"].get("test_data"):
+            config_dict["spec"]["test_data"].pop("data")
+        yaml_appendix = rc.Yaml(config_dict)
         summary = rc.Block(
             rc.Group(
                 rc.Text(f"You selected the **`{self.spec.model}`** model.\n"),

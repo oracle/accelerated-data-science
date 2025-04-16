@@ -36,6 +36,8 @@ class SupportedModels(ExtendedEnum):
     # changepoint
     BOCPD = "bocpd"
 
+    AUTOMLX = "automlx"
+
 
 class NonTimeADSupportedModels(ExtendedEnum):
     """Supported non time-based anomaly detection models."""

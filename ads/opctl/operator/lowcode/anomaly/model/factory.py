@@ -9,6 +9,7 @@ from ..const import NonTimeADSupportedModels, SupportedModels
 from ..operator_config import AnomalyOperatorConfig
 from .anomaly_dataset import AnomalyDatasets
 from .anomaly_merlion import AnomalyMerlionOperatorModel
+from .automlx import AutoMLXOperatorModel
 from .autots import AutoTSOperatorModel
 from .base_model import AnomalyOperatorBaseModel
 from .isolationforest import IsolationForestOperatorModel
@@ -61,6 +62,7 @@ class AnomalyOperatorModelFactory:
         SupportedModels.PROPHET: AnomalyMerlionOperatorModel,
         SupportedModels.SARIMA: AnomalyMerlionOperatorModel,
         SupportedModels.BOCPD: AnomalyMerlionOperatorModel,
+        SupportedModels.AUTOMLX: AutoMLXOperatorModel,
     }
 
     _NonTime_MAP = {

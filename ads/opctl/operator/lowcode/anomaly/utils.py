@@ -86,3 +86,101 @@ def select_auto_model(operator_config):
     if operator_config.spec.datetime_column is not None:
         return SupportedModels.AutoTS
     return NonTimeADSupportedModels.IsolationForest
+
+
+import plotly.graph_objects as go
+from sklearn.metrics import f1_score
+
+
+def plot_anomaly_threshold_gain(
+    scores, threshold=None, labels=None, title="Threshold Analysis"
+):
+    """
+    Plots:
+    - Anomalies detected vs. threshold (always)
+    - F1 Score vs. threshold (if labels provided)
+    - % of data flagged vs. threshold (if labels not provided)
+
+    Args:
+        scores (array-like): Anomaly scores (higher = more anomalous)
+        threshold (float): Optional current threshold to highlight
+        labels (array-like): Optional true labels (1=anomaly, 0=normal)
+        title (str): Chart title
+    """
+    scores = np.array(scores)
+    thresholds = np.linspace(min(scores), max(scores), 100)
+
+    anomalies_found = []
+    y_secondary = []
+    y_secondary_label = ""
+
+    for t in thresholds:
+        predicted = (scores >= t).astype(int)
+
+        # Count anomalies detected
+        if labels is not None:
+            true_anomalies = np.sum((predicted == 1) & (np.array(labels) == 1))
+            # Compute F1 score
+            y_secondary.append(f1_score(labels, predicted, zero_division=0))
+            y_secondary_label = "F1 Score"
+        else:
+            true_anomalies = np.sum(predicted)
+            # Compute % of data flagged
+            y_secondary.append(100 * np.mean(predicted))
+            y_secondary_label = "% of Data Flagged"
+
+        anomalies_found.append(true_anomalies)
+
+    # Start building the plot
+    fig = go.Figure()
+
+    # Primary Y: Anomalies detected
+    fig.add_trace(
+        go.Scatter(
+            x=thresholds,
+            y=anomalies_found,
+            name="Anomalies Detected",
+            mode="lines",
+            line=dict(color="royalblue"),
+            yaxis="y1",
+        )
+    )
+
+    # Secondary Y: F1 or % flagged
+    fig.add_trace(
+        go.Scatter(
+            x=thresholds,
+            y=y_secondary,
+            name=y_secondary_label,
+            mode="lines",
+            line=dict(color="orange", dash="dot"),
+            yaxis="y2",
+        )
+    )
+
+    # Vertical line for current threshold
+    if threshold is not None:
+        fig.add_trace(
+            go.Scatter(
+                x=[threshold, threshold],
+                y=[0, max(anomalies_found)],
+                mode="lines",
+                name=f"Current Threshold ({threshold:.2f})",
+                line=dict(color="firebrick", dash="dash"),
+                yaxis="y1",
+            )
+        )
+
+    # Layout
+    fig.update_layout(
+        title=title,
+        xaxis=dict(title="Anomaly Score Threshold"),
+        yaxis=dict(title="Anomalies Detected", side="left"),
+        yaxis2=dict(
+            title=y_secondary_label, overlaying="y", side="right", showgrid=False
+        ),
+        legend=dict(x=0.01, y=0.99),
+        template="plotly_white",
+    )
+
+    fig.show()

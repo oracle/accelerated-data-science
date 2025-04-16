@@ -361,6 +361,7 @@ spec:
       allowed:
         - autots
         - auto
+        - automlx
         - oneclasssvm
         - isolationforest
         - randomcutforest

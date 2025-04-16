@@ -62,6 +62,13 @@ class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
         model_config_map[model_name] = [model_config, model]
         return model_config_map
 
+    def _preprocess_data(self, df, date_column):
+        df[date_column] = pd.to_datetime(df[date_column])
+        if df[date_column].dt.tz is not None:
+            df[date_column] = df[date_column].dt.tz_convert(None)
+        data = df.set_index(date_column)
+        return TimeSeries.from_pd(data)
+
     def _build_model(self) -> AnomalyOutput:
         """
         Builds a Merlion anomaly detection model and trains it using the given data.
@@ -85,9 +92,8 @@ class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
 
         anomaly_output = AnomalyOutput(date_column=date_column)
         # model_objects = defaultdict(list)
-        for target, df in self.datasets.full_data_dict.items():
-            data = df.set_index(date_column)
-            data = TimeSeries.from_pd(data)
+        for s_id, df in self.datasets.full_data_dict.items():
+            data = self._preprocess_data(df, date_column)
             for _, (model_config, model) in model_config_map.items():
                 if self.spec.model == SupportedModels.BOCPD:
                     model_config = model_config(**self.spec.model_kwargs)
@@ -107,8 +113,32 @@ class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
                         self.spec.target_column
                     )
                 model = model(model_config)
+                scores = None
+                if (
+                    self.X_valid_dict.get(s_id, None) is not None
+                    and self.y_valid_dict.get(s_id, None) is not None
+                ):
+                    try:
+                        # Do we need to set datetime col as index?
+                        # TODO: get data by series id
+                        v_df = self.X_valid_dict[s_id]
+                        v_labels = self.y_valid_dict[s_id]
+                        v_data = self._preprocess_data(v_df, date_column)
+                        v_labels.index = v_data.index
+                        print(v_data, v_labels)
+                        scores_v = model.train(
+                            train_data=v_data, anomaly_labels=v_labels
+                        )
+                        print("checkpoint 1")
+                        scores = model.get_anomaly_score(
+                            train_data=data, anomaly_labels=None
+                        )
+                    except Exception as e:
+                        logging.debug(f"Failed to use validation data with error: {e}")
+                if scores is None:
+                    scores = model.train(train_data=data, anomaly_labels=None)
 
-                scores = model.train(train_data=data, anomaly_labels=None)
+                # Normalize scores out of 100
                 scores = scores.to_pd().reset_index()
                 scores["anom_score"] = (
                     scores["anom_score"] - scores["anom_score"].min()
@@ -140,7 +170,7 @@ class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
                     }
                 ).reset_index(drop=True)
 
-                anomaly_output.add_output(target, anomaly, score)
+                anomaly_output.add_output(s_id, anomaly, score)
         return anomaly_output
 
     def _generate_report(self):
