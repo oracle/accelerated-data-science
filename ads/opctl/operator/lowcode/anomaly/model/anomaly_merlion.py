@@ -67,7 +67,7 @@ class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
         if df[date_column].dt.tz is not None:
             df[date_column] = df[date_column].dt.tz_convert(None)
         data = df.set_index(date_column)
-        return TimeSeries.from_pd(data)
+        return data
 
     def _build_model(self) -> AnomalyOutput:
         """
@@ -82,6 +82,17 @@ class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
         AnomalyOutput
             An AnomalyOutput object containing the anomaly detection results.
         """
+
+        def _inject_train_data(
+            v_data: pd.DataFrame, train_data: pd.DataFrame
+        ) -> pd.DataFrame:
+            # Step 1: Get index from train data not already present in validation data
+            v_index_set = set(v_data.index)
+            filtered_train = train_data[~train_data.index.isin(v_index_set)]
+
+            combined_data = pd.concat([filtered_train, v_data]).sort_index()
+            return combined_data
+
         model_kwargs = self.spec.model_kwargs
         anomaly_output = AnomalyOutput(date_column="index")
         anomaly_threshold = model_kwargs.get("anomaly_threshold", 95)
@@ -93,7 +104,8 @@ class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
         anomaly_output = AnomalyOutput(date_column=date_column)
         # model_objects = defaultdict(list)
         for s_id, df in self.datasets.full_data_dict.items():
-            data = self._preprocess_data(df, date_column)
+            df_clean = self._preprocess_data(df, date_column)
+            data = TimeSeries.from_pd(df_clean)
             for _, (model_config, model) in model_config_map.items():
                 if self.spec.model == SupportedModels.BOCPD:
                     model_config = model_config(**self.spec.model_kwargs)
@@ -115,28 +127,24 @@ class AnomalyMerlionOperatorModel(AnomalyOperatorBaseModel):
                 model = model(model_config)
                 scores = None
                 if (
-                    self.X_valid_dict.get(s_id, None) is not None
-                    and self.y_valid_dict.get(s_id, None) is not None
+                    hasattr(self.datasets, "valid_data")
+                    and self.datasets.valid_data.get_data_for_series(s_id) is not None
                 ):
-                    try:
-                        # Do we need to set datetime col as index?
-                        # TODO: get data by series id
-                        v_df = self.X_valid_dict[s_id]
-                        v_labels = self.y_valid_dict[s_id]
-                        v_data = self._preprocess_data(v_df, date_column)
-                        v_labels.index = v_data.index
-                        print(v_data, v_labels)
-                        scores_v = model.train(
-                            train_data=v_data, anomaly_labels=v_labels
-                        )
-                        print("checkpoint 1")
-                        scores = model.get_anomaly_score(
-                            train_data=data, anomaly_labels=None
-                        )
-                    except Exception as e:
-                        logging.debug(f"Failed to use validation data with error: {e}")
+                    # try:
+                    v_df = self.datasets.valid_data.get_data_for_series(s_id)
+                    v_data = self._preprocess_data(v_df, date_column)
+
+                    v_labels = TimeSeries.from_pd(v_data["anomaly"])
+                    v_data = v_data.drop("anomaly", axis=1)
+                    v_data = _inject_train_data(v_data, df_clean)
+                    scores_v = model.train(
+                        train_data=TimeSeries.from_pd(v_data), anomaly_labels=v_labels
+                    )
+                    scores = TimeSeries.from_pd(scores_v.to_pd().loc[df_clean.index])
+                    # except Exception as e:
+                    #     logging.debug(f"Failed to use validation data with error: {e}")
                 if scores is None:
-                    scores = model.train(train_data=data, anomaly_labels=None)
+                    scores = model.train(train_data=data)
 
                 # Normalize scores out of 100
                 scores = scores.to_pd().reset_index()

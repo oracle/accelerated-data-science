@@ -166,4 +166,4 @@ class OutputColumns(ExtendedEnum):
 
 
 TODS_DEFAULT_MODEL = "ocsvm"
-SUBSAMPLE_THRESHOLD = 1000
+SUBSAMPLE_THRESHOLD = 10
