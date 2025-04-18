@@ -343,8 +343,19 @@ def test_explanations_values(model, num_series, freq):
         if model == "automlx":
             pytest.xfail("automlx model does not provide fitted values")
 
+        # Check decimal precision for local explanations
+        local_numeric = local_explanations.select_dtypes(include=["int64", "float64"])
+        assert np.allclose(local_numeric, np.round(local_numeric, 4), atol=1e-8), \
+            "Local explanations have values with more than 4 decimal places"
+
+        # Check decimal precision for global explanations
+        global_explanations = results.get_global_explanations()
+        global_numeric = global_explanations.select_dtypes(include=["int64", "float64"])
+        assert np.allclose(global_numeric, np.round(global_numeric, 4), atol=1e-8), \
+            "Global explanations have values with more than 4 decimal places"
+
         local_explain_vals = (
-            local_explanations.select_dtypes(include=["int64", "float64"]).sum(axis=1)
+            local_numeric.sum(axis=1)
             + forecast.fitted_value.mean()
         )
         assert np.allclose(
