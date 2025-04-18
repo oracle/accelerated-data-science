@@ -573,9 +573,14 @@ class ForecastOperatorBaseModel(ABC):
         if self.spec.generate_explanations:
             try:
                 if not self.formatted_global_explanation.empty:
+                    # Round to 4 decimal places before writing
+                    global_expl_rounded = self.formatted_global_explanation.copy()
+                    global_expl_rounded = global_expl_rounded.apply(
+                        lambda col: np.round(col, 4) if np.issubdtype(col.dtype, np.number) else col
+                    )
                     if self.spec.generate_explanation_files:
                         write_data(
-                            data=self.formatted_global_explanation,
+                            data=global_expl_rounded,
                             filename=os.path.join(
                                 unique_output_dir, self.spec.global_explanation_filename
                             ),
@@ -583,16 +588,21 @@ class ForecastOperatorBaseModel(ABC):
                             storage_options=storage_options,
                             index=True,
                         )
-                    results.set_global_explanations(self.formatted_global_explanation)
+                    results.set_global_explanations(global_expl_rounded)
                 else:
                     logger.warning(
                         f"Attempted to generate global explanations for the {self.spec.global_explanation_filename} file, but an issue occured in formatting the explanations."
                     )
 
                 if not self.formatted_local_explanation.empty:
+                    # Round to 4 decimal places before writing
+                    local_expl_rounded = self.formatted_local_explanation.copy()
+                    local_expl_rounded = local_expl_rounded.apply(
+                        lambda col: np.round(col, 4) if np.issubdtype(col.dtype, np.number) else col
+                    )
                     if self.spec.generate_explanation_files:
                         write_data(
-                            data=self.formatted_local_explanation,
+                            data=local_expl_rounded,
                             filename=os.path.join(
                                 unique_output_dir, self.spec.local_explanation_filename
                             ),
@@ -600,7 +610,7 @@ class ForecastOperatorBaseModel(ABC):
                             storage_options=storage_options,
                             index=True,
                         )
-                    results.set_local_explanations(self.formatted_local_explanation)
+                    results.set_local_explanations(local_expl_rounded)
                 else:
                     logger.warning(
                         f"Attempted to generate local explanations for the {self.spec.local_explanation_filename} file, but an issue occured in formatting the explanations."
