@@ -28,3 +28,8 @@ class FineTuningCustomMetadata(ExtendedEnum):
 class MultiModelSupportedTaskType(ExtendedEnum):
     TEXT_GENERATION = "text-generation"
     TEXT_GENERATION_ALT = "text_generation"
+    EMBEDDING_ALT = "text_embedding"
+
+class MultiModelConfigMode(ExtendedEnum):
+    EMBEDDING = "embedding"
+    DEFAULT = "completion"

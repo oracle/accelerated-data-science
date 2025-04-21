@@ -80,7 +80,7 @@ from ads.aqua.model.entities import (
     ImportModelDetails,
     ModelValidationResult,
 )
-from ads.aqua.model.enums import MultiModelSupportedTaskType
+from ads.aqua.model.enums import MultiModelSupportedTaskType, MultiModelConfigMode
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import (
@@ -315,6 +315,11 @@ class AquaModelApp(AquaApp):
             #     )
 
             display_name_list.append(display_name)
+
+            model_task = source_model.freeform_tags.get(Tags.TASK, UNKNOWN)
+
+            if model_task != UNKNOWN:
+                self._get_task(model, model_task)
 
             # Retrieve model artifact
             model_artifact_path = source_model.artifact
@@ -703,6 +708,15 @@ class AquaModelApp(AquaApp):
                 logger.info(f"Updated model details for the model {id}.")
         else:
             raise AquaRuntimeError("Only registered unverified models can be edited.")
+
+    def _get_task(
+        self,
+        model: AquaMultiModelRef,
+        freeform_task_tag: str
+    ) -> str:
+        """Will set model task if freeform task tag from model needs a non-completion endpoint (embedding)"""
+        if freeform_task_tag == MultiModelSupportedTaskType.EMBEDDING_ALT:
+            model.model_task = MultiModelConfigMode.EMBEDDING
 
     def _fetch_metric_from_metadata(
         self,

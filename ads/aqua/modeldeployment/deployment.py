@@ -178,9 +178,7 @@ class AquaDeploymentApp(AquaApp):
         # validate instance shape availability in compartment
         available_shapes = [
             shape.name.lower()
-            for shape in self.list_shapes(
-                compartment_id=compartment_id
-            )
+            for shape in self.list_shapes(compartment_id=compartment_id)
         ]
 
         if create_deployment_details.instance_shape.lower() not in available_shapes:
@@ -645,9 +643,15 @@ class AquaDeploymentApp(AquaApp):
                 os_path = ObjectStorageDetails.from_path(artifact_path_prefix)
                 artifact_path_prefix = os_path.filepath.rstrip("/")
 
-            model_config.append({"params": params, "model_path": artifact_path_prefix})
+            # override by-default completion/ chat endpoint with other endpoint (embedding)
+            config_data = {"params": params, "model_path": artifact_path_prefix}
+            if model.model_task:
+                config_data["model_task"] = model.model_task
+            model_config.append(config_data)
             model_name_list.append(model.model_name)
 
+        print("***")
+        print(model_config)
         env_var.update({AQUA_MULTI_MODEL_CONFIG: json.dumps({"models": model_config})})
 
         env_vars = container_spec.env_vars if container_spec else []

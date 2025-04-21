@@ -151,6 +151,9 @@ class AquaMultiModelRef(Serializable):
         The name of the model.
     gpu_count : Optional[int]
         Number of GPUs required for deployment.
+    model_task : Optional[str]
+        The task that model operates on.
+        If specified, overrides by-default completion | chat inference endpoints with embedding endpoint.
     env_var : Optional[Dict[str, Any]]
         Optional environment variables to override during deployment.
     artifact_location : Optional[str]
@@ -162,6 +165,7 @@ class AquaMultiModelRef(Serializable):
     gpu_count: Optional[int] = Field(
         None, description="The gpu count allocation for the model."
     )
+    model_task: Optional[str] = Field(None, description="The task that model operates on.")
     env_var: Optional[dict] = Field(
         default_factory=dict, description="The environment variables of the model."
     )
