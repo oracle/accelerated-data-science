@@ -24,6 +24,7 @@ from oci.data_science.models import (
 from ads.aqua import logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common import utils
+from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import (
     DataScienceResource,
     Resource,
@@ -40,13 +41,14 @@ from ads.aqua.common.errors import (
 from ads.aqua.common.utils import (
     extract_id_and_name_from_tag,
     fire_and_forget,
-    get_container_config,
-    get_container_image,
     is_valid_ocid,
     upload_local_to_os,
 )
-from ads.aqua.config.config import get_evaluation_service_config
-from ads.aqua.config.container_config import AquaContainerConfig
+from ads.aqua.config.evaluation.evaluation_service_config import (
+    DEFAULT_EVALUATION_CONTAINER,
+    EvaluationServiceConfig,
+    MetricConfig,
+)
 from ads.aqua.constants import (
     CONSOLE_LINK_RESOURCE_TYPE_MAPPING,
     EVALUATION_REPORT,
@@ -76,9 +78,16 @@ from ads.aqua.evaluation.entities import (
     CreateAquaEvaluationDetails,
 )
 from ads.aqua.evaluation.errors import EVALUATION_JOB_EXIT_CODE_MESSAGE
+from ads.aqua.model.constants import ModelCustomMetadataFields
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import UNKNOWN, get_console_link, get_files, get_log_links
+from ads.common.utils import (
+    UNKNOWN,
+    get_console_link,
+    get_files,
+    get_log_links,
+    read_file,
+)
 from ads.config import (
     AQUA_JOB_SUBNET_ID,
     COMPARTMENT_OCID,
@@ -96,6 +105,7 @@ from ads.model.generic_model import ModelDeploymentRuntimeType
 from ads.model.model_metadata import (
     MetadataTaxonomyKeys,
     ModelCustomMetadata,
+    ModelCustomMetadataItem,
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
 )
@@ -138,13 +148,62 @@ class AquaEvaluationApp(AquaApp):
         create_aqua_evaluation_details: CreateAquaEvaluationDetails = None,
         **kwargs,
     ) -> "AquaEvaluationSummary":
-        """Creates Aqua evaluation for resource.
+        """Creates Aqua evaluation for resource.\n
+        For detailed information about CLI flags see: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/cli-tips.md#model-evaluation
 
         Parameters
         ----------
         create_aqua_evaluation_details: CreateAquaEvaluationDetails
             The CreateAquaEvaluationDetails data class which contains all
             required and optional fields to create the aqua evaluation.
+            kwargs:
+                evaluation_source_id: str
+                    The evaluation source id. Must be either model or model deployment ocid.
+                evaluation_name: str
+                    The name for evaluation.
+                dataset_path: str
+                    The dataset path for the evaluation. Could be either a local path from notebook session
+                    or an object storage path.
+                report_path: str
+                    The report path for the evaluation. Must be an object storage path.
+                model_parameters: dict
+                    The parameters for the evaluation.
+                shape_name: str
+                    The shape name for the evaluation job infrastructure.
+                memory_in_gbs: float
+                    The memory in gbs for the shape selected.
+                ocpus: float
+                    The ocpu count for the shape selected.
+                block_storage_size: int
+                    The storage for the evaluation job infrastructure.
+                compartment_id: (str, optional). Defaults to `None`.
+                    The compartment id for the evaluation.
+                project_id: (str, optional). Defaults to `None`.
+                    The project id for the evaluation.
+                evaluation_description: (str, optional). Defaults to `None`.
+                    The description for evaluation
+                experiment_id: (str, optional). Defaults to `None`.
+                    The evaluation model version set id. If provided,
+                    evaluation model will be associated with it.
+                experiment_name: (str, optional). Defaults to `None`.
+                    The evaluation model version set name. If provided,
+                    the model version set with the same name will be used if exists,
+                    otherwise a new model version set will be created with the name.
+                experiment_description: (str, optional). Defaults to `None`.
+                    The description for the evaluation model version set.
+                log_group_id: (str, optional). Defaults to `None`.
+                    The log group id for the evaluation job infrastructure.
+                log_id: (str, optional). Defaults to `None`.
+                    The log id for the evaluation job infrastructure.
+                metrics: (list, optional). Defaults to `None`.
+                    The metrics for the evaluation.
+                force_overwrite: (bool, optional). Defaults to `False`.
+                    Whether to force overwrite the existing file in object storage.
+                freeform_tags: (dict, optional)
+                    Freeform tags for the evaluation model
+                defined_tags: (dict, optional)
+                    Defined tags for the evaluation model
+
         kwargs:
             The kwargs for creating CreateAquaEvaluationDetails instance if
             no create_aqua_evaluation_details provided.
@@ -183,6 +242,23 @@ class AquaEvaluationApp(AquaApp):
             evaluation_source = ModelDeployment.from_id(
                 create_aqua_evaluation_details.evaluation_source_id
             )
+
+            if Tags.MULTIMODEL_TYPE_TAG in evaluation_source.freeform_tags:
+                multi_model_id = evaluation_source.freeform_tags.get(
+                    Tags.AQUA_MODEL_ID_TAG, UNKNOWN
+                )
+
+                if not multi_model_id:
+                    raise AquaRuntimeError(
+                        f"Invalid multi model deployment {multi_model_id}."
+                        f"Make sure the {Tags.AQUA_MODEL_ID_TAG} tag is added to the deployment."
+                    )
+
+                aqua_model = DataScienceModel.from_id(multi_model_id)
+                AquaEvaluationApp.validate_model_name(
+                    aqua_model, create_aqua_evaluation_details
+                )
+
             try:
                 if (
                     evaluation_source.runtime.type
@@ -191,10 +267,10 @@ class AquaEvaluationApp(AquaApp):
                     runtime = ModelDeploymentContainerRuntime.from_dict(
                         evaluation_source.runtime.to_dict()
                     )
-                    inference_config = AquaContainerConfig.from_container_index_json(
-                        config=get_container_config(), enable_spec=True
-                    ).inference
-                    for container in inference_config.values():
+                    inference_config = (
+                        self.get_container_config().to_dict().get("inference")
+                    )
+                    for container in inference_config:
                         if container.name == runtime.image[: runtime.image.rfind(":")]:
                             eval_inference_configuration = (
                                 container.spec.evaluation_configuration
@@ -413,8 +489,11 @@ class AquaEvaluationApp(AquaApp):
                 JOB_INFRASTRUCTURE_TYPE_DEFAULT_NETWORKING
             )
 
-        container_image = self._get_evaluation_container(
-            create_aqua_evaluation_details.evaluation_source_id
+        container_image = (
+            create_aqua_evaluation_details.container_image_uri
+            or self._get_evaluation_container(
+                create_aqua_evaluation_details.evaluation_source_id
+            )
         )
 
         evaluation_job.with_runtime(
@@ -432,9 +511,7 @@ class AquaEvaluationApp(AquaApp):
                 metrics=create_aqua_evaluation_details.metrics,
                 inference_configuration=eval_inference_configuration or {},
             )
-        ).create(
-            **kwargs
-        )  ## TODO: decide what parameters will be needed
+        ).create(**kwargs)  ## TODO: decide what parameters will be needed
         logger.debug(
             f"Successfully created evaluation job {evaluation_job.id} for {create_aqua_evaluation_details.evaluation_source_id}."
         )
@@ -551,6 +628,120 @@ class AquaEvaluationApp(AquaApp):
             parameters=AquaEvalParams(),
         )
 
+    @staticmethod
+    def validate_model_name(
+        evaluation_source: DataScienceModel,
+        create_aqua_evaluation_details: CreateAquaEvaluationDetails,
+    ) -> None:
+        """
+        Validates the user input for the model name when creating an Aqua evaluation.
+
+        This function verifies that:
+        - The model group is not empty.
+        - The model multi metadata is present in the DataScienceModel metadata.
+        - The user provided a non-empty model name.
+        - The provided model name exists in the DataScienceModel metadata.
+        - The deployment configuration contains core metadata required for validation.
+
+        Parameters
+        ----------
+        evaluation_source : DataScienceModel
+            The DataScienceModel object containing metadata about each model in the deployment.
+        create_aqua_evaluation_details : CreateAquaEvaluationDetails
+            Contains required and optional fields for creating the Aqua evaluation.
+
+        Raises
+        ------
+        AquaValueError
+            If the user fails to provide a model name or if the provided model name does not match
+            any of the valid model names in the deployment metadata.
+        AquaRuntimeError
+            If the metadata is missing the model group count or if the model group count is invalid.
+        """
+        user_model_parameters = create_aqua_evaluation_details.model_parameters
+        custom_metadata_list = evaluation_source.custom_metadata_list
+        user_model_name = user_model_parameters.get("model")
+
+        # Ensure that a non-empty model name was provided.
+        if not user_model_name:
+            error_message = (
+                "No model name was provided for evaluation. For multi-model deployment, "
+                "a model must be specified in the model parameters."
+            )
+            logger.debug(error_message)
+            raise AquaValueError(error_message)
+
+        # Retrieve and convert the model group count from metadata.
+        model_count = custom_metadata_list.get(
+            ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT
+        )
+        try:
+            model_group_count = int(model_count.value)
+        except Exception as ex:
+            error_message = (
+                "Missing or invalid `MULTIMODEL_GROUP_COUNT` "
+                f"in custom metadata for evaluation source ID '{create_aqua_evaluation_details.evaluation_source_id}'. "
+                f"Details: {ex}"
+            )
+            logger.error(error_message)
+
+        if model_group_count < 1:
+            logger.error(
+                f"Invalid model group count: {model_group_count} for evaluation source ID "
+                f"'{create_aqua_evaluation_details.evaluation_source_id}'. A valid multi-model deployment "
+                f"requires at least one model."
+            )
+            raise AquaRuntimeError(
+                f"Unable to retrieve details for the multi-model deployment evaluation. A valid multi-model deployment "
+                f"must include at least one model. However, the provided evaluation source ID "
+                f"'{create_aqua_evaluation_details.evaluation_source_id}' does not contain any information about deployed models."
+            )
+
+        multi_model_metadata_value = custom_metadata_list.get(
+            ModelCustomMetadataFields.MULTIMODEL_METADATA,
+            ModelCustomMetadataItem(key=ModelCustomMetadataFields.MULTIMODEL_METADATA),
+        ).value
+
+        if not multi_model_metadata_value:
+            error_message = (
+                f"Required model metadata is missing for evaluation source ID: {evaluation_source.id}. "
+                f"A valid multi-model deployment requires {ModelCustomMetadataFields.MULTIMODEL_METADATA}. "
+                "Please recreate the model deployment and retry the evaluation, as an issue occurred during the initialization of the model group."
+            )
+            logger.debug(error_message)
+            raise AquaRuntimeError(error_message)
+
+        try:
+            multi_model_metadata = json.loads(
+                evaluation_source.dsc_model.get_custom_metadata_artifact(
+                    metadata_key_name=ModelCustomMetadataFields.MULTIMODEL_METADATA
+                ).decode("utf-8")
+            )
+        except Exception as ex:
+            error_message = (
+                f"Error fetching {ModelCustomMetadataFields.MULTIMODEL_METADATA} "
+                f"from custom metadata for evaluation source ID '{evaluation_source.id}'. "
+                f"Details: {ex}"
+            )
+            logger.error(error_message)
+            raise AquaRuntimeError(error_message) from ex
+
+        # Build the list of valid model names from custom metadata.
+        model_names = [
+            AquaMultiModelRef(**metadata).model_name
+            for metadata in multi_model_metadata
+        ]
+
+        # Check if the provided model name is among the valid names.
+        if user_model_name not in model_names:
+            error_message = (
+                f"Provided model name '{user_model_name}' does not match any valid model names {model_names} "
+                f"for evaluation source ID '{create_aqua_evaluation_details.evaluation_source_id}'. "
+                "Please provide the correct model name."
+            )
+            logger.debug(error_message)
+            raise AquaValueError(error_message)
+
     def _build_evaluation_runtime(
         self,
         evaluation_id: str,
@@ -617,14 +808,13 @@ class AquaEvaluationApp(AquaApp):
 
         return source.display_name
 
-    @staticmethod
-    def _get_evaluation_container(source_id: str) -> str:
+    def _get_evaluation_container(self, source_id: str) -> str:
         # todo: use the source, identify if it is a model or a deployment. If latter, then fetch the base model id
         #   from the deployment object, and call ds_client.get_model() to get model details. Use custom metadata to
         #   get the container_type_key. Pass this key as container_type to get_container_image method.
 
         # fetch image name from config
-        container_image = get_container_image(
+        container_image = self.get_container_image(
             container_type="odsc-llm-evaluate",
         )
         logger.info(f"Aqua Image used for evaluating {source_id} :{container_image}")
@@ -918,11 +1108,18 @@ class AquaEvaluationApp(AquaApp):
             "loggroup_url": loggroup_url,
         }
 
-    def get_supported_metrics(self) -> dict:
+    def get_supported_metrics(self) -> List[MetricConfig]:
         """Gets a list of supported metrics for evaluation."""
-        return [
-            item.to_dict() for item in get_evaluation_service_config().ui_config.metrics
-        ]
+        containers = self.list_service_containers()
+        container_item = next(
+            c
+            for c in containers
+            if c.is_latest and c.family_name == DEFAULT_EVALUATION_CONTAINER
+        )
+        evaluation_service_config = EvaluationServiceConfig.from_oci_container_config(
+            container_item
+        )
+        return evaluation_service_config.ui_config.metrics
 
     @telemetry(entry_point="plugin=evaluation&action=load_metrics", name="aqua")
     def load_metrics(self, eval_id: str) -> AquaEvalMetrics:
@@ -946,17 +1143,31 @@ class AquaEvaluationApp(AquaApp):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Downloading evaluation artifact: {eval_id}.")
-            DataScienceModel.from_id(eval_id).download_artifact(
-                temp_dir,
-                auth=self._auth,
-            )
+
+            dsc_model = DataScienceModel.from_id(eval_id)
+            if dsc_model.if_model_custom_metadata_artifact_exist(
+                EVALUATION_REPORT_MD
+            ) and dsc_model.if_model_custom_metadata_artifact_exist(
+                EVALUATION_REPORT_JSON
+            ):
+                logger.info(
+                    f"Fetching {EVALUATION_REPORT_MD} and {EVALUATION_REPORT_JSON} from custom metadata..."
+                )
+                dsc_model.get_custom_metadata_artifact(EVALUATION_REPORT_MD, temp_dir)
+                dsc_model.get_custom_metadata_artifact(EVALUATION_REPORT_JSON, temp_dir)
+            else:
+                logger.info("Fetching Evaluation Reports from OSS bucket...")
+                dsc_model.download_artifact(
+                    temp_dir,
+                    auth=self._auth,
+                )
 
             files_in_artifact = get_files(temp_dir)
             md_report_content = self._read_from_artifact(
                 temp_dir, files_in_artifact, EVALUATION_REPORT_MD
             )
 
-            # json report not availiable for failed evaluation
+            # json report not available for failed evaluation
             try:
                 json_report = json.loads(
                     self._read_from_artifact(
@@ -1055,14 +1266,46 @@ class AquaEvaluationApp(AquaApp):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Downloading evaluation artifact for {eval_id}.")
-            DataScienceModel.from_id(eval_id).download_artifact(
-                temp_dir,
-                auth=self._auth,
+            dsc_model = DataScienceModel.from_id(eval_id)
+            if_custom_metadata_exists = (
+                dsc_model.if_model_custom_metadata_artifact_exist(EVALUATION_REPORT)
             )
-            content = self._read_from_artifact(
-                temp_dir, get_files(temp_dir), EVALUATION_REPORT
-            )
-
+            if if_custom_metadata_exists:
+                logger.info(f"Fetching {EVALUATION_REPORT} from custom metadata.")
+                dsc_model.get_custom_metadata_artifact(EVALUATION_REPORT, temp_dir)
+            else:
+                logger.info(f"Fetching {EVALUATION_REPORT} from Model artifact.")
+                dsc_model.download_artifact(
+                    temp_dir,
+                    auth=self._auth,
+                )
+            files_in_artifact = get_files(temp_dir)
+            if not len(files_in_artifact):
+                try:
+                    evaluation_output_path = dsc_model.custom_metadata_list.get(
+                        EvaluationCustomMetadata.EVALUATION_OUTPUT_PATH
+                    ).value
+                    report_path = (
+                        evaluation_output_path.rstrip("/")
+                        + "/"
+                        + eval_id
+                        + "/"
+                        + EVALUATION_REPORT
+                    )
+                    logger.info(
+                        f"Fetching {EVALUATION_REPORT} from {report_path} for evaluation {eval_id}"
+                    )
+                    content = read_file(
+                        file_path=report_path, auth=default_signer()
+                    ).encode()
+                except ValueError as err:
+                    raise AquaValueError(
+                        f"{EvaluationCustomMetadata.EVALUATION_OUTPUT_PATH} is missing from custom metadata for the model {eval_id}"
+                    ) from err
+            else:
+                content = self._read_from_artifact(
+                    temp_dir, files_in_artifact, EVALUATION_REPORT
+                )
         report = AquaEvalReport(
             evaluation_id=eval_id, content=base64.b64encode(content).decode()
         )
@@ -1192,11 +1435,10 @@ class AquaEvaluationApp(AquaApp):
 
     @staticmethod
     @fire_and_forget
-    def _delete_job_and_model(job, model):
+    def _delete_job_and_model(job: DataScienceJob, model: DataScienceModel):
         try:
             job.dsc_job.delete(force_delete=True)
             logger.info(f"Deleting Job: {job.job_id} for evaluation {model.id}")
-
             model.delete()
             logger.info(f"Deleting evaluation: {model.id}")
         except oci.exceptions.ServiceError as ex:
@@ -1205,12 +1447,20 @@ class AquaEvaluationApp(AquaApp):
                 f"Exception message: {ex}"
             )
 
-    def load_evaluation_config(self, container: Optional[str] = None) -> Dict:
+    def load_evaluation_config(
+        self, container: Optional[str] = DEFAULT_EVALUATION_CONTAINER
+    ) -> Dict:
         """Loads evaluation config."""
 
         logger.info("Loading evaluation container config.")
         # retrieve the evaluation config by container family name
-        evaluation_config = get_evaluation_service_config(container)
+        containers = self.list_service_containers()
+        container_item = next(
+            c for c in containers if c.is_latest and c.family_name == container
+        )
+        evaluation_config = EvaluationServiceConfig.from_oci_container_config(
+            container_item
+        )
 
         # convert the new config representation to the old one
         return {
@@ -1393,7 +1643,7 @@ class AquaEvaluationApp(AquaApp):
             )
         except Exception as e:
             logger.debug(
-                f"Failed to retreive job run: {jobrun_id}. " f"DEBUG INFO: {str(e)}"
+                f"Failed to retreive job run: {jobrun_id}. DEBUG INFO: {str(e)}"
             )
             jobrun = None
 

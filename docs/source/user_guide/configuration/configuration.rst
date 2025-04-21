@@ -296,7 +296,7 @@ encryption keys.
 
 Master encryption keys can be generated internally by the Vault service
 or imported to the service from an external source. Once a master
-encryption key has been created, the Oracle Cloud Infrastruture API can
+encryption key has been created, the Oracle Cloud Infrastructure API can
 be used to generate data encryption keys that the Vault service returns
 to you. by default, a wrapping key is included with each vault. A
 wrapping key is a 4096-bit asymmetric encryption key pair based on the
@@ -673,7 +673,7 @@ prints it. This shows that the password was actually updated.
         wait_for_states=[oci.vault.models.Secret.LIFECYCLE_STATE_ACTIVE]).data
 
     # The secret OCID does not change.
-    print("Orginal Secret OCID: {}".format(secret_id))
+    print("Original Secret OCID: {}".format(secret_id))
     print("Updated Secret OCID: {}".format(secret_update.id))
 
     ### Read a secret's value.
@@ -685,7 +685,7 @@ prints it. This shows that the password was actually updated.
 
 .. parsed-literal::
 
-    Orginal Secret OCID: ocid1.vaultsecret.oc1.iad.amaaaaaav66vvnia2bmkbroin34eu2ghmubvmrtjdgo4yr6daewakacwuk4q
+    Original Secret OCID: ocid1.vaultsecret.oc1.iad.amaaaaaav66vvnia2bmkbroin34eu2ghmubvmrtjdgo4yr6daewakacwuk4q
     Updated Secret OCID: ocid1.vaultsecret.oc1.iad.amaaaaaav66vvnia2bmkbroin34eu2ghmubvmrtjdgo4yr6daewakacwuk4q
     {'database': 'datamart', 'username': 'admin', 'password': 'UpdatedPassword'}
 

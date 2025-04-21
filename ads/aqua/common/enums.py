@@ -2,6 +2,8 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from typing import Dict, List
+
 from ads.common.extended_enum import ExtendedEnum
 
 
@@ -25,6 +27,7 @@ class Tags(ExtendedEnum):
     AQUA_TAG = "OCI_AQUA"
     AQUA_SERVICE_MODEL_TAG = "aqua_service_model"
     AQUA_FINE_TUNED_MODEL_TAG = "aqua_fine_tuned_model"
+    AQUA_MODEL_ID_TAG = "aqua_model_id"
     AQUA_MODEL_NAME_TAG = "aqua_model_name"
     AQUA_EVALUATION = "aqua_evaluation"
     AQUA_FINE_TUNING = "aqua_finetuning"
@@ -34,6 +37,7 @@ class Tags(ExtendedEnum):
     AQUA_EVALUATION_MODEL_ID = "evaluation_model_id"
     MODEL_FORMAT = "model_format"
     MODEL_ARTIFACT_FILE = "model_file"
+    MULTIMODEL_TYPE_TAG = "aqua_multimodel"
 
 
 class InferenceContainerType(ExtendedEnum):
@@ -44,6 +48,7 @@ class InferenceContainerType(ExtendedEnum):
 
 class InferenceContainerTypeFamily(ExtendedEnum):
     AQUA_VLLM_CONTAINER_FAMILY = "odsc-vllm-serving"
+    AQUA_VLLM_V1_CONTAINER_FAMILY = "odsc-vllm-serving-v1"
     AQUA_TGI_CONTAINER_FAMILY = "odsc-tgi-serving"
     AQUA_LLAMA_CPP_CONTAINER_FAMILY = "odsc-llama-cpp-serving"
 
@@ -103,3 +108,15 @@ class ModelFormat(ExtendedEnum):
 class Platform(ExtendedEnum):
     ARM_CPU = "ARM_CPU"
     NVIDIA_GPU = "NVIDIA_GPU"
+
+
+# This dictionary defines compatibility groups for container families.
+# The structure is:
+#   - Key: The preferred container family to use when multiple compatible families are selected.
+#   - Value: A list of all compatible families (including the preferred one).
+CONTAINER_FAMILY_COMPATIBILITY: Dict[str, List[str]] = {
+    InferenceContainerTypeFamily.AQUA_VLLM_V1_CONTAINER_FAMILY: [
+        InferenceContainerTypeFamily.AQUA_VLLM_V1_CONTAINER_FAMILY,
+        InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY,
+    ],
+}

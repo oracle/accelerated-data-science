@@ -6,10 +6,17 @@ import json
 import os
 import traceback
 from dataclasses import fields
-from typing import Any, Dict, Optional, Union
+from datetime import datetime, timedelta
+from itertools import chain
+from typing import Any, Dict, List, Optional, Union
 
 import oci
-from oci.data_science.models import UpdateModelDetails, UpdateModelProvenanceDetails
+from cachetools import TTLCache, cached
+from oci.data_science.models import (
+    ContainerSummary,
+    UpdateModelDetails,
+    UpdateModelProvenanceDetails,
+)
 
 from ads import set_auth
 from ads.aqua import logger
@@ -22,6 +29,11 @@ from ads.aqua.common.utils import (
     is_valid_ocid,
     load_config,
 )
+from ads.aqua.config.container_config import (
+    AquaContainerConfig,
+    AquaContainerConfigItem,
+)
+from ads.aqua.constants import SERVICE_MANAGED_CONTAINER_URI_SCHEME
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import UNKNOWN, extract_region, is_path_exists
@@ -238,7 +250,9 @@ class AquaApp:
             .with_custom_metadata_list(model_custom_metadata)
             .with_defined_metadata_list(model_taxonomy_metadata)
             .with_provenance_metadata(ModelProvenanceMetadata(training_id=UNKNOWN))
-            .with_defined_tags(**(defined_tags or {})) # Create defined tags when a model is created.
+            .with_defined_tags(
+                **(defined_tags or {})
+            )  # Create defined tags when a model is created.
             .create(
                 **kwargs,
             )
@@ -269,6 +283,44 @@ class AquaApp:
                 logger.info(f"Artifact not found in model {model_id}.")
                 return False
 
+    def get_config_from_metadata(
+        self, model_id: str, metadata_key: str
+    ) -> ModelConfigResult:
+        """Gets the config for the given Aqua model from model catalog metadata content.
+
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the Aqua model.
+        metadata_key: str
+            The metadata key name where artifact content is stored
+        Returns
+        -------
+        ModelConfigResult
+            A Pydantic model containing the model_details (extracted from OCI) and the config dictionary.
+        """
+        config = {}
+        oci_model = self.ds_client.get_model(model_id).data
+        try:
+            config = self.ds_client.get_model_defined_metadatum_artifact_content(
+                model_id, metadata_key
+            ).data.content.decode("utf-8")
+            return ModelConfigResult(config=json.loads(config), model_details=oci_model)
+        except UnicodeDecodeError as ex:
+            logger.error(
+                f"Failed to decode content for '{metadata_key}' in defined metadata for model '{model_id}' : {ex}"
+            )
+        except json.JSONDecodeError as ex:
+            logger.error(
+                f"Invalid JSON format for '{metadata_key}' in defined metadata for model '{model_id}' : {ex}"
+            )
+        except Exception as ex:
+            logger.error(
+                f"Failed to retrieve defined metadata key '{metadata_key}' for model '{model_id}': {ex}"
+            )
+        return ModelConfigResult(config=config, model_details=oci_model)
+
+    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=1), timer=datetime.now))
     def get_config(
         self,
         model_id: str,
@@ -307,22 +359,7 @@ class AquaApp:
             raise AquaRuntimeError(f"Target model {oci_model.id} is not an Aqua model.")
 
         config: Dict[str, Any] = {}
-
-        # if the current model has a service model tag, then
-        if Tags.AQUA_SERVICE_MODEL_TAG in oci_model.freeform_tags:
-            base_model_ocid = oci_model.freeform_tags[Tags.AQUA_SERVICE_MODEL_TAG]
-            logger.info(
-                f"Base model found for the model: {oci_model.id}. "
-                f"Loading {config_file_name} for base model {base_model_ocid}."
-            )
-            if config_folder == ConfigFolder.ARTIFACT:
-                artifact_path = get_artifact_path(oci_model.custom_metadata_list)
-            else:
-                base_model = self.ds_client.get_model(base_model_ocid).data
-                artifact_path = get_artifact_path(base_model.custom_metadata_list)
-        else:
-            logger.info(f"Loading {config_file_name} for model {oci_model.id}...")
-            artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
         if not artifact_path:
             logger.debug(
                 f"Failed to get artifact path from custom metadata for the model: {model_id}"
@@ -337,6 +374,9 @@ class AquaApp:
         config_file_path = os.path.join(config_path, config_file_name)
         if is_path_exists(config_file_path):
             try:
+                logger.info(
+                    f"Loading config: `{config_file_name}` from `{config_path}`"
+                )
                 config = load_config(
                     config_path,
                     config_file_name=config_file_name,
@@ -354,6 +394,85 @@ class AquaApp:
             )
 
         return ModelConfigResult(config=config, model_details=oci_model)
+
+    def get_container_image(self, container_type: str = None) -> str:
+        """
+        Gets the latest smc container complete image name from the given container type.
+
+        Parameters
+        ----------
+        container_type: str
+            type of container, can be either odsc-vllm-serving, odsc-llm-fine-tuning, odsc-llm-evaluate
+
+        Returns
+        -------
+        str:
+            A complete container name along with version. ex: dsmc://odsc-vllm-serving:0.7.4.1
+        """
+
+        containers = self.list_service_containers()
+        container = next(
+            (c for c in containers if c.is_latest and c.family_name == container_type),
+            None,
+        )
+        if not container:
+            raise AquaValueError(f"Invalid container type : {container_type}")
+        container_image = (
+            SERVICE_MANAGED_CONTAINER_URI_SCHEME
+            + container.container_name
+            + ":"
+            + container.tag
+        )
+        return container_image
+
+    @cached(cache=TTLCache(maxsize=20, ttl=timedelta(minutes=30), timer=datetime.now))
+    def list_service_containers(self) -> List[ContainerSummary]:
+        """
+        List containers from containers.conf in OCI Datascience control plane
+        """
+        containers = self.ds_client.list_containers().data
+        return containers
+
+    def get_container_config(self) -> AquaContainerConfig:
+        """
+        Fetches latest containers from containers.conf in OCI Datascience control plane
+
+        Returns
+        -------
+        AquaContainerConfig
+            An Object that contains latest container info for the given container family
+
+        """
+        return AquaContainerConfig.from_service_config(
+            service_containers=self.list_service_containers()
+        )
+
+    def get_container_config_item(
+        self, container_family: str
+    ) -> AquaContainerConfigItem:
+        """
+        Fetches latest container for given container_family_name from containers.conf in OCI Datascience control plane
+
+        Returns
+        -------
+        AquaContainerConfigItem
+            An Object that contains latest container info for the given container family
+
+        """
+
+        aqua_container_config = self.get_container_config()
+        inference_config = aqua_container_config.inference.values()
+        ft_config = aqua_container_config.finetune.values()
+        eval_config = aqua_container_config.evaluate.values()
+        container = next(
+            (
+                container
+                for container in chain(inference_config, ft_config, eval_config)
+                if container.family.lower() == container_family.lower()
+            ),
+            None,
+        )
+        return container
 
     @property
     def telemetry(self):

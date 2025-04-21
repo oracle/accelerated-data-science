@@ -18,6 +18,8 @@ class ModelCustomMetadataFields(ExtendedEnum):
     EVALUATION_CONTAINER = "evaluation-container"
     FINETUNE_CONTAINER = "finetune-container"
     DEPLOYMENT_CONTAINER_URI = "deployment-container-uri"
+    MULTIMODEL_GROUP_COUNT = "model_group_count"
+    MULTIMODEL_METADATA = "multi_model_metadata"
 
 
 class ModelTask(ExtendedEnum):
@@ -34,6 +36,7 @@ class FineTuningMetricCategories(ExtendedEnum):
 class ModelType(ExtendedEnum):
     FT = "FT"  # Fine Tuned Model
     BASE = "BASE"  # Base model
+    MULTIMODEL = "MULTIMODEL"
 
 
 # TODO: merge metadata key used in create FT
@@ -47,3 +50,11 @@ class FineTuningCustomMetadata(ExtendedEnum):
     VALIDATION_METRICS_FINAL = "val_metrics_final"
     TRAINING_METRICS_EPOCH = "train_metrics_epoch"
     VALIDATION_METRICS_EPOCH = "val_metrics_epoch"
+
+
+class AquaModelMetadataKeys(ExtendedEnum):
+    FINE_TUNING_CONFIGURATION = "FineTuneConfiguration"
+    DEPLOYMENT_CONFIGURATION = "DeploymentConfiguration"
+    README = "Readme"
+    LICENSE = "License"
+    REPORTS = "Reports"

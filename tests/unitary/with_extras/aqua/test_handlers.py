@@ -22,6 +22,10 @@ import ads.aqua.extension
 import ads.aqua.extension.common_handler
 import ads.config
 from ads.aqua.common.errors import AquaError
+from ads.aqua.constants import (
+    AQUA_TROUBLESHOOTING_LINK,
+    STATUS_CODE_MESSAGES,
+)
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.extension.base_handler import AquaAPIhandler
@@ -38,7 +42,7 @@ from ads.aqua.extension.evaluation_handler import (
 from ads.aqua.extension.model_handler import AquaModelHandler, AquaModelLicenseHandler
 from ads.aqua.model import AquaModelApp
 from tests.unitary.with_extras.aqua.utils import HandlerTestDataset as TestDataset
-
+from ads.aqua.extension.errors import ReplyDetails
 
 class TestBaseHandlers(unittest.TestCase):
     """Contains test cases for base handler."""
@@ -84,6 +88,7 @@ class TestBaseHandlers(unittest.TestCase):
                 "HTTPError",
                 dict(
                     status_code=400,
+                    reason = "Unknown Error",
                     exc_info=(None, HTTPError(400, "Bad Request"), None),
                 ),
                 "Bad Request",
@@ -113,11 +118,11 @@ class TestBaseHandlers(unittest.TestCase):
                         None,
                     ),
                 ),
-                "Authorization Failed: Could not create resource. Operation Name: create_resources.",
+                f"{STATUS_CODE_MESSAGES['404']}\nThe required information to complete authentication was not provided or was incorrect.\nOperation Name: create_resources.",
             ],
             [
                 "oci ServiceError",
-                dict(
+                dict(  # noqa: C408
                     status_code=404,
                     reason="Testing ServiceError happen when get_job_run.",
                     service_payload=TestDataset.mock_service_payload_get,
@@ -139,11 +144,11 @@ class TestBaseHandlers(unittest.TestCase):
                         ],
                     ),
                 ),
-                "Authorization Failed: The resource you're looking for isn't accessible. Operation Name: get_job_run.",
+                f"{STATUS_CODE_MESSAGES['404']}\nThe required information to complete authentication was not provided or was incorrect.\nOperation Name: get_job_run.",
             ],
         ]
     )
-    @patch("ads.aqua.extension.base_handler.logger")
+    @patch("ads.aqua.extension.utils.logger")
     @patch("uuid.uuid4")
     def test_write_error(self, name, input, expected_msg, mock_uuid, mock_logger):
         """Tests AquaAPIhandler.write_error"""
@@ -160,15 +165,19 @@ class TestBaseHandlers(unittest.TestCase):
         self.test_instance.set_status.assert_called_once_with(
             input.get("status_code"), reason=input.get("reason")
         )
-        expected_reply = {
-            "status": input.get("status_code"),
-            "message": expected_msg,
-            "service_payload": input.get("service_payload", {}),
-            "reason": input.get("reason"),
-            "request_id": "1234",
-        }
-        self.test_instance.finish.assert_called_once_with(json.dumps(expected_reply))
+        expected_reply = ReplyDetails(
+            status = input.get("status_code"),
+            troubleshooting_tips = f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}",
+            message = expected_msg,
+            service_payload = input.get("service_payload", {}),
+            reason = input.get("reason", "Unknown Error"),
+            request_id = "1234",
+        )
+
+
+        self.test_instance.finish.assert_called_once_with(expected_reply)
         aqua_api_details = input.get("aqua_api_details", {})
+
         self.test_instance.telemetry.record_event_async.assert_called_with(
             category="aqua/error",
             action=str(
@@ -177,10 +186,12 @@ class TestBaseHandlers(unittest.TestCase):
             value=input.get("reason"),
             **aqua_api_details,
         )
+
         error_message = (
-            f"Error Request ID: {expected_reply['request_id']}\n"
-            f"Error: {expected_reply['message']} {expected_reply['reason']}"
+            f"Error Request ID: {expected_reply.request_id}\n"
+            f"Error: {expected_reply.message} {expected_reply.reason}"
         )
+
         mock_logger.error.assert_called_with(error_message)
 
 
