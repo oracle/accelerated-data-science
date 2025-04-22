@@ -1040,7 +1040,6 @@ class AquaDeploymentApp(AquaApp):
             AQUA_MODEL_TYPE_CUSTOM if is_fine_tuned_model else AQUA_MODEL_TYPE_SERVICE
         )
         if Tags.MULTIMODEL_TYPE_TAG not in aqua_deployment.freeform_tags:
-            update_deployment_details.model_id = aqua_model.id
             self._update(
                 model=aqua_model,
                 model_deployment=aqua_deployment,
@@ -1153,6 +1152,7 @@ class AquaDeploymentApp(AquaApp):
             )
 
         # updates model deployment runtime
+        update_deployment_details.model_id = model.id
         (
             _,
             _,
@@ -1168,12 +1168,22 @@ class AquaDeploymentApp(AquaApp):
             container_config=self.get_container_config(),
         )
         (
-            runtime.with_image(container_image_uri or runtime.image)
-            .with_server_port(server_port or runtime.server_port)
-            .with_health_check_port(health_check_port or runtime.health_check_port)
-            .with_env(env_var or runtime.env)
-            .with_cmd(cmd_var or runtime.cmd)
+            runtime.with_image(
+                update_deployment_details.container_image_uri or runtime.image
+            )
+            .with_server_port(
+                update_deployment_details.server_port or runtime.server_port
+            )
+            .with_health_check_port(
+                update_deployment_details.health_check_port or runtime.health_check_port
+            )
         )
+
+        if update_deployment_details.env_var:
+            runtime.with_env(env_var)
+
+        if update_deployment_details.cmd_var:
+            runtime.with_cmd(cmd_var)
 
         # updates model deployment
         (
@@ -1183,14 +1193,18 @@ class AquaDeploymentApp(AquaApp):
             .with_description(
                 update_deployment_details.description or model_deployment.description
             )
-            .with_freeform_tags(**(tags or model_deployment.freeform_tags))
             .with_defined_tags(
                 **(
                     update_deployment_details.defined_tags
                     or model_deployment.defined_tags
                 )
             )
-        ).update(wait_for_completion=False)
+        )
+
+        if update_deployment_details.freeform_tags:
+            model_deployment.with_freeform_tags(**tags)
+
+        model_deployment.update(wait_for_completion=False)
 
     @telemetry(entry_point="plugin=deployment&action=delete", name="aqua")
     def delete(self, model_deployment_id: str):
