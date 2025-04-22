@@ -97,6 +97,8 @@ class AquaDeploymentApp(AquaApp):
         Creates a model deployment for Aqua Model.
     get(model_deployment_id: str) -> AquaDeployment:
         Retrieves details of an Aqua model deployment by its unique identifier.
+    update(deployment_id: str, instance_shape: str, display_name: str,...) -> AquaDeployment
+        Updates a model deployment for Aqua Model.
     list(**kwargs) -> List[AquaModelSummary]:
         Lists all Aqua deployments within a specified compartment and/or project.
     get_deployment_config(self, model_id: str) -> AquaDeploymentConfig:
@@ -184,9 +186,7 @@ class AquaDeploymentApp(AquaApp):
         # validate instance shape availability in compartment
         available_shapes = [
             shape.name.lower()
-            for shape in self.list_shapes(
-                compartment_id=compartment_id
-            )
+            for shape in self.list_shapes(compartment_id=compartment_id)
         ]
 
         if create_deployment_details.instance_shape.lower() not in available_shapes:
@@ -1171,7 +1171,7 @@ class AquaDeploymentApp(AquaApp):
             runtime.with_image(container_image_uri or runtime.image)
             .with_server_port(server_port or runtime.server_port)
             .with_health_check_port(health_check_port or runtime.health_check_port)
-            .with_env(env_var or runtime.env_var)
+            .with_env(env_var or runtime.env)
             .with_cmd(cmd_var or runtime.cmd)
         )
 
