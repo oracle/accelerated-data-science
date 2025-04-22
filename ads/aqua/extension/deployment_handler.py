@@ -88,6 +88,15 @@ class AquaDeploymentHandler(AquaAPIhandler):
             return self.finish(AquaDeploymentApp().activate(model_deployment_id))
         elif action == "deactivate":
             return self.finish(AquaDeploymentApp().deactivate(model_deployment_id))
+        elif action == "update":
+            try:
+                input_data = self.get_json_body()
+            except Exception as ex:
+                raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT) from ex
+
+            if not input_data:
+                raise HTTPError(400, Errors.NO_INPUT_DATA)
+            return self.finish(AquaDeploymentApp().update(**input_data))
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
@@ -294,5 +303,6 @@ __handlers__ = [
     ("deployments/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)/activate", AquaDeploymentHandler),
     ("deployments/?([^/]*)/deactivate", AquaDeploymentHandler),
+    ("deployments/?([^/]*)/update", AquaDeploymentHandler),
     ("inference", AquaDeploymentInferenceHandler),
 ]

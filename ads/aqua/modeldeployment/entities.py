@@ -208,6 +208,21 @@ class AquaDeploymentDetail(AquaDeployment, DataClassSerializable):
 
     log_group: AquaResourceIdentifier = Field(default_factory=AquaResourceIdentifier)
     log: AquaResourceIdentifier = Field(default_factory=AquaResourceIdentifier)
+    bandwidth_mbps: Optional[int] = Field(
+        None, description="Bandwidth limit on the load balancer in Mbps."
+    )
+    inference_container: Optional[str] = Field(
+        None, description="Inference container of the model deployment."
+    )
+    inference_mode: Optional[str] = Field(
+        None, description="Inference mode of the model deployment."
+    )
+    defined_tags: Optional[Dict] = Field(
+        None, description="Defined tags for model deployment."
+    )
+    freeform_tags: Optional[Dict] = Field(
+        None, description="Freeform tags for model deployment."
+    )
 
     class Config:
         extra = "allow"
@@ -391,15 +406,9 @@ class ModelDeploymentConfigSummary(Serializable):
         extra = "allow"
 
 
-class CreateModelDeploymentDetails(BaseModel):
-    """Class for creating Aqua model deployments."""
+class ModelDeploymentBasicDetails(BaseModel):
+    """Class for Aqua model deployments basic details."""
 
-    instance_shape: str = Field(
-        ..., description="The instance shape used for deployment."
-    )
-    display_name: str = Field(..., description="The name of the model deployment.")
-    compartment_id: Optional[str] = Field(None, description="The compartment OCID.")
-    project_id: Optional[str] = Field(None, description="The project OCID.")
     description: Optional[str] = Field(
         None, description="The description of the deployment."
     )
@@ -469,6 +478,20 @@ class CreateModelDeploymentDetails(BaseModel):
     defined_tags: Optional[Dict] = Field(
         None, description="Defined tags for model deployment."
     )
+
+    class Config:
+        extra = "ignore"
+
+
+class CreateModelDeploymentDetails(ModelDeploymentBasicDetails):
+    """Class for creating Aqua model deployments."""
+
+    instance_shape: str = Field(
+        ..., description="The instance shape used for deployment."
+    )
+    display_name: str = Field(..., description="The name of the model deployment.")
+    compartment_id: Optional[str] = Field(None, description="The compartment OCID.")
+    project_id: Optional[str] = Field(None, description="The project OCID.")
 
     @model_validator(mode="before")
     @classmethod
@@ -651,3 +674,18 @@ class CreateModelDeploymentDetails(BaseModel):
     class Config:
         extra = "allow"
         protected_namespaces = ()
+
+
+class UpdateModelDeploymentDetails(ModelDeploymentBasicDetails):
+    """Class for updating Aqua model deployments."""
+
+    deployment_id: str = Field(
+        ..., description="The id of model deployment to be updated."
+    )
+    instance_shape: str = Field(
+        None, description="The instance shape used for deployment."
+    )
+    display_name: str = Field(None, description="The name of the model deployment.")
+
+    class Config:
+        extra = "ignore"

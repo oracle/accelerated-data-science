@@ -551,6 +551,14 @@ class TestDataset:
             "name": "log-name",
             "url": "https://cloud.oracle.com/logging/search?searchQuery=search \"ocid1.compartment.oc1..<OCID>/ocid1.loggroup.oc1.<region>.<OCID>/ocid1.log.oc1.<region>.<OCID>\" | source='ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>' | sort by datetime desc&regions=region-name",
         },
+        "bandwidth_mbps": 10,
+        "inference_container": ":1.0.0.0",
+        "inference_mode": "/v1/completions",
+        "defined_tags": {},
+        "freeform_tags": {
+            "OCI_AQUA": "active",
+            "aqua_model_name": "model-name",
+        },
     }
 
     model_params = {
@@ -1830,6 +1838,60 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result = copy.deepcopy(TestDataset.aqua_multi_deployment_object)
         expected_result["state"] = "CREATING"
         assert actual_attributes == expected_result
+
+    @patch("ads.model.deployment.model_deployment.ModelDeployment.update")
+    @patch("ads.model.datascience_model.DataScienceModel.from_id")
+    @patch("ads.model.deployment.model_deployment.ModelDeployment.from_id")
+    def test_update_single_model_deployment(
+        self, mock_deployment, mock_model, mock_update
+    ):
+        freeform_tags = {"ftag1": "fvalue1", "ftag2": "fvalue2"}
+        defined_tags = {"dtag1": "dvalue1", "dtag2": "dvalue2"}
+        model_deployment_obj = ModelDeployment.from_yaml(
+            uri=os.path.join(
+                self.curr_dir, "test_data/deployment/aqua_update_deployment.yaml"
+            )
+        )
+        model_deployment_dsc_obj = copy.deepcopy(TestDataset.model_deployment_object[0])
+        model_deployment_dsc_obj["lifecycle_state"] = "ACTIVE"
+        model_deployment_dsc_obj["defined_tags"] = defined_tags
+        model_deployment_dsc_obj["freeform_tags"].update(freeform_tags)
+        model_deployment_obj.dsc_model_deployment = (
+            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+        )
+
+        mock_deployment.return_value = model_deployment_obj
+
+        mock_model.return_value = DataScienceModel.from_yaml(
+            uri=os.path.join(
+                self.curr_dir, "test_data/deployment/aqua_foundation_model.yaml"
+            )
+        )
+
+        config_json = os.path.join(
+            self.curr_dir,
+            "test_data/deployment/deployment_config.json",
+        )
+
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        self.app.get_deployment_config = MagicMock(
+            return_value=AquaDeploymentConfig(**config)
+        )
+
+        mock_update.return_value = model_deployment_obj
+
+        self.app.update(
+            **{
+                "deployment_id": TestDataset.MODEL_DEPLOYMENT_ID,
+                "instance_shape": TestDataset.DEPLOYMENT_SHAPE_NAME,
+                "model_id": TestDataset.MODEL_ID,
+                "display_name": "updated single model deployment",
+            }
+        )
+
+        mock_update.assert_called_with(wait_for_completion=False)
 
     @parameterized.expand(
         [

@@ -17,7 +17,12 @@ from ads.aqua.common.entities import (
     ComputeShapeSummary,
     ContainerPath,
 )
-from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tags
+from ads.aqua.common.enums import (
+    InferenceContainerType,
+    InferenceContainerTypeFamily,
+    ModelFormat,
+    Tags,
+)
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     DEFINED_METADATA_TO_FILE_MAP,
@@ -57,6 +62,7 @@ from ads.aqua.modeldeployment.entities import (
     ConfigValidationError,
     CreateModelDeploymentDetails,
     ModelDeploymentConfigSummary,
+    UpdateModelDeploymentDetails,
 )
 from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -329,6 +335,58 @@ class AquaDeploymentApp(AquaApp):
         AquaDeployment
             An Aqua deployment instance.
         """
+        (
+            model_name,
+            model_type,
+            container_image_uri,
+            server_port,
+            health_check_port,
+            env_var,
+            tags,
+            cmd_var,
+        ) = self._get_container_details(
+            aqua_model=aqua_model,
+            deployment_details=create_deployment_details,
+            container_config=container_config,
+        )
+
+        return self._create_deployment(
+            create_deployment_details=create_deployment_details,
+            aqua_model_id=aqua_model.id,
+            model_name=model_name,
+            model_type=model_type,
+            container_image_uri=container_image_uri,
+            server_port=server_port,
+            health_check_port=health_check_port,
+            env_var=env_var,
+            tags=tags,
+            cmd_var=cmd_var,
+        )
+
+    def _get_container_details(
+        self,
+        aqua_model: DataScienceModel,
+        deployment_details: Union[
+            CreateModelDeploymentDetails, UpdateModelDeploymentDetails
+        ],
+        container_config: Dict,
+    ):
+        """Gets required or optional configurations for building container runtime of model deployment.
+
+        Parameters
+        ----------
+        aqua_model: DataScienceModel
+            An instance of Aqua data science model.
+        deployment_details: Union[CreateModelDeploymentDetails, UpdateModelDeploymentDetails]
+            An instance of either CreateModelDeploymentDetails or UpdateModelDeploymentDetails containing all required and optional
+            fields for creating or updating a model deployment via Aqua.
+        container_config: Dict
+            Container config dictionary.
+
+        Returns
+        -------
+            A tuple of required or optional configurations for container runtime of model deployment.
+        """
         tags = {}
         for tag in [
             Tags.AQUA_SERVICE_MODEL_TAG,
@@ -342,7 +400,7 @@ class AquaDeploymentApp(AquaApp):
         tags.update({Tags.TASK: aqua_model.freeform_tags.get(Tags.TASK, UNKNOWN)})
 
         # Set up info to get deployment config
-        config_source_id = create_deployment_details.model_id
+        config_source_id = deployment_details.model_id
         model_name = aqua_model.display_name
 
         is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG in aqua_model.freeform_tags
@@ -362,8 +420,8 @@ class AquaDeploymentApp(AquaApp):
                 ) from err
 
         # set up env and cmd var
-        env_var = create_deployment_details.env_var or {}
-        cmd_var = create_deployment_details.cmd_var or []
+        env_var = deployment_details.env_var or {}
+        cmd_var = deployment_details.cmd_var or []
 
         try:
             model_path_prefix = aqua_model.custom_metadata_list.get(
@@ -397,11 +455,11 @@ class AquaDeploymentApp(AquaApp):
 
         container_type_key = self._get_container_type_key(
             model=aqua_model,
-            container_family=create_deployment_details.container_family,
+            container_family=deployment_details.container_family,
         )
 
         container_image_uri = (
-            create_deployment_details.container_image_uri
+            deployment_details.container_image_uri
             or self.get_container_image(container_type=container_type_key)
         )
         if not container_image_uri:
@@ -448,7 +506,7 @@ class AquaDeploymentApp(AquaApp):
             and container_type_key.lower()
             == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
         ):
-            model_file = create_deployment_details.model_file
+            model_file = deployment_details.model_file
             if model_file is not None:
                 logger.info(
                     f"Overriding {model_file} as model_file for model {aqua_model.id}."
@@ -477,18 +535,18 @@ class AquaDeploymentApp(AquaApp):
         container_spec = container_config.spec if container_config else UNKNOWN
         # these params cannot be overridden for Aqua deployments
         params = container_spec.cli_param if container_spec else UNKNOWN
-        server_port = create_deployment_details.server_port or (
+        server_port = deployment_details.server_port or (
             container_spec.server_port if container_spec else None
         )
         # Give precendece to the input parameter
-        health_check_port = create_deployment_details.health_check_port or (
+        health_check_port = deployment_details.health_check_port or (
             container_spec.health_check_port if container_spec else None
         )
 
         deployment_config = self.get_deployment_config(model_id=config_source_id)
 
         config_params = deployment_config.configuration.get(
-            create_deployment_details.instance_shape, ConfigurationItem()
+            deployment_details.instance_shape, ConfigurationItem()
         ).parameters.get(get_container_params_type(container_type_key), UNKNOWN)
 
         # validate user provided params
@@ -530,22 +588,20 @@ class AquaDeploymentApp(AquaApp):
 
         logger.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
 
-        tags = {**tags, **(create_deployment_details.freeform_tags or {})}
+        tags = {**tags, **(deployment_details.freeform_tags or {})}
         model_type = (
             AQUA_MODEL_TYPE_CUSTOM if is_fine_tuned_model else AQUA_MODEL_TYPE_SERVICE
         )
 
-        return self._create_deployment(
-            create_deployment_details=create_deployment_details,
-            aqua_model_id=aqua_model.id,
-            model_name=model_name,
-            model_type=model_type,
-            container_image_uri=container_image_uri,
-            server_port=server_port,
-            health_check_port=health_check_port,
-            env_var=env_var,
-            tags=tags,
-            cmd_var=cmd_var,
+        return (
+            model_name,
+            model_type,
+            container_image_uri,
+            server_port,
+            health_check_port,
+            env_var,
+            tags,
+            cmd_var,
         )
 
     def _create_multi(
@@ -904,6 +960,239 @@ class AquaDeploymentApp(AquaApp):
 
         return results
 
+    @telemetry(entry_point="plugin=deployment&action=update", name="aqua")
+    def update(
+        self,
+        update_deployment_details: Optional[UpdateModelDeploymentDetails] = None,
+        **kwargs,
+    ) -> "AquaDeployment":
+        """
+        Updates an Aqua model deployment.\n
+        For detailed information about CLI flags see: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/cli-tips.md#update-model-deployment
+
+        Args:
+            update_deployment_details : UpdateModelDeploymentDetails, optional
+                An instance of UpdateModelDeploymentDetails containing all required and optional
+                fields for updating a model deployment via Aqua.
+            kwargs:
+                deployment_id (str): The OCID of model deployment to be update.
+                instance_shape (Optional[str]): The instance shape used for deployment.
+                display_name (Optional[str]): The name of the model deployment.
+                description (Optional[str]): The description of the deployment.
+                model_id (Optional[str]): The model OCID to deploy.
+                models (Optional[List[AquaMultiModelRef]]): List of models for multimodel deployment.
+                instance_count (Optional[int]): Number of instances used for deployment.
+                log_group_id (Optional[str]): OCI logging group ID for logs.
+                access_log_id (Optional[str]): OCID for access logs.
+                predict_log_id (Optional[str]): OCID for prediction logs.
+                bandwidth_mbps (Optional[int]): Bandwidth limit on the load balancer in Mbps.
+                web_concurrency (Optional[int]): Number of worker processes/threads for handling requests.
+                server_port (Optional[int]): Server port for the Docker container image.
+                health_check_port (Optional[int]): Health check port for the Docker container image.
+                env_var (Optional[Dict[str, str]]): Environment variables for deployment.
+                container_family (Optional[str]): Image family of the model deployment container runtime.
+                memory_in_gbs (Optional[float]): Memory (in GB) for the selected shape.
+                ocpus (Optional[float]): OCPU count for the selected shape.
+                model_file (Optional[str]): File used for model deployment.
+                private_endpoint_id (Optional[str]): Private endpoint ID for model deployment.
+                container_image_uri (Optional[str]): Image URI for model deployment container runtime.
+                cmd_var (Optional[List[str]]): Command variables for the container runtime.
+                freeform_tags (Optional[Dict]): Freeform tags for model deployment.
+                defined_tags (Optional[Dict]): Defined tags for model deployment.
+
+        Returns
+        -------
+        AquaDeployment
+            An Aqua deployment instance.
+        """
+        # Build update deployment details from kwargs if not explicitly provided.
+        if update_deployment_details is None:
+            try:
+                update_deployment_details = UpdateModelDeploymentDetails(**kwargs)
+            except ValidationError as ex:
+                custom_errors = build_pydantic_error_message(ex)
+                raise AquaValueError(
+                    f"Invalid parameters for updating model deployment. Error details: {custom_errors}."
+                ) from ex
+
+        aqua_deployment = ModelDeployment.from_id(
+            update_deployment_details.deployment_id
+        )
+        aqua_model = DataScienceModel.from_id(aqua_deployment.runtime.model_uri)
+
+        oci_aqua = (
+            (
+                Tags.AQUA_TAG in aqua_deployment.freeform_tags
+                or Tags.AQUA_TAG.lower() in aqua_deployment.freeform_tags
+            )
+            if aqua_deployment.freeform_tags
+            else False
+        )
+
+        if not oci_aqua:
+            raise AquaRuntimeError(
+                f"Target deployment {aqua_deployment.id} is not Aqua deployment as it does not contain "
+                f"{Tags.AQUA_TAG} tag."
+            )
+
+        model_name = UNKNOWN
+        is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG in aqua_model.freeform_tags
+        model_type = (
+            AQUA_MODEL_TYPE_CUSTOM if is_fine_tuned_model else AQUA_MODEL_TYPE_SERVICE
+        )
+        if Tags.MULTIMODEL_TYPE_TAG not in aqua_deployment.freeform_tags:
+            update_deployment_details.model_id = aqua_model.id
+            self._update(
+                model=aqua_model,
+                model_deployment=aqua_deployment,
+                update_deployment_details=update_deployment_details,
+            )
+            model_name = aqua_model.display_name
+        else:
+            # TODO: update multi-model deployment
+            pass
+
+        logger.info(
+            f"Aqua model deployment {aqua_deployment.id} updated for model {aqua_model.id}."
+        )
+
+        # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
+        telemetry_kwargs = {"ocid": get_ocid_substring(aqua_deployment.id, key_len=8)}
+
+        # tracks unique deployments that were created in the user compartment
+        self.telemetry.record_event_async(
+            category=f"aqua/{model_type}/deployment",
+            action="update",
+            detail=model_name,
+            **telemetry_kwargs,
+        )
+        # tracks the shape used for deploying the custom or service models by name
+        self.telemetry.record_event_async(
+            category=f"aqua/{model_type}/deployment/update",
+            action="shape",
+            detail=update_deployment_details.instance_shape,
+            value=model_name,
+        )
+
+        return AquaDeployment.from_oci_model_deployment(
+            aqua_deployment.dsc_model_deployment, self.region
+        )
+
+    def _update(
+        self,
+        model: DataScienceModel,
+        model_deployment: ModelDeployment,
+        update_deployment_details: UpdateModelDeploymentDetails,
+    ):
+        """Builds the configurations required by single model deployment and updates the deployment.
+
+        Parameters
+        ----------
+        model : DataScienceModel
+            An instance of Aqua data science model.
+        model_deployment : ModelDeployment
+            An instance of Aqua model deployment.
+        update_deployment_details : UpdateModelDeploymentDetails
+            An instance of UpdateModelDeploymentDetails containing all required and optional
+            fields for updating a model deployment via Aqua.
+        """
+        infrastructure = model_deployment.infrastructure
+        runtime = model_deployment.runtime
+        # updates model deployment infrastructure
+        (
+            infrastructure.with_shape_name(
+                update_deployment_details.instance_shape or infrastructure.shape_name
+            )
+            .with_bandwidth_mbps(
+                update_deployment_details.bandwidth_mbps
+                or infrastructure.bandwidth_mbps
+            )
+            .with_replica(
+                update_deployment_details.instance_count or infrastructure.replica
+            )
+            .with_web_concurrency(
+                update_deployment_details.web_concurrency
+                or infrastructure.web_concurrency
+            )
+            .with_private_endpoint_id(
+                update_deployment_details.private_endpoint_id
+                or infrastructure.private_endpoint_id
+            )
+        )
+        if (
+            update_deployment_details.log_group_id
+            and update_deployment_details.access_log_id
+        ):
+            (
+                infrastructure.with_access_log(
+                    log_group_id=update_deployment_details.log_group_id
+                    or infrastructure.log_group_id,
+                    log_id=update_deployment_details.access_log_id
+                    or infrastructure.access_log.get("log_id", None),
+                )
+            )
+        if (
+            update_deployment_details.log_group_id
+            and update_deployment_details.predict_log_id
+        ):
+            (
+                infrastructure.with_predict_log(
+                    log_group_id=update_deployment_details.log_group_id
+                    or infrastructure.log_group_id,
+                    log_id=update_deployment_details.predict_log_id
+                    or infrastructure.predict_log.get("log_id", None),
+                )
+            )
+        if (
+            update_deployment_details.memory_in_gbs
+            and update_deployment_details.ocpus
+            and infrastructure.shape_name.endswith("Flex")
+        ):
+            infrastructure.with_shape_config_details(
+                ocpus=update_deployment_details.ocpus,
+                memory_in_gbs=update_deployment_details.memory_in_gbs,
+            )
+
+        # updates model deployment runtime
+        (
+            _,
+            _,
+            container_image_uri,
+            server_port,
+            health_check_port,
+            env_var,
+            tags,
+            cmd_var,
+        ) = self._get_container_details(
+            aqua_model=model,
+            deployment_details=update_deployment_details,
+            container_config=self.get_container_config(),
+        )
+        (
+            runtime.with_image(container_image_uri or runtime.image)
+            .with_server_port(server_port or runtime.server_port)
+            .with_health_check_port(health_check_port or runtime.health_check_port)
+            .with_env(env_var or runtime.env_var)
+            .with_cmd(cmd_var or runtime.cmd)
+        )
+
+        # updates model deployment
+        (
+            model_deployment.with_display_name(
+                update_deployment_details.display_name or model_deployment.display_name
+            )
+            .with_description(
+                update_deployment_details.description or model_deployment.description
+            )
+            .with_freeform_tags(**(tags or model_deployment.freeform_tags))
+            .with_defined_tags(
+                **(
+                    update_deployment_details.defined_tags
+                    or model_deployment.defined_tags
+                )
+            )
+        ).update(wait_for_completion=False)
+
     @telemetry(entry_point="plugin=deployment&action=delete", name="aqua")
     def delete(self, model_deployment_id: str):
         logger.info(f"Deleting model deployment {model_deployment_id}.")
@@ -988,6 +1277,29 @@ class AquaDeploymentApp(AquaApp):
             compartment_id=model_deployment.compartment_id,
             source_id=model_deployment.id,
         )
+        bandwidth_mbps = model_deployment.model_deployment_configuration_details.model_configuration_details.bandwidth_mbps
+        environment_configuration_details = model_deployment.model_deployment_configuration_details.environment_configuration_details
+        inference_mode = environment_configuration_details.environment_variables.get(
+            "MODEL_DEPLOY_PREDICT_ENDPOINT", None
+        )
+
+        image = environment_configuration_details.image
+        container_family = image[image.rfind("/") + 1 : image.rfind(":")]
+        container_type = UNKNOWN
+        if container_family == InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY:
+            container_type = InferenceContainerType.CONTAINER_TYPE_VLLM.upper()
+        elif container_family == InferenceContainerTypeFamily.AQUA_TGI_CONTAINER_FAMILY:
+            container_type = InferenceContainerType.CONTAINER_TYPE_TGI.upper()
+        elif (
+            container_family
+            == InferenceContainerTypeFamily.AQUA_LLAMA_CPP_CONTAINER_FAMILY
+        ):
+            container_type = InferenceContainerType.CONTAINER_TYPE_LLAMA_CPP.upper()
+
+        inference_container = f"{container_type}:{image[image.rfind(':')+1:]}"
+
+        defined_tags = model_deployment.defined_tags
+        freeform_tags = model_deployment.freeform_tags
 
         aqua_deployment = AquaDeployment.from_oci_model_deployment(
             model_deployment, self.region
@@ -1030,6 +1342,11 @@ class AquaDeploymentApp(AquaApp):
                 log_group_id, log_group_name, log_group_url
             ),
             log=AquaResourceIdentifier(log_id, log_name, log_url),
+            bandwidth_mbps=bandwidth_mbps,
+            inference_mode=inference_mode,
+            inference_container=inference_container,
+            defined_tags=defined_tags,
+            freeform_tags=freeform_tags,
         )
 
     @telemetry(
