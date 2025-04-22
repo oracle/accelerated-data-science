@@ -25,7 +25,7 @@ import ads.common.oci_client
 import ads.config
 
 from ads.aqua.common.entities import AquaMultiModelRef
-from ads.aqua.common.enums import ModelFormat
+from ads.aqua.common.enums import ModelFormat, Tags
 from ads.aqua.common.errors import (
     AquaFileNotFoundError,
     AquaRuntimeError,
@@ -307,6 +307,7 @@ class TestAquaModel:
             "organization": "test_organization",
             "task": "test_task",
             "ready_to_fine_tune": "true",
+            "aqua_custom_base_model": "true",
         }
         custom_metadata_list = ModelCustomMetadata()
         custom_metadata_list.add(
@@ -332,7 +333,7 @@ class TestAquaModel:
         mock_model.compartment_id = TestDataset.SERVICE_COMPARTMENT_ID
         mock_from_id.return_value = mock_model
         mock_create.return_value = mock_model
-
+        mock_model.freeform_tags.pop(Tags.BASE_MODEL_CUSTOM)
         # will copy service model
         model = self.app.create(
             model_id="test_model_id",
@@ -1452,11 +1453,14 @@ class TestAquaModel:
             ]
         )
 
-        results = self.app.list()
+        results = self.app.list(
+            compartment_id=TestDataset.SERVICE_COMPARTMENT_ID,
+            category=ads.config.SERVICE,
+        )
 
         received_args = self.app.list_resource.call_args.kwargs
         assert received_args.get("compartment_id") == TestDataset.SERVICE_COMPARTMENT_ID
-
+        assert received_args.get("category") == ads.config.SERVICE
         assert len(results) == 2
 
         attributes = AquaModelSummary.__annotations__.keys()
@@ -1479,7 +1483,7 @@ class TestAquaModel:
             ]
         )
 
-        results = self.app.list(TestDataset.COMPARTMENT_ID)
+        results = self.app.list(TestDataset.COMPARTMENT_ID, category=ads.config.USER)
 
         self.app._rqs.assert_called_with(TestDataset.COMPARTMENT_ID, model_type="FT")
 

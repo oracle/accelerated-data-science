@@ -1,23 +1,20 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
 
 from ads.aqua import (
     ENV_VAR_LOG_LEVEL,
-    ODSC_MODEL_COMPARTMENT_OCID,
     logger,
     set_log_level,
 )
-from ads.aqua.common.errors import AquaCLIError, AquaConfigError
+from ads.aqua.common.errors import AquaCLIError
 from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.model import AquaModelApp
 from ads.aqua.modeldeployment import AquaDeploymentApp
 from ads.common.utils import LOG_LEVELS
-from ads.config import NB_SESSION_OCID
 
 
 class AquaCommand:
@@ -81,16 +78,6 @@ class AquaCommand:
             aqua_log_level = log_level.upper()
 
         set_log_level(aqua_log_level)
-
-        if not ODSC_MODEL_COMPARTMENT_OCID:
-            if NB_SESSION_OCID:
-                raise AquaConfigError(
-                    f"Aqua is not available for the notebook session {NB_SESSION_OCID}. For more information, "
-                    f"please refer to the documentation."
-                )
-            raise AquaConfigError(
-                "ODSC_MODEL_COMPARTMENT_OCID environment variable is not set for Aqua."
-            )
 
     @staticmethod
     def _validate_value(flag, value):

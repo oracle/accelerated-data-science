@@ -13,7 +13,7 @@ from cachetools import TTLCache
 from huggingface_hub import snapshot_download
 from oci.data_science.models import JobRun, Metadata, Model, UpdateModelDetails
 
-from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
+from ads.aqua import logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import (
@@ -95,6 +95,7 @@ from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
     AQUA_EVALUATION_CONTAINER_METADATA_NAME,
     AQUA_FINETUNING_CONTAINER_METADATA_NAME,
+    AQUA_SERVICE_MODELS,
     COMPARTMENT_OCID,
     PROJECT_OCID,
     SERVICE,
@@ -182,7 +183,9 @@ class AquaModelApp(AquaApp):
         service_model = DataScienceModel.from_id(model_id)
         target_project = project_id or PROJECT_OCID
         target_compartment = compartment_id or COMPARTMENT_OCID
-        if service_model.compartment_id != ODSC_MODEL_COMPARTMENT_OCID:
+
+        # Skip model copying if it is registered model
+        if service_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None) is not None:
             logger.info(
                 f"Aqua Model {model_id} already exists in the user's compartment."
                 "Skipped copying."
@@ -301,14 +304,15 @@ class AquaModelApp(AquaApp):
             #         "Currently only service models are supported for multi model deployment."
             #     )
 
-            if (
-                source_model.freeform_tags.get(Tags.TASK, UNKNOWN).lower()
-                not in MultiModelSupportedTaskType
-            ):
-                raise AquaValueError(
-                    f"Invalid or missing {Tags.TASK} tag for selected model {display_name}. "
-                    f"Currently only `{MultiModelSupportedTaskType.values()}` models are supported for multi model deployment."
-                )
+            # TODO uncomment the section below if only the specific types of models should be allowed for multi-model deployment
+            # if (
+            #     source_model.freeform_tags.get(Tags.TASK, UNKNOWN).lower()
+            #     not in MultiModelSupportedTaskType
+            # ):
+            #     raise AquaValueError(
+            #         f"Invalid or missing {Tags.TASK} tag for selected model {display_name}. "
+            #         f"Currently only `{MultiModelSupportedTaskType.values()}` models are supported for multi model deployment."
+            #     )
 
             display_name_list.append(display_name)
 
@@ -916,12 +920,13 @@ class AquaModelApp(AquaApp):
     def list(
         self,
         compartment_id: str = None,
+        category: str = None,
         project_id: str = None,
         model_type: str = None,
         **kwargs,
     ) -> List["AquaModelSummary"]:
         """Lists all Aqua models within a specified compartment and/or project.
-        If `compartment_id` is not specified, the method defaults to returning
+        If `category` is not specified, the method defaults to returning
         the service models within the pre-configured default compartment. By default, the list
         of models in the service compartment are cached. Use clear_model_list_cache() to invalidate
         the cache.
@@ -930,6 +935,8 @@ class AquaModelApp(AquaApp):
         ----------
         compartment_id: (str, optional). Defaults to `None`.
             The compartment OCID.
+        category: (str,optional). Defaults to `SERVICE`
+            The category of the models to fetch. Can be either `USER` or `SERVICE`
         project_id: (str, optional). Defaults to `None`.
             The project OCID.
         model_type: (str, optional). Defaults to `None`.
@@ -943,9 +950,9 @@ class AquaModelApp(AquaApp):
             The list of the `ads.aqua.model.AquaModelSummary`.
         """
 
-        models = []
-        category = kwargs.get("category", USER)
-        if compartment_id and category != SERVICE:
+        category = category or kwargs.pop("category", SERVICE)
+        compartment_id = compartment_id or COMPARTMENT_OCID
+        if category == USER:
             # tracks number of times custom model listing was called
             self.telemetry.record_event_async(
                 category="aqua/custom/model", action="list"
@@ -954,32 +961,31 @@ class AquaModelApp(AquaApp):
             logger.info(f"Fetching custom models from compartment_id={compartment_id}.")
             model_type = model_type.upper() if model_type else ModelType.FT
             models = self._rqs(compartment_id, model_type=model_type)
+            logger.info(
+                f"Fetched {len(models)} models from {compartment_id or COMPARTMENT_OCID}."
+            )
         else:
             # tracks number of times service model listing was called
             self.telemetry.record_event_async(
                 category="aqua/service/model", action="list"
             )
 
-            if ODSC_MODEL_COMPARTMENT_OCID in self._service_models_cache:
-                logger.info(
-                    f"Returning service models list in {ODSC_MODEL_COMPARTMENT_OCID} from cache."
-                )
-                return self._service_models_cache.get(ODSC_MODEL_COMPARTMENT_OCID)
-            logger.info("Fetching service models.")
+            if AQUA_SERVICE_MODELS in self._service_models_cache:
+                logger.info("Returning service models list from cache.")
+                return self._service_models_cache.get(AQUA_SERVICE_MODELS)
             lifecycle_state = kwargs.pop(
                 "lifecycle_state", Model.LIFECYCLE_STATE_ACTIVE
             )
 
             models = self.list_resource(
                 self.ds_client.list_models,
-                compartment_id=ODSC_MODEL_COMPARTMENT_OCID,
+                compartment_id=compartment_id,
                 lifecycle_state=lifecycle_state,
+                category=category,
                 **kwargs,
             )
+            logger.info(f"Fetched {len(models)} service models.")
 
-        logger.info(
-            f"Fetched {len(models)} model in compartment_id={ODSC_MODEL_COMPARTMENT_OCID if category==SERVICE else compartment_id}."
-        )
         aqua_models = []
         inference_containers = self.get_container_config().to_dict().get("inference")
         for model in models:
@@ -993,10 +999,9 @@ class AquaModelApp(AquaApp):
                     project_id=project_id or UNKNOWN,
                 )
             )
-
         if category == SERVICE:
             self._service_models_cache.__setitem__(
-                key=ODSC_MODEL_COMPARTMENT_OCID, value=aqua_models
+                key=AQUA_SERVICE_MODELS, value=aqua_models
             )
 
         return aqua_models
@@ -1012,15 +1017,10 @@ class AquaModelApp(AquaApp):
         """
         res = {}
         with self._cache_lock:
-            if ODSC_MODEL_COMPARTMENT_OCID in self._service_models_cache:
-                self._service_models_cache.pop(key=ODSC_MODEL_COMPARTMENT_OCID)
-                logger.info(
-                    f"Cleared models cache for service compartment {ODSC_MODEL_COMPARTMENT_OCID}."
-                )
+            if AQUA_SERVICE_MODELS in self._service_models_cache:
+                self._service_models_cache.pop(key=AQUA_SERVICE_MODELS)
+                logger.info("Cleared models cache for service compartment.")
                 res = {
-                    "key": {
-                        "compartment_id": ODSC_MODEL_COMPARTMENT_OCID,
-                    },
                     "cache_deleted": True,
                 }
         return res

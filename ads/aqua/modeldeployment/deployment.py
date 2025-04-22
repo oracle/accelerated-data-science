@@ -185,7 +185,7 @@ class AquaDeploymentApp(AquaApp):
         available_shapes = [
             shape.name.lower()
             for shape in self.list_shapes(
-                compartment_id=create_deployment_details.compartment_id
+                compartment_id=compartment_id
             )
         ]
 
@@ -526,7 +526,6 @@ class AquaDeploymentApp(AquaApp):
             env_var.update({"BASE_MODEL_FILE": f"{model_file}"})
             tags.update({Tags.MODEL_ARTIFACT_FILE: model_file})
 
-        # todo: use AquaContainerConfig.from_container_index_json instead.
         # Fetch the startup cli command for the container
         # container_index.json will have "containerSpec" section which will provide the cli params for
         # a given container family
