@@ -1840,17 +1840,12 @@ class TestAquaDeployment(unittest.TestCase):
         assert actual_attributes == expected_result
 
     @patch("ads.model.deployment.model_deployment.ModelDeployment.update")
-    @patch.object(AquaApp, "get_container_config")
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp._get_container_details")
     @patch("ads.model.datascience_model.DataScienceModel.from_id")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.from_id")
     def test_update_single_model_deployment(
-        self, mock_deployment, mock_model, mock_get_container_config, mock_update
+        self, mock_deployment, mock_model, mock_get_container_details, mock_update
     ):
-        mock_get_container_config.return_value = (
-            AquaContainerConfig.from_service_config(
-                service_containers=TestDataset.CONTAINER_LIST
-            )
-        )
         freeform_tags = {"ftag1": "fvalue1", "ftag2": "fvalue2"}
         defined_tags = {"dtag1": "dvalue1", "dtag2": "dvalue2"}
         model_deployment_obj = ModelDeployment.from_yaml(
@@ -1874,16 +1869,20 @@ class TestAquaDeployment(unittest.TestCase):
             )
         )
 
-        config_json = os.path.join(
-            self.curr_dir,
-            "test_data/deployment/deployment_config.json",
-        )
-
-        with open(config_json, "r") as _file:
-            config = json.load(_file)
-
-        self.app.get_deployment_config = MagicMock(
-            return_value=AquaDeploymentConfig(**config)
+        mock_get_container_details.return_value = (
+            None,
+            None,
+            "dsmc://image-name:1.0.0.0",
+            "8080",
+            "8080",
+            {
+                "BASE_MODEL": "service_models/model-name/artifact",
+                "MODEL_DEPLOY_ENABLE_STREAMING": "true",
+                "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
+                "PARAMS": "--served-model-name odsc-llm --seed 42",
+            },
+            {**freeform_tags, **defined_tags},
+            [],
         )
 
         mock_update.return_value = model_deployment_obj
@@ -1891,8 +1890,6 @@ class TestAquaDeployment(unittest.TestCase):
         self.app.update(
             **{
                 "deployment_id": TestDataset.MODEL_DEPLOYMENT_ID,
-                "instance_shape": TestDataset.DEPLOYMENT_SHAPE_NAME,
-                "model_id": TestDataset.MODEL_ID,
                 "display_name": "updated single model deployment",
             }
         )
