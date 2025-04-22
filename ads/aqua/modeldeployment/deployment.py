@@ -81,6 +81,7 @@ from ads.model.deployment import (
     ModelDeploymentInfrastructure,
     ModelDeploymentMode,
 )
+from ads.model.deployment.common.utils import State
 from ads.model.model_metadata import ModelCustomMetadataItem
 from ads.telemetry import telemetry
 
@@ -1017,6 +1018,13 @@ class AquaDeploymentApp(AquaApp):
         aqua_deployment = ModelDeployment.from_id(
             update_deployment_details.deployment_id
         )
+
+        if aqua_deployment.lifecycle_state != State.ACTIVE.name:
+            raise AquaValueError(
+                f"Invalid parameter `deployment_id`. Model deployment has to be {State.ACTIVE.name} to be updated."
+                f"Wait for the status to become {State.ACTIVE.name} or specify a different `deployment_id`."
+            )
+
         aqua_model = DataScienceModel.from_id(aqua_deployment.runtime.model_uri)
 
         oci_aqua = (
