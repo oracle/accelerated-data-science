@@ -1840,11 +1840,17 @@ class TestAquaDeployment(unittest.TestCase):
         assert actual_attributes == expected_result
 
     @patch("ads.model.deployment.model_deployment.ModelDeployment.update")
+    @patch.object(AquaApp, "get_container_config")
     @patch("ads.model.datascience_model.DataScienceModel.from_id")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.from_id")
     def test_update_single_model_deployment(
-        self, mock_deployment, mock_model, mock_update
+        self, mock_deployment, mock_model, mock_get_container_config, mock_update
     ):
+        mock_get_container_config.return_value = (
+            AquaContainerConfig.from_service_config(
+                service_containers=TestDataset.CONTAINER_LIST
+            )
+        )
         freeform_tags = {"ftag1": "fvalue1", "ftag2": "fvalue2"}
         defined_tags = {"dtag1": "dvalue1", "dtag2": "dvalue2"}
         model_deployment_obj = ModelDeployment.from_yaml(
