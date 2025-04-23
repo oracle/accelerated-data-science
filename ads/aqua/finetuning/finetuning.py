@@ -321,8 +321,8 @@ class AquaFineTuningApp(AquaApp):
         for defined_metadata in defined_metadata_list_source:
             if (
                 defined_metadata.has_artifact
-                and defined_metadata.key
-                != AquaModelMetadataKeys.FINE_TUNING_CONFIGURATION
+                and defined_metadata.key.lower()
+                != AquaModelMetadataKeys.FINE_TUNING_CONFIGURATION.lower()
             ):
                 content = self.ds_client.get_model_defined_metadatum_artifact_content(
                     source.id, defined_metadata.key
