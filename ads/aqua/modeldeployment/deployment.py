@@ -650,8 +650,6 @@ class AquaDeploymentApp(AquaApp):
             model_config.append(config_data)
             model_name_list.append(model.model_name)
 
-        print("***")
-        print(model_config)
         env_var.update({AQUA_MULTI_MODEL_CONFIG: json.dumps({"models": model_config})})
 
         env_vars = container_spec.env_vars if container_spec else []
@@ -798,7 +796,7 @@ class AquaDeploymentApp(AquaApp):
             .with_infrastructure(infrastructure)
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
-
+        print(deployment)
         deployment_id = deployment.id
         logger.info(
             f"Aqua model deployment {deployment_id} created for model {aqua_model_id}."
