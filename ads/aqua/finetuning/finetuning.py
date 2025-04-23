@@ -58,6 +58,7 @@ from ads.jobs.ads_job import Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
+from ads.model.common.utils import MetadataArtifactPathType
 from ads.model.model_metadata import (
     MetadataTaxonomyKeys,
     ModelCustomMetadata,
@@ -315,6 +316,23 @@ class AquaFineTuningApp(AquaApp):
             model_by_reference=True,
             defined_tags=create_fine_tuning_details.defined_tags,
         )
+        defined_metadata_dict = {}
+        defined_metadata_list_source = source.defined_metadata_list._to_oci_metadata()
+        for defined_metadata in defined_metadata_list_source:
+            if (
+                defined_metadata.has_artifact
+                and defined_metadata.key
+                != AquaModelMetadataKeys.FINE_TUNING_CONFIGURATION
+            ):
+                content = self.ds_client.get_model_defined_metadatum_artifact_content(
+                    source.id, defined_metadata.key
+                ).data.content
+                defined_metadata_dict[defined_metadata.key] = content
+
+        for key, value in defined_metadata_dict.items():
+            ft_model.create_defined_metadata_artifact(
+                key, value, MetadataArtifactPathType.CONTENT
+            )
 
         ft_job_freeform_tags = {
             Tags.AQUA_TAG: UNKNOWN,
