@@ -796,7 +796,7 @@ class AquaDeploymentApp(AquaApp):
             .with_infrastructure(infrastructure)
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
-        print(deployment)
+
         deployment_id = deployment.id
         logger.info(
             f"Aqua model deployment {deployment_id} created for model {aqua_model_id}."

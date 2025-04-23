@@ -1835,7 +1835,7 @@ class TestAquaDeployment(unittest.TestCase):
 
         expected_attributes = set(AquaDeployment.__annotations__.keys())
         actual_attributes = result.to_dict()
-        print(result)
+
         assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
         expected_result = copy.deepcopy(TestDataset.aqua_multi_deployment_object)
         expected_result["state"] = "CREATING"

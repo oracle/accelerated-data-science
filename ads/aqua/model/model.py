@@ -714,7 +714,7 @@ class AquaModelApp(AquaApp):
         model: AquaMultiModelRef,
         freeform_task_tag: str
     ) -> str:
-        """Will set model task if freeform task tag from model needs a non-completion endpoint (embedding)"""
+        """In a Multi Model Deployment, will set model task if freeform task tag from model needs a non-completion endpoint (embedding)"""
         if freeform_task_tag == MultiModelSupportedTaskType.EMBEDDING_ALT:
             model.model_task = MultiModelConfigMode.EMBEDDING
 
