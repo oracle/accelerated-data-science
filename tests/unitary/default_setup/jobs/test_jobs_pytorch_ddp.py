@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -8,16 +8,17 @@ import os
 import unittest
 import zipfile
 from unittest import mock
-from ads.jobs import PyTorchDistributedRuntime, DataScienceJob, DataScienceJobRun
+
+from ads.jobs import DataScienceJob, DataScienceJobRun, PyTorchDistributedRuntime
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     PyTorchDistributedRuntimeHandler as Handler,
 )
 from ads.jobs.builders.runtimes.pytorch_runtime import (
-    PyTorchDistributedArtifact,
     GitPythonArtifact,
+    PyTorchDistributedArtifact,
 )
-from ads.opctl.distributed.common import cluster_config_helper as cluster
 from ads.jobs.templates import driver_utils as utils
+from ads.opctl.distributed.common import cluster_config_helper as cluster
 
 
 class PyTorchRuntimeHandlerTest(unittest.TestCase):
@@ -77,7 +78,7 @@ class PyTorchRuntimeHandlerTest(unittest.TestCase):
         """Tests setting up environment variables"""
         envs = Handler(DataScienceJob())._translate_env(self.init_runtime())
         self.assertIsInstance(envs, dict)
-        self.assertEqual(envs[Handler.CONST_WORKER_COUNT], str(self.REPLICAS - 1))
+        self.assertEqual(envs[Handler.CONST_NODE_COUNT], str(self.REPLICAS))
         self.assertEqual(
             envs[Handler.CONST_JOB_ENTRYPOINT],
             PyTorchDistributedArtifact.CONST_DRIVER_SCRIPT,
