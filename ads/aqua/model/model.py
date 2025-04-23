@@ -4,6 +4,7 @@
 import json
 import os
 import pathlib
+import re
 from datetime import datetime, timedelta
 from threading import Lock
 from typing import Any, Dict, List, Optional, Set, Union
@@ -80,7 +81,7 @@ from ads.aqua.model.entities import (
     ImportModelDetails,
     ModelValidationResult,
 )
-from ads.aqua.model.enums import MultiModelSupportedTaskType, MultiModelConfigMode
+from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import (
@@ -709,14 +710,16 @@ class AquaModelApp(AquaApp):
         else:
             raise AquaRuntimeError("Only registered unverified models can be edited.")
 
-    def _get_task(
-        self,
-        model: AquaMultiModelRef,
-        freeform_task_tag: str
-    ) -> str:
-        """In a Multi Model Deployment, will set model task if freeform task tag from model needs a non-completion endpoint (embedding)"""
-        if freeform_task_tag == MultiModelSupportedTaskType.EMBEDDING_ALT:
-            model.model_task = MultiModelConfigMode.EMBEDDING
+    def _get_task(self, model: AquaMultiModelRef, freeform_task_tag: str) -> str:
+        """In a Multi Model Deployment, will set model_task parameter in AquaMultiModelRef from freeform tags or user"""
+        task_tag = re.sub(r"-", "_", freeform_task_tag)
+
+        if task_tag in MultiModelSupportedTaskType:
+            model.model_task = task_tag
+        else:
+            raise AquaValueError(
+                f"{freeform_task_tag} is not supported. Valid model_task inputs are: {MultiModelSupportedTaskType.values()}."
+            )
 
     def _fetch_metric_from_metadata(
         self,
