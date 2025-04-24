@@ -81,6 +81,7 @@ from ads.aqua.model.entities import (
     ImportModelDetails,
     ModelValidationResult,
 )
+from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import (
@@ -184,12 +185,8 @@ class AquaModelApp(AquaApp):
         target_project = project_id or PROJECT_OCID
         target_compartment = compartment_id or COMPARTMENT_OCID
 
-        # Skip model copying if it is registered model or fine-tuned model
-        if (
-            service_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None) is not None
-            or service_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG)
-            is not None
-        ):
+        # Skip model copying if it is registered model
+        if service_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None) is not None:
             logger.info(
                 f"Aqua Model {model_id} already exists in the user's compartment."
                 "Skipped copying."
@@ -716,7 +713,8 @@ class AquaModelApp(AquaApp):
             model.model_task = task_tag
         else:
             raise AquaValueError(
-                f"{task_tag} is not supported. Valid model_task inputs are: {MultiModelSupportedTaskType.values()}."
+                f"Invalid or missing {task_tag} tag for selected model {source_model.display_name}. "
+                f"Currently only `{MultiModelSupportedTaskType.values()}` models are supported for multi model deployment."
             )
 
     def _fetch_metric_from_metadata(
