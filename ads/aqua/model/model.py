@@ -185,8 +185,12 @@ class AquaModelApp(AquaApp):
         target_project = project_id or PROJECT_OCID
         target_compartment = compartment_id or COMPARTMENT_OCID
 
-        # Skip model copying if it is registered model
-        if service_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None) is not None:
+        # Skip model copying if it is registered model or fine-tuned model
+        if (
+            service_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None) is not None
+            or service_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG)
+            is not None
+        ):
             logger.info(
                 f"Aqua Model {model_id} already exists in the user's compartment."
                 "Skipped copying."
