@@ -9,11 +9,13 @@ import traceback
 import urllib.parse
 from typing import Optional
 
+import concurrent.futures
 import oci
 
 from ads.config import DEBUG_TELEMETRY
 
 from .base import TelemetryBase
+from .telemetry import thread_pool
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +41,7 @@ class TelemetryClient(TelemetryBase):
     >>> telemetry.record_event_async(category="aqua/service/model", action="create") # records create action
     >>> telemetry.record_event_async(category="aqua/service/model/create", action="shape", detail="VM.GPU.A10.1")
     """
+
 
     @staticmethod
     def _encode_user_agent(**kwargs):
@@ -79,7 +82,7 @@ class TelemetryClient(TelemetryBase):
             # Here `endpoint`` is for debugging purpose
             # For some federated/domain users, the `endpoint` may not be a valid URL
             endpoint = f"{self.service_endpoint}/n/{self.namespace}/b/{self.bucket}/o/telemetry/{category}/{action}"
-            logger.debug(f"Sending telemetry to endpoint: {endpoint}")
+            logger.info(f"Sending telemetry to endpoint: {endpoint}")
 
             self.os_client.base_client.user_agent = self._encode_user_agent(**kwargs)
             try:
@@ -117,9 +120,5 @@ class TelemetryClient(TelemetryBase):
         Thread
             A started thread to send a head request to generate an event record.
         """
-        thread = threading.Thread(
-            target=self.record_event, args=(category, action, detail), kwargs=kwargs
-        )
-        thread.daemon = True
-        thread.start()
-        return thread
+        thread_pool.submit(self.record_event, args=(category, action, detail), kwargs=kwargs)
+        return None

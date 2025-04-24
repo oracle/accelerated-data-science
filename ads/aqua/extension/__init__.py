@@ -15,6 +15,7 @@ from ads.aqua.extension.finetune_handler import __handlers__ as __finetune_handl
 from ads.aqua.extension.model_handler import __handlers__ as __model_handlers__
 from ads.aqua.extension.ui_handler import __handlers__ as __ui_handlers__
 from ads.aqua.extension.ui_websocket_handler import __handlers__ as __ws_handlers__
+from ads.telemetry import thread_pool
 
 __handlers__ = (
     __finetune_handlers__
@@ -26,7 +27,6 @@ __handlers__ = (
     + __ws_handlers__
 )
 
-
 def load_jupyter_server_extension(nb_server_app):
     web_app = nb_server_app.web_app
     host_pattern = ".*$"
@@ -37,6 +37,12 @@ def load_jupyter_server_extension(nb_server_app):
         [(url_path_join(route_pattern, url), handler) for url, handler in __handlers__],
     )
 
+    def run_on_shutdown():
+        web_app.log.info("Shutting down telemetry threadpool...")
+        thread_pool.shutdown(wait=True)
+        web_app.log.info("Telemetry threadpool shutdown completed.") 
+
+    web_app.io_loop.add_callback(run_on_shutdown)
 
 def _jupyter_server_extension_paths():
     return [{"module": "ads.aqua.extension"}]
