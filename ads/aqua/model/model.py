@@ -305,16 +305,6 @@ class AquaModelApp(AquaApp):
             #         "Currently only service models are supported for multi model deployment."
             #     )
 
-            # TODO uncomment the section below if only the specific types of models should be allowed for multi-model deployment
-            # if (
-            #     source_model.freeform_tags.get(Tags.TASK, UNKNOWN).lower()
-            #     not in MultiModelSupportedTaskType
-            # ):
-            #     raise AquaValueError(
-            #         f"Invalid or missing {Tags.TASK} tag for selected model {display_name}. "
-            #         f"Currently only `{MultiModelSupportedTaskType.values()}` models are supported for multi model deployment."
-            #     )
-
             display_name_list.append(display_name)
 
             self._get_task(model, source_model)
@@ -717,7 +707,7 @@ class AquaModelApp(AquaApp):
         if not model.model_task:
             model.model_task = source_model.freeform_tags.get(Tags.TASK, UNKNOWN)
 
-        task_tag = re.sub(r"-", "_", model.model_task)
+        task_tag = re.sub(r"-", "_", model.model_task).lower()
 
         if task_tag in MultiModelSupportedTaskType:
             model.model_task = task_tag

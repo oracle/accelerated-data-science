@@ -26,8 +26,7 @@ class FineTuningCustomMetadata(ExtendedEnum):
 
 
 class MultiModelSupportedTaskType(ExtendedEnum):
-    TEXT_GENERATION = "text-generation"
-    TEXT_GENERATION_ALT = "text_generation"
+    TEXT_GENERATION = "text_generation"
     IMAGE_TEXT_TO_TEXT = "image_text_to_text"
     CODE_SYNTHESIS = "code_synthesis"
     EMBEDDING = "text_embedding"
