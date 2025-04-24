@@ -712,7 +712,7 @@ class AquaModelApp(AquaApp):
             model.model_task = source_model.freeform_tags.get(Tags.TASK, UNKNOWN)
 
         task_tag = re.sub(r"-", "_", model.model_task).lower()
-
+        # re-visit logic when more model task types are supported
         if task_tag in MultiModelSupportedTaskType:
             model.model_task = task_tag
         else:
