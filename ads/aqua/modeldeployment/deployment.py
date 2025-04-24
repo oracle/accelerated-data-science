@@ -1015,6 +1015,14 @@ class AquaDeploymentApp(AquaApp):
                     f"Invalid parameters for updating model deployment. Error details: {custom_errors}."
                 ) from ex
 
+        if (
+            update_deployment_details.container_family
+            or update_deployment_details.container_image_uri
+        ):
+            raise AquaValueError(
+                "Updating inference container is not supported at this moment for Aqau Deployment."
+            )
+
         aqua_deployment = ModelDeployment.from_id(
             update_deployment_details.deployment_id
         )
@@ -1131,10 +1139,8 @@ class AquaDeploymentApp(AquaApp):
         ):
             (
                 infrastructure.with_access_log(
-                    log_group_id=update_deployment_details.log_group_id
-                    or infrastructure.log_group_id,
-                    log_id=update_deployment_details.access_log_id
-                    or infrastructure.access_log.get("log_id", None),
+                    log_group_id=update_deployment_details.log_group_id,
+                    log_id=update_deployment_details.access_log_id,
                 )
             )
         if (
@@ -1143,10 +1149,8 @@ class AquaDeploymentApp(AquaApp):
         ):
             (
                 infrastructure.with_predict_log(
-                    log_group_id=update_deployment_details.log_group_id
-                    or infrastructure.log_group_id,
-                    log_id=update_deployment_details.predict_log_id
-                    or infrastructure.predict_log.get("log_id", None),
+                    log_group_id=update_deployment_details.log_group_id,
+                    log_id=update_deployment_details.predict_log_id,
                 )
             )
         if (
@@ -1175,19 +1179,11 @@ class AquaDeploymentApp(AquaApp):
             deployment_details=update_deployment_details,
             container_config=self.get_container_config(),
         )
-        (
-            runtime.with_image(
-                update_deployment_details.container_image_uri or runtime.image
-            )
-            .with_server_port(
-                update_deployment_details.server_port or runtime.server_port
-            )
-            .with_health_check_port(
-                update_deployment_details.health_check_port or runtime.health_check_port
-            )
-        )
 
-        if update_deployment_details.env_var:
+        if (
+            update_deployment_details.env_var
+            or update_deployment_details.instance_shape
+        ):
             runtime.with_env(env_var)
 
         if update_deployment_details.cmd_var:
