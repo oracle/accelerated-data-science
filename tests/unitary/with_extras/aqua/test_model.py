@@ -440,7 +440,7 @@ class TestAquaModel:
         mock_model.custom_metadata_list = custom_metadata_list
         mock_from_id.return_value = mock_model
 
-        # testing _get_task when a user passes an invalid task to AquaMultiModelRef
+        # testing _extract_model_task when a user passes an invalid task to AquaMultiModelRef
         model_info_1.model_task = "invalid_task"
 
         with pytest.raises(AquaValueError):

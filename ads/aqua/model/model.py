@@ -310,7 +310,7 @@ class AquaModelApp(AquaApp):
 
             display_name_list.append(display_name)
 
-            self._get_task(model, source_model)
+            self._extract_model_task(model, source_model)
 
             # Retrieve model artifact
             model_artifact_path = source_model.artifact
@@ -700,11 +700,11 @@ class AquaModelApp(AquaApp):
         else:
             raise AquaRuntimeError("Only registered unverified models can be edited.")
 
-    def _get_task(
+    def _extract_model_task(
         self,
         model: AquaMultiModelRef,
         source_model: DataScienceModel,
-    ) -> str:
+    ) -> None:
         """In a Multi Model Deployment, will set model_task parameter in AquaMultiModelRef from freeform tags or user"""
         # user does not supply model task, we extract from model metadata
         if not model.model_task:
