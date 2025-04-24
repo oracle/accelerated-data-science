@@ -80,7 +80,6 @@ from ads.aqua.model.entities import (
     ImportModelDetails,
     ModelValidationResult,
 )
-from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import (
@@ -184,8 +183,12 @@ class AquaModelApp(AquaApp):
         target_project = project_id or PROJECT_OCID
         target_compartment = compartment_id or COMPARTMENT_OCID
 
-        # Skip model copying if it is registered model
-        if service_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None) is not None:
+        # Skip model copying if it is registered model or fine-tuned model
+        if (
+            service_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None) is not None
+            or service_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG)
+            is not None
+        ):
             logger.info(
                 f"Aqua Model {model_id} already exists in the user's compartment."
                 "Skipped copying."
@@ -304,14 +307,15 @@ class AquaModelApp(AquaApp):
             #         "Currently only service models are supported for multi model deployment."
             #     )
 
-            if (
-                source_model.freeform_tags.get(Tags.TASK, UNKNOWN).lower()
-                not in MultiModelSupportedTaskType
-            ):
-                raise AquaValueError(
-                    f"Invalid or missing {Tags.TASK} tag for selected model {display_name}. "
-                    f"Currently only `{MultiModelSupportedTaskType.values()}` models are supported for multi model deployment."
-                )
+            # TODO uncomment the section below if only the specific types of models should be allowed for multi-model deployment
+            # if (
+            #     source_model.freeform_tags.get(Tags.TASK, UNKNOWN).lower()
+            #     not in MultiModelSupportedTaskType
+            # ):
+            #     raise AquaValueError(
+            #         f"Invalid or missing {Tags.TASK} tag for selected model {display_name}. "
+            #         f"Currently only `{MultiModelSupportedTaskType.values()}` models are supported for multi model deployment."
+            #     )
 
             display_name_list.append(display_name)
 
