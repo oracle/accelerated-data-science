@@ -317,10 +317,7 @@ class AquaModelApp(AquaApp):
 
             display_name_list.append(display_name)
 
-            model_task = source_model.freeform_tags.get(Tags.TASK, UNKNOWN)
-
-            if model_task != UNKNOWN:
-                self._get_task(model, model_task)
+            self._get_task(model, source_model)
 
             # Retrieve model artifact
             model_artifact_path = source_model.artifact
@@ -710,15 +707,23 @@ class AquaModelApp(AquaApp):
         else:
             raise AquaRuntimeError("Only registered unverified models can be edited.")
 
-    def _get_task(self, model: AquaMultiModelRef, freeform_task_tag: str) -> str:
+    def _get_task(
+        self,
+        model: AquaMultiModelRef,
+        source_model: DataScienceModel,
+    ) -> str:
         """In a Multi Model Deployment, will set model_task parameter in AquaMultiModelRef from freeform tags or user"""
-        task_tag = re.sub(r"-", "_", freeform_task_tag)
+        # user does not supply model task, we extract from model metadata
+        if not model.model_task:
+            model.model_task = source_model.freeform_tags.get(Tags.TASK, UNKNOWN)
+
+        task_tag = re.sub(r"-", "_", model.model_task)
 
         if task_tag in MultiModelSupportedTaskType:
             model.model_task = task_tag
         else:
             raise AquaValueError(
-                f"{freeform_task_tag} is not supported. Valid model_task inputs are: {MultiModelSupportedTaskType.values()}."
+                f"{task_tag} is not supported. Valid model_task inputs are: {MultiModelSupportedTaskType.values()}."
             )
 
     def _fetch_metric_from_metadata(

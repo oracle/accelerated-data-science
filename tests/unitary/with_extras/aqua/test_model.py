@@ -440,7 +440,8 @@ class TestAquaModel:
         mock_model.custom_metadata_list = custom_metadata_list
         mock_from_id.return_value = mock_model
 
-        mock_model.freeform_tags["task"] = "invalid_task"
+        # testing _get_task when a user passes an invalid task to AquaMultiModelRef
+        model_info_1.model_task = "invalid_task"
 
         with pytest.raises(AquaValueError):
             model = self.app.create_multi(
@@ -449,7 +450,18 @@ class TestAquaModel:
                 compartment_id="test_compartment_id",
             )
 
+        # testing if a user tries to invoke a model with a task mode that is not yet supported
+        model_info_1.model_task = None
+        mock_model.freeform_tags["task"] = "unsupported_task"
+        with pytest.raises(AquaValueError):
+            model = self.app.create_multi(
+                    models=[model_info_1, model_info_2],
+                    project_id="test_project_id",
+                    compartment_id="test_compartment_id",
+                )
+
         mock_model.freeform_tags["task"] = "text-generation"
+        model_info_1.model_task = "text_embedding"
 
         # will create a multi-model group
         model = self.app.create_multi(
