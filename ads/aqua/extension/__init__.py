@@ -42,7 +42,6 @@ def load_jupyter_server_extension(nb_server_app):
         thread_pool.shutdown(wait=True)
         nb_server_app.log.info("Telemetry threadpool shutdown completed.") 
 
-    # nb_server_app.io_loop.add_callback(run_on_shutdown)
     atexit.register(run_on_shutdown)
 
 def _jupyter_server_extension_paths():

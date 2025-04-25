@@ -11,8 +11,6 @@ from enum import Enum, auto
 from functools import wraps
 from typing import Any, Callable, Dict, Optional
 
-import concurrent
-
 import ads.config
 from ads import __version__
 from ads.common import logger
@@ -25,6 +23,7 @@ EXTRA_USER_AGENT_INFO = "EXTRA_USER_AGENT_INFO"
 USER_AGENT_KEY = "additional_user_agent"
 UNKNOWN = "UNKNOWN"
 DELIMITER = "&"
+
 
 def update_oci_client_config(config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
