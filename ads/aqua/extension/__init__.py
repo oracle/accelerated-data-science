@@ -38,7 +38,7 @@ def load_jupyter_server_extension(nb_server_app):
     )
 
     def run_on_shutdown():
-        nb_server_app.log.info("Shutting down telemetry threadpool...")
+        nb_server_app.log.info("Shut down of telemetry threadpool registered.")
         thread_pool.shutdown(wait=True)
         nb_server_app.log.info("Telemetry threadpool shutdown completed.") 
 
