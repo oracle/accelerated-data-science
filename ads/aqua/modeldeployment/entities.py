@@ -480,7 +480,7 @@ class ModelDeploymentSpec(BaseModel):
     )
 
     class Config:
-        extra = "ignore"
+        extra = "allow"
 
 
 class ModelDeploymentCreateSpec(ModelDeploymentSpec):
