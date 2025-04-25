@@ -406,7 +406,7 @@ class ModelDeploymentConfigSummary(Serializable):
         extra = "allow"
 
 
-class ModelDeploymentBasicDetails(BaseModel):
+class ModelDeploymentSpec(BaseModel):
     """Class for Aqua model deployments basic details."""
 
     description: Optional[str] = Field(
@@ -483,7 +483,7 @@ class ModelDeploymentBasicDetails(BaseModel):
         extra = "ignore"
 
 
-class CreateModelDeploymentDetails(ModelDeploymentBasicDetails):
+class ModelDeploymentCreateSpec(ModelDeploymentSpec):
     """Class for creating Aqua model deployments."""
 
     instance_shape: str = Field(
@@ -676,7 +676,7 @@ class CreateModelDeploymentDetails(ModelDeploymentBasicDetails):
         protected_namespaces = ()
 
 
-class UpdateModelDeploymentDetails(ModelDeploymentBasicDetails):
+class ModelDeploymentUpdateSpec(ModelDeploymentSpec):
     """Class for updating Aqua model deployments."""
 
     deployment_id: str = Field(
@@ -688,4 +688,4 @@ class UpdateModelDeploymentDetails(ModelDeploymentBasicDetails):
     display_name: str = Field(None, description="The name of the model deployment.")
 
     class Config:
-        extra = "ignore"
+        extra = "allow"

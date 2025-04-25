@@ -60,9 +60,9 @@ from ads.aqua.modeldeployment.entities import (
     AquaDeploymentDetail,
     ConfigurationItem,
     ConfigValidationError,
-    CreateModelDeploymentDetails,
     ModelDeploymentConfigSummary,
-    UpdateModelDeploymentDetails,
+    ModelDeploymentCreateSpec,
+    ModelDeploymentUpdateSpec,
 )
 from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -120,7 +120,7 @@ class AquaDeploymentApp(AquaApp):
     @telemetry(entry_point="plugin=deployment&action=create", name="aqua")
     def create(
         self,
-        create_deployment_details: Optional[CreateModelDeploymentDetails] = None,
+        create_deployment_details: Optional[ModelDeploymentCreateSpec] = None,
         **kwargs,
     ) -> "AquaDeployment":
         """
@@ -128,8 +128,8 @@ class AquaDeploymentApp(AquaApp):
         For detailed information about CLI flags see: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/cli-tips.md#create-model-deployment
 
         Args:
-            create_deployment_details : CreateModelDeploymentDetails, optional
-                An instance of CreateModelDeploymentDetails containing all required and optional
+            create_deployment_details : ModelDeploymentCreateSpec, optional
+                An instance of ModelDeploymentCreateSpec containing all required and optional
                 fields for creating a model deployment via Aqua.
             kwargs:
                 instance_shape (str): The instance shape used for deployment.
@@ -166,7 +166,7 @@ class AquaDeploymentApp(AquaApp):
         # Build deployment details from kwargs if not explicitly provided.
         if create_deployment_details is None:
             try:
-                create_deployment_details = CreateModelDeploymentDetails(**kwargs)
+                create_deployment_details = ModelDeploymentCreateSpec(**kwargs)
             except ValidationError as ex:
                 custom_errors = build_pydantic_error_message(ex)
                 raise AquaValueError(
@@ -316,7 +316,7 @@ class AquaDeploymentApp(AquaApp):
     def _create(
         self,
         aqua_model: DataScienceModel,
-        create_deployment_details: CreateModelDeploymentDetails,
+        create_deployment_details: ModelDeploymentCreateSpec,
         container_config: Dict,
     ) -> AquaDeployment:
         """Builds the configurations required by single model deployment and creates the deployment.
@@ -325,8 +325,8 @@ class AquaDeploymentApp(AquaApp):
         ----------
         aqua_model : DataScienceModel
             An instance of Aqua data science model.
-        create_deployment_details : CreateModelDeploymentDetails
-            An instance of CreateModelDeploymentDetails containing all required and optional
+        create_deployment_details : ModelDeploymentCreateSpec
+            An instance of ModelDeploymentCreateSpec containing all required and optional
             fields for creating a model deployment via Aqua.
         container_config: Dict
             Container config dictionary.
@@ -345,7 +345,7 @@ class AquaDeploymentApp(AquaApp):
             env_var,
             tags,
             cmd_var,
-        ) = self._get_container_details(
+        ) = self._get_runtime_config_from_model_deployment(
             aqua_model=aqua_model,
             deployment_details=create_deployment_details,
             container_config=container_config,
@@ -364,12 +364,10 @@ class AquaDeploymentApp(AquaApp):
             cmd_var=cmd_var,
         )
 
-    def _get_container_details(
+    def _get_runtime_config_from_model_deployment(
         self,
         aqua_model: DataScienceModel,
-        deployment_details: Union[
-            CreateModelDeploymentDetails, UpdateModelDeploymentDetails
-        ],
+        deployment_details: Union[ModelDeploymentCreateSpec, ModelDeploymentUpdateSpec],
         container_config: Dict,
     ):
         """Gets required or optional configurations for building container runtime of model deployment.
@@ -378,8 +376,8 @@ class AquaDeploymentApp(AquaApp):
         ----------
         aqua_model: DataScienceModel
             An instance of Aqua data science model.
-        deployment_details: Union[CreateModelDeploymentDetails, UpdateModelDeploymentDetails]
-            An instance of either CreateModelDeploymentDetails or UpdateModelDeploymentDetails containing all required and optional
+        deployment_details: Union[ModelDeploymentCreateSpec, ModelDeploymentUpdateSpec]
+            An instance of either ModelDeploymentCreateSpec or ModelDeploymentUpdateSpec containing all required and optional
             fields for creating or updating a model deployment via Aqua.
         container_config: Dict
             Container config dictionary.
@@ -608,7 +606,7 @@ class AquaDeploymentApp(AquaApp):
         self,
         aqua_model: DataScienceModel,
         model_config_summary: ModelDeploymentConfigSummary,
-        create_deployment_details: CreateModelDeploymentDetails,
+        create_deployment_details: ModelDeploymentCreateSpec,
         container_config: AquaContainerConfig,
     ) -> AquaDeployment:
         """Builds the environment variables required by multi deployment container and creates the deployment.
@@ -619,8 +617,8 @@ class AquaDeploymentApp(AquaApp):
             Summary Model Deployment configuration for the group of models.
         aqua_model : DataScienceModel
             An instance of Aqua data science model.
-        create_deployment_details : CreateModelDeploymentDetails
-            An instance of CreateModelDeploymentDetails containing all required and optional
+        create_deployment_details : ModelDeploymentCreateSpec
+            An instance of ModelDeploymentCreateSpec containing all required and optional
             fields for creating a model deployment via Aqua.
         container_config: Dict
             Container config dictionary.
@@ -752,7 +750,7 @@ class AquaDeploymentApp(AquaApp):
 
     def _create_deployment(
         self,
-        create_deployment_details: CreateModelDeploymentDetails,
+        create_deployment_details: ModelDeploymentCreateSpec,
         aqua_model_id: str,
         model_name: str,
         model_type: str,
@@ -767,8 +765,8 @@ class AquaDeploymentApp(AquaApp):
 
         Parameters
         ----------
-        create_deployment_details : CreateModelDeploymentDetails
-            An instance of CreateModelDeploymentDetails containing all required and optional
+        create_deployment_details : ModelDeploymentCreateSpec
+            An instance of ModelDeploymentCreateSpec containing all required and optional
             fields for creating a model deployment via Aqua.
         aqua_model_id: str
             The id of the aqua model to be deployed.
@@ -963,7 +961,7 @@ class AquaDeploymentApp(AquaApp):
     @telemetry(entry_point="plugin=deployment&action=update", name="aqua")
     def update(
         self,
-        update_deployment_details: Optional[UpdateModelDeploymentDetails] = None,
+        update_deployment_details: Optional[ModelDeploymentUpdateSpec] = None,
         **kwargs,
     ) -> "AquaDeployment":
         """
@@ -971,8 +969,8 @@ class AquaDeploymentApp(AquaApp):
         For detailed information about CLI flags see: https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/cli-tips.md#update-model-deployment
 
         Args:
-            update_deployment_details : UpdateModelDeploymentDetails, optional
-                An instance of UpdateModelDeploymentDetails containing all required and optional
+            update_deployment_details : ModelDeploymentUpdateSpec, optional
+                An instance of ModelDeploymentUpdateSpec containing all required and optional
                 fields for updating a model deployment via Aqua.
             kwargs:
                 deployment_id (str): The OCID of model deployment to be update.
@@ -1008,7 +1006,7 @@ class AquaDeploymentApp(AquaApp):
         # Build update deployment details from kwargs if not explicitly provided.
         if update_deployment_details is None:
             try:
-                update_deployment_details = UpdateModelDeploymentDetails(**kwargs)
+                update_deployment_details = ModelDeploymentUpdateSpec(**kwargs)
             except ValidationError as ex:
                 custom_errors = build_pydantic_error_message(ex)
                 raise AquaValueError(
@@ -1096,7 +1094,7 @@ class AquaDeploymentApp(AquaApp):
         self,
         model: DataScienceModel,
         model_deployment: ModelDeployment,
-        update_deployment_details: UpdateModelDeploymentDetails,
+        update_deployment_details: ModelDeploymentUpdateSpec,
     ):
         """Builds the configurations required by single model deployment and updates the deployment.
 
@@ -1106,8 +1104,8 @@ class AquaDeploymentApp(AquaApp):
             An instance of Aqua data science model.
         model_deployment : ModelDeployment
             An instance of Aqua model deployment.
-        update_deployment_details : UpdateModelDeploymentDetails
-            An instance of UpdateModelDeploymentDetails containing all required and optional
+        update_deployment_details : ModelDeploymentUpdateSpec
+            An instance of ModelDeploymentUpdateSpec containing all required and optional
             fields for updating a model deployment via Aqua.
         """
         infrastructure = model_deployment.infrastructure
@@ -1174,7 +1172,7 @@ class AquaDeploymentApp(AquaApp):
             env_var,
             tags,
             cmd_var,
-        ) = self._get_container_details(
+        ) = self._get_runtime_config_from_model_deployment(
             aqua_model=model,
             deployment_details=update_deployment_details,
             container_config=self.get_container_config(),

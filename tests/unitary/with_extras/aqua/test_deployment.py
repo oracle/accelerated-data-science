@@ -41,7 +41,7 @@ from ads.aqua.modeldeployment.entities import (
     AquaDeploymentConfig,
     AquaDeploymentDetail,
     ConfigValidationError,
-    CreateModelDeploymentDetails,
+    ModelDeploymentCreateSpec,
     ModelDeploymentConfigSummary,
     ModelParams,
 )
@@ -1719,7 +1719,7 @@ class TestAquaDeployment(unittest.TestCase):
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_deployment_config")
     @patch(
-        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_multimodel_deployment_feasibility"
+        "ads.aqua.modeldeployment.entities.ModelDeploymentCreateSpec.validate_multimodel_deployment_feasibility"
     )
     def test_create_deployment_for_multi_model(
         self,
@@ -1840,7 +1840,9 @@ class TestAquaDeployment(unittest.TestCase):
         assert actual_attributes == expected_result
 
     @patch("ads.model.deployment.model_deployment.ModelDeployment.update")
-    @patch("ads.aqua.modeldeployment.AquaDeploymentApp._get_container_details")
+    @patch(
+        "ads.aqua.modeldeployment.AquaDeploymentApp._get_runtime_config_from_model_deployment"
+    )
     @patch.object(AquaApp, "get_container_config")
     @patch("ads.model.datascience_model.DataScienceModel.from_id")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.from_id")
@@ -1849,7 +1851,7 @@ class TestAquaDeployment(unittest.TestCase):
         mock_deployment,
         mock_model,
         mock_get_container_config,
-        mock_get_container_details,
+        mock_get_runtime_config_from_model_deployment,
         mock_update,
     ):
         mock_get_container_config.return_value = (
@@ -1880,7 +1882,7 @@ class TestAquaDeployment(unittest.TestCase):
             )
         )
 
-        mock_get_container_details.return_value = (
+        mock_get_runtime_config_from_model_deployment.return_value = (
             None,
             None,
             "dsmc://image-name:1.0.0.0",
@@ -2117,7 +2119,7 @@ class TestAquaDeployment(unittest.TestCase):
                 for x in models
             ]
 
-            mock_create_deployment_details = CreateModelDeploymentDetails(
+            mock_create_deployment_details = ModelDeploymentCreateSpec(
                 models=aqua_models,
                 instance_shape=instance_shape,
                 display_name=display_name,
@@ -2125,7 +2127,7 @@ class TestAquaDeployment(unittest.TestCase):
             )
         else:
             model_id = "model_a"
-            mock_create_deployment_details = CreateModelDeploymentDetails(
+            mock_create_deployment_details = ModelDeploymentCreateSpec(
                 model_id=model_id,
                 instance_shape=instance_shape,
                 display_name=display_name,
