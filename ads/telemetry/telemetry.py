@@ -25,8 +25,6 @@ EXTRA_USER_AGENT_INFO = "EXTRA_USER_AGENT_INFO"
 USER_AGENT_KEY = "additional_user_agent"
 UNKNOWN = "UNKNOWN"
 DELIMITER = "&"
-THREAD_POOL_SIZE = 16
-thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=THREAD_POOL_SIZE)
 
 def update_oci_client_config(config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """

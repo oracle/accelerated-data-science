@@ -5,7 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from jupyter_server.utils import url_path_join
-
+import atexit
 from ads.aqua.extension.common_handler import __handlers__ as __common_handlers__
 from ads.aqua.extension.deployment_handler import (
     __handlers__ as __deployment_handlers__,
@@ -15,7 +15,7 @@ from ads.aqua.extension.finetune_handler import __handlers__ as __finetune_handl
 from ads.aqua.extension.model_handler import __handlers__ as __model_handlers__
 from ads.aqua.extension.ui_handler import __handlers__ as __ui_handlers__
 from ads.aqua.extension.ui_websocket_handler import __handlers__ as __ws_handlers__
-from ads.telemetry import thread_pool
+from ads.telemetry.client import thread_pool
 
 __handlers__ = (
     __finetune_handlers__
@@ -38,11 +38,12 @@ def load_jupyter_server_extension(nb_server_app):
     )
 
     def run_on_shutdown():
-        web_app.log.info("Shutting down telemetry threadpool...")
+        nb_server_app.log.info("Shutting down telemetry threadpool...")
         thread_pool.shutdown(wait=True)
-        web_app.log.info("Telemetry threadpool shutdown completed.") 
+        nb_server_app.log.info("Telemetry threadpool shutdown completed.") 
 
-    web_app.io_loop.add_callback(run_on_shutdown)
+    # nb_server_app.io_loop.add_callback(run_on_shutdown)
+    atexit.register(run_on_shutdown)
 
 def _jupyter_server_extension_paths():
     return [{"module": "ads.aqua.extension"}]

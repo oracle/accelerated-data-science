@@ -15,10 +15,11 @@ import oci
 from ads.config import DEBUG_TELEMETRY
 
 from .base import TelemetryBase
-from .telemetry import thread_pool
 
 logger = logging.getLogger(__name__)
 
+THREAD_POOL_SIZE = 16
+thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=THREAD_POOL_SIZE)
 
 class TelemetryClient(TelemetryBase):
     """Represents a telemetry python client providing functions to record an event.
