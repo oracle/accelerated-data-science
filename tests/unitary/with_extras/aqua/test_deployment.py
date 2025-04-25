@@ -45,6 +45,7 @@ from ads.aqua.modeldeployment.entities import (
     ModelDeploymentConfigSummary,
     ModelParams,
 )
+from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
@@ -276,7 +277,7 @@ class TestDataset:
                         "environment_configuration_type": "OCIR_CONTAINER",
                         "environment_variables": {
                             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
-                            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/"}]}',
+                            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/", "model_task": "text_embedding"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/", "model_task": "image_text_to_text"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/", "model_task": "code_synthesis"}]}',
                         },
                         "health_check_port": 8080,
                         "image": "dsmc://image-name:1.0.0.0",
@@ -486,6 +487,7 @@ class TestDataset:
                 "gpu_count": 2,
                 "model_id": "test_model_id_1",
                 "model_name": "test_model_1",
+                "model_task": "text_embedding",
                 "artifact_location": "test_location_1",
             },
             {
@@ -493,6 +495,7 @@ class TestDataset:
                 "gpu_count": 2,
                 "model_id": "test_model_id_2",
                 "model_name": "test_model_2",
+                "model_task": "image_text_to_text",
                 "artifact_location": "test_location_2",
             },
             {
@@ -500,13 +503,14 @@ class TestDataset:
                 "gpu_count": 2,
                 "model_id": "test_model_id_3",
                 "model_name": "test_model_3",
+                "model_task": "code_synthesis",
                 "artifact_location": "test_location_3",
             },
         ],
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
-            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/"}]}',
+            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/", "model_task": "text_embedding"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/", "model_task": "image_text_to_text"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/", "model_task": "code_synthesis"}]}',
         },
         "cmd": [],
         "console_link": "https://cloud.oracle.com/data-science/model-deployments/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>?region=region-name",
@@ -965,6 +969,7 @@ class TestDataset:
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_one",
+            "model_task": "text_embedding",
             "artifact_location": "artifact_location_one",
         },
         {
@@ -972,6 +977,7 @@ class TestDataset:
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_two",
+            "model_task": "image_text_to_text",
             "artifact_location": "artifact_location_two",
         },
         {
@@ -979,6 +985,7 @@ class TestDataset:
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_three",
+            "model_task": "code_synthesis",
             "artifact_location": "artifact_location_three",
         },
     ]
@@ -1787,6 +1794,7 @@ class TestAquaDeployment(unittest.TestCase):
         model_info_1 = AquaMultiModelRef(
             model_id="test_model_id_1",
             model_name="test_model_1",
+            model_task="text_embedding",
             gpu_count=2,
             artifact_location="test_location_1",
         )
@@ -1794,6 +1802,7 @@ class TestAquaDeployment(unittest.TestCase):
         model_info_2 = AquaMultiModelRef(
             model_id="test_model_id_2",
             model_name="test_model_2",
+            model_task="image_text_to_text",
             gpu_count=2,
             artifact_location="test_location_2",
         )
@@ -1801,6 +1810,7 @@ class TestAquaDeployment(unittest.TestCase):
         model_info_3 = AquaMultiModelRef(
             model_id="test_model_id_3",
             model_name="test_model_3",
+            model_task="code_synthesis",
             gpu_count=2,
             artifact_location="test_location_3",
         )
@@ -1826,6 +1836,7 @@ class TestAquaDeployment(unittest.TestCase):
 
         expected_attributes = set(AquaDeployment.__annotations__.keys())
         actual_attributes = result.to_dict()
+
         assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
         expected_result = copy.deepcopy(TestDataset.aqua_multi_deployment_object)
         expected_result["state"] = "CREATING"

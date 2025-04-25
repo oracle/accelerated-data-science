@@ -4,6 +4,7 @@
 import json
 import os
 import pathlib
+import re
 from datetime import datetime, timedelta
 from threading import Lock
 from typing import Any, Dict, List, Optional, Set, Union
@@ -80,6 +81,7 @@ from ads.aqua.model.entities import (
     ImportModelDetails,
     ModelValidationResult,
 )
+from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import (
@@ -307,17 +309,9 @@ class AquaModelApp(AquaApp):
             #         "Currently only service models are supported for multi model deployment."
             #     )
 
-            # TODO uncomment the section below if only the specific types of models should be allowed for multi-model deployment
-            # if (
-            #     source_model.freeform_tags.get(Tags.TASK, UNKNOWN).lower()
-            #     not in MultiModelSupportedTaskType
-            # ):
-            #     raise AquaValueError(
-            #         f"Invalid or missing {Tags.TASK} tag for selected model {display_name}. "
-            #         f"Currently only `{MultiModelSupportedTaskType.values()}` models are supported for multi model deployment."
-            #     )
-
             display_name_list.append(display_name)
+
+            self._extract_model_task(model, source_model)
 
             # Retrieve model artifact
             model_artifact_path = source_model.artifact
@@ -706,6 +700,26 @@ class AquaModelApp(AquaApp):
                 logger.info(f"Updated model details for the model {id}.")
         else:
             raise AquaRuntimeError("Only registered unverified models can be edited.")
+
+    def _extract_model_task(
+        self,
+        model: AquaMultiModelRef,
+        source_model: DataScienceModel,
+    ) -> None:
+        """In a Multi Model Deployment, will set model_task parameter in AquaMultiModelRef from freeform tags or user"""
+        # user does not supply model task, we extract from model metadata
+        if not model.model_task:
+            model.model_task = source_model.freeform_tags.get(Tags.TASK, UNKNOWN)
+
+        task_tag = re.sub(r"-", "_", model.model_task).lower()
+        # re-visit logic when more model task types are supported
+        if task_tag in MultiModelSupportedTaskType:
+            model.model_task = task_tag
+        else:
+            raise AquaValueError(
+                f"Invalid or missing {task_tag} tag for selected model {source_model.display_name}. "
+                f"Currently only `{MultiModelSupportedTaskType.values()}` models are supported for multi model deployment."
+            )
 
     def _fetch_metric_from_metadata(
         self,
