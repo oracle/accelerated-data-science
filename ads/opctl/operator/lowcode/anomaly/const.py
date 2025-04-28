@@ -33,7 +33,7 @@ class SupportedModels(ExtendedEnum):
     LSTM_ED = "lstm_ed"
     VAE = "vae"
     RandomCutForest = "random_cut_forest"
-    AutoEncoder = "auto_encoder"
+    AutoEncoder = "autoencoder"
     LOF = "lof"
     IsolationForest = "isolation_forest"
 
@@ -113,7 +113,7 @@ class MerlionADModels(ExtendedEnum):
     LSTM_ED = "lstm_ed"
     VAE = "vae"
     RandomCutForest = "random_cut_forest"
-    AutoEncoder = "auto_encoder"
+    AutoEncoder = "autoencoder"
     LOF = "lof"
     IsolationForest = "isolation_forest"
 

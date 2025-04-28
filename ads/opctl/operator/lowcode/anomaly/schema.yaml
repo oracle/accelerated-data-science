@@ -387,7 +387,7 @@ spec:
         - wind_stats
         - dynamic_baseline
         - zms
-        - auto_encoder
+        - autoencoder
       meta:
         description: "The model to be used for anomaly detection"
 

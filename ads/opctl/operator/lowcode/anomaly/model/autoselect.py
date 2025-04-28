@@ -27,8 +27,7 @@ class AutoSelectOperatorModel(AnomalyOperatorBaseModel):
 
         anom_outputs = {}
         all_plots = {}
-        model_list = self.spec.model_kwargs.pop("model_list", ["lof", "prophet"])
-        for m in model_list:
+        for m in self.spec.model_kwargs.pop("model_list", ["lof", "prophet"]):
             config_i = self.config
             config_i.spec.model = m
             try:
@@ -38,7 +37,7 @@ class AutoSelectOperatorModel(AnomalyOperatorBaseModel):
                 all_plots[m] = self._get_plots_from_output(anom_outputs[m], m)
             except:
                 logging.debug(f"Model {m} failed. skipping.")
-        return self._generate_report(all_plots, anom_outputs, model_list)
+        return self._generate_report(all_plots, anom_outputs)
 
     def _get_plots_from_output(self, anomaly_output, model):
         import matplotlib.pyplot as plt
@@ -99,7 +98,7 @@ class AutoSelectOperatorModel(AnomalyOperatorBaseModel):
         plots = rc.Select(blocks)
         return plots
 
-    def _generate_report(self, all_plots, anomaly_outputs, model_list):
+    def _generate_report(self, all_plots, anomaly_outputs):
         """Genreates a report for the model."""
         title_text = rc.Heading("Auto-Select Report", level=2)
         summary = rc.Text(
@@ -107,7 +106,7 @@ class AutoSelectOperatorModel(AnomalyOperatorBaseModel):
         )
 
         model_sections = []
-        for m in model_list:
+        for m in anomaly_outputs:
             model_sections.append(all_plots[m])
             sec_text = rc.Heading(f"Train Evaluation Metrics for {m}", level=3)
             sec = rc.DataTable(self._evaluation_metrics(anomaly_outputs[m]), index=True)
