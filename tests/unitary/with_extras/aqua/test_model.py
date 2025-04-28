@@ -5,6 +5,7 @@
 
 import json
 import os
+import re
 import shlex
 import tempfile
 from dataclasses import asdict
@@ -13,9 +14,6 @@ from unittest.mock import MagicMock, patch
 
 import oci
 import pytest
-
-from ads.aqua.app import AquaApp
-from ads.aqua.config.container_config import AquaContainerConfig
 from huggingface_hub.hf_api import HfApi, ModelInfo
 from parameterized import parameterized
 
@@ -23,7 +21,7 @@ import ads.aqua.model
 import ads.common
 import ads.common.oci_client
 import ads.config
-
+from ads.aqua.app import AquaApp
 from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import ModelFormat, Tags
 from ads.aqua.common.errors import (
@@ -32,6 +30,7 @@ from ads.aqua.common.errors import (
     AquaValueError,
 )
 from ads.aqua.common.utils import get_hf_model_info
+from ads.aqua.config.container_config import AquaContainerConfig
 from ads.aqua.constants import HF_METADATA_FOLDER
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import (
@@ -40,6 +39,7 @@ from ads.aqua.model.entities import (
     ImportModelDetails,
     ModelValidationResult,
 )
+from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import (
@@ -47,7 +47,6 @@ from ads.model.model_metadata import (
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
 )
-
 from tests.unitary.with_extras.aqua.utils import ServiceManagedContainers
 
 
@@ -397,12 +396,14 @@ class TestAquaModel:
         model_info_1 = AquaMultiModelRef(
             model_id="test_model_id_1",
             gpu_count=2,
+            model_task = "text_embedding",
             env_var={"params": "--trust-remote-code --max-model-len 60000"},
         )
 
         model_info_2 = AquaMultiModelRef(
             model_id="test_model_id_2",
             gpu_count=2,
+            model_task = "image_text_to_text",
             env_var={"params": "--trust-remote-code --max-model-len 32000"},
         )
 
@@ -438,6 +439,29 @@ class TestAquaModel:
 
         mock_model.custom_metadata_list = custom_metadata_list
         mock_from_id.return_value = mock_model
+
+        # testing _extract_model_task when a user passes an invalid task to AquaMultiModelRef
+        model_info_1.model_task = "invalid_task"
+
+        with pytest.raises(AquaValueError):
+            model = self.app.create_multi(
+                models=[model_info_1, model_info_2],
+                project_id="test_project_id",
+                compartment_id="test_compartment_id",
+            )
+
+        # testing if a user tries to invoke a model with a task mode that is not yet supported
+        model_info_1.model_task = None
+        mock_model.freeform_tags["task"] = "unsupported_task"
+        with pytest.raises(AquaValueError):
+            model = self.app.create_multi(
+                    models=[model_info_1, model_info_2],
+                    project_id="test_project_id",
+                    compartment_id="test_compartment_id",
+                )
+
+        mock_model.freeform_tags["task"] = "text-generation"
+        model_info_1.model_task = "text_embedding"
 
         # will create a multi-model group
         model = self.app.create_multi(
