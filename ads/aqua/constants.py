@@ -43,6 +43,8 @@ HF_METADATA_FOLDER = ".cache/"
 HF_LOGIN_DEFAULT_TIMEOUT = 2
 MODEL_NAME_DELIMITER = ";"
 AQUA_TROUBLESHOOTING_LINK = "https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md"
+MODEL_FILE_DESCRIPTION_VERSION = "1.0"
+MODEL_FILE_DESCRIPTION_TYPE = "modelOSSReferenceDescription"
 
 TRAINING_METRICS_FINAL = "training_metrics_final"
 VALIDATION_METRICS_FINAL = "validation_metrics_final"
