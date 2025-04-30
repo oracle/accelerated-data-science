@@ -28,7 +28,7 @@ description = "Oracle Accelerated Data Science SDK"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.8"
 authors = [{ name = "Oracle Data Science" }]
-license = "UPL"
+license = "UPL-1.0"
 license-files = ["LICENSE.txt"]
 keywords = [
   "Oracle Cloud Infrastructure",
