@@ -27,8 +27,9 @@ version = "2.13.9rc0"
 description = "Oracle Accelerated Data Science SDK"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.8"
-license = { file = "LICENSE.txt" }
 authors = [{ name = "Oracle Data Science" }]
+license = "Universal Permissive License (UPL)"
+license-files = ["LICENSE.txt"]
 keywords = [
   "Oracle Cloud Infrastructure",
   "OCI",
@@ -43,7 +44,6 @@ keywords = [
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: Universal Permissive License (UPL)",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
