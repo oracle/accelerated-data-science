@@ -254,8 +254,8 @@ ads = "ads.cli:cli"
 where = ["."]
 include = ["ads"]
 
-[tool.setuptools]
-packages = { find = {} }
+[tool.setuptools.package-data]
+"ads" = ["THIRD_PARTY_LICENSES.txt"]
 
 # Configuring Ruff (https://docs.astral.sh/ruff/configuration/)
 [tool.ruff]
