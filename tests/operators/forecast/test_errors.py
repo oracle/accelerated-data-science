@@ -1024,7 +1024,7 @@ def test_generate_files(operator_setup, model):
     assert "global_explanation.csv" in files, "Failed to generated global expl file"
 
     # Test that the results object still generates when report.html has an error
-    yaml_i["spec"]["output_directory"]["url"] = "oci://test@test/test_dir"
+    yaml_i["spec"]["output_directory"]["url"] = "s3://test@test/test_dir"
     operator_config = ForecastOperatorConfig.from_dict(yaml_i)
     results = operate(operator_config)
     _check_results_obj(results)
