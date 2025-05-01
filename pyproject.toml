@@ -4,7 +4,7 @@
 ## Check README-development.md and Makefile for instruction how to install or build ADS locally.
 
 [build-system]
-requires = ["setuptools>=65", "wheel", "cython>=3.0"]
+requires = ["setuptools>=65", "wheel"]
 build-backend = "setuptools.build_meta"
 
 
