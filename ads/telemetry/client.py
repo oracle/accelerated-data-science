@@ -106,7 +106,7 @@ class TelemetryClient(TelemetryBase):
 
     def record_event_async(
         self, category: str = None, action: str = None, detail: str = None, **kwargs
-    ):
+    ) -> None:
         """Send a head request to generate an event record.
 
         Parameters
@@ -122,4 +122,3 @@ class TelemetryClient(TelemetryBase):
             A started thread to send a head request to generate an event record.
         """
         thread_pool.submit(self.record_event, args=(category, action, detail), kwargs=kwargs)
-        return None
