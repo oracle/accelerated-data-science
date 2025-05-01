@@ -23,7 +23,6 @@ parts/
 sdist/
 var/
 wheels/
-*.egg-info/
 .installed.cfg
 *.egg
 ads_latest.zip
