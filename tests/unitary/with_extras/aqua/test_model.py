@@ -225,6 +225,35 @@ class TestDataset:
         },
     ]
 
+    model_file_description = {
+        "version": "1.0",
+        "type": "modelOSSReferenceDescription",
+        "models": [
+            {
+                "namespace": "test_namespace",
+                "bucketName": "test_bucket",
+                "prefix": "models/meta-llama/Llama-3.2-3B-Instruct",
+                "objects": [
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/.gitattributes",
+                        "version": "bfbf278c-10af-4f2c-8240-11fed02e1322",
+                        "sizeInBytes": 1519,
+                    },
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/LICENSE.txt",
+                        "version": "4238d1e2-d826-4300-a344-0ead410afa27",
+                        "sizeInBytes": 7712,
+                    },
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/README.md",
+                        "version": "57382552-9ad0-4546-b38c-c96634f3b8a2",
+                        "sizeInBytes": 41744,
+                    },
+                ],
+            }
+        ],
+    }
+
     SERVICE_COMPARTMENT_ID = "ocid1.compartment.oc1..<OCID>"
     COMPARTMENT_ID = "ocid1.compartment.oc1..<UNIQUE_OCID>"
     SERVICE_MODEL_ID = "ocid1.datasciencemodel.oc1.iad.<OCID>"
@@ -360,24 +389,20 @@ class TestAquaModel:
         )
         assert model.provenance_metadata.training_id == "test_training_id"
 
-    @patch.object(DataScienceModel, "add_artifact")
     @patch.object(DataScienceModel, "create_custom_metadata_artifact")
     @patch.object(DataScienceModel, "create")
-    @patch("ads.model.datascience_model.validate")
     @patch.object(AquaApp, "get_container_config")
     @patch.object(DataScienceModel, "from_id")
     def test_create_multimodel(
         self,
         mock_from_id,
         mock_get_container_config,
-        mock_validate,
         mock_create,
         mock_create_custom_metadata_artifact,
-        mock_add_artifact,
     ):
         mock_get_container_config.return_value = get_container_config()
         mock_model = MagicMock()
-        mock_model.model_file_description = {"test_key": "test_value"}
+        mock_model.model_file_description = TestDataset.model_file_description
         mock_model.display_name = "test_display_name"
         mock_model.description = "test_description"
         mock_model.freeform_tags = {
@@ -396,14 +421,14 @@ class TestAquaModel:
         model_info_1 = AquaMultiModelRef(
             model_id="test_model_id_1",
             gpu_count=2,
-            model_task = "text_embedding",
+            model_task="text_embedding",
             env_var={"params": "--trust-remote-code --max-model-len 60000"},
         )
 
         model_info_2 = AquaMultiModelRef(
             model_id="test_model_id_2",
             gpu_count=2,
-            model_task = "image_text_to_text",
+            model_task="image_text_to_text",
             env_var={"params": "--trust-remote-code --max-model-len 32000"},
         )
 
@@ -455,10 +480,10 @@ class TestAquaModel:
         mock_model.freeform_tags["task"] = "unsupported_task"
         with pytest.raises(AquaValueError):
             model = self.app.create_multi(
-                    models=[model_info_1, model_info_2],
-                    project_id="test_project_id",
-                    compartment_id="test_compartment_id",
-                )
+                models=[model_info_1, model_info_2],
+                project_id="test_project_id",
+                compartment_id="test_compartment_id",
+            )
 
         mock_model.freeform_tags["task"] = "text-generation"
         model_info_1.model_task = "text_embedding"
@@ -470,9 +495,7 @@ class TestAquaModel:
             compartment_id="test_compartment_id",
         )
 
-        mock_add_artifact.assert_called()
         mock_from_id.assert_called()
-        mock_validate.assert_not_called()
         mock_create.assert_called_with(model_by_reference=True)
 
         mock_model.compartment_id = TestDataset.SERVICE_COMPARTMENT_ID
