@@ -803,8 +803,14 @@ class AquaDeploymentApp(AquaApp):
         )
 
         # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
-        telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
+        telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8) }
+        print("HELLOWORLD***")
+        print(tags)
 
+        if Tags.BASE_MODEL_CUSTOM in tags :
+            print("custom_base_model is true")
+            telemetry_kwargs['custom_base_model'] = True
+        
         # tracks unique deployments that were created in the user compartment
         self.telemetry.record_event_async(
             category=f"aqua/{model_type}/deployment",
