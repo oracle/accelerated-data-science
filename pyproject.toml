@@ -251,7 +251,8 @@ testsuite = [
 ads = "ads.cli:cli"
 
 [tool.setuptools.packages.find]
-where = ["ads"]
+where = ["."]
+include = ["ads"]
 
 [tool.setuptools.package-data]
 "ads" = ["THIRD_PARTY_LICENSES.txt"]
