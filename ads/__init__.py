@@ -1,15 +1,13 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from __future__ import print_function, division, absolute_import
+
+import logging
 import os
 import sys
-import logging
-import json
-from typing import Callable, Dict, Optional, Union
+from pkgutil import extend_path
 
 # https://packaging.python.org/en/latest/guides/single-sourcing-package-version/#single-sourcing-the-package-version
 if sys.version_info >= (3, 8):
@@ -17,30 +15,41 @@ if sys.version_info >= (3, 8):
 else:
     import importlib_metadata as metadata
 
+__path__ = extend_path(__path__, __name__)
 __version__ = metadata.version("oracle_ads")
-import oci
+
+try:
+    import ads.auth  # noqa: F401
+except ImportError as ex:
+    raise ImportError(
+        "The `ads.auth` module is not available because the optional `oracle-ads-auth` package is missing.\n"
+        "To use authentication features in ADS, please install it using:\n"
+        "  pip install oracle-ads-auth"
+    ) from ex
+
 
 import matplotlib.font_manager  # causes matplotlib to regenerate its fonts
-
+import oci
 import ocifs
-from ads.common.decorator.deprecate import deprecated
-from ads.common.ipython import configure_plotting, _log_traceback
-from ads.feature_engineering.accessor.series_accessor import ADSSeriesAccessor
-from ads.feature_engineering.accessor.dataframe_accessor import ADSDataFrameAccessor
-from ads.common import auth
-from ads.common.auth import set_auth
+
+import ads.telemetry
+from ads.auth import set_auth
 from ads.common.config import Config
+from ads.common.decorator.deprecate import deprecated
+from ads.common.ipython import _log_traceback, configure_plotting
+from ads.feature_engineering.accessor.dataframe_accessor import ADSDataFrameAccessor
+from ads.feature_engineering.accessor.series_accessor import ADSSeriesAccessor
 
 os.environ["GIT_PYTHON_REFRESH"] = "quiet"
-
 
 debug_mode = os.environ.get("DEBUG_MODE", False)
 documentation_mode = os.environ.get("DOCUMENTATION_MODE", "False") == "True"
 test_mode = os.environ.get("TEST_MODE", False)
-resource_principal_mode = bool(
-    os.environ.get("RESOURCE_PRINCIPAL_MODE", False)
-)  # deprecated with is_resource_principal_mode() from ads.common.utils
+resource_principal_mode = bool(os.environ.get("RESOURCE_PRINCIPAL_MODE", False))
 orig_ipython_traceback = None
+
+# Registers a global hook for enriching OCI client configuration with user agent metadata.
+ads.auth.register_user_agent_hook(hook=ads.telemetry.update_oci_client_config)
 
 
 def getLogger(name="ads"):
@@ -125,9 +134,6 @@ def _set_test_mode(mode=False):
 
 
 def hello():
-    import oci
-    import ocifs
-
     print(
         f"""
 

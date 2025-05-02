@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "oracle-ads-auth"
+version = "0.0.1"
+description = "Authentication interface for Oracle Cloud Infrastructure (OCI) clients within the Oracle Accelerated Data Science ecosystem."
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.9,<4.0"
+license = "UPL-1.0"
+
+authors = [
+  { name = "Dmitrii Cherkasov", email = "dmitrii.cherkasov@oracle.com" },
+]
+
+maintainers = [
+  { name = "Dmitrii Cherkasov", email = "dmitrii.cherkasov@oracle.com" },
+]
+
+keywords = [
+  "Oracle Cloud Infrastructure",
+  "OCI",
+  "AI Quick Actions",
+  "Accelerated Data Science",
+  "ADS",
+  "LLM",
+]
+
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+dependencies = ["oci", "pydantic>=2.8.0"]
+
+[project.urls]
+Homepage = "https://github.com/oracle/accelerated-data-science"
+Source = "https://github.com/oracle/accelerated-data-science"
+Documentation = "https://accelerated-data-science.readthedocs.io/en/latest/"
+
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ads.auth"]
+namespaces = false
