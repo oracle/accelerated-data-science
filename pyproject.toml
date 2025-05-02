@@ -16,7 +16,7 @@ build-backend = "setuptools.build_meta"
 
 # Required
 name = "oracle_ads" # the install (PyPI) name
-version = "2.13.9rc0"
+version = "2.13.8"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
