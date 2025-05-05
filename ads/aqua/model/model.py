@@ -64,6 +64,7 @@ from ads.aqua.constants import (
     VALIDATION_METRICS,
     VALIDATION_METRICS_FINAL,
 )
+from ads.aqua.finetuning.entities import extract_base_model_ocid, set_fine_tune_env_var
 from ads.aqua.model.constants import (
     AquaModelMetadataKeys,
     FineTuningCustomMetadata,
@@ -310,6 +311,12 @@ class AquaModelApp(AquaApp):
             #         f"Invalid selected model {display_name}. "
             #         "Currently only service models are supported for multi model deployment."
             #     )
+
+            is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG in source_model.freeform_tags
+
+            if is_fine_tuned_model:
+                model.model_id, model.model_name = extract_base_model_ocid(source_model)
+                model.env_var = set_fine_tune_env_var(source_model, model.env_var)
 
             display_name_list.append(display_name)
 

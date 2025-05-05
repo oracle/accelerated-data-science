@@ -25,7 +25,6 @@ from ads.aqua.common.utils import (
     build_pydantic_error_message,
     get_combined_params,
     get_container_params_type,
-    get_model_by_reference_paths,
     get_ocid_substring,
     get_params_dict,
     get_params_list,
@@ -46,7 +45,7 @@ from ads.aqua.constants import (
     UNKNOWN_DICT,
 )
 from ads.aqua.data import AquaResourceIdentifier
-from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
+from ads.aqua.finetuning.entities import extract_base_model_ocid, set_fine_tune_env_var
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.constants import AquaModelMetadataKeys, ModelCustomMetadataFields
 from ads.aqua.modeldeployment.entities import (
@@ -210,7 +209,8 @@ class AquaDeploymentApp(AquaApp):
                 container_config=container_config,
             )
         else:
-            model_ids = [model.model_id for model in create_deployment_details.models]
+            model_ids =[model.model_id for model in create_deployment_details.models]
+
             try:
                 model_config_summary = self.get_multimodel_deployment_config(
                     model_ids=model_ids, compartment_id=compartment_id
@@ -343,22 +343,6 @@ class AquaDeploymentApp(AquaApp):
         config_source_id = create_deployment_details.model_id
         model_name = aqua_model.display_name
 
-        is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG in aqua_model.freeform_tags
-
-        if is_fine_tuned_model:
-            try:
-                config_source_id = aqua_model.custom_metadata_list.get(
-                    FineTuneCustomMetadata.FINE_TUNE_SOURCE
-                ).value
-                model_name = aqua_model.custom_metadata_list.get(
-                    FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME
-                ).value
-            except ValueError as err:
-                raise AquaValueError(
-                    f"Either {FineTuneCustomMetadata.FINE_TUNE_SOURCE} or {FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME} is missing "
-                    f"from custom metadata for the model {config_source_id}"
-                ) from err
-
         # set up env and cmd var
         env_var = create_deployment_details.env_var or {}
         cmd_var = create_deployment_details.cmd_var or []
@@ -378,20 +362,11 @@ class AquaDeploymentApp(AquaApp):
 
         env_var.update({"BASE_MODEL": f"{model_path_prefix}"})
 
+        is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG in aqua_model.freeform_tags
+
         if is_fine_tuned_model:
-            _, fine_tune_output_path = get_model_by_reference_paths(
-                aqua_model.model_file_description
-            )
-
-            if not fine_tune_output_path:
-                raise AquaValueError(
-                    "Fine tuned output path is not available in the model artifact."
-                )
-
-            os_path = ObjectStorageDetails.from_path(fine_tune_output_path)
-            fine_tune_output_path = os_path.filepath.rstrip("/")
-
-            env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
+            config_source_id, model_name = extract_base_model_ocid(aqua_model)
+            env_var = set_fine_tune_env_var(aqua_model, env_var)
 
         container_type_key = self._get_container_type_key(
             model=aqua_model,
@@ -647,6 +622,12 @@ class AquaDeploymentApp(AquaApp):
             config_data = {"params": params, "model_path": artifact_path_prefix}
             if model.model_task:
                 config_data["model_task"] = model.model_task
+
+            fine_tuned_model = model.env_var.get("FT_MODEL")
+
+            if fine_tuned_model:
+                config_data["FT_MODEL"] = fine_tuned_model
+
             model_config.append(config_data)
             model_name_list.append(model.model_name)
 
