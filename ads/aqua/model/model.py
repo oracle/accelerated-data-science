@@ -79,6 +79,7 @@ from ads.aqua.model.entities import (
     AquaModelReadme,
     AquaModelSummary,
     ImportModelDetails,
+    ModelFileDescription,
     ModelValidationResult,
 )
 from ads.aqua.model.enums import MultiModelSupportedTaskType
@@ -271,8 +272,8 @@ class AquaModelApp(AquaApp):
                 "Model list cannot be empty. Please provide at least one model for deployment."
             )
 
-        artifact_list = []
         display_name_list = []
+        model_file_description_list: List[ModelFileDescription] = []
         model_custom_metadata = ModelCustomMetadata()
 
         service_inference_containers = (
@@ -299,6 +300,7 @@ class AquaModelApp(AquaApp):
         for model in models:
             source_model = DataScienceModel.from_id(model.model_id)
             display_name = source_model.display_name
+            model_file_description = source_model.model_file_description
             # Update model name in user's input model
             model.model_name = model.model_name or display_name
 
@@ -324,7 +326,15 @@ class AquaModelApp(AquaApp):
             # Update model artifact location in user's input model
             model.artifact_location = model_artifact_path
 
-            artifact_list.append(model_artifact_path)
+            if not model_file_description:
+                raise AquaValueError(
+                    f"Model '{display_name}' (ID: {model.model_id}) has no file description. "
+                    "Please register the model first."
+                )
+
+            model_file_description_list.append(
+                ModelFileDescription(**model_file_description)
+            )
 
             # Validate deployment container consistency
             deployment_container = source_model.custom_metadata_list.get(
@@ -402,9 +412,16 @@ class AquaModelApp(AquaApp):
             .with_custom_metadata_list(model_custom_metadata)
         )
 
-        # Attach artifacts
-        for artifact in artifact_list:
-            custom_model.add_artifact(uri=artifact)
+        # Update multi model file description to attach artifacts
+        custom_model.with_model_file_description(
+            json_dict=ModelFileDescription(
+                models=[
+                    models
+                    for model_file_description in model_file_description_list
+                    for models in model_file_description.models
+                ]
+            ).model_dump(by_alias=True)
+        )
 
         # Finalize creation
         custom_model.create(model_by_reference=True)
