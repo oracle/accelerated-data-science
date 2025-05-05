@@ -187,7 +187,6 @@ class CreateFineTuningDetails(Serializable):
         extra = "ignore"
 
 
-@staticmethod
 def extract_base_model_ocid(aqua_model: DataScienceModel) -> Tuple[str, str]:
     """Extracts the model_name, base model (config_source_id) OCID of the Fine Tuned Model
     """
@@ -206,7 +205,6 @@ def extract_base_model_ocid(aqua_model: DataScienceModel) -> Tuple[str, str]:
     return config_source_id, model_name
 
 
-@staticmethod
 def set_fine_tune_env_var(aqua_model: DataScienceModel, env_var: Dict[str,str]) -> Dict[str,str]:
     """Extracts the fine tuning source (fine_tune_output_path).
     Sets the environment variable (env_var) of the fine tuned model to include FT_model (fine tuning source)"""
