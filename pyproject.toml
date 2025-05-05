@@ -4,8 +4,13 @@
 ## Check README-development.md and Makefile for instruction how to install or build ADS locally.
 
 [build-system]
-requires = ["setuptools>=65", "wheel"]
-build-backend = "setuptools.build_meta"
+# PEP 517 – A build-system independent format for source trees - https://peps.python.org/pep-0517/
+# Till recently flit-core library was suggested by pip, so we used it. In future, cosider to change to
+# other, if better, build-backend library.
+requires = [
+  "flit-core >=3.8,<4",
+] # should specify <4, so won’t be impacted by changes in the next major version
+build-backend = "flit_core.buildapi"
 
 
 [project]
@@ -15,8 +20,8 @@ build-backend = "setuptools.build_meta"
 # PEP 518 – Specifying Minimum Build System Requirements for Python Projects https://peps.python.org/pep-0518/
 
 # Required
-name = "oracle_ads" # the install (PyPI) name
-version = "2.13.9rc0"
+name = "oracle_ads" # the install (PyPI) name; name for local build in [tool.flit.module] section below
+version = "2.13.9rc1"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -44,6 +49,7 @@ keywords = [
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
+  "License :: OSI Approved :: Universal Permissive License (UPL)",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
@@ -55,7 +61,7 @@ classifiers = [
 # In dependencies se "<library>; platform_machine == 'aarch64'" to specify ARM underlying platform
 # Copied from install_requires list in setup.py, setup.py got removed in favor of this config file
 dependencies = [
-  "PyYAML>=6.0.1",                         # pyyaml 5.4 is broken with cython 3
+  "PyYAML>=6",                         # pyyaml 5.4 is broken with cython 3
   "asteval>=0.9.25",
   "cerberus>=1.3.4",
   "cloudpickle>=1.6.0",
@@ -250,12 +256,13 @@ testsuite = [
 [project.scripts]
 ads = "ads.cli:cli"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["ads"]
+[tool.flit.module]
+name = "ads" # name for local build and import, see https://flit.pypa.io/en/latest/pyproject_toml.html#module-section
 
-[tool.setuptools.package-data]
-"ads" = ["THIRD_PARTY_LICENSES.txt"]
+[tool.flit.sdist]
+# By default `ads` folder and `LICENSE.txt` file included in sdist. Folders `docs` and `tests` are excluded, as weel as other project files
+# Use this section to include/exclude files and folders. See doc: https://flit.pypa.io/en/latest/pyproject_toml.html#sdist-section
+include = ["THIRD_PARTY_LICENSES.txt"]
 
 # Configuring Ruff (https://docs.astral.sh/ruff/configuration/)
 [tool.ruff]
