@@ -1,0 +1,22 @@
+Advanced Data Science and Data Services toolkit for Python Third Party License File
+
+------------------------ Third Party Components ------------------------
+
+------------------------------- Licenses -------------------------------
+- Apache License 2.0
+- MIT License
+- Universal Permissive License (UPL)
+
+======================== Third Party Components ========================
+
+oci
+* Copyright (c) 2016, 2020, Oracle and/or its affiliates. [see notices section above]
+* License: Apache License 2.0, Universal Permissive License (UPL)
+* Source code: https://github.com/oracle/oci-python-sdk
+* Project home: https://docs.oracle.com/en-us/iaas/tools/python/2.44.0/index.html
+
+pydantic
+* Copyright (c) 2017 to present Pydantic Services Inc. and individual contributors.
+* License: The MIT License (MIT)
+* Source code: https://github.com/pydantic/pydantic
+* Project home: https://docs.pydantic.dev/latest/

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -27,11 +27,9 @@ from ads.common.auth import (
     security_token,
     create_signer,
     default_signer,
-    get_signer,
     AuthType,
     AuthState,
     AuthFactory,
-    OCIAuthContext,
     AuthContext,
 )
 from ads.common.oci_logging import OCILog
@@ -98,18 +96,6 @@ class TestEDAMixin(TestCase):
     ):
         api_keys("test_path")
         mock_config_from_file.assert_called_with("test_path", "DEFAULT")
-
-    @mock.patch("oci.config.validate_config")
-    @mock.patch("oci.auth.signers.get_resource_principals_signer")
-    @mock.patch("oci.config.from_file")
-    @mock.patch("oci.signer.Signer")
-    def test_get_signer_with_api_keys(
-        self, mock_signer, mock_config_from_file, mock_rp_signer, mock_validate_config
-    ):
-        get_signer("test_path", "TEST_PROFILE")
-        mock_config_from_file.assert_called_with("test_path", "TEST_PROFILE")
-        get_signer()
-        mock_rp_signer.assert_called_once()
 
     @mock.patch("oci.auth.signers.get_resource_principals_signer")
     @mock.patch.dict(os.environ, {"OCI_RESOURCE_PRINCIPAL_VERSION": "2.2"})
@@ -495,28 +481,6 @@ class TestAuthFactory(TestCase):
         set_auth(signer_callable=test_ip_signer, signer_kwargs=test_signer_kwargs)
         default_signer()
         mock_ip_signer.assert_called_with(**test_signer_kwargs)
-
-
-class TestOCIAuthContext(TestCase):
-    def tearDown(self) -> None:
-        with mock.patch("os.path.exists"):
-            ads.set_auth(AuthType.API_KEY)
-            return super().tearDown()
-
-    @mock.patch("os.path.exists")
-    def test_oci_auth_context(self, mock_path_exists):
-        profile = AuthState().oci_key_profile
-        mode = AuthState().oci_iam_type
-        with OCIAuthContext(profile="TEST"):
-            assert AuthState().oci_key_profile == "TEST"
-            assert AuthState().oci_iam_type == AuthType.API_KEY
-        assert AuthState().oci_key_profile == profile
-        assert AuthState().oci_iam_type == mode
-
-        with OCIAuthContext():
-            assert AuthState().oci_iam_type == AuthType.RESOURCE_PRINCIPAL
-        assert AuthState().oci_key_profile == profile
-        assert AuthState().oci_iam_type == mode
 
 
 class TestAuthContext:
