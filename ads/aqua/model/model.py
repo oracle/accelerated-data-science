@@ -64,7 +64,6 @@ from ads.aqua.constants import (
     VALIDATION_METRICS,
     VALIDATION_METRICS_FINAL,
 )
-from ads.aqua.finetuning.entities import extract_base_model_ocid, set_fine_tune_env_var
 from ads.aqua.model.constants import (
     AquaModelMetadataKeys,
     FineTuningCustomMetadata,
@@ -84,6 +83,7 @@ from ads.aqua.model.entities import (
     ModelValidationResult,
 )
 from ads.aqua.model.enums import MultiModelSupportedTaskType
+from ads.aqua.model.utils import extract_base_model_from_ft, set_fine_tune_env_var
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import (
@@ -312,11 +312,12 @@ class AquaModelApp(AquaApp):
             #         "Currently only service models are supported for multi model deployment."
             #     )
 
+            # check if model is a fine-tuned model and if so, pass FT_MODEL info to model's env variables
             is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG in source_model.freeform_tags
 
             if is_fine_tuned_model:
-                model.model_id, model.model_name = extract_base_model_ocid(source_model)
-                model.env_var = set_fine_tune_env_var(source_model, model.env_var)
+                model.model_id, model.model_name = extract_base_model_from_ft(source_model)
+                set_fine_tune_env_var(source_model, model.env_var)
 
             display_name_list.append(display_name)
 

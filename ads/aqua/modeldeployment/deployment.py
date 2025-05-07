@@ -45,9 +45,9 @@ from ads.aqua.constants import (
     UNKNOWN_DICT,
 )
 from ads.aqua.data import AquaResourceIdentifier
-from ads.aqua.finetuning.entities import extract_base_model_ocid, set_fine_tune_env_var
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.constants import AquaModelMetadataKeys, ModelCustomMetadataFields
+from ads.aqua.model.utils import extract_base_model_from_ft, set_fine_tune_env_var
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentConfig,
@@ -365,8 +365,8 @@ class AquaDeploymentApp(AquaApp):
         is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG in aqua_model.freeform_tags
 
         if is_fine_tuned_model:
-            config_source_id, model_name = extract_base_model_ocid(aqua_model)
-            env_var = set_fine_tune_env_var(aqua_model, env_var)
+            config_source_id, model_name = extract_base_model_from_ft(aqua_model)
+            set_fine_tune_env_var(aqua_model, env_var)
 
         container_type_key = self._get_container_type_key(
             model=aqua_model,

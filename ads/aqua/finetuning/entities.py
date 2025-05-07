@@ -3,20 +3,14 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import Field, model_validator
 
 from ads.aqua.common.errors import AquaValueError
-from ads.aqua.common.utils import get_model_by_reference_paths
 from ads.aqua.config.utils.serializer import Serializable
 from ads.aqua.data import AquaResourceIdentifier
-from ads.aqua.finetuning.constants import (
-    FineTuneCustomMetadata,
-    FineTuningRestrictedParams,
-)
-from ads.common.object_storage_details import ObjectStorageDetails
-from ads.model.datascience_model import DataScienceModel
+from ads.aqua.finetuning.constants import FineTuningRestrictedParams
 
 
 class AquaFineTuningParams(Serializable):
@@ -185,42 +179,3 @@ class CreateFineTuningDetails(Serializable):
 
     class Config:
         extra = "ignore"
-
-
-def extract_base_model_ocid(aqua_model: DataScienceModel) -> Tuple[str, str]:
-    """Extracts the model_name, base model (config_source_id) OCID of the Fine Tuned Model
-    """
-    config_source_id = aqua_model.custom_metadata_list.get(
-        FineTuneCustomMetadata.FINE_TUNE_SOURCE
-    ).value
-    model_name = aqua_model.custom_metadata_list.get(
-        FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME
-    ).value
-
-    if not config_source_id or not model_name:
-        raise AquaValueError(
-        f"Either {FineTuneCustomMetadata.FINE_TUNE_SOURCE} or {FineTuneCustomMetadata.FINE_TUNE_SOURCE_NAME} is missing "
-        f"from custom metadata for the model {config_source_id}")
-
-    return config_source_id, model_name
-
-
-def set_fine_tune_env_var(aqua_model: DataScienceModel, env_var: Dict[str,str]) -> Dict[str,str]:
-    """Extracts the fine tuning source (fine_tune_output_path).
-    Sets the environment variable (env_var) of the fine tuned model to include FT_model (fine tuning source)"""
-
-    base_model_path, fine_tune_output_path = get_model_by_reference_paths(
-    aqua_model.model_file_description
-    )
-
-    if fine_tune_output_path and ObjectStorageDetails.is_oci_path(fine_tune_output_path):
-        os_path = ObjectStorageDetails.from_path(fine_tune_output_path)
-        fine_tune_output_path = os_path.filepath.rstrip("/")
-
-        env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
-
-        return env_var
-
-    raise AquaValueError(
-    "Fine tuned output path is not available in the model artifact."
-    )
