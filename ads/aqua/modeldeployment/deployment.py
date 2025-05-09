@@ -623,10 +623,8 @@ class AquaDeploymentApp(AquaApp):
             if model.model_task:
                 config_data["model_task"] = model.model_task
 
-            fine_tuned_model = model.env_var.get("FT_MODEL")
-
-            if fine_tuned_model:
-                config_data["FT_MODEL"] = fine_tuned_model
+            if model.fine_tune_artifact:
+                config_data["fine_tune_path"] = model.fine_tune_artifact
 
             model_config.append(config_data)
             model_name_list.append(model.model_name)

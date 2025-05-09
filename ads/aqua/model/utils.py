@@ -48,7 +48,7 @@ def set_fine_tune_env_var(aqua_model: DataScienceModel, env_var: Optional[Dict[s
     # we add the correct artifact location when using FT in Multi Model Deployment
     if model:
         model.artifact_location = base_model_path # validated later in _create_multi method in deployment.py
-        model.env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
+        model.fine_tune_artifact = fine_tune_output_path
 
     else:
         env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
