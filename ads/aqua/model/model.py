@@ -312,12 +312,13 @@ class AquaModelApp(AquaApp):
             #         "Currently only service models are supported for multi model deployment."
             #     )
 
-            # check if model is a fine-tuned model and if so, pass FT_MODEL info to model's env variables
+            # check if model is a fine-tuned model and if so, pass FT_MODEL info to model's
+            # env variables & set model_path to be the base model
             is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG in source_model.freeform_tags
 
             if is_fine_tuned_model:
                 model.model_id, model.model_name = extract_base_model_from_ft(source_model)
-                set_fine_tune_env_var(source_model, model.env_var)
+                set_fine_tune_env_var(source_model, model=model)
 
             display_name_list.append(display_name)
 

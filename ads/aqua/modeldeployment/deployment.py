@@ -366,7 +366,7 @@ class AquaDeploymentApp(AquaApp):
 
         if is_fine_tuned_model:
             config_source_id, model_name = extract_base_model_from_ft(aqua_model)
-            set_fine_tune_env_var(aqua_model, env_var)
+            set_fine_tune_env_var(aqua_model, env_var=env_var)
 
         container_type_key = self._get_container_type_key(
             model=aqua_model,

@@ -19,22 +19,21 @@ from oci.data_science.models import (
 )
 from parameterized import parameterized
 
+import ads.aqua.modeldeployment.deployment
+import ads.config
+from ads.aqua.app import AquaApp
 from ads.aqua.common.entities import (
     AquaMultiModelRef,
     ComputeShapeSummary,
     ModelConfigResult,
 )
-from ads.aqua.app import AquaApp
-from ads.aqua.common.entities import ModelConfigResult
-import ads.aqua.modeldeployment.deployment
-import ads.config
-from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.config.container_config import (
-    AquaContainerConfigItem,
     AquaContainerConfig,
+    AquaContainerConfigItem,
 )
+from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
@@ -45,7 +44,6 @@ from ads.aqua.modeldeployment.entities import (
     ModelDeploymentConfigSummary,
     ModelParams,
 )
-from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment

@@ -3,8 +3,9 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA model utils"""
 
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
+from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.errors import AquaValueError
 from ads.aqua.common.utils import get_model_by_reference_paths
 from ads.aqua.finetuning.constants import FineTuneCustomMetadata
@@ -30,7 +31,7 @@ def extract_base_model_from_ft(aqua_model: DataScienceModel) -> Tuple[str, str]:
     return config_source_id, model_name
 
 
-def set_fine_tune_env_var(aqua_model: DataScienceModel, env_var: Dict[str,str]) -> None:
+def set_fine_tune_env_var(aqua_model: DataScienceModel, env_var: Optional[Dict[str,str]], model: Optional[AquaMultiModelRef] = None) -> None:
     """Extracts the fine tuning source (fine_tune_output_path).
     Sets the environment variable (env_var) of the fine tuned model to include FT_model (fine tuning source)"""
 
@@ -44,5 +45,12 @@ def set_fine_tune_env_var(aqua_model: DataScienceModel, env_var: Dict[str,str]) 
     os_path = ObjectStorageDetails.from_path(fine_tune_output_path)
     fine_tune_output_path = os_path.filepath.rstrip("/")
 
-    env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
+    # we add the correct artifact location when using FT in Multi Model Deployment
+    if model:
+        model.artifact_location = base_model_path # validated later in _create_multi method in deployment.py
+        model.env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
+
+    else:
+        env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
+
 
