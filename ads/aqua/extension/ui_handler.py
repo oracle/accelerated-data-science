@@ -15,7 +15,7 @@ from ads.aqua.extension.errors import Errors
 from ads.aqua.extension.utils import validate_function_parameters
 from ads.aqua.model.entities import ImportModelDetails
 from ads.aqua.ui import AquaUIApp
-from ads.config import COMPARTMENT_OCID
+from ads.config import COMPARTMENT_OCID, IS_BYOR_ENABLED
 
 
 @dataclass
@@ -82,6 +82,10 @@ class AquaUIHandler(AquaAPIhandler):
             return self.is_bucket_versioned()
         elif paths.startswith("aqua/containers"):
             return self.list_containers()
+        elif paths.startswith("aqua/capacityreservations/enabled"):
+            return self.is_capacity_reservations_enabled()
+        elif paths.startswith("aqua/capacityreservations"):
+            return self.list_capacity_reservations()
         else:
             raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
@@ -101,6 +105,17 @@ class AquaUIHandler(AquaAPIhandler):
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
         return self.finish(
             AquaUIApp().list_log_groups(compartment_id=compartment_id, **kwargs)
+        )
+
+    def is_capacity_reservations_enabled(self, **kwargs):
+        return self.finish({"status": str(IS_BYOR_ENABLED).strip().lower() == "true"})
+
+    def list_capacity_reservations(self, **kwargs):
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
+        return self.finish(
+            AquaUIApp().list_capacity_reservations(
+                compartment_id=compartment_id, **kwargs
+            )
         )
 
     def list_logs(self, log_group_id: str, **kwargs):
@@ -279,4 +294,5 @@ __handlers__ = [
     ("bucket/versioning/?([^/]*)", AquaUIHandler),
     ("containers/?([^/]*)", AquaUIHandler),
     ("cli/?([^/]*)", AquaCLIHandler),
+    ("capacityreservations/?([^/]*)", AquaUIHandler),
 ]
