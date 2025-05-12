@@ -58,7 +58,6 @@ class ServiceManagedContainers:
                             "health_check_port": 8080,
                             "additional_configurations": {
                                 "HEALTH_CHECK_PORT": "8080",
-                                "MODEL_DEPLOY_ENABLE_STREAMING": "true",
                                 "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
                                 "PORT": "8080",
                                 "modelFormats": "SAFETENSORS",

@@ -194,13 +194,6 @@ class AquaContainerConfig(Serializable):
                         )
                     },
                     {
-                        "MODEL_DEPLOY_ENABLE_STREAMING": container.workload_configuration_details_list[
-                            0
-                        ].additional_configurations.get(
-                            "MODEL_DEPLOY_ENABLE_STREAMING", UNKNOWN
-                        )
-                    },
-                    {
                         "PORT": container.workload_configuration_details_list[
                             0
                         ].additional_configurations.get("PORT", "")

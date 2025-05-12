@@ -121,7 +121,6 @@ class TestDataset:
                         "health_check_port": 8080,
                         "additional_configurations": {
                             "HEALTH_CHECK_PORT": "8080",
-                            "MODEL_DEPLOY_ENABLE_STREAMING": "true",
                             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
                             "PORT": "8080",
                             "modelFormats": "SAFETENSORS",
@@ -153,7 +152,6 @@ class TestDataset:
                     {
                         "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
                         "MODEL_DEPLOY_HEALTH_ENDPOINT": "",
-                        "MODEL_DEPLOY_ENABLE_STREAMING": "true",
                         "PORT": "8080",
                         "HEALTH_CHECK_PORT": "8080",
                     }
@@ -205,7 +203,6 @@ class TestDataset:
                             "environment_configuration_type": "OCIR_CONTAINER",
                             "environment_variables": {
                                 "BASE_MODEL": "service_models/model-name/artifact",
-                                "MODEL_DEPLOY_ENABLE_STREAMING": "true",
                                 "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
                                 "PARAMS": "--served-model-name odsc-llm --seed 42",
                             },
@@ -329,7 +326,6 @@ class TestDataset:
                             "environment_variables": {
                                 "BASE_MODEL": "service_models/model-name/artifact",
                                 "BASE_MODEL_FILE": "model-name.gguf",
-                                "MODEL_DEPLOY_ENABLE_STREAMING": "true",
                                 "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
                                 "MODEL_DEPLOY_HEALTH_ENDPOINT": "/v1/models",
                             },
@@ -454,7 +450,6 @@ class TestDataset:
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
             "BASE_MODEL": "service_models/model-name/artifact",
-            "MODEL_DEPLOY_ENABLE_STREAMING": "true",
             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
             "PARAMS": "--served-model-name odsc-llm --seed 42",
         },
@@ -531,7 +526,6 @@ class TestDataset:
     aqua_deployment_gguf_env_vars = {
         "BASE_MODEL": "service_models/model-name/artifact",
         "BASE_MODEL_FILE": "model-name.gguf",
-        "MODEL_DEPLOY_ENABLE_STREAMING": "true",
         "MODEL_DEPLOY_HEALTH_ENDPOINT": "/v1/models",
         "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
     }
