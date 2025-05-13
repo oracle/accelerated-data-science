@@ -91,12 +91,20 @@ class AquaUIApp(AquaApp):
         return sanitize_response(oci_client=self.logging_client, response=res)
 
     @telemetry(entry_point="plugin=ui&action=list_capacity_reservations", name="aqua")
-    def list_capacity_reservations(self, **kwargs):
+    def list_capacity_reservations(self, **kwargs) -> list:
+        """
+        Lists users compute reservations in a specified compartment
+
+        Returns
+        -------
+            json representation of `oci.core.models.ComputeCapacityReservationSummary`.
+
+        """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         logger.info(f"Loading Capacity reservations from compartment: {compartment_id}")
         compute_client = oc.OCIClientFactory(**default_signer()).compute
         reservations = compute_client.list_compute_capacity_reservations(
-            compartment_id=compartment_id
+            compartment_id=compartment_id, **kwargs
         )
         return reservations.data
 

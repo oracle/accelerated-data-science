@@ -107,10 +107,12 @@ class AquaUIHandler(AquaAPIhandler):
             AquaUIApp().list_log_groups(compartment_id=compartment_id, **kwargs)
         )
 
-    def is_capacity_reservations_enabled(self, **kwargs):
+    def is_capacity_reservations_enabled(self):
+        """Checks if the tenant is whitelisted for BYOR (Bring your own reservation) feature."""
         return self.finish({"status": str(IS_BYOR_ENABLED).strip().lower() == "true"})
 
     def list_capacity_reservations(self, **kwargs):
+        """Lists users compute reservations in a specified compartment."""
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
         return self.finish(
             AquaUIApp().list_capacity_reservations(
