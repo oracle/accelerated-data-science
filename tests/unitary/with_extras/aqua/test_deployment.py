@@ -41,7 +41,7 @@ from ads.aqua.modeldeployment.entities import (
     AquaDeploymentConfig,
     AquaDeploymentDetail,
     ConfigValidationError,
-    CreateModelDeploymentDetails,
+    ModelDeploymentCreateSpec,
     ModelDeploymentConfigSummary,
     ModelParams,
 )
@@ -554,6 +554,14 @@ class TestDataset:
             "id": "ocid1.log.oc1.<region>.<OCID>",
             "name": "log-name",
             "url": "https://cloud.oracle.com/logging/search?searchQuery=search \"ocid1.compartment.oc1..<OCID>/ocid1.loggroup.oc1.<region>.<OCID>/ocid1.log.oc1.<region>.<OCID>\" | source='ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>' | sort by datetime desc&regions=region-name",
+        },
+        "bandwidth_mbps": 10,
+        "inference_container": ":1.0.0.0",
+        "inference_mode": "/v1/completions",
+        "defined_tags": {},
+        "freeform_tags": {
+            "OCI_AQUA": "active",
+            "aqua_model_name": "model-name",
         },
     }
 
@@ -1718,7 +1726,7 @@ class TestAquaDeployment(unittest.TestCase):
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_deployment_config")
     @patch(
-        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_multimodel_deployment_feasibility"
+        "ads.aqua.modeldeployment.entities.ModelDeploymentCreateSpec.validate_multimodel_deployment_feasibility"
     )
     def test_create_deployment_for_multi_model(
         self,
@@ -1841,6 +1849,76 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result = copy.deepcopy(TestDataset.aqua_multi_deployment_object)
         expected_result["state"] = "CREATING"
         assert actual_attributes == expected_result
+
+    @patch("ads.model.deployment.model_deployment.ModelDeployment.update")
+    @patch(
+        "ads.aqua.modeldeployment.AquaDeploymentApp._get_runtime_config_from_model_deployment"
+    )
+    @patch.object(AquaApp, "get_container_config")
+    @patch("ads.model.datascience_model.DataScienceModel.from_id")
+    @patch("ads.model.deployment.model_deployment.ModelDeployment.from_id")
+    def test_update_single_model_deployment(
+        self,
+        mock_deployment,
+        mock_model,
+        mock_get_container_config,
+        mock_get_runtime_config_from_model_deployment,
+        mock_update,
+    ):
+        mock_get_container_config.return_value = (
+            AquaContainerConfig.from_service_config(
+                service_containers=TestDataset.CONTAINER_LIST
+            )
+        )
+        freeform_tags = {"ftag1": "fvalue1", "ftag2": "fvalue2"}
+        defined_tags = {"dtag1": "dvalue1", "dtag2": "dvalue2"}
+        model_deployment_obj = ModelDeployment.from_yaml(
+            uri=os.path.join(
+                self.curr_dir, "test_data/deployment/aqua_update_deployment.yaml"
+            )
+        )
+        model_deployment_dsc_obj = copy.deepcopy(TestDataset.model_deployment_object[0])
+        model_deployment_dsc_obj["lifecycle_state"] = "ACTIVE"
+        model_deployment_dsc_obj["defined_tags"] = defined_tags
+        model_deployment_dsc_obj["freeform_tags"].update(freeform_tags)
+        model_deployment_obj.dsc_model_deployment = (
+            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+        )
+
+        mock_deployment.return_value = model_deployment_obj
+
+        mock_model.return_value = DataScienceModel.from_yaml(
+            uri=os.path.join(
+                self.curr_dir, "test_data/deployment/aqua_foundation_model.yaml"
+            )
+        )
+
+        mock_get_runtime_config_from_model_deployment.return_value = (
+            None,
+            None,
+            "dsmc://image-name:1.0.0.0",
+            "8080",
+            "8080",
+            {
+                "BASE_MODEL": "service_models/model-name/artifact",
+                "MODEL_DEPLOY_ENABLE_STREAMING": "true",
+                "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
+                "PARAMS": "--served-model-name odsc-llm --seed 42",
+            },
+            {**freeform_tags, **defined_tags},
+            [],
+        )
+
+        mock_update.return_value = model_deployment_obj
+
+        self.app.update(
+            **{
+                "deployment_id": TestDataset.MODEL_DEPLOYMENT_ID,
+                "display_name": "updated single model deployment",
+            }
+        )
+
+        mock_update.assert_called_with(wait_for_completion=False)
 
     @parameterized.expand(
         [
@@ -2052,7 +2130,7 @@ class TestAquaDeployment(unittest.TestCase):
                 for x in models
             ]
 
-            mock_create_deployment_details = CreateModelDeploymentDetails(
+            mock_create_deployment_details = ModelDeploymentCreateSpec(
                 models=aqua_models,
                 instance_shape=instance_shape,
                 display_name=display_name,
@@ -2060,7 +2138,7 @@ class TestAquaDeployment(unittest.TestCase):
             )
         else:
             model_id = "model_a"
-            mock_create_deployment_details = CreateModelDeploymentDetails(
+            mock_create_deployment_details = ModelDeploymentCreateSpec(
                 model_id=model_id,
                 instance_shape=instance_shape,
                 display_name=display_name,
