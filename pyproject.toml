@@ -107,13 +107,14 @@ notebook = ["ipython>=7.23.1, <8.0", "ipywidgets~=7.6.3"]
 onnx = [
   "lightgbm",
   "onnx>=1.12.0,<=1.15.0; python_version < '3.12'",  # v 1.15.0 set base on onnxrutime version and onnx opset support - https://onnxruntime.ai/docs/reference/compatibility.html#onnx-opset-support
-  "onnx>=1.12.0; python_version >= '3.12'",  # v 1.15.0 set base on onnxrutime version and onnx opset support - https://onnxruntime.ai/docs/reference/compatibility.html#onnx-opset-support
-  "onnxmltools>=1.10.0",
+  "onnx~=1.17.0; python_version >= '3.12'",  # v 1.15.0 set base on onnxrutime version and onnx opset support - https://onnxruntime.ai/docs/reference/compatibility.html#onnx-opset-support
+  "onnxmltools~=1.13.0",
   "onnxruntime~=1.17.0,!=1.16.0; python_version < '3.12'",  # v1.17.0 used in Oracle Database 23ai; avoid v1.16 https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
-  "onnxruntime>=1.17.0; python_version >= '3.12'",  # v1.17.0 used in Oracle Database 23ai; avoid v1.16 https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
+  "onnxruntime~=1.22.0; python_version >= '3.12'",  # v1.17.0 used in Oracle Database 23ai; avoid v1.16 https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
   "oracle_ads[viz]",
   "protobuf",
-  "skl2onnx>=1.10.4",
+  "skl2onnx>=1.10.4; python_version < '3.12'",
+  "skl2onnx~=1.18.0; python_version >= '3.12'",
   "tf2onnx",
   "xgboost<=1.7",
 ]
