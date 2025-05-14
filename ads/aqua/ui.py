@@ -102,11 +102,13 @@ class AquaUIApp(AquaApp):
         """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         logger.info(f"Loading Capacity reservations from compartment: {compartment_id}")
-        compute_client = oc.OCIClientFactory(**default_signer()).compute
-        reservations = compute_client.list_compute_capacity_reservations(
+
+        reservations = self.compute_client.list_compute_capacity_reservations(
             compartment_id=compartment_id, **kwargs
         )
-        return reservations.data
+        return sanitize_response(
+            oci_client=self.compute_client, response=reservations.data
+        )
 
     @telemetry(entry_point="plugin=ui&action=list_compartments", name="aqua")
     def list_compartments(self) -> str:

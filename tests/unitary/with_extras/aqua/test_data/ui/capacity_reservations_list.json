@@ -1,0 +1,15 @@
+[
+  {
+    "availability_domain": "<AD>",
+    "compartment_id": "ocid1.compartment.oc1..<OCID>",
+    "defined_tags": {},
+    "display_name": "test-reservation",
+    "freeform_tags": {},
+    "id": "ocid1.capacityreservation.oc1.iad...<OCID>",
+    "is_default_reservation": false,
+    "lifecycle_state": "ACTIVE",
+    "reserved_instance_count": 0,
+    "time_created": "2025-05-14T07:17:53.795000Z",
+    "used_instance_count": 0
+  }
+]
