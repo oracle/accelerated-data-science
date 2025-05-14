@@ -487,7 +487,7 @@ class TestDataset:
                 "model_name": "test_model_1",
                 "model_task": "text_embedding",
                 "artifact_location": "test_location_1",
-                "fine_tune_artifact" : None
+                "fine_tune_weights_location" : None
             },
             {
                 "env_var": {},
@@ -496,7 +496,7 @@ class TestDataset:
                 "model_name": "test_model_2",
                 "model_task": "image_text_to_text",
                 "artifact_location": "test_location_2",
-                "fine_tune_artifact" : None
+                "fine_tune_weights_location" : None
             },
             {
                 "env_var": {},
@@ -505,7 +505,7 @@ class TestDataset:
                 "model_name": "test_model_3",
                 "model_task": "code_synthesis",
                 "artifact_location": "test_location_3",
-                "fine_tune_artifact" : "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"
+                "fine_tune_weights_location" : "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"
             },
         ],
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
@@ -972,7 +972,7 @@ class TestDataset:
             "model_name": "model_one",
             "model_task": "text_embedding",
             "artifact_location": "artifact_location_one",
-            "fine_tune_artifact": None
+            "fine_tune_weights_location": None
         },
         {
             "env_var": {"--test_key_two": "test_value_two"},
@@ -981,7 +981,7 @@ class TestDataset:
             "model_name": "model_two",
             "model_task": "image_text_to_text",
             "artifact_location": "artifact_location_two",
-            "fine_tune_artifact": None
+            "fine_tune_weights_location": None
         },
         {
             "env_var": {"--test_key_three": "test_value_three"},
@@ -990,7 +990,7 @@ class TestDataset:
             "model_name": "model_three",
             "model_task": "code_synthesis",
             "artifact_location": "artifact_location_three",
-            "fine_tune_artifact" : "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"
+            "fine_tune_weights_location" : "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"
         },
     ]
 
@@ -1817,7 +1817,7 @@ class TestAquaDeployment(unittest.TestCase):
             model_task="code_synthesis",
             gpu_count=2,
             artifact_location="test_location_3",
-            fine_tune_artifact= "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"
+            fine_tune_weights_location= "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"
         )
 
         result = self.app.create(

@@ -209,7 +209,7 @@ class AquaDeploymentApp(AquaApp):
                 container_config=container_config,
             )
         else:
-            model_ids =[model.model_id for model in create_deployment_details.models]
+            model_ids = [model.model_id for model in create_deployment_details.models]
 
             try:
                 model_config_summary = self.get_multimodel_deployment_config(
@@ -366,7 +366,8 @@ class AquaDeploymentApp(AquaApp):
 
         if is_fine_tuned_model:
             config_source_id, model_name = extract_base_model_from_ft(aqua_model)
-            set_fine_tune_env_var(aqua_model, env_var=env_var)
+            _, fine_tune_output_path = set_fine_tune_env_var(aqua_model)
+            env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
 
         container_type_key = self._get_container_type_key(
             model=aqua_model,
@@ -623,8 +624,8 @@ class AquaDeploymentApp(AquaApp):
             if model.model_task:
                 config_data["model_task"] = model.model_task
 
-            if model.fine_tune_artifact:
-                config_data["fine_tune_path"] = model.fine_tune_artifact
+            if model.fine_tune_weights_location:
+                config_data["fine_tune_path"] = model.fine_tune_weights_location
 
             model_config.append(config_data)
             model_name_list.append(model.model_name)

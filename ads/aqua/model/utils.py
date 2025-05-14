@@ -31,7 +31,7 @@ def extract_base_model_from_ft(aqua_model: DataScienceModel) -> Tuple[str, str]:
     return config_source_id, model_name
 
 
-def set_fine_tune_env_var(aqua_model: DataScienceModel, env_var: Optional[Dict[str,str]], model: Optional[AquaMultiModelRef] = None) -> None:
+def set_fine_tune_env_var(aqua_model: DataScienceModel) -> Tuple[str, str]:
     """Extracts the fine tuning source (fine_tune_output_path).
     Sets the environment variable (env_var) of the fine tuned model to include FT_model (fine tuning source)"""
 
@@ -45,12 +45,6 @@ def set_fine_tune_env_var(aqua_model: DataScienceModel, env_var: Optional[Dict[s
     os_path = ObjectStorageDetails.from_path(fine_tune_output_path)
     fine_tune_output_path = os_path.filepath.rstrip("/")
 
-    # we add the correct artifact location when using FT in Multi Model Deployment
-    if model:
-        model.artifact_location = base_model_path # validated later in _create_multi method in deployment.py
-        model.fine_tune_artifact = fine_tune_output_path
-
-    else:
-        env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
+    return base_model_path, fine_tune_output_path
 
 

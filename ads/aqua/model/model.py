@@ -318,7 +318,7 @@ class AquaModelApp(AquaApp):
 
             if is_fine_tuned_model:
                 model.model_id, model.model_name = extract_base_model_from_ft(source_model)
-                set_fine_tune_env_var(source_model, model=model)
+                model.artifact_location, model.fine_tune_weights_location = set_fine_tune_env_var(source_model)
 
             display_name_list.append(display_name)
 

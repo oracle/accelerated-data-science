@@ -157,7 +157,7 @@ class AquaMultiModelRef(Serializable):
         Optional environment variables to override during deployment.
     artifact_location : Optional[str]
         Artifact path of model in the multimodel group.
-    fine_tune_artifact : Optional[str]
+    fine_tune_weights_location : Optional[str]
         For fine tuned models, the artifact path of the modified model weights
     """
 
@@ -173,7 +173,7 @@ class AquaMultiModelRef(Serializable):
     artifact_location: Optional[str] = Field(
         None, description="Artifact path of model in the multimodel group."
     )
-    fine_tune_artifact: Optional[str] = Field(
+    fine_tune_weights_location: Optional[str] = Field(
         None, description="For fine tuned models, the artifact path of the modified model weights"
     )
 
