@@ -628,7 +628,7 @@ class AquaDeploymentApp(AquaApp):
                 config_data["model_task"] = model.model_task
 
             if model.fine_tune_weights_location:
-                config_data["fine_tune_path"] = model.fine_tune_weights_location
+                config_data["fine_tune_weights_location"] = model.fine_tune_weights_location
 
             model_config.append(config_data)
             model_name_list.append(model.model_name)
