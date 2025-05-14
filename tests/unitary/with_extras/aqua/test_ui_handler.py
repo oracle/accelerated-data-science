@@ -50,6 +50,14 @@ class TestAquaUIHandler(unittest.TestCase):
         reload(ads.aqua)
         reload(ads.aqua.extension.ui_handler)
 
+    @patch("ads.aqua.ui.AquaUIApp.list_capacity_reservations")
+    def test_list_capacity_reservations(self, mock_list_reservations):
+        self.ui_handler.request.path = "aqua/capacityreservations"
+        self.ui_handler.get(id="")
+        mock_list_reservations.assert_called_with(
+            compartment_id=TestDataset.USER_COMPARTMENT_ID
+        )
+
     @patch("ads.aqua.ui.AquaUIApp.list_log_groups")
     def test_list_log_groups(self, mock_list_log_groups):
         """Test get method to fetch log groups"""
