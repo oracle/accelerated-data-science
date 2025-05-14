@@ -47,7 +47,7 @@ from ads.aqua.constants import (
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.constants import AquaModelMetadataKeys, ModelCustomMetadataFields
-from ads.aqua.model.utils import extract_base_model_from_ft, set_fine_tune_env_var
+from ads.aqua.model.utils import extract_base_model_from_ft, extract_fine_tune_artifacts_path
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentConfig,
@@ -366,7 +366,7 @@ class AquaDeploymentApp(AquaApp):
 
         if is_fine_tuned_model:
             config_source_id, model_name = extract_base_model_from_ft(aqua_model)
-            _, fine_tune_output_path = set_fine_tune_env_var(aqua_model)
+            _, fine_tune_output_path = extract_fine_tune_artifacts_path(aqua_model)
             env_var.update({"FT_MODEL": f"{fine_tune_output_path}"})
 
         container_type_key = self._get_container_type_key(

@@ -83,7 +83,7 @@ from ads.aqua.model.entities import (
     ModelValidationResult,
 )
 from ads.aqua.model.enums import MultiModelSupportedTaskType
-from ads.aqua.model.utils import extract_base_model_from_ft, set_fine_tune_env_var
+from ads.aqua.model.utils import extract_base_model_from_ft, extract_fine_tune_artifacts_path
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import (
@@ -318,7 +318,7 @@ class AquaModelApp(AquaApp):
 
             if is_fine_tuned_model:
                 model.model_id, model.model_name = extract_base_model_from_ft(source_model)
-                model.artifact_location, model.fine_tune_weights_location = set_fine_tune_env_var(source_model)
+                model.artifact_location, model.fine_tune_weights_location = extract_fine_tune_artifacts_path(source_model)
 
             display_name_list.append(display_name)
 
