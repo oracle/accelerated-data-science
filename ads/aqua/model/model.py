@@ -315,20 +315,21 @@ class AquaModelApp(AquaApp):
             #         "Currently only service models are supported for multi model deployment."
             #     )
 
-            # check if model is a fine-tuned model and if so, pass FT_MODEL info to model's
-            # env variables & set model_path to be the base model
+            # check if model is a fine-tuned model and if so, add the fine tuned weights path to the fine_tune_weights_location pydantic field
             is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG in source_model.freeform_tags
 
             if is_fine_tuned_model:
                 model.model_id, model.model_name = extract_base_model_from_ft(source_model)
-                model.artifact_location, model.fine_tune_weights_location = extract_fine_tune_artifacts_path(source_model)
+                model_artifact_path, model.fine_tune_weights_location = extract_fine_tune_artifacts_path(source_model)
+
+            else:
+                # Retrieve model artifact for base models
+                model_artifact_path = source_model.artifact
 
             display_name_list.append(display_name)
 
             self._extract_model_task(model, source_model)
 
-            # Retrieve model artifact
-            model_artifact_path = source_model.artifact
             if not model_artifact_path:
                 raise AquaValueError(
                     f"Model '{display_name}' (ID: {model.model_id}) has no artifacts. "
