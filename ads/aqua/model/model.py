@@ -83,7 +83,10 @@ from ads.aqua.model.entities import (
     ModelValidationResult,
 )
 from ads.aqua.model.enums import MultiModelSupportedTaskType
-from ads.aqua.model.utils import extract_base_model_from_ft, extract_fine_tune_artifacts_path
+from ads.aqua.model.utils import (
+    extract_base_model_from_ft,
+    extract_fine_tune_artifacts_path,
+)
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import (
