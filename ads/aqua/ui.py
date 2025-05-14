@@ -13,7 +13,7 @@ from ads.aqua import logger
 from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaResourceAccessError, AquaValueError
-from ads.aqua.common.utils import get_container_config, sanitize_response
+from ads.aqua.common.utils import sanitize_response
 from ads.aqua.config.container_config import AquaContainerConfig
 from ads.aqua.constants import PRIVATE_ENDPOINT_TYPE
 from ads.common import oci_client as oc
@@ -494,7 +494,6 @@ class AquaUIApp(AquaApp):
         AquaContainerConfig
             The AQUA containers configurations.
         """
-        return AquaContainerConfig.from_container_index_json(
-            config=get_container_config(),
-            enable_spec=True,
+        return AquaContainerConfig.from_service_config(
+            service_containers=self.list_service_containers()
         )

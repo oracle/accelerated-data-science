@@ -110,7 +110,7 @@ def check_for_model_id(msg: str = MODEL_NEEDS_TO_BE_SAVED):
 def convert_model_metadata_response(
     headers: Union[Dict, CaseInsensitiveDict], status: int
 ) -> ModelMetadataArtifactDetails:
-    return ModelMetadataArtifactDetails(headers=headers, status=str(status))
+    return ModelMetadataArtifactDetails(headers=dict(headers), status=str(status))
 
 
 class OCIDataScienceModel(

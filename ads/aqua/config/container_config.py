@@ -1,14 +1,20 @@
 #!/usr/bin/env python
 # Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
+import json
 from typing import Dict, List, Optional
 
+from oci.data_science.models import ContainerSummary
 from pydantic import Field
 
-from ads.aqua.common.entities import ContainerSpec
 from ads.aqua.config.utils.serializer import Serializable
+from ads.aqua.constants import (
+    SERVICE_MANAGED_CONTAINER_URI_SCHEME,
+    UNKNOWN_JSON_LIST,
+    UNKNOWN_JSON_STR,
+)
 from ads.common.extended_enum import ExtendedEnum
+from ads.common.utils import UNKNOWN
 
 
 class Usage(ExtendedEnum):
@@ -45,6 +51,9 @@ class AquaContainerConfigSpec(Serializable):
     )
     restricted_params: Optional[List[str]] = Field(
         default_factory=list, description="List of restricted parameters."
+    )
+    evaluation_configuration: Optional[Dict] = Field(
+        default_factory=dict, description="Dict of evaluation configuration."
     )
 
     class Config:
@@ -126,87 +135,114 @@ class AquaContainerConfig(Serializable):
         }
 
     @classmethod
-    def from_container_index_json(
-        cls,
-        config: Dict,
-        enable_spec: Optional[bool] = False,
+    def from_service_config(
+        cls, service_containers: List[ContainerSummary]
     ) -> "AquaContainerConfig":
         """
-        Creates an AquaContainerConfig instance from a container index JSON.
+        Creates an AquaContainerConfig instance from a service containers.conf.
 
         Parameters
         ----------
-        config (Optional[Dict]): The container index JSON.
-        enable_spec (Optional[bool]): If True, fetch container specification details.
-
+        service_containers (List[Any]):  List of containers specified in containers.conf
         Returns
         -------
         AquaContainerConfig: The constructed container configuration.
         """
-        # TODO: Return this logic back if necessary in the next iteraion.
-        # if not config:
-        #     config = get_container_config()
 
         inference_items: Dict[str, AquaContainerConfigItem] = {}
         finetune_items: Dict[str, AquaContainerConfigItem] = {}
         evaluate_items: Dict[str, AquaContainerConfigItem] = {}
-
-        for container_type, containers in config.items():
-            if isinstance(containers, list):
-                for container in containers:
-                    platforms = container.get("platforms", [])
-                    model_formats = container.get("modelFormats", [])
-                    usages = container.get("usages", [])
-                    container_spec = (
-                        config.get(ContainerSpec.CONTAINER_SPEC, {}).get(
-                            container_type, {}
+        for container in service_containers:
+            if not container.is_latest:
+                continue
+            container_item = AquaContainerConfigItem(
+                name=SERVICE_MANAGED_CONTAINER_URI_SCHEME + container.container_name,
+                version=container.tag,
+                display_name=container.display_name,
+                family=container.family_name,
+                usages=container.usages,
+                platforms=[],
+                model_formats=[],
+                spec=None,
+            )
+            container_type = container.family_name
+            usages = [x.upper() for x in container.usages]
+            if "INFERENCE" in usages or "MULTI_MODEL" in usages:
+                container_item.platforms.append(
+                    container.workload_configuration_details_list[
+                        0
+                    ].additional_configurations.get("platforms")
+                )
+                container_item.model_formats.append(
+                    container.workload_configuration_details_list[
+                        0
+                    ].additional_configurations.get("modelFormats")
+                )
+                env_vars = [
+                    {
+                        "MODEL_DEPLOY_PREDICT_ENDPOINT": container.workload_configuration_details_list[
+                            0
+                        ].additional_configurations.get(
+                            "MODEL_DEPLOY_PREDICT_ENDPOINT", UNKNOWN
                         )
-                        if enable_spec
-                        else None
-                    )
-                    container_item = AquaContainerConfigItem(
-                        name=container.get("name", ""),
-                        version=container.get("version", ""),
-                        display_name=container.get(
-                            "displayName", container.get("version", "")
-                        ),
-                        family=container_type,
-                        platforms=platforms,
-                        model_formats=model_formats,
-                        usages=usages,
-                        spec=(
-                            AquaContainerConfigSpec(
-                                cli_param=container_spec.get(
-                                    ContainerSpec.CLI_PARM, ""
-                                ),
-                                server_port=container_spec.get(
-                                    ContainerSpec.SERVER_PORT, ""
-                                ),
-                                health_check_port=container_spec.get(
-                                    ContainerSpec.HEALTH_CHECK_PORT, ""
-                                ),
-                                env_vars=container_spec.get(ContainerSpec.ENV_VARS, []),
-                                restricted_params=container_spec.get(
-                                    ContainerSpec.RESTRICTED_PARAMS, []
-                                ),
-                            )
-                            if container_spec
-                            else None
-                        ),
-                    )
-                    if container.get("type") == "inference":
-                        inference_items[container_type] = container_item
-                    elif (
-                        container.get("type") == "fine-tune"
-                        or container_type == "odsc-llm-fine-tuning"
-                    ):
-                        finetune_items[container_type] = container_item
-                    elif (
-                        container.get("type") == "evaluate"
-                        or container_type == "odsc-llm-evaluate"
-                    ):
-                        evaluate_items[container_type] = container_item
-
+                    },
+                    {
+                        "MODEL_DEPLOY_HEALTH_ENDPOINT": container.workload_configuration_details_list[
+                            0
+                        ].additional_configurations.get(
+                            "MODEL_DEPLOY_HEALTH_ENDPOINT", UNKNOWN
+                        )
+                    },
+                    {
+                        "MODEL_DEPLOY_ENABLE_STREAMING": container.workload_configuration_details_list[
+                            0
+                        ].additional_configurations.get(
+                            "MODEL_DEPLOY_ENABLE_STREAMING", UNKNOWN
+                        )
+                    },
+                    {
+                        "PORT": container.workload_configuration_details_list[
+                            0
+                        ].additional_configurations.get("PORT", "")
+                    },
+                    {
+                        "HEALTH_CHECK_PORT": container.workload_configuration_details_list[
+                            0
+                        ].additional_configurations.get("HEALTH_CHECK_PORT", UNKNOWN),
+                    },
+                ]
+                container_spec = AquaContainerConfigSpec(
+                    cli_param=container.workload_configuration_details_list[0].cmd,
+                    server_port=str(
+                        container.workload_configuration_details_list[0].server_port
+                    ),
+                    health_check_port=str(
+                        container.workload_configuration_details_list[
+                            0
+                        ].health_check_port
+                    ),
+                    env_vars=env_vars,
+                    restricted_params=json.loads(
+                        container.workload_configuration_details_list[
+                            0
+                        ].additional_configurations.get("restrictedParams")
+                        or UNKNOWN_JSON_LIST
+                    ),
+                    evaluation_configuration=json.loads(
+                        container.workload_configuration_details_list[
+                            0
+                        ].additional_configurations.get(
+                            "evaluationConfiguration", UNKNOWN_JSON_STR
+                        )
+                    ),
+                )
+                container_item.spec = container_spec
+            if "INFERENCE" in usages or "MULTI_MODEL" in usages:
+                inference_items[container_type] = container_item
+            if "FINE_TUNE" in usages:
+                finetune_items[container_type] = container_item
+            if "EVALUATION" in usages:
+                evaluate_items[container_type] = container_item
         return cls(
             inference=inference_items, finetune=finetune_items, evaluate=evaluate_items
         )

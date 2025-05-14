@@ -20,8 +20,8 @@ from ads.aqua.app import AquaApp
 from ads.aqua.common.enums import Resource, Tags
 from ads.aqua.common.errors import AquaFileExistsError, AquaValueError
 from ads.aqua.common.utils import (
+    DEFINED_METADATA_TO_FILE_MAP,
     build_pydantic_error_message,
-    get_container_image,
     upload_local_to_os,
 )
 from ads.aqua.constants import (
@@ -38,17 +38,18 @@ from ads.aqua.finetuning.constants import (
     FineTuneCustomMetadata,
 )
 from ads.aqua.finetuning.entities import (
+    AquaFineTuningConfig,
     AquaFineTuningParams,
     AquaFineTuningSummary,
     CreateFineTuningDetails,
 )
+from ads.aqua.model.constants import AquaModelMetadataKeys
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN, get_console_link
 from ads.config import (
     AQUA_FINETUNING_CONTAINER_OVERRIDE_FLAG_METADATA_NAME,
     AQUA_JOB_SUBNET_ID,
-    AQUA_MODEL_FINETUNING_CONFIG,
     COMPARTMENT_OCID,
     CONDA_BUCKET_NS,
     PROJECT_OCID,
@@ -57,6 +58,7 @@ from ads.jobs.ads_job import Job
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
+from ads.model.common.utils import MetadataArtifactPathType
 from ads.model.model_metadata import (
     MetadataTaxonomyKeys,
     ModelCustomMetadata,
@@ -312,8 +314,25 @@ class AquaFineTuningApp(AquaApp):
             compartment_id=target_compartment,
             project_id=target_project,
             model_by_reference=True,
-            defined_tags=create_fine_tuning_details.defined_tags
+            defined_tags=create_fine_tuning_details.defined_tags,
         )
+        defined_metadata_dict = {}
+        defined_metadata_list_source = source.defined_metadata_list._to_oci_metadata()
+        for defined_metadata in defined_metadata_list_source:
+            if (
+                defined_metadata.has_artifact
+                and defined_metadata.key.lower()
+                != AquaModelMetadataKeys.FINE_TUNING_CONFIGURATION.lower()
+            ):
+                content = self.ds_client.get_model_defined_metadatum_artifact_content(
+                    source.id, defined_metadata.key
+                ).data.content
+                defined_metadata_dict[defined_metadata.key] = content
+
+        for key, value in defined_metadata_dict.items():
+            ft_model.create_defined_metadata_artifact(
+                key, value, MetadataArtifactPathType.CONTENT
+            )
 
         ft_job_freeform_tags = {
             Tags.AQUA_TAG: UNKNOWN,
@@ -371,11 +390,11 @@ class AquaFineTuningApp(AquaApp):
             is_custom_container = True
 
         ft_parameters.batch_size = ft_parameters.batch_size or (
-            ft_config.get("shape", UNKNOWN_DICT)
+            (ft_config.shape if ft_config else UNKNOWN_DICT)
             .get(create_fine_tuning_details.shape_name, UNKNOWN_DICT)
             .get("batch_size", DEFAULT_FT_BATCH_SIZE)
         )
-        finetuning_params = ft_config.get("finetuning_params")
+        finetuning_params = ft_config.finetuning_params if ft_config else UNKNOWN
 
         ft_job.with_runtime(
             self._build_fine_tuning_runtime(
@@ -558,7 +577,7 @@ class AquaFineTuningApp(AquaApp):
     ) -> Runtime:
         """Builds fine tuning runtime for Job."""
         container = (
-            get_container_image(
+            self.get_container_image(
                 container_type=ft_container,
             )
             if not is_custom_container
@@ -626,7 +645,7 @@ class AquaFineTuningApp(AquaApp):
     @telemetry(
         entry_point="plugin=finetuning&action=get_finetuning_config", name="aqua"
     )
-    def get_finetuning_config(self, model_id: str) -> Dict:
+    def get_finetuning_config(self, model_id: str) -> AquaFineTuningConfig:
         """Gets the finetuning config for given Aqua model.
 
         Parameters
@@ -639,12 +658,25 @@ class AquaFineTuningApp(AquaApp):
         Dict:
             A dict of allowed finetuning configs.
         """
-        config = self.get_config(model_id, AQUA_MODEL_FINETUNING_CONFIG).config
+        config = self.get_config_from_metadata(
+            model_id, AquaModelMetadataKeys.FINE_TUNING_CONFIGURATION
+        ).config
+        if config:
+            logger.info(
+                f"Fetched {AquaModelMetadataKeys.FINE_TUNING_CONFIGURATION} from defined metadata for model: {model_id}."
+            )
+            return AquaFineTuningConfig(**(config or UNKNOWN_DICT))
+        config = self.get_config(
+            model_id,
+            DEFINED_METADATA_TO_FILE_MAP.get(
+                AquaModelMetadataKeys.FINE_TUNING_CONFIGURATION.lower()
+            ),
+        ).config
         if not config:
             logger.debug(
                 f"Fine-tuning config for custom model: {model_id} is not available. Use defaults."
             )
-        return config
+        return AquaFineTuningConfig(**(config or UNKNOWN_DICT))
 
     @telemetry(
         entry_point="plugin=finetuning&action=get_finetuning_default_params",
@@ -667,7 +699,9 @@ class AquaFineTuningApp(AquaApp):
         """
         default_params = {"params": {}}
         finetuning_config = self.get_finetuning_config(model_id)
-        config_parameters = finetuning_config.get("configuration", UNKNOWN_DICT)
+        config_parameters = (
+            finetuning_config.configuration if finetuning_config else UNKNOWN_DICT
+        )
         dataclass_fields = self._get_finetuning_params(
             config_parameters, validate=False
         ).to_dict()
