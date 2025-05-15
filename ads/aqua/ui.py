@@ -90,6 +90,26 @@ class AquaUIApp(AquaApp):
         res = self.logging_client.list_logs(log_group_id=log_group_id, **kwargs).data
         return sanitize_response(oci_client=self.logging_client, response=res)
 
+    @telemetry(entry_point="plugin=ui&action=list_capacity_reservations", name="aqua")
+    def list_capacity_reservations(self, **kwargs) -> list:
+        """
+        Lists users compute reservations in a specified compartment
+
+        Returns
+        -------
+            json representation of `oci.core.models.ComputeCapacityReservationSummary`.
+
+        """
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        logger.info(f"Loading Capacity reservations from compartment: {compartment_id}")
+
+        reservations = self.compute_client.list_compute_capacity_reservations(
+            compartment_id=compartment_id, **kwargs
+        )
+        return sanitize_response(
+            oci_client=self.compute_client, response=reservations.data
+        )
+
     @telemetry(entry_point="plugin=ui&action=list_compartments", name="aqua")
     def list_compartments(self) -> str:
         """Lists the compartments in a tenancy specified by TENANCY_OCID env variable. This is a pass through the OCI list_compartments
