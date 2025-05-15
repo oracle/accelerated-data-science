@@ -48,7 +48,7 @@ from ads.aqua.constants import (
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.finetuning import FineTuneCustomMetadata
 from ads.aqua.model import AquaModelApp
-from ads.aqua.model.constants import AquaModelMetadataKeys, ModelCustomMetadataFields
+from ads.aqua.model.constants import AquaModelMetadataKeys, ModelCustomMetadataFields, ModelType
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentConfig,
@@ -803,7 +803,10 @@ class AquaDeploymentApp(AquaApp):
         )
 
         # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
-        telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8), "custom_base_model": True}
+        telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
+
+        if Tags.BASE_MODEL_CUSTOM in tags:
+            telemetry_kwargs[ "custom_base_model"] = True
 
         # tracks unique deployments that were created in the user compartment
         self.telemetry.record_event_async(
@@ -1324,3 +1327,23 @@ class AquaDeploymentApp(AquaApp):
             )
             for oci_shape in oci_shapes
         ]
+    
+    def get_deployment_status(self,model_deployment_id: str, work_request_id : str) : 
+    #     category= "aqua/{model_type}/deployment/status", action= "FAILED/SUCCEEDED", detail="Error message from Work request", value= {"ocid": md_ocid[:8]}
+    # # tracks unique evaluation that were created for the given evaluation source
+    #     self.telemetry.record_event_async(
+    #         category="aqua/evaluation",
+    #         action="create",
+    #         detail=self._get_service_model_name(evaluation_source),
+    #     )
+    
+    
+        return 
+    
+    def get_deployment_status_async(self,model_deployment_id: str, work_request_id : str) : 
+        # tracks unique evaluation that were created for the given evaluation source
+        self.telemetry.record_event_async(
+            category="aqua/evaluation",
+            action="create",
+            detail=self._get_service_model_name(evaluation_source),
+        )
