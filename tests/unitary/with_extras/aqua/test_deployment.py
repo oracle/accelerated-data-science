@@ -19,22 +19,21 @@ from oci.data_science.models import (
 )
 from parameterized import parameterized
 
+import ads.aqua.modeldeployment.deployment
+import ads.config
+from ads.aqua.app import AquaApp
 from ads.aqua.common.entities import (
     AquaMultiModelRef,
     ComputeShapeSummary,
     ModelConfigResult,
 )
-from ads.aqua.app import AquaApp
-from ads.aqua.common.entities import ModelConfigResult
-import ads.aqua.modeldeployment.deployment
-import ads.config
-from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.config.container_config import (
-    AquaContainerConfigItem,
     AquaContainerConfig,
+    AquaContainerConfigItem,
 )
+from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
@@ -45,7 +44,6 @@ from ads.aqua.modeldeployment.entities import (
     ModelDeploymentConfigSummary,
     ModelParams,
 )
-from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
@@ -277,7 +275,7 @@ class TestDataset:
                         "environment_configuration_type": "OCIR_CONTAINER",
                         "environment_variables": {
                             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
-                            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/", "model_task": "text_embedding"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/", "model_task": "image_text_to_text"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/", "model_task": "code_synthesis"}]}',
+                            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/", "model_task": "text_embedding"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/", "model_task": "image_text_to_text"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/", "model_task": "code_synthesis", "fine_tune_weights_location": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"}]}',
                         },
                         "health_check_port": 8080,
                         "image": "dsmc://image-name:1.0.0.0",
@@ -489,6 +487,7 @@ class TestDataset:
                 "model_name": "test_model_1",
                 "model_task": "text_embedding",
                 "artifact_location": "test_location_1",
+                "fine_tune_weights_location" : None
             },
             {
                 "env_var": {},
@@ -497,6 +496,7 @@ class TestDataset:
                 "model_name": "test_model_2",
                 "model_task": "image_text_to_text",
                 "artifact_location": "test_location_2",
+                "fine_tune_weights_location" : None
             },
             {
                 "env_var": {},
@@ -505,12 +505,13 @@ class TestDataset:
                 "model_name": "test_model_3",
                 "model_task": "code_synthesis",
                 "artifact_location": "test_location_3",
+                "fine_tune_weights_location" : "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"
             },
         ],
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
-            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/", "model_task": "text_embedding"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/", "model_task": "image_text_to_text"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/", "model_task": "code_synthesis"}]}',
+            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/", "model_task": "text_embedding"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/", "model_task": "image_text_to_text"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/", "model_task": "code_synthesis", "fine_tune_weights_location": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"}]}',
         },
         "cmd": [],
         "console_link": "https://cloud.oracle.com/data-science/model-deployments/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>?region=region-name",
@@ -971,6 +972,7 @@ class TestDataset:
             "model_name": "model_one",
             "model_task": "text_embedding",
             "artifact_location": "artifact_location_one",
+            "fine_tune_weights_location": None
         },
         {
             "env_var": {"--test_key_two": "test_value_two"},
@@ -979,6 +981,7 @@ class TestDataset:
             "model_name": "model_two",
             "model_task": "image_text_to_text",
             "artifact_location": "artifact_location_two",
+            "fine_tune_weights_location": None
         },
         {
             "env_var": {"--test_key_three": "test_value_three"},
@@ -987,6 +990,7 @@ class TestDataset:
             "model_name": "model_three",
             "model_task": "code_synthesis",
             "artifact_location": "artifact_location_three",
+            "fine_tune_weights_location" : "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"
         },
     ]
 
@@ -1813,6 +1817,7 @@ class TestAquaDeployment(unittest.TestCase):
             model_task="code_synthesis",
             gpu_count=2,
             artifact_location="test_location_3",
+            fine_tune_weights_location= "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"
         )
 
         result = self.app.create(
