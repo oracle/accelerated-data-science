@@ -832,7 +832,9 @@ def get_params_dict(params: Union[str, List[str]]) -> dict:
     """
     params_list = get_params_list(params) if isinstance(params, str) else params
     return {
-        split_result[0]: split_result[1] if len(split_result) > 1 else UNKNOWN
+        split_result[0]: " ".join(split_result[1:])
+        if len(split_result) > 1
+        else UNKNOWN
         for split_result in (x.split() for x in params_list)
     }
 
@@ -881,7 +883,9 @@ def build_params_string(params: dict) -> str:
         A params string.
     """
     return (
-        " ".join(f"{name} {value}" for name, value in params.items()).strip()
+        " ".join(
+            f"{name} {value}" if value else f"{name}" for name, value in params.items()
+        ).strip()
         if params
         else UNKNOWN
     )
