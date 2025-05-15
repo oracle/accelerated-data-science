@@ -185,9 +185,9 @@ class OCIDataScienceModelDeployment(
                 self.id,
             )
 
+           
+            self.workflow_req_id = response.headers.get("opc-work-request-id", None)
             if wait_for_completion:
-                self.workflow_req_id = response.headers.get("opc-work-request-id", None)
-
                 try:
                     DataScienceWorkRequest(self.workflow_req_id).wait_work_request(
                         progress_bar_description="Activating model deployment",
