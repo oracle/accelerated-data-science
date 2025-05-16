@@ -22,7 +22,7 @@ from ads import set_auth
 from ads.aqua import logger
 from ads.aqua.common.entities import ModelConfigResult
 from ads.aqua.common.enums import ConfigFolder, Tags
-from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
+from ads.aqua.common.errors import AquaValueError
 from ads.aqua.common.utils import (
     _is_valid_mvs,
     get_artifact_path,
@@ -284,8 +284,12 @@ class AquaApp:
                 logger.info(f"Artifact not found in model {model_id}.")
                 return False
 
+    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=1), timer=datetime.now))
     def get_config_from_metadata(
-        self, model_id: str, metadata_key: str
+        self,
+        model_id: str,
+        metadata_key: str,
+        oci_model: oci.data_science.models.Model = None,
     ) -> ModelConfigResult:
         """Gets the config for the given Aqua model from model catalog metadata content.
 
@@ -295,13 +299,17 @@ class AquaApp:
             The OCID of the Aqua model.
         metadata_key: str
             The metadata key name where artifact content is stored
+        oci_model: oci.data_science.models.Model
+            The OCI Model details
         Returns
         -------
         ModelConfigResult
             A Pydantic model containing the model_details (extracted from OCI) and the config dictionary.
         """
-        config = {}
-        oci_model = self.ds_client.get_model(model_id).data
+        config: Dict[str, Any] = {}
+        if not oci_model:
+            oci_model = self.ds_client.get_model(model_id).data
+
         try:
             config = self.ds_client.get_model_defined_metadatum_artifact_content(
                 model_id, metadata_key
@@ -327,6 +335,7 @@ class AquaApp:
         model_id: str,
         config_file_name: str,
         config_folder: Optional[str] = ConfigFolder.CONFIG,
+        oci_model: oci.data_science.models.Model = None,
     ) -> ModelConfigResult:
         """
         Gets the configuration for the given Aqua model along with the model details.
@@ -340,14 +349,20 @@ class AquaApp:
         config_folder : Optional[str]
             The subfolder path where config_file_name is searched.
             Defaults to ConfigFolder.CONFIG. For model artifact directories, use ConfigFolder.ARTIFACT.
+        oci_model: oci.data_science.models.Model
+            The OCI Model details
 
         Returns
         -------
         ModelConfigResult
             A Pydantic model containing the model_details (extracted from OCI) and the config dictionary.
         """
+        config: Dict[str, Any] = {}
+
+        if not oci_model:
+            oci_model = self.ds_client.get_model(model_id).data
+
         config_folder = config_folder or ConfigFolder.CONFIG
-        oci_model = self.ds_client.get_model(model_id).data
         oci_aqua = (
             (
                 Tags.AQUA_TAG in oci_model.freeform_tags
@@ -357,9 +372,10 @@ class AquaApp:
             else False
         )
         if not oci_aqua:
-            raise AquaRuntimeError(f"Target model {oci_model.id} is not an Aqua model.")
+            logger.debug(f"Target model {oci_model.id} is not an Aqua model.")
+            return ModelConfigResult(config=config, model_details=oci_model)
+            # raise AquaRuntimeError(f"Target model {oci_model.id} is not an Aqua model.")
 
-        config: Dict[str, Any] = {}
         artifact_path = get_artifact_path(oci_model.custom_metadata_list)
         if not artifact_path:
             logger.debug(
