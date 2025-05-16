@@ -16,8 +16,26 @@ class TestCommonUtils:
                 {"odsc-vllm-serving", "odsc-vllm-serving-v1"},
                 "odsc-vllm-serving-v1",
             ),
+            (
+                {"odsc-vllm-serving", "odsc-vllm-serving-llama4"},
+                "odsc-vllm-serving-llama4",
+            ),
+            (
+                {"odsc-vllm-serving-v1", "odsc-vllm-serving-llama4"},
+                "odsc-vllm-serving-llama4",
+            ),
+            (
+                {
+                    "odsc-vllm-serving",
+                    "odsc-vllm-serving-v1",
+                    "odsc-vllm-serving-llama4",
+                },
+                "odsc-vllm-serving-llama4",
+            ),
             ({"odsc-tgi-serving", "odsc-vllm-serving"}, None),
             ({"non-existing-one", "odsc-tgi-serving"}, None),
+            ({"odsc-tgi-serving", "odsc-vllm-serving-llama4"}, None),
+            ({"odsc-tgi-serving", "odsc-vllm-serving-v1"}, None),
         ],
     )
     def test_get_preferred_compatible_family(self, input_families, expected):
