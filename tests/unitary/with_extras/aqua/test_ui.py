@@ -606,7 +606,7 @@ class TestAquaUI(unittest.TestCase):
                         "cli_param": "--served-model-name odsc-llm --disable-custom-all-reduce --seed 42 ",
                         "env_vars": [
                             {"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"},
-                            {"MODEL_DEPLOY_HEALTH_ENDPOINT": ""},
+                            # {"MODEL_DEPLOY_HEALTH_ENDPOINT": ""},
                             {"MODEL_DEPLOY_ENABLE_STREAMING": "true"},
                             {"PORT": "8080"},
                             {"HEALTH_CHECK_PORT": "8080"},
