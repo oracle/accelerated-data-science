@@ -252,14 +252,11 @@ class MultiModelDeploymentConfigLoader:
                 base_model_id,
             )
             model_id = base_model_id
-            oci_model = self.deployment_app.ds_client.get_model(model_id).data
 
         # Attempt to retrieve config from metadata
         metadata_key = AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION
         config = self.deployment_app.get_config_from_metadata(
-            model_id=model_id,
-            metadata_key=metadata_key,
-            oci_model=oci_model,
+            model_id=model_id, metadata_key=metadata_key
         )
 
         if config and config.config:
@@ -277,9 +274,7 @@ class MultiModelDeploymentConfigLoader:
             model_id,
         )
         config = self.deployment_app.get_config(
-            model_id=model_id,
-            config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG,
-            oci_model=oci_model,
+            model_id=model_id, config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG
         )
 
         if config and config.config:
@@ -288,7 +283,7 @@ class MultiModelDeploymentConfigLoader:
                 model_id,
             )
 
-        return config or ModelConfigResult(config={}, model_details=oci_model)
+        return config or ModelConfigResult()
 
     def _extract_model_shape_gpu(
         self,
