@@ -316,11 +316,17 @@ class AquaModelApp(AquaApp):
             #     )
 
             # check if model is a fine-tuned model and if so, add the fine tuned weights path to the fine_tune_weights_location pydantic field
-            is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG in source_model.freeform_tags
+            is_fine_tuned_model = (
+                Tags.AQUA_FINE_TUNED_MODEL_TAG in source_model.freeform_tags
+            )
 
             if is_fine_tuned_model:
-                model.model_id, model.model_name = extract_base_model_from_ft(source_model)
-                model_artifact_path, model.fine_tune_weights_location = extract_fine_tune_artifacts_path(source_model)
+                model.model_id, model.model_name = extract_base_model_from_ft(
+                    source_model
+                )
+                model_artifact_path, model.fine_tune_weights_location = (
+                    extract_fine_tune_artifacts_path(source_model)
+                )
 
             else:
                 # Retrieve model artifact for base models
@@ -380,7 +386,8 @@ class AquaModelApp(AquaApp):
                 raise AquaValueError(
                     "The selected models are associated with different container families: "
                     f"{list(selected_models_deployment_containers)}."
-                    "For multi-model deployment, all models in the group must share the same container family."
+                    "For multi-model deployment, all models in the group must belong to the same container "
+                    "family or to compatible container families."
                 )
         else:
             deployment_container = selected_models_deployment_containers.pop()
