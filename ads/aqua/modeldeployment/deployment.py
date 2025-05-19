@@ -51,16 +51,18 @@ from ads.aqua.model.utils import (
     extract_base_model_from_ft,
     extract_fine_tune_artifacts_path,
 )
+from ads.aqua.modeldeployment.config_loader import (
+    AquaDeploymentConfig,
+    ConfigurationItem,
+    ModelDeploymentConfigSummary,
+    MultiModelDeploymentConfigLoader,
+)
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
-    AquaDeploymentConfig,
     AquaDeploymentDetail,
-    ConfigurationItem,
     ConfigValidationError,
     CreateModelDeploymentDetails,
-    ModelDeploymentConfigSummary,
 )
-from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN, get_log_links
 from ads.config import (
@@ -628,7 +630,9 @@ class AquaDeploymentApp(AquaApp):
                 config_data["model_task"] = model.model_task
 
             if model.fine_tune_weights_location:
-                config_data["fine_tune_weights_location"] = model.fine_tune_weights_location
+                config_data["fine_tune_weights_location"] = (
+                    model.fine_tune_weights_location
+                )
 
             model_config.append(config_data)
             model_name_list.append(model.model_name)
@@ -789,7 +793,7 @@ class AquaDeploymentApp(AquaApp):
         telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
 
         if Tags.BASE_MODEL_CUSTOM in tags:
-            telemetry_kwargs[ "custom_base_model"] = True
+            telemetry_kwargs["custom_base_model"] = True
 
         # tracks unique deployments that were created in the user compartment
         self.telemetry.record_event_async(
