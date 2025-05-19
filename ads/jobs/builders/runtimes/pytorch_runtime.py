@@ -1,19 +1,19 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from ads.jobs.builders.runtimes.artifact import PythonArtifact, GitPythonArtifact
+from ads.jobs.builders.runtimes.artifact import GitPythonArtifact, PythonArtifact
 from ads.jobs.builders.runtimes.base import MultiNodeRuntime
 from ads.jobs.builders.runtimes.python_runtime import (
-    PythonRuntime,
     GitPythonRuntime,
+    PythonRuntime,
 )
 
 
 class PyTorchDistributedRuntime(PythonRuntime, MultiNodeRuntime):
     """Represents runtime supporting PyTorch Distributed training."""
+
     CONST_GIT = "git"
     CONST_INPUT = "inputs"
     CONST_DEP = "dependencies"
@@ -169,13 +169,11 @@ class PyTorchDistributedRuntime(PythonRuntime, MultiNodeRuntime):
     def command(self):
         """The command for launching the workload."""
         return self.get_spec(self.CONST_COMMAND)
-    
+
     @property
     def use_deepspeed(self):
         """Indicate whether whether to configure deepspeed for multi-node workload"""
-        if self.get_spec(self.CONST_DEEPSPEED):
-            return True
-        return False
+        return bool(self.get_spec(self.CONST_DEEPSPEED))
 
 
 class PyTorchDistributedArtifact(PythonArtifact):

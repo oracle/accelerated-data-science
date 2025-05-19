@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import contextlib
 import importlib
 import json
 import logging
 import os
+import re
 import runpy
 import shlex
 import stat
@@ -20,9 +21,7 @@ from typing import List, Optional
 from urllib import request
 from urllib.parse import urlparse
 
-
 import oci
-
 
 CONST_ENV_LOG_LEVEL = "OCI_LOG_LEVEL"
 CONST_ENV_WORKING_DIR = "WORKING_DIR"
@@ -185,8 +184,8 @@ class OCIHelper:
 
     @staticmethod
     def copy_outputs(
-        output_dir: str = os.environ.get("OUTPUT_DIR"),
-        output_uri: str = os.environ.get("OUTPUT_URI"),
+        output_dir: str = os.environ.get(CONST_ENV_OUTPUT_DIR),
+        output_uri: str = os.environ.get(CONST_ENV_OUTPUT_URI),
     ) -> List[str]:
         """Copies the output files to remote URI.
 
@@ -348,12 +347,18 @@ class JobRunner:
             The path to the directory containing the user code.
         """
         logger.info("Job Run ID is: %s", os.environ.get(CONST_ENV_JOB_RUN_OCID))
+        if "VM_ID" in os.environ:
+            logger.debug("VM_ID: %s", os.environ["VM_ID"])
         self.code_dir = code_dir
         self.conda_prefix = sys.executable.split("/bin/python", 1)[0]
 
     @staticmethod
     def run_command(
-        command: str, conda_prefix: str = None, level: Optional[int] = None, check=False
+        command: str,
+        conda_prefix: str = None,
+        level: Optional[int] = None,
+        check: bool = False,
+        envs: Optional[dict] = None,
     ) -> int:
         """Runs a shell command and logs the outputs with specific log level.
 
@@ -369,6 +374,7 @@ class JobRunner:
             If this is set to a log level from logging, e.g. logging.DEBUG,
             the command outputs will be logged with the level.
             If this is None, the command outputs will be printed.
+        check : bool
 
         Returns
         -------
@@ -389,11 +395,14 @@ class JobRunner:
             )
         else:
             cmd = command
+        process_envs = os.environ.copy()
+        if envs:
+            process_envs.update(envs)
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            env=os.environ.copy(),
+            env=process_envs,
             shell=True,
         )
         # Stream the outputs
@@ -403,7 +412,7 @@ class JobRunner:
             if process.poll() is not None and output == b"":
                 break
             if output:
-                msg = output.decode()
+                msg = output.decode(errors="replace")
                 if level is None:
                     # output already contains the line break
                     print(msg, flush=True, end="")
@@ -412,9 +421,15 @@ class JobRunner:
                     # logging will add line break
                     msg = msg.rstrip("\n")
                     logger.log(level=level, msg=msg)
-                if "pdsh@" in msg and "ssh exited with exit code 1" in msg:
-                    print("DeepSpeed Failed.")
-                    sys.exit(1)
+                if "pdsh@" in msg and "ssh exited with exit code" in msg:
+                    codes = re.findall(r"\d+", msg)
+                    if codes and len(codes) > 0:
+                        code = codes[-1]
+                        logger.info("DeepSpeed Failed with exit code %s", code)
+                    else:
+                        code = 1
+                        logger.error("Deepspeed Failed.")
+                    sys.exit(int(code))
             # Add a small delay so that
             # outputs from the subsequent code will have different timestamp for oci logging
             time.sleep(0.02)
@@ -422,6 +437,7 @@ class JobRunner:
             "subprocess %s returned exit code %s", process.pid, process.returncode
         )
         if check and process.returncode != 0:
+            logger.error("Command %s exited with code %s.", cmd, process.returncode)
             # If there is an error, exit the main process with the same return code.
             sys.exit(process.returncode)
         return process.returncode
