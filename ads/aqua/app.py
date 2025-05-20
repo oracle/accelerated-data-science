@@ -67,8 +67,6 @@ class AquaApp:
         self._md_auth = default_signer({"service_endpoint": OCI_MD_SERVICE_ENDPOINT})
         self.ds_client = oc.OCIClientFactory(**self._auth).data_science
         self.compute_client = oc.OCIClientFactory(**default_signer()).compute
-        print("self._md_auth: ", self._md_auth)
-        print("OCI_MD_SERVICE_ENDPOINT: ", OCI_MD_SERVICE_ENDPOINT)
         self.model_deployment_client = oc.OCIClientFactory(
             **self._md_auth
         ).model_deployment

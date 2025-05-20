@@ -628,7 +628,9 @@ class AquaDeploymentApp(AquaApp):
                 config_data["model_task"] = model.model_task
 
             if model.fine_tune_weights_location:
-                config_data["fine_tune_weights_location"] = model.fine_tune_weights_location
+                config_data["fine_tune_weights_location"] = (
+                    model.fine_tune_weights_location
+                )
 
             model_config.append(config_data)
             model_name_list.append(model.model_name)
@@ -789,7 +791,7 @@ class AquaDeploymentApp(AquaApp):
         telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
 
         if Tags.BASE_MODEL_CUSTOM in tags:
-            telemetry_kwargs[ "custom_base_model"] = True
+            telemetry_kwargs["custom_base_model"] = True
 
         # tracks unique deployments that were created in the user compartment
         self.telemetry.record_event_async(
@@ -1310,3 +1312,56 @@ class AquaDeploymentApp(AquaApp):
             )
             for oci_shape in oci_shapes
         ]
+
+    @staticmethod
+    def _stream_sanitizer(response):
+        for chunk in response.data.raw.stream(1024 * 1024, decode_content=True):
+            if not chunk:
+                continue
+
+            try:
+                decoded = chunk.decode("utf-8").strip()
+                if not decoded.startswith("data:"):
+                    continue
+
+                data_json = decoded[len("data:") :].strip()
+                parsed = json.loads(data_json)
+                text = parsed["choices"][0]["text"]
+                yield text
+
+            except Exception:
+                continue
+
+    @telemetry(entry_point="plugin=inference&action=get_response", name="aqua")
+    def get_model_deployment_response(self, model_deployment_id: str, payload: dict):
+        """
+        Returns Model deployment inference response in streaming fashion
+
+        Parameters
+        ----------
+        model_deployment_id: str
+            Model deployment ocid
+        payload: dict
+            model params.
+                {
+                "max_tokens": 1024,
+                "temperature": 0.5,
+                "prompt": "what are some good skills deep learning expert. Give us some tips on how to structure interview with some coding example?",
+                "top_p": 0.4,
+                "top_k": 100,
+                "model": "odsc-llm",
+                "frequency_penalty": 1,
+                "presence_penalty": 1,
+                "stream": true
+                }
+
+        Returns
+        -------
+        Model deployment inference response in streaming fashion
+
+        """
+
+        response = self.model_deployment_client.predict_with_response_stream(
+            model_deployment_id=model_deployment_id, request_body=payload
+        )
+        yield from self._stream_sanitizer(response)
