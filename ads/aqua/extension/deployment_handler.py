@@ -5,6 +5,7 @@
 from typing import List, Union
 from urllib.parse import urlparse
 
+from tornado.iostream import StreamClosedError
 from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
@@ -175,21 +176,9 @@ class AquaDeploymentHandler(AquaAPIhandler):
         )
 
 
-class AquaDeploymentInferenceHandler(AquaAPIhandler):
-    @staticmethod
-    def validate_predict_url(endpoint):
-        try:
-            url = urlparse(endpoint)
-            if url.scheme != "https":
-                return False
-            if not url.netloc:
-                return False
-            return url.path.endswith("/predict")
-        except Exception:
-            return False
-
+class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
     @handle_exceptions
-    def post(self, *args, **kwargs):  # noqa: ARG002
+    async def post(self, *args, **kwargs):  # noqa: ARG002
         """
         Handles inference request for the Active Model Deployments
         Raises
@@ -205,12 +194,7 @@ class AquaDeploymentInferenceHandler(AquaAPIhandler):
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)
 
-        endpoint = input_data.get("endpoint")
-        if not endpoint:
-            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("endpoint"))
-
-        if not self.validate_predict_url(endpoint):
-            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT.format("endpoint"))
+        model_deployment_id = input_data.get("id")
 
         prompt = input_data.get("prompt")
         if not prompt:
@@ -226,11 +210,24 @@ class AquaDeploymentInferenceHandler(AquaAPIhandler):
                 400, Errors.INVALID_INPUT_DATA_FORMAT.format("model_params")
             ) from ex
 
-        return self.finish(
-            MDInferenceResponse(prompt, model_params_obj).get_model_deployment_response(
-                endpoint
-            )
-        )
+        self.set_header("Content-Type", "text/event-stream")
+        self.set_header("Cache-Control", "no-cache")
+        self.set_header("Transfer-Encoding", "chunked")
+        await self.flush()
+
+        try:
+            response_gen = MDInferenceResponse(
+                prompt, model_params_obj
+            ).get_model_deployment_response(model_deployment_id)
+            for chunk in response_gen:
+                if not chunk:
+                    continue
+                self.write(f"data: {chunk}\n\n")
+                await self.flush()
+        except StreamClosedError:
+            self.log.warning("Client disconnected.")
+        finally:
+            self.finish()
 
 
 class AquaDeploymentParamsHandler(AquaAPIhandler):
@@ -294,5 +291,5 @@ __handlers__ = [
     ("deployments/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)/activate", AquaDeploymentHandler),
     ("deployments/?([^/]*)/deactivate", AquaDeploymentHandler),
-    ("inference", AquaDeploymentInferenceHandler),
+    ("inference", AquaDeploymentStreamingInferenceHandler),
 ]

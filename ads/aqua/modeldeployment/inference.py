@@ -4,17 +4,12 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
-from dataclasses import dataclass, field
-
-import requests
 
 from ads.aqua.app import AquaApp
 from ads.aqua.modeldeployment.entities import ModelParams
-from ads.common.auth import default_signer
 from ads.telemetry import telemetry
 
 
-@dataclass
 class MDInferenceResponse(AquaApp):
     """Contains APIs for Aqua Model deployments Inference.
 
@@ -30,11 +25,32 @@ class MDInferenceResponse(AquaApp):
         Creates an instance of model deployment via Aqua
     """
 
-    prompt: str = None
-    model_params: field(default_factory=ModelParams) = None
+    def __init__(self, prompt=None, model_params=None):
+        super().__init__()
+        self.prompt = prompt
+        self.model_params = model_params or ModelParams()
+
+    @staticmethod
+    def stream_sanitizer(response):
+        for chunk in response.data.raw.stream(1024 * 1024, decode_content=True):
+            if not chunk:
+                continue
+
+            try:
+                decoded = chunk.decode("utf-8").strip()
+                if not decoded.startswith("data:"):
+                    continue
+
+                data_json = decoded[len("data:") :].strip()
+                parsed = json.loads(data_json)
+                text = parsed["choices"][0]["text"]
+                yield text
+
+            except Exception:
+                continue
 
     @telemetry(entry_point="plugin=inference&action=get_response", name="aqua")
-    def get_model_deployment_response(self, endpoint):
+    def get_model_deployment_response(self, model_deployment_id):
         """
         Returns MD inference response
 
@@ -67,8 +83,9 @@ class MDInferenceResponse(AquaApp):
             key: value for key, value in params_dict.items() if value is not None
         }
         body = {"prompt": self.prompt, **params_dict}
-        request_kwargs = {"json": body, "headers": {"Content-Type": "application/json"}}
-        response = requests.post(
-            endpoint, auth=default_signer()["signer"], **request_kwargs
+        response = self.model_deployment_client.predict_with_response_stream(
+            model_deployment_id=model_deployment_id, request_body=body
         )
-        return json.loads(response.content)
+
+        for chunk in MDInferenceResponse.stream_sanitizer(response):
+            yield chunk

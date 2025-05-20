@@ -18,6 +18,7 @@ from oci.identity import IdentityClient
 from oci.limits import LimitsClient
 from oci.logging import LoggingManagementClient
 from oci.marketplace import MarketplaceClient
+from oci.model_deployment import ModelDeploymentClient
 from oci.object_storage import ObjectStorageClient
 from oci.resource_search import ResourceSearchClient
 from oci.secrets import SecretsClient
@@ -69,6 +70,7 @@ class OCIClientFactory:
             "vault": VaultsClient,
             "identity": IdentityClient,
             "compute": ComputeClient,
+            "model_deployment": ModelDeploymentClient,
             "ai_language": AIServiceLanguageClient,
             "data_labeling_dp": DataLabelingClient,
             "data_labeling_cp": DataLabelingManagementClient,
@@ -113,6 +115,10 @@ class OCIClientFactory:
     @property
     def object_storage(self):
         return self.create_client("object_storage")
+
+    @property
+    def model_deployment(self):
+        return self.create_client("model_deployment")
 
     @property
     def compute(self):
