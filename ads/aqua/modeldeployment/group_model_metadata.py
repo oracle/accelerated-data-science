@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from pydantic import BaseModel, Field, field_validator
 from typing_extensions import Self
@@ -28,6 +28,7 @@ from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN
 
 __all__ = ["GroupModelDeploymentMetadata"]
+
 
 
 class FineTunedModelSpec(BaseModel):
@@ -72,16 +73,22 @@ class BaseModelSpec(BaseModel):
 
     @field_validator("model_path")
     @classmethod
-    def clean_artifact_path(cls, artifact_path_prefix: str):
+    def clean_artifact_path(cls, artifact_path_prefix: str) -> str:
+        """ Validates and cleans the file path for model_path parameter. """
         if ObjectStorageDetails.is_oci_path(artifact_path_prefix):
             os_path = ObjectStorageDetails.from_path(artifact_path_prefix)
             artifact_path_prefix = os_path.filepath.rstrip("/")
             return artifact_path_prefix
 
+        raise AquaValueError(
+                "The base model path is not available in the model artifact."
+            )
+
 
     @field_validator("fine_tuned_weights")
     @classmethod
     def set_fine_tuned_weights(cls, fine_tuned_weights: List[FineTunedModelSpec]):
+        """ Removes duplicate LoRA Modules (duplicate model_names in fine_tuned_weights) """
         seen_modules = set()
         unique_modules: List[FineTunedModelSpec] = []
 
@@ -97,9 +104,12 @@ class BaseModelSpec(BaseModel):
 
     @classmethod
     def from_aqua_multi_model_ref(cls, model: AquaMultiModelRef, model_params) -> Self:
-
+        """ Converts AquaMultiModelRef to BaseModelSpec. Fields are validated using @field_validator methods above. """
         if model.fine_tune_weights:
             ft_modules = [FineTunedModelSpec(**lora_module) for lora_module in model.fine_tune_weights]
+
+        else:
+            ft_modules = []
 
         return cls(
             model_path = model.artifact_location,
@@ -124,7 +134,8 @@ class GroupModelDeploymentMetadata(Serializable):
     )
 
     @staticmethod
-    def extract_model_params(model: AquaMultiModelRef, container_params, container_type_key):
+    def extract_model_params(model: AquaMultiModelRef, container_params, container_type_key) -> Tuple[str,str]:
+        """ """
         user_params = build_params_string(model.env_var)
         if user_params:
             restricted_params = find_restricted_params(
@@ -147,16 +158,15 @@ class GroupModelDeploymentMetadata(Serializable):
 
         return user_params, params
 
-    # finds the corresponding deployment parameters based on the gpu count
-    # and combines them with user's parameters. Existing deployment parameters
-    # will be overriden by user's parameters.
     @staticmethod
     def merge_gpu_count_params(model: AquaMultiModelRef,
                                 model_config_summary: ModelDeploymentConfigSummary,
                                 create_deployment_details: CreateModelDeploymentDetails,
                                 container_type_key: str,
                                 container_params):
-
+        """ Finds the corresponding deployment parameters based on the GPU count
+            and combines them with user's parameters. Existing deployment parameters
+            will be overriden by user's parameters."""
         user_params, params = GroupModelDeploymentMetadata.extract_model_params(model, container_params, container_type_key)
 
         deployment_config = model_config_summary.deployment_config.get(
