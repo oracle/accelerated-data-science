@@ -46,8 +46,7 @@ Sync Usage
     client = Client(endpoint="https://<MD_OCID>/predict")
     response = client.chat(
         messages=[{"role": "user", "content": "Tell me a joke."}],
-        payload={"model": "odsc-llm"},
-        stream=False,
+        payload={"model": "odsc-llm"}
     )
     print(response)
 
@@ -58,7 +57,7 @@ Sync Usage
     from ads.aqua import Client
     ads.set_auth(auth="security_token", profile="<replace-with-your-profile>")
 
-    client = Client(endpoint="https://<MD_OCID>/predict")
+    client = Client(endpoint="https://<MD_OCID>/predictWithResponseStream")
     response = client.chat(
         messages=[{"role": "user", "content": "Tell me a joke."}],
         payload={"model": "odsc-llm"},
@@ -97,8 +96,7 @@ The following examples demonstrate how to perform the same operations using the 
     client = AsyncClient(endpoint="https://<MD_OCID>/predict")
     response = await client.generate(
         prompt="Tell me a joke",
-        payload={"model": "odsc-llm"},
-        stream=False,
+        payload={"model": "odsc-llm"}
     )
     print(response)
 
@@ -109,7 +107,7 @@ The following examples demonstrate how to perform the same operations using the 
     from ads.aqua import AsyncClient
     ads.set_auth(auth="security_token", profile="<replace-with-your-profile>")
 
-    client = AsyncClient(endpoint="https://<MD_OCID>/predict")
+    client = AsyncClient(endpoint="https://<MD_OCID>/predictWithResponseStream")
     async for chunk in await client.generate(
         prompt="Tell me a joke",
         payload={"model": "odsc-llm"},
@@ -225,10 +223,32 @@ The synchronous client, ``OpenAI``, extends the OpenAI client. If no HTTP client
                 "content": "Tell me a joke.",
             }
         ],
-        # stream=True, # enable for streaming
     )
 
     print(response)
+
+**Streaming**
+For streaming, a dedicated endpoint must be used: ``/predictWithResponseStream``.
+
+.. code-block:: python
+
+    client = OpenAI(
+            base_url="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<OCID>/predictWithResponseStream/v1",
+        )
+
+    response = client.chat.completions.create(
+        model="odsc-llm",
+        messages=[
+            {
+                "role": "user",
+                "content": "Tell me a joke.",
+            }
+        ],
+        stream=True
+    )
+
+    for chunk in response:
+        print(chunk)
 
 
 **Asynchronous Client**
@@ -246,7 +266,7 @@ The asynchronous client, ``AsynOpenAI``, extends the AsyncOpenAI client. If no a
 
     async def test_async() -> None:
         client_async = AsyncOpenAI(
-            base_url="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<OCID>/predict/v1",
+            base_url="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<OCID>/predictWithResponseStream/v1",
         )
         response = await client_async.chat.completions.create(
             model="odsc-llm",
