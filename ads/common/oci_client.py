@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -18,7 +18,6 @@ from oci.identity import IdentityClient
 from oci.limits import LimitsClient
 from oci.logging import LoggingManagementClient
 from oci.marketplace import MarketplaceClient
-from oci.model_deployment import ModelDeploymentClient
 from oci.object_storage import ObjectStorageClient
 from oci.resource_search import ResourceSearchClient
 from oci.secrets import SecretsClient
@@ -70,7 +69,6 @@ class OCIClientFactory:
             "vault": VaultsClient,
             "identity": IdentityClient,
             "compute": ComputeClient,
-            "model_deployment": ModelDeploymentClient,
             "ai_language": AIServiceLanguageClient,
             "data_labeling_dp": DataLabelingClient,
             "data_labeling_cp": DataLabelingManagementClient,
@@ -115,10 +113,6 @@ class OCIClientFactory:
     @property
     def object_storage(self):
         return self.create_client("object_storage")
-
-    @property
-    def model_deployment(self):
-        return self.create_client("model_deployment")
 
     @property
     def compute(self):
