@@ -169,7 +169,7 @@ class AquaMultiModelRef(Serializable):
         Optional environment variables to override during deployment.
     artifact_location : Optional[str]
         Artifact path of model in the multimodel group.
-    fine_tune_weights : Optional[str]
+    fine_tune_weights : Optional[List[LoraModule]]
         For fine tuned models, the artifact path of the modified model weights
     """
 
