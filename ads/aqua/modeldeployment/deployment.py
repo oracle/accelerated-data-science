@@ -1316,25 +1316,6 @@ class AquaDeploymentApp(AquaApp):
             for oci_shape in oci_shapes
         ]
 
-    @staticmethod
-    def _stream_sanitizer(response):
-        for chunk in response.data.raw.stream(1024 * 1024, decode_content=True):
-            if not chunk:
-                continue
-
-            try:
-                decoded = chunk.decode("utf-8").strip()
-                if not decoded.startswith("data:"):
-                    continue
-
-                data_json = decoded[len("data:") :].strip()
-                parsed = json.loads(data_json)
-                text = parsed["choices"][0]["text"]
-                yield text
-
-            except Exception:
-                continue
-
     @telemetry(entry_point="plugin=inference&action=get_response", name="aqua")
     def get_model_deployment_response(
         self, model_deployment_id: str, payload: dict, route_override_header: str
