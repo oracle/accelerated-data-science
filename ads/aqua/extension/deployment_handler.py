@@ -10,8 +10,7 @@ from tornado.web import HTTPError
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
-from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
-from ads.aqua.modeldeployment.entities import ModelParams
+from ads.aqua.modeldeployment import AquaDeploymentApp
 from ads.config import COMPARTMENT_OCID
 
 
@@ -175,23 +174,11 @@ class AquaDeploymentHandler(AquaAPIhandler):
         )
 
 
-class AquaDeploymentInferenceHandler(AquaAPIhandler):
-    @staticmethod
-    def validate_predict_url(endpoint):
-        try:
-            url = urlparse(endpoint)
-            if url.scheme != "https":
-                return False
-            if not url.netloc:
-                return False
-            return url.path.endswith("/predict")
-        except Exception:
-            return False
-
+class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
     @handle_exceptions
-    def post(self, *args, **kwargs):  # noqa: ARG002
+    def post(self, model_deployment_id):
         """
-        Handles inference request for the Active Model Deployments
+        Handles streaming inference request for the Active Model Deployments
         Raises
         ------
         HTTPError
@@ -205,32 +192,31 @@ class AquaDeploymentInferenceHandler(AquaAPIhandler):
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)
 
-        endpoint = input_data.get("endpoint")
-        if not endpoint:
-            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("endpoint"))
-
-        if not self.validate_predict_url(endpoint):
-            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT.format("endpoint"))
-
         prompt = input_data.get("prompt")
-        if not prompt:
-            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("prompt"))
+        messages = input_data.get("messages")
 
-        model_params = (
-            input_data.get("model_params") if input_data.get("model_params") else {}
-        )
-        try:
-            model_params_obj = ModelParams(**model_params)
-        except Exception as ex:
+        if not prompt and not messages:
             raise HTTPError(
-                400, Errors.INVALID_INPUT_DATA_FORMAT.format("model_params")
-            ) from ex
-
-        return self.finish(
-            MDInferenceResponse(prompt, model_params_obj).get_model_deployment_response(
-                endpoint
+                400, Errors.MISSING_REQUIRED_PARAMETER.format("prompt/messages")
             )
-        )
+        if not input_data.get("model"):
+            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("model"))
+        route_override_header = self.request.headers.get("route", None)
+        self.set_header("Content-Type", "text/event-stream")
+        self.set_header("Cache-Control", "no-cache")
+        self.set_header("Transfer-Encoding", "chunked")
+        self.flush()
+        try:
+            response_gen = AquaDeploymentApp().get_model_deployment_response(
+                model_deployment_id, input_data, route_override_header
+            )
+            for chunk in response_gen:
+                self.write(chunk)
+                self.flush()
+        except Exception as ex:
+            raise HTTPError(500, str(ex)) from ex
+        finally:
+            self.finish()
 
 
 class AquaDeploymentParamsHandler(AquaAPIhandler):
@@ -294,5 +280,5 @@ __handlers__ = [
     ("deployments/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)/activate", AquaDeploymentHandler),
     ("deployments/?([^/]*)/deactivate", AquaDeploymentHandler),
-    ("inference", AquaDeploymentInferenceHandler),
+    ("inference/stream/?([^/]*)", AquaDeploymentStreamingInferenceHandler),
 ]

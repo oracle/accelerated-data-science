@@ -20,6 +20,12 @@ class Resource(ExtendedEnum):
     MODEL_VERSION_SET = "model-version-sets"
 
 
+class PredictEndpoints(ExtendedEnum):
+    CHAT_COMPLETIONS_ENDPOINT = "/v1/chat/completions"
+    TEXT_COMPLETIONS_ENDPOINT = "/v1/completions"
+    EMBEDDING_ENDPOINT = "/v1/embedding"
+
+
 class Tags(ExtendedEnum):
     TASK = "task"
     LICENSE = "license"
