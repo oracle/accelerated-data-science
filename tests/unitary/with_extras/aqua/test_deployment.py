@@ -33,8 +33,7 @@ from ads.aqua.config.container_config import (
     AquaContainerConfig,
     AquaContainerConfigItem,
 )
-from ads.aqua.model.enums import MultiModelSupportedTaskType
-from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
+from ads.aqua.modeldeployment import AquaDeploymentApp
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentConfig,

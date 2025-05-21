@@ -16,8 +16,8 @@ import ads.aqua
 import ads.config
 from ads.aqua.extension.deployment_handler import (
     AquaDeploymentHandler,
-    AquaDeploymentInferenceHandler,
     AquaDeploymentParamsHandler,
+    AquaDeploymentStreamingInferenceHandler,
 )
 
 
@@ -224,23 +224,36 @@ class AquaDeploymentParamsHandlerTestCase(unittest.TestCase):
         )
 
 
-class TestAquaDeploymentInferenceHandler(unittest.TestCase):
+class TestAquaDeploymentStreamingInferenceHandler(unittest.TestCase):
     @patch.object(IPythonHandler, "__init__")
     def setUp(self, ipython_init_mock) -> None:
         ipython_init_mock.return_value = None
-        self.inference_handler = AquaDeploymentInferenceHandler(
-            MagicMock(), MagicMock()
-        )
-        self.inference_handler.request = MagicMock()
-        self.inference_handler.finish = MagicMock()
+        self.handler = AquaDeploymentStreamingInferenceHandler(MagicMock(), MagicMock())
+        self.handler.request = MagicMock()
+        self.handler.set_header = MagicMock()
+        self.handler.write = MagicMock()
+        self.handler.flush = MagicMock()
+        self.handler.finish = MagicMock()
 
-    @patch("ads.aqua.modeldeployment.MDInferenceResponse.get_model_deployment_response")
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_model_deployment_response")
     def test_post(self, mock_get_model_deployment_response):
         """Test post method to return model deployment response."""
-        self.inference_handler.get_json_body = MagicMock(
-            return_value=TestDataset.inference_request
+        mock_response_gen = iter(["chunk1", "chunk2"])
+
+        mock_get_model_deployment_response.return_value = mock_response_gen
+
+        self.handler.get_json_body = MagicMock(
+            return_value={"prompt": "Hello", "model": "some-model"}
         )
-        self.inference_handler.post()
+        self.handler.request.headers = {"route": "test-route"}
+
+        self.handler.post("mock-deployment-id")
+
         mock_get_model_deployment_response.assert_called_with(
-            TestDataset.inference_request["endpoint"]
+            "mock-deployment-id",
+            {"prompt": "Hello", "model": "some-model"},
+            "test-route",
         )
+        self.handler.write.assert_any_call("chunk1")
+        self.handler.write.assert_any_call("chunk2")
+        self.handler.finish.assert_called_once()
