@@ -40,7 +40,6 @@ from ads.common.utils import UNKNOWN, extract_region, is_path_exists
 from ads.config import (
     AQUA_TELEMETRY_BUCKET,
     AQUA_TELEMETRY_BUCKET_NS,
-    OCI_MD_SERVICE_ENDPOINT,
     OCI_ODSC_SERVICE_ENDPOINT,
     OCI_RESOURCE_PRINCIPAL_VERSION,
 )
@@ -64,12 +63,8 @@ class AquaApp:
         if OCI_RESOURCE_PRINCIPAL_VERSION:
             set_auth("resource_principal")
         self._auth = default_signer({"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT})
-        self._md_auth = default_signer({"service_endpoint": OCI_MD_SERVICE_ENDPOINT})
         self.ds_client = oc.OCIClientFactory(**self._auth).data_science
         self.compute_client = oc.OCIClientFactory(**default_signer()).compute
-        self.model_deployment_client = oc.OCIClientFactory(
-            **self._md_auth
-        ).model_deployment
         self.logging_client = oc.OCIClientFactory(**default_signer()).logging_management
         self.identity_client = oc.OCIClientFactory(**default_signer()).identity
         self.region = extract_region(self._auth)
