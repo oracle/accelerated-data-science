@@ -11,6 +11,7 @@ from cachetools import TTLCache, cached
 from oci.data_science.models import ModelDeploymentShapeSummary
 from pydantic import ValidationError
 
+from ads.aqua import Client
 from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.entities import (
     AquaMultiModelRef,
@@ -1361,7 +1362,33 @@ class AquaDeploymentApp(AquaApp):
 
         """
 
-        response = self.model_deployment_client.predict_with_response_stream(
-            model_deployment_id=model_deployment_id, request_body=payload
+        model_deployment = self.get(model_deployment_id)
+        endpoint = model_deployment.endpoint + "/predictWithResponseStream"
+        endpoint_type = model_deployment.environment_variables.get(
+            "MODEL_DEPLOY_PREDICT_ENDPOINT", "/v1/completions"
         )
-        yield from self._stream_sanitizer(response)
+        aqua_client = Client(endpoint=endpoint)
+        if endpoint_type == "/v1/completions":
+            for chunk in aqua_client.generate(
+                prompt=payload.pop("prompt"),
+                payload=payload,
+                stream=True,
+            ):
+                try:
+                    yield chunk["choices"][0]["text"]
+                except Exception as e:
+                    logger.debug(
+                        f"Exception occurred while parsing streaming response: {e}"
+                    )
+        else:
+            for chunk in aqua_client.chat(
+                messages=payload.pop("messages"),
+                payload=payload,
+                stream=True,
+            ):
+                try:
+                    yield chunk["choices"][0]["delta"]["content"]
+                except Exception as e:
+                    logger.debug(
+                        f"Exception occurred while parsing streaming response: {e}"
+                    )

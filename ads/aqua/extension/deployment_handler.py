@@ -5,7 +5,6 @@
 from typing import List, Union
 from urllib.parse import urlparse
 
-from tornado.iostream import StreamClosedError
 from tornado.web import HTTPError
 
 from ads.aqua.common.decorator import handle_exceptions
@@ -215,11 +214,9 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
                 model_deployment_id, input_data
             )
             for chunk in response_gen:
-                if not chunk:
-                    continue
-                self.write(f"data: {chunk}\n\n")
+                self.write(chunk)
                 await self.flush()
-        except StreamClosedError as ex:
+        except Exception as ex:
             raise HTTPError(500, str(ex)) from ex
         finally:
             self.finish()
