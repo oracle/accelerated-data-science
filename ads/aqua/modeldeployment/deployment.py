@@ -18,7 +18,12 @@ from ads.aqua.common.entities import (
     ComputeShapeSummary,
     ContainerPath,
 )
-from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tags
+from ads.aqua.common.enums import (
+    InferenceContainerTypeFamily,
+    ModelFormat,
+    PredictEndpoints,
+    Tags,
+)
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     DEFINED_METADATA_TO_FILE_MAP,
@@ -937,7 +942,6 @@ class AquaDeploymentApp(AquaApp):
         model_deployment = self.ds_client.get_model_deployment(
             model_deployment_id=model_deployment_id, **kwargs
         ).data
-
         oci_aqua = (
             (
                 Tags.AQUA_TAG in model_deployment.freeform_tags
@@ -982,7 +986,6 @@ class AquaDeploymentApp(AquaApp):
         aqua_deployment = AquaDeployment.from_oci_model_deployment(
             model_deployment, self.region
         )
-
         if Tags.MULTIMODEL_TYPE_TAG in model_deployment.freeform_tags:
             aqua_model_id = model_deployment.freeform_tags.get(
                 Tags.AQUA_MODEL_ID_TAG, UNKNOWN
@@ -1013,7 +1016,6 @@ class AquaDeploymentApp(AquaApp):
             aqua_deployment.models = [
                 AquaMultiModelRef(**metadata) for metadata in multi_model_metadata
             ]
-
         return AquaDeploymentDetail(
             **vars(aqua_deployment),
             log_group=AquaResourceIdentifier(
@@ -1334,7 +1336,9 @@ class AquaDeploymentApp(AquaApp):
                 continue
 
     @telemetry(entry_point="plugin=inference&action=get_response", name="aqua")
-    def get_model_deployment_response(self, model_deployment_id: str, payload: dict):
+    def get_model_deployment_response(
+        self, model_deployment_id: str, payload: dict, route_override_header: str
+    ):
         """
         Returns Model deployment inference response in streaming fashion
 
@@ -1365,22 +1369,14 @@ class AquaDeploymentApp(AquaApp):
         model_deployment = self.get(model_deployment_id)
         endpoint = model_deployment.endpoint + "/predictWithResponseStream"
         endpoint_type = model_deployment.environment_variables.get(
-            "MODEL_DEPLOY_PREDICT_ENDPOINT", "/v1/completions"
+            "MODEL_DEPLOY_PREDICT_ENDPOINT", PredictEndpoints.TEXT_COMPLETIONS_ENDPOINT
         )
         aqua_client = Client(endpoint=endpoint)
-        if endpoint_type == "/v1/completions":
-            for chunk in aqua_client.generate(
-                prompt=payload.pop("prompt"),
-                payload=payload,
-                stream=True,
-            ):
-                try:
-                    yield chunk["choices"][0]["text"]
-                except Exception as e:
-                    logger.debug(
-                        f"Exception occurred while parsing streaming response: {e}"
-                    )
-        else:
+
+        if PredictEndpoints.CHAT_COMPLETIONS_ENDPOINT in (
+            endpoint_type,
+            route_override_header,
+        ):
             for chunk in aqua_client.chat(
                 messages=payload.pop("messages"),
                 payload=payload,
@@ -1388,6 +1384,19 @@ class AquaDeploymentApp(AquaApp):
             ):
                 try:
                     yield chunk["choices"][0]["delta"]["content"]
+                except Exception as e:
+                    logger.debug(
+                        f"Exception occurred while parsing streaming response: {e}"
+                    )
+
+        elif endpoint_type == PredictEndpoints.TEXT_COMPLETIONS_ENDPOINT:
+            for chunk in aqua_client.generate(
+                prompt=payload.pop("prompt"),
+                payload=payload,
+                stream=True,
+            ):
+                try:
+                    yield chunk["choices"][0]["text"]
                 except Exception as e:
                     logger.debug(
                         f"Exception occurred while parsing streaming response: {e}"

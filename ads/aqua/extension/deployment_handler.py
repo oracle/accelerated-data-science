@@ -176,7 +176,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
 
 class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
     @handle_exceptions
-    async def post(self, model_deployment_id):
+    def post(self, model_deployment_id):
         """
         Handles streaming inference request for the Active Model Deployments
         Raises
@@ -201,21 +201,18 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
             )
         if not input_data.get("model"):
             raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("model"))
-
-        if "stream" not in input_data:
-            input_data.update(stream=True)
-
+        route_override_header = self.request.headers.get("route", None)
         self.set_header("Content-Type", "text/event-stream")
         self.set_header("Cache-Control", "no-cache")
         self.set_header("Transfer-Encoding", "chunked")
-        await self.flush()
+        self.flush()
         try:
             response_gen = AquaDeploymentApp().get_model_deployment_response(
-                model_deployment_id, input_data
+                model_deployment_id, input_data, route_override_header
             )
             for chunk in response_gen:
                 self.write(chunk)
-                await self.flush()
+                self.flush()
         except Exception as ex:
             raise HTTPError(500, str(ex)) from ex
         finally:
