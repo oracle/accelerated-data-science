@@ -3,7 +3,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import re
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from oci.data_science.models import Model
 from pydantic import BaseModel, Field, model_validator
@@ -135,6 +135,18 @@ class ComputeShapeSummary(Serializable):
             )
         return model
 
+class LoraModule(Serializable):
+    """
+    Lightweight descriptor for LoRA Modules used in fine-tuning models.
+    Attributes
+    ----------
+    model_name : str
+        The name of the fine-tuned model.
+    model_path : str
+        The model-by-reference path to the LoRA Module within the model artifact
+    """
+    model_name : str = Field(..., description="The name of the fine-tuned model.")
+    model_path : str = Field(..., description="The model-by-reference path to the LoRA Module within the model artifact.")
 
 class AquaMultiModelRef(Serializable):
     """
@@ -157,7 +169,7 @@ class AquaMultiModelRef(Serializable):
         Optional environment variables to override during deployment.
     artifact_location : Optional[str]
         Artifact path of model in the multimodel group.
-    fine_tune_weights_location : Optional[str]
+    fine_tune_weights : Optional[str]
         For fine tuned models, the artifact path of the modified model weights
     """
 
@@ -173,7 +185,7 @@ class AquaMultiModelRef(Serializable):
     artifact_location: Optional[str] = Field(
         None, description="Artifact path of model in the multimodel group."
     )
-    fine_tune_weights_location: Optional[str] = Field(
+    fine_tune_weights: Optional[List[LoraModule]] = Field(
         None, description="For fine tuned models, the artifact path of the modified model weights"
     )
 
