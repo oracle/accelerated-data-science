@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
 
 from cachetools import TTLCache, cached
+import concurrent
+from ads.common.work_request import DataScienceWorkRequest
 from oci.data_science.models import ModelDeploymentShapeSummary
 from pydantic import ValidationError
 
@@ -43,6 +45,8 @@ from ads.aqua.constants import (
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     MODEL_NAME_DELIMITER,
     UNKNOWN_DICT,
+    DEFAULT_WAIT_TIME, 
+    DEFAULT_POLL_INTERVAL
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model import AquaModelApp
@@ -79,6 +83,9 @@ from ads.model.deployment import (
 )
 from ads.model.model_metadata import ModelCustomMetadataItem
 from ads.telemetry import telemetry
+
+THREAD_POOL_SIZE = 16
+thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=THREAD_POOL_SIZE)
 
 
 class AquaDeploymentApp(AquaApp):
@@ -780,10 +787,17 @@ class AquaDeploymentApp(AquaApp):
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
 
-        deployment_id = deployment.id
+       
+
+        deployment_id = deployment.id()
         logger.info(
             f"Aqua model deployment {deployment_id} created for model {aqua_model_id}."
         )
+
+        thread_pool.submit(self.get_deployment_status, 
+                            model_deployment_id=deployment_id, 
+                            work_request_id=deployment.dsc_model_deployment.workflow_req_id,
+                            model_type=model_type) 
 
         # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
         telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
@@ -1312,22 +1326,30 @@ class AquaDeploymentApp(AquaApp):
         ]
     
         
-    def get_deployment_status(self,model_deployment_id: str, work_request_id : str) : 
-    #     category= "aqua/{model_type}/deployment/status", action= "FAILED/SUCCEEDED", detail="Error message from Work request", value= {"ocid": md_ocid[:8]}
-    # # tracks unique evaluation that were created for the given evaluation source
-    #     self.telemetry.record_event_async(
-    #         category="aqua/evaluation",
-    #         action="create",
-    #         detail=self._get_service_model_name(evaluation_source),
-    #     )
+    def get_deployment_status(self,model_deployment_id: str, work_request_id : str, model_type : str) :
+
+        telemetry_kwargs = {"ocid": get_ocid_substring(model_deployment_id, key_len=8)}
     
-    
-        return 
-    
-    def get_deployment_status_async(self,model_deployment_id: str, work_request_id : str) : 
-        # tracks unique evaluation that were created for the given evaluation source
+        try:
+            DataScienceWorkRequest(work_request_id).wait_work_request(
+                progress_bar_description="Creating model deployment",
+                max_wait_time=DEFAULT_WAIT_TIME, 
+                poll_interval=DEFAULT_POLL_INTERVAL
+            )
+        except Exception as e:
+            logger.error(
+                "Error while trying to create model deployment: " + str(e)
+            )
+            self.telemetry.record_event_async(
+                category=f"aqua/{model_type}/deployment/status",
+                action="FAILED",
+                detail="Error creating model deployment"
+                **telemetry_kwargs
+            )
+        
         self.telemetry.record_event_async(
-            category="aqua/evaluation",
-            action="create",
-            detail=self._get_service_model_name(evaluation_source),
-        )
+                category=f"aqua/{model_type}/deployment/status",
+                action="SUCCEEDED",
+                detail=" Create model deployment successful", 
+                **telemetry_kwargs
+            )
