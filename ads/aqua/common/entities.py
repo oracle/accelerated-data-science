@@ -135,7 +135,8 @@ class ComputeShapeSummary(Serializable):
             )
         return model
 
-class LoraModule(Serializable):
+
+class LoraModuleSpec(Serializable):
     """
     Lightweight descriptor for LoRA Modules used in fine-tuning models.
     Attributes
@@ -145,8 +146,13 @@ class LoraModule(Serializable):
     model_path : str
         The model-by-reference path to the LoRA Module within the model artifact
     """
-    model_name : str = Field(..., description="The name of the fine-tuned model.")
-    model_path : str = Field(..., description="The model-by-reference path to the LoRA Module within the model artifact.")
+
+    model_name: str = Field(..., description="The name of the fine-tuned model.")
+    model_path: str = Field(
+        ...,
+        description="The model-by-reference path to the LoRA Module within the model artifact.",
+    )
+
 
 class AquaMultiModelRef(Serializable):
     """
@@ -169,7 +175,7 @@ class AquaMultiModelRef(Serializable):
         Optional environment variables to override during deployment.
     artifact_location : Optional[str]
         Artifact path of model in the multimodel group.
-    fine_tune_weights : Optional[List[LoraModule]]
+    fine_tune_weights : Optional[List[LoraModuleSpec]]
         For fine tuned models, the artifact path of the modified model weights
     """
 
@@ -178,15 +184,19 @@ class AquaMultiModelRef(Serializable):
     gpu_count: Optional[int] = Field(
         None, description="The gpu count allocation for the model."
     )
-    model_task: Optional[str] = Field(None, description="The task that model operates on. Supported tasks are in MultiModelSupportedTaskType")
+    model_task: Optional[str] = Field(
+        None,
+        description="The task that model operates on. Supported tasks are in MultiModelSupportedTaskType",
+    )
     env_var: Optional[dict] = Field(
         default_factory=dict, description="The environment variables of the model."
     )
     artifact_location: Optional[str] = Field(
         None, description="Artifact path of model in the multimodel group."
     )
-    fine_tune_weights: Optional[List[LoraModule]] = Field(
-        None, description="For fine tuned models, the artifact path of the modified model weights"
+    fine_tune_weights: Optional[List[LoraModuleSpec]] = Field(
+        None,
+        description="For fine tuned models, the artifact path of the modified model weights",
     )
 
     class Config:

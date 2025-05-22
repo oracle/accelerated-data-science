@@ -3,9 +3,8 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA model utils"""
 
-from typing import Tuple, List
+from typing import Tuple
 
-from ads.aqua.common.entities import LoraModule
 from ads.aqua.common.errors import AquaValueError
 from ads.aqua.common.utils import get_model_by_reference_paths
 from ads.aqua.finetuning.constants import FineTuneCustomMetadata
@@ -35,11 +34,9 @@ def extract_base_model_from_ft(aqua_model: DataScienceModel) -> Tuple[str, str]:
 def extract_fine_tune_artifacts_path(aqua_model: DataScienceModel) -> Tuple[str, str]:
     """Extracts the fine tuning source (fine_tune_output_path) and base model path from the DataScienceModel Object"""
 
-    base_model_path, fine_tune_output_paths = get_model_by_reference_paths(
+    base_model_path, fine_tune_output_path = get_model_by_reference_paths(
         aqua_model.model_file_description
     )
-
-    fine_tune_output_path = fine_tune_output_paths[0]
 
     if not fine_tune_output_path or not ObjectStorageDetails.is_oci_path(
         fine_tune_output_path
@@ -52,33 +49,3 @@ def extract_fine_tune_artifacts_path(aqua_model: DataScienceModel) -> Tuple[str,
     fine_tune_output_path = os_path.filepath.rstrip("/")
 
     return base_model_path, fine_tune_output_path
-
-
-def extract_multi_ft_artifacts_path(
-    aqua_model: DataScienceModel,
-) -> Tuple[str, List[LoraModule]]:
-    """Extracts the fine tuning source (fine_tune_output_path) and base model path from the DataScienceModel Object"""
-
-    base_model_path, fine_tune_output_paths = get_model_by_reference_paths(
-        aqua_model.model_file_description
-    )
-
-    lora_modules = []
-
-    _, model_name = extract_base_model_from_ft(aqua_model)
-
-    # assign FT names to each LoRA module "meta-llama/Llama-3.1-8B-Instruct-FT1"
-    for i, path in enumerate(fine_tune_output_paths, start=1):
-        if not path or not ObjectStorageDetails.is_oci_path(path):
-            raise AquaValueError(
-                "Fine tuned output path is not available in the model artifact."
-            )
-
-        os_path = ObjectStorageDetails.from_path(path)
-        fine_tune_output_path = os_path.filepath.rstrip("/")
-
-        module_name = f"{model_name}-FT{i}"
-        module = LoraModule(model_name=module_name, model_path=fine_tune_output_path)
-        lora_modules.append(module)
-
-    return base_model_path, lora_modules

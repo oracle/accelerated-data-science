@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 from string import Template
-from typing import Any, Dict, List, Optional, Union, Tuple
+from typing import Any, Dict, List, Optional, Union
 
 import fsspec
 import oci
@@ -643,7 +643,7 @@ def get_resource_name(ocid: str) -> str:
     return name
 
 
-def get_model_by_reference_paths(model_file_description: dict) -> Tuple[str, List[str]]:
+def get_model_by_reference_paths(model_file_description: dict):
     """Reads the model file description json dict and returns the base model path and fine-tuned path for
         models created by reference.
 
@@ -657,7 +657,7 @@ def get_model_by_reference_paths(model_file_description: dict) -> Tuple[str, Lis
         a tuple with base_model_path and fine_tune_output_path
     """
     base_model_path = UNKNOWN
-    fine_tune_output_paths = UNKNOWN
+    fine_tune_output_path = UNKNOWN
     models = model_file_description["models"]
 
     if not models:
@@ -666,23 +666,21 @@ def get_model_by_reference_paths(model_file_description: dict) -> Tuple[str, Lis
             "Please check if the model created by reference has the correct artifact."
         )
 
-    if len(models) == 1:
+    if len(models) > 0:
         # since the model_file_description json does not have a flag to identify the base model, we consider
         # the first instance to be the base model.
         base_model_artifact = models[0]
         base_model_path = f"oci://{base_model_artifact['bucketName']}@{base_model_artifact['namespace']}/{base_model_artifact['prefix']}".rstrip(
             "/"
         )
-    else:
-        # subsequent models are LoRA modules of the fine-tuned models
-        fine_tune_output_paths = []
-        for ft_model_artifact in models:
-            output_path = f"oci://{ft_model_artifact['bucketName']}@{ft_model_artifact['namespace']}/{ft_model_artifact['prefix']}".rstrip(
-                "/"
-            )
-            fine_tune_output_paths.append(output_path)
+    if len(models) > 1:
+        # second model is considered as fine-tuned model
+        ft_model_artifact = models[1]
+        fine_tune_output_path = f"oci://{ft_model_artifact['bucketName']}@{ft_model_artifact['namespace']}/{ft_model_artifact['prefix']}".rstrip(
+            "/"
+        )
 
-    return base_model_path, fine_tune_output_paths
+    return base_model_path, fine_tune_output_path
 
 
 def _is_valid_mvs(mvs: ModelVersionSet, target_tag: str) -> bool:
@@ -871,39 +869,40 @@ def get_combined_params(params1: str = None, params2: str = None) -> str:
 
     return " ".join(combined_params)
 
+
 def find_restricted_params(
-        default_params: Union[str, List[str]],
-        user_params: Union[str, List[str]],
-        container_family: str,
-    ) -> List[str]:
-        """Returns a list of restricted params that user chooses to override when creating an Aqua deployment.
-        The default parameters coming from the container index json file cannot be overridden.
+    default_params: Union[str, List[str]],
+    user_params: Union[str, List[str]],
+    container_family: str,
+) -> List[str]:
+    """Returns a list of restricted params that user chooses to override when creating an Aqua deployment.
+    The default parameters coming from the container index json file cannot be overridden.
 
-        Parameters
-        ----------
-        default_params:
-            Inference container parameter string with default values.
-        user_params:
-            Inference container parameter string with user provided values.
-        container_family: str
-            The image family of model deployment container runtime.
+    Parameters
+    ----------
+    default_params:
+        Inference container parameter string with default values.
+    user_params:
+        Inference container parameter string with user provided values.
+    container_family: str
+        The image family of model deployment container runtime.
 
-        Returns
-        -------
-            A list with params keys common between params1 and params2.
+    Returns
+    -------
+        A list with params keys common between params1 and params2.
 
-        """
-        restricted_params = []
-        if default_params and user_params:
-            default_params_dict = get_params_dict(default_params)
-            user_params_dict = get_params_dict(user_params)
+    """
+    restricted_params = []
+    if default_params and user_params:
+        default_params_dict = get_params_dict(default_params)
+        user_params_dict = get_params_dict(user_params)
 
-            restricted_params_set = get_restricted_params_by_container(container_family)
-            for key, _items in user_params_dict.items():
-                if key in default_params_dict or key in restricted_params_set:
-                    restricted_params.append(key.lstrip("-"))
+        restricted_params_set = get_restricted_params_by_container(container_family)
+        for key, _items in user_params_dict.items():
+            if key in default_params_dict or key in restricted_params_set:
+                restricted_params.append(key.lstrip("-"))
 
-        return restricted_params
+    return restricted_params
 
 
 def build_params_string(params: dict) -> str:

@@ -4,7 +4,7 @@
 
 from typing import List, Optional, Tuple
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, Union, field_validator
 from typing_extensions import Self
 
 from ads.aqua import logger
@@ -29,22 +29,7 @@ from ads.common.utils import UNKNOWN
 
 __all__ = ["GroupModelDeploymentMetadata"]
 
-
-
-class FineTunedModelSpec(BaseModel):
-    """
-    Represents a fine-tuned model associated with a base model.
-
-    Attributes
-    ----------
-    model_path : str
-        Object Storage path to the fine-tuned model artifacts. Path is already cleaned.
-    model_name : str
-        Unique name for the fine-tuned model (used for inference routing).
-    """
-
-    model_path: str = Field(..., description="OCI path to the fine-tuned model.")
-    model_name: str = Field(..., description="Name assigned to the fine-tuned model.")
+from ads.aqua.common.entities import LoraModuleSpec
 
 
 class BaseModelSpec(BaseModel):
@@ -65,32 +50,33 @@ class BaseModelSpec(BaseModel):
 
     model_path: str = Field(..., description="Path to the base model.")
     params: str = Field(..., description="Startup parameters passed to vLLM.")
-    model_task: Optional[str] = Field(..., description="Task type the model is intended for.")
-    fine_tuned_weights: Optional[List[FineTunedModelSpec]] = Field(
+    model_task: Optional[str] = Field(
+        ..., description="Task type the model is intended for."
+    )
+    fine_tuned_weights: Optional[List[LoraModuleSpec]] = Field(
         default_factory=list,
         description="Optional list of fine-tuned model variants associated with this base model.",
     )
 
     @field_validator("model_path")
     @classmethod
-    def clean_artifact_path(cls, artifact_path_prefix: str) -> str:
-        """ Validates and cleans the file path for model_path parameter. """
+    def clean_model_path(cls, artifact_path_prefix: str) -> str:
+        """Validates and cleans the file path for model_path parameter."""
         if ObjectStorageDetails.is_oci_path(artifact_path_prefix):
             os_path = ObjectStorageDetails.from_path(artifact_path_prefix)
             artifact_path_prefix = os_path.filepath.rstrip("/")
             return artifact_path_prefix
 
         raise AquaValueError(
-                "The base model path is not available in the model artifact."
-            )
-
+            "The base model path is not available in the model artifact."
+        )
 
     @field_validator("fine_tuned_weights")
     @classmethod
-    def set_fine_tuned_weights(cls, fine_tuned_weights: List[FineTunedModelSpec]):
-        """ Removes duplicate LoRA Modules (duplicate model_names in fine_tuned_weights) """
+    def set_fine_tuned_weights(cls, fine_tuned_weights: List[LoraModuleSpec]):
+        """Removes duplicate LoRA Modules (duplicate model_names in fine_tuned_weights)"""
         seen_modules = set()
-        unique_modules: List[FineTunedModelSpec] = []
+        unique_modules: List[LoraModuleSpec] = []
 
         for lora_module in fine_tuned_weights:
             if lora_module.model_name not in seen_modules:
@@ -98,24 +84,21 @@ class BaseModelSpec(BaseModel):
                 unique_modules.append(lora_module)
             else:
                 logger.warning(
-                    f"Duplicate LoRA Modules Detected. Previously loaded LoRA Module {lora_module.model_name,}",
+                    f"Duplicate LoRA Modules Detected. Previously loaded LoRA Module {(lora_module.model_name,)}",
                 )
         return unique_modules
 
     @classmethod
-    def from_aqua_multi_model_ref(cls, model: AquaMultiModelRef, model_params) -> Self:
-        """ Converts AquaMultiModelRef to BaseModelSpec. Fields are validated using @field_validator methods above. """
-        if model.fine_tune_weights:
-            ft_modules = [FineTunedModelSpec(**lora_module) for lora_module in model.fine_tune_weights]
-
-        else:
-            ft_modules = []
+    def from_aqua_multi_model_ref(
+        cls, model: AquaMultiModelRef, model_params: str
+    ) -> Self:
+        """Converts AquaMultiModelRef to BaseModelSpec. Fields are validated using @field_validator methods above."""
 
         return cls(
-            model_path = model.artifact_location,
-            params = model_params,
-            model_task = model.model_task,
-            fine_tuned_weights = ft_modules
+            model_path=model.artifact_location,
+            params=model_params,
+            model_task=model.model_task,
+            fine_tuned_weights=model.fine_tune_weights,
         )
 
 
@@ -134,8 +117,15 @@ class GroupModelDeploymentMetadata(Serializable):
     )
 
     @staticmethod
-    def extract_model_params(model: AquaMultiModelRef, container_params, container_type_key) -> Tuple[str,str]:
-        """ """
+    def _extract_model_params(
+        model: AquaMultiModelRef,
+        container_params: Union[str, List[str]],
+        container_type_key: str,
+    ) -> Tuple[str, str]:
+        """
+        Validates if user-provided parameters override pre-set parameters by AQUA.
+        Updates model name and TP size parameters to user-provided parameters.
+        """
         user_params = build_params_string(model.env_var)
         if user_params:
             restricted_params = find_restricted_params(
@@ -159,15 +149,19 @@ class GroupModelDeploymentMetadata(Serializable):
         return user_params, params
 
     @staticmethod
-    def merge_gpu_count_params(model: AquaMultiModelRef,
-                                model_config_summary: ModelDeploymentConfigSummary,
-                                create_deployment_details: CreateModelDeploymentDetails,
-                                container_type_key: str,
-                                container_params):
-        """ Finds the corresponding deployment parameters based on the GPU count
-            and combines them with user's parameters. Existing deployment parameters
-            will be overriden by user's parameters."""
-        user_params, params = GroupModelDeploymentMetadata.extract_model_params(model, container_params, container_type_key)
+    def _merge_gpu_count_params(
+        model: AquaMultiModelRef,
+        model_config_summary: ModelDeploymentConfigSummary,
+        create_deployment_details: CreateModelDeploymentDetails,
+        container_type_key: str,
+        container_params,
+    ):
+        """Finds the corresponding deployment parameters based on the GPU count
+        and combines them with user's parameters. Existing deployment parameters
+        will be overriden by user's parameters."""
+        user_params, params = GroupModelDeploymentMetadata.extract_model_params(
+            model, container_params, container_type_key
+        )
 
         deployment_config = model_config_summary.deployment_config.get(
             model.model_id, AquaDeploymentConfig()
@@ -176,11 +170,7 @@ class GroupModelDeploymentMetadata(Serializable):
         )
         params_found = False
         for item in deployment_config.multi_model_deployment:
-            if (
-                model.gpu_count
-                and item.gpu_count
-                and item.gpu_count == model.gpu_count
-            ):
+            if model.gpu_count and item.gpu_count and item.gpu_count == model.gpu_count:
                 config_parameters = item.parameters.get(
                     get_container_params_type(container_type_key), UNKNOWN
                 )
@@ -202,27 +192,38 @@ class GroupModelDeploymentMetadata(Serializable):
         return params
 
     @classmethod
-    def from_create_model_deployment_details(cls,
-                                            create_deployment_details: CreateModelDeploymentDetails,
-                                            model_config_summary: ModelDeploymentConfigSummary,
-                                            container_type_key,
-                                            container_params) -> Self:
-
+    def from_create_model_deployment_details(
+        cls,
+        create_deployment_details: CreateModelDeploymentDetails,
+        model_config_summary: ModelDeploymentConfigSummary,
+        container_type_key,
+        container_params,
+    ) -> Self:
+        """
+        Converts CreateModelDeploymentDetail to GroupModelDeploymentMetadata.
+        CreateModelDeploymentDetail represents user-provided parameters and models within a multi-model group after model artifact is created.
+        GroupModelDeploymentMetadata is the Pydantic representation of MULTI_MODEL_CONFIG environment variable during model deployment.
+        """
         models = []
         seen_models = set()
         for model in create_deployment_details.models:
-            params = GroupModelDeploymentMetadata.merge_gpu_count_params(model, model_config_summary,
-                                create_deployment_details,
-                                container_type_key,
-                                container_params)
+            params = GroupModelDeploymentMetadata._merge_gpu_count_params(
+                model,
+                model_config_summary,
+                create_deployment_details,
+                container_type_key,
+                container_params,
+            )
 
             if model.model_name not in seen_models:
                 seen_models.add(model.model_name)
                 base_model_spec = BaseModelSpec.from_aqua_multi_model_ref(model, params)
                 models.append(base_model_spec)
             else:
-                raise AquaValueError("Stack inferencing with the same base model is not supported.")
+                raise AquaValueError(
+                    f"Duplicate model name ‘{model.model_name}’ detected in multi-model group. "
+                    "Each base model must have a unique `model_name`. "
+                    "Please remove or rename the duplicate model and register the model group again."
+                )
 
-        return cls(
-            models = models
-        )
+        return cls(models=models)
