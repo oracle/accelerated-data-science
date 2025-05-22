@@ -119,4 +119,4 @@ class TelemetryClient(TelemetryBase):
         Thread
             A started thread to send a head request to generate an event record.
         """
-        thread_pool.submit(self.record_event, args=(category, action, detail), kwargs=kwargs)
+        thread_pool.submit(self.record_event, category, action, detail, **kwargs)
