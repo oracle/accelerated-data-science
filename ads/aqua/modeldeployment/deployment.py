@@ -5,7 +5,7 @@
 import json
 import shlex
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 from cachetools import TTLCache, cached
 from oci.data_science.models import ModelDeploymentShapeSummary
@@ -21,13 +21,11 @@ from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tag
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     DEFINED_METADATA_TO_FILE_MAP,
-    build_params_string,
     build_pydantic_error_message,
     find_restricted_params,
     get_combined_params,
     get_container_params_type,
     get_ocid_substring,
-    get_params_dict,
     get_params_list,
     get_resource_name,
     get_restricted_params_by_container,
@@ -65,7 +63,6 @@ from ads.aqua.modeldeployment.entities import (
     CreateModelDeploymentDetails,
 )
 from ads.aqua.modeldeployment.group_model_metadata import (
-    BaseModelSpec,
     GroupModelDeploymentMetadata,
 )
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -573,7 +570,7 @@ class AquaDeploymentApp(AquaApp):
                 create_deployment_details,
                 model_config_summary,
                 container_type_key,
-                container_params
+                container_params,
             )
         )
 

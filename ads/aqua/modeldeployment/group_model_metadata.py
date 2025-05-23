@@ -2,9 +2,9 @@
 # Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
-from pydantic import BaseModel, Field, Union, field_validator
+from pydantic import BaseModel, Field, field_validator
 from typing_extensions import Self
 
 from ads.aqua import logger
@@ -27,7 +27,7 @@ from ads.aqua.modeldeployment.entities import CreateModelDeploymentDetails
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN
 
-__all__ = ["GroupModelDeploymentMetadata"]
+__all__ = ["GroupModelDeploymentMetadata", "BaseModelSpec"]
 
 from ads.aqua.common.entities import LoraModuleSpec
 
@@ -44,7 +44,7 @@ class BaseModelSpec(BaseModel):
         Additional vLLM launch parameters for this model (e.g. parallelism, max context).
     model_task : str, optional
         Model task type (e.g., text-generation, image-to-text).
-    fine_tuned_weights : List[FineTunedModelSpec], optional
+    fine_tune_weights : List[FineTunedModelSpec], optional
         List of associated fine-tuned models.
     """
 
@@ -53,7 +53,7 @@ class BaseModelSpec(BaseModel):
     model_task: Optional[str] = Field(
         ..., description="Task type the model is intended for."
     )
-    fine_tuned_weights: Optional[List[LoraModuleSpec]] = Field(
+    fine_tune_weights: Optional[List[LoraModuleSpec]] = Field(
         default_factory=list,
         description="Optional list of fine-tuned model variants associated with this base model.",
     )
@@ -71,12 +71,15 @@ class BaseModelSpec(BaseModel):
             "The base model path is not available in the model artifact."
         )
 
-    @field_validator("fine_tuned_weights")
+    @field_validator("fine_tune_weights")
     @classmethod
     def set_fine_tuned_weights(cls, fine_tuned_weights: List[LoraModuleSpec]):
         """Removes duplicate LoRA Modules (duplicate model_names in fine_tuned_weights)"""
         seen_modules = set()
         unique_modules: List[LoraModuleSpec] = []
+
+        if not fine_tuned_weights:
+            return None
 
         for lora_module in fine_tuned_weights:
             if lora_module.model_name not in seen_modules:
@@ -159,7 +162,7 @@ class GroupModelDeploymentMetadata(Serializable):
         """Finds the corresponding deployment parameters based on the GPU count
         and combines them with user's parameters. Existing deployment parameters
         will be overriden by user's parameters."""
-        user_params, params = GroupModelDeploymentMetadata.extract_model_params(
+        user_params, params = GroupModelDeploymentMetadata._extract_model_params(
             model, container_params, container_type_key
         )
 
