@@ -50,7 +50,7 @@ from ads.aqua.modeldeployment.entities import (
     CreateModelDeploymentDetails,
     ModelParams,
 )
-from aqua.modeldeployment.model_group_config import BaseModelSpec
+from ads.aqua.modeldeployment.model_group_config import BaseModelSpec
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import ModelCustomMetadata

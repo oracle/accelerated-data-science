@@ -7,9 +7,6 @@ import shlex
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
-from aqua.modeldeployment.model_group_config import (
-    ModelGroupConfig,
-)
 from cachetools import TTLCache, cached
 from oci.data_science.models import ModelDeploymentShapeSummary
 from pydantic import ValidationError
@@ -65,6 +62,7 @@ from ads.aqua.modeldeployment.entities import (
     ConfigValidationError,
     CreateModelDeploymentDetails,
 )
+from ads.aqua.modeldeployment.model_group_config import ModelGroupConfig
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN, get_log_links
 from ads.config import (
