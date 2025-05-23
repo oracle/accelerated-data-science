@@ -27,7 +27,7 @@ from ads.aqua.modeldeployment.entities import CreateModelDeploymentDetails
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN
 
-__all__ = ["GroupModelDeploymentMetadata", "BaseModelSpec"]
+__all__ = ["ModelGroupConfig", "BaseModelSpec"]
 
 from ads.aqua.common.entities import LoraModuleSpec
 
@@ -105,7 +105,7 @@ class BaseModelSpec(BaseModel):
         )
 
 
-class GroupModelDeploymentMetadata(Serializable):
+class ModelGroupConfig(Serializable):
     """
     Schema representing the metadata passed via MULTI_MODEL_CONFIG for multi-model deployments.
 
@@ -162,7 +162,7 @@ class GroupModelDeploymentMetadata(Serializable):
         """Finds the corresponding deployment parameters based on the GPU count
         and combines them with user's parameters. Existing deployment parameters
         will be overriden by user's parameters."""
-        user_params, params = GroupModelDeploymentMetadata._extract_model_params(
+        user_params, params = ModelGroupConfig._extract_model_params(
             model, container_params, container_type_key
         )
 
@@ -203,14 +203,14 @@ class GroupModelDeploymentMetadata(Serializable):
         container_params,
     ) -> Self:
         """
-        Converts CreateModelDeploymentDetail to GroupModelDeploymentMetadata.
+        Converts CreateModelDeploymentDetail to ModelGroupConfig.
         CreateModelDeploymentDetail represents user-provided parameters and models within a multi-model group after model artifact is created.
-        GroupModelDeploymentMetadata is the Pydantic representation of MULTI_MODEL_CONFIG environment variable during model deployment.
+        ModelGroupConfig is the Pydantic representation of MULTI_MODEL_CONFIG environment variable during model deployment.
         """
         models = []
         seen_models = set()
         for model in create_deployment_details.models:
-            params = GroupModelDeploymentMetadata._merge_gpu_count_params(
+            params = ModelGroupConfig._merge_gpu_count_params(
                 model,
                 model_config_summary,
                 create_deployment_details,

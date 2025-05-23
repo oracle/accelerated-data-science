@@ -50,7 +50,7 @@ from ads.aqua.modeldeployment.entities import (
     CreateModelDeploymentDetails,
     ModelParams,
 )
-from ads.aqua.modeldeployment.group_model_metadata import BaseModelSpec
+from aqua.modeldeployment.model_group_config import BaseModelSpec
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import ModelCustomMetadata
@@ -2362,7 +2362,7 @@ class TestBaseModelSpec:
         expect_warning,
         caplog,
     ):
-        logger = logging.getLogger("ads.aqua.modeldeployment.group_model_metadata")
+        logger = logging.getLogger("ads.aqua.modeldeployment.model_group_config")
         logger.propagate = True
 
         caplog.set_level(logging.WARNING, logger=logger.name)

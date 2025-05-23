@@ -7,6 +7,9 @@ import shlex
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
+from aqua.modeldeployment.model_group_config import (
+    ModelGroupConfig,
+)
 from cachetools import TTLCache, cached
 from oci.data_science.models import ModelDeploymentShapeSummary
 from pydantic import ValidationError
@@ -61,9 +64,6 @@ from ads.aqua.modeldeployment.entities import (
     AquaDeploymentDetail,
     ConfigValidationError,
     CreateModelDeploymentDetails,
-)
-from ads.aqua.modeldeployment.group_model_metadata import (
-    GroupModelDeploymentMetadata,
 )
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN, get_log_links
@@ -565,13 +565,11 @@ class AquaDeploymentApp(AquaApp):
 
         container_params = container_spec.cli_param if container_spec else UNKNOWN
 
-        multi_model_config = (
-            GroupModelDeploymentMetadata.from_create_model_deployment_details(
-                create_deployment_details,
-                model_config_summary,
-                container_type_key,
-                container_params,
-            )
+        multi_model_config = ModelGroupConfig.from_create_model_deployment_details(
+            create_deployment_details,
+            model_config_summary,
+            container_type_key,
+            container_params,
         )
 
         env_var.update({AQUA_MULTI_MODEL_CONFIG: multi_model_config.model_dump_json()})
