@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
 
 from cachetools import TTLCache, cached
-import concurrent
+from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
+from ads.common.decorator.threaded import threaded
 from ads.common.work_request import DataScienceWorkRequest
 from oci.data_science.models import ModelDeploymentShapeSummary
 from pydantic import ValidationError
@@ -44,10 +45,9 @@ from ads.aqua.constants import (
     AQUA_MULTI_MODEL_CONFIG,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     MODEL_NAME_DELIMITER,
-    UNKNOWN_DICT,
-    DEFAULT_WAIT_TIME, 
-    DEFAULT_POLL_INTERVAL
+    UNKNOWN_DICT
 )
+
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.constants import AquaModelMetadataKeys, ModelCustomMetadataFields
@@ -81,12 +81,9 @@ from ads.model.deployment import (
     ModelDeploymentInfrastructure,
     ModelDeploymentMode,
 )
+
 from ads.model.model_metadata import ModelCustomMetadataItem
 from ads.telemetry import telemetry
-
-THREAD_POOL_SIZE = 16
-thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=THREAD_POOL_SIZE)
-
 
 class AquaDeploymentApp(AquaApp):
     """Provides a suite of APIs to interact with Aqua model deployments within the Oracle
@@ -789,15 +786,15 @@ class AquaDeploymentApp(AquaApp):
 
        
 
-        deployment_id = deployment.id()
+        deployment_id = deployment.id
         logger.info(
             f"Aqua model deployment {deployment_id} created for model {aqua_model_id}."
         )
 
-        thread_pool.submit(self.get_deployment_status, 
-                            model_deployment_id=deployment_id, 
-                            work_request_id=deployment.dsc_model_deployment.workflow_req_id,
-                            model_type=model_type) 
+        self.get_deployment_status( 
+            model_deployment_id=deployment_id, 
+            work_request_id=deployment.dsc_model_deployment.workflow_req_id,
+            model_type=model_type)
 
         # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
         telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
@@ -1325,13 +1322,31 @@ class AquaDeploymentApp(AquaApp):
             for oci_shape in oci_shapes
         ]
     
-        
-    def get_deployment_status(self,model_deployment_id: str, work_request_id : str, model_type : str) :
+    @threaded()
+    def get_deployment_status(self,model_deployment_id: str, work_request_id : str, model_type : str) -> None:
+        """Waits for the data science  model deployment to be completed and log its status in telemetry.
 
+        Parameters
+        ----------
+        
+        model_deployment_id: str
+            The id of the deployed aqua model.
+        work_request_id: str
+            The work request Id of the model deployment.
+        model_type: str
+            The type of aqua model to be deployed. Allowed values are: `custom`, `service` and `multi_model`.
+
+        Returns
+        -------
+        AquaDeployment
+            An Aqua deployment instance.
+        """
         telemetry_kwargs = {"ocid": get_ocid_substring(model_deployment_id, key_len=8)}
+
+        data_science_work_request:DataScienceWorkRequest = DataScienceWorkRequest(work_request_id) 
     
         try:
-            DataScienceWorkRequest(work_request_id).wait_work_request(
+            data_science_work_request.wait_work_request(
                 progress_bar_description="Creating model deployment",
                 max_wait_time=DEFAULT_WAIT_TIME, 
                 poll_interval=DEFAULT_POLL_INTERVAL
@@ -1343,13 +1358,13 @@ class AquaDeploymentApp(AquaApp):
             self.telemetry.record_event_async(
                 category=f"aqua/{model_type}/deployment/status",
                 action="FAILED",
-                detail="Error creating model deployment"
+                detail=data_science_work_request._error_message
                 **telemetry_kwargs
             )
+        else :
+            self.telemetry.record_event_async(
+                    category=f"aqua/{model_type}/deployment/status",
+                    action="SUCCEEDED",
+                    **telemetry_kwargs
+                )
         
-        self.telemetry.record_event_async(
-                category=f"aqua/{model_type}/deployment/status",
-                action="SUCCEEDED",
-                detail=" Create model deployment successful", 
-                **telemetry_kwargs
-            )

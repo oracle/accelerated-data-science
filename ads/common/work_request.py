@@ -37,8 +37,7 @@ class DataScienceWorkRequest(OCIDataScienceMixin):
         description: str = "Processing",
         config: dict = None, 
         signer: Signer = None, 
-        client_kwargs: dict = None, 
-        _error_message: str = None,
+        client_kwargs: dict = None,
         **kwargs
     ) -> None:
         """Initializes ADSWorkRequest object.
@@ -66,7 +65,7 @@ class DataScienceWorkRequest(OCIDataScienceMixin):
         self._description = description
         self._percentage = 0
         self._status = None
-        _error_message = _error_message
+        _error_message = None
         super().__init__(config, signer, client_kwargs, **kwargs)
         
 
