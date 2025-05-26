@@ -11,7 +11,6 @@ from cachetools import TTLCache, cached
 from oci.data_science.models import ModelDeploymentShapeSummary
 from pydantic import ValidationError
 
-from ads.aqua import Client
 from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.entities import (
     AquaMultiModelRef,
@@ -21,7 +20,6 @@ from ads.aqua.common.entities import (
 from ads.aqua.common.enums import (
     InferenceContainerTypeFamily,
     ModelFormat,
-    PredictEndpoints,
     Tags,
 )
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
@@ -1315,70 +1313,3 @@ class AquaDeploymentApp(AquaApp):
             )
             for oci_shape in oci_shapes
         ]
-
-    @telemetry(entry_point="plugin=inference&action=get_response", name="aqua")
-    def get_model_deployment_response(
-        self, model_deployment_id: str, payload: dict, route_override_header: str
-    ):
-        """
-        Returns Model deployment inference response in streaming fashion
-
-        Parameters
-        ----------
-        model_deployment_id: str
-            Model deployment ocid
-        payload: dict
-            model params.
-                {
-                "max_tokens": 1024,
-                "temperature": 0.5,
-                "prompt": "what are some good skills deep learning expert. Give us some tips on how to structure interview with some coding example?",
-                "top_p": 0.4,
-                "top_k": 100,
-                "model": "odsc-llm",
-                "frequency_penalty": 1,
-                "presence_penalty": 1,
-                "stream": true
-                }
-
-        Returns
-        -------
-        Model deployment inference response in streaming fashion
-
-        """
-
-        model_deployment = self.get(model_deployment_id)
-        endpoint = model_deployment.endpoint + "/predictWithResponseStream"
-        endpoint_type = model_deployment.environment_variables.get(
-            "MODEL_DEPLOY_PREDICT_ENDPOINT", PredictEndpoints.TEXT_COMPLETIONS_ENDPOINT
-        )
-        aqua_client = Client(endpoint=endpoint)
-
-        if PredictEndpoints.CHAT_COMPLETIONS_ENDPOINT in (
-            endpoint_type,
-            route_override_header,
-        ):
-            for chunk in aqua_client.chat(
-                messages=payload.pop("messages"),
-                payload=payload,
-                stream=True,
-            ):
-                try:
-                    yield chunk["choices"][0]["delta"]["content"]
-                except Exception as e:
-                    logger.debug(
-                        f"Exception occurred while parsing streaming response: {e}"
-                    )
-
-        elif endpoint_type == PredictEndpoints.TEXT_COMPLETIONS_ENDPOINT:
-            for chunk in aqua_client.generate(
-                prompt=payload.pop("prompt"),
-                payload=payload,
-                stream=True,
-            ):
-                try:
-                    yield chunk["choices"][0]["text"]
-                except Exception as e:
-                    logger.debug(
-                        f"Exception occurred while parsing streaming response: {e}"
-                    )

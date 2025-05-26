@@ -2,12 +2,15 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import List, Union
+from typing import List, Optional, Union
 from urllib.parse import urlparse
 
 from tornado.web import HTTPError
 
+from ads.aqua.app import logger
+from ads.aqua.client.client import Client, ExtendedRequestError
 from ads.aqua.common.decorator import handle_exceptions
+from ads.aqua.common.enums import PredictEndpoints
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.modeldeployment import AquaDeploymentApp
@@ -175,6 +178,102 @@ class AquaDeploymentHandler(AquaAPIhandler):
 
 
 class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
+    def _get_model_deployment_response(
+        self,
+        model_deployment_id: str,
+        payload: dict,
+        route_override_header: Optional[str],
+    ):
+        """
+        Returns the model deployment inference response in a streaming fashion.
+
+        This method connects to the specified model deployment endpoint and
+        streams the inference output back to the caller, handling both text
+        and chat completion endpoints depending on the route override.
+
+        Parameters
+        ----------
+        model_deployment_id : str
+            The OCID of the model deployment to invoke.
+            Example: 'ocid1.datasciencemodeldeployment.iad.oc1.xxxyz'
+
+        payload : dict
+            Dictionary containing the model inference parameters.
+            Same example for text completions:
+                {
+                    "max_tokens": 1024,
+                    "temperature": 0.5,
+                    "prompt": "what are some good skills deep learning expert. Give us some tips on how to structure interview with some coding example?",
+                    "top_p": 0.4,
+                    "top_k": 100,
+                    "model": "odsc-llm",
+                    "frequency_penalty": 1,
+                    "presence_penalty": 1,
+                    "stream": true
+                }
+
+        route_override_header : Optional[str]
+            Optional override for the inference route, used for routing between
+            different endpoint types (e.g., chat vs. text completions).
+            Example: '/v1/chat/completions'
+
+        Returns
+        -------
+        Generator[str]
+            A generator that yields strings of the model's output as they are received.
+
+        Raises
+        ------
+        HTTPError
+            If the request to the model deployment fails or if streaming cannot be established.
+        """
+
+        model_deployment = AquaDeploymentApp().get(model_deployment_id)
+        endpoint = model_deployment.endpoint + "/predictWithResponseStream"
+        endpoint_type = model_deployment.environment_variables.get(
+            "MODEL_DEPLOY_PREDICT_ENDPOINT", PredictEndpoints.TEXT_COMPLETIONS_ENDPOINT
+        )
+        aqua_client = Client(endpoint=endpoint)
+
+        if PredictEndpoints.CHAT_COMPLETIONS_ENDPOINT in (
+            endpoint_type,
+            route_override_header,
+        ):
+            try:
+                for chunk in aqua_client.chat(
+                    messages=payload.pop("messages"),
+                    payload=payload,
+                    stream=True,
+                ):
+                    try:
+                        yield chunk["choices"][0]["delta"]["content"]
+                    except Exception as e:
+                        logger.debug(
+                            f"Exception occurred while parsing streaming response: {e}"
+                        )
+            except ExtendedRequestError as ex:
+                raise HTTPError(400, str(ex))
+            except Exception as ex:
+                raise HTTPError(500, str(ex))
+
+        elif endpoint_type == PredictEndpoints.TEXT_COMPLETIONS_ENDPOINT:
+            try:
+                for chunk in aqua_client.generate(
+                    prompt=payload.pop("prompt"),
+                    payload=payload,
+                    stream=True,
+                ):
+                    try:
+                        yield chunk["choices"][0]["text"]
+                    except Exception as e:
+                        logger.debug(
+                            f"Exception occurred while parsing streaming response: {e}"
+                        )
+            except ExtendedRequestError as ex:
+                raise HTTPError(400, str(ex))
+            except Exception as ex:
+                raise HTTPError(500, str(ex))
+
     @handle_exceptions
     def post(self, model_deployment_id):
         """
@@ -203,19 +302,17 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
             raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("model"))
         route_override_header = self.request.headers.get("route", None)
         self.set_header("Content-Type", "text/event-stream")
-        self.set_header("Cache-Control", "no-cache")
-        self.set_header("Transfer-Encoding", "chunked")
-        self.flush()
+        response_gen = self._get_model_deployment_response(
+            model_deployment_id, input_data, route_override_header
+        )
         try:
-            response_gen = AquaDeploymentApp().get_model_deployment_response(
-                model_deployment_id, input_data, route_override_header
-            )
             for chunk in response_gen:
                 self.write(chunk)
                 self.flush()
+            self.finish()
         except Exception as ex:
-            raise HTTPError(500, str(ex)) from ex
-        finally:
+            self.set_status(ex.status_code)
+            self.write({"message": "Error occurred", "reason": str(ex)})
             self.finish()
 
 

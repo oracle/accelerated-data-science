@@ -235,7 +235,9 @@ class TestAquaDeploymentStreamingInferenceHandler(unittest.TestCase):
         self.handler.flush = MagicMock()
         self.handler.finish = MagicMock()
 
-    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_model_deployment_response")
+    @patch.object(
+        AquaDeploymentStreamingInferenceHandler, "_get_model_deployment_response"
+    )
     def test_post(self, mock_get_model_deployment_response):
         """Test post method to return model deployment response."""
         mock_response_gen = iter(["chunk1", "chunk2"])
@@ -245,7 +247,8 @@ class TestAquaDeploymentStreamingInferenceHandler(unittest.TestCase):
         self.handler.get_json_body = MagicMock(
             return_value={"prompt": "Hello", "model": "some-model"}
         )
-        self.handler.request.headers = {"route": "test-route"}
+        self.handler.request.headers = MagicMock()
+        self.handler.request.headers.get.return_value = "test-route"
 
         self.handler.post("mock-deployment-id")
 
