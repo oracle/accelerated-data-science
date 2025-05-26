@@ -82,6 +82,7 @@ Streaming
 
 Using ``stream_complete`` endpoint
 -------------------------------
+For streaming, a dedicated endpoint must be used: ``/predictWithResponseStream``.
 
 .. code-block:: python3
 
@@ -92,7 +93,7 @@ Using ``stream_complete`` endpoint
 
    llm = OCIDataScience(
        model="odsc-llm",
-       endpoint="https://<MD_OCID>/predict",
+       endpoint="https://<MD_OCID>/predictWithResponseStream",
    )
 
    for chunk in llm.stream_complete("Tell me a joke"):
@@ -100,6 +101,8 @@ Using ``stream_complete`` endpoint
 
 Using ``stream_chat`` endpoint
 ----------------------------
+
+For streaming, a dedicated endpoint must be used: ``/predictWithResponseStream``.
 
 .. code-block:: python3
 
@@ -111,7 +114,7 @@ Using ``stream_chat`` endpoint
 
    llm = OCIDataScience(
        model="odsc-llm",
-       endpoint="https://<MD_OCID>/predict",
+       endpoint="https://<MD_OCID>/predictWithResponseStream",
    )
    response = llm.stream_chat(
        [
@@ -176,6 +179,8 @@ Async Streaming
 Using ``astream_complete`` endpoint
 ---------------------------------
 
+For streaming, a dedicated endpoint must be used: ``/predictWithResponseStream``.
+
 .. code-block:: python3
 
    import ads
@@ -185,7 +190,7 @@ Using ``astream_complete`` endpoint
 
    llm = OCIDataScience(
        model="odsc-llm",
-       endpoint="https://<MD_OCID>/predict",
+       endpoint="https://<MD_OCID>/predictWithResponseStream",
    )
 
    async for chunk in await llm.astream_complete("Tell me a joke"):
@@ -193,6 +198,8 @@ Using ``astream_complete`` endpoint
 
 Using ``astream_chat`` endpoint
 -----------------------------
+
+For streaming, a dedicated endpoint must be used: ``/predictWithResponseStream``.
 
 .. code-block:: python3
 
@@ -204,7 +211,7 @@ Using ``astream_chat`` endpoint
 
    llm = OCIDataScience(
        model="odsc-llm",
-       endpoint="https://<MD_OCID>/predict",
+       endpoint="https://<MD_OCID>/predictWithResponseStream",
    )
    response = await llm.stream_chat(
        [

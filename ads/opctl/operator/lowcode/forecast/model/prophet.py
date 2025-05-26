@@ -304,7 +304,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             # Global Expl
             g_expl = self.drop_horizon(expl_df).mean()
             g_expl.name = s_id
-            global_expl.append(g_expl)
+            global_expl.append(np.abs(g_expl))
         self.global_explanation = pd.concat(global_expl, axis=1)
         self.formatted_global_explanation = (
             self.global_explanation / self.global_explanation.sum(axis=0) * 100
