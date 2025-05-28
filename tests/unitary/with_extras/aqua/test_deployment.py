@@ -6,6 +6,7 @@
 
 import copy
 import json
+import logging
 import os
 import unittest
 from importlib import reload
@@ -18,6 +19,7 @@ from oci.data_science.models import (
     ModelDeployWorkloadConfigurationDetails,
 )
 from parameterized import parameterized
+from pydantic import ValidationError
 
 import ads.aqua.modeldeployment.deployment
 import ads.config
@@ -25,6 +27,7 @@ from ads.aqua.app import AquaApp
 from ads.aqua.common.entities import (
     AquaMultiModelRef,
     ComputeShapeSummary,
+    LoraModuleSpec,
     ModelConfigResult,
 )
 from ads.aqua.common.enums import Tags
@@ -35,16 +38,19 @@ from ads.aqua.config.container_config import (
 )
 from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
+from ads.aqua.modeldeployment.config_loader import (
+    AquaDeploymentConfig,
+    ModelDeploymentConfigSummary,
+    MultiModelDeploymentConfigLoader,
+)
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
-    AquaDeploymentConfig,
     AquaDeploymentDetail,
     ConfigValidationError,
     CreateModelDeploymentDetails,
-    ModelDeploymentConfigSummary,
     ModelParams,
 )
-from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
+from ads.aqua.modeldeployment.model_group_config import BaseModelSpec
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import ModelCustomMetadata
@@ -275,7 +281,7 @@ class TestDataset:
                         "environment_configuration_type": "OCIR_CONTAINER",
                         "environment_variables": {
                             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
-                            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/", "model_task": "text_embedding"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/", "model_task": "image_text_to_text"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/", "model_task": "code_synthesis", "fine_tune_weights_location": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"}]}',
+                            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/", "model_task": "text_embedding"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/", "model_task": "image_text_to_text"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/", "model_task": "code_synthesis", "fine_tune_weights": [{"model_name": "ft_model", "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"}] }]}',
                         },
                         "health_check_port": 8080,
                         "image": "dsmc://image-name:1.0.0.0",
@@ -486,8 +492,8 @@ class TestDataset:
                 "model_id": "test_model_id_1",
                 "model_name": "test_model_1",
                 "model_task": "text_embedding",
-                "artifact_location": "test_location_1",
-                "fine_tune_weights_location" : None
+                "artifact_location": "oci://test_location_1",
+                "fine_tune_weights": None,
             },
             {
                 "env_var": {},
@@ -495,8 +501,8 @@ class TestDataset:
                 "model_id": "test_model_id_2",
                 "model_name": "test_model_2",
                 "model_task": "image_text_to_text",
-                "artifact_location": "test_location_2",
-                "fine_tune_weights_location" : None
+                "artifact_location": "oci://test_location_2",
+                "fine_tune_weights": None,
             },
             {
                 "env_var": {},
@@ -504,14 +510,19 @@ class TestDataset:
                 "model_id": "test_model_id_3",
                 "model_name": "test_model_3",
                 "model_task": "code_synthesis",
-                "artifact_location": "test_location_3",
-                "fine_tune_weights_location" : "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"
+                "artifact_location": "oci://test_location_3",
+                "fine_tune_weights": [
+                    {
+                        "model_name": "ft_model",
+                        "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
+                    }
+                ],
             },
         ],
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
-            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/", "model_task": "text_embedding"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/", "model_task": "image_text_to_text"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/", "model_task": "code_synthesis", "fine_tune_weights_location": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"}]}',
+            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/", "model_task": "text_embedding"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/", "model_task": "image_text_to_text"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/", "model_task": "code_synthesis", "fine_tune_weights": [{"model_name": "ft_model", "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"}] }]}',
         },
         "cmd": [],
         "console_link": "https://cloud.oracle.com/data-science/model-deployments/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>?region=region-name",
@@ -972,7 +983,7 @@ class TestDataset:
             "model_name": "model_one",
             "model_task": "text_embedding",
             "artifact_location": "artifact_location_one",
-            "fine_tune_weights_location": None
+            "fine_tune_weights": None,
         },
         {
             "env_var": {"--test_key_two": "test_value_two"},
@@ -981,7 +992,7 @@ class TestDataset:
             "model_name": "model_two",
             "model_task": "image_text_to_text",
             "artifact_location": "artifact_location_two",
-            "fine_tune_weights_location": None
+            "fine_tune_weights": None,
         },
         {
             "env_var": {"--test_key_three": "test_value_three"},
@@ -990,7 +1001,12 @@ class TestDataset:
             "model_name": "model_three",
             "model_task": "code_synthesis",
             "artifact_location": "artifact_location_three",
-            "fine_tune_weights_location" : "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"
+            "fine_tune_weights": [
+                {
+                    "model_name": "ft_model",
+                    "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
+                }
+            ],
         },
     ]
 
@@ -1181,7 +1197,7 @@ class TestAquaDeployment(unittest.TestCase):
         assert result == expected_config
 
     @patch(
-        "ads.aqua.modeldeployment.utils.MultiModelDeploymentConfigLoader._fetch_deployment_configs_concurrently"
+        "ads.aqua.modeldeployment.config_loader.MultiModelDeploymentConfigLoader._fetch_deployment_configs_concurrently"
     )
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.list_shapes")
     def test_get_multimodel_deployment_config_single(
@@ -1233,7 +1249,7 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
     @patch(
-        "ads.aqua.modeldeployment.utils.MultiModelDeploymentConfigLoader._fetch_deployment_configs_concurrently"
+        "ads.aqua.modeldeployment.config_loader.MultiModelDeploymentConfigLoader._fetch_deployment_configs_concurrently"
     )
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.list_shapes")
     def test_get_multimodel_deployment_config_hybrid(
@@ -1800,7 +1816,7 @@ class TestAquaDeployment(unittest.TestCase):
             model_name="test_model_1",
             model_task="text_embedding",
             gpu_count=2,
-            artifact_location="test_location_1",
+            artifact_location="oci://test_location_1",
         )
 
         model_info_2 = AquaMultiModelRef(
@@ -1808,16 +1824,23 @@ class TestAquaDeployment(unittest.TestCase):
             model_name="test_model_2",
             model_task="image_text_to_text",
             gpu_count=2,
-            artifact_location="test_location_2",
+            artifact_location="oci://test_location_2",
         )
 
+        # successful deployment with model_info1, model_info2, model_info3
+        ft_weights = [
+            LoraModuleSpec(
+                model_name="ft_model",
+                model_path="oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
+            )
+        ]
         model_info_3 = AquaMultiModelRef(
             model_id="test_model_id_3",
             model_name="test_model_3",
             model_task="code_synthesis",
             gpu_count=2,
-            artifact_location="test_location_3",
-            fine_tune_weights_location= "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"
+            artifact_location="oci://test_location_3",
+            fine_tune_weights=ft_weights,
         )
 
         result = self.app.create(
@@ -2316,3 +2339,61 @@ class TestMDInferenceResponse(unittest.TestCase):
 
         result = self.app.get_model_deployment_response(endpoint)
         assert result["choices"][0]["text"] == " The answer is 2"
+
+
+class TestBaseModelSpec:
+    VALID_WEIGHT = LoraModuleSpec(
+        model_name="ft_model",
+        model_path="oci://test_bucket@test_namespace/",
+    )
+
+    @pytest.mark.parametrize(
+        "model_path, ft_weights, expect_warning",
+        [
+            ("oci://test_location_3", [VALID_WEIGHT, VALID_WEIGHT], True),
+            ("oci://test_location_3", [], False),
+            ("not-a-valid-uri", [VALID_WEIGHT], False),
+        ],
+    )
+    def test_invalid_base_model_spec(
+        self,
+        model_path,
+        ft_weights,
+        expect_warning,
+        caplog,
+    ):
+        logger = logging.getLogger("ads.aqua.modeldeployment.model_group_config")
+        logger.propagate = True
+
+        caplog.set_level(logging.WARNING, logger=logger.name)
+
+        with pytest.raises(ValidationError) as excinfo:
+            BaseModelSpec(
+                model_id="test_model_id_3",
+                model_name="test_model_3",
+                model_task="code_synthesis",
+                model_path=model_path,
+                fine_tune_weights=ft_weights,
+            )
+
+        messages = [rec.getMessage().lower() for rec in caplog.records]
+
+        if expect_warning:
+            assert any(
+                "duplicate lora modules detected" in m for m in messages
+            ), f"Expected warning, got none. Captured messages: {messages}"
+        else:
+            assert not messages, f"Did not expect any warnings, but got: {messages}"
+
+        # inspecting if errors are thrown
+        errs = excinfo.value.errors()
+        if not model_path.startswith("oci://"):
+            model_path_errors = [e for e in errs if e["loc"] == ("model_path",)]
+            assert model_path_errors, f"expected a model_path error, got: {errs!r}"
+            assert (
+                "the base model path is not available in the model artifact."
+                in model_path_errors[0]["msg"].lower()
+            )
+        else:
+            # e.g. for the duplicate‐weights case you might check for a different loc/msg
+            pass
