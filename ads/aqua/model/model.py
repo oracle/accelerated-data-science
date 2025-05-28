@@ -390,7 +390,8 @@ class AquaModelApp(AquaApp):
                 raise AquaValueError(
                     "The selected models are associated with different container families: "
                     f"{list(selected_models_deployment_containers)}."
-                    "For multi-model deployment, all models in the group must share the same container family."
+                    "For multi-model deployment, all models in the group must belong to the same container "
+                    "family or to compatible container families."
                 )
         else:
             deployment_container = selected_models_deployment_containers.pop()

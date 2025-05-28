@@ -2307,7 +2307,6 @@ class TestAquaDeployment(unittest.TestCase):
             "test_data/deployment/aqua_summary_multi_model_single.json",
         )
 
-
 class TestMDInferenceResponse(unittest.TestCase):
     def setUp(self):
         self.app = MDInferenceResponse()

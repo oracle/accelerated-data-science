@@ -17,7 +17,11 @@ from ads.aqua.common.entities import (
     ComputeShapeSummary,
     ContainerPath,
 )
-from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tags
+from ads.aqua.common.enums import (
+    InferenceContainerTypeFamily,
+    ModelFormat,
+    Tags,
+)
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     DEFINED_METADATA_TO_FILE_MAP,
@@ -871,7 +875,6 @@ class AquaDeploymentApp(AquaApp):
         model_deployment = self.ds_client.get_model_deployment(
             model_deployment_id=model_deployment_id, **kwargs
         ).data
-
         oci_aqua = (
             (
                 Tags.AQUA_TAG in model_deployment.freeform_tags
@@ -916,7 +919,6 @@ class AquaDeploymentApp(AquaApp):
         aqua_deployment = AquaDeployment.from_oci_model_deployment(
             model_deployment, self.region
         )
-
         if Tags.MULTIMODEL_TYPE_TAG in model_deployment.freeform_tags:
             aqua_model_id = model_deployment.freeform_tags.get(
                 Tags.AQUA_MODEL_ID_TAG, UNKNOWN
@@ -947,7 +949,6 @@ class AquaDeploymentApp(AquaApp):
             aqua_deployment.models = [
                 AquaMultiModelRef(**metadata) for metadata in multi_model_metadata
             ]
-
         return AquaDeploymentDetail(
             **vars(aqua_deployment),
             log_group=AquaResourceIdentifier(
