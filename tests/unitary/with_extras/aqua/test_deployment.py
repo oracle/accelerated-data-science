@@ -33,8 +33,7 @@ from ads.aqua.config.container_config import (
     AquaContainerConfig,
     AquaContainerConfigItem,
 )
-from ads.aqua.model.enums import MultiModelSupportedTaskType
-from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
+from ads.aqua.modeldeployment import AquaDeploymentApp
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentConfig,
@@ -482,7 +481,7 @@ class TestDataset:
                 "model_name": "test_model_1",
                 "model_task": "text_embedding",
                 "artifact_location": "test_location_1",
-                "fine_tune_weights_location" : None
+                "fine_tune_weights_location": None,
             },
             {
                 "env_var": {},
@@ -491,7 +490,7 @@ class TestDataset:
                 "model_name": "test_model_2",
                 "model_task": "image_text_to_text",
                 "artifact_location": "test_location_2",
-                "fine_tune_weights_location" : None
+                "fine_tune_weights_location": None,
             },
             {
                 "env_var": {},
@@ -500,7 +499,7 @@ class TestDataset:
                 "model_name": "test_model_3",
                 "model_task": "code_synthesis",
                 "artifact_location": "test_location_3",
-                "fine_tune_weights_location" : "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"
+                "fine_tune_weights_location": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
             },
         ],
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
@@ -966,7 +965,7 @@ class TestDataset:
             "model_name": "model_one",
             "model_task": "text_embedding",
             "artifact_location": "artifact_location_one",
-            "fine_tune_weights_location": None
+            "fine_tune_weights_location": None,
         },
         {
             "env_var": {"--test_key_two": "test_value_two"},
@@ -975,7 +974,7 @@ class TestDataset:
             "model_name": "model_two",
             "model_task": "image_text_to_text",
             "artifact_location": "artifact_location_two",
-            "fine_tune_weights_location": None
+            "fine_tune_weights_location": None,
         },
         {
             "env_var": {"--test_key_three": "test_value_three"},
@@ -984,7 +983,7 @@ class TestDataset:
             "model_name": "model_three",
             "model_task": "code_synthesis",
             "artifact_location": "artifact_location_three",
-            "fine_tune_weights_location" : "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"
+            "fine_tune_weights_location": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
         },
     ]
 
@@ -1811,7 +1810,7 @@ class TestAquaDeployment(unittest.TestCase):
             model_task="code_synthesis",
             gpu_count=2,
             artifact_location="test_location_3",
-            fine_tune_weights_location= "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"
+            fine_tune_weights_location="oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
         )
 
         result = self.app.create(
@@ -2277,36 +2276,3 @@ class TestAquaDeployment(unittest.TestCase):
             total_gpus,
             "test_data/deployment/aqua_summary_multi_model_single.json",
         )
-
-
-class TestMDInferenceResponse(unittest.TestCase):
-    def setUp(self):
-        self.app = MDInferenceResponse()
-
-    @classmethod
-    def setUpClass(cls):
-        cls.curr_dir = os.path.dirname(os.path.abspath(__file__))
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.curr_dir = None
-
-    @patch("requests.post")
-    def test_get_model_deployment_response(self, mock_post):
-        """Test to check if model deployment response is returned correctly."""
-
-        endpoint = TestDataset.MODEL_DEPLOYMENT_URL + "/predict"
-        self.app.prompt = "What is 1+1?"
-        self.app.model_params = ModelParams(**TestDataset.model_params)
-
-        mock_response = MagicMock()
-        response_json = os.path.join(
-            self.curr_dir, "test_data/deployment/aqua_deployment_response.json"
-        )
-        with open(response_json, "r") as _file:
-            mock_response.content = _file.read()
-        mock_response.status_code = 200
-        mock_post.return_value = mock_response
-
-        result = self.app.get_model_deployment_response(endpoint)
-        assert result["choices"][0]["text"] == " The answer is 2"
