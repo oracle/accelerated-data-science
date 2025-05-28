@@ -20,7 +20,11 @@ from ads.aqua.common.entities import (
     ComputeShapeSummary,
     ContainerPath,
 )
-from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tags
+from ads.aqua.common.enums import (
+    InferenceContainerTypeFamily,
+    ModelFormat,
+    Tags,
+)
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     DEFINED_METADATA_TO_FILE_MAP,
@@ -632,7 +636,9 @@ class AquaDeploymentApp(AquaApp):
                 config_data["model_task"] = model.model_task
 
             if model.fine_tune_weights_location:
-                config_data["fine_tune_weights_location"] = model.fine_tune_weights_location
+                config_data["fine_tune_weights_location"] = (
+                    model.fine_tune_weights_location
+                )
 
             model_config.append(config_data)
             model_name_list.append(model.model_name)
@@ -800,7 +806,7 @@ class AquaDeploymentApp(AquaApp):
         telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
 
         if Tags.BASE_MODEL_CUSTOM in tags:
-            telemetry_kwargs[ "custom_base_model"] = True
+            telemetry_kwargs["custom_base_model"] = True
 
         # tracks unique deployments that were created in the user compartment
         self.telemetry.record_event_async(
@@ -945,7 +951,6 @@ class AquaDeploymentApp(AquaApp):
         model_deployment = self.ds_client.get_model_deployment(
             model_deployment_id=model_deployment_id, **kwargs
         ).data
-
         oci_aqua = (
             (
                 Tags.AQUA_TAG in model_deployment.freeform_tags
@@ -990,7 +995,6 @@ class AquaDeploymentApp(AquaApp):
         aqua_deployment = AquaDeployment.from_oci_model_deployment(
             model_deployment, self.region
         )
-
         if Tags.MULTIMODEL_TYPE_TAG in model_deployment.freeform_tags:
             aqua_model_id = model_deployment.freeform_tags.get(
                 Tags.AQUA_MODEL_ID_TAG, UNKNOWN
@@ -1021,7 +1025,6 @@ class AquaDeploymentApp(AquaApp):
             aqua_deployment.models = [
                 AquaMultiModelRef(**metadata) for metadata in multi_model_metadata
             ]
-
         return AquaDeploymentDetail(
             **vars(aqua_deployment),
             log_group=AquaResourceIdentifier(
@@ -1321,7 +1324,7 @@ class AquaDeploymentApp(AquaApp):
             )
             for oci_shape in oci_shapes
         ]
-    
+
     @threaded()
     def get_deployment_status(self,model_deployment_id: str, work_request_id : str, model_type : str) -> None:
         """Waits for the data science  model deployment to be completed and log its status in telemetry.
@@ -1367,4 +1370,3 @@ class AquaDeploymentApp(AquaApp):
                     action="SUCCEEDED",
                     **telemetry_kwargs
                 )
-        
