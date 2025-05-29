@@ -233,11 +233,9 @@ class OCIDataScienceModelDeployment(
         response = self.client.create_model_deployment(create_model_deployment_details)
         self.update_from_oci_model(response.data)
         logger.info(f"Creating model deployment `{self.id}`.")
-        print(f"Model Deployment OCID: {self.id}")
 
+        self.workflow_req_id = response.headers.get("opc-work-request-id", None)
         if wait_for_completion:
-            self.workflow_req_id = response.headers.get("opc-work-request-id", None)
-
             try:
                 DataScienceWorkRequest(self.workflow_req_id).wait_work_request(
                     progress_bar_description="Creating model deployment",
@@ -287,10 +285,8 @@ class OCIDataScienceModelDeployment(
             response = self.client.deactivate_model_deployment(
                 self.id,
             )
-
+            self.workflow_req_id = response.headers.get("opc-work-request-id", None)
             if wait_for_completion:
-                self.workflow_req_id = response.headers.get("opc-work-request-id", None)
-
                 try:
                     DataScienceWorkRequest(self.workflow_req_id).wait_work_request(
                         progress_bar_description="Deactivating model deployment",
@@ -355,10 +351,9 @@ class OCIDataScienceModelDeployment(
         response = self.client.delete_model_deployment(
             self.id,
         )
-
+        
+        self.workflow_req_id = response.headers.get("opc-work-request-id", None)
         if wait_for_completion:
-            self.workflow_req_id = response.headers.get("opc-work-request-id", None)
-
             try:
                 DataScienceWorkRequest(self.workflow_req_id).wait_work_request(
                     progress_bar_description="Deleting model deployment",

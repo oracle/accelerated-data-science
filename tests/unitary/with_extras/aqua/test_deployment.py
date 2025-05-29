@@ -11,6 +11,8 @@ import unittest
 from importlib import reload
 from unittest.mock import MagicMock, patch
 
+from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
+from ads.model.service.oci_datascience_model_deployment import OCIDataScienceModelDeployment
 import oci
 import pytest
 from oci.data_science.models import (
@@ -2282,3 +2284,26 @@ class TestAquaDeployment(unittest.TestCase):
             total_gpus,
             "test_data/deployment/aqua_summary_multi_model_single.json",
         )
+
+    def test_get_deployment_status(self) :
+        deployment_id = "fakeid.datasciencemodeldeployment.oc1.iad.xxx"
+        work_request_id = "fakeid.workrequest.oc1.iad.xxx"
+        model_type = "custom"
+        
+        with patch(
+            "ads.model.service.oci_datascience_model_deployment.DataScienceWorkRequest.__init__"
+        ) as mock_ds_work_request:
+            mock_ds_work_request.return_value = None
+            with patch(
+                "ads.model.service.oci_datascience_model_deployment.DataScienceWorkRequest.wait_work_request"
+            ) as mock_wait:
+                self.app.get_deployment_status(
+                    deployment_id, work_request_id, model_type
+                )
+
+                mock_ds_work_request.assert_called_with("test")
+                mock_wait.assert_called_with(
+                    progress_bar_description='Creating model deployment', 
+                    max_wait_time=DEFAULT_WAIT_TIME, 
+                    poll_interval=DEFAULT_POLL_INTERVAL
+                )

@@ -88,6 +88,7 @@ from ads.model.deployment import (
 
 from ads.model.model_metadata import ModelCustomMetadataItem
 from ads.telemetry import telemetry
+from ads.common.decorator.threaded import thread_pool
 
 class AquaDeploymentApp(AquaApp):
     """Provides a suite of APIs to interact with Aqua model deployments within the Oracle
@@ -790,17 +791,15 @@ class AquaDeploymentApp(AquaApp):
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
 
-       
-
         deployment_id = deployment.id
         logger.info(
-            f"Aqua model deployment {deployment_id} created for model {aqua_model_id}."
+            f"Aqua model deployment {deployment_id} created for model {aqua_model_id}. Work request Id is {deployment.dsc_model_deployment.workflow_req_id}"
         )
-
-        self.get_deployment_status( 
-            model_deployment_id=deployment_id, 
-            work_request_id=deployment.dsc_model_deployment.workflow_req_id,
-            model_type=model_type)
+        
+        thread_pool.submit( self.get_deployment_status ,
+            deployment_id, 
+            deployment.dsc_model_deployment.workflow_req_id,
+            model_type)
 
         # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
         telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
@@ -1325,7 +1324,6 @@ class AquaDeploymentApp(AquaApp):
             for oci_shape in oci_shapes
         ]
 
-    @threaded()
     def get_deployment_status(self,model_deployment_id: str, work_request_id : str, model_type : str) -> None:
         """Waits for the data science  model deployment to be completed and log its status in telemetry.
 
