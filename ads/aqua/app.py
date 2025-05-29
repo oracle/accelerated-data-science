@@ -284,7 +284,7 @@ class AquaApp:
                 logger.info(f"Artifact not found in model {model_id}.")
                 return False
 
-    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=1), timer=datetime.now))
+    @cached(cache=TTLCache(maxsize=5, ttl=timedelta(minutes=1), timer=datetime.now))
     def get_config_from_metadata(
         self,
         model_id: str,

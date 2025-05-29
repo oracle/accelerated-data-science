@@ -17,11 +17,7 @@ from ads.aqua.common.entities import (
     ComputeShapeSummary,
     ContainerPath,
 )
-from ads.aqua.common.enums import (
-    InferenceContainerTypeFamily,
-    ModelFormat,
-    Tags,
-)
+from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     DEFINED_METADATA_TO_FILE_MAP,

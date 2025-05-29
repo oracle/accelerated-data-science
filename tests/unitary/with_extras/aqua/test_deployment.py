@@ -36,8 +36,7 @@ from ads.aqua.config.container_config import (
     AquaContainerConfig,
     AquaContainerConfigItem,
 )
-from ads.aqua.model.enums import MultiModelSupportedTaskType
-from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
+from ads.aqua.modeldeployment import AquaDeploymentApp
 from ads.aqua.modeldeployment.config_loader import (
     AquaDeploymentConfig,
     ModelDeploymentConfigSummary,
@@ -2306,38 +2305,6 @@ class TestAquaDeployment(unittest.TestCase):
             total_gpus,
             "test_data/deployment/aqua_summary_multi_model_single.json",
         )
-
-class TestMDInferenceResponse(unittest.TestCase):
-    def setUp(self):
-        self.app = MDInferenceResponse()
-
-    @classmethod
-    def setUpClass(cls):
-        cls.curr_dir = os.path.dirname(os.path.abspath(__file__))
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.curr_dir = None
-
-    @patch("requests.post")
-    def test_get_model_deployment_response(self, mock_post):
-        """Test to check if model deployment response is returned correctly."""
-
-        endpoint = TestDataset.MODEL_DEPLOYMENT_URL + "/predict"
-        self.app.prompt = "What is 1+1?"
-        self.app.model_params = ModelParams(**TestDataset.model_params)
-
-        mock_response = MagicMock()
-        response_json = os.path.join(
-            self.curr_dir, "test_data/deployment/aqua_deployment_response.json"
-        )
-        with open(response_json, "r") as _file:
-            mock_response.content = _file.read()
-        mock_response.status_code = 200
-        mock_post.return_value = mock_response
-
-        result = self.app.get_model_deployment_response(endpoint)
-        assert result["choices"][0]["text"] == " The answer is 2"
 
 
 class TestBaseModelSpec:

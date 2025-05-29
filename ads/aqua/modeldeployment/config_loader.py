@@ -197,6 +197,7 @@ class ModelDeploymentConfigSummary(Serializable):
 
     class Config:
         extra = "allow"
+        protected_namespaces = ()
 
 
 class MultiModelDeploymentConfigLoader:

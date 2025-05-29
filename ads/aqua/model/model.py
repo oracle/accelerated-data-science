@@ -89,12 +89,7 @@ from ads.aqua.model.utils import (
 )
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import (
-    UNKNOWN,
-    get_console_link,
-    is_path_exists,
-    read_file,
-)
+from ads.common.utils import UNKNOWN, get_console_link, is_path_exists, read_file
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
@@ -331,7 +326,6 @@ class AquaModelApp(AquaApp):
                 model.model_id, model.model_name = extract_base_model_from_ft(
                     source_model
                 )
-
             else:
                 # Retrieve model artifact for base models
                 model_artifact_path = source_model.artifact
