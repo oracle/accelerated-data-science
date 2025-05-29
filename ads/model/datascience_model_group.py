@@ -473,6 +473,24 @@ class DataScienceModelGroup(Builder):
         max_wait_time: int = DEFAULT_WAIT_TIME,
         poll_interval: int = DEFAULT_POLL_INTERVAL,
     ) -> "DataScienceModelGroup":
+        """Creates the datascience model group.
+
+        Parameters
+        ----------
+        wait_for_completion: bool
+            Flag set for whether to wait for model group to be created before proceeding.
+            Defaults to True.
+        max_wait_time: int
+            Maximum amount of time to wait in seconds (Defaults to 1200).
+            Negative implies infinite wait time.
+        poll_interval: int
+            Poll interval in seconds (Defaults to 10).
+
+        Returns
+        -------
+        DataScienceModelGroup
+           The instance of DataScienceModelGroup.
+        """
         response = self.dsc_model_group.create(
             create_model_group_details=CreateModelGroupDetails(
                 **batch_convert_case(self._build_model_group_details(), "snake")
@@ -568,9 +586,28 @@ class DataScienceModelGroup(Builder):
         max_wait_time: int = DEFAULT_WAIT_TIME,
         poll_interval: int = DEFAULT_POLL_INTERVAL,
     ) -> "DataScienceModelGroup":
+        """Updates a datascience model group.
+
+        Parameters
+        ----------
+        wait_for_completion: bool
+            Flag set for whether to wait for model group to be updated before proceeding.
+            Defaults to True.
+        max_wait_time: int
+            Maximum amount of time to wait in seconds (Defaults to 1200).
+            Negative implies infinite wait time.
+        poll_interval: int
+            Poll interval in seconds (Defaults to 10).
+
+        Returns
+        -------
+        DataScienceModelGroup
+            The instance of DataScienceModelGroup.
+        """
         update_model_group_details = OCIDataScienceModelGroup(
             **self._build_model_group_details()
         ).to_oci_model(UpdateModelGroupDetails)
+
         response = self.dsc_model_group.update(
             update_model_group_details=update_model_group_details,
             wait_for_completion=wait_for_completion,
@@ -586,6 +623,24 @@ class DataScienceModelGroup(Builder):
         max_wait_time: int = DEFAULT_WAIT_TIME,
         poll_interval: int = DEFAULT_POLL_INTERVAL,
     ) -> "DataScienceModelGroup":
+        """Activates a datascience model group.
+
+        Parameters
+        ----------
+        wait_for_completion: bool
+            Flag set for whether to wait for model group to be activated before proceeding.
+            Defaults to True.
+        max_wait_time: int
+            Maximum amount of time to wait in seconds (Defaults to 1200).
+            Negative implies infinite wait time.
+        poll_interval: int
+            Poll interval in seconds (Defaults to 10).
+
+        Returns
+        -------
+        DataScienceModelGroup
+            The instance of DataScienceModelGroup.
+        """
         response = self.dsc_model_group.activate(
             wait_for_completion=wait_for_completion,
             max_wait_time=max_wait_time,
@@ -600,6 +655,24 @@ class DataScienceModelGroup(Builder):
         max_wait_time: int = DEFAULT_WAIT_TIME,
         poll_interval: int = DEFAULT_POLL_INTERVAL,
     ) -> "DataScienceModelGroup":
+        """Deactivates a datascience model group.
+
+        Parameters
+        ----------
+        wait_for_completion: bool
+            Flag set for whether to wait for model group to be deactivated before proceeding.
+            Defaults to True.
+        max_wait_time: int
+            Maximum amount of time to wait in seconds (Defaults to 1200).
+            Negative implies infinite wait time.
+        poll_interval: int
+            Poll interval in seconds (Defaults to 10).
+
+        Returns
+        -------
+        DataScienceModelGroup
+            The instance of DataScienceModelGroup.
+        """
         response = self.dsc_model_group.deactivate(
             wait_for_completion=wait_for_completion,
             max_wait_time=max_wait_time,
@@ -614,6 +687,24 @@ class DataScienceModelGroup(Builder):
         max_wait_time: int = DEFAULT_WAIT_TIME,
         poll_interval: int = DEFAULT_POLL_INTERVAL,
     ) -> "DataScienceModelGroup":
+        """Deletes a datascience model group.
+
+        Parameters
+        ----------
+        wait_for_completion: bool
+            Flag set for whether to wait for model group to be deleted before proceeding.
+            Defaults to True.
+        max_wait_time: int
+            Maximum amount of time to wait in seconds (Defaults to 1200).
+            Negative implies infinite wait time.
+        poll_interval: int
+            Poll interval in seconds (Defaults to 10).
+
+        Returns
+        -------
+        DataScienceModelGroup
+            The instance of DataScienceModelGroup.
+        """
         response = self.dsc_model_group.delete(
             wait_for_completion=wait_for_completion,
             max_wait_time=max_wait_time,
@@ -667,6 +758,18 @@ class DataScienceModelGroup(Builder):
 
     @classmethod
     def from_id(cls, model_group_id: str) -> "DataScienceModelGroup":
+        """Loads the model group instance from ocid.
+
+        Parameters
+        ----------
+        model_group_id: str
+            The ocid of model group.
+
+        Returns
+        -------
+        DataScienceModelGroup
+            The DataScienceModelGroup instance (self).
+        """
         oci_model_group = OCIDataScienceModelGroup.from_id(model_group_id)
         return cls()._update_from_oci_model(oci_model_group)
 
