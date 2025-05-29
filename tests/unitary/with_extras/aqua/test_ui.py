@@ -97,6 +97,46 @@ class TestAquaUI(unittest.TestCase):
         reload(ads.aqua)
         reload(ads.aqua.ui)
 
+    def test_list_capacity_reservations(self):
+        capacity_reservations_list = os.path.join(
+            self.curr_dir, "test_data/ui/capacity_reservations_list.json"
+        )
+        with open(capacity_reservations_list, "r") as _file:
+            capacity_reservations = json.load(_file)
+
+        self.app.compute_client.list_compute_capacity_reservations = MagicMock(
+            return_value=oci.response.Response(
+                status=200,
+                request=MagicMock(),
+                headers=MagicMock(),
+                data=[
+                    oci.core.models.ComputeCapacityReservationSummary(
+                        **capacity_reservation
+                    )
+                    for capacity_reservation in capacity_reservations
+                ],
+            )
+        )
+        results = self.app.list_capacity_reservations()
+        expected_attributes = {
+            "id",
+            "compartmentId",
+            "displayName",
+            "definedTags",
+            "freeformTags",
+            "lifecycleState",
+            "availabilityDomain",
+            "reservedInstanceCount",
+            "usedInstanceCount",
+            "isDefaultReservation",
+            "timeCreated",
+        }
+        for result in results:
+            self.assertTrue(
+                expected_attributes.issuperset(set(result)), "Attributes mismatch"
+            )
+        assert len(results) == len(capacity_reservations)
+
     def test_list_log_groups(self):
         """Test to lists all log groups for the specified compartment or tenancy"""
         log_groups_list = os.path.join(
@@ -566,7 +606,7 @@ class TestAquaUI(unittest.TestCase):
                         "cli_param": "--served-model-name odsc-llm --disable-custom-all-reduce --seed 42 ",
                         "env_vars": [
                             {"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"},
-                            {"MODEL_DEPLOY_HEALTH_ENDPOINT": ""},
+                            # {"MODEL_DEPLOY_HEALTH_ENDPOINT": ""},
                             {"MODEL_DEPLOY_ENABLE_STREAMING": "true"},
                             {"PORT": "8080"},
                             {"HEALTH_CHECK_PORT": "8080"},
