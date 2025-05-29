@@ -8,3 +8,5 @@ aqua.modeldeployment.constants
 
 This module contains constants used in Aqua Model Deployment.
 """
+DEFAULT_WAIT_TIME = 1200
+DEFAULT_POLL_INTERVAL = 10
