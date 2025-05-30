@@ -371,91 +371,118 @@ class MultiModelDeploymentConfigLoader:
         self, model_id: str
     ) -> ModelConfigResult:
         """
-        Attempts to retrieve the deployment configuration for a given model.
+        Retrieves the deployment configuration for a model.
 
-        This method first checks whether the model is a fine-tuned model by inspecting its tags.
-        If so, it tries to extract the base model ID from the custom metadata and fetch configuration
-        from the base model instead.
+        The method first attempts to retrieve the configuration directly from the model itself
+        via metadata or object storage. If not found and the model is identified as a fine-tuned
+        model, it then attempts to retrieve the configuration from the associated base model.
 
-        It tries two sources in the following order:
-            1. Model metadata (custom metadata key)
-            2. Object Storage fallback (for backward compatibility or large configs)
+        Sources are checked in the following order:
+            1. Model metadata
+            2. Object Storage
+            3. (If fine-tuned) Base model metadata
+            4. (If fine-tuned) Base model Object Storage
 
         Parameters
         ----------
         model_id : str
-            The OCID of the model in the Model Catalog.
+            OCID of the model in the Model Catalog.
 
         Returns
         -------
         ModelConfigResult
-            The configuration and model details, possibly empty if no config found.
+            A result object containing the deployment configuration and model details.
+            If no config is found, `config` will be an empty dictionary.
         """
-        # Get model details from Model Catalog
-        oci_model = self.deployment_app.ds_client.get_model(model_id).data
-
-        # Check if the model is fine-tuned
-        is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG in oci_model.freeform_tags
-        if is_fine_tuned_model:
-            logger.info(
-                "Model '%s' is marked as fine-tuned. Attempting to retrieve base model ID.",
-                model_id,
-            )
-
-            base_model_id = next(
-                (
-                    item.value
-                    for item in oci_model.custom_metadata_list
-                    if item.key == FineTuneCustomMetadata.FINE_TUNE_SOURCE
-                ),
-                None,
-            )
-
-            if not base_model_id:
-                logger.warning(
-                    "Base model reference not found in custom metadata for fine-tuned model '%s'.",
-                    model_id,
-                )
-                return ModelConfigResult(config={}, model_details=oci_model)
-
-            logger.info(
-                "Base model for fine-tuned model '%s' is '%s'. Using base model for config extraction.",
-                model_id,
-                base_model_id,
-            )
-            model_id = base_model_id
-
-        # Attempt to retrieve config from metadata
-        metadata_key = AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION
-        config = self.deployment_app.get_config_from_metadata(
-            model_id=model_id, metadata_key=metadata_key
+        # Try to get config from the model itself
+        logger.info(
+            "Attempting to retrieve config for model '%s' from metadata.", model_id
         )
-
+        config = self.deployment_app.get_config_from_metadata(
+            model_id=model_id,
+            metadata_key=AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION,
+        )
         if config and config.config:
             logger.info(
-                "Deployment configuration '%s' successfully retrieved from model metadata for model '%s'.",
-                metadata_key,
+                "Successfully retrieved deployment config from metadata for model '%s'.",
                 model_id,
             )
             return config
 
-        # Attempt to retrieve config from Object Storage
         logger.info(
-            "Deployment configuration '%s' not found in metadata for model '%s'. Falling back to Object Storage.",
-            metadata_key,
+            "Config not found in metadata. Trying Object Storage for model '%s'.",
             model_id,
         )
         config = self.deployment_app.get_config(
-            model_id=model_id, config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG
+            model_id=model_id,
+            config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG,
         )
-
         if config and config.config:
             logger.info(
-                "Successfully retrieved deployment configuration from Object Storage for model '%s'.",
+                "Successfully retrieved deployment config from Object Storage for model '%s'.",
                 model_id,
             )
+            return config
 
-        return config or ModelConfigResult()
+        # If it's a fine-tuned model, try base model
+        oci_model = self.deployment_app.ds_client.get_model(model_id).data
+        is_fine_tuned_model = Tags.AQUA_FINE_TUNED_MODEL_TAG in oci_model.freeform_tags
+        if not is_fine_tuned_model:
+            logger.warning("No deployment config found for model '%s'.", model_id)
+            return ModelConfigResult(config={}, model_details=oci_model)
+
+        logger.info(
+            "Model '%s' is a fine-tuned model. Attempting to retrieve base model ID.",
+            model_id,
+        )
+        base_model_id = next(
+            (
+                item.value
+                for item in oci_model.custom_metadata_list
+                if item.key == FineTuneCustomMetadata.FINE_TUNE_SOURCE
+            ),
+            None,
+        )
+
+        if not base_model_id:
+            logger.warning(
+                "Base model reference not found in custom metadata for fine-tuned model '%s'.",
+                model_id,
+            )
+            return ModelConfigResult(config={}, model_details=oci_model)
+
+        logger.info(
+            "Using base model '%s' to retrieve deployment config.", base_model_id
+        )
+
+        config = self.deployment_app.get_config_from_metadata(
+            model_id=base_model_id,
+            metadata_key=AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION,
+        )
+        if config and config.config:
+            logger.info(
+                "Successfully retrieved deployment config from base model metadata '%s'.",
+                base_model_id,
+            )
+            return config
+
+        config = self.deployment_app.get_config(
+            model_id=base_model_id,
+            config_file_name=AQUA_MODEL_DEPLOYMENT_CONFIG,
+        )
+        if config and config.config:
+            logger.info(
+                "Successfully retrieved deployment config from base model Object Storage '%s'.",
+                base_model_id,
+            )
+            return config
+
+        logger.warning(
+            "Deployment configuration could not be found for model '%s' or its base model '%s'.",
+            model_id,
+            base_model_id,
+        )
+        return ModelConfigResult(config={}, model_details=oci_model)
 
     def _extract_model_shape_gpu(
         self,
