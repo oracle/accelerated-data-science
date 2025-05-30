@@ -16,7 +16,7 @@ from oci.data_science.models import JobRun, Metadata, Model, UpdateModelDetails
 
 from ads.aqua import logger
 from ads.aqua.app import AquaApp
-from ads.aqua.common.entities import AquaMultiModelRef
+from ads.aqua.common.entities import AquaMultiModelRef, LoraModuleSpec
 from ads.aqua.common.enums import (
     ConfigFolder,
     CustomInferenceContainerTypeFamily,
@@ -89,12 +89,7 @@ from ads.aqua.model.utils import (
 )
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import (
-    UNKNOWN,
-    get_console_link,
-    is_path_exists,
-    read_file,
-)
+from ads.common.utils import UNKNOWN, get_console_link, is_path_exists, read_file
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
@@ -321,13 +316,16 @@ class AquaModelApp(AquaApp):
             )
 
             if is_fine_tuned_model:
+                model_artifact_path, fine_tune_path = extract_fine_tune_artifacts_path(
+                    source_model
+                )
+                # once we support multiple LoRA Modules use [LoraModuleSpec(**lora_module) for lora_module in model.fine_tune_weights]
+                model.fine_tune_weights = [
+                    LoraModuleSpec(model_name=display_name, model_path=fine_tune_path)
+                ]
                 model.model_id, model.model_name = extract_base_model_from_ft(
                     source_model
                 )
-                model_artifact_path, model.fine_tune_weights_location = (
-                    extract_fine_tune_artifacts_path(source_model)
-                )
-
             else:
                 # Retrieve model artifact for base models
                 model_artifact_path = source_model.artifact

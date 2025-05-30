@@ -3,9 +3,8 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """AQUA model utils"""
 
-from typing import Dict, Optional, Tuple
+from typing import Tuple
 
-from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.errors import AquaValueError
 from ads.aqua.common.utils import get_model_by_reference_paths
 from ads.aqua.finetuning.constants import FineTuneCustomMetadata
