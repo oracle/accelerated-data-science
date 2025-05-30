@@ -2306,7 +2306,6 @@ class TestAquaDeployment(unittest.TestCase):
             "test_data/deployment/aqua_summary_multi_model_single.json",
         )
 
-
 class TestBaseModelSpec:
     VALID_WEIGHT = LoraModuleSpec(
         model_name="ft_model",
@@ -2314,18 +2313,19 @@ class TestBaseModelSpec:
     )
 
     @pytest.mark.parametrize(
-        "model_path, ft_weights, expect_warning",
+        "model_path, ft_weights, expect_warning, expect_error",
         [
-            ("oci://test_location_3", [VALID_WEIGHT, VALID_WEIGHT], True),
-            ("oci://test_location_3", [], False),
-            ("not-a-valid-uri", [VALID_WEIGHT], False),
+            ("oci://test_location_3", [VALID_WEIGHT, VALID_WEIGHT], True, False),
+            ("oci://test_location_3", [], False, False),
+            ("not-a-valid-uri", [VALID_WEIGHT], False, True),
         ],
     )
-    def test_invalid_base_model_spec(
+    def test_invalid_from_aqua_multi_model_ref(
         self,
         model_path,
         ft_weights,
         expect_warning,
+        expect_error,
         caplog,
     ):
         logger = logging.getLogger("ads.aqua.modeldeployment.model_group_config")
@@ -2333,17 +2333,33 @@ class TestBaseModelSpec:
 
         caplog.set_level(logging.WARNING, logger=logger.name)
 
-        with pytest.raises(ValidationError) as excinfo:
-            BaseModelSpec(
-                model_id="test_model_id_3",
-                model_name="test_model_3",
-                model_task="code_synthesis",
-                model_path=model_path,
-                fine_tune_weights=ft_weights,
-            )
+        model_ref = AquaMultiModelRef(
+            artifact_location=model_path,
+            model_task="code_synthesis",
+            model_name="test_model_3",
+            model_id="test_model_id_3",
+            fine_tune_weights=ft_weights,
+            env_var={},
+            gpu_count=1,
+        )
+
+        model_params = "--dummy-param"
+
+        if expect_error:
+            with pytest.raises(ValidationError) as excinfo:
+                BaseModelSpec.from_aqua_multi_model_ref(model_ref, model_params)
+            errs = excinfo.value.errors()
+            if not model_path.startswith("oci://"):
+                model_path_errors = [e for e in errs if e["loc"] == ("model_path",)]
+                assert model_path_errors, f"expected a model_path error, got: {errs!r}"
+                assert (
+                    "the base model path is not available in the model artifact."
+                    in model_path_errors[0]["msg"].lower()
+                )
+        else:
+            BaseModelSpec.from_aqua_multi_model_ref(model_ref, model_params)
 
         messages = [rec.getMessage().lower() for rec in caplog.records]
-
         if expect_warning:
             assert any(
                 "duplicate lora modules detected" in m for m in messages
@@ -2351,15 +2367,3 @@ class TestBaseModelSpec:
         else:
             assert not messages, f"Did not expect any warnings, but got: {messages}"
 
-        # inspecting if errors are thrown
-        errs = excinfo.value.errors()
-        if not model_path.startswith("oci://"):
-            model_path_errors = [e for e in errs if e["loc"] == ("model_path",)]
-            assert model_path_errors, f"expected a model_path error, got: {errs!r}"
-            assert (
-                "the base model path is not available in the model artifact."
-                in model_path_errors[0]["msg"].lower()
-            )
-        else:
-            # e.g. for the duplicate‐weights case you might check for a different loc/msg
-            pass

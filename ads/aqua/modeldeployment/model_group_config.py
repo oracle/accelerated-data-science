@@ -44,8 +44,8 @@ class BaseModelSpec(BaseModel):
         Additional vLLM launch parameters for this model (e.g. parallelism, max context).
     model_task : str, optional
         Model task type (e.g., text-generation, image-to-text).
-    fine_tune_weights : List[FineTunedModelSpec], optional
-        List of associated fine-tuned models.
+    fine_tune_weights : List[List[LoraModuleSpec]], optional
+        List of associated LoRA modules for fine-tuned models.
     """
 
     model_path: str = Field(..., description="Path to the base model.")
@@ -71,17 +71,13 @@ class BaseModelSpec(BaseModel):
             "The base model path is not available in the model artifact."
         )
 
-    @field_validator("fine_tune_weights")
     @classmethod
-    def set_fine_tuned_weights(cls, fine_tuned_weights: List[LoraModuleSpec]):
-        """Removes duplicate LoRA Modules (duplicate model_names in fine_tuned_weights)"""
+    def dedup_lora_modules(cls, fine_tune_weights: List[LoraModuleSpec]):
+        """Removes duplicate LoRA Modules (duplicate model_names in fine_tune_weights)"""
         seen_modules = set()
         unique_modules: List[LoraModuleSpec] = []
 
-        if not fine_tuned_weights:
-            return None
-
-        for lora_module in fine_tuned_weights:
+        for lora_module in fine_tune_weights or []:
             if lora_module.model_name not in seen_modules:
                 seen_modules.add(lora_module.model_name)
                 unique_modules.append(lora_module)
@@ -101,7 +97,7 @@ class BaseModelSpec(BaseModel):
             model_path=model.artifact_location,
             params=model_params,
             model_task=model.model_task,
-            fine_tuned_weights=model.fine_tune_weights,
+            fine_tune_weights=cls.dedup_lora_modules(model.fine_tune_weights),
         )
 
 
@@ -112,7 +108,7 @@ class ModelGroupConfig(Serializable):
     Attributes
     ----------
     models : List[BaseModelConfig]
-        List of base models (with optional fine-tuned weights) to be served.
+        List of base models (with optional fine-tune weights) to be served.
     """
 
     models: List[BaseModelSpec] = Field(
@@ -228,5 +224,4 @@ class ModelGroupConfig(Serializable):
                     "Each base model must have a unique `model_name`. "
                     "Please remove or rename the duplicate model and register the model group again."
                 )
-
         return cls(models=models)
