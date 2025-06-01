@@ -325,7 +325,7 @@ class AquaApp:
             )
         return ModelConfigResult(config=config, model_details=oci_model)
 
-    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=1), timer=datetime.now))
+    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=5), timer=datetime.now))
     def get_config(
         self,
         model_id: str,
@@ -365,7 +365,6 @@ class AquaApp:
         if not oci_aqua:
             logger.debug(f"Target model {oci_model.id} is not an Aqua model.")
             return ModelConfigResult(config=config, model_details=oci_model)
-            # raise AquaRuntimeError(f"Target model {oci_model.id} is not an Aqua model.")
 
         artifact_path = get_artifact_path(oci_model.custom_metadata_list)
         if not artifact_path:
