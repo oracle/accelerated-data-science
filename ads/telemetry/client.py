@@ -3,12 +3,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
+import concurrent.futures
 import logging
-import threading
 import traceback
 import urllib.parse
 from typing import Optional
-import concurrent.futures
 
 import oci
 
@@ -19,6 +18,7 @@ from .base import TelemetryBase
 logger = logging.getLogger(__name__)
 THREAD_POOL_SIZE = 16
 thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=THREAD_POOL_SIZE)
+
 
 class TelemetryClient(TelemetryBase):
     """Represents a telemetry python client providing functions to record an event.
@@ -81,7 +81,8 @@ class TelemetryClient(TelemetryBase):
             # Here `endpoint`` is for debugging purpose
             # For some federated/domain users, the `endpoint` may not be a valid URL
             endpoint = f"{self.service_endpoint}/n/{self.namespace}/b/{self.bucket}/o/telemetry/{category}/{action}"
-            logger.debug(f"Sending telemetry to endpoint: {endpoint}")
+            logger.info(f"Sending telemetry to endpoint: {endpoint}")
+            print(f"Sending telemetry to endpoint: {endpoint}")
 
             self.os_client.base_client.user_agent = self._encode_user_agent(**kwargs)
             try:
@@ -104,7 +105,7 @@ class TelemetryClient(TelemetryBase):
 
     def record_event_async(
         self, category: str = None, action: str = None, detail: str = None, **kwargs
-    )-> None:
+    ) -> None:
         """Send a head request to generate an event record.
 
         Parameters

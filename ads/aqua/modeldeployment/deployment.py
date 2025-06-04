@@ -8,9 +8,6 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
 
 from cachetools import TTLCache, cached
-from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
-from ads.common.decorator.threaded import threaded
-from ads.common.work_request import DataScienceWorkRequest
 from oci.data_science.models import ModelDeploymentShapeSummary
 from pydantic import ValidationError
 
@@ -49,9 +46,8 @@ from ads.aqua.constants import (
     AQUA_MULTI_MODEL_CONFIG,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     MODEL_NAME_DELIMITER,
-    UNKNOWN_DICT
+    UNKNOWN_DICT,
 )
-
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.constants import AquaModelMetadataKeys, ModelCustomMetadataFields
@@ -59,6 +55,7 @@ from ads.aqua.model.utils import (
     extract_base_model_from_ft,
     extract_fine_tune_artifacts_path,
 )
+from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentConfig,
@@ -69,8 +66,10 @@ from ads.aqua.modeldeployment.entities import (
     ModelDeploymentConfigSummary,
 )
 from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
+from ads.common.decorator.threaded import thread_pool
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN, get_log_links
+from ads.common.work_request import DataScienceWorkRequest
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
@@ -85,10 +84,9 @@ from ads.model.deployment import (
     ModelDeploymentInfrastructure,
     ModelDeploymentMode,
 )
-
 from ads.model.model_metadata import ModelCustomMetadataItem
 from ads.telemetry import telemetry
-from ads.common.decorator.threaded import thread_pool
+
 
 class AquaDeploymentApp(AquaApp):
     """Provides a suite of APIs to interact with Aqua model deployments within the Oracle
@@ -795,11 +793,13 @@ class AquaDeploymentApp(AquaApp):
         logger.info(
             f"Aqua model deployment {deployment_id} created for model {aqua_model_id}. Work request Id is {deployment.dsc_model_deployment.workflow_req_id}"
         )
-        
-        thread_pool.submit( self.get_deployment_status ,
-            deployment_id, 
+
+        thread_pool.submit(
+            self.get_deployment_status,
+            deployment_id,
             deployment.dsc_model_deployment.workflow_req_id,
-            model_type)
+            model_type,
+        )
 
         # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
         telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
@@ -1324,12 +1324,14 @@ class AquaDeploymentApp(AquaApp):
             for oci_shape in oci_shapes
         ]
 
-    def get_deployment_status(self,model_deployment_id: str, work_request_id : str, model_type : str) -> None:
+    def get_deployment_status(
+        self, model_deployment_id: str, work_request_id: str, model_type: str
+    ) -> None:
         """Waits for the data science  model deployment to be completed and log its status in telemetry.
 
         Parameters
         ----------
-        
+
         model_deployment_id: str
             The id of the deployed aqua model.
         work_request_id: str
@@ -1342,29 +1344,33 @@ class AquaDeploymentApp(AquaApp):
         AquaDeployment
             An Aqua deployment instance.
         """
-        telemetry_kwargs = {"ocid": get_ocid_substring(model_deployment_id, key_len=8)}
+        ocid = get_ocid_substring(model_deployment_id, key_len=8)
+        telemetry_kwargs = {"ocid": ocid}
 
-        data_science_work_request:DataScienceWorkRequest = DataScienceWorkRequest(work_request_id) 
-    
+        data_science_work_request: DataScienceWorkRequest = DataScienceWorkRequest(
+            work_request_id
+        )
+
         try:
             data_science_work_request.wait_work_request(
                 progress_bar_description="Creating model deployment",
-                max_wait_time=DEFAULT_WAIT_TIME, 
-                poll_interval=DEFAULT_POLL_INTERVAL
+                max_wait_time=DEFAULT_WAIT_TIME,
+                poll_interval=DEFAULT_POLL_INTERVAL,
             )
         except Exception as e:
-            logger.error(
-                "Error while trying to create model deployment: " + str(e)
-            )
+            logger.error("Error while trying to create model deployment: " + str(e))
+            print("Error while trying to create model deployment: " + str(e))
             self.telemetry.record_event_async(
                 category=f"aqua/{model_type}/deployment/status",
                 action="FAILED",
-                detail=data_science_work_request._error_message
-                **telemetry_kwargs
+                detail=data_science_work_request._error_message,
+                value=ocid,
+                **telemetry_kwargs,
             )
-        else :
+        else:
             self.telemetry.record_event_async(
-                    category=f"aqua/{model_type}/deployment/status",
-                    action="SUCCEEDED",
-                    **telemetry_kwargs
-                )
+                category=f"aqua/{model_type}/deployment/status",
+                action="SUCCEEDED",
+                value=ocid,
+                **telemetry_kwargs,
+            )
