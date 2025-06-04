@@ -900,11 +900,12 @@ def test_report_title(operator_setup, model):
     yaml_i["spec"]["historical_data"]["data"] = df
     operator_config = ForecastOperatorConfig.from_dict(yaml_i)
     results = operate(operator_config)
+    title_found = False
     with open(os.path.join(operator_setup, "report.html")) as f:
         for line in f:
             if "Skibidi ADS Skibidi" in line:
-                return True
-        assert False, "Report Title was not set"
+                title_found = True
+    assert title_found, "Report Title was not set"
 
 
 @pytest.mark.parametrize("model", ["prophet"])
