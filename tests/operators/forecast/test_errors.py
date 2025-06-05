@@ -665,9 +665,8 @@ def test_arima_automlx_errors(operator_setup, model):
     """
     series 13 in this data has missing dates and automlx fails for this with DatetimeIndex error. This test checks that
     outputs get generated and that error is shown in errors.json
-    """
 
-    """
+
     explanations generation is failing when boolean columns are passed.
     TypeError: ufunc 'isfinite' not supported for the input types, and the inputs could not be safely coerced
      any supported types according to the casting rule ''safe''
@@ -900,11 +899,12 @@ def test_report_title(operator_setup, model):
     yaml_i["spec"]["historical_data"]["data"] = df
     operator_config = ForecastOperatorConfig.from_dict(yaml_i)
     results = operate(operator_config)
+    title_found = False
     with open(os.path.join(operator_setup, "report.html")) as f:
         for line in f:
             if "Skibidi ADS Skibidi" in line:
-                return True
-        assert False, "Report Title was not set"
+                title_found = True
+    assert title_found, "Report Title was not set"
 
 
 @pytest.mark.parametrize("model", ["prophet"])
@@ -947,6 +947,38 @@ def test_prophet_floor_cap(operator_setup, model):
     ), "`max` not obeyed in prophet"
 
 
+def _check_results_obj(results):
+    assert not results.get_forecast().empty
+    assert not results.get_metrics().empty
+    assert not results.get_global_explanations().empty
+    assert not results.get_local_explanations().empty
+
+
+def _check_no_skippable_files(yaml_i, check_report=True):
+    files = os.listdir(yaml_i["spec"]["output_directory"]["url"])
+
+    if "errors.json" in files:
+        with open(
+            os.path.join(yaml_i["spec"]["output_directory"]["url"], "errors.json")
+        ) as f:
+            assert False, f"Failed due to errors.json being created: {f.read()}"
+    if check_report:
+        assert "report.html" in files, "Failed to generate report"
+
+    assert (
+        "forecast.csv" not in files
+    ), "Generated forecast file, but `generate_forecast_file` was set False"
+    assert (
+        "metrics.csv" not in files
+    ), "Generated metrics file, but `generate_metrics_file` was set False"
+    assert (
+        "local_explanations.csv" not in files
+    ), "Generated metrics file, but `generate_explanation_files` was set False"
+    assert (
+        "global_explanations.csv" not in files
+    ), "Generated metrics file, but `generate_explanation_files` was set False"
+
+
 @pytest.mark.parametrize("model", ["prophet"])
 def test_generate_files(operator_setup, model):
     yaml_i = TEMPLATE_YAML.copy()
@@ -969,35 +1001,15 @@ def test_generate_files(operator_setup, model):
     yaml_i["spec"]["additional_data"]["data"] = df_add
     operator_config = ForecastOperatorConfig.from_dict(yaml_i)
     results = operate(operator_config)
-    files = os.listdir(yaml_i["spec"]["output_directory"]["url"])
-    if "errors.json" in files:
-        with open(
-            os.path.join(yaml_i["spec"]["output_directory"]["url"], "errors.json")
-        ) as f:
-            assert False, f"Failed due to errors.json being created: {f.read()}"
-    assert "report.html" in files, "Failed to generate report"
-    assert (
-        "forecast.csv" not in files
-    ), "Generated forecast file, but `generate_forecast_file` was set False"
-    assert (
-        "metrics.csv" not in files
-    ), "Generated metrics file, but `generate_metrics_file` was set False"
-    assert (
-        "local_explanations.csv" not in files
-    ), "Generated metrics file, but `generate_explanation_files` was set False"
-    assert (
-        "global_explanations.csv" not in files
-    ), "Generated metrics file, but `generate_explanation_files` was set False"
-    assert not results.get_forecast().empty
-    assert not results.get_metrics().empty
-    assert not results.get_global_explanations().empty
-    assert not results.get_local_explanations().empty
+    _check_results_obj(results)
+    _check_no_skippable_files(yaml_i)
 
     yaml_i["spec"].pop("generate_explanation_files")
     yaml_i["spec"].pop("generate_forecast_file")
     yaml_i["spec"].pop("generate_metrics_file")
     operator_config = ForecastOperatorConfig.from_dict(yaml_i)
     results = operate(operator_config)
+    _check_results_obj(results)
     files = os.listdir(yaml_i["spec"]["output_directory"]["url"])
     if "errors.json" in files:
         with open(
@@ -1010,6 +1022,12 @@ def test_generate_files(operator_setup, model):
     assert "metrics.csv" in files, "Failed to generated metrics file"
     assert "local_explanation.csv" in files, "Failed to generated local expl file"
     assert "global_explanation.csv" in files, "Failed to generated global expl file"
+
+    # Test that the results object still generates when report.html has an error
+    yaml_i["spec"]["output_directory"]["url"] = "s3://test@test/test_dir"
+    operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+    results = operate(operator_config)
+    _check_results_obj(results)
 
 
 if __name__ == "__main__":
