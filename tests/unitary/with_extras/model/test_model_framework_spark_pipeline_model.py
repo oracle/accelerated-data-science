@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Unit tests for model frameworks. Includes tests for:
@@ -10,16 +10,17 @@
 import os
 import shutil
 import tempfile
-import pytest
+
 import numpy as np
+import pytest
 from packaging import version
-from ads.model.framework.spark_model import SparkPipelineModel
+from pyspark.ml.classification import LogisticRegression
+from pyspark.ml.feature import HashingTF, Tokenizer
 from pyspark.ml.linalg import Vectors
 from pyspark.ml.pipeline import Pipeline, PipelineModel
 from pyspark.sql import SparkSession
-from pyspark.ml.classification import LogisticRegression
-from pyspark.ml.feature import HashingTF, Tokenizer
 
+from ads.model.framework.spark_model import SparkPipelineModel
 
 spark = SparkSession.builder.appName("Python Spark SQL basic example").getOrCreate()
 artifact_dir1 = tempfile.mkdtemp()
