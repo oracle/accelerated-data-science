@@ -11,6 +11,7 @@ import sys
 import tempfile
 from typing import List, Union
 
+import cloudpickle
 import fsspec
 import oracledb
 import pandas as pd
@@ -126,7 +127,26 @@ def load_data(data_spec, storage_options=None, **kwargs):
     return data
 
 
+def _safe_write(fn, **kwargs):
+    try:
+        fn(**kwargs)
+    except Exception:
+        logger.warning(f'Failed to write file {kwargs.get("filename", "UNKNOWN")}')
+
+
 def write_data(data, filename, format, storage_options=None, index=False, **kwargs):
+    return _safe_write(
+        fn=_write_data,
+        data=data,
+        filename=filename,
+        format=format,
+        storage_options=storage_options,
+        index=index,
+        **kwargs,
+    )
+
+
+def _write_data(data, filename, format, storage_options=None, index=False, **kwargs):
     disable_print()
     if not format:
         _, format = os.path.splitext(filename)
@@ -143,17 +163,84 @@ def write_data(data, filename, format, storage_options=None, index=False, **kwar
 
 
 def write_json(json_dict, filename, storage_options=None):
+    return _safe_write(
+        fn=_write_json,
+        json_dict=json_dict,
+        filename=filename,
+        storage_options=storage_options,
+    )
+
+
+def _write_json(json_dict, filename, storage_options=None):
     with fsspec.open(filename, mode="w", **storage_options) as f:
         f.write(json.dumps(json_dict))
 
 
 def write_simple_json(data, path):
+    return _safe_write(fn=_write_simple_json, data=data, path=path)
+
+
+def _write_simple_json(data, path):
     if ObjectStorageDetails.is_oci_path(path):
         storage_options = default_signer()
     else:
         storage_options = {}
     with fsspec.open(path, mode="w", **storage_options) as f:
         json.dump(data, f, indent=4)
+
+
+def write_file(local_filename, remote_filename, storage_options, **kwargs):
+    return _safe_write(
+        fn=_write_file,
+        local_filename=local_filename,
+        remote_filename=remote_filename,
+        storage_options=storage_options,
+        **kwargs,
+    )
+
+
+def _write_file(local_filename, remote_filename, storage_options, **kwargs):
+    with open(local_filename) as f1:
+        with fsspec.open(
+            remote_filename,
+            "w",
+            **storage_options,
+        ) as f2:
+            f2.write(f1.read())
+
+
+def load_pkl(filepath):
+    return _safe_write(fn=_load_pkl, filepath=filepath)
+
+
+def _load_pkl(filepath):
+    storage_options = {}
+    if ObjectStorageDetails.is_oci_path(filepath):
+        storage_options = default_signer()
+
+    with fsspec.open(filepath, "rb", **storage_options) as f:
+        return cloudpickle.load(f)
+    return None
+
+
+def write_pkl(obj, filename, output_dir, storage_options):
+    return _safe_write(
+        fn=_write_pkl,
+        obj=obj,
+        filename=filename,
+        output_dir=output_dir,
+        storage_options=storage_options,
+    )
+
+
+def _write_pkl(obj, filename, output_dir, storage_options):
+    pkl_path = os.path.join(output_dir, filename)
+    with fsspec.open(
+        pkl_path,
+        "wb",
+        **storage_options,
+    ) as f:
+        cloudpickle.dump(obj, f)
 
 
 def merge_category_columns(data, target_category_columns):
@@ -290,4 +377,8 @@ def disable_print():
 
 # Restore
 def enable_print():
+    try:
+        sys.stdout.close()
+    except Exception:
+        pass
     sys.stdout = sys.__stdout__
