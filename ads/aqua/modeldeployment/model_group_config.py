@@ -162,8 +162,14 @@ class ModelGroupConfig(Serializable):
             model, container_params, container_type_key
         )
 
+        model_id = (
+            model.fine_tune_weights[0].model_id
+            if model.fine_tune_weights
+            else model.model_id
+        )
+
         deployment_config = model_config_summary.deployment_config.get(
-            model.model_id, AquaDeploymentConfig()
+            model_id, AquaDeploymentConfig()
         ).configuration.get(
             create_deployment_details.instance_shape, ConfigurationItem()
         )
