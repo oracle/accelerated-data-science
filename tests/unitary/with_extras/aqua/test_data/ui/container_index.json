@@ -10,9 +10,6 @@
           "MODEL_DEPLOY_HEALTH_ENDPOINT": "/v1/models"
         },
         {
-          "MODEL_DEPLOY_ENABLE_STREAMING": "true"
-        },
-        {
           "PORT": "8080"
         },
         {
@@ -32,9 +29,6 @@
       "envVars": [
         {
           "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"
-        },
-        {
-          "MODEL_DEPLOY_ENABLE_STREAMING": "true"
         },
         {
           "PORT": "8080"
@@ -58,9 +52,6 @@
       "envVars": [
         {
           "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"
-        },
-        {
-          "MODEL_DEPLOY_ENABLE_STREAMING": "true"
         },
         {
           "PORT": "8080"

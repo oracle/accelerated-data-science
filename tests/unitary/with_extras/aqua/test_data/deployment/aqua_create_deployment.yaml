@@ -24,7 +24,6 @@ spec:
     spec:
       env:
         BASE_MODEL: service_models/model-name/artifact
-        MODEL_DEPLOY_ENABLE_STREAMING: 'true'
         MODEL_DEPLOY_PREDICT_ENDPOINT: /v1/completions
         PARAMS: --served-model-name odsc-llm --seed 42 --trust-remote-code --max-model-len 4096
       healthCheckPort: 8080
