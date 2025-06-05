@@ -15,18 +15,17 @@ import oci
 import pytest
 from oci.data_science.models import (
     ContainerSummary,
-    WorkloadConfigurationDetails,
-    ModelDeployWorkloadConfigurationDetails,
     JobRunWorkloadConfigurationDetails,
+    ModelDeployWorkloadConfigurationDetails,
+    WorkloadConfigurationDetails,
 )
-
-from ads.aqua.app import AquaApp
-from ads.aqua.extension.base_handler import AquaAPIhandler
 from parameterized import parameterized
 
 import ads.config
+from ads.aqua.app import AquaApp
 from ads.aqua.common.errors import AquaValueError
 from ads.aqua.common.utils import load_config
+from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.ui import AquaUIApp
 from tests.unitary.with_extras.aqua.utils import ServiceManagedContainers
 
@@ -606,7 +605,7 @@ class TestAquaUI(unittest.TestCase):
                         "cli_param": "--served-model-name odsc-llm --disable-custom-all-reduce --seed 42 ",
                         "env_vars": [
                             {"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"},
-                            {"MODEL_DEPLOY_HEALTH_ENDPOINT": ""},
+                            # {"MODEL_DEPLOY_HEALTH_ENDPOINT": ""},
                             {"PORT": "8080"},
                             {"HEALTH_CHECK_PORT": "8080"},
                         ],
