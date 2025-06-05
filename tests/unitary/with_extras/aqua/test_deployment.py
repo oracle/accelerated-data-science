@@ -49,7 +49,7 @@ from ads.aqua.modeldeployment.entities import (
     CreateModelDeploymentDetails,
     ModelParams,
 )
-from ads.aqua.modeldeployment.model_group_config import BaseModelSpec
+from ads.aqua.modeldeployment.model_group_config import BaseModelSpec, ModelGroupConfig
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import ModelCustomMetadata
@@ -1008,6 +1008,51 @@ class TestDataset:
             ],
         },
     ]
+
+    multi_model_deployment_group_config = {
+        "models": [
+            {
+                "fine_tune_weights": [],
+                "model_path": "",
+                "model_task": "text_embedding",
+                "params": "--example-container-params test --served-model-name test_model_1 --tensor-parallel-size 1 --trust-remote-code --max-model-len 60000",
+            },
+            {
+                "fine_tune_weights": [],
+                "model_path": "",
+                "model_task": "image_text_to_text",
+                "params": "--example-container-params test --served-model-name test_model_2 --tensor-parallel-size 2 --trust-remote-code --max-model-len 32000",
+            },
+            {
+                "fine_tune_weights": [
+                    {
+                        "model_name": "ft_model",
+                        "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
+                    },
+                ],
+                "model_path": "",
+                "model_task": "code_synthesis",
+                "params": "--example-container-params test --served-model-name test_model_3 --tensor-parallel-size 4",
+            },
+        ],
+    }
+
+    multi_model_deployment_group_config_no_ft = {
+        "models": [
+            {
+                "fine_tune_weights": [],
+                "model_path": "",
+                "model_task": "text_embedding",
+                "params": "--example-container-params test --served-model-name test_model_1 --tensor-parallel-size 1 --trust-remote-code --max-model-len 60000",
+            },
+            {
+                "fine_tune_weights": [],
+                "model_path": "",
+                "model_task": "image_text_to_text",
+                "params": "--example-container-params test --served-model-name test_model_2 --tensor-parallel-size 2 --trust-remote-code --max-model-len 32000",
+            },
+        ],
+    }
 
 
 class TestAquaDeployment(unittest.TestCase):
@@ -2306,6 +2351,7 @@ class TestAquaDeployment(unittest.TestCase):
             "test_data/deployment/aqua_summary_multi_model_single.json",
         )
 
+
 class TestBaseModelSpec:
     VALID_WEIGHT = LoraModuleSpec(
         model_name="ft_model",
@@ -2367,3 +2413,93 @@ class TestBaseModelSpec:
         else:
             assert not messages, f"Did not expect any warnings, but got: {messages}"
 
+
+class TestModelGroupConfig(TestAquaDeployment):
+    def test_from_create_model_deployment_details(self):
+        config_json = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_summary_multi_model.json"
+        )
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        model_config_summary = ModelDeploymentConfigSummary(**(config))
+
+        model_info_1 = AquaMultiModelRef(
+            model_id="model_a",
+            model_name="test_model_1",
+            model_task="text_embedding",
+            gpu_count=1,
+            artifact_location="oci://test_location_1",
+        )
+
+        model_info_2 = AquaMultiModelRef(
+            model_id="model_b",
+            model_name="test_model_2",
+            model_task="image_text_to_text",
+            gpu_count=2,
+            artifact_location="oci://test_location_2",
+        )
+
+        ft_weights = [
+            LoraModuleSpec(
+                model_name="ft_model",
+                model_path="oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
+            )
+        ]
+        model_info_3 = AquaMultiModelRef(
+            model_id="model_c",
+            model_name="test_model_3",
+            model_task="code_synthesis",
+            gpu_count=4,
+            artifact_location="oci://test_location_3",
+            fine_tune_weights=ft_weights,
+        )
+
+        # test model group config with fine tune model
+        create_deployment_details = CreateModelDeploymentDetails(
+            **dict(
+                models=[model_info_1, model_info_2, model_info_3],
+                instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
+                display_name="multi-model-deployment-name",
+                log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
+                access_log_id="ocid1.log.oc1.<region>.<OCID>",
+                predict_log_id="ocid1.log.oc1.<region>.<OCID>",
+            )
+        )
+
+        model_group_config = ModelGroupConfig.from_create_model_deployment_details(
+            create_deployment_details=create_deployment_details,
+            model_config_summary=model_config_summary,
+            container_type_key="odsc-vllm-serving",
+            container_params="--example-container-params test",
+        )
+
+        assert (
+            model_group_config.model_dump()
+            == TestDataset.multi_model_deployment_group_config
+        )
+
+        # test model group config without fine tune model
+        create_deployment_details_no_ft = CreateModelDeploymentDetails(
+            **dict(
+                models=[model_info_1, model_info_2],
+                instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
+                display_name="multi-model-deployment-name",
+                log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
+                access_log_id="ocid1.log.oc1.<region>.<OCID>",
+                predict_log_id="ocid1.log.oc1.<region>.<OCID>",
+            )
+        )
+        model_group_config_no_ft = (
+            ModelGroupConfig.from_create_model_deployment_details(
+                create_deployment_details=create_deployment_details_no_ft,
+                model_config_summary=model_config_summary,
+                container_type_key="odsc-vllm-serving",
+                container_params="--example-container-params test",
+            )
+        )
+
+        assert (
+            model_group_config_no_ft.model_dump()
+            == TestDataset.multi_model_deployment_group_config_no_ft
+        )
