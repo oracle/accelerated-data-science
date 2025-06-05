@@ -78,13 +78,7 @@ class TestLightGBMModel:
     #     """
     #     self.Booster_model.model_file_name = "test_Booster.onnx"
     #     target_path = os.path.join(tmp_model_dir, "test_Booster.onnx")
-
-    #     # Ensure self.data is 2D (n_samples, n_features)
-    #     assert len(self.data.shape) == 2, "X_sample must be 2D"
-
-    #     # Serialize with sample input
-    #     self.Booster_model.serialize_model(as_onnx=True, X_sample=self.data)
-
+    #     self.Booster_model.serialize_model(as_onnx=True)
     #     assert os.path.exists(target_path)
 
     #     sess = rt.InferenceSession(target_path)
@@ -99,32 +93,22 @@ class TestLightGBMModel:
     #     """
     #     target_path = os.path.join(tmp_model_dir, "test_LGBMClassifier.onnx")
     #     self.LGBMClassifier_model.model_file_name = "test_LGBMClassifier.onnx"
-
-    #     # Make sure to provide a sample so ONNX conversion can infer input type
-    #     self.LGBMClassifier_model.serialize_model(
-    #         as_onnx=True, X_sample=self.X_LGBMClassifier
-    #     )
-
+    #     self.LGBMClassifier_model.serialize_model(as_onnx=True)
     #     assert os.path.exists(target_path)
 
-    #     # Run inference with ONNX
     #     sess = rt.InferenceSession(target_path)
-    #     input_name = sess.get_inputs()[0].name
-    #     output_names = [out.name for out in sess.get_outputs()]
-    #     onnx_outputs = sess.run(
-    #         output_names, {input_name: self.X_LGBMClassifier.astype(np.float32)}
-    #     )
-
-    #     # Usually: first output = labels, second = probabilities
-    #     # So we use the predicted class probabilities here:
-    #     prob_onx = onnx_outputs[1]
-
-    #     # Convert ONNX output to predicted class index
-    #     pred_onx = np.argmax(prob_onx, axis=1)
-
+    #     prob_onx = sess.run(None, {"input": self.X_LGBMClassifier.astype(np.float32)})[
+    #         1
+    #     ]
     #     pred_lgbm = self.LGBMClassifier.predict(self.X_LGBMClassifier)
-
-    #     assert list(pred_onx) == list(pred_lgbm)
+    #     pred_onx = []
+    #     for pred in prob_onx:
+    #         max_pred = max(pred.values())
+    #         for key, val in pred.items():
+    #             if val == max_pred:
+    #                 pred_onx.append(key)
+    #                 break
+    #     assert pred_onx == list(pred_lgbm)
 
     def test_serialize_and_load_model_as_joblib_LGBMClassifier(self):
         """
@@ -248,24 +232,22 @@ class TestLightGBMModel:
 
     # def test_X_sample_related_for_to_onnx(self):
     #     """
-    #     Test if X_sample works in to_onnx properly.
+    #     Test if X_sample works in to_onnx propertly.
     #     """
-    #     valid_format = np.array([[1, 2, 3, 4]])  # shape (1, 4)
-
+    #     wrong_format = [1, 2, 3, 4]
     #     onnx_serializer = LightGBMOnnxModelSerializer()
     #     onnx_serializer.estimator = self.Booster_model.estimator
+    #     assert isinstance(
+    #         onnx_serializer._to_onnx(X_sample=wrong_format),
+    #         onnx.onnx_ml_pb2.ModelProto,
+    #     )
 
-    #     # Should succeed and return ONNX model
-    #     result = onnx_serializer._to_onnx(X_sample=valid_format)
-    #     assert isinstance(result, onnx.onnx_ml_pb2.ModelProto)
-
-    #     # Should fail because no estimator is set
     #     onnx_serializer.estimator = None
     #     with pytest.raises(
     #         ValueError,
     #         match="`initial_types` can not be detected. Please directly pass initial_types.",
     #     ):
-    #         onnx_serializer._to_onnx(X_sample=valid_format)
+    #         onnx_serializer._to_onnx(X_sample=wrong_format)
 
     def test_lightgbm_to_onnx_with_lightgbm_uninstalled(self):
         """

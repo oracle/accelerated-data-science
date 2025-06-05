@@ -11,7 +11,6 @@ import traceback
 from abc import ABC, abstractmethod
 from typing import Tuple
 
-import fsspec
 import numpy as np
 import pandas as pd
 import report_creator as rc
@@ -25,10 +24,13 @@ from ads.opctl.operator.lowcode.common.utils import (
     disable_print,
     enable_print,
     human_time_friendly,
+    load_pkl,
     merged_category_column_name,
     seconds_to_datetime,
     write_data,
+    write_file,
     write_json,
+    write_pkl,
 )
 from ads.opctl.operator.lowcode.forecast.utils import (
     _build_metrics_df,
@@ -38,8 +40,6 @@ from ads.opctl.operator.lowcode.forecast.utils import (
     evaluate_train_metrics,
     get_auto_select_plot,
     get_forecast_plots,
-    load_pkl,
-    write_pkl,
 )
 
 from ..const import (
@@ -493,13 +493,11 @@ class ForecastOperatorBaseModel(ABC):
                 enable_print()
 
                 report_path = os.path.join(unique_output_dir, self.spec.report_filename)
-                with open(report_local_path) as f1:
-                    with fsspec.open(
-                        report_path,
-                        "w",
-                        **storage_options,
-                    ) as f2:
-                        f2.write(f1.read())
+                write_file(
+                    local_filename=report_local_path,
+                    remote_filename=report_path,
+                    storage_options=storage_options,
+                )
 
         # forecast csv report
         # todo: add test data into forecast.csv
@@ -576,7 +574,9 @@ class ForecastOperatorBaseModel(ABC):
                     # Round to 4 decimal places before writing
                     global_expl_rounded = self.formatted_global_explanation.copy()
                     global_expl_rounded = global_expl_rounded.apply(
-                        lambda col: np.round(col, 4) if np.issubdtype(col.dtype, np.number) else col
+                        lambda col: np.round(col, 4)
+                        if np.issubdtype(col.dtype, np.number)
+                        else col
                     )
                     if self.spec.generate_explanation_files:
                         write_data(
@@ -598,7 +598,9 @@ class ForecastOperatorBaseModel(ABC):
                     # Round to 4 decimal places before writing
                     local_expl_rounded = self.formatted_local_explanation.copy()
                     local_expl_rounded = local_expl_rounded.apply(
-                        lambda col: np.round(col, 4) if np.issubdtype(col.dtype, np.number) else col
+                        lambda col: np.round(col, 4)
+                        if np.issubdtype(col.dtype, np.number)
+                        else col
                     )
                     if self.spec.generate_explanation_files:
                         write_data(

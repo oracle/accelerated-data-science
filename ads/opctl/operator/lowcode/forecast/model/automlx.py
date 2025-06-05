@@ -38,6 +38,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         super().__init__(config, datasets)
         self.global_explanation = {}
         self.local_explanation = {}
+        self.explainability_kwargs = {}
 
     def set_kwargs(self):
         model_kwargs_cleaned = self.spec.model_kwargs
@@ -54,6 +55,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             self.spec.preprocessing.enabled
             or model_kwargs_cleaned.get("preprocessing", True)
         )
+        sample_ratio = model_kwargs_cleaned.pop("sample_to_feature_ratio", None)
+        if sample_ratio is not None:
+            self.explainability_kwargs = {"sample_to_feature_ratio": sample_ratio}
         return model_kwargs_cleaned, time_budget
 
     def preprocess(self, data, series_id):  # TODO: re-use self.le for explanations
@@ -445,6 +449,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                         else None,
                         pd.DataFrame(data_i[self.spec.target_column]),
                         task="forecasting",
+                        **self.explainability_kwargs,
                     )
 
                     # Generate explanations for the forecast
@@ -518,7 +523,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         model_params = model.selected_model_params_
         if len(trials) > 0:
             score_col = [col for col in trials.columns if "Score" in col][0]
-            validation_score = trials[trials.Hyperparameters == model_params][score_col].iloc[0]
+            validation_score = trials[trials.Hyperparameters == model_params][
+                score_col
+            ].iloc[0]
         else:
             validation_score = 0
         return -1 * validation_score
@@ -531,8 +538,12 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         for s_id in self.forecast_output.list_series_ids():
             try:
                 metrics = {self.spec.metric.upper(): self.models[s_id]["score"]}
-                metrics_df = pd.DataFrame.from_dict(metrics, orient="index", columns=[s_id])
-                logger.warning("AutoMLX failed to generate training metrics. Recovering validation loss instead")
+                metrics_df = pd.DataFrame.from_dict(
+                    metrics, orient="index", columns=[s_id]
+                )
+                logger.warning(
+                    "AutoMLX failed to generate training metrics. Recovering validation loss instead"
+                )
                 total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
             except Exception as e:
                 logger.debug(
