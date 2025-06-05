@@ -665,9 +665,8 @@ def test_arima_automlx_errors(operator_setup, model):
     """
     series 13 in this data has missing dates and automlx fails for this with DatetimeIndex error. This test checks that
     outputs get generated and that error is shown in errors.json
-    """
 
-    """
+
     explanations generation is failing when boolean columns are passed.
     TypeError: ufunc 'isfinite' not supported for the input types, and the inputs could not be safely coerced
      any supported types according to the casting rule ''safe''
