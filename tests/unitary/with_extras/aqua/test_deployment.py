@@ -1002,6 +1002,7 @@ class TestDataset:
             "artifact_location": "artifact_location_three",
             "fine_tune_weights": [
                 {
+                    "model_id": "ocid1.datasciencemodel.oc1..<OCID>",
                     "model_name": "ft_model",
                     "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
                 }
@@ -1190,9 +1191,13 @@ class TestAquaDeployment(unittest.TestCase):
         actual_attributes = result.to_dict()
         assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
         assert len(result.models) == 3
+        actual_attributes_no_ft_id = copy.deepcopy(
+            TestDataset.multi_model_deployment_model_attributes
+        )
+        actual_attributes_no_ft_id[2]["fine_tune_weights"][0].pop("model_id")
         assert [
             model.model_dump() for model in result.models
-        ] == TestDataset.multi_model_deployment_model_attributes
+        ] == actual_attributes_no_ft_id
 
     def test_get_deployment_missing_tags(self):
         """Test for returning a runtime error if OCI_AQUA tag is missing."""
@@ -1874,6 +1879,7 @@ class TestAquaDeployment(unittest.TestCase):
         # successful deployment with model_info1, model_info2, model_info3
         ft_weights = [
             LoraModuleSpec(
+                model_id="ocid1.datasciencemodel.oc1..<OCID>",
                 model_name="ft_model",
                 model_path="oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
             )
@@ -2354,6 +2360,7 @@ class TestAquaDeployment(unittest.TestCase):
 
 class TestBaseModelSpec:
     VALID_WEIGHT = LoraModuleSpec(
+        model_id="ocid1.datasciencemodel.oc1..<OCID>",
         model_name="ft_model",
         model_path="oci://test_bucket@test_namespace/",
     )
@@ -2442,6 +2449,7 @@ class TestModelGroupConfig(TestAquaDeployment):
 
         ft_weights = [
             LoraModuleSpec(
+                model_id="ocid1.datasciencemodel.oc1..<OCID>",
                 model_name="ft_model",
                 model_path="oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
             )

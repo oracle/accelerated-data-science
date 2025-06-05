@@ -321,7 +321,11 @@ class AquaModelApp(AquaApp):
                 )
                 # once we support multiple LoRA Modules use [LoraModuleSpec(**lora_module) for lora_module in model.fine_tune_weights]
                 model.fine_tune_weights = [
-                    LoraModuleSpec(model_name=display_name, model_path=fine_tune_path)
+                    LoraModuleSpec(
+                        model_id=model.model_id,
+                        model_name=display_name,
+                        model_path=fine_tune_path,
+                    )
                 ]
                 model.model_id, model.model_name = extract_base_model_from_ft(
                     source_model
