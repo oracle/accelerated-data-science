@@ -38,6 +38,8 @@ class BaseModelSpec(BaseModel):
 
     Attributes
     ----------
+    model_id: str
+        The OCID of the base model.
     model_path : str
         Path to the model in OCI Object Storage.
     params : str
@@ -48,6 +50,7 @@ class BaseModelSpec(BaseModel):
         List of associated LoRA modules for fine-tuned models.
     """
 
+    model_id: str = Field(..., description="The base model OCID.")
     model_path: str = Field(..., description="Path to the base model.")
     params: str = Field(..., description="Startup parameters passed to vLLM.")
     model_task: Optional[str] = Field(
@@ -94,6 +97,7 @@ class BaseModelSpec(BaseModel):
         """Converts AquaMultiModelRef to BaseModelSpec. Fields are validated using @field_validator methods above."""
 
         return cls(
+            model_id=model.model_id,
             model_path=model.artifact_location,
             params=model_params,
             model_task=model.model_task,

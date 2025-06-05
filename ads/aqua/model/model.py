@@ -315,6 +315,9 @@ class AquaModelApp(AquaApp):
                 Tags.AQUA_FINE_TUNED_MODEL_TAG in source_model.freeform_tags
             )
 
+            model_artifact_path = ""
+            fine_tune_path = ""
+
             if is_fine_tuned_model:
                 model_artifact_path, fine_tune_path = extract_fine_tune_artifacts_path(
                     source_model
@@ -334,10 +337,6 @@ class AquaModelApp(AquaApp):
                 # Retrieve model artifact for base models
                 model_artifact_path = source_model.artifact
 
-            display_name_list.append(display_name)
-
-            self._extract_model_task(model, source_model)
-
             if not model_artifact_path:
                 raise AquaValueError(
                     f"Model '{display_name}' (ID: {model.model_id}) has no artifacts. "
@@ -346,6 +345,8 @@ class AquaModelApp(AquaApp):
 
             # Update model artifact location in user's input model
             model.artifact_location = model_artifact_path
+            display_name_list.append(display_name)
+            self._extract_model_task(model, source_model)
 
             if not model_file_description:
                 raise AquaValueError(

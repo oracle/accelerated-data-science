@@ -277,7 +277,7 @@ class TestDataset:
                         "environment_configuration_type": "OCIR_CONTAINER",
                         "environment_variables": {
                             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
-                            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/", "model_task": "text_embedding"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/", "model_task": "image_text_to_text"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/", "model_task": "code_synthesis", "fine_tune_weights": [{"model_name": "ft_model", "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"}] }]}',
+                            "MULTI_MODEL_CONFIG": '{ "models": [{"model_id":"model_a", "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/", "model_task": "text_embedding"}, {"model_id":"model_b", "params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/", "model_task": "image_text_to_text"}, {"model_id":"model_c", "params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/", "model_task": "code_synthesis", "fine_tune_weights": [{"model_id":"ocid1.datasciencemodel.oc1..<OCID>", "model_name": "ft_model", "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"}] }]}',
                         },
                         "health_check_port": 8080,
                         "image": "dsmc://image-name:1.0.0.0",
@@ -507,6 +507,7 @@ class TestDataset:
                 "artifact_location": "oci://test_location_3",
                 "fine_tune_weights": [
                     {
+                        "model_id": "ocid1.datasciencemodel.oc1..<OCID>",
                         "model_name": "ft_model",
                         "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
                     }
@@ -516,7 +517,7 @@ class TestDataset:
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
-            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/", "model_task": "text_embedding"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/", "model_task": "image_text_to_text"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/", "model_task": "code_synthesis", "fine_tune_weights": [{"model_name": "ft_model", "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"}] }]}',
+            "MULTI_MODEL_CONFIG": '{ "models": [{"model_id":"model_a", "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/", "model_task": "text_embedding"}, {"model_id":"model_b", "params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/", "model_task": "image_text_to_text"}, {"model_id":"model_c", "params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/", "model_task": "code_synthesis", "fine_tune_weights": [{"model_id":"ocid1.datasciencemodel.oc1..<OCID>", "model_name": "ft_model", "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"}] }]}',
         },
         "cmd": [],
         "console_link": "https://cloud.oracle.com/data-science/model-deployments/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>?region=region-name",
@@ -1007,20 +1008,24 @@ class TestDataset:
     multi_model_deployment_group_config = {
         "models": [
             {
+                "model_id": "model_a",
                 "fine_tune_weights": [],
                 "model_path": "",
                 "model_task": "text_embedding",
                 "params": "--example-container-params test --served-model-name test_model_1 --tensor-parallel-size 1 --trust-remote-code --max-model-len 60000",
             },
             {
+                "model_id": "model_b",
                 "fine_tune_weights": [],
                 "model_path": "",
                 "model_task": "image_text_to_text",
                 "params": "--example-container-params test --served-model-name test_model_2 --tensor-parallel-size 2 --trust-remote-code --max-model-len 32000",
             },
             {
+                "model_id": "model_c",
                 "fine_tune_weights": [
                     {
+                        "model_id": "ocid1.datasciencemodel.oc1..<OCID>",
                         "model_name": "ft_model",
                         "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
                     },
@@ -1035,12 +1040,14 @@ class TestDataset:
     multi_model_deployment_group_config_no_ft = {
         "models": [
             {
+                "model_id": "model_a",
                 "fine_tune_weights": [],
                 "model_path": "",
                 "model_task": "text_embedding",
                 "params": "--example-container-params test --served-model-name test_model_1 --tensor-parallel-size 1 --trust-remote-code --max-model-len 60000",
             },
             {
+                "model_id": "model_b",
                 "fine_tune_weights": [],
                 "model_path": "",
                 "model_task": "image_text_to_text",
@@ -1188,7 +1195,6 @@ class TestAquaDeployment(unittest.TestCase):
         actual_attributes_no_ft_id = copy.deepcopy(
             TestDataset.multi_model_deployment_model_attributes
         )
-        actual_attributes_no_ft_id[2]["fine_tune_weights"][0].pop("model_id")
         assert [
             model.model_dump() for model in result.models
         ] == actual_attributes_no_ft_id
