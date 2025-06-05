@@ -45,6 +45,7 @@ keywords = [
   "Forecast",
   "Anomaly",
   "Document Understanding",
+  "Anomaly Detection",
 ]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
