@@ -2,6 +2,13 @@
 Release Notes
 =============
 
+2.13.10
+-------
+Release date: Jun 4, 2025
+
+* AI Quick Actions: Enhanced the client to support the new ``predictWithResponseStream`` endpoint for streaming inference.
+
+
 2.13.9
 -------
 Release date: May 19, 2025

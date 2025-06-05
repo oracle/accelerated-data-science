@@ -28,7 +28,6 @@ spec:
       env:
         BASE_MODEL: service_models/model-name/artifact
         BASE_MODEL_FILE: model-name.gguf
-        MODEL_DEPLOY_ENABLE_STREAMING: 'true'
         MODEL_DEPLOY_PREDICT_ENDPOINT: /v1/completions
         MODEL_DEPLOY_HEALTH_ENDPOINT: /v1/models
       healthCheckPort: 8080

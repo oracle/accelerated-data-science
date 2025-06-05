@@ -196,7 +196,6 @@ class AquaContainerConfig(Serializable):
                 config_keys = {
                     "MODEL_DEPLOY_PREDICT_ENDPOINT": UNKNOWN,
                     "MODEL_DEPLOY_HEALTH_ENDPOINT": UNKNOWN,
-                    "MODEL_DEPLOY_ENABLE_STREAMING": UNKNOWN,
                     "PORT": UNKNOWN,
                     "HEALTH_CHECK_PORT": UNKNOWN,
                     "VLLM_USE_V1": UNKNOWN,
