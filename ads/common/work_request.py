@@ -37,7 +37,7 @@ class DataScienceWorkRequest(OCIDataScienceMixin):
         description: str = "Processing",
         config: dict = None, 
         signer: Signer = None, 
-        client_kwargs: dict = None, 
+        client_kwargs: dict = None,
         **kwargs
     ) -> None:
         """Initializes ADSWorkRequest object.
@@ -65,6 +65,7 @@ class DataScienceWorkRequest(OCIDataScienceMixin):
         self._description = description
         self._percentage = 0
         self._status = None
+        _error_message = None
         super().__init__(config, signer, client_kwargs, **kwargs)
         
 
@@ -78,6 +79,7 @@ class DataScienceWorkRequest(OCIDataScienceMixin):
         self._percentage= work_request.percent_complete
         self._status = work_request.status
         self._description = work_request_logs[-1].message if work_request_logs else "Processing"
+        if work_request.status == 'FAILED' : self._error_message = self.client.list_work_request_errors
 
     def watch(
         self, 
