@@ -8,9 +8,9 @@ import os
 import unittest
 from importlib import reload
 from unittest.mock import MagicMock, patch
-from parameterized import parameterized
 
 from notebook.base.handlers import IPythonHandler
+from parameterized import parameterized
 
 import ads.aqua
 import ads.config
