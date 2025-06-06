@@ -246,7 +246,10 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
                     stream=True,
                 ):
                     try:
-                        yield chunk["choices"][0]["delta"]["content"]
+                        if "text" in chunk["choices"][0]:
+                            yield chunk["choices"][0]["text"]
+                        elif "content" in chunk["choices"][0]["delta"]:
+                            yield chunk["choices"][0]["delta"]["content"]
                     except Exception as e:
                         logger.debug(
                             f"Exception occurred while parsing streaming response: {e}"
