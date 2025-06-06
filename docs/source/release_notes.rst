@@ -2,6 +2,13 @@
 Release Notes
 =============
 
+2.13.11
+-------
+Release date: Jun 6, 2025
+
+* AI Quick Actions: Added support for LlamaCpp in the client to enable the new ``predictWithResponseStream`` endpoint for streaming inference.
+
+
 2.13.10
 -------
 Release date: Jun 4, 2025
