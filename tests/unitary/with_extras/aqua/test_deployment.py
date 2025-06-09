@@ -2415,8 +2415,8 @@ class TestBaseModelSpec:
         messages = [rec.getMessage().lower() for rec in caplog.records]
         if expect_warning:
             assert any(
-                "duplicate lora modules detected" in m for m in messages
-            ), f"Expected warning, got none. Captured messages: {messages}"
+                "duplicate lora module detected" in m for m in messages
+            ), f"Expected warning, but got no warning. Captured messages: {messages}"
         else:
             assert not messages, f"Did not expect any warnings, but got: {messages}"
 

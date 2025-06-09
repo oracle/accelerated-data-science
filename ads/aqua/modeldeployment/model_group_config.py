@@ -77,17 +77,20 @@ class BaseModelSpec(BaseModel):
     @classmethod
     def dedup_lora_modules(cls, fine_tune_weights: List[LoraModuleSpec]):
         """Removes duplicate LoRA Modules (duplicate model_names in fine_tune_weights)"""
-        seen_modules = set()
+        seen = set()
         unique_modules: List[LoraModuleSpec] = []
 
-        for lora_module in fine_tune_weights or []:
-            if lora_module.model_name not in seen_modules:
-                seen_modules.add(lora_module.model_name)
-                unique_modules.append(lora_module)
-            else:
-                logger.warning(
-                    f"Duplicate LoRA Modules Detected. Previously loaded LoRA Module {(lora_module.model_name,)}",
-                )
+        for module in fine_tune_weights or []:
+            name = getattr(module, "model_name", None)
+            if not name:
+                logger.warning("Fine-tuned model in AquaMultiModelRef is missing model_name.")
+                continue
+            if name in seen:
+                logger.warning(f"Duplicate LoRA Module detected: {name!r} (skipping duplicate).")
+                continue
+            seen.add(name)
+            unique_modules.append(module)
+
         return unique_modules
 
     @classmethod

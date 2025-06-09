@@ -731,7 +731,7 @@ class AquaEvaluationApp(AquaApp):
         for metadata in multi_model_metadata:
             model = AquaMultiModelRef(**metadata)
             model_names.append(model.model_name)
-            model_names.extend(ft.model_name for ft in (model.fine_tune_weights or []))
+            model_names.extend(ft.model_name for ft in (model.fine_tune_weights or []) if ft.model_name)
 
         # Check if the provided model name is among the valid names.
         if user_model_name not in model_names:
