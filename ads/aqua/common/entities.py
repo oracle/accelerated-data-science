@@ -150,9 +150,9 @@ class LoraModuleSpec(Serializable):
         The model-by-reference path to the LoRA Module within the model artifact
     """
 
-    model_id: str = Field(..., description="The fine tuned model OCID to deploy.")
-    model_name: str = Field(..., description="The name of the fine-tuned model.")
-    model_path: str = Field(
+    model_id: Optional[str] = Field(..., description="The fine tuned model OCID to deploy.")
+    model_name: Optional[str] = Field(..., description="The name of the fine-tuned model.")
+    model_path: Optional[str] = Field(
         ...,
         description="The model-by-reference path to the LoRA Module within the model artifact.",
     )
