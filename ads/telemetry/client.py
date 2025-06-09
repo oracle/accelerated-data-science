@@ -81,8 +81,7 @@ class TelemetryClient(TelemetryBase):
             # Here `endpoint`` is for debugging purpose
             # For some federated/domain users, the `endpoint` may not be a valid URL
             endpoint = f"{self.service_endpoint}/n/{self.namespace}/b/{self.bucket}/o/telemetry/{category}/{action}"
-            logger.info(f"Sending telemetry to endpoint: {endpoint}")
-            print(f"Sending telemetry to endpoint: {endpoint}")
+            logger.debug(f"Sending telemetry to endpoint: {endpoint}")
 
             self.os_client.base_client.user_agent = self._encode_user_agent(**kwargs)
             try:

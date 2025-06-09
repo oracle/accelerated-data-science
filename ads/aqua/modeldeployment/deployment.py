@@ -799,6 +799,7 @@ class AquaDeploymentApp(AquaApp):
             deployment_id,
             deployment.dsc_model_deployment.workflow_req_id,
             model_type,
+            model_name,
         )
 
         # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
@@ -1325,7 +1326,11 @@ class AquaDeploymentApp(AquaApp):
         ]
 
     def get_deployment_status(
-        self, model_deployment_id: str, work_request_id: str, model_type: str
+        self,
+        model_deployment_id: str,
+        work_request_id: str,
+        model_type: str,
+        model_name: str,
     ) -> None:
         """Waits for the data science  model deployment to be completed and log its status in telemetry.
 
@@ -1357,20 +1362,24 @@ class AquaDeploymentApp(AquaApp):
                 max_wait_time=DEFAULT_WAIT_TIME,
                 poll_interval=DEFAULT_POLL_INTERVAL,
             )
-        except Exception as e:
-            logger.error("Error while trying to create model deployment: " + str(e))
-            print("Error while trying to create model deployment: " + str(e))
-            self.telemetry.record_event_async(
+        except Exception:
+            if data_science_work_request._error_message:
+                error_str = ""
+                for error in data_science_work_request._error_message:
+                    error_str = error_str + " " + error.message
+
+            self.telemetry.record_event(
                 category=f"aqua/{model_type}/deployment/status",
                 action="FAILED",
-                detail=data_science_work_request._error_message,
-                value=ocid,
+                detail=error_str,
+                value=model_name,
                 **telemetry_kwargs,
             )
+
         else:
             self.telemetry.record_event_async(
                 category=f"aqua/{model_type}/deployment/status",
                 action="SUCCEEDED",
-                value=ocid,
+                value=model_name,
                 **telemetry_kwargs,
             )
