@@ -727,10 +727,11 @@ class AquaEvaluationApp(AquaApp):
             raise AquaRuntimeError(error_message) from ex
 
         # Build the list of valid model names from custom metadata.
-        model_names = [
-            AquaMultiModelRef(**metadata).model_name
-            for metadata in multi_model_metadata
-        ]
+        model_names = []
+        for metadata in multi_model_metadata:
+            model = AquaMultiModelRef(**metadata)
+            model_names.append(model.model_name)
+            model_names.extend(ft.model_name for ft in (model.fine_tune_weights or []))
 
         # Check if the provided model name is among the valid names.
         if user_model_name not in model_names:
