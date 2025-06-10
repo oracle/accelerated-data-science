@@ -74,6 +74,8 @@ from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
+    AQUA_TELEMETRY_BUCKET,
+    AQUA_TELEMETRY_BUCKET_NS,
     COMPARTMENT_OCID,
     PROJECT_OCID,
 )
@@ -510,6 +512,9 @@ class AquaDeploymentApp(AquaApp):
                 for key, _ in env.items():
                     if key not in env_var:
                         env_var.update(env)
+
+        env_var.update({"AQUA_TELEMETRY_BUCKET_NS": AQUA_TELEMETRY_BUCKET_NS})
+        env_var.update({"AQUA_TELEMETRY_BUCKET": AQUA_TELEMETRY_BUCKET})
 
         logger.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
 
