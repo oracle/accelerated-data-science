@@ -491,8 +491,6 @@ class AquaModelApp(AquaApp):
         ----------
         model_id: str
             The model OCID.
-        load_model_card: (bool, optional). Defaults to `True`.
-            Whether to load model card from artifacts or not.
 
         Returns
         -------
