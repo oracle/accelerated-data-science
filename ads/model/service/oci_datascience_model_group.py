@@ -11,13 +11,15 @@ import oci
 
 from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.work_request import DataScienceWorkRequest
-from ads.config import PROJECT_OCID
 from ads.model.deployment.common.utils import OCIClientManager, State
 
 try:
     from oci.data_science.models import CreateModelGroupDetails, UpdateModelGroupDetails
-except:
-    raise
+except ModuleNotFoundError as err:
+    raise ModuleNotFoundError(
+        "The oci model group module was not found. Please run `pip install oci` "
+        "to install the latest oci sdk."
+    ) from err
 
 logger = logging.getLogger(__name__)
 
@@ -116,8 +118,8 @@ class OCIDataScienceModelGroup(
         Deletes datascience model group.
     update(self, ...) -> "OCIDataScienceModelGroup":
         Updates datascience model group.
-    list(self, ...) -> list[oci.data_science.models.ModelGroup]:
-        List oci.data_science.models.ModelGroup instances within given compartment and project.
+    list(self, ...) -> list[oci.data_science.models.ModelGroupSummary]:
+        List oci.data_science.models.ModelGroupSummary instances within given compartment.
     from_id(cls, model_group: str) -> "OCIDataScienceModelGroup":
         Gets model group by OCID.
 
@@ -396,8 +398,8 @@ class OCIDataScienceModelGroup(
         """
         if wait_for_completion:
             wait_for_states = [
-                oci.data_science.models.WorkRequest.STATUS_SUCCEEDED,
-                oci.data_science.models.WorkRequest.STATUS_FAILED,
+                self.LIFECYCLE_STATE_ACTIVE,
+                self.LIFECYCLE_STATE_FAILED,
             ]
         else:
             wait_for_states = []
@@ -423,7 +425,6 @@ class OCIDataScienceModelGroup(
         cls,
         status: str = None,
         compartment_id: str = None,
-        project_id: str = None,
         **kwargs,
     ) -> list:
         """Lists the model group associated with current compartment id and status
@@ -438,16 +439,13 @@ class OCIDataScienceModelGroup(
             Defaults to the compartment set in the environment variable "NB_SESSION_COMPARTMENT_OCID".
             If "NB_SESSION_COMPARTMENT_OCID" is not set, the root compartment ID will be used.
             An ValueError will be raised if root compartment ID cannot be determined.
-        project_id : str
-            Target project to list model groups from.
-            Defaults to the project id in the environment variable "PROJECT_OCID".
         kwargs :
             The values are passed to oci.data_science.DataScienceClient.list_model_groups.
 
         Returns
         -------
         list
-            A list of oci.data_science.models.ModelGroup objects.
+            A list of oci.data_science.models.ModelGroupSummary objects.
 
         Raises
         ------
@@ -460,10 +458,6 @@ class OCIDataScienceModelGroup(
             raise ValueError(
                 "Unable to determine compartment ID from environment. Specify `compartment_id`."
             )
-
-        project_id = project_id or PROJECT_OCID
-        if project_id:
-            kwargs["project_id"] = project_id
 
         if status is not None:
             if status not in ALLOWED_STATUS:

@@ -21,21 +21,23 @@ try:
         MemberModelEntries,
         ModelGroup,
         ModelGroupDetails,
+        ModelGroupSummary,
         UpdateModelGroupDetails,
     )
-except ModuleNotFoundError:
+except ModuleNotFoundError as err:
     raise ModuleNotFoundError(
         "The oci model group module was not found. Please run `pip install oci` "
         "to install the latest oci sdk."
-    )
+    ) from err
 
 DEFAULT_WAIT_TIME = 1200
 DEFAULT_POLL_INTERVAL = 10
 ALLOWED_CREATE_TYPES = ["CREATE", "CLONE"]
+MODEL_GROUP_KIND = "datascienceModelGroup"
 
 
 class DataScienceModelGroup(Builder):
-    """Represents a Data Science Model.
+    """Represents a Data Science Model Group.
 
     Attributes
     ----------
@@ -197,6 +199,11 @@ class DataScienceModelGroup(Builder):
         """
         super().__init__(spec, **kwargs)
         self.dsc_model_group = OCIDataScienceModelGroup()
+
+    @property
+    def kind(self) -> str:
+        """The kind of the model group as showing in a YAML."""
+        return MODEL_GROUP_KIND
 
     @property
     def id(self) -> str:
@@ -503,6 +510,7 @@ class DataScienceModelGroup(Builder):
         return self._update_from_oci_model(response)
 
     def _build_model_group_details(self) -> dict:
+        """Builds model group details dict for creating or updating oci model group."""
         model_group_details = HomogeneousModelGroupDetails(
             custom_metadata_list=[
                 CustomMetadata(
@@ -537,8 +545,21 @@ class DataScienceModelGroup(Builder):
         return build_model_group_details
 
     def _update_from_oci_model(
-        self, oci_model_group_instance: ModelGroup
+        self, oci_model_group_instance: Union[ModelGroup, ModelGroupSummary]
     ) -> "DataScienceModelGroup":
+        """Updates self spec from oci model group instance.
+
+        Parameters
+        ----------
+        oci_model_group_instance: Union[ModelGroup, ModelGroupSummary]
+            The oci model group instance, could be an instance of oci.data_science.models.ModelGroup
+            or oci.data_science.models.ModelGroupSummary.
+
+        Returns
+        -------
+        DataScienceModelGroup
+           The instance of DataScienceModelGroup.
+        """
         self.dsc_model_group = oci_model_group_instance
         for key, value in self.attribute_map.items():
             if hasattr(oci_model_group_instance, value):
@@ -560,23 +581,27 @@ class DataScienceModelGroup(Builder):
             )
         self.set_spec(self.CONST_CUSTOM_METADATA_LIST, model_custom_metadata)
 
-        member_model_entries: MemberModelEntries = (
-            oci_model_group_instance.member_model_entries
-        )
-        member_model_details: List[MemberModelDetails] = (
-            member_model_entries.member_model_details
-        )
+        # only updates member_models when oci_model_group_instance is an instance of
+        # oci.data_science.models.ModelGroup as oci.data_science.models.ModelGroupSummary
+        # doesn't have member_model_entries property.
+        if isinstance(oci_model_group_instance, ModelGroup):
+            member_model_entries: MemberModelEntries = (
+                oci_model_group_instance.member_model_entries
+            )
+            member_model_details: List[MemberModelDetails] = (
+                member_model_entries.member_model_details
+            )
 
-        self.set_spec(
-            self.CONST_MEMBER_MODELS,
-            [
-                {
-                    "inference_key": member_model_detail.inference_key,
-                    "model_id": member_model_detail.model_id,
-                }
-                for member_model_detail in member_model_details
-            ],
-        )
+            self.set_spec(
+                self.CONST_MEMBER_MODELS,
+                [
+                    {
+                        "inference_key": member_model_detail.inference_key,
+                        "model_id": member_model_detail.model_id,
+                    }
+                    for member_model_detail in member_model_details
+                ],
+            )
 
         return self
 
@@ -729,18 +754,18 @@ class DataScienceModelGroup(Builder):
     @classmethod
     def list(
         cls,
+        status: str = None,
         compartment_id: str = None,
-        project_id: str = None,
         **kwargs,
     ) -> List["DataScienceModelGroup"]:
         """Lists datascience model groups in a given compartment.
 
         Parameters
         ----------
+        status: (str, optional). Defaults to `None`.
+                        The status of model group. Allowed values: `ACTIVE`, `CREATING`, `DELETED`, `DELETING`, `FAILED` and `INACTIVE`.
         compartment_id: (str, optional). Defaults to `None`.
             The compartment OCID.
-        project_id: (str, optional). Defaults to `None`.
-            The project OCID.
         kwargs
             Additional keyword arguments for filtering model groups.
 
@@ -750,9 +775,11 @@ class DataScienceModelGroup(Builder):
             The list of the datascience model groups.
         """
         return [
-            cls()._update_from_oci_model(model_group)
-            for model_group in OCIDataScienceModelGroup.list_resource(
-                compartment_id, project_id=project_id, **kwargs
+            cls()._update_from_oci_model(model_group_summary)
+            for model_group_summary in OCIDataScienceModelGroup.list(
+                status=status,
+                compartment_id=compartment_id,
+                **kwargs,
             )
         ]
 
