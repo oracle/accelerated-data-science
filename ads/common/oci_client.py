@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -9,20 +8,20 @@ import logging
 import oci.artifacts
 from oci.ai_language import AIServiceLanguageClient
 from oci.artifacts import ArtifactsClient
+from oci.core import ComputeClient, VirtualNetworkClient
 from oci.data_catalog import DataCatalogClient
 from oci.data_flow import DataFlowClient
 from oci.data_labeling_service import DataLabelingManagementClient
 from oci.data_labeling_service_dataplane import DataLabelingClient
 from oci.data_science import DataScienceClient
 from oci.identity import IdentityClient
+from oci.limits import LimitsClient
+from oci.logging import LoggingManagementClient
 from oci.marketplace import MarketplaceClient
 from oci.object_storage import ObjectStorageClient
 from oci.resource_search import ResourceSearchClient
 from oci.secrets import SecretsClient
 from oci.vault import VaultsClient
-from oci.logging import LoggingManagementClient
-from oci.core import VirtualNetworkClient
-from oci.limits import LimitsClient
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +68,7 @@ class OCIClientFactory:
             "secret": SecretsClient,
             "vault": VaultsClient,
             "identity": IdentityClient,
+            "compute": ComputeClient,
             "ai_language": AIServiceLanguageClient,
             "data_labeling_dp": DataLabelingClient,
             "data_labeling_cp": DataLabelingManagementClient,
@@ -113,6 +113,10 @@ class OCIClientFactory:
     @property
     def object_storage(self):
         return self.create_client("object_storage")
+
+    @property
+    def compute(self):
+        return self.create_client("compute")
 
     @property
     def identity(self):

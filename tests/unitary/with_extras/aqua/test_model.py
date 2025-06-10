@@ -5,6 +5,7 @@
 
 import json
 import os
+import re
 import shlex
 import tempfile
 from dataclasses import asdict
@@ -13,9 +14,6 @@ from unittest.mock import MagicMock, patch
 
 import oci
 import pytest
-
-from ads.aqua.app import AquaApp
-from ads.aqua.config.container_config import AquaContainerConfig
 from huggingface_hub.hf_api import HfApi, ModelInfo
 from parameterized import parameterized
 
@@ -23,7 +21,7 @@ import ads.aqua.model
 import ads.common
 import ads.common.oci_client
 import ads.config
-
+from ads.aqua.app import AquaApp
 from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import ModelFormat, Tags
 from ads.aqua.common.errors import (
@@ -32,6 +30,7 @@ from ads.aqua.common.errors import (
     AquaValueError,
 )
 from ads.aqua.common.utils import get_hf_model_info
+from ads.aqua.config.container_config import AquaContainerConfig
 from ads.aqua.constants import HF_METADATA_FOLDER
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import (
@@ -40,6 +39,7 @@ from ads.aqua.model.entities import (
     ImportModelDetails,
     ModelValidationResult,
 )
+from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import (
@@ -47,7 +47,6 @@ from ads.model.model_metadata import (
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
 )
-
 from tests.unitary.with_extras.aqua.utils import ServiceManagedContainers
 
 
@@ -226,6 +225,103 @@ class TestDataset:
         },
     ]
 
+    model_file_description = {
+        "version": "1.0",
+        "type": "modelOSSReferenceDescription",
+        "models": [
+            {
+                "namespace": "test_namespace",
+                "bucketName": "test_bucket",
+                "prefix": "models/meta-llama/Llama-3.2-3B-Instruct",
+                "objects": [
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/.gitattributes",
+                        "version": "bfbf278c-10af-4f2c-8240-11fed02e1322",
+                        "sizeInBytes": 1519,
+                    },
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/LICENSE.txt",
+                        "version": "4238d1e2-d826-4300-a344-0ead410afa27",
+                        "sizeInBytes": 7712,
+                    },
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/README.md",
+                        "version": "57382552-9ad0-4546-b38c-c96634f3b8a2",
+                        "sizeInBytes": 41744,
+                    },
+                ],
+            }
+        ],
+    }
+
+    fine_tuned_model_file_description = {
+        "version": "1.0",
+        "type": "modelOSSReferenceDescription",
+        "models": [
+            {
+                "namespace": "test_namespace",
+                "bucketName": "test_bucket",
+                "prefix": "models/meta-llama/Llama-3.2-3B-Instruct",
+                "objects": [
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/.gitattributes",
+                        "version": "bfbf278c-10af-4f2c-8240-11fed02e1322",
+                        "sizeInBytes": 1519,
+                    },
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/LICENSE.txt",
+                        "version": "4238d1e2-d826-4300-a344-0ead410afa27",
+                        "sizeInBytes": 7712,
+                    },
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/README.md",
+                        "version": "57382552-9ad0-4546-b38c-c96634f3b8a2",
+                        "sizeInBytes": 41744,
+                    },
+                ],
+            },
+            {
+                "namespace": "test_namespace",
+                "bucketName": "test_bucket",
+                "prefix": "models/meta-llama/Llama-3.2-3B-Instruct",
+                "objects": [
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/.gitattributes",
+                        "version": "bfbf278c-10af-4f2c-8240-11fed02e1322",
+                        "sizeInBytes": 1519,
+                    },
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/LICENSE.txt",
+                        "version": "4238d1e2-d826-4300-a344-0ead410afa27",
+                        "sizeInBytes": 7712,
+                    },
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/README.md",
+                        "version": "57382552-9ad0-4546-b38c-c96634f3b8a2",
+                        "sizeInBytes": 41744,
+                    },
+                ],
+            },
+            {
+                "namespace": "test_namespace",
+                "bucketName": "test_bucket",
+                "prefix": "models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
+                "objects": [
+                    {
+                    "name": "models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>/README.md",
+                    "version": "636b83ae-be59-445f-a8d7-da7277535ef0",
+                    "sizeInBytes": 5176
+                    },
+                    {
+                    "name": "models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>/adapter_config.json",
+                    "version": "6d6ea6c9-05e1-44d9-bab6-0ad175c924e6",
+                    "sizeInBytes": 805
+                    }
+                ]
+            },
+        ],
+    }
+
     SERVICE_COMPARTMENT_ID = "ocid1.compartment.oc1..<OCID>"
     COMPARTMENT_ID = "ocid1.compartment.oc1..<UNIQUE_OCID>"
     SERVICE_MODEL_ID = "ocid1.datasciencemodel.oc1.iad.<OCID>"
@@ -361,24 +457,20 @@ class TestAquaModel:
         )
         assert model.provenance_metadata.training_id == "test_training_id"
 
-    @patch.object(DataScienceModel, "add_artifact")
     @patch.object(DataScienceModel, "create_custom_metadata_artifact")
     @patch.object(DataScienceModel, "create")
-    @patch("ads.model.datascience_model.validate")
     @patch.object(AquaApp, "get_container_config")
     @patch.object(DataScienceModel, "from_id")
     def test_create_multimodel(
         self,
         mock_from_id,
         mock_get_container_config,
-        mock_validate,
         mock_create,
         mock_create_custom_metadata_artifact,
-        mock_add_artifact,
     ):
         mock_get_container_config.return_value = get_container_config()
         mock_model = MagicMock()
-        mock_model.model_file_description = {"test_key": "test_value"}
+        mock_model.model_file_description = TestDataset.model_file_description
         mock_model.display_name = "test_display_name"
         mock_model.description = "test_description"
         mock_model.freeform_tags = {
@@ -397,12 +489,14 @@ class TestAquaModel:
         model_info_1 = AquaMultiModelRef(
             model_id="test_model_id_1",
             gpu_count=2,
+            model_task="text_embedding",
             env_var={"params": "--trust-remote-code --max-model-len 60000"},
         )
 
         model_info_2 = AquaMultiModelRef(
             model_id="test_model_id_2",
             gpu_count=2,
+            model_task="image_text_to_text",
             env_var={"params": "--trust-remote-code --max-model-len 32000"},
         )
 
@@ -439,16 +533,51 @@ class TestAquaModel:
         mock_model.custom_metadata_list = custom_metadata_list
         mock_from_id.return_value = mock_model
 
+        # testing _extract_model_task when a user passes an invalid task to AquaMultiModelRef
+        model_info_1.model_task = "invalid_task"
+
+        with pytest.raises(AquaValueError):
+            model = self.app.create_multi(
+                models=[model_info_1, model_info_2],
+                project_id="test_project_id",
+                compartment_id="test_compartment_id",
+            )
+
+        # testing if a user tries to invoke a model with a task mode that is not yet supported
+        model_info_1.model_task = None
+        mock_model.freeform_tags["task"] = "unsupported_task"
+        with pytest.raises(AquaValueError):
+            model = self.app.create_multi(
+                models=[model_info_1, model_info_2],
+                project_id="test_project_id",
+                compartment_id="test_compartment_id",
+            )
+
+        mock_model.freeform_tags["task"] = "text-generation"
+        model_info_1.model_task = "text_embedding"
+
+
+        # testing requesting metadata from fine tuned model to add to model group
+        mock_model.model_file_description = TestDataset.fine_tuned_model_file_description
+
+        # testing fine tuned model in model group
+        model_info_3 = AquaMultiModelRef(
+            model_id="test_model_id_3",
+            gpu_count=2,
+            model_task="image_text_to_text",
+            env_var={"params": "--trust-remote-code --max-model-len 32000"},
+            artifact_location="oci://test_bucket@test_namespace/models/meta-llama/Llama-3.2-3B-Instruct",
+            fine_tune_artifact="oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"
+        )
+
         # will create a multi-model group
         model = self.app.create_multi(
-            models=[model_info_1, model_info_2],
+            models=[model_info_1, model_info_2, model_info_3],
             project_id="test_project_id",
             compartment_id="test_compartment_id",
         )
 
-        mock_add_artifact.assert_called()
         mock_from_id.assert_called()
-        mock_validate.assert_not_called()
         mock_create.assert_called_with(model_by_reference=True)
 
         mock_model.compartment_id = TestDataset.SERVICE_COMPARTMENT_ID
@@ -456,7 +585,7 @@ class TestAquaModel:
         mock_create.return_value = mock_model
 
         assert model.freeform_tags == {"aqua_multimodel": "true"}
-        assert model.custom_metadata_list.get("model_group_count").value == "2"
+        assert model.custom_metadata_list.get("model_group_count").value == "3"
         assert (
             model.custom_metadata_list.get("deployment-container").value
             == "odsc-vllm-serving"

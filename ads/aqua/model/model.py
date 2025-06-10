@@ -4,6 +4,7 @@
 import json
 import os
 import pathlib
+import re
 from datetime import datetime, timedelta
 from threading import Lock
 from typing import Any, Dict, List, Optional, Set, Union
@@ -78,7 +79,13 @@ from ads.aqua.model.entities import (
     AquaModelReadme,
     AquaModelSummary,
     ImportModelDetails,
+    ModelFileDescription,
     ModelValidationResult,
+)
+from ads.aqua.model.enums import MultiModelSupportedTaskType
+from ads.aqua.model.utils import (
+    extract_base_model_from_ft,
+    extract_fine_tune_artifacts_path,
 )
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
@@ -269,8 +276,8 @@ class AquaModelApp(AquaApp):
                 "Model list cannot be empty. Please provide at least one model for deployment."
             )
 
-        artifact_list = []
         display_name_list = []
+        model_file_description_list: List[ModelFileDescription] = []
         model_custom_metadata = ModelCustomMetadata()
 
         service_inference_containers = (
@@ -297,6 +304,7 @@ class AquaModelApp(AquaApp):
         for model in models:
             source_model = DataScienceModel.from_id(model.model_id)
             display_name = source_model.display_name
+            model_file_description = source_model.model_file_description
             # Update model name in user's input model
             model.model_name = model.model_name or display_name
 
@@ -307,20 +315,27 @@ class AquaModelApp(AquaApp):
             #         "Currently only service models are supported for multi model deployment."
             #     )
 
-            # TODO uncomment the section below if only the specific types of models should be allowed for multi-model deployment
-            # if (
-            #     source_model.freeform_tags.get(Tags.TASK, UNKNOWN).lower()
-            #     not in MultiModelSupportedTaskType
-            # ):
-            #     raise AquaValueError(
-            #         f"Invalid or missing {Tags.TASK} tag for selected model {display_name}. "
-            #         f"Currently only `{MultiModelSupportedTaskType.values()}` models are supported for multi model deployment."
-            #     )
+            # check if model is a fine-tuned model and if so, add the fine tuned weights path to the fine_tune_weights_location pydantic field
+            is_fine_tuned_model = (
+                Tags.AQUA_FINE_TUNED_MODEL_TAG in source_model.freeform_tags
+            )
+
+            if is_fine_tuned_model:
+                model.model_id, model.model_name = extract_base_model_from_ft(
+                    source_model
+                )
+                model_artifact_path, model.fine_tune_weights_location = (
+                    extract_fine_tune_artifacts_path(source_model)
+                )
+
+            else:
+                # Retrieve model artifact for base models
+                model_artifact_path = source_model.artifact
 
             display_name_list.append(display_name)
 
-            # Retrieve model artifact
-            model_artifact_path = source_model.artifact
+            self._extract_model_task(model, source_model)
+
             if not model_artifact_path:
                 raise AquaValueError(
                     f"Model '{display_name}' (ID: {model.model_id}) has no artifacts. "
@@ -330,7 +345,15 @@ class AquaModelApp(AquaApp):
             # Update model artifact location in user's input model
             model.artifact_location = model_artifact_path
 
-            artifact_list.append(model_artifact_path)
+            if not model_file_description:
+                raise AquaValueError(
+                    f"Model '{display_name}' (ID: {model.model_id}) has no file description. "
+                    "Please register the model first."
+                )
+
+            model_file_description_list.append(
+                ModelFileDescription(**model_file_description)
+            )
 
             # Validate deployment container consistency
             deployment_container = source_model.custom_metadata_list.get(
@@ -363,7 +386,8 @@ class AquaModelApp(AquaApp):
                 raise AquaValueError(
                     "The selected models are associated with different container families: "
                     f"{list(selected_models_deployment_containers)}."
-                    "For multi-model deployment, all models in the group must share the same container family."
+                    "For multi-model deployment, all models in the group must belong to the same container "
+                    "family or to compatible container families."
                 )
         else:
             deployment_container = selected_models_deployment_containers.pop()
@@ -408,9 +432,16 @@ class AquaModelApp(AquaApp):
             .with_custom_metadata_list(model_custom_metadata)
         )
 
-        # Attach artifacts
-        for artifact in artifact_list:
-            custom_model.add_artifact(uri=artifact)
+        # Update multi model file description to attach artifacts
+        custom_model.with_model_file_description(
+            json_dict=ModelFileDescription(
+                models=[
+                    models
+                    for model_file_description in model_file_description_list
+                    for models in model_file_description.models
+                ]
+            ).model_dump(by_alias=True)
+        )
 
         # Finalize creation
         custom_model.create(model_by_reference=True)
@@ -706,6 +737,26 @@ class AquaModelApp(AquaApp):
                 logger.info(f"Updated model details for the model {id}.")
         else:
             raise AquaRuntimeError("Only registered unverified models can be edited.")
+
+    def _extract_model_task(
+        self,
+        model: AquaMultiModelRef,
+        source_model: DataScienceModel,
+    ) -> None:
+        """In a Multi Model Deployment, will set model_task parameter in AquaMultiModelRef from freeform tags or user"""
+        # user does not supply model task, we extract from model metadata
+        if not model.model_task:
+            model.model_task = source_model.freeform_tags.get(Tags.TASK, UNKNOWN)
+
+        task_tag = re.sub(r"-", "_", model.model_task).lower()
+        # re-visit logic when more model task types are supported
+        if task_tag in MultiModelSupportedTaskType:
+            model.model_task = task_tag
+        else:
+            raise AquaValueError(
+                f"Invalid or missing {task_tag} tag for selected model {source_model.display_name}. "
+                f"Currently only `{MultiModelSupportedTaskType.values()}` models are supported for multi model deployment."
+            )
 
     def _fetch_metric_from_metadata(
         self,

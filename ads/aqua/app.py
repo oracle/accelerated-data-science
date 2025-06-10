@@ -64,6 +64,7 @@ class AquaApp:
             set_auth("resource_principal")
         self._auth = default_signer({"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT})
         self.ds_client = oc.OCIClientFactory(**self._auth).data_science
+        self.compute_client = oc.OCIClientFactory(**default_signer()).compute
         self.logging_client = oc.OCIClientFactory(**default_signer()).logging_management
         self.identity_client = oc.OCIClientFactory(**default_signer()).identity
         self.region = extract_region(self._auth)

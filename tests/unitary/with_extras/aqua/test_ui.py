@@ -15,18 +15,17 @@ import oci
 import pytest
 from oci.data_science.models import (
     ContainerSummary,
-    WorkloadConfigurationDetails,
-    ModelDeployWorkloadConfigurationDetails,
     JobRunWorkloadConfigurationDetails,
+    ModelDeployWorkloadConfigurationDetails,
+    WorkloadConfigurationDetails,
 )
-
-from ads.aqua.app import AquaApp
-from ads.aqua.extension.base_handler import AquaAPIhandler
 from parameterized import parameterized
 
 import ads.config
+from ads.aqua.app import AquaApp
 from ads.aqua.common.errors import AquaValueError
 from ads.aqua.common.utils import load_config
+from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.ui import AquaUIApp
 from tests.unitary.with_extras.aqua.utils import ServiceManagedContainers
 
@@ -96,6 +95,46 @@ class TestAquaUI(unittest.TestCase):
         reload(ads.config)
         reload(ads.aqua)
         reload(ads.aqua.ui)
+
+    def test_list_capacity_reservations(self):
+        capacity_reservations_list = os.path.join(
+            self.curr_dir, "test_data/ui/capacity_reservations_list.json"
+        )
+        with open(capacity_reservations_list, "r") as _file:
+            capacity_reservations = json.load(_file)
+
+        self.app.compute_client.list_compute_capacity_reservations = MagicMock(
+            return_value=oci.response.Response(
+                status=200,
+                request=MagicMock(),
+                headers=MagicMock(),
+                data=[
+                    oci.core.models.ComputeCapacityReservationSummary(
+                        **capacity_reservation
+                    )
+                    for capacity_reservation in capacity_reservations
+                ],
+            )
+        )
+        results = self.app.list_capacity_reservations()
+        expected_attributes = {
+            "id",
+            "compartmentId",
+            "displayName",
+            "definedTags",
+            "freeformTags",
+            "lifecycleState",
+            "availabilityDomain",
+            "reservedInstanceCount",
+            "usedInstanceCount",
+            "isDefaultReservation",
+            "timeCreated",
+        }
+        for result in results:
+            self.assertTrue(
+                expected_attributes.issuperset(set(result)), "Attributes mismatch"
+            )
+        assert len(results) == len(capacity_reservations)
 
     def test_list_log_groups(self):
         """Test to lists all log groups for the specified compartment or tenancy"""
@@ -566,8 +605,7 @@ class TestAquaUI(unittest.TestCase):
                         "cli_param": "--served-model-name odsc-llm --disable-custom-all-reduce --seed 42 ",
                         "env_vars": [
                             {"MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions"},
-                            {"MODEL_DEPLOY_HEALTH_ENDPOINT": ""},
-                            {"MODEL_DEPLOY_ENABLE_STREAMING": "true"},
+                            # {"MODEL_DEPLOY_HEALTH_ENDPOINT": ""},
                             {"PORT": "8080"},
                             {"HEALTH_CHECK_PORT": "8080"},
                         ],
