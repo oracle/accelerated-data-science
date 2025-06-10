@@ -5,7 +5,7 @@
 import json
 import shlex
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 from cachetools import TTLCache, cached
 from oci.data_science.models import ModelDeploymentShapeSummary
@@ -17,20 +17,15 @@ from ads.aqua.common.entities import (
     ComputeShapeSummary,
     ContainerPath,
 )
-from ads.aqua.common.enums import (
-    InferenceContainerTypeFamily,
-    ModelFormat,
-    Tags,
-)
+from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     DEFINED_METADATA_TO_FILE_MAP,
-    build_params_string,
     build_pydantic_error_message,
+    find_restricted_params,
     get_combined_params,
     get_container_params_type,
     get_ocid_substring,
-    get_params_dict,
     get_params_list,
     get_resource_name,
     get_restricted_params_by_container,
@@ -55,16 +50,19 @@ from ads.aqua.model.utils import (
     extract_base_model_from_ft,
     extract_fine_tune_artifacts_path,
 )
+from ads.aqua.modeldeployment.config_loader import (
+    AquaDeploymentConfig,
+    ConfigurationItem,
+    ModelDeploymentConfigSummary,
+    MultiModelDeploymentConfigLoader,
+)
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
-    AquaDeploymentConfig,
     AquaDeploymentDetail,
-    ConfigurationItem,
     ConfigValidationError,
     CreateModelDeploymentDetails,
-    ModelDeploymentConfigSummary,
 )
-from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
+from ads.aqua.modeldeployment.model_group_config import ModelGroupConfig
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN, get_log_links
 from ads.config import (
@@ -486,7 +484,7 @@ class AquaDeploymentApp(AquaApp):
                     f"with deployment without parameter overrides."
                 )
 
-            restricted_params = self._find_restricted_params(
+            restricted_params = find_restricted_params(
                 params, user_params, container_type_key
             )
             if restricted_params:
@@ -553,7 +551,6 @@ class AquaDeploymentApp(AquaApp):
         AquaDeployment
             An Aqua deployment instance.
         """
-        model_config = []
         model_name_list = []
         env_var = {**(create_deployment_details.env_var or UNKNOWN_DICT)}
 
@@ -566,80 +563,14 @@ class AquaDeploymentApp(AquaApp):
 
         container_params = container_spec.cli_param if container_spec else UNKNOWN
 
-        for model in create_deployment_details.models:
-            user_params = build_params_string(model.env_var)
-            if user_params:
-                restricted_params = self._find_restricted_params(
-                    container_params, user_params, container_type_key
-                )
-                if restricted_params:
-                    selected_model = model.model_name or model.model_id
-                    raise AquaValueError(
-                        f"Parameters {restricted_params} are set by Aqua "
-                        f"and cannot be overridden or are invalid."
-                        f"Select other parameters for model {selected_model}."
-                    )
+        multi_model_config = ModelGroupConfig.from_create_model_deployment_details(
+            create_deployment_details,
+            model_config_summary,
+            container_type_key,
+            container_params,
+        )
 
-            # replaces `--served-model-name`` with user's model name
-            container_params_dict = get_params_dict(container_params)
-            container_params_dict.update({"--served-model-name": model.model_name})
-            # replaces `--tensor-parallel-size` with model gpu count
-            container_params_dict.update({"--tensor-parallel-size": model.gpu_count})
-            params = build_params_string(container_params_dict)
-
-            deployment_config = model_config_summary.deployment_config.get(
-                model.model_id, AquaDeploymentConfig()
-            ).configuration.get(
-                create_deployment_details.instance_shape, ConfigurationItem()
-            )
-
-            # finds the corresponding deployment parameters based on the gpu count
-            # and combines them with user's parameters. Existing deployment parameters
-            # will be overriden by user's parameters.
-            params_found = False
-            for item in deployment_config.multi_model_deployment:
-                if (
-                    model.gpu_count
-                    and item.gpu_count
-                    and item.gpu_count == model.gpu_count
-                ):
-                    config_parameters = item.parameters.get(
-                        get_container_params_type(container_type_key), UNKNOWN
-                    )
-                    params = f"{params} {get_combined_params(config_parameters, user_params)}".strip()
-                    params_found = True
-                    break
-
-            if not params_found and deployment_config.parameters:
-                config_parameters = deployment_config.parameters.get(
-                    get_container_params_type(container_type_key), UNKNOWN
-                )
-                params = f"{params} {get_combined_params(config_parameters, user_params)}".strip()
-                params_found = True
-
-            # if no config parameters found, append user parameters directly.
-            if not params_found:
-                params = f"{params} {user_params}".strip()
-
-            artifact_path_prefix = model.artifact_location.rstrip("/")
-            if ObjectStorageDetails.is_oci_path(artifact_path_prefix):
-                os_path = ObjectStorageDetails.from_path(artifact_path_prefix)
-                artifact_path_prefix = os_path.filepath.rstrip("/")
-
-            # override by-default completion/ chat endpoint with other endpoint (embedding)
-            config_data = {"params": params, "model_path": artifact_path_prefix}
-            if model.model_task:
-                config_data["model_task"] = model.model_task
-
-            if model.fine_tune_weights_location:
-                config_data["fine_tune_weights_location"] = (
-                    model.fine_tune_weights_location
-                )
-
-            model_config.append(config_data)
-            model_name_list.append(model.model_name)
-
-        env_var.update({AQUA_MULTI_MODEL_CONFIG: json.dumps({"models": model_config})})
+        env_var.update({AQUA_MULTI_MODEL_CONFIG: multi_model_config.model_dump_json()})
 
         env_vars = container_spec.env_vars if container_spec else []
         for env in env_vars:
@@ -1231,7 +1162,7 @@ class AquaDeploymentApp(AquaApp):
             container_spec = container_config.spec if container_config else UNKNOWN
             cli_params = container_spec.cli_param if container_spec else UNKNOWN
 
-            restricted_params = self._find_restricted_params(
+            restricted_params = find_restricted_params(
                 cli_params, params, container_type_key
             )
 
@@ -1241,41 +1172,6 @@ class AquaDeploymentApp(AquaApp):
                 f"and cannot be overridden or are invalid."
             )
         return {"valid": True}
-
-    @staticmethod
-    def _find_restricted_params(
-        default_params: Union[str, List[str]],
-        user_params: Union[str, List[str]],
-        container_family: str,
-    ) -> List[str]:
-        """Returns a list of restricted params that user chooses to override when creating an Aqua deployment.
-        The default parameters coming from the container index json file cannot be overridden.
-
-        Parameters
-        ----------
-        default_params:
-            Inference container parameter string with default values.
-        user_params:
-            Inference container parameter string with user provided values.
-        container_family: str
-            The image family of model deployment container runtime.
-
-        Returns
-        -------
-            A list with params keys common between params1 and params2.
-
-        """
-        restricted_params = []
-        if default_params and user_params:
-            default_params_dict = get_params_dict(default_params)
-            user_params_dict = get_params_dict(user_params)
-
-            restricted_params_set = get_restricted_params_by_container(container_family)
-            for key, _items in user_params_dict.items():
-                if key in default_params_dict or key in restricted_params_set:
-                    restricted_params.append(key.lstrip("-"))
-
-        return restricted_params
 
     @telemetry(entry_point="plugin=deployment&action=list_shapes", name="aqua")
     @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=5), timer=datetime.now))
