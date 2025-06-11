@@ -22,7 +22,7 @@ from ads import set_auth
 from ads.aqua import logger
 from ads.aqua.common.entities import ModelConfigResult
 from ads.aqua.common.enums import ConfigFolder, Tags
-from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
+from ads.aqua.common.errors import AquaValueError
 from ads.aqua.common.utils import (
     _is_valid_mvs,
     get_artifact_path,
@@ -284,8 +284,11 @@ class AquaApp:
                 logger.info(f"Artifact not found in model {model_id}.")
                 return False
 
+    @cached(cache=TTLCache(maxsize=5, ttl=timedelta(minutes=1), timer=datetime.now))
     def get_config_from_metadata(
-        self, model_id: str, metadata_key: str
+        self,
+        model_id: str,
+        metadata_key: str,
     ) -> ModelConfigResult:
         """Gets the config for the given Aqua model from model catalog metadata content.
 
@@ -300,8 +303,9 @@ class AquaApp:
         ModelConfigResult
             A Pydantic model containing the model_details (extracted from OCI) and the config dictionary.
         """
-        config = {}
+        config: Dict[str, Any] = {}
         oci_model = self.ds_client.get_model(model_id).data
+
         try:
             config = self.ds_client.get_model_defined_metadatum_artifact_content(
                 model_id, metadata_key
@@ -321,7 +325,7 @@ class AquaApp:
             )
         return ModelConfigResult(config=config, model_details=oci_model)
 
-    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=1), timer=datetime.now))
+    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=5), timer=datetime.now))
     def get_config(
         self,
         model_id: str,
@@ -346,8 +350,10 @@ class AquaApp:
         ModelConfigResult
             A Pydantic model containing the model_details (extracted from OCI) and the config dictionary.
         """
-        config_folder = config_folder or ConfigFolder.CONFIG
+        config: Dict[str, Any] = {}
         oci_model = self.ds_client.get_model(model_id).data
+
+        config_folder = config_folder or ConfigFolder.CONFIG
         oci_aqua = (
             (
                 Tags.AQUA_TAG in oci_model.freeform_tags
@@ -357,9 +363,9 @@ class AquaApp:
             else False
         )
         if not oci_aqua:
-            raise AquaRuntimeError(f"Target model {oci_model.id} is not an Aqua model.")
+            logger.debug(f"Target model {oci_model.id} is not an Aqua model.")
+            return ModelConfigResult(config=config, model_details=oci_model)
 
-        config: Dict[str, Any] = {}
         artifact_path = get_artifact_path(oci_model.custom_metadata_list)
         if not artifact_path:
             logger.debug(
