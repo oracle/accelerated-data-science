@@ -1,17 +1,16 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from __future__ import annotations
+
 import re
 import time
 import traceback
-
 from typing import Dict, TypeVar
-from ads.jobs.builders.base import Builder
-from ads.jobs import env_var_parser
 
+from ads.jobs import env_var_parser
+from ads.jobs.builders.base import Builder
 
 Self = TypeVar("Self", bound="Runtime")
 
@@ -285,6 +284,9 @@ class MultiNodeRuntime(Runtime):
 
     def run(self, dsc_job, **kwargs):
         """Starts the job runs"""
+        # For multi-node job, there is no need to create multiple job run.
+        if getattr(dsc_job, "job_node_configuration_details", None):
+            return dsc_job.run(**kwargs)
         replicas = self.replica if self.replica else 1
         main_run = None
         job_runs = []
