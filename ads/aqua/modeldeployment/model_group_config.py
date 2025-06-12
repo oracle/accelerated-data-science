@@ -83,10 +83,14 @@ class BaseModelSpec(BaseModel):
         for module in fine_tune_weights or []:
             name = getattr(module, "model_name", None)
             if not name:
-                logger.warning("Fine-tuned model in AquaMultiModelRef is missing model_name.")
+                logger.warning(
+                    "Fine-tuned model in AquaMultiModelRef is missing model_name."
+                )
                 continue
             if name in seen:
-                logger.warning(f"Duplicate LoRA Module detected: {name!r} (skipping duplicate).")
+                logger.warning(
+                    f"Duplicate LoRA Module detected: {name!r} (skipping duplicate)."
+                )
                 continue
             seen.add(name)
             unique_modules.append(module)
@@ -169,14 +173,8 @@ class ModelGroupConfig(Serializable):
             model, container_params, container_type_key
         )
 
-        model_id = (
-            model.fine_tune_weights[0].model_id
-            if model.fine_tune_weights
-            else model.model_id
-        )
-
         deployment_config = model_config_summary.deployment_config.get(
-            model_id, AquaDeploymentConfig()
+            model.model_id, AquaDeploymentConfig()
         ).configuration.get(
             create_deployment_details.instance_shape, ConfigurationItem()
         )

@@ -16,7 +16,7 @@ from oci.data_science.models import JobRun, Metadata, Model, UpdateModelDetails
 
 from ads.aqua import logger
 from ads.aqua.app import AquaApp
-from ads.aqua.common.entities import AquaMultiModelRef, LoraModuleSpec
+from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import (
     ConfigFolder,
     CustomInferenceContainerTypeFamily,
@@ -84,7 +84,6 @@ from ads.aqua.model.entities import (
 )
 from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.aqua.model.utils import (
-    extract_base_model_from_ft,
     extract_fine_tune_artifacts_path,
 )
 from ads.common.auth import default_signer
@@ -238,6 +237,7 @@ class AquaModelApp(AquaApp):
     def create_multi(
         self,
         models: List[AquaMultiModelRef],
+        model_details: Dict[str, DataScienceModel],
         project_id: Optional[str] = None,
         compartment_id: Optional[str] = None,
         freeform_tags: Optional[Dict] = None,
@@ -251,6 +251,8 @@ class AquaModelApp(AquaApp):
         ----------
         models : List[AquaMultiModelRef]
             List of AquaMultiModelRef instances for creating a multi-model group.
+        model_details :
+            A dict that contains model id and its corresponding data science model.
         project_id : Optional[str]
             The project ID for the multi-model group.
         compartment_id : Optional[str]
@@ -298,7 +300,7 @@ class AquaModelApp(AquaApp):
         # Process each model in the input list
         for model in models:
             # Retrieve model metadata from the Model Catalog using the model ID
-            source_model = DataScienceModel.from_id(model.model_id)
+            source_model: DataScienceModel = model_details.get(model.model_id)
             display_name = source_model.display_name
             model_file_description = source_model.model_file_description
             # If model_name is not explicitly provided, use the model's display name
@@ -310,42 +312,21 @@ class AquaModelApp(AquaApp):
                     "Please register the model first."
                 )
 
-            # Check if the model is a fine-tuned model based on its tags
-            is_fine_tuned_model = (
-                Tags.AQUA_FINE_TUNED_MODEL_TAG in source_model.freeform_tags
-            )
-
             base_model_artifact_path = ""
-            fine_tune_path = ""
 
-            if is_fine_tuned_model:
-                # Extract artifact paths for the base and fine-tuned model
-                base_model_artifact_path, fine_tune_path = (
-                    extract_fine_tune_artifacts_path(source_model)
-                )
-
-                # Create a single LoRA module specification for the fine-tuned model
-                # TODO: Support multiple LoRA modules in the future
-                model.fine_tune_weights = [
-                    LoraModuleSpec(
-                        model_id=model.model_id,
-                        model_name=model.model_name,
-                        model_path=fine_tune_path,
+            if model.fine_tune_weights:
+                for loral_module_spec in model.fine_tune_weights:
+                    fine_tune_model: DataScienceModel = model_details.get(
+                        loral_module_spec.model_id
                     )
-                ]
-
-                # Use the LoRA module name as the model's display name
-                display_name = model.model_name
-
-                # Temporarily override model ID and name with those of the base model
-                # TODO: Revisit this logic once proper base/FT model handling is implemented
-                model.model_id, model.model_name = extract_base_model_from_ft(
-                    source_model
-                )
+                    # Extract artifact paths for the base and fine-tuned model
+                    base_model_artifact_path, fine_tune_path = (
+                        extract_fine_tune_artifacts_path(fine_tune_model)
+                    )
+                    loral_module_spec.model_path = fine_tune_path
             else:
                 # For base models, use the original artifact path
                 base_model_artifact_path = source_model.artifact
-                display_name = model.model_name
 
             if not base_model_artifact_path:
                 # Fail if no artifact is found for the base model model
@@ -356,7 +337,7 @@ class AquaModelApp(AquaApp):
 
             # Update the artifact path in the model configuration
             model.artifact_location = base_model_artifact_path
-            display_name_list.append(display_name)
+            display_name_list.append(model.model_name)
 
             # Extract model task metadata from source model
             self._extract_model_task(model, source_model)

@@ -2,6 +2,7 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import copy
 import json
 import shlex
 from datetime import datetime, timedelta
@@ -214,11 +215,31 @@ class AquaDeploymentApp(AquaApp):
                 container_config=container_config,
             )
         else:
-            model_ids = [model.model_id for model in create_deployment_details.models]
+            base_model_ids = [
+                model.model_id for model in create_deployment_details.models
+            ]
+
+            model_ids = copy.deepcopy(base_model_ids)
+            for model in create_deployment_details.models:
+                if model.fine_tune_weights:
+                    model_ids.extend(
+                        [
+                            fine_tune_model.model_id
+                            for fine_tune_model in model.fine_tune_weights
+                        ]
+                    )
+
+            model_details = MultiModelDeploymentConfigLoader.fetch_data_science_resources_concurrently(
+                model_ids, DataScienceModel.from_id
+            )
+            try:
+                create_deployment_details.validate_input_models(model_details)
+            except ConfigValidationError as err:
+                raise AquaValueError(f"{err}") from err
 
             try:
                 model_config_summary = self.get_multimodel_deployment_config(
-                    model_ids=model_ids, compartment_id=compartment_id
+                    model_ids=base_model_ids, compartment_id=compartment_id
                 )
                 if not model_config_summary.gpu_allocation:
                     raise AquaValueError(model_config_summary.error_message)
@@ -292,11 +313,12 @@ class AquaDeploymentApp(AquaApp):
                     )
 
             logger.debug(
-                f"Multi models ({model_ids}) provided. Delegating to multi model creation method."
+                f"Multi models ({base_model_ids}) provided. Delegating to multi model creation method."
             )
 
             aqua_model = model_app.create_multi(
                 models=create_deployment_details.models,
+                model_details=model_details,
                 compartment_id=compartment_id,
                 project_id=project_id,
                 freeform_tags=freeform_tags,
