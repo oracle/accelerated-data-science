@@ -94,3 +94,12 @@ class AquaCommand:
                 "If you intend to chain a function call to the result, please separate the "
                 "flag and the subsequent function call with separator `-`."
             )
+    
+    @staticmethod
+    def install_extension(path = "/ads/extension/"):
+        import subprocess
+        from  pathlib import Path
+
+        wheel_file_path = Path(path) / f"adsjupyterlab_aqua_extension*.whl"
+        status =  subprocess.run(f"pip install {wheel_file_path}",shell=True)
+        return status.check_returncode
