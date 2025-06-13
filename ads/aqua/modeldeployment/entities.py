@@ -13,12 +13,14 @@ from ads.aqua.common.enums import Tags
 from ads.aqua.config.utils.serializer import Serializable
 from ads.aqua.constants import UNKNOWN_DICT
 from ads.aqua.data import AquaResourceIdentifier
+from ads.aqua.finetuning.constants import FineTuneCustomMetadata
 from ads.aqua.modeldeployment.config_loader import (
     ConfigurationItem,
     ModelDeploymentConfigSummary,
 )
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import UNKNOWN, get_console_link
+from ads.model.model_metadata import ModelCustomMetadataItem
 
 
 class ConfigValidationError(Exception):
@@ -473,6 +475,61 @@ class CreateModelDeploymentDetails(BaseModel):
             )
             logger.error(error_message)
             raise ConfigValidationError(error_message)
+
+    def validate_input_models(self, model_details: dict):
+        """Validates whether the input models list is feasible for a multi-model deployment.
+
+        Validation Criteria:
+        - Ensures that the base model is provided.
+        - Ensures that the base model is active.
+        - Ensures that the model id provided in `fine_tune_weights` is fine tuned model.
+        - Ensures that the model id provided in `fine_tune_weights` belongs to the same base model.
+
+        Parameters
+        ----------
+        model_details:
+            A dict that contains model id and its corresponding data science model.
+
+        Raises
+        ------
+        ConfigValidationError:
+        - If invalid base model id is provided.
+        - If base model is not active.
+        - If model id provided in `fine_tune_weights` is not fine tuned model.
+        - If model id provided in `fine_tune_weights` doesn't belong to the same base model.
+        """
+        for model in self.models:
+            base_model_id = model.model_id
+            base_model = model_details.get(base_model_id)
+            if Tags.AQUA_FINE_TUNED_MODEL_TAG in base_model.freeform_tags:
+                error_message = f"Invalid base model id {base_model_id}. Specify base model id `model_id` in `models` input, not fine tuned model id."
+                logger.error(error_message)
+                raise ConfigValidationError(error_message)
+            if base_model.lifecycle_state != "ACTIVE":
+                error_message = f"Invalid base model id {base_model_id}. Specify active base model id `model_id` in `models` input."
+                logger.error(error_message)
+                raise ConfigValidationError(error_message)
+            if model.fine_tune_weights:
+                for loral_module_spec in model.fine_tune_weights:
+                    fine_tune_model_id = loral_module_spec.model_id
+                    fine_tune_model = model_details.get(fine_tune_model_id)
+                    if (
+                        Tags.AQUA_FINE_TUNED_MODEL_TAG
+                        not in fine_tune_model.freeform_tags
+                    ):
+                        error_message = f"Invalid fine tune model id {fine_tune_model_id} in `models.fine_tune_weights` input. Fine tune model must have tag {Tags.AQUA_FINE_TUNED_MODEL_TAG}."
+                        logger.error(error_message)
+                        raise ConfigValidationError(error_message)
+                    fine_tune_base_model_id = fine_tune_model.custom_metadata_list.get(
+                        FineTuneCustomMetadata.FINE_TUNE_SOURCE,
+                        ModelCustomMetadataItem(
+                            key=FineTuneCustomMetadata.FINE_TUNE_SOURCE
+                        ),
+                    ).value
+                    if fine_tune_base_model_id != base_model_id:
+                        error_message = f"Invalid fine tune model id {fine_tune_model_id} in `models.fine_tune_weights` input. Fine tune model must belong to base model {base_model_id}."
+                        logger.error(error_message)
+                        raise ConfigValidationError(error_message)
 
     class Config:
         extra = "allow"

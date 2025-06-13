@@ -356,16 +356,38 @@ class MultiModelDeploymentConfigLoader:
         self, model_ids: List[str]
     ) -> Dict[str, AquaDeploymentConfig]:
         """Fetches deployment configurations in parallel using ThreadPoolExecutor."""
-        with ThreadPoolExecutor(max_workers=self.MAX_WORKERS) as executor:
-            results = executor.map(
-                self._fetch_deployment_config_from_metadata_and_oss,
-                model_ids,
+        results: Dict[str, ModelConfigResult] = (
+            self.fetch_data_science_resources_concurrently(
+                model_ids, self._fetch_deployment_config_from_metadata_and_oss
             )
+        )
 
         return {
             model_id: AquaDeploymentConfig(**config.config)
-            for model_id, config in zip(model_ids, results)
+            for model_id, config in results.items()
         }
+
+    @classmethod
+    def fetch_data_science_resources_concurrently(
+        cls, model_ids: List[str], function
+    ) -> dict:
+        """Fetches data science resources in parallel using ThreadPoolExecutor.
+
+        Parameters
+        ----------
+        function:
+            A callable that will take as many arguments as there are
+            passed iterables.
+
+        Returns
+        -------
+        dict:
+            A dict of model id and its corresponding data science resource.
+        """
+        with ThreadPoolExecutor(max_workers=cls.MAX_WORKERS) as executor:
+            results = executor.map(function, model_ids)
+
+        return dict(zip(model_ids, results))
 
     def _fetch_deployment_config_from_metadata_and_oss(
         self, model_id: str
