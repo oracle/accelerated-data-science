@@ -241,7 +241,7 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
         aqua_model_app = AquaModelApp()
         model_ocid = aqua_model_app._find_matching_aqua_model(model_id=model_id_lower)
         if model_ocid:
-            return aqua_model_app.get(model_ocid, load_model_card=False)
+            return aqua_model_app.get(model_ocid)
 
         return None
 

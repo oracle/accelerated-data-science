@@ -14,10 +14,7 @@ from parameterized import parameterized
 
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import get_hf_model_info
-from ads.aqua.constants import (
-    AQUA_TROUBLESHOOTING_LINK,
-    STATUS_CODE_MESSAGES,
-)
+from ads.aqua.constants import AQUA_TROUBLESHOOTING_LINK, STATUS_CODE_MESSAGES
 from ads.aqua.extension.errors import ReplyDetails
 from ads.aqua.extension.model_handler import (
     AquaHuggingFaceHandler,
@@ -27,7 +24,7 @@ from ads.aqua.extension.model_handler import (
 )
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import AquaModel, AquaModelSummary, HFModelSummary
-from ads.config import USER, SERVICE
+from ads.config import SERVICE, USER
 
 
 class ModelHandlerTestCase(TestCase):
@@ -346,9 +343,7 @@ class TestAquaHuggingFaceHandler:
             aqua_model_mock_list.assert_called_once()
 
             if expected_aqua_model_name:
-                mock_get_model.assert_called_with(
-                    expected_aqua_model_id, load_model_card=False
-                )
+                mock_get_model.assert_called_with(expected_aqua_model_id)
             else:
                 assert test_result == None
 
