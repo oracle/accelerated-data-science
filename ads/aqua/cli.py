@@ -97,6 +97,13 @@ class AquaCommand:
     
     @staticmethod
     def install():
+        """Install ADS Aqua Extension from wheel file. Set enviroment variable `AQUA_EXTENSTION_PATH` to change the wheel file path.
+
+        Return 
+        ------
+        int:
+            Installatation status.
+        """
         import subprocess
 
         wheel_file_path = os.environ.get("AQUA_EXTENSTION_PATH", "/ads/extension/adsjupyterlab_aqua_extension*.whl")
