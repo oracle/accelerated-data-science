@@ -96,10 +96,9 @@ class AquaCommand:
             )
     
     @staticmethod
-    def install_extension(path = "/ads/extension/"):
+    def install():
         import subprocess
-        from  pathlib import Path
 
-        wheel_file_path = Path(path) / f"adsjupyterlab_aqua_extension*.whl"
+        wheel_file_path = os.environ.get("AQUA_EXTENSTION_PATH", "/ads/extension/adsjupyterlab_aqua_extension*.whl")
         status =  subprocess.run(f"pip install {wheel_file_path}",shell=True)
         return status.check_returncode
