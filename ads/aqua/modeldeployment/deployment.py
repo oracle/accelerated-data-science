@@ -2,6 +2,7 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+
 import json
 import shlex
 import threading
@@ -55,6 +56,7 @@ from ads.aqua.modeldeployment.config_loader import (
     AquaDeploymentConfig,
     ConfigurationItem,
     ModelDeploymentConfigSummary,
+    MultiModelDeploymentConfigLoader,
 )
 from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
 from ads.aqua.modeldeployment.entities import (
@@ -64,7 +66,6 @@ from ads.aqua.modeldeployment.entities import (
     CreateModelDeploymentDetails,
 )
 from ads.aqua.modeldeployment.model_group_config import ModelGroupConfig
-from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN, get_log_links
 from ads.common.work_request import DataScienceWorkRequest
