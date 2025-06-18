@@ -4,6 +4,7 @@
 
 import json
 import shlex
+import threading
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
@@ -53,7 +54,7 @@ from ads.aqua.model.utils import (
 from ads.aqua.modeldeployment.config_loader import (
     AquaDeploymentConfig,
     ConfigurationItem,
-    ModelDeploymentConfigSummary
+    ModelDeploymentConfigSummary,
 )
 from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
 from ads.aqua.modeldeployment.entities import (
@@ -64,7 +65,6 @@ from ads.aqua.modeldeployment.entities import (
 )
 from ads.aqua.modeldeployment.model_group_config import ModelGroupConfig
 from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
-from ads.common.decorator.threaded import thread_pool
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN, get_log_links
 from ads.common.work_request import DataScienceWorkRequest
@@ -730,13 +730,17 @@ class AquaDeploymentApp(AquaApp):
             f"Aqua model deployment {deployment_id} created for model {aqua_model_id}. Work request Id is {deployment.dsc_model_deployment.workflow_req_id}"
         )
 
-        thread_pool.submit(
-            self.get_deployment_status,
-            deployment_id,
-            deployment.dsc_model_deployment.workflow_req_id,
-            model_type,
-            model_name,
+        progress_thread = threading.Thread(
+            target=self.get_deployment_status,
+            args=(
+                deployment_id,
+                deployment.dsc_model_deployment.workflow_req_id,
+                model_type,
+                model_name,
+            ),
+            daemon=True,
         )
+        progress_thread.start()
 
         # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
         telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
