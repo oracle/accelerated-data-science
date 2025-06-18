@@ -16,7 +16,7 @@ from oci.data_science.models import JobRun, Metadata, Model, UpdateModelDetails
 
 from ads.aqua import logger
 from ads.aqua.app import AquaApp
-from ads.aqua.common.entities import AquaMultiModelRef
+from ads.aqua.common.entities import AquaMultiModelRef, LoraModuleSpec
 from ads.aqua.common.enums import (
     ConfigFolder,
     CustomInferenceContainerTypeFamily,
@@ -89,12 +89,7 @@ from ads.aqua.model.utils import (
 )
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import (
-    UNKNOWN,
-    get_console_link,
-    is_path_exists,
-    read_file,
-)
+from ads.common.utils import UNKNOWN, get_console_link, is_path_exists, read_file
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
@@ -300,57 +295,73 @@ class AquaModelApp(AquaApp):
 
         selected_models_deployment_containers = set()
 
-        # Process each model
+        # Process each model in the input list
         for model in models:
+            # Retrieve model metadata from the Model Catalog using the model ID
             source_model = DataScienceModel.from_id(model.model_id)
             display_name = source_model.display_name
             model_file_description = source_model.model_file_description
-            # Update model name in user's input model
+            # If model_name is not explicitly provided, use the model's display name
             model.model_name = model.model_name or display_name
 
-            # TODO Uncomment the section below, if only service models should be allowed for multi-model deployment
-            # if not source_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, UNKNOWN):
-            #     raise AquaValueError(
-            #         f"Invalid selected model {display_name}. "
-            #         "Currently only service models are supported for multi model deployment."
-            #     )
+            if not model_file_description:
+                raise AquaValueError(
+                    f"Model '{source_model.display_name}' (ID: {model.model_id}) has no file description. "
+                    "Please register the model first."
+                )
 
-            # check if model is a fine-tuned model and if so, add the fine tuned weights path to the fine_tune_weights_location pydantic field
+            # Check if the model is a fine-tuned model based on its tags
             is_fine_tuned_model = (
                 Tags.AQUA_FINE_TUNED_MODEL_TAG in source_model.freeform_tags
             )
 
+            base_model_artifact_path = ""
+            fine_tune_path = ""
+
             if is_fine_tuned_model:
-                model.model_id, model.model_name = extract_base_model_from_ft(
-                    source_model
-                )
-                model_artifact_path, model.fine_tune_weights_location = (
+                # Extract artifact paths for the base and fine-tuned model
+                base_model_artifact_path, fine_tune_path = (
                     extract_fine_tune_artifacts_path(source_model)
                 )
 
-            else:
-                # Retrieve model artifact for base models
-                model_artifact_path = source_model.artifact
+                # Create a single LoRA module specification for the fine-tuned model
+                # TODO: Support multiple LoRA modules in the future
+                model.fine_tune_weights = [
+                    LoraModuleSpec(
+                        model_id=model.model_id,
+                        model_name=model.model_name,
+                        model_path=fine_tune_path,
+                    )
+                ]
 
+                # Use the LoRA module name as the model's display name
+                display_name = model.model_name
+
+                # Temporarily override model ID and name with those of the base model
+                # TODO: Revisit this logic once proper base/FT model handling is implemented
+                model.model_id, model.model_name = extract_base_model_from_ft(
+                    source_model
+                )
+            else:
+                # For base models, use the original artifact path
+                base_model_artifact_path = source_model.artifact
+                display_name = model.model_name
+
+            if not base_model_artifact_path:
+                # Fail if no artifact is found for the base model model
+                raise AquaValueError(
+                    f"Model '{model.model_name}' (ID: {model.model_id}) has no artifacts. "
+                    "Please register the model first."
+                )
+
+            # Update the artifact path in the model configuration
+            model.artifact_location = base_model_artifact_path
             display_name_list.append(display_name)
 
+            # Extract model task metadata from source model
             self._extract_model_task(model, source_model)
 
-            if not model_artifact_path:
-                raise AquaValueError(
-                    f"Model '{display_name}' (ID: {model.model_id}) has no artifacts. "
-                    "Please register the model first."
-                )
-
-            # Update model artifact location in user's input model
-            model.artifact_location = model_artifact_path
-
-            if not model_file_description:
-                raise AquaValueError(
-                    f"Model '{display_name}' (ID: {model.model_id}) has no file description. "
-                    "Please register the model first."
-                )
-
+            # Track model file description in a validated structure
             model_file_description_list.append(
                 ModelFileDescription(**model_file_description)
             )
@@ -480,8 +491,6 @@ class AquaModelApp(AquaApp):
         ----------
         model_id: str
             The model OCID.
-        load_model_card: (bool, optional). Defaults to `True`.
-            Whether to load model card from artifacts or not.
 
         Returns
         -------
