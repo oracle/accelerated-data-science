@@ -1456,6 +1456,7 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj.dsc_model_deployment = (
             oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
         )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
 
         result = self.app.create(
@@ -1553,6 +1554,7 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj.dsc_model_deployment = (
             oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
         )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
 
         result = self.app.create(
@@ -1646,6 +1648,7 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj.dsc_model_deployment = (
             oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
         )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
 
         result = self.app.create(
@@ -1748,6 +1751,7 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj.dsc_model_deployment = (
             oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
         )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
 
         result = self.app.create(
@@ -1862,6 +1866,7 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj.dsc_model_deployment = (
             oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
         )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
 
         model_info_1 = AquaMultiModelRef(
@@ -2365,6 +2370,7 @@ class TestAquaDeployment(unittest.TestCase):
         deployment_id = "fakeid.datasciencemodeldeployment.oc1.iad.xxx"
         work_request_id = "fakeid.workrequest.oc1.iad.xxx"
         model_type = "custom"
+        model_name = "model_name"
 
         with patch(
             "ads.model.service.oci_datascience_model_deployment.DataScienceWorkRequest.__init__"
@@ -2374,10 +2380,10 @@ class TestAquaDeployment(unittest.TestCase):
                 "ads.model.service.oci_datascience_model_deployment.DataScienceWorkRequest.wait_work_request"
             ) as mock_wait:
                 self.app.get_deployment_status(
-                    deployment_id, work_request_id, model_type
+                    deployment_id, work_request_id, model_type, model_name
                 )
 
-                mock_ds_work_request.assert_called_with("test")
+                mock_ds_work_request.assert_called_with(work_request_id)
                 mock_wait.assert_called_with(
                     progress_bar_description="Creating model deployment",
                     max_wait_time=DEFAULT_WAIT_TIME,
