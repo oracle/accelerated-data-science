@@ -308,16 +308,16 @@ class TestDataset:
                 "prefix": "models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
                 "objects": [
                     {
-                    "name": "models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>/README.md",
-                    "version": "636b83ae-be59-445f-a8d7-da7277535ef0",
-                    "sizeInBytes": 5176
+                        "name": "models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>/README.md",
+                        "version": "636b83ae-be59-445f-a8d7-da7277535ef0",
+                        "sizeInBytes": 5176,
                     },
                     {
-                    "name": "models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>/adapter_config.json",
-                    "version": "6d6ea6c9-05e1-44d9-bab6-0ad175c924e6",
-                    "sizeInBytes": 805
-                    }
-                ]
+                        "name": "models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>/adapter_config.json",
+                        "version": "6d6ea6c9-05e1-44d9-bab6-0ad175c924e6",
+                        "sizeInBytes": 805,
+                    },
+                ],
             },
         ],
     }
@@ -460,10 +460,8 @@ class TestAquaModel:
     @patch.object(DataScienceModel, "create_custom_metadata_artifact")
     @patch.object(DataScienceModel, "create")
     @patch.object(AquaApp, "get_container_config")
-    @patch.object(DataScienceModel, "from_id")
     def test_create_multimodel(
         self,
-        mock_from_id,
         mock_get_container_config,
         mock_create,
         mock_create_custom_metadata_artifact,
@@ -484,7 +482,6 @@ class TestAquaModel:
         )
 
         mock_model.custom_metadata_list = custom_metadata_list
-        mock_from_id.return_value = mock_model
 
         model_info_1 = AquaMultiModelRef(
             model_id="test_model_id_1",
@@ -500,11 +497,17 @@ class TestAquaModel:
             env_var={"params": "--trust-remote-code --max-model-len 32000"},
         )
 
+        model_details = {
+            model_info_1.model_id: mock_model,
+            model_info_2.model_id: mock_model,
+        }
+
         with pytest.raises(AquaValueError):
             model = self.app.create_multi(
                 models=[model_info_1, model_info_2],
                 project_id="test_project_id",
                 compartment_id="test_compartment_id",
+                source_models=model_details,
             )
 
         mock_model.freeform_tags["aqua_service_model"] = TestDataset.SERVICE_MODEL_ID
@@ -514,6 +517,7 @@ class TestAquaModel:
                 models=[model_info_1, model_info_2],
                 project_id="test_project_id",
                 compartment_id="test_compartment_id",
+                source_models=model_details,
             )
 
         mock_model.freeform_tags["task"] = "text-generation"
@@ -523,6 +527,7 @@ class TestAquaModel:
                 models=[model_info_1, model_info_2],
                 project_id="test_project_id",
                 compartment_id="test_compartment_id",
+                source_models=model_details,
             )
 
         custom_metadata_list = ModelCustomMetadata()
@@ -531,7 +536,6 @@ class TestAquaModel:
         )
 
         mock_model.custom_metadata_list = custom_metadata_list
-        mock_from_id.return_value = mock_model
 
         # testing _extract_model_task when a user passes an invalid task to AquaMultiModelRef
         model_info_1.model_task = "invalid_task"
@@ -541,6 +545,7 @@ class TestAquaModel:
                 models=[model_info_1, model_info_2],
                 project_id="test_project_id",
                 compartment_id="test_compartment_id",
+                source_models=model_details,
             )
 
         # testing if a user tries to invoke a model with a task mode that is not yet supported
@@ -551,14 +556,16 @@ class TestAquaModel:
                 models=[model_info_1, model_info_2],
                 project_id="test_project_id",
                 compartment_id="test_compartment_id",
+                source_models=model_details,
             )
 
         mock_model.freeform_tags["task"] = "text-generation"
         model_info_1.model_task = "text_embedding"
 
-
         # testing requesting metadata from fine tuned model to add to model group
-        mock_model.model_file_description = TestDataset.fine_tuned_model_file_description
+        mock_model.model_file_description = (
+            TestDataset.fine_tuned_model_file_description
+        )
 
         # testing fine tuned model in model group
         model_info_3 = AquaMultiModelRef(
@@ -567,21 +574,22 @@ class TestAquaModel:
             model_task="image_text_to_text",
             env_var={"params": "--trust-remote-code --max-model-len 32000"},
             artifact_location="oci://test_bucket@test_namespace/models/meta-llama/Llama-3.2-3B-Instruct",
-            fine_tune_artifact="oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"
+            fine_tune_artifact="oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
         )
+
+        model_details[model_info_3.model_id] = mock_model
 
         # will create a multi-model group
         model = self.app.create_multi(
             models=[model_info_1, model_info_2, model_info_3],
             project_id="test_project_id",
             compartment_id="test_compartment_id",
+            source_models=model_details,
         )
 
-        mock_from_id.assert_called()
         mock_create.assert_called_with(model_by_reference=True)
 
         mock_model.compartment_id = TestDataset.SERVICE_COMPARTMENT_ID
-        mock_from_id.return_value = mock_model
         mock_create.return_value = mock_model
 
         assert model.freeform_tags == {"aqua_multimodel": "true"}
@@ -677,12 +685,12 @@ class TestAquaModel:
             "icon": "",
             "id": f"{ds_model.id}",
             "is_fine_tuned_model": False,
-            "license": f'{ds_model.freeform_tags["license"]}',
+            "license": f"{ds_model.freeform_tags['license']}",
             "model_formats": [ModelFormat.SAFETENSORS],
             "model_file": "",
             "name": f"{ds_model.display_name}",
             "nvidia_gpu_supported": True,
-            "organization": f'{ds_model.freeform_tags["organization"]}',
+            "organization": f"{ds_model.freeform_tags['organization']}",
             "project_id": f"{ds_model.project_id}",
             "ready_to_deploy": False if foundation_model_type == "verified" else True,
             "ready_to_finetune": False,
@@ -693,7 +701,7 @@ class TestAquaModel:
                 else "ACTIVE,test_license,test_organization,test_task"
             ),
             "tags": ds_model.freeform_tags,
-            "task": f'{ds_model.freeform_tags["task"]}',
+            "task": f"{ds_model.freeform_tags['task']}",
             "time_created": f"{ds_model.time_created}",
             "inference_container": "odsc-vllm-serving",
             "inference_container_uri": None,

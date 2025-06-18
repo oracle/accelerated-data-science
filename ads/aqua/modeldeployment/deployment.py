@@ -214,14 +214,38 @@ class AquaDeploymentApp(AquaApp):
                 container_config=container_config,
             )
         else:
-            model_ids = [model.model_id for model in create_deployment_details.models]
+            # Collect all unique model IDs (including fine-tuned models)
+            source_model_ids = list(
+                {
+                    model_id
+                    for model in create_deployment_details.models
+                    for model_id in model.all_model_ids()
+                }
+            )
+            logger.debug(
+                "Fetching source model metadata for model IDs: %s", source_model_ids
+            )
+            # Fetch source model metadata
+            source_models = self.get_multi_source(source_model_ids) or {}
+
+            try:
+                create_deployment_details.validate_input_models(
+                    model_details=source_models
+                )
+            except ConfigValidationError as err:
+                raise AquaValueError(f"{err}") from err
+
+            base_model_ids = [
+                model.model_id for model in create_deployment_details.models
+            ]
 
             try:
                 model_config_summary = self.get_multimodel_deployment_config(
-                    model_ids=model_ids, compartment_id=compartment_id
+                    model_ids=base_model_ids, compartment_id=compartment_id
                 )
                 if not model_config_summary.gpu_allocation:
                     raise AquaValueError(model_config_summary.error_message)
+
                 create_deployment_details.validate_multimodel_deployment_feasibility(
                     models_config_summary=model_config_summary
                 )
@@ -292,7 +316,7 @@ class AquaDeploymentApp(AquaApp):
                     )
 
             logger.debug(
-                f"Multi models ({model_ids}) provided. Delegating to multi model creation method."
+                f"Multi models ({source_model_ids}) provided. Delegating to multi model creation method."
             )
 
             aqua_model = model_app.create_multi(
@@ -301,6 +325,7 @@ class AquaDeploymentApp(AquaApp):
                 project_id=project_id,
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
+                source_models=source_models,
             )
             return self._create_multi(
                 aqua_model=aqua_model,

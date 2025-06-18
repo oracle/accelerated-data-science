@@ -16,7 +16,7 @@ from oci.data_science.models import JobRun, Metadata, Model, UpdateModelDetails
 
 from ads.aqua import logger
 from ads.aqua.app import AquaApp
-from ads.aqua.common.entities import AquaMultiModelRef, LoraModuleSpec
+from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import (
     ConfigFolder,
     CustomInferenceContainerTypeFamily,
@@ -83,10 +83,7 @@ from ads.aqua.model.entities import (
     ModelValidationResult,
 )
 from ads.aqua.model.enums import MultiModelSupportedTaskType
-from ads.aqua.model.utils import (
-    extract_base_model_from_ft,
-    extract_fine_tune_artifacts_path,
-)
+from ads.aqua.model.utils import extract_fine_tune_artifacts_path
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import UNKNOWN, get_console_link, is_path_exists, read_file
@@ -242,6 +239,7 @@ class AquaModelApp(AquaApp):
         compartment_id: Optional[str] = None,
         freeform_tags: Optional[Dict] = None,
         defined_tags: Optional[Dict] = None,
+        source_models: Optional[Dict[str, DataScienceModel]] = None,
         **kwargs,  # noqa: ARG002
     ) -> DataScienceModel:
         """
@@ -259,6 +257,10 @@ class AquaModelApp(AquaApp):
             Freeform tags for the model.
         defined_tags : Optional[Dict]
             Defined tags for the model.
+        source_models: Optional[Dict[str, DataScienceModel]]
+            A mapping of model OCIDs to their corresponding `DataScienceModel` objects.
+            This dictionary contains metadata for all models involved in the multi-model deployment,
+            including both base models and fine-tuned weights.
 
         Returns
         -------
@@ -295,68 +297,67 @@ class AquaModelApp(AquaApp):
 
         selected_models_deployment_containers = set()
 
-        # Process each model in the input list
-        for model in models:
-            # Retrieve model metadata from the Model Catalog using the model ID
-            source_model = DataScienceModel.from_id(model.model_id)
-            display_name = source_model.display_name
-            model_file_description = source_model.model_file_description
-            # If model_name is not explicitly provided, use the model's display name
-            model.model_name = model.model_name or display_name
-
-            if not model_file_description:
-                raise AquaValueError(
-                    f"Model '{source_model.display_name}' (ID: {model.model_id}) has no file description. "
-                    "Please register the model first."
-                )
-
-            # Check if the model is a fine-tuned model based on its tags
-            is_fine_tuned_model = (
-                Tags.AQUA_FINE_TUNED_MODEL_TAG in source_model.freeform_tags
+        if not source_models:
+            # Collect all unique model IDs (including fine-tuned models)
+            source_model_ids = list(
+                {model_id for model in models for model_id in model.all_model_ids()}
+            )
+            logger.debug(
+                "Fetching source model metadata for model IDs: %s", source_model_ids
             )
 
-            base_model_artifact_path = ""
-            fine_tune_path = ""
+            # Fetch source model metadata
+            source_models = self.get_multi_source(source_model_ids) or {}
 
-            if is_fine_tuned_model:
-                # Extract artifact paths for the base and fine-tuned model
-                base_model_artifact_path, fine_tune_path = (
-                    extract_fine_tune_artifacts_path(source_model)
+        # Process each model in the input list
+        for model in models:
+            # Retrieve base model metadata
+            source_model: DataScienceModel = source_models.get(model.model_id)
+            if not source_model:
+                logger.error(
+                    "Failed to fetch metadata for base model ID: %s", model.model_id
                 )
-
-                # Create a single LoRA module specification for the fine-tuned model
-                # TODO: Support multiple LoRA modules in the future
-                model.fine_tune_weights = [
-                    LoraModuleSpec(
-                        model_id=model.model_id,
-                        model_name=model.model_name,
-                        model_path=fine_tune_path,
-                    )
-                ]
-
-                # Use the LoRA module name as the model's display name
-                display_name = model.model_name
-
-                # Temporarily override model ID and name with those of the base model
-                # TODO: Revisit this logic once proper base/FT model handling is implemented
-                model.model_id, model.model_name = extract_base_model_from_ft(
-                    source_model
-                )
-            else:
-                # For base models, use the original artifact path
-                base_model_artifact_path = source_model.artifact
-                display_name = model.model_name
-
-            if not base_model_artifact_path:
-                # Fail if no artifact is found for the base model model
                 raise AquaValueError(
-                    f"Model '{model.model_name}' (ID: {model.model_id}) has no artifacts. "
-                    "Please register the model first."
+                    f"Unable to retrieve metadata for base model ID: {model.model_id}."
                 )
 
-            # Update the artifact path in the model configuration
-            model.artifact_location = base_model_artifact_path
-            display_name_list.append(display_name)
+            # Use display name as fallback if model name not provided
+            model.model_name = model.model_name or source_model.display_name
+
+            # Validate model file description
+            model_file_description = source_model.model_file_description
+            if not model_file_description:
+                logger.error(
+                    "Model '%s' (%s) has no file description.",
+                    source_model.display_name,
+                    model.model_id,
+                )
+                raise AquaValueError(
+                    f"Model '{source_model.display_name}' (ID: {model.model_id}) has no file description. "
+                    "Please register the model with a file description."
+                )
+
+            # Ensure base model has a valid artifact
+            if not source_model.artifact:
+                logger.error(
+                    "Base model '%s' (%s) has no artifact.",
+                    model.model_name,
+                    model.model_id,
+                )
+                raise AquaValueError(
+                    f"Model '{model.model_name}' (ID: {model.model_id}) has no registered artifacts. "
+                    "Please register the model before deployment."
+                )
+
+            # Set base model artifact path
+            model.artifact_location = source_model.artifact
+            logger.debug(
+                "Model '%s' artifact path set to: %s",
+                model.model_name,
+                model.artifact_location,
+            )
+
+            display_name_list.append(model.model_name)
 
             # Extract model task metadata from source model
             self._extract_model_task(model, source_model)
@@ -365,6 +366,38 @@ class AquaModelApp(AquaApp):
             model_file_description_list.append(
                 ModelFileDescription(**model_file_description)
             )
+
+            # Process fine-tuned weights if provided
+            for ft_model in model.fine_tune_weights or []:
+                fine_tune_source_model: DataScienceModel = source_models.get(
+                    ft_model.model_id
+                )
+                if not fine_tune_source_model:
+                    logger.error(
+                        "Failed to fetch metadata for fine-tuned model ID: %s",
+                        ft_model.model_id,
+                    )
+                    raise AquaValueError(
+                        f"Unable to retrieve metadata for fine-tuned model ID: {ft_model.model_id}."
+                    )
+
+                # Extract fine-tuned model path
+                _, fine_tune_path = extract_fine_tune_artifacts_path(
+                    fine_tune_source_model
+                )
+                logger.debug(
+                    "Resolved fine-tuned model path for '%s': %s",
+                    ft_model.model_id,
+                    fine_tune_path,
+                )
+                ft_model.model_path = fine_tune_path
+
+                # Use fallback name if needed
+                ft_model.model_name = (
+                    ft_model.model_name or fine_tune_source_model.display_name
+                )
+
+                display_name_list.append(ft_model.model_name)
 
             # Validate deployment container consistency
             deployment_container = source_model.custom_metadata_list.get(
@@ -375,9 +408,15 @@ class AquaModelApp(AquaApp):
             ).value
 
             if deployment_container not in supported_container_families:
+                logger.error(
+                    "Unsupported deployment container '%s' for model '%s'. Supported: %s",
+                    deployment_container,
+                    source_model.id,
+                    supported_container_families,
+                )
                 raise AquaValueError(
                     f"Unsupported deployment container '{deployment_container}' for model '{source_model.id}'. "
-                    f"Only '{supported_container_families}' are supported for multi-model deployments."
+                    f"Only {supported_container_families} are supported for multi-model deployments."
                 )
 
             selected_models_deployment_containers.add(deployment_container)
