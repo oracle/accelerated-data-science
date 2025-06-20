@@ -81,14 +81,12 @@ class BaseModelSpec(BaseModel):
         unique_modules: List[LoraModuleSpec] = []
 
         for module in fine_tune_weights or []:
-            name = getattr(module, "model_name", None)
-            if not name:
-                logger.warning("Fine-tuned model in AquaMultiModelRef is missing model_name.")
+            if module.model_name and module.model_name in seen:
+                logger.warning(
+                    f"Duplicate LoRA Module detected: {module.model_name!r} (skipping duplicate)."
+                )
                 continue
-            if name in seen:
-                logger.warning(f"Duplicate LoRA Module detected: {name!r} (skipping duplicate).")
-                continue
-            seen.add(name)
+            seen.add(module.model_name)
             unique_modules.append(module)
 
         return unique_modules
@@ -169,17 +167,12 @@ class ModelGroupConfig(Serializable):
             model, container_params, container_type_key
         )
 
-        model_id = (
-            model.fine_tune_weights[0].model_id
-            if model.fine_tune_weights
-            else model.model_id
-        )
-
         deployment_config = model_config_summary.deployment_config.get(
-            model_id, AquaDeploymentConfig()
+            model.model_id, AquaDeploymentConfig()
         ).configuration.get(
             create_deployment_details.instance_shape, ConfigurationItem()
         )
+
         params_found = False
         for item in deployment_config.multi_model_deployment:
             if model.gpu_count and item.gpu_count and item.gpu_count == model.gpu_count:

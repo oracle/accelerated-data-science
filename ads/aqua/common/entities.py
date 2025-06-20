@@ -6,7 +6,7 @@ import re
 from typing import Any, Dict, List, Optional
 
 from oci.data_science.models import Model
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ads.aqua import logger
 from ads.aqua.config.utils.serializer import Serializable
@@ -80,24 +80,29 @@ class GPUShapesIndex(Serializable):
 
 class ComputeShapeSummary(Serializable):
     """
-    Represents the specifications of a compute instance's shape.
+    Represents the specifications of a compute instance shape,
+    including CPU, memory, and optional GPU characteristics.
     """
 
     core_count: Optional[int] = Field(
-        default=None, description="The number of CPU cores available."
+        default=None,
+        description="Total number of CPU cores available for the compute shape.",
     )
     memory_in_gbs: Optional[int] = Field(
-        default=None, description="The amount of memory (in GB) available."
+        default=None,
+        description="Amount of memory (in GB) available for the compute shape.",
     )
     name: Optional[str] = Field(
-        default=None, description="The name identifier of the compute shape."
+        default=None,
+        description="Full name of the compute shape, e.g., 'VM.GPU.A10.2'.",
     )
     shape_series: Optional[str] = Field(
-        default=None, description="The series or category of the compute shape."
+        default=None,
+        description="Shape family or series, e.g., 'GPU', 'Standard', etc.",
     )
     gpu_specs: Optional[GPUSpecs] = Field(
         default=None,
-        description="The GPU specifications associated with the compute shape.",
+        description="Optional GPU specifications associated with the shape.",
     )
 
     @model_validator(mode="after")
@@ -136,26 +141,45 @@ class ComputeShapeSummary(Serializable):
         return model
 
 
-class LoraModuleSpec(Serializable):
+class LoraModuleSpec(BaseModel):
     """
-    Lightweight descriptor for LoRA Modules used in fine-tuning models.
+    Descriptor for a LoRA (Low-Rank Adaptation) module used in fine-tuning base models.
+
+    This class is used to define a single fine-tuned module that can be loaded during
+    multi-model deployment alongside a base model.
 
     Attributes
     ----------
     model_id : str
-        The unique identifier of the fine tuned model.
-    model_name : str
-        The name of the fine-tuned model.
-    model_path : str
-        The model-by-reference path to the LoRA Module within the model artifact
+        The OCID of the fine-tuned model registered in the OCI Model Catalog.
+    model_name : Optional[str]
+        The unique name used to route inference requests to this model variant.
+    model_path : Optional[str]
+        The relative path within the artifact pointing to the LoRA adapter weights.
     """
 
-    model_id: Optional[str] = Field(None, description="The fine tuned model OCID to deploy.")
-    model_name: Optional[str] = Field(None, description="The name of the fine-tuned model.")
-    model_path: Optional[str] = Field(
-        None,
-        description="The model-by-reference path to the LoRA Module within the model artifact.",
+    model_config = ConfigDict(protected_namespaces=(), extra="allow")
+
+    model_id: str = Field(
+        ...,
+        description="OCID of the fine-tuned model (must be registered in the Model Catalog).",
     )
+    model_name: Optional[str] = Field(
+        default=None,
+        description="Name assigned to the fine-tuned model for serving (used as inference route).",
+    )
+    model_path: Optional[str] = Field(
+        default=None,
+        description="Relative path to the LoRA weights inside the model artifact.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_lora_module(cls, data: dict) -> dict:
+        """Validates that required structure exists for a LoRA module."""
+        if "model_id" not in data or not data["model_id"]:
+            raise ValueError("Missing required field: 'model_id' for fine-tuned model.")
+        return data
 
 
 class AquaMultiModelRef(Serializable):
@@ -202,6 +226,22 @@ class AquaMultiModelRef(Serializable):
         None,
         description="For fine tuned models, the artifact path of the modified model weights",
     )
+
+    def all_model_ids(self) -> List[str]:
+        """
+        Returns all associated model OCIDs, including the base model and any fine-tuned models.
+
+        Returns
+        -------
+        List[str]
+            A list of all model OCIDs associated with this multi-model reference.
+        """
+        ids = {self.model_id}
+        if self.fine_tune_weights:
+            ids.update(
+                module.model_id for module in self.fine_tune_weights if module.model_id
+            )
+        return list(ids)
 
     class Config:
         extra = "ignore"

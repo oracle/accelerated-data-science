@@ -5,6 +5,7 @@
 import json
 import os
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import fields
 from datetime import datetime, timedelta
 from itertools import chain
@@ -57,6 +58,8 @@ from ads.telemetry.client import TelemetryClient
 
 class AquaApp:
     """Base Aqua App to contain common components."""
+
+    MAX_WORKERS = 10  # Number of workers for asynchronous resource loading
 
     @telemetry(name="aqua")
     def __init__(self) -> None:
@@ -128,19 +131,68 @@ class AquaApp:
             update_model_provenance_details=update_model_provenance_details,
         )
 
-    # TODO: refactor model evaluation implementation to use it.
     @staticmethod
     def get_source(source_id: str) -> Union[ModelDeployment, DataScienceModel]:
-        if is_valid_ocid(source_id):
-            if "datasciencemodeldeployment" in source_id:
-                return ModelDeployment.from_id(source_id)
-            elif "datasciencemodel" in source_id:
-                return DataScienceModel.from_id(source_id)
+        """
+        Fetches a model or model deployment based on the provided OCID.
 
+        Parameters
+        ----------
+        source_id : str
+            OCID of the Data Science model or model deployment.
+
+        Returns
+        -------
+        Union[ModelDeployment, DataScienceModel]
+            The corresponding resource object.
+
+        Raises
+        ------
+        AquaValueError
+            If the OCID is invalid or unsupported.
+        """
+        logger.debug(f"Resolving source for ID: {source_id}")
+        if not is_valid_ocid(source_id):
+            logger.error(f"Invalid OCID format: {source_id}")
+            raise AquaValueError(
+                f"Invalid source ID: {source_id}. Please provide a valid model or model deployment OCID."
+            )
+
+        if "datasciencemodeldeployment" in source_id:
+            logger.debug(f"Identified as ModelDeployment OCID: {source_id}")
+            return ModelDeployment.from_id(source_id)
+
+        if "datasciencemodel" in source_id:
+            logger.debug(f"Identified as DataScienceModel OCID: {source_id}")
+            return DataScienceModel.from_id(source_id)
+
+        logger.error(f"Unrecognized OCID type: {source_id}")
         raise AquaValueError(
-            f"Invalid source {source_id}. "
-            "Specify either a model or model deployment id."
+            f"Unsupported source ID type: {source_id}. Must be a model or model deployment OCID."
         )
+
+    def get_multi_source(
+        self,
+        ids: List[str],
+    ) -> Dict[str, Union[ModelDeployment, DataScienceModel]]:
+        """
+        Retrieves multiple DataScience resources concurrently.
+
+        Parameters
+        ----------
+        ids : List[str]
+            A list of DataScience OCIDs.
+
+        Returns
+        -------
+        Dict[str, Union[ModelDeployment, DataScienceModel]]
+            A mapping from OCID to the corresponding resolved resource object.
+        """
+        logger.debug(f"Fetching {ids} sources in parallel.")
+        with ThreadPoolExecutor(max_workers=self.MAX_WORKERS) as executor:
+            results = list(executor.map(self.get_source, ids))
+
+        return dict(zip(ids, results))
 
     # TODO: refactor model evaluation implementation to use it.
     @staticmethod
