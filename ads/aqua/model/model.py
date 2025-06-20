@@ -337,6 +337,11 @@ class AquaModelApp(AquaApp):
                     "Please register the model with a file description."
                 )
 
+            # Track model file description in a validated structure
+            model_file_description_list.append(
+                ModelFileDescription(**model_file_description)
+            )
+
             # Ensure base model has a valid artifact
             if not source_model.artifact:
                 logger.error(
@@ -362,11 +367,6 @@ class AquaModelApp(AquaApp):
             # Extract model task metadata from source model
             self._extract_model_task(model, source_model)
 
-            # Track model file description in a validated structure
-            model_file_description_list.append(
-                ModelFileDescription(**model_file_description)
-            )
-
             # Process fine-tuned weights if provided
             for ft_model in model.fine_tune_weights or []:
                 fine_tune_source_model: DataScienceModel = source_models.get(
@@ -380,6 +380,26 @@ class AquaModelApp(AquaApp):
                     raise AquaValueError(
                         f"Unable to retrieve metadata for fine-tuned model ID: {ft_model.model_id}."
                     )
+
+                # Validate model file description
+                ft_model_file_description = (
+                    fine_tune_source_model.model_file_description
+                )
+                if not ft_model_file_description:
+                    logger.error(
+                        "Model '%s' (%s) has no file description.",
+                        fine_tune_source_model.display_name,
+                        ft_model.model_id,
+                    )
+                    raise AquaValueError(
+                        f"Model '{fine_tune_source_model.display_name}' (ID: {ft_model.model_id}) has no file description. "
+                        "Please register the model with a file description."
+                    )
+
+                # Track model file description in a validated structure
+                model_file_description_list.append(
+                    ModelFileDescription(**ft_model_file_description)
+                )
 
                 # Extract fine-tuned model path
                 _, fine_tune_path = extract_fine_tune_artifacts_path(
