@@ -29,31 +29,39 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
     datasets = ForecastDatasets(operator_config)
     model = ForecastOperatorModelFactory.get_model(operator_config, datasets)
 
-    if operator_config.spec.model == AUTO_SELECT_SERIES and hasattr(operator_config.spec, 'meta_features'):
+    if operator_config.spec.model == AUTO_SELECT_SERIES and hasattr(
+        operator_config.spec, "meta_features"
+    ):
         # For AUTO_SELECT_SERIES, handle each series with its specific model
         meta_features = operator_config.spec.meta_features
         results = ForecastResults()
-        results_df = pd.DataFrame()
-        elapsed_time = 0
-        sub_model_list = []
         sub_results_list = []
 
         # Group the data by selected model
-        for model_name in meta_features['selected_model'].unique():
+        for model_name in meta_features["selected_model"].unique():
             # Get series that use this model
-            series_groups = meta_features[meta_features['selected_model'] == model_name]
+            series_groups = meta_features[meta_features["selected_model"] == model_name]
 
             # Create a sub-config for this model
             sub_config = copy.deepcopy(operator_config)
             sub_config.spec.model = model_name
 
             # Create sub-datasets for these series
-            sub_datasets = ForecastDatasets(operator_config, subset=series_groups[operator_config.spec.target_category_columns].values.flatten().tolist())
+            sub_datasets = ForecastDatasets(
+                operator_config,
+                subset=series_groups[operator_config.spec.target_category_columns]
+                .values.flatten()
+                .tolist(),
+            )
 
             # Get and run the appropriate model
             sub_model = ForecastOperatorModelFactory.get_model(sub_config, sub_datasets)
             sub_result_df, sub_elapsed_time = sub_model.build_model()
-            sub_results = sub_model.generate_report(result_df=sub_result_df, elapsed_time=sub_elapsed_time)
+            sub_results = sub_model.generate_report(
+                result_df=sub_result_df,
+                elapsed_time=sub_elapsed_time,
+                save_sub_reports=True,
+            )
             sub_results_list.append(sub_results)
 
             # results_df = pd.concat([results_df, sub_result_df], ignore_index=True, axis=0)
