@@ -361,9 +361,11 @@ spec:
       allowed:
         - autots
         - auto
-        - oneclasssvm
-        - isolationforest
-        - randomcutforest
+        - auto-select
+        - automlx
+        - one_class_svm
+        - isolation_forest
+        - random_cut_forest
         - iqr
         - lof
         - zscore
@@ -378,8 +380,14 @@ spec:
         - arima
         - ets
         - sarima
+        - mses
         - bocpd
         - prophet
+        - stat_threshold
+        - wind_stats
+        - dynamic_baseline
+        - zms
+        - autoencoder
       meta:
         description: "The model to be used for anomaly detection"
 
