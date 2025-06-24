@@ -423,7 +423,7 @@ __handlers__ = [
     ("model/?([^/]*)", AquaModelHandler),
     ("model/?([^/]*)/license", AquaModelLicenseHandler),
     ("model/?([^/]*)/readme", AquaModelReadmeHandler),
-    ("model/?([^/]*)/tokenizer", AquaModelChatTemplateHandler),
+    ("model/?([^/]*)/chat-template", AquaModelChatTemplateHandler),
     ("model/hf/search/?([^/]*)", AquaHuggingFaceHandler),
     (
         "model/?([^/]*)/definedMetadata/?([^/]*)",
