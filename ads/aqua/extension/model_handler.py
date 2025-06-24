@@ -11,12 +11,15 @@ from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.enums import CustomInferenceContainerTypeFamily
 from ads.aqua.common.errors import AquaRuntimeError
 from ads.aqua.common.utils import get_hf_model_info, is_valid_ocid, list_hf_models
+from ads.aqua.constants import AQUA_CHAT_TEMPLATE_METADATA_KEY
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import AquaModelSummary, HFModelSummary
 from ads.config import SERVICE
+from ads.model import DataScienceModel
 from ads.model.common.utils import MetadataArtifactPathType
+from ads.model.service.oci_datascience_model import OCIDataScienceModel
 
 
 class AquaModelHandler(AquaAPIhandler):
@@ -320,25 +323,64 @@ class AquaHuggingFaceHandler(AquaAPIhandler):
         )
 
 
-class AquaModelTokenizerConfigHandler(AquaAPIhandler):
+class AquaModelChatTemplateHandler(AquaAPIhandler):
     def get(self, model_id):
         """
-        Handles requests for retrieving the Hugging Face tokenizer configuration of a specified model.
-        Expected request format: GET /aqua/models/<model-ocid>/tokenizer
+        Handles requests for retrieving the chat template from custom metadata of a specified model.
+        Expected request format: GET /aqua/models/<model-ocid>/chat-template
 
         """
 
         path_list = urlparse(self.request.path).path.strip("/").split("/")
-        # Path should be /aqua/models/ocid1.iad.ahdxxx/tokenizer
-        # path_list=['aqua','models','<model-ocid>','tokenizer']
+        # Path should be /aqua/models/ocid1.iad.ahdxxx/chat-template
+        # path_list=['aqua','models','<model-ocid>','chat-template']
         if (
             len(path_list) == 4
             and is_valid_ocid(path_list[2])
-            and path_list[3] == "tokenizer"
+            and path_list[3] == "chat-template"
         ):
-            return self.finish(AquaModelApp().get_hf_tokenizer_config(model_id))
+            try:
+                oci_data_science_model = OCIDataScienceModel.from_id(model_id)
+            except Exception as e:
+                raise HTTPError(404, f"Model not found for id: {model_id}. Details: {str(e)}")
+            return self.finish(oci_data_science_model.get_custom_metadata_artifact("chat_template"))
 
         raise HTTPError(400, f"The request {self.request.path} is invalid.")
+
+    @handle_exceptions
+    def post(self, model_id: str):
+        """
+        Handles POST requests to add a custom chat_template metadata artifact to a model.
+
+        Expected request format:
+        POST /aqua/models/<model-ocid>/chat-template
+        Body: { "chat_template": "<your_template_string>" }
+
+        """
+        try:
+            input_body = self.get_json_body()
+        except Exception as e:
+            raise HTTPError(400, f"Invalid JSON body: {str(e)}")
+
+        chat_template = input_body.get("chat_template")
+        if not chat_template:
+            raise HTTPError(400, "Missing required field: 'chat_template'")
+
+        try:
+            data_science_model = DataScienceModel.from_id(model_id)
+        except Exception as e:
+            raise HTTPError(404, f"Model not found for id: {model_id}. Details: {str(e)}")
+
+        try:
+            result = data_science_model.create_custom_metadata_artifact(
+                metadata_key_name=AQUA_CHAT_TEMPLATE_METADATA_KEY,
+                path_type=MetadataArtifactPathType.CONTENT,
+                artifact_path_or_content=chat_template.encode()
+            )
+        except Exception as e:
+            raise HTTPError(500, f"Failed to create metadata artifact: {str(e)}")
+
+        return self.finish(result)
 
 
 class AquaModelDefinedMetadataArtifactHandler(AquaAPIhandler):
@@ -381,7 +423,7 @@ __handlers__ = [
     ("model/?([^/]*)", AquaModelHandler),
     ("model/?([^/]*)/license", AquaModelLicenseHandler),
     ("model/?([^/]*)/readme", AquaModelReadmeHandler),
-    ("model/?([^/]*)/tokenizer", AquaModelTokenizerConfigHandler),
+    ("model/?([^/]*)/tokenizer", AquaModelChatTemplateHandler),
     ("model/hf/search/?([^/]*)", AquaHuggingFaceHandler),
     (
         "model/?([^/]*)/definedMetadata/?([^/]*)",
