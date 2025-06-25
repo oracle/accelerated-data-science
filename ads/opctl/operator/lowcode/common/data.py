@@ -19,16 +19,21 @@ from .transformations import Transformations
 
 
 class AbstractData(ABC):
-    def __init__(self, spec, name="input_data", data=None):
+    def __init__(self, spec, name="input_data", data=None, subset=None):
         self.Transformations = Transformations
         self.data = None
         self._data_dict = dict()
         self.name = name
         self.spec = spec
+        self.subset = subset
         if data is not None:
             self.data = data
         else:
             self.load_transform_ingest_data(spec)
+        # Subset by series if requested
+        # if self.subset is not None and hasattr(self, 'data') and self.data is not None:
+        #     subset_str = [str(s) for s in self.subset]
+        #     self.data = self.data[self.data.index.get_level_values(DataColumns.Series).isin(subset_str)]
 
     def get_raw_data_by_cat(self, category):
         mapping = self._data_transformer.get_target_category_columns_map()
@@ -72,7 +77,7 @@ class AbstractData(ABC):
     def _load_data(self, data_spec, **kwargs):
         loading_start_time = time.time()
         try:
-            raw_data = load_data(data_spec)
+            raw_data = load_data(data_spec, subset=self.subset if self.subset else None, target_category_columns=self.spec.target_category_columns)
         except InvalidParameterError as e:
             e.args = e.args + (f"Invalid Parameter: {self.name}",)
             raise e
