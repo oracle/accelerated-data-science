@@ -20,6 +20,7 @@ class ModelCustomMetadataFields(ExtendedEnum):
     DEPLOYMENT_CONTAINER_URI = "deployment-container-uri"
     MULTIMODEL_GROUP_COUNT = "model_group_count"
     MULTIMODEL_METADATA = "multi_model_metadata"
+    MODEL_GROUP_CONFIG = "OCI_MODEL_GROUP_CUSTOM_METADATA"
 
 
 class ModelTask(ExtendedEnum):

@@ -383,3 +383,18 @@ class ModelFileDescription(Serializable):
     class Config:
         alias_generator = to_camel
         extra = "allow"
+
+
+class MemberModel(Serializable):
+    """Describes the member model of a model group.
+
+    Attributes:
+        model_id (str): The id of member model.
+        inference_key (str): The inference key of member model.
+    """
+
+    model_id: str = Field(..., description="The id of member model.")
+    inference_key: str = Field(None, description="The inference key of member model.")
+
+    class Config:
+        extra = "allow"
