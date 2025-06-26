@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
-
+import json
+import os
 from importlib import metadata
 
 import huggingface_hub
@@ -18,6 +18,10 @@ from ads.aqua.common.utils import (
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
+from ads.common.object_storage_details import ObjectStorageDetails
+from ads.common.utils import read_file
+from ads.config import CONDA_BUCKET_NAME, CONDA_BUCKET_NS
+from ads.opctl.operator.common.utils import default_signer
 
 
 class ADSVersionHandler(AquaAPIhandler):
@@ -26,6 +30,42 @@ class ADSVersionHandler(AquaAPIhandler):
     @handle_exceptions
     def get(self):
         self.finish({"data": metadata.version("oracle_ads")})
+
+
+class AquaVersionHandler(AquaAPIhandler):
+    @handle_exceptions
+    def get(self):
+        """
+        Returns the current and latest deployed version of AQUA
+
+        {
+          "installed": {
+            "aqua": "0.1.3.0",
+            "ads": "2.14.2"
+          },
+          "latest": {
+            "aqua": "0.1.4.0",
+            "ads": "2.14.4"
+          }
+        }
+
+        """
+
+        current_version_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "..", "version.json"
+        )
+        latest_version_artifact_path = ObjectStorageDetails(
+            CONDA_BUCKET_NAME, CONDA_BUCKET_NS, "service_pack/aqua_latest_version.json"
+        ).path
+        latest_version_content = read_file(
+            latest_version_artifact_path, auth=default_signer()
+        )
+        current_version_content = read_file(current_version_path)
+        response = {
+            **json.loads(current_version_content),
+            **json.loads(latest_version_content),
+        }
+        return self.finish(response)
 
 
 class CompatibilityCheckHandler(AquaAPIhandler):
@@ -118,4 +158,5 @@ __handlers__ = [
     ("network_status", NetworkStatusHandler),
     ("hf_login", HFLoginHandler),
     ("hf_logged_in", HFUserStatusHandler),
+    ("aqua_version", AquaVersionHandler),
 ]

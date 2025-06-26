@@ -314,11 +314,9 @@ class BaseClient:
         try:
             json_line = json.loads(line)
             logger.debug(f"Parsed JSON line: {json_line}")
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
             logger.debug(f"Error decoding JSON from line: {line}")
-            raise json.JSONDecodeError(
-                f"Error decoding JSON from line: {e!s}", e.doc, e.pos
-            ) from e
+            return None
 
         if json_line.get("object") == "error":
             # Raise an error for error objects in the stream
