@@ -2,6 +2,28 @@
 Release Notes
 =============
 
+2.13.12
+-------
+Release date: Jun 18, 2025
+
+* AI Quick Actions: Added support for easy installation of AI Quick Actions extension from JupyterLab and improve telemetry.
+* AI Quick Actions: Bug fix while registering HuggingFace models in UI.
+
+
+2.13.11
+-------
+Release date: Jun 6, 2025
+
+* AI Quick Actions: Added support for LlamaCpp in the client to enable the new ``predictWithResponseStream`` endpoint for streaming inference.
+
+
+2.13.10
+-------
+Release date: Jun 4, 2025
+
+* AI Quick Actions: Enhanced the client to support the new ``predictWithResponseStream`` endpoint for streaming inference.
+
+
 2.13.9
 -------
 Release date: May 19, 2025

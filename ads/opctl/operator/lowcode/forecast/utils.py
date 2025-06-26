@@ -1,14 +1,12 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
 import os
 from typing import Set
 
-import cloudpickle
-import fsspec
 import numpy as np
 import pandas as pd
 import report_creator as rc
@@ -21,7 +19,6 @@ from sklearn.metrics import (
     r2_score,
 )
 
-from ads.common.object_storage_details import ObjectStorageDetails
 from ads.dataset.label_encoder import DataFrameLabelEncoder
 from ads.opctl import logger
 from ads.opctl.operator.lowcode.forecast.const import ForecastOutputColumns
@@ -170,26 +167,6 @@ def _build_metrics_per_horizon(
     return metrics_df
 
 
-def load_pkl(filepath):
-    storage_options = {}
-    if ObjectStorageDetails.is_oci_path(filepath):
-        storage_options = default_signer()
-
-    with fsspec.open(filepath, "rb", **storage_options) as f:
-        return cloudpickle.load(f)
-    return None
-
-
-def write_pkl(obj, filename, output_dir, storage_options):
-    pkl_path = os.path.join(output_dir, filename)
-    with fsspec.open(
-        pkl_path,
-        "wb",
-        **storage_options,
-    ) as f:
-        cloudpickle.dump(obj, f)
-
-
 def _build_metrics_df(y_true, y_pred, series_id):
     if len(y_true) == 0 or len(y_pred) == 0:
         return pd.DataFrame()
@@ -251,7 +228,10 @@ def evaluate_train_metrics(output):
 
 
 def _select_plot_list(fn, series_ids, target_category_column):
-    blocks = [rc.Widget(fn(s_id=s_id), label=s_id if target_category_column else None) for s_id in series_ids]
+    blocks = [
+        rc.Widget(fn(s_id=s_id), label=s_id if target_category_column else None)
+        for s_id in series_ids
+    ]
     return rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
 
 
@@ -264,8 +244,10 @@ def get_auto_select_plot(backtest_results):
     back_test_csv_columns = backtest_results.columns.tolist()
     back_test_column = "backtest"
     metric_column = "metric"
-    models = [x for x in back_test_csv_columns if x not in [back_test_column, metric_column]]
-    for i, column in enumerate(models):
+    models = [
+        x for x in back_test_csv_columns if x not in [back_test_column, metric_column]
+    ]
+    for column in models:
         fig.add_trace(
             go.Scatter(
                 x=backtest_results[back_test_column],
@@ -283,7 +265,7 @@ def get_forecast_plots(
     horizon,
     test_data=None,
     ci_interval_width=0.95,
-    target_category_column=None
+    target_category_column=None,
 ):
     def plot_forecast_plotly(s_id):
         fig = go.Figure()
@@ -380,7 +362,9 @@ def get_forecast_plots(
         )
         return fig
 
-    return _select_plot_list(plot_forecast_plotly, forecast_output.list_series_ids(), target_category_column)
+    return _select_plot_list(
+        plot_forecast_plotly, forecast_output.list_series_ids(), target_category_column
+    )
 
 
 def convert_target(target: str, target_col: str):

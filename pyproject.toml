@@ -21,14 +21,15 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads" # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.13.9"
+version = "2.13.12"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.8"
-license = { file = "LICENSE.txt" }
 authors = [{ name = "Oracle Data Science" }]
+license = "UPL-1.0"
+license-files = ["LICENSE.txt"]
 keywords = [
   "Oracle Cloud Infrastructure",
   "OCI",
@@ -39,11 +40,16 @@ keywords = [
   "Data Science",
   "Cloud",
   "Oracle",
+  "GenAI",
+  "Generative AI",
+  "Forecast",
+  "Anomaly",
+  "Document Understanding",
+  "Anomaly Detection",
 ]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: Universal Permissive License (UPL)",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
