@@ -719,11 +719,14 @@ class AquaDeploymentApp(AquaApp):
             .with_health_check_port(health_check_port)
             .with_env(env_var)
             .with_deployment_mode(ModelDeploymentMode.HTTPS)
-            .with_model_uri(aqua_model_id)
             .with_region(self.region)
             .with_overwrite_existing_artifact(True)
             .with_remove_existing_artifact(True)
         )
+        if "datasciencemodelgroup" in aqua_model_id:
+            container_runtime.with_model_group_id(aqua_model_id)
+        else:
+            container_runtime.with_model_uri(aqua_model_id)
         if cmd_var:
             container_runtime.with_cmd(cmd_var)
 
