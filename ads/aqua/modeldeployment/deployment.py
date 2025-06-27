@@ -4,6 +4,7 @@
 
 
 import json
+import re
 import shlex
 import threading
 from datetime import datetime, timedelta
@@ -732,28 +733,18 @@ class AquaDeploymentApp(AquaApp):
             f"Aqua model deployment {deployment_id} created for model {aqua_model_id}. Work request Id is {deployment.dsc_model_deployment.workflow_req_id}"
         )
         status_list = []
-        progress_thread_1 = threading.Thread(
-            target=deployment.watch,
-            args=(status_list),
-            daemon=True,
-        )
-        progress_thread_1.start()
 
-        progress_thread_2 = threading.Thread(
+        progress_thread = threading.Thread(
             target=self.get_deployment_status,
             args=(
                 deployment_id,
                 deployment.dsc_model_deployment.workflow_req_id,
                 model_type,
                 model_name,
-                status_list,
             ),
             daemon=True,
         )
-        progress_thread_2.start()
-
-        progress_thread_1.join()
-        progress_thread_2.join()
+        progress_thread.start()
 
         # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
         telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
@@ -1245,11 +1236,11 @@ class AquaDeploymentApp(AquaApp):
 
     def get_deployment_status(
         self,
+        deployment,
         model_deployment_id: str,
         work_request_id: str,
         model_type: str,
         model_name: str,
-        status_list: List[str] = [],
     ) -> None:
         """Waits for the data science  model deployment to be completed and log its status in telemetry.
 
@@ -1262,17 +1253,14 @@ class AquaDeploymentApp(AquaApp):
             The work request Id of the model deployment.
         model_type: str
             The type of aqua model to be deployed. Allowed values are: `custom`, `service` and `multi_model`.
-        status_list: List[str]
-            The list of status frmo streams the access and/or predict logs of model deployment.
 
         Returns
         -------
         AquaDeployment
             An Aqua deployment instance.
         """
-
         ocid = get_ocid_substring(model_deployment_id, key_len=8)
-        telemetry_kwargs = {"ocid": ocid, "model_name": model_name}
+        status_list: List[str] = []
 
         data_science_work_request: DataScienceWorkRequest = DataScienceWorkRequest(
             work_request_id
@@ -1284,17 +1272,62 @@ class AquaDeploymentApp(AquaApp):
                 max_wait_time=DEFAULT_WAIT_TIME,
                 poll_interval=DEFAULT_POLL_INTERVAL,
             )
-        except Exception:
+            predict_logs = deployment.tail_logs("predict")
+            access_logs = deployment.tail_logs("access")
+
+            status = ""
+            if access_logs and len(access_logs) > 0:
+                print("access log list ############################")
+                print(access_logs)
+                status = access_logs[0]["message"]
+
+            if predict_logs and len(predict_logs) > 0:
+                print("predict_logs  ############################")
+                print(predict_logs)
+                status += predict_logs[0]["message"]
+
+            status = re.sub(r"[^a-zA-Z0-9]", "", status)
+            telemetry_kwargs = {
+                "ocid": ocid,
+                "model_name": model_name,
+                "status": status,
+            }
+            print(telemetry_kwargs)
+            print("############################")
+
+            self.telemetry.record_event(
+                category=f"aqua/{model_type}/deployment/status",
+                action="LAST_LOG",
+                # detail=error_str,
+                **telemetry_kwargs,
+            )
+
+        except Exception as e:
             if data_science_work_request._error_message:
                 error_str = ""
                 for error in data_science_work_request._error_message:
                     error_str = error_str + " " + error.message
 
                 status = ""
-                if len(status_list) > 0:
-                    status = status_list[-1]
+                predict_logs = deployment.tail_logs("predict")
+                access_logs = deployment.tail_logs("access")
+                if access_logs and len(access_logs) > 0:
+                    print(access_logs)
+                    status = access_logs[0]["message"]
 
-                telemetry_kwargs["status"] = status
+                if predict_logs and len(predict_logs) > 0:
+                    print("predict_logs  ############################")
+                    print(predict_logs)
+                    status += predict_logs[0]["message"]
+                status = re.sub(r"[^a-zA-Z0-9]", "", status)
+                error_str = re.sub(r"[^a-zA-Z0-9]", "", error_str)
+                telemetry_kwargs = {
+                    "ocid": ocid,
+                    "model_name": model_name,
+                    "status": error_str + " " + status,
+                }
+                print(telemetry_kwargs)
+                print("############################")
 
                 self.telemetry.record_event(
                     category=f"aqua/{model_type}/deployment/status",
@@ -1302,7 +1335,41 @@ class AquaDeploymentApp(AquaApp):
                     detail=error_str,
                     **telemetry_kwargs,
                 )
+            else:
+                print(str(e))
+                status = str(e)
+                predict_logs = deployment.tail_logs("predict")
+                access_logs = deployment.tail_logs("access")
+                if access_logs and len(access_logs) > 0:
+                    print("access log list ############################")
+                    print(access_logs)
+                    status = access_logs[0]["message"]
+
+                if predict_logs and len(predict_logs) > 0:
+                    print("predict_logs  ############################")
+                    print(predict_logs)
+                    status += predict_logs[0]["message"]
+
+                status = re.sub(r"[^a-zA-Z0-9]", "", status)
+                error_str = re.sub(r"[^a-zA-Z0-9]", "", error_str)
+
+                telemetry_kwargs = {
+                    "ocid": ocid,
+                    "model_name": model_name,
+                    "status": error_str + " " + status,
+                }
+                print(telemetry_kwargs)
+                print("############################")
+
+                self.telemetry.record_event(
+                    category=f"aqua/{model_type}/deployment/status",
+                    action="FAILED",
+                    # detail=error_str,
+                    **telemetry_kwargs,
+                )
+
         else:
+            telemetry_kwargs = {"ocid": ocid, "model_name": model_name}
             self.telemetry.record_event_async(
                 category=f"aqua/{model_type}/deployment/status",
                 action="SUCCEEDED",

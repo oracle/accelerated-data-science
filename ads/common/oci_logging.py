@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
 # Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -7,15 +6,15 @@
 import datetime
 import logging
 import time
-from typing import Dict, Union, List
+from typing import Dict, List, Union
 
+import oci.exceptions
 import oci.logging
 import oci.loggingsearch
-import oci.exceptions
+
 from ads.common.decorator.utils import class_or_instance_method
 from ads.common.oci_mixin import OCIModelMixin, OCIWorkRequestMixin
 from ads.common.oci_resource import OCIResource, ResourceNotFoundError
-
 
 logger = logging.getLogger(__name__)
 
@@ -862,9 +861,48 @@ class ConsolidatedLog:
             time_start=time_start,
             log_filter=log_filter,
         )
-        self._print(
-            sorted(tail_logs, key=lambda log: log["time"])
+        self._print(sorted(tail_logs, key=lambda log: log["time"]))
+
+    def get_tail_logs(
+        self,
+        source: str = None,
+        limit: int = LOG_RECORDS_LIMIT,
+        time_start: datetime.datetime = None,
+        log_filter: str = None,
+    ) -> List[Union[oci.loggingsearch.models.SearchResult, dict]]:
+        """Returns the most recent consolidated log records.
+
+        Parameters
+        ----------
+        source : str, optional
+            Expression or OCID to filter the "source" field of the OCI log record.
+            Defaults to None.
+        limit : int, optional.
+            Maximum number of records to be returned.
+            If limit is set to None, all logs from time_start to now will be returned.
+            Defaults to 100.
+        time_start : datetime.datetime, optional
+            Starting time for the log query.
+            Defaults to None.
+        log_filter : str, optional
+            Expression for filtering the logs. This will be the WHERE clause of the query.
+            Defaults to None.
+
+        Returns
+        -------
+        list
+            A list of oci.loggingsearch.models.SearchResult objects or log records sorted in descending order by time
+            Each log record is a dictionary with the following keys: `annotation`, `id`, `time`,
+            `message` and `datetime`.
+        """
+        tail_logs = self._search_and_format(
+            source=source,
+            limit=limit,
+            sort_order=SortOrder.DESC,
+            time_start=time_start,
+            log_filter=log_filter,
         )
+        return sorted(tail_logs, key=lambda log: log["time"])
 
     def head(
         self,

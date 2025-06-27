@@ -729,13 +729,46 @@ class ModelDeployment(Builder):
 
         return self._update_from_oci_model(response)
 
+    def tail_logs(
+        self, log_type: str = None, time_start: datetime = None, log_filter: str = None
+    ) -> List[Union[oci.loggingsearch.models.SearchResult, dict]]:
+        """Returns the most recent consolidated log records for the model deployment
+
+        Parameters
+        ----------
+        source : str, optional
+            Expression or OCID to filter the "source" field of the OCI log record.
+            Defaults to None.
+        limit : int, optional.
+            Maximum number of records to be returned.
+            If limit is set to None, all logs from time_start to now will be returned.
+            Defaults to 100.
+        time_start : datetime.datetime, optional
+            Starting time for the log query.
+            Defaults to None.
+        log_filter : str, optional
+            Expression for filtering the logs. This will be the WHERE clause of the query.
+            Defaults to None.
+
+        Returns
+        -------
+        list
+            A list of oci.loggingsearch.models.SearchResult objects or log records sorted in descending order by time
+            Each log record is a dictionary with the following keys: `annotation`, `id`, `time`,
+            `message` and `datetime`.
+        """
+        return self.logs(log_type).get_tail_logs(
+            source=self.model_deployment_id,
+            time_start=time_start,
+            log_filter=log_filter,
+        )
+
     def watch(
         self,
         log_type: str = None,
         time_start: datetime = None,
         interval: int = LOG_INTERVAL,
         log_filter: str = None,
-        status_list: List[str] = None,
     ) -> "ModelDeployment":
         """Streams the access and/or predict logs of model deployment.
 
@@ -764,8 +797,6 @@ class ModelDeployment(Builder):
         status = ""
         while not self._stop_condition():
             status = self._check_and_print_status(status)
-            if status not in status_list:
-                status_list.append(status)
             time.sleep(interval)
 
         time_start = time_start or self.time_created
