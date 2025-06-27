@@ -42,6 +42,7 @@ from ads.aqua.model.entities import (
 from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.model.datascience_model import DataScienceModel
+from ads.model.datascience_model_group import DataScienceModelGroup
 from ads.model.model_metadata import (
     ModelCustomMetadata,
     ModelProvenanceMetadata,
@@ -457,14 +458,12 @@ class TestAquaModel:
         )
         assert model.provenance_metadata.training_id == "test_training_id"
 
-    @patch.object(DataScienceModel, "create_custom_metadata_artifact")
-    @patch.object(DataScienceModel, "create")
+    @patch.object(DataScienceModelGroup, "create")
     @patch.object(AquaApp, "get_container_config")
     def test_create_multimodel(
         self,
         mock_get_container_config,
-        mock_create,
-        mock_create_custom_metadata_artifact,
+        mock_create_group,
     ):
         mock_get_container_config.return_value = get_container_config()
         mock_model = MagicMock()
@@ -482,6 +481,8 @@ class TestAquaModel:
         )
 
         mock_model.custom_metadata_list = custom_metadata_list
+        mock_create_deployment_details = MagicMock()
+        mock_model_config_summary = MagicMock()
 
         model_info_1 = AquaMultiModelRef(
             model_id="test_model_id_1",
@@ -503,8 +504,10 @@ class TestAquaModel:
         }
 
         with pytest.raises(AquaValueError):
-            model = self.app.create_multi(
+            model_group = self.app.create_multi(
                 models=[model_info_1, model_info_2],
+                create_deployment_details=mock_create_deployment_details,
+                model_config_summary=mock_model_config_summary,
                 project_id="test_project_id",
                 compartment_id="test_compartment_id",
                 source_models=model_details,
@@ -513,8 +516,10 @@ class TestAquaModel:
         mock_model.freeform_tags["aqua_service_model"] = TestDataset.SERVICE_MODEL_ID
 
         with pytest.raises(AquaValueError):
-            model = self.app.create_multi(
+            model_group = self.app.create_multi(
                 models=[model_info_1, model_info_2],
+                create_deployment_details=mock_create_deployment_details,
+                model_config_summary=mock_model_config_summary,
                 project_id="test_project_id",
                 compartment_id="test_compartment_id",
                 source_models=model_details,
@@ -523,8 +528,10 @@ class TestAquaModel:
         mock_model.freeform_tags["task"] = "text-generation"
 
         with pytest.raises(AquaValueError):
-            model = self.app.create_multi(
+            model_group = self.app.create_multi(
                 models=[model_info_1, model_info_2],
+                create_deployment_details=mock_create_deployment_details,
+                model_config_summary=mock_model_config_summary,
                 project_id="test_project_id",
                 compartment_id="test_compartment_id",
                 source_models=model_details,
@@ -541,8 +548,10 @@ class TestAquaModel:
         model_info_1.model_task = "invalid_task"
 
         with pytest.raises(AquaValueError):
-            model = self.app.create_multi(
+            model_group = self.app.create_multi(
                 models=[model_info_1, model_info_2],
+                create_deployment_details=mock_create_deployment_details,
+                model_config_summary=mock_model_config_summary,
                 project_id="test_project_id",
                 compartment_id="test_compartment_id",
                 source_models=model_details,
@@ -552,8 +561,10 @@ class TestAquaModel:
         model_info_1.model_task = None
         mock_model.freeform_tags["task"] = "unsupported_task"
         with pytest.raises(AquaValueError):
-            model = self.app.create_multi(
+            model_group = self.app.create_multi(
                 models=[model_info_1, model_info_2],
+                create_deployment_details=mock_create_deployment_details,
+                model_config_summary=mock_model_config_summary,
                 project_id="test_project_id",
                 compartment_id="test_compartment_id",
                 source_models=model_details,
@@ -580,22 +591,23 @@ class TestAquaModel:
         model_details[model_info_3.model_id] = mock_model
 
         # will create a multi-model group
-        model = self.app.create_multi(
+        model_group = self.app.create_multi(
             models=[model_info_1, model_info_2, model_info_3],
+            create_deployment_details=mock_create_deployment_details,
+            model_config_summary=mock_model_config_summary,
             project_id="test_project_id",
             compartment_id="test_compartment_id",
             source_models=model_details,
         )
 
-        mock_create.assert_called_with(model_by_reference=True)
+        mock_create_group.assert_called()
 
         mock_model.compartment_id = TestDataset.SERVICE_COMPARTMENT_ID
-        mock_create.return_value = mock_model
 
-        assert model.freeform_tags == {"aqua_multimodel": "true"}
-        assert model.custom_metadata_list.get("model_group_count").value == "3"
+        assert model_group.freeform_tags == {"aqua_multimodel": "true"}
+        assert model_group.custom_metadata_list.get("model_group_count").value == "3"
         assert (
-            model.custom_metadata_list.get("deployment-container").value
+            model_group.custom_metadata_list.get("deployment-container").value
             == "odsc-vllm-serving"
         )
 
