@@ -1,0 +1,24 @@
+👋 Waiting, Amit!
+👋 Waiting, Amit!
+👋 Waiting, Amit!
+👋 Waiting, Amit!
+👋 Waiting, Amit!
+⠋ Processing...✅ Done after 5 seconds!
+None
+INFO     Verifying Common Policies                                                                                                                                                                 
+INFO     ✅ List Compartments                                                                                                                                                                      
+INFO     ✅ List Models                                                                                                                                                                            
+INFO     ✅ List Model Version Sets                                                                                                                                                                
+INFO     ✅ List Projects                                                                                                                                                                          
+INFO     ✅ List Job Runs                                                                                                                                                                          
+INFO     ✅ List Jobs                                                                                                                                                                              
+INFO     ✅ List Object Storage Buckets                                                                                                                                                            
+INFO     ✅ List Logs                                                                                                                                                                              
+{'operation': 'List Compartments', 'status': 'SUCCESS'}
+{'operation': 'List Models', 'status': 'SUCCESS'}
+{'operation': 'List Model Version Sets', 'status': 'SUCCESS'}
+{'operation': 'List Projects', 'status': 'SUCCESS'}
+{'operation': 'List Job Runs', 'status': 'SUCCESS'}
+{'operation': 'List Jobs', 'status': 'SUCCESS'}
+{'operation': 'List Object Storage Buckets', 'status': 'SUCCESS'}
+{'operation': 'List Logs', 'status': 'SUCCESS'}

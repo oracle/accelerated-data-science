@@ -1,0 +1,243 @@
+import logging
+from ads.aqua.model.model import AquaModelApp
+from ads.aqua.modeldeployment import AquaDeploymentApp
+from ads.aqua.verify_policies.constants import OBS_MANAGE_TEST_FILE, TEST_DEFAULT_JOB_SHAPE, TEST_MD_NAME, \
+    TEST_MODEL_NAME
+from ads.aqua.verify_policies.entities import PolicyStatus
+from ads.common.auth import default_signer
+from ads.common.oci_mixin import LIFECYCLE_STOP_STATE
+from ads.config import COMPARTMENT_OCID, DATA_SCIENCE_SERVICE_NAME, TENANCY_OCID, PROJECT_OCID
+from ads.common import oci_client
+from rich.console import Console
+from rich.logging import RichHandler
+
+logger = logging.getLogger("aqua.policies")
+
+import oci
+
+
+class VerifyPoliciesUtils:
+    def __init__(self):
+        self.aqua_model = AquaModelApp()
+        self.aqua_deploy = AquaDeploymentApp()
+        self.obs_client = oci_client.OCIClientFactory(**default_signer()).object_storage
+        self.model_id = None
+        self.job_id = None
+        self.limit = 3
+
+    def list_compartments(self, **kwargs):
+        compartment_id = kwargs.pop("compartment_id", TENANCY_OCID)
+        limit = kwargs.pop("limit", self.limit)
+        return self.aqua_model.identity_client.list_compartments(compartment_id=compartment_id, limit=limit,
+                                                                 **kwargs).data
+
+    def list_models(self, **kwargs):
+        return self.aqua_model.list(**kwargs)
+
+    def list_log_groups(self, **kwargs):
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        limit = kwargs.pop("limit", self.limit)
+        return self.aqua_model.logging_client.list_log_groups(compartment_id=compartment_id, limit=limit, **kwargs).data
+
+    def list_log(self, **kwargs):
+        log_group_id = kwargs.pop("log_group_id")
+        limit = kwargs.pop("limit", self.limit)
+        return self.aqua_model.logging_client.list_logs(log_group_id=log_group_id, limit=limit, **kwargs).data
+
+    def list_project(self, **kwargs):
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        limit = kwargs.pop("limit", self.limit)
+        return self.aqua_model.ds_client.list_projects(compartment_id=compartment_id, limit=limit, **kwargs).data
+
+    def list_model_version_sets(self, **kwargs):
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        limit = kwargs.pop("limit", self.limit)
+        return self.aqua_model.ds_client.list_model_version_sets(compartment_id=compartment_id, limit=limit,
+                                                                 **kwargs).data
+
+    def list_jobs(self, **kwargs):
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        limit = kwargs.pop("limit", self.limit)
+        return self.aqua_model.ds_client.list_jobs(compartment_id=compartment_id, limit=limit, **kwargs).data
+
+    def list_job_runs(self, **kwargs):
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        limit = kwargs.pop("limit", self.limit)
+        return self.aqua_model.ds_client.list_job_runs(compartment_id=compartment_id, limit=limit, **kwargs).data
+
+    def list_buckets(self, **kwargs):
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        limit = kwargs.pop("limit", self.limit)
+        namespace_name = self.obs_client.get_namespace(compartment_id=compartment_id).data
+        return self.obs_client.list_buckets(namespace_name=namespace_name, compartment_id=compartment_id, limit=limit,
+                                            **kwargs).data
+
+    def manage_bucket(self, **kwargs):
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        namespace_name = self.obs_client.get_namespace(compartment_id=compartment_id).data
+        bucket = kwargs.pop("bucket")
+        logger.info(f"Creating file in object storage with name {OBS_MANAGE_TEST_FILE} in bucket {bucket}")
+        self.obs_client.put_object(namespace_name, bucket, object_name=OBS_MANAGE_TEST_FILE, put_object_body="TEST")
+        logger.info(f"Deleting file {OBS_MANAGE_TEST_FILE} from object storage")
+        self.obs_client.delete_object(namespace_name, bucket, object_name=OBS_MANAGE_TEST_FILE)
+        return True
+
+    def list_model_deployment_shapes(self, **kwargs):
+        limit = kwargs.pop("limit", self.limit)
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        return self.aqua_model.ds_client.list_model_deployment_shapes(compartment_id=compartment_id, limit=limit,
+                                                                      **kwargs).data
+
+    def get_resource_availability(self, **kwargs):
+        limits_client = oci_client.OCIClientFactory(**default_signer()).limits
+        limit_name = kwargs.pop("limit_name")
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        return limits_client.get_resource_availability(compartment_id=compartment_id,
+                                                       service_name=DATA_SCIENCE_SERVICE_NAME,
+                                                       limit_name=limit_name).data
+
+    def register_model(self, **kwargs):
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        project_id = kwargs.pop("project_id", PROJECT_OCID)
+
+        create_model_details = oci.data_science.models.CreateModelDetails(
+            compartment_id=compartment_id,
+            project_id=project_id,
+            display_name=TEST_MODEL_NAME
+        )
+        logger.info(f"Registering test model `{TEST_MODEL_NAME}`")
+        model_id = self.aqua_model.ds_client.create_model(create_model_details=create_model_details).data.id
+        self.aqua_model.ds_client.create_model_artifact(
+            model_id=model_id,
+            model_artifact=b"7IV6cktUGcHIhur4bXTv"
+        ).data
+        self.model_id = model_id
+        return model_id
+
+    def create_model_deployment(self, **kwargs):
+        model_id = kwargs.pop("model_id")
+        instance_shape = kwargs.pop("instance_shape")
+        model_deployment_instance_shape_config_details = oci.data_science.models.ModelDeploymentInstanceShapeConfigDetails(
+            ocpus=1,
+            memory_in_gbs=6)
+        instance_configuration = oci.data_science.models.InstanceConfiguration(
+            instance_shape_name=instance_shape,
+            model_deployment_instance_shape_config_details=model_deployment_instance_shape_config_details
+        )
+        model_configuration_details = oci.data_science.models.ModelConfigurationDetails(
+            model_id=model_id,
+            instance_configuration=instance_configuration
+        )
+
+        model_deployment_configuration_details = oci.data_science.models.SingleModelDeploymentConfigurationDetails(
+            model_configuration_details=model_configuration_details
+        )
+        create_model_deployment_details = oci.data_science.models.CreateModelDeploymentDetails(
+            compartment_id=COMPARTMENT_OCID,
+            project_id=PROJECT_OCID,
+            display_name=TEST_MD_NAME,
+            model_deployment_configuration_details=model_deployment_configuration_details,
+        )
+        md_ocid = self.aqua_model.ds_client.create_model_deployment(
+            create_model_deployment_details=create_model_deployment_details).data.id
+        waiter_result = oci.wait_until(
+            self.aqua_model.ds_client,
+            self.aqua_model.ds_client.get_model_deployment(md_ocid),
+            evaluate_response=lambda r: self._evaluate_response(wait_message="Waiting for Model Deployment to finish",
+                                                                response=r),
+            max_interval_seconds=30,
+        )
+        logger.info("Model Deployment may result in FAILED state.")
+        return md_ocid
+
+    def _evaluate_response(self, wait_message, response):
+        logger.info(f"{wait_message}, Current state: {response.data.lifecycle_state}")
+        return getattr(response.data, 'lifecycle_state').upper() in LIFECYCLE_STOP_STATE
+
+    def create_job(self, **kwargs):
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        project_id = kwargs.pop("project_id", PROJECT_OCID)
+        shape_name = kwargs.pop("shape_name", TEST_DEFAULT_JOB_SHAPE)
+        display_name = kwargs.pop("display_name")
+
+        response = self.aqua_model.ds_client.create_job(
+            create_job_details=oci.data_science.models.CreateJobDetails(
+                display_name=display_name,
+                project_id=project_id,
+                compartment_id=compartment_id,
+                job_configuration_details=oci.data_science.models.DefaultJobConfigurationDetails(
+                    job_type="DEFAULT",
+                    environment_variables={}),
+                job_infrastructure_configuration_details=oci.data_science.models.StandaloneJobInfrastructureConfigurationDetails(
+                    job_infrastructure_type="ME_STANDALONE",
+                    shape_name=shape_name,
+                    job_shape_config_details=oci.data_science.models.JobShapeConfigDetails(
+                        ocpus=1,
+                        memory_in_gbs=16),
+                    block_storage_size_in_gbs=50
+                )
+            )
+        )
+
+        job_id = response.data.id
+        self.aqua_model.ds_client.create_job_artifact(job_id=job_id, job_artifact=b"echo OK\n",
+                                                      content_disposition="attachment; filename=entry.sh")
+        self.job_id = job_id
+        return job_id
+
+    def create_job_run(self, **kwargs):
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        project_id = kwargs.pop("project_id", PROJECT_OCID)
+        job_id = kwargs.pop("job_id")
+        display_name = kwargs.pop("display_name")
+        response = self.aqua_model.ds_client.create_job_run(
+            create_job_run_details=oci.data_science.models.CreateJobRunDetails(
+                project_id=project_id,
+                compartment_id=compartment_id,
+                job_id=job_id,
+                display_name=display_name
+            )
+        )
+        job_run_id = response.data.id
+
+        waiter_result = oci.wait_until(
+            self.aqua_model.ds_client,
+            self.aqua_model.ds_client.get_job_run(job_run_id),
+            evaluate_response=lambda r: self._evaluate_response(wait_message="Waiting for job run to finish",
+                                                                response=r),
+            max_interval_seconds=30,
+            max_wait_seconds=600
+        )
+        return waiter_result
+
+    def create_model_version_set(self, **kwargs):
+        name = kwargs.pop("name")
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        project_id = kwargs.pop("project_id", PROJECT_OCID)
+        return self.aqua_model.create_model_version_set(model_version_set_name=name, compartment_id=compartment_id,
+                                                        project_id=project_id)
+
+
+class RichStatusLog:
+    def __init__(self):
+        self.console = Console()
+        # logger = logging.("aqua.policies")
+        handler = RichHandler(console=self.console,
+                              markup=True,
+                              rich_tracebacks=False,
+                              show_time=False,
+                              show_path=False)
+        logger.addHandler(handler)
+        logger.propagate = False
+        self.logger = logger
+
+    def get_logger(self):
+        return self.logger
+
+    def get_status_emoji(self, status: PolicyStatus):
+        if status == PolicyStatus.SUCCESS:
+            return ":white_check_mark:[green]"
+        if status == PolicyStatus.FAILURE:
+            return ":cross_mark:[red]"
+        if status == PolicyStatus.UNVERIFIED:
+            return ":exclamation_question_mark:[yellow]"
