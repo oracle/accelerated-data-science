@@ -147,6 +147,8 @@ class AquaDeployment(Serializable):
         AquaDeployment:
             The instance of the Aqua model deployment.
         """
+        print("oci_model_deployment: ", oci_model_deployment)
+
         instance_configuration = oci_model_deployment.model_deployment_configuration_details.model_configuration_details.instance_configuration
         instance_shape_config_details = (
             instance_configuration.model_deployment_instance_shape_config_details

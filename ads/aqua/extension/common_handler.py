@@ -51,20 +51,22 @@ class AquaVersionHandler(AquaAPIhandler):
 
         """
 
-        current_version_path = os.path.join(
+        current_aqua_version_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "..", "version.json"
         )
+        current_aqua_version = json.loads(read_file(current_aqua_version_path))
+        current_ads_version = {"ads": metadata.version("oracle_ads")}
+        current_version = {"installed": {**current_aqua_version, **current_ads_version}}
+
         latest_version_artifact_path = ObjectStorageDetails(
             CONDA_BUCKET_NAME, CONDA_BUCKET_NS, "service_pack/aqua_latest_version.json"
         ).path
-        latest_version_content = read_file(
-            latest_version_artifact_path, auth=default_signer()
+
+        latest_version = json.loads(
+            read_file(latest_version_artifact_path, auth=default_signer())
         )
-        current_version_content = read_file(current_version_path)
-        response = {
-            **json.loads(current_version_content),
-            **json.loads(latest_version_content),
-        }
+
+        response = {**current_version, **latest_version}
         return self.finish(response)
 
 
