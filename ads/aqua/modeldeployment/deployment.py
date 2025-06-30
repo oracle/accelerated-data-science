@@ -737,6 +737,7 @@ class AquaDeploymentApp(AquaApp):
         progress_thread = threading.Thread(
             target=self.get_deployment_status,
             args=(
+                deployment,
                 deployment_id,
                 deployment.dsc_model_deployment.workflow_req_id,
                 model_type,
