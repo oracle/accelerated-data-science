@@ -13,12 +13,15 @@ from ads.aqua.common.enums import Tags
 from ads.aqua.config.utils.serializer import Serializable
 from ads.aqua.constants import UNKNOWN_DICT
 from ads.aqua.data import AquaResourceIdentifier
+from ads.aqua.finetuning.constants import FineTuneCustomMetadata
 from ads.aqua.modeldeployment.config_loader import (
     ConfigurationItem,
     ModelDeploymentConfigSummary,
 )
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import UNKNOWN, get_console_link
+from ads.model.datascience_model import DataScienceModel
+from ads.model.model_metadata import ModelCustomMetadataItem
 
 
 class ConfigValidationError(Exception):
@@ -473,6 +476,149 @@ class CreateModelDeploymentDetails(BaseModel):
             )
             logger.error(error_message)
             raise ConfigValidationError(error_message)
+
+    def validate_input_models(self, model_details: Dict[str, DataScienceModel]) -> None:
+        """
+        Validates the input models for a multi-model deployment configuration.
+
+        Validation Criteria:
+        - The base model must be explicitly provided.
+        - The base model must be in 'ACTIVE' state.
+        - Fine-tuned model IDs must refer to valid, tagged fine-tuned models.
+        - Fine-tuned models must refer back to the same base model.
+        - All model names (including fine-tuned variants) must be unique.
+
+        Parameters
+        ----------
+        model_details : Dict[str, DataScienceModel]
+            Dictionary mapping model OCIDs to DataScienceModel instances.
+            Includes the all models to validate including fine-tuned models.
+
+        Raises
+        ------
+        ConfigValidationError
+            If any of the above conditions are violated.
+        """
+        if not self.models:
+            logger.error("Validation failed: No models specified in the model group.")
+            raise ConfigValidationError(
+                "Multi-model deployment requires at least one model entry. "
+                "Please provide a base model in the `models` list."
+            )
+
+        seen_names = set()
+        duplicate_names = set()
+
+        for model in self.models:
+            base_model_id = model.model_id
+            base_model = model_details.get(base_model_id)
+
+            if not base_model:
+                logger.error(
+                    "Validation failed: Base model ID '%s' not found.", base_model_id
+                )
+                raise ConfigValidationError(f"Model not found: '{base_model_id}'.")
+
+            if Tags.AQUA_FINE_TUNED_MODEL_TAG in (base_model.freeform_tags or {}):
+                logger.error(
+                    "Validation failed: Base model ID '%s' is a fine-tuned model.",
+                    base_model_id,
+                )
+                raise ConfigValidationError(
+                    f"Invalid base model ID '{base_model_id}'. "
+                    "Specify a base model OCID in the `models` input, not a fine-tuned model."
+                )
+
+            if base_model.lifecycle_state != "ACTIVE":
+                logger.error(
+                    "Validation failed: Base model '%s' is in state '%s'.",
+                    base_model_id,
+                    base_model.lifecycle_state,
+                )
+                raise ConfigValidationError(
+                    f"Invalid base model ID '{base_model_id}': must be in ACTIVE state."
+                )
+
+            # Normalize and validate model name uniqueness
+            model_name = model.model_name or base_model.display_name
+            if model_name in seen_names:
+                duplicate_names.add(model_name)
+            else:
+                seen_names.add(model_name)
+
+            for lora_module in model.fine_tune_weights or []:
+                ft_model_id = lora_module.model_id
+                ft_model = model_details.get(ft_model_id)
+
+                if not ft_model:
+                    logger.error(
+                        "Validation failed: Fine-tuned model ID '%s' not found.",
+                        ft_model_id,
+                    )
+                    raise ConfigValidationError(
+                        f"Fine-tuned model not found: '{ft_model_id}'."
+                    )
+
+                if ft_model.lifecycle_state != "ACTIVE":
+                    logger.error(
+                        "Validation failed: Fine-tuned model '%s' is in state '%s'.",
+                        ft_model_id,
+                        ft_model.lifecycle_state,
+                    )
+                    raise ConfigValidationError(
+                        f"Invalid Fine-tuned model ID '{ft_model_id}': must be in ACTIVE state."
+                    )
+
+                if Tags.AQUA_FINE_TUNED_MODEL_TAG not in (ft_model.freeform_tags or {}):
+                    logger.error(
+                        "Validation failed: Model ID '%s' is missing tag '%s'.",
+                        ft_model_id,
+                        Tags.AQUA_FINE_TUNED_MODEL_TAG,
+                    )
+                    raise ConfigValidationError(
+                        f"Invalid fine-tuned model ID '{ft_model_id}': missing tag '{Tags.AQUA_FINE_TUNED_MODEL_TAG}'."
+                    )
+
+                ft_base_model_id = ft_model.custom_metadata_list.get(
+                    FineTuneCustomMetadata.FINE_TUNE_SOURCE,
+                    ModelCustomMetadataItem(
+                        key=FineTuneCustomMetadata.FINE_TUNE_SOURCE
+                    ),
+                ).value
+
+                if ft_base_model_id != base_model_id:
+                    logger.error(
+                        "Validation failed: Fine-tuned model '%s' is linked to base model '%s' (expected '%s').",
+                        ft_model_id,
+                        ft_base_model_id,
+                        base_model_id,
+                    )
+                    raise ConfigValidationError(
+                        f"Fine-tuned model '{ft_model_id}' belongs to base model '{ft_base_model_id}', "
+                        f"but was included under base model '{base_model_id}'."
+                    )
+
+                # Validate fine-tuned model name uniqueness
+                lora_model_name = lora_module.model_name or ft_model.display_name
+                if lora_model_name in seen_names:
+                    duplicate_names.add(lora_model_name)
+                else:
+                    seen_names.add(lora_model_name)
+
+                logger.debug(
+                    "Validated fine-tuned model '%s' under base model '%s'.",
+                    ft_model_id,
+                    base_model_id,
+                )
+
+        if duplicate_names:
+            logger.error(
+                "Duplicate model names detected: %s", ", ".join(sorted(duplicate_names))
+            )
+            raise ConfigValidationError(
+                f"The following model names are duplicated across base and fine-tuned models: "
+                f"{', '.join(sorted(duplicate_names))}. Model names must be unique for proper routing in multi-model deployments."
+            )
 
     class Config:
         extra = "allow"

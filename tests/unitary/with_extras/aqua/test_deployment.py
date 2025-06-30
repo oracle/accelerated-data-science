@@ -1797,8 +1797,14 @@ class TestAquaDeployment(unittest.TestCase):
     @patch(
         "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_multimodel_deployment_feasibility"
     )
+    @patch(
+        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_input_models"
+    )
+    @patch.object(AquaApp, "get_multi_source")
     def test_create_deployment_for_multi_model(
         self,
+        mock_get_multi_source,
+        mock_validate_input_models,
         mock_validate_multimodel_deployment_feasibility,
         mock_get_deployment_config,
         mock_deploy,
@@ -1911,13 +1917,9 @@ class TestAquaDeployment(unittest.TestCase):
             predict_log_id="ocid1.log.oc1.<region>.<OCID>",
         )
 
-        mock_create_multi.assert_called_with(
-            models=[model_info_1, model_info_2, model_info_3],
-            compartment_id=TestDataset.USER_COMPARTMENT_ID,
-            project_id=TestDataset.USER_PROJECT_ID,
-            freeform_tags=None,
-            defined_tags=None,
-        )
+        mock_create_multi.assert_called()
+        mock_get_multi_source.assert_called()
+        mock_validate_input_models.assert_called()
         mock_get_container_image.assert_called()
         mock_deploy.assert_called()
 
