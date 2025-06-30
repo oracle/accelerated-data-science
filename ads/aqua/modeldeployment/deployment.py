@@ -1315,7 +1315,7 @@ class AquaDeploymentApp(AquaApp):
 
         else:
             telemetry_kwargs = {"ocid": ocid, "model_name": model_name}
-            self.telemetry.record_event_async(
+            self.telemetry.record_event(
                 category=f"aqua/{model_type}/deployment/status",
                 action="SUCCEEDED",
                 **telemetry_kwargs,
