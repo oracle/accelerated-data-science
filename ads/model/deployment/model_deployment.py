@@ -757,11 +757,15 @@ class ModelDeployment(Builder):
             Each log record is a dictionary with the following keys: `annotation`, `id`, `time`,
             `message` and `datetime`.
         """
-        return self.logs(log_type).get_tail_logs(
-            source=self.model_deployment_id,
-            time_start=time_start,
-            log_filter=log_filter,
-        )
+        try:
+            logs = self.logs(log_type).get_tail_logs(
+                source=self.model_deployment_id,
+                time_start=time_start,
+                log_filter=log_filter,
+            )
+            return logs
+        except LogNotConfiguredError:
+            return []
 
     def watch(
         self,
