@@ -52,6 +52,7 @@ from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_FILE,
     AQUA_MODEL_TOKENIZER_CONFIG,
     AQUA_MODEL_TYPE_CUSTOM,
+    AQUA_MULTI_MODEL_CONFIG,
     HF_METADATA_FOLDER,
     LICENSE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
@@ -479,7 +480,7 @@ class AquaModelApp(AquaApp):
             category="Other",
         )
         model_custom_metadata.add(
-            key=ModelCustomMetadataFields.MODEL_GROUP_CONFIG,
+            key=AQUA_MULTI_MODEL_CONFIG,
             value=self._build_model_group_config(
                 create_deployment_details=create_deployment_details,
                 model_config_summary=model_config_summary,
