@@ -2369,6 +2369,7 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
     def test_get_deployment_status(self):
+        model_deployment = copy.deepcopy(TestDataset.model_deployment_object[0])
         deployment_id = "fakeid.datasciencemodeldeployment.oc1.iad.xxx"
         work_request_id = "fakeid.workrequest.oc1.iad.xxx"
         model_type = "custom"
@@ -2382,7 +2383,11 @@ class TestAquaDeployment(unittest.TestCase):
                 "ads.model.service.oci_datascience_model_deployment.DataScienceWorkRequest.wait_work_request"
             ) as mock_wait:
                 self.app.get_deployment_status(
-                    deployment_id, work_request_id, model_type, model_name
+                    model_deployment,
+                    deployment_id,
+                    work_request_id,
+                    model_type,
+                    model_name,
                 )
 
                 mock_ds_work_request.assert_called_with(work_request_id)
