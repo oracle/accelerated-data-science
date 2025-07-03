@@ -166,8 +166,7 @@ class AquaVerifyPoliciesApp:
         """
         logger.info(f"Creating Model Version set with name {TEST_MVS_NAME}")
 
-        model_mvs, test_create_mvs = self._execute(self._util.aqua_model.create_model_version_set,
-                                                   name=TEST_MVS_NAME)
+        model_mvs, test_create_mvs = self._execute(self._util.create_model_version_set, name=TEST_MVS_NAME)
         model_mvs_id = model_mvs[0]
         if model_mvs_id:
             logger.info(f"Deleting Model Version set {TEST_MVS_NAME}")
