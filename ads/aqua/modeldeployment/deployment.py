@@ -7,7 +7,7 @@ import json
 import shlex
 import threading
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from cachetools import TTLCache, cached
 from oci.data_science.models import ModelDeploymentShapeSummary
@@ -29,6 +29,7 @@ from ads.aqua.common.utils import (
     get_container_params_type,
     get_ocid_substring,
     get_params_list,
+    get_preferred_compatible_family,
     get_resource_name,
     get_restricted_params_by_container,
     load_gpu_shapes_index,
@@ -79,13 +80,14 @@ from ads.config import (
     PROJECT_OCID,
 )
 from ads.model.datascience_model import DataScienceModel
+from ads.model.datascience_model_group import DataScienceModelGroup
 from ads.model.deployment import (
     ModelDeployment,
     ModelDeploymentContainerRuntime,
     ModelDeploymentInfrastructure,
     ModelDeploymentMode,
 )
-from ads.model.model_metadata import ModelCustomMetadataItem
+from ads.model.model_metadata import ModelCustomMetadata, ModelCustomMetadataItem
 from ads.telemetry import telemetry
 
 
@@ -325,8 +327,16 @@ class AquaDeploymentApp(AquaApp):
                 f"Multi models ({source_model_ids}) provided. Delegating to multi model creation method."
             )
 
-            aqua_model = model_app.create_multi(
+            model_group_custom_metadata = self._create_model_group_custom_metadata(
                 models=create_deployment_details.models,
+                create_deployment_details=create_deployment_details,
+                model_config_summary=model_config_summary,
+                source_models=source_models,
+            )
+
+            aqua_model_group = model_app.create_multi(
+                models=create_deployment_details.models,
+                model_custom_metadata=model_group_custom_metadata,
                 compartment_id=compartment_id,
                 project_id=project_id,
                 freeform_tags=freeform_tags,
@@ -334,11 +344,195 @@ class AquaDeploymentApp(AquaApp):
                 source_models=source_models,
             )
             return self._create_multi(
-                aqua_model=aqua_model,
-                model_config_summary=model_config_summary,
+                aqua_model_group=aqua_model_group,
                 create_deployment_details=create_deployment_details,
                 container_config=container_config,
             )
+
+    @telemetry(entry_point="plugin=model&action=create", name="aqua")
+    def _create_model_group_custom_metadata(
+        self,
+        models: List[AquaMultiModelRef],
+        create_deployment_details: CreateModelDeploymentDetails,
+        model_config_summary: ModelDeploymentConfigSummary,
+        source_models: Optional[Dict[str, DataScienceModel]] = None,
+    ) -> ModelCustomMetadata:
+        """
+        Creates multi-model group metadata list.
+
+        Parameters
+        ----------
+        models : List[AquaMultiModelRef]
+            List of AquaMultiModelRef instances for creating a multi-model group.
+        create_deployment_details : CreateModelDeploymentDetails
+            An instance of CreateModelDeploymentDetails containing all required and optional
+            fields for creating a model deployment via Aqua.
+        model_config_summary : ModelConfigSummary
+            Summary Model Deployment configuration for the group of models.
+        source_models: Optional[Dict[str, DataScienceModel]]
+            A mapping of model OCIDs to their corresponding `DataScienceModel` objects.
+            This dictionary contains metadata for all models involved in the multi-model deployment,
+            including both base models and fine-tuned weights.
+
+        Returns
+        -------
+        ModelCustomMetadata
+            Instance of ModelCustomMetadata object.
+        """
+
+        if not models:
+            raise AquaValueError(
+                "Model list cannot be empty. Please provide at least one model for deployment."
+            )
+
+        model_custom_metadata = ModelCustomMetadata()
+
+        service_inference_containers = (
+            self.get_container_config().to_dict().get("inference")
+        )
+
+        supported_container_families = [
+            container_config_item.family
+            for container_config_item in service_inference_containers
+            if any(
+                usage.upper() in container_config_item.usages
+                for usage in [Usage.MULTI_MODEL, Usage.OTHER]
+            )
+        ]
+
+        if not supported_container_families:
+            raise AquaValueError(
+                "Currently, there are no containers that support multi-model deployment."
+            )
+
+        selected_models_deployment_containers = set()
+
+        if not source_models:
+            # Collect all unique model IDs (including fine-tuned models)
+            source_model_ids = list(
+                {model_id for model in models for model_id in model.all_model_ids()}
+            )
+            logger.debug(
+                "Fetching source model metadata for model IDs: %s", source_model_ids
+            )
+
+            # Fetch source model metadata
+            source_models = self.get_multi_source(source_model_ids) or {}
+
+        # Process each model in the input list
+        for model in models:
+            # Retrieve base model metadata
+            source_model: DataScienceModel = source_models.get(model.model_id)
+            if not source_model:
+                logger.error(
+                    "Failed to fetch metadata for base model ID: %s", model.model_id
+                )
+                raise AquaValueError(
+                    f"Unable to retrieve metadata for base model ID: {model.model_id}."
+                )
+
+            # Validate deployment container consistency
+            deployment_container = source_model.custom_metadata_list.get(
+                ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
+                ModelCustomMetadataItem(
+                    key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER
+                ),
+            ).value
+
+            if deployment_container not in supported_container_families:
+                logger.error(
+                    "Unsupported deployment container '%s' for model '%s'. Supported: %s",
+                    deployment_container,
+                    source_model.id,
+                    supported_container_families,
+                )
+                raise AquaValueError(
+                    f"Unsupported deployment container '{deployment_container}' for model '{source_model.id}'. "
+                    f"Only {supported_container_families} are supported for multi-model deployments."
+                )
+
+            selected_models_deployment_containers.add(deployment_container)
+
+        if not selected_models_deployment_containers:
+            raise AquaValueError(
+                "None of the selected models are associated with a recognized container family. "
+                "Please review the selected models, or select a different group of models."
+            )
+
+        # Check if the all models in the group shares same container family
+        if len(selected_models_deployment_containers) > 1:
+            deployment_container = get_preferred_compatible_family(
+                selected_families=selected_models_deployment_containers
+            )
+            if not deployment_container:
+                raise AquaValueError(
+                    "The selected models are associated with different container families: "
+                    f"{list(selected_models_deployment_containers)}."
+                    "For multi-model deployment, all models in the group must belong to the same container "
+                    "family or to compatible container families."
+                )
+        else:
+            deployment_container = selected_models_deployment_containers.pop()
+
+        # Generate model group details
+        timestamp = datetime.now().strftime("%Y%m%d")
+        model_group_display_name = f"model_group_{timestamp}"
+
+        # Add global metadata
+        model_custom_metadata.add(
+            key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
+            value=deployment_container,
+            description=f"Inference container mapping for {model_group_display_name}",
+            category="Other",
+        )
+        model_custom_metadata.add(
+            key=ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT,
+            value=str(len(models)),
+            description="Number of models in the group.",
+            category="Other",
+        )
+        model_custom_metadata.add(
+            key=AQUA_MULTI_MODEL_CONFIG,
+            value=self._build_model_group_config(
+                create_deployment_details=create_deployment_details,
+                model_config_summary=model_config_summary,
+                deployment_container=deployment_container,
+            ),
+            description="Configs required to deploy multi models.",
+            category="Other",
+        )
+        model_custom_metadata.add(
+            key=ModelCustomMetadataFields.MULTIMODEL_METADATA,
+            value=json.dumps([model.model_dump() for model in models]),
+            description="Metadata to store user's multi model input.",
+            category="Other",
+        )
+
+        return model_custom_metadata
+
+    def _build_model_group_config(
+        self,
+        create_deployment_details,
+        model_config_summary,
+        deployment_container: str,
+    ) -> str:
+        """Builds model group config required to deploy multi models."""
+        container_type_key = (
+            create_deployment_details.container_family or deployment_container
+        )
+        container_config = self.get_container_config_item(container_type_key)
+        container_spec = container_config.spec if container_config else UNKNOWN
+
+        container_params = container_spec.cli_param if container_spec else UNKNOWN
+
+        multi_model_config = ModelGroupConfig.from_create_model_deployment_details(
+            create_deployment_details,
+            model_config_summary,
+            container_type_key,
+            container_params,
+        )
+
+        return multi_model_config.model_dump_json()
 
     def _create(
         self,
@@ -562,8 +756,7 @@ class AquaDeploymentApp(AquaApp):
 
     def _create_multi(
         self,
-        aqua_model: DataScienceModel,
-        model_config_summary: ModelDeploymentConfigSummary,
+        aqua_model_group: DataScienceModelGroup,
         create_deployment_details: CreateModelDeploymentDetails,
         container_config: AquaContainerConfig,
     ) -> AquaDeployment:
@@ -571,15 +764,14 @@ class AquaDeploymentApp(AquaApp):
 
         Parameters
         ----------
-        model_config_summary : model_config_summary
-            Summary Model Deployment configuration for the group of models.
-        aqua_model : DataScienceModel
-            An instance of Aqua data science model.
+        aqua_model_group : DataScienceModelGroup
+            An instance of Aqua data science model group.
         create_deployment_details : CreateModelDeploymentDetails
             An instance of CreateModelDeploymentDetails containing all required and optional
             fields for creating a model deployment via Aqua.
         container_config: Dict
             Container config dictionary.
+
         Returns
         -------
         AquaDeployment
@@ -589,22 +781,11 @@ class AquaDeploymentApp(AquaApp):
         env_var = {**(create_deployment_details.env_var or UNKNOWN_DICT)}
 
         container_type_key = self._get_container_type_key(
-            model=aqua_model,
+            model=aqua_model_group,
             container_family=create_deployment_details.container_family,
         )
         container_config = self.get_container_config_item(container_type_key)
         container_spec = container_config.spec if container_config else UNKNOWN
-
-        container_params = container_spec.cli_param if container_spec else UNKNOWN
-
-        multi_model_config = ModelGroupConfig.from_create_model_deployment_details(
-            create_deployment_details,
-            model_config_summary,
-            container_type_key,
-            container_params,
-        )
-
-        env_var.update({AQUA_MULTI_MODEL_CONFIG: multi_model_config.model_dump_json()})
 
         env_vars = container_spec.env_vars if container_spec else []
         for env in env_vars:
@@ -614,7 +795,7 @@ class AquaDeploymentApp(AquaApp):
                     if key not in env_var:
                         env_var.update(env)
 
-        logger.info(f"Env vars used for deploying {aqua_model.id} : {env_var}.")
+        logger.info(f"Env vars used for deploying {aqua_model_group.id} : {env_var}.")
 
         container_image_uri = (
             create_deployment_details.container_image_uri
@@ -627,7 +808,7 @@ class AquaDeploymentApp(AquaApp):
             container_spec.health_check_port if container_spec else None
         )
         tags = {
-            Tags.AQUA_MODEL_ID_TAG: aqua_model.id,
+            Tags.AQUA_MODEL_ID_TAG: aqua_model_group.id,
             Tags.MULTIMODEL_TYPE_TAG: "true",
             Tags.AQUA_TAG: "active",
             **(create_deployment_details.freeform_tags or UNKNOWN_DICT),
@@ -637,7 +818,7 @@ class AquaDeploymentApp(AquaApp):
 
         aqua_deployment = self._create_deployment(
             create_deployment_details=create_deployment_details,
-            aqua_model_id=aqua_model.id,
+            aqua_model_id=aqua_model_group.id,
             model_name=model_name,
             model_type=AQUA_MODEL_TYPE_MULTI,
             container_image_uri=container_image_uri,
@@ -732,11 +913,14 @@ class AquaDeploymentApp(AquaApp):
             .with_health_check_port(health_check_port)
             .with_env(env_var)
             .with_deployment_mode(ModelDeploymentMode.HTTPS)
-            .with_model_uri(aqua_model_id)
             .with_region(self.region)
             .with_overwrite_existing_artifact(True)
             .with_remove_existing_artifact(True)
         )
+        if "datasciencemodelgroup" in aqua_model_id:
+            container_runtime.with_model_group_id(aqua_model_id)
+        else:
+            container_runtime.with_model_uri(aqua_model_id)
         if cmd_var:
             container_runtime.with_cmd(cmd_var)
 
@@ -794,7 +978,9 @@ class AquaDeploymentApp(AquaApp):
         )
 
     @staticmethod
-    def _get_container_type_key(model: DataScienceModel, container_family: str) -> str:
+    def _get_container_type_key(
+        model: Union[DataScienceModel, DataScienceModelGroup], container_family: str
+    ) -> str:
         container_type_key = UNKNOWN
         if container_family:
             container_type_key = container_family
@@ -970,7 +1156,12 @@ class AquaDeploymentApp(AquaApp):
                     f"Invalid multi model deployment {model_deployment_id}."
                     f"Make sure the {Tags.AQUA_MODEL_ID_TAG} tag is added to the deployment."
                 )
-            aqua_model = DataScienceModel.from_id(aqua_model_id)
+
+            if "datasciencemodelgroup" in aqua_model_id:
+                aqua_model = DataScienceModelGroup.from_id(aqua_model_id)
+            else:
+                aqua_model = DataScienceModel.from_id(aqua_model_id)
+
             custom_metadata_list = aqua_model.custom_metadata_list
             multi_model_metadata_value = custom_metadata_list.get(
                 ModelCustomMetadataFields.MULTIMODEL_METADATA,
@@ -984,7 +1175,9 @@ class AquaDeploymentApp(AquaApp):
                     f"Ensure that the required custom metadata `{ModelCustomMetadataFields.MULTIMODEL_METADATA}` is added to the AQUA multi-model `{aqua_model.display_name}` ({aqua_model.id})."
                 )
             multi_model_metadata = json.loads(
-                aqua_model.dsc_model.get_custom_metadata_artifact(
+                multi_model_metadata_value
+                if isinstance(aqua_model, DataScienceModelGroup)
+                else aqua_model.dsc_model.get_custom_metadata_artifact(
                     metadata_key_name=ModelCustomMetadataFields.MULTIMODEL_METADATA
                 ).decode("utf-8")
             )

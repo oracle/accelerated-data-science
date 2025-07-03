@@ -147,13 +147,25 @@ class AquaDeployment(Serializable):
         AquaDeployment:
             The instance of the Aqua model deployment.
         """
-        instance_configuration = oci_model_deployment.model_deployment_configuration_details.model_configuration_details.instance_configuration
+        model_deployment_configuration_details = (
+            oci_model_deployment.model_deployment_configuration_details
+        )
+        if model_deployment_configuration_details.deployment_type == "SINGLE_MODEL":
+            instance_configuration = model_deployment_configuration_details.model_configuration_details.instance_configuration
+            instance_count = model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
+            model_id = model_deployment_configuration_details.model_configuration_details.model_id
+        else:
+            instance_configuration = model_deployment_configuration_details.infrastructure_configuration_details.instance_configuration
+            instance_count = model_deployment_configuration_details.infrastructure_configuration_details.scaling_policy.instance_count
+            model_id = model_deployment_configuration_details.model_group_configuration_details.model_group_id
+
         instance_shape_config_details = (
             instance_configuration.model_deployment_instance_shape_config_details
         )
-        instance_count = oci_model_deployment.model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
-        environment_variables = oci_model_deployment.model_deployment_configuration_details.environment_configuration_details.environment_variables
-        cmd = oci_model_deployment.model_deployment_configuration_details.environment_configuration_details.cmd
+        environment_variables = model_deployment_configuration_details.environment_configuration_details.environment_variables
+        cmd = (
+            model_deployment_configuration_details.environment_configuration_details.cmd
+        )
         shape_info = ShapeInfo(
             instance_shape=instance_configuration.instance_shape_name,
             instance_count=instance_count,
@@ -168,7 +180,6 @@ class AquaDeployment(Serializable):
                 else None
             ),
         )
-        model_id = oci_model_deployment._model_deployment_configuration_details.model_configuration_details.model_id
         tags = {}
         tags.update(oci_model_deployment.freeform_tags or UNKNOWN_DICT)
         tags.update(oci_model_deployment.defined_tags or UNKNOWN_DICT)

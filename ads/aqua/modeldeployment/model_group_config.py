@@ -4,7 +4,7 @@
 
 from typing import List, Optional, Tuple, Union
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from typing_extensions import Self
 
 from ads.aqua import logger
@@ -61,18 +61,19 @@ class BaseModelSpec(BaseModel):
         description="Optional list of fine-tuned model variants associated with this base model.",
     )
 
-    @field_validator("model_path")
     @classmethod
-    def clean_model_path(cls, artifact_path_prefix: str) -> str:
-        """Validates and cleans the file path for model_path parameter."""
-        if ObjectStorageDetails.is_oci_path(artifact_path_prefix):
-            os_path = ObjectStorageDetails.from_path(artifact_path_prefix)
-            artifact_path_prefix = os_path.filepath.rstrip("/")
-            return artifact_path_prefix
+    def build_model_path(cls, model_id: str, artifact_path_prefix: str) -> str:
+        """Cleans and builds the file path for model_path parameter
+        to format: <model_id>/<artifact_path_prefix>
+        """
+        if not ObjectStorageDetails.is_oci_path(artifact_path_prefix):
+            raise AquaValueError(
+                "The base model path is not available in the model artifact."
+            )
 
-        raise AquaValueError(
-            "The base model path is not available in the model artifact."
-        )
+        os_path = ObjectStorageDetails.from_path(artifact_path_prefix)
+        artifact_path_prefix = os_path.filepath.rstrip("/")
+        return model_id + "/" + artifact_path_prefix
 
     @classmethod
     def dedup_lora_modules(cls, fine_tune_weights: List[LoraModuleSpec]):
@@ -99,7 +100,7 @@ class BaseModelSpec(BaseModel):
 
         return cls(
             model_id=model.model_id,
-            model_path=model.artifact_location,
+            model_path=cls.build_model_path(model.model_id, model.artifact_location),
             params=model_params,
             model_task=model.model_task,
             fine_tune_weights=cls.dedup_lora_modules(model.fine_tune_weights),
