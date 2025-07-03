@@ -17,9 +17,13 @@ import oci
 
 
 class VerifyPoliciesUtils:
+    """
+    Utility class for verifying OCI IAM policies through operations on Data Science resources.
+    Provides methods to interact with models, model deployments, jobs, object storage, and limits APIs
+    using Oracle Accelerated Data Science (ADS) SDK.
+    """
     def __init__(self):
         self.aqua_model = AquaModelApp()
-        self.aqua_deploy = AquaDeploymentApp()
         self.obs_client = oci_client.OCIClientFactory(**default_signer()).object_storage
         self.model_id = None
         self.job_id = None
@@ -159,6 +163,7 @@ class VerifyPoliciesUtils:
         project_id = kwargs.pop("project_id", PROJECT_OCID)
         shape_name = kwargs.pop("shape_name", TEST_DEFAULT_JOB_SHAPE)
         display_name = kwargs.pop("display_name")
+        subnet_id = kwargs.pop("subnet_id", None)
 
         response = self.aqua_model.ds_client.create_job(
             create_job_details=oci.data_science.models.CreateJobDetails(
@@ -171,6 +176,7 @@ class VerifyPoliciesUtils:
                 job_infrastructure_configuration_details=oci.data_science.models.StandaloneJobInfrastructureConfigurationDetails(
                     job_infrastructure_type="ME_STANDALONE",
                     shape_name=shape_name,
+                    subnet_id=subnet_id,
                     job_shape_config_details=oci.data_science.models.JobShapeConfigDetails(
                         ocpus=1,
                         memory_in_gbs=16),

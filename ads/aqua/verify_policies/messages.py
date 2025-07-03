@@ -62,11 +62,6 @@ operation_messages = {
         "error": "Could not delete model. Please confirm you have delete permissions for Model Catalog resources in the compartment.",
         "policy_hint": "Allow dynamic-group aqua-dynamic-group to manage data-science-models in compartment <your-compartment-name>"
     },
-    utils.aqua_deploy.create.__name__: {
-        "name": "Model Deployment",
-        "error": "Model deployment could not be created. Confirm you have correct permissions to deploy models to the Model Deployment service.",
-        "policy_hint": "Allow dynamic-group aqua-dynamic-group to manage data-science-model-deployments in compartment <your-compartment-name>"
-    },
     utils.create_job.__name__: {
         "name": "Create Job",
         "error": "Job could not be created. Please check if you have permissions to create Data Science jobs.",
@@ -97,7 +92,7 @@ operation_messages = {
         "error": "Model deployment could not be created. Confirm you have correct permissions to deploy models to the Model Deployment service.",
         "policy_hint": "Allow dynamic-group aqua-dynamic-group to manage data-science-model-deployments in compartment <your-compartment-name>"
     },
-    utils.aqua_deploy.delete.__name__: {
+    utils.aqua_model.ds_client.delete_model_deployment.__name__: {
         "name": "Delete Model Deployment",
         "error": "Unable to delete the model deployment. Please check if you have appropriate permissions to manage deployments.",
         "policy_hint": "Allow dynamic-group aqua-dynamic-group to manage data-science-model-deployments in compartment <your-compartment-name>"
