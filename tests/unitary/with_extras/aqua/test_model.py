@@ -475,14 +475,8 @@ class TestAquaModel:
         }
         mock_model.id = "mock_model_id"
         mock_model.artifact = "mock_artifact_path"
-        custom_metadata_list = ModelCustomMetadata()
-        custom_metadata_list.add(
-            **{"key": "deployment-container", "value": "odsc-tgi-serving"}
-        )
 
-        mock_model.custom_metadata_list = custom_metadata_list
-        mock_create_deployment_details = MagicMock()
-        mock_model_config_summary = MagicMock()
+        model_custom_metadata = MagicMock()
 
         model_info_1 = AquaMultiModelRef(
             model_id="test_model_id_1",
@@ -498,86 +492,6 @@ class TestAquaModel:
             env_var={"params": "--trust-remote-code --max-model-len 32000"},
         )
 
-        model_details = {
-            model_info_1.model_id: mock_model,
-            model_info_2.model_id: mock_model,
-        }
-
-        with pytest.raises(AquaValueError):
-            model_group = self.app.create_multi(
-                models=[model_info_1, model_info_2],
-                create_deployment_details=mock_create_deployment_details,
-                model_config_summary=mock_model_config_summary,
-                project_id="test_project_id",
-                compartment_id="test_compartment_id",
-                source_models=model_details,
-            )
-
-        mock_model.freeform_tags["aqua_service_model"] = TestDataset.SERVICE_MODEL_ID
-
-        with pytest.raises(AquaValueError):
-            model_group = self.app.create_multi(
-                models=[model_info_1, model_info_2],
-                create_deployment_details=mock_create_deployment_details,
-                model_config_summary=mock_model_config_summary,
-                project_id="test_project_id",
-                compartment_id="test_compartment_id",
-                source_models=model_details,
-            )
-
-        mock_model.freeform_tags["task"] = "text-generation"
-
-        with pytest.raises(AquaValueError):
-            model_group = self.app.create_multi(
-                models=[model_info_1, model_info_2],
-                create_deployment_details=mock_create_deployment_details,
-                model_config_summary=mock_model_config_summary,
-                project_id="test_project_id",
-                compartment_id="test_compartment_id",
-                source_models=model_details,
-            )
-
-        custom_metadata_list = ModelCustomMetadata()
-        custom_metadata_list.add(
-            **{"key": "deployment-container", "value": "odsc-vllm-serving"}
-        )
-
-        mock_model.custom_metadata_list = custom_metadata_list
-
-        # testing _extract_model_task when a user passes an invalid task to AquaMultiModelRef
-        model_info_1.model_task = "invalid_task"
-
-        with pytest.raises(AquaValueError):
-            model_group = self.app.create_multi(
-                models=[model_info_1, model_info_2],
-                create_deployment_details=mock_create_deployment_details,
-                model_config_summary=mock_model_config_summary,
-                project_id="test_project_id",
-                compartment_id="test_compartment_id",
-                source_models=model_details,
-            )
-
-        # testing if a user tries to invoke a model with a task mode that is not yet supported
-        model_info_1.model_task = None
-        mock_model.freeform_tags["task"] = "unsupported_task"
-        with pytest.raises(AquaValueError):
-            model_group = self.app.create_multi(
-                models=[model_info_1, model_info_2],
-                create_deployment_details=mock_create_deployment_details,
-                model_config_summary=mock_model_config_summary,
-                project_id="test_project_id",
-                compartment_id="test_compartment_id",
-                source_models=model_details,
-            )
-
-        mock_model.freeform_tags["task"] = "text-generation"
-        model_info_1.model_task = "text_embedding"
-
-        # testing requesting metadata from fine tuned model to add to model group
-        mock_model.model_file_description = (
-            TestDataset.fine_tuned_model_file_description
-        )
-
         # testing fine tuned model in model group
         model_info_3 = AquaMultiModelRef(
             model_id="test_model_id_3",
@@ -588,13 +502,30 @@ class TestAquaModel:
             fine_tune_artifact="oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
         )
 
-        model_details[model_info_3.model_id] = mock_model
+        model_details = {
+            model_info_1.model_id: mock_model,
+            model_info_2.model_id: mock_model,
+            model_info_3.model_id: mock_model,
+        }
+
+        mock_model.freeform_tags["aqua_service_model"] = TestDataset.SERVICE_MODEL_ID
+        mock_model.freeform_tags["task"] = "text-generation"
+        custom_metadata_list = ModelCustomMetadata()
+        custom_metadata_list.add(
+            **{"key": "deployment-container", "value": "odsc-vllm-serving"}
+        )
+
+        mock_model.custom_metadata_list = custom_metadata_list
+
+        # testing requesting metadata from fine tuned model to add to model group
+        mock_model.model_file_description = (
+            TestDataset.fine_tuned_model_file_description
+        )
 
         # will create a multi-model group
         model_group = self.app.create_multi(
             models=[model_info_1, model_info_2, model_info_3],
-            create_deployment_details=mock_create_deployment_details,
-            model_config_summary=mock_model_config_summary,
+            model_custom_metadata=model_custom_metadata,
             project_id="test_project_id",
             compartment_id="test_compartment_id",
             source_models=model_details,
@@ -602,14 +533,7 @@ class TestAquaModel:
 
         mock_create_group.assert_called()
 
-        mock_model.compartment_id = TestDataset.SERVICE_COMPARTMENT_ID
-
         assert model_group.freeform_tags == {"aqua_multimodel": "true"}
-        assert model_group.custom_metadata_list.get("model_group_count").value == "3"
-        assert (
-            model_group.custom_metadata_list.get("deployment-container").value
-            == "odsc-vllm-serving"
-        )
 
     @pytest.mark.parametrize(
         "foundation_model_type",

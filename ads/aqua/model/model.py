@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import json
 import os
 import pathlib
 import re
@@ -39,12 +38,11 @@ from ads.aqua.common.utils import (
     generate_tei_cmd_var,
     get_artifact_path,
     get_hf_model_info,
-    get_preferred_compatible_family,
     list_os_files_with_extension,
     load_config,
     upload_folder,
 )
-from ads.aqua.config.container_config import AquaContainerConfig, Usage
+from ads.aqua.config.container_config import AquaContainerConfig
 from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_CONFIG,
     AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME,
@@ -52,7 +50,6 @@ from ads.aqua.constants import (
     AQUA_MODEL_ARTIFACT_FILE,
     AQUA_MODEL_TOKENIZER_CONFIG,
     AQUA_MODEL_TYPE_CUSTOM,
-    AQUA_MULTI_MODEL_CONFIG,
     HF_METADATA_FOLDER,
     LICENSE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
@@ -237,8 +234,7 @@ class AquaModelApp(AquaApp):
     def create_multi(
         self,
         models: List[AquaMultiModelRef],
-        create_deployment_details,
-        model_config_summary,
+        model_custom_metadata: ModelCustomMetadata,
         project_id: Optional[str] = None,
         compartment_id: Optional[str] = None,
         freeform_tags: Optional[Dict] = None,
@@ -253,11 +249,8 @@ class AquaModelApp(AquaApp):
         ----------
         models : List[AquaMultiModelRef]
             List of AquaMultiModelRef instances for creating a multi-model group.
-        create_deployment_details : CreateModelDeploymentDetails
-            An instance of CreateModelDeploymentDetails containing all required and optional
-            fields for creating a model deployment via Aqua.
-        model_config_summary : ModelConfigSummary
-            Summary Model Deployment configuration for the group of models.
+        model_custom_metadata : ModelCustomMetadata
+            Custom metadata for creating model group.
         project_id : Optional[str]
             The project ID for the multi-model group.
         compartment_id : Optional[str]
@@ -276,46 +269,7 @@ class AquaModelApp(AquaApp):
         DataScienceModelGroup
             Instance of DataScienceModelGroup object.
         """
-
-        if not models:
-            raise AquaValueError(
-                "Model list cannot be empty. Please provide at least one model for deployment."
-            )
-
         display_name_list = []
-        model_custom_metadata = ModelCustomMetadata()
-
-        service_inference_containers = (
-            self.get_container_config().to_dict().get("inference")
-        )
-
-        supported_container_families = [
-            container_config_item.family
-            for container_config_item in service_inference_containers
-            if any(
-                usage.upper() in container_config_item.usages
-                for usage in [Usage.MULTI_MODEL, Usage.OTHER]
-            )
-        ]
-
-        if not supported_container_families:
-            raise AquaValueError(
-                "Currently, there are no containers that support multi-model deployment."
-            )
-
-        selected_models_deployment_containers = set()
-
-        if not source_models:
-            # Collect all unique model IDs (including fine-tuned models)
-            source_model_ids = list(
-                {model_id for model in models for model_id in model.all_model_ids()}
-            )
-            logger.debug(
-                "Fetching source model metadata for model IDs: %s", source_model_ids
-            )
-
-            # Fetch source model metadata
-            source_models = self.get_multi_source(source_model_ids) or {}
 
         # Process each model in the input list
         for model in models:
@@ -417,84 +371,11 @@ class AquaModelApp(AquaApp):
 
                 display_name_list.append(ft_model.model_name)
 
-            # Validate deployment container consistency
-            deployment_container = source_model.custom_metadata_list.get(
-                ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
-                ModelCustomMetadataItem(
-                    key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER
-                ),
-            ).value
-
-            if deployment_container not in supported_container_families:
-                logger.error(
-                    "Unsupported deployment container '%s' for model '%s'. Supported: %s",
-                    deployment_container,
-                    source_model.id,
-                    supported_container_families,
-                )
-                raise AquaValueError(
-                    f"Unsupported deployment container '{deployment_container}' for model '{source_model.id}'. "
-                    f"Only {supported_container_families} are supported for multi-model deployments."
-                )
-
-            selected_models_deployment_containers.add(deployment_container)
-
-        if not selected_models_deployment_containers:
-            raise AquaValueError(
-                "None of the selected models are associated with a recognized container family. "
-                "Please review the selected models, or select a different group of models."
-            )
-
-        # Check if the all models in the group shares same container family
-        if len(selected_models_deployment_containers) > 1:
-            deployment_container = get_preferred_compatible_family(
-                selected_families=selected_models_deployment_containers
-            )
-            if not deployment_container:
-                raise AquaValueError(
-                    "The selected models are associated with different container families: "
-                    f"{list(selected_models_deployment_containers)}."
-                    "For multi-model deployment, all models in the group must belong to the same container "
-                    "family or to compatible container families."
-                )
-        else:
-            deployment_container = selected_models_deployment_containers.pop()
-
         # Generate model group details
         timestamp = datetime.now().strftime("%Y%m%d")
         model_group_display_name = f"model_group_{timestamp}"
         combined_models = ", ".join(display_name_list)
         model_group_description = f"Multi-model grouping using {combined_models}."
-
-        # Add global metadata
-        model_custom_metadata.add(
-            key=ModelCustomMetadataFields.DEPLOYMENT_CONTAINER,
-            value=deployment_container,
-            description=f"Inference container mapping for {model_group_display_name}",
-            category="Other",
-        )
-        model_custom_metadata.add(
-            key=ModelCustomMetadataFields.MULTIMODEL_GROUP_COUNT,
-            value=str(len(models)),
-            description="Number of models in the group.",
-            category="Other",
-        )
-        model_custom_metadata.add(
-            key=AQUA_MULTI_MODEL_CONFIG,
-            value=self._build_model_group_config(
-                create_deployment_details=create_deployment_details,
-                model_config_summary=model_config_summary,
-                deployment_container=deployment_container,
-            ),
-            description="Configs required to deploy multi models.",
-            category="Other",
-        )
-        model_custom_metadata.add(
-            key=ModelCustomMetadataFields.MULTIMODEL_METADATA,
-            value=json.dumps([model.model_dump() for model in models]),
-            description="Metadata to store user's multi model input.",
-            category="Other",
-        )
 
         # Combine tags. The `Tags.AQUA_TAG` has been excluded, because we don't want to show
         # the models created for multi-model purpose in the AQUA models list.
