@@ -415,32 +415,6 @@ class AquaModelApp(AquaApp):
 
         return custom_model_group
 
-    def _build_model_group_config(
-        self,
-        create_deployment_details,
-        model_config_summary,
-        deployment_container: str,
-    ) -> str:
-        """Builds model group config required to deploy multi models."""
-        container_type_key = (
-            create_deployment_details.container_family or deployment_container
-        )
-        container_config = self.get_container_config_item(container_type_key)
-        container_spec = container_config.spec if container_config else UNKNOWN
-
-        container_params = container_spec.cli_param if container_spec else UNKNOWN
-
-        from ads.aqua.modeldeployment.model_group_config import ModelGroupConfig
-
-        multi_model_config = ModelGroupConfig.from_create_model_deployment_details(
-            create_deployment_details,
-            model_config_summary,
-            container_type_key,
-            container_params,
-        )
-
-        return multi_model_config.model_dump_json()
-
     @telemetry(entry_point="plugin=model&action=get", name="aqua")
     def get(self, model_id: str) -> "AquaModel":
         """Gets the information of an Aqua model.
