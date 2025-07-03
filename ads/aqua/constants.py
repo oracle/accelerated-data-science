@@ -55,6 +55,8 @@ SERVICE_MANAGED_CONTAINER_URI_SCHEME = "dsmc://"
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "artifact_location"
 
+AQUA_CHAT_TEMPLATE_METADATA_KEY = "chat_template"
+
 CONSOLE_LINK_RESOURCE_TYPE_MAPPING = {
     "datasciencemodel": "models",
     "datasciencemodeldeployment": "model-deployments",
