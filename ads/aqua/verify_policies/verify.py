@@ -164,12 +164,12 @@ class AquaVerifyPoliciesApp:
             Returns:
                 List of result dicts for MVS creation and deletion.
         """
-        logger.info(f"Creating Model Version set with name {TEST_MVS_NAME}")
+        logger.info(f"Creating ModelVersionSet with name {TEST_MVS_NAME}")
 
         model_mvs, test_create_mvs = self._execute(self._util.create_model_version_set, name=TEST_MVS_NAME)
         model_mvs_id = model_mvs[0]
         if model_mvs_id:
-            logger.info(f"Deleting Model Version set {TEST_MVS_NAME}")
+            logger.info(f"Deleting ModelVersionSet {TEST_MVS_NAME}")
             _, delete_mvs = self._execute(self._util.aqua_model.ds_client.delete_model_version_set,
                                           model_version_set_id=model_mvs_id)
         else:
@@ -184,15 +184,20 @@ class AquaVerifyPoliciesApp:
                 List of result dicts for job creation, job run creation, and job deletion.
         """
         
+        logger.info(f"Creating Job with name {TEST_JOB_NAME}")
+        
         # Create Job & JobRun.
-        evaluation_job_id, test_create_job = self._execute(self._util.create_job, display_name=TEST_JOB_NAME,
+        job_id, test_create_job = self._execute(self._util.create_job, display_name=TEST_JOB_NAME,
                                                            **kwargs)
+        
+        logger.info(f"Creating JobRun with name {TEST_JOB_RUN_NAME}")
+        
         _, test_create_job_run = self._execute(self._util.create_job_run, display_name=TEST_JOB_RUN_NAME,
-                                               job_id=evaluation_job_id, **kwargs)
+                                               job_id=job_id, **kwargs)
 
         # Delete Job Run
-        if evaluation_job_id:
-            _, delete_job = self._execute(self._util.aqua_model.ds_client.delete_job, job_id=evaluation_job_id)
+        if job_id:
+            _, delete_job = self._execute(self._util.aqua_model.ds_client.delete_job, job_id=job_id, delete_related_job_runs=True)
         else:
             delete_job = self._get_operation_result(self._util.aqua_model.ds_client.delete_job, PolicyStatus.UNVERIFIED)
 

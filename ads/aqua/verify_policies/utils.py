@@ -164,6 +164,7 @@ class VerifyPoliciesUtils:
         shape_name = kwargs.pop("shape_name", TEST_DEFAULT_JOB_SHAPE)
         display_name = kwargs.pop("display_name")
         subnet_id = kwargs.pop("subnet_id", None)
+        job_infrastructure_type = "STANDALONE" if subnet_id is not None else "ME_STANDALONE"
 
         response = self.aqua_model.ds_client.create_job(
             create_job_details=oci.data_science.models.CreateJobDetails(
@@ -174,7 +175,7 @@ class VerifyPoliciesUtils:
                     job_type="DEFAULT",
                     environment_variables={}),
                 job_infrastructure_configuration_details=oci.data_science.models.StandaloneJobInfrastructureConfigurationDetails(
-                    job_infrastructure_type="ME_STANDALONE",
+                    job_infrastructure_type=job_infrastructure_type,
                     shape_name=shape_name,
                     subnet_id=subnet_id,
                     job_shape_config_details=oci.data_science.models.JobShapeConfigDetails(
