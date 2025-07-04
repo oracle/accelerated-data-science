@@ -222,7 +222,8 @@ aqua = [
   "fire",
   "cachetools",
   "huggingface_hub",
-  "python-dotenv"
+  "python-dotenv",
+  "rich"
 ]
 
 # To reduce backtracking (decrese deps install time) during test/dev env setup reducing number of versions pip is
