@@ -15,7 +15,10 @@ logger = logging.getLogger("aqua.policies")
 
 import oci
 
-
+class PolicyValidationError(Exception):
+    def __init__(self, error: str):
+        super().__init__(error)
+    
 class VerifyPoliciesUtils:
     """
     Utility class for verifying OCI IAM policies through operations on Data Science resources.
@@ -215,7 +218,12 @@ class VerifyPoliciesUtils:
             max_interval_seconds=30,
             max_wait_seconds=600
         )
-        return waiter_result
+        
+        job_run_status = waiter_result.data
+        if job_run_status.lifecycle_state  == "FAILED":
+            logger.warning(f"Job run failed: {job_run_status.lifecycle_details}")
+            raise PolicyValidationError("Job Run Failed")
+        return job_run_status
 
     def create_model_version_set(self, **kwargs):
         name = kwargs.pop("name")

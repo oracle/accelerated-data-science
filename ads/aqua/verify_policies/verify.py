@@ -7,7 +7,7 @@ from ads.aqua.verify_policies.constants import TEST_JOB_NAME, TEST_JOB_RUN_NAME,
     TEST_MVS_NAME, TEST_MD_NAME, TEST_VM_SHAPE
 from ads.aqua.verify_policies.messages import operation_messages
 from ads.aqua.verify_policies.entities import OperationResultSuccess, OperationResultFailure, PolicyStatus
-from ads.aqua.verify_policies.utils import VerifyPoliciesUtils, RichStatusLog
+from ads.aqua.verify_policies.utils import PolicyValidationError, VerifyPoliciesUtils, RichStatusLog
 from functools import wraps
 
 logger = logging.getLogger("aqua.policies")
@@ -111,6 +111,8 @@ class AquaVerifyPoliciesApp:
             else:
                 logger.error(oci_error)
                 raise oci_error
+        except PolicyValidationError as policy_error:
+            status = PolicyStatus.FAILURE
         except Exception as e:
             logger.error(e)
             raise e

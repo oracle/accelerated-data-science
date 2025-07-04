@@ -173,7 +173,7 @@ def test_create_job_run(utils):
 
         result = utils.create_job_run(job_id="mock_job_id", display_name="Test Run")
 
-        assert result.data.lifecycle_state == "SUCCEEDED"
+        assert result.lifecycle_state == "SUCCEEDED"
         mock_create_run.assert_called_once()
 
 def test_create_model_version_set(utils):
