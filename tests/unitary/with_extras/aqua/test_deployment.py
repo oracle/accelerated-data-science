@@ -2368,7 +2368,7 @@ class TestAquaDeployment(unittest.TestCase):
             "test_data/deployment/aqua_summary_multi_model_single.json",
         )
 
-    def test_get_deployment_status(self):
+    def test_get_deployment_status_success(self):
         model_deployment = copy.deepcopy(TestDataset.model_deployment_object[0])
         deployment_id = "fakeid.datasciencemodeldeployment.oc1.iad.xxx"
         work_request_id = "fakeid.workrequest.oc1.iad.xxx"
@@ -2376,26 +2376,76 @@ class TestAquaDeployment(unittest.TestCase):
         model_name = "model_name"
 
         with patch(
-            "ads.model.service.oci_datascience_model_deployment.DataScienceWorkRequest.__init__"
-        ) as mock_ds_work_request:
-            mock_ds_work_request.return_value = None
-            with patch(
-                "ads.model.service.oci_datascience_model_deployment.DataScienceWorkRequest.wait_work_request"
-            ) as mock_wait:
-                self.app.get_deployment_status(
-                    model_deployment,
-                    deployment_id,
-                    work_request_id,
-                    model_type,
-                    model_name,
-                )
+            "ads.model.service.oci_datascience_model_deployment.DataScienceWorkRequest.__init__",
+            return_value=None,
+        ) as mock_ds_work_request, patch(
+            "ads.model.service.oci_datascience_model_deployment.DataScienceWorkRequest.wait_work_request"
+        ) as mock_wait:
+            self.app.get_deployment_status(
+                oci.data_science.models.ModelDeploymentSummary(**model_deployment),
+                work_request_id,
+                model_type,
+                model_name,
+            )
 
-                mock_ds_work_request.assert_called_with(work_request_id)
-                mock_wait.assert_called_with(
-                    progress_bar_description="Creating model deployment",
-                    max_wait_time=DEFAULT_WAIT_TIME,
-                    poll_interval=DEFAULT_POLL_INTERVAL,
-                )
+            mock_ds_work_request.assert_called_once_with(work_request_id)
+            mock_wait.assert_called_once_with(
+                progress_bar_description="Creating model deployment",
+                max_wait_time=DEFAULT_WAIT_TIME,
+                poll_interval=DEFAULT_POLL_INTERVAL,
+            )
+
+    def raise_exception(*args, **kwargs):
+        raise Exception("Work request failed")
+
+    def test_get_deployment_status_failed(self):
+        model_deployment = copy.deepcopy(TestDataset.model_deployment_object[0])
+        deployment_id = "fakeid.datasciencemodeldeployment.oc1.iad.xxx"
+        work_request_id = "fakeid.workrequest.oc1.iad.xxx"
+        model_type = "custom"
+        model_name = "model_name"
+        with patch(
+            "ads.telemetry.client.TelemetryClient.record_event"
+        ) as mock_record_event, patch(
+            "ads.aqua.modeldeployment.deployment.DataScienceWorkRequest"
+        ) as mock_ds_work_request_class, patch(
+            "ads.model.deployment.model_deployment.ModelDeployment.show_logs"
+        ) as mock_show_log:
+            mock_ds_work_request_instance = MagicMock()
+            mock_ds_work_request_class.return_value = mock_ds_work_request_instance
+
+            mock_ds_work_request_instance._error_message = [
+                MagicMock(message="Some error occurred")
+            ]
+
+            mock_ds_work_request_instance.wait_work_request.side_effect = (
+                self.raise_exception
+            )
+
+            logs_df = MagicMock()
+            logs_df.sort_values.return_value = logs_df
+            logs_df.empty = False
+            logs_df.iloc.__getitem__.return_value = {
+                "message": "Error: deployment failed!"
+            }
+            mock_show_log.return_value = logs_df
+
+            self.app.get_deployment_status(
+                ModelDeployment(),
+                work_request_id,
+                model_type,
+                model_name,
+            )
+            mock_record_event.assert_called_once()
+            args, kwargs = mock_record_event.call_args
+            self.assertEqual(kwargs["category"], f"aqua/{model_type}/deployment/status")
+            self.assertEqual(kwargs["action"], "FAILED")
+            self.assertIn("work_request_error", kwargs)
+            self.assertIn("status", kwargs)
+            self.assertIn("ocid", kwargs)
+            self.assertIn("model_name", kwargs)
+
+            mock_ds_work_request_class.assert_called_once_with(work_request_id)
 
 
 class TestBaseModelSpec:
