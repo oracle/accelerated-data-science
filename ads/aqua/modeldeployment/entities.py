@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, model_validator
 from ads.aqua import logger
 from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import Tags
+from ads.aqua.common.errors import AquaValueError
 from ads.aqua.config.utils.serializer import Serializable
 from ads.aqua.constants import UNKNOWN_DICT
 from ads.aqua.data import AquaResourceIdentifier
@@ -21,6 +22,7 @@ from ads.aqua.modeldeployment.config_loader import (
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import UNKNOWN, get_console_link
 from ads.model.datascience_model import DataScienceModel
+from ads.model.deployment.model_deployment import ModelDeploymentType
 from ads.model.model_metadata import ModelCustomMetadataItem
 
 
@@ -147,13 +149,39 @@ class AquaDeployment(Serializable):
         AquaDeployment:
             The instance of the Aqua model deployment.
         """
-        instance_configuration = oci_model_deployment.model_deployment_configuration_details.model_configuration_details.instance_configuration
+        model_deployment_configuration_details = (
+            oci_model_deployment.model_deployment_configuration_details
+        )
+        if (
+            model_deployment_configuration_details.deployment_type
+            == ModelDeploymentType.SINGLE_MODEL
+        ):
+            instance_configuration = model_deployment_configuration_details.model_configuration_details.instance_configuration
+            instance_count = model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
+            model_id = model_deployment_configuration_details.model_configuration_details.model_id
+        elif (
+            model_deployment_configuration_details.deployment_type
+            == ModelDeploymentType.MODEL_GROUP
+        ):
+            instance_configuration = model_deployment_configuration_details.infrastructure_configuration_details.instance_configuration
+            instance_count = model_deployment_configuration_details.infrastructure_configuration_details.scaling_policy.instance_count
+            model_id = model_deployment_configuration_details.model_group_configuration_details.model_group_id
+        else:
+            allowed_deployment_types = ", ".join(
+                [key for key in dir(ModelDeploymentType) if not key.startswith("__")]
+            )
+            raise AquaValueError(
+                f"Invalid AQUA deployment with type {model_deployment_configuration_details.deployment_type}."
+                f"Only {allowed_deployment_types} are supported at this moment. Specify a different AQUA model deployment."
+            )
+
         instance_shape_config_details = (
             instance_configuration.model_deployment_instance_shape_config_details
         )
-        instance_count = oci_model_deployment.model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
-        environment_variables = oci_model_deployment.model_deployment_configuration_details.environment_configuration_details.environment_variables
-        cmd = oci_model_deployment.model_deployment_configuration_details.environment_configuration_details.cmd
+        environment_variables = model_deployment_configuration_details.environment_configuration_details.environment_variables
+        cmd = (
+            model_deployment_configuration_details.environment_configuration_details.cmd
+        )
         shape_info = ShapeInfo(
             instance_shape=instance_configuration.instance_shape_name,
             instance_count=instance_count,
@@ -168,7 +196,6 @@ class AquaDeployment(Serializable):
                 else None
             ),
         )
-        model_id = oci_model_deployment._model_deployment_configuration_details.model_configuration_details.model_id
         tags = {}
         tags.update(oci_model_deployment.freeform_tags or UNKNOWN_DICT)
         tags.update(oci_model_deployment.defined_tags or UNKNOWN_DICT)

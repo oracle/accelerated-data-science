@@ -1,22 +1,27 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
 import collections
 import copy
 import datetime
-import oci
-import warnings
 import time
-from typing import Dict, List, Union, Any
+import warnings
+from typing import Any, Dict, List, Union
 
+import oci
 import oci.loggingsearch
-from ads.common import auth as authutil
 import pandas as pd
-from ads.model.serde.model_input import JsonModelInputSERDE
+from oci.data_science.models import (
+    CreateModelDeploymentDetails,
+    LogDetails,
+    UpdateModelDeploymentDetails,
+)
+
+from ads.common import auth as authutil
+from ads.common import utils as ads_utils
 from ads.common.oci_logging import (
     LOG_INTERVAL,
     LOG_RECORDS_LIMIT,
@@ -30,10 +35,10 @@ from ads.model.common.utils import _is_json_serializable
 from ads.model.deployment.common.utils import send_request
 from ads.model.deployment.model_deployment_infrastructure import (
     DEFAULT_BANDWIDTH_MBPS,
+    DEFAULT_MEMORY_IN_GBS,
+    DEFAULT_OCPUS,
     DEFAULT_REPLICA,
     DEFAULT_SHAPE_NAME,
-    DEFAULT_OCPUS,
-    DEFAULT_MEMORY_IN_GBS,
     MODEL_DEPLOYMENT_INFRASTRUCTURE_TYPE,
     ModelDeploymentInfrastructure,
 )
@@ -45,18 +50,14 @@ from ads.model.deployment.model_deployment_runtime import (
     ModelDeploymentRuntimeType,
     OCIModelDeploymentRuntimeType,
 )
+from ads.model.serde.model_input import JsonModelInputSERDE
 from ads.model.service.oci_datascience_model_deployment import (
     OCIDataScienceModelDeployment,
 )
-from ads.common import utils as ads_utils
+
 from .common import utils
 from .common.utils import State
 from .model_deployment_properties import ModelDeploymentProperties
-from oci.data_science.models import (
-    LogDetails,
-    CreateModelDeploymentDetails,
-    UpdateModelDeploymentDetails,
-)
 
 DEFAULT_WAIT_TIME = 1200
 DEFAULT_POLL_INTERVAL = 10
@@ -78,6 +79,11 @@ MODEL_DEPLOYMENT_RUNTIMES = {
 class ModelDeploymentLogType:
     PREDICT = "predict"
     ACCESS = "access"
+
+
+class ModelDeploymentType:
+    SINGLE_MODEL = "SINGLE_MODEL"
+    MODEL_GROUP = "MODEL_GROUP"
 
 
 class LogNotConfiguredError(Exception):  # pragma: no cover
@@ -964,7 +970,9 @@ class ModelDeployment(Builder):
         except oci.exceptions.ServiceError as ex:
             # When bandwidth exceeds the allocated value, TooManyRequests error (429) will be raised by oci backend.
             if ex.status == 429:
-                bandwidth_mbps = self.infrastructure.bandwidth_mbps or DEFAULT_BANDWIDTH_MBPS
+                bandwidth_mbps = (
+                    self.infrastructure.bandwidth_mbps or DEFAULT_BANDWIDTH_MBPS
+                )
                 utils.get_logger().warning(
                     f"Load balancer bandwidth exceeds the allocated {bandwidth_mbps} Mbps."
                     "To estimate the actual bandwidth, use formula: (payload size in KB) * (estimated requests per second) * 8 / 1024."
@@ -1644,22 +1652,22 @@ class ModelDeployment(Builder):
             }
 
         if infrastructure.subnet_id:
-            instance_configuration[
-                infrastructure.CONST_SUBNET_ID
-            ] = infrastructure.subnet_id
+            instance_configuration[infrastructure.CONST_SUBNET_ID] = (
+                infrastructure.subnet_id
+            )
 
         if infrastructure.private_endpoint_id:
             if not hasattr(
                 oci.data_science.models.InstanceConfiguration, "private_endpoint_id"
             ):
                 # TODO: add oci version with private endpoint support.
-                raise EnvironmentError(
+                raise OSError(
                     "Private endpoint is not supported in the current OCI SDK installed."
                 )
 
-            instance_configuration[
-                infrastructure.CONST_PRIVATE_ENDPOINT_ID
-            ] = infrastructure.private_endpoint_id
+            instance_configuration[infrastructure.CONST_PRIVATE_ENDPOINT_ID] = (
+                infrastructure.private_endpoint_id
+            )
 
         scaling_policy = {
             infrastructure.CONST_POLICY_TYPE: "FIXED_SIZE",
@@ -1667,13 +1675,13 @@ class ModelDeployment(Builder):
             or DEFAULT_REPLICA,
         }
 
-        if not runtime.model_uri:
+        if not (runtime.model_uri or runtime.model_group_id):
             raise ValueError(
-                "Missing parameter model uri. Try reruning it after model uri is configured."
+                "Missing parameter model uri and model group id. Try reruning it after model or model group is configured."
             )
 
         model_id = runtime.model_uri
-        if not model_id.startswith("ocid"):
+        if model_id and not model_id.startswith("ocid"):
             from ads.model.datascience_model import DataScienceModel
 
             dsc_model = DataScienceModel(
@@ -1704,7 +1712,7 @@ class ModelDeployment(Builder):
                 oci.data_science.models,
                 "ModelDeploymentEnvironmentConfigurationDetails",
             ):
-                raise EnvironmentError(
+                raise OSError(
                     "Environment variable hasn't been supported in the current OCI SDK installed."
                 )
 
@@ -1720,9 +1728,9 @@ class ModelDeployment(Builder):
             and runtime.inference_server.upper()
             == MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON
         ):
-            environment_variables[
-                "CONTAINER_TYPE"
-            ] = MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON
+            environment_variables["CONTAINER_TYPE"] = (
+                MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON
+            )
             runtime.set_spec(runtime.CONST_ENV, environment_variables)
         environment_configuration_details = {
             runtime.CONST_ENVIRONMENT_CONFIG_TYPE: runtime.environment_config_type,
@@ -1734,7 +1742,7 @@ class ModelDeployment(Builder):
                 oci.data_science.models,
                 "OcirModelDeploymentEnvironmentConfigurationDetails",
             ):
-                raise EnvironmentError(
+                raise OSError(
                     "Container runtime hasn't been supported in the current OCI SDK installed."
                 )
             environment_configuration_details["image"] = runtime.image
@@ -1742,19 +1750,37 @@ class ModelDeployment(Builder):
             environment_configuration_details["cmd"] = runtime.cmd
             environment_configuration_details["entrypoint"] = runtime.entrypoint
             environment_configuration_details["serverPort"] = runtime.server_port
-            environment_configuration_details[
-                "healthCheckPort"
-            ] = runtime.health_check_port
+            environment_configuration_details["healthCheckPort"] = (
+                runtime.health_check_port
+            )
 
         model_deployment_configuration_details = {
-            infrastructure.CONST_DEPLOYMENT_TYPE: "SINGLE_MODEL",
+            infrastructure.CONST_DEPLOYMENT_TYPE: ModelDeploymentType.SINGLE_MODEL,
             infrastructure.CONST_MODEL_CONFIG_DETAILS: model_configuration_details,
             runtime.CONST_ENVIRONMENT_CONFIG_DETAILS: environment_configuration_details,
         }
 
+        if runtime.model_group_id:
+            model_deployment_configuration_details[
+                infrastructure.CONST_DEPLOYMENT_TYPE
+            ] = ModelDeploymentType.MODEL_GROUP
+            model_deployment_configuration_details["modelGroupConfigurationDetails"] = {
+                runtime.CONST_MODEL_GROUP_ID: runtime.model_group_id
+            }
+            model_deployment_configuration_details[
+                "infrastructureConfigurationDetails"
+            ] = {
+                "infrastructureType": "INSTANCE_POOL",
+                infrastructure.CONST_BANDWIDTH_MBPS: infrastructure.bandwidth_mbps
+                or DEFAULT_BANDWIDTH_MBPS,
+                infrastructure.CONST_INSTANCE_CONFIG: instance_configuration,
+                infrastructure.CONST_SCALING_POLICY: scaling_policy,
+            }
+            model_configuration_details.pop(runtime.CONST_MODEL_ID)
+
         if runtime.deployment_mode == ModelDeploymentMode.STREAM:
             if not hasattr(oci.data_science.models, "StreamConfigurationDetails"):
-                raise EnvironmentError(
+                raise OSError(
                     "Model deployment mode hasn't been supported in the current OCI SDK installed."
                 )
             model_deployment_configuration_details[
@@ -1786,9 +1812,13 @@ class ModelDeployment(Builder):
 
         logs = {}
         if (
-            self.infrastructure.access_log and 
-            self.infrastructure.access_log.get(self.infrastructure.CONST_LOG_GROUP_ID, None)
-            and self.infrastructure.access_log.get(self.infrastructure.CONST_LOG_ID, None)
+            self.infrastructure.access_log
+            and self.infrastructure.access_log.get(
+                self.infrastructure.CONST_LOG_GROUP_ID, None
+            )
+            and self.infrastructure.access_log.get(
+                self.infrastructure.CONST_LOG_ID, None
+            )
         ):
             logs[self.infrastructure.CONST_ACCESS] = {
                 self.infrastructure.CONST_LOG_GROUP_ID: self.infrastructure.access_log.get(
@@ -1799,9 +1829,13 @@ class ModelDeployment(Builder):
                 ),
             }
         if (
-            self.infrastructure.predict_log and 
-            self.infrastructure.predict_log.get(self.infrastructure.CONST_LOG_GROUP_ID, None)
-            and self.infrastructure.predict_log.get(self.infrastructure.CONST_LOG_ID, None)
+            self.infrastructure.predict_log
+            and self.infrastructure.predict_log.get(
+                self.infrastructure.CONST_LOG_GROUP_ID, None
+            )
+            and self.infrastructure.predict_log.get(
+                self.infrastructure.CONST_LOG_ID, None
+            )
         ):
             logs[self.infrastructure.CONST_PREDICT] = {
                 self.infrastructure.CONST_LOG_GROUP_ID: self.infrastructure.predict_log.get(

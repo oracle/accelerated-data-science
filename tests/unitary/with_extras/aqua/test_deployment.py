@@ -23,7 +23,6 @@ from oci.data_science.models import (
     ModelDeployWorkloadConfigurationDetails,
 )
 from parameterized import parameterized
-from pydantic import ValidationError
 
 import ads.aqua.modeldeployment.deployment
 import ads.config
@@ -1014,14 +1013,14 @@ class TestDataset:
             {
                 "model_id": "model_a",
                 "fine_tune_weights": [],
-                "model_path": "",
+                "model_path": "model_a/",
                 "model_task": "text_embedding",
                 "params": "--example-container-params test --served-model-name test_model_1 --tensor-parallel-size 1 --trust-remote-code --max-model-len 60000",
             },
             {
                 "model_id": "model_b",
                 "fine_tune_weights": [],
-                "model_path": "",
+                "model_path": "model_b/",
                 "model_task": "image_text_to_text",
                 "params": "--example-container-params test --served-model-name test_model_2 --tensor-parallel-size 2 --trust-remote-code --max-model-len 32000",
             },
@@ -1034,7 +1033,7 @@ class TestDataset:
                         "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
                     },
                 ],
-                "model_path": "",
+                "model_path": "model_c/",
                 "model_task": "code_synthesis",
                 "params": "--example-container-params test --served-model-name test_model_3 --tensor-parallel-size 4",
             },
@@ -1046,14 +1045,14 @@ class TestDataset:
             {
                 "model_id": "model_a",
                 "fine_tune_weights": [],
-                "model_path": "",
+                "model_path": "model_a/",
                 "model_task": "text_embedding",
                 "params": "--example-container-params test --served-model-name test_model_1 --tensor-parallel-size 1 --trust-remote-code --max-model-len 60000",
             },
             {
                 "model_id": "model_b",
                 "fine_tune_weights": [],
-                "model_path": "",
+                "model_path": "model_b/",
                 "model_task": "image_text_to_text",
                 "params": "--example-container-params test --served-model-name test_model_2 --tensor-parallel-size 2 --trust-remote-code --max-model-len 32000",
             },
@@ -1794,6 +1793,7 @@ class TestAquaDeployment(unittest.TestCase):
     @patch.object(AquaApp, "get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_deployment_config")
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp._build_model_group_configs")
     @patch(
         "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_multimodel_deployment_feasibility"
     )
@@ -1806,6 +1806,7 @@ class TestAquaDeployment(unittest.TestCase):
         mock_get_multi_source,
         mock_validate_input_models,
         mock_validate_multimodel_deployment_feasibility,
+        mock_build_model_group_configs,
         mock_get_deployment_config,
         mock_deploy,
         mock_get_container_image,
@@ -1813,6 +1814,13 @@ class TestAquaDeployment(unittest.TestCase):
         mock_get_container_config,
     ):
         """Test to create a deployment for multi models."""
+        mock_build_model_group_configs.return_value = (
+            "mock_group_name",
+            "mock_group_description",
+            {},
+            MagicMock(),
+            "mock_combined_models",
+        )
         mock_get_container_config.return_value = (
             AquaContainerConfig.from_service_config(
                 service_containers=TestDataset.CONTAINER_LIST
@@ -2434,16 +2442,11 @@ class TestBaseModelSpec:
         model_params = "--dummy-param"
 
         if expect_error:
-            with pytest.raises(ValidationError) as excinfo:
+            with pytest.raises(
+                AquaValueError,
+                match="The base model path is not available in the model artifact.",
+            ):
                 BaseModelSpec.from_aqua_multi_model_ref(model_ref, model_params)
-            errs = excinfo.value.errors()
-            if not model_path.startswith("oci://"):
-                model_path_errors = [e for e in errs if e["loc"] == ("model_path",)]
-                assert model_path_errors, f"expected a model_path error, got: {errs!r}"
-                assert (
-                    "the base model path is not available in the model artifact."
-                    in model_path_errors[0]["msg"].lower()
-                )
         else:
             BaseModelSpec.from_aqua_multi_model_ref(model_ref, model_params)
 
