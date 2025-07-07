@@ -46,6 +46,17 @@ class ModelConfigResult(BaseModel):
         arbitrary_types_allowed = True
         protected_namespaces = ()
 
+class ComputeRank(Serializable):
+    """
+    Represents the cost and performance ranking for a compute shape.
+    """
+    cost: int = Field(
+    None, description="The relative rank of the cost of the shape. Range is [10 (cost-effective), 100 (most-expensive)]"
+    )
+
+    performance: int = Field(
+    None, description="The relative rank of the performance of the shape. Range is [10 (lower performance), 110 (highest performance)]"
+    )
 
 class GPUSpecs(Serializable):
     """
@@ -60,6 +71,12 @@ class GPUSpecs(Serializable):
     )
     gpu_type: Optional[str] = Field(
         default=None, description="The type of GPU (e.g., 'V100, A100, H100')."
+    )
+    quantization: Optional[List[str]] = Field(
+        default_factory=list, description="The quantization format supported by shape. (ex.  bitsandbytes, fp8, etc.)"
+    )
+    ranking: Optional[ComputeRank] = Field(
+        None, description="The relative rank of the cost and performance of the shape."
     )
 
 
