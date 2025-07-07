@@ -76,7 +76,6 @@ from ads.aqua.model.entities import (
     AquaModelReadme,
     AquaModelSummary,
     ImportModelDetails,
-    MemberModel,
     ModelValidationResult,
 )
 from ads.common.auth import default_signer
@@ -235,7 +234,7 @@ class AquaModelApp(AquaApp):
         model_group_display_name: str,
         model_group_description: str,
         tags: Dict,
-        combined_models: str,
+        combined_model_names: str,
         project_id: Optional[str] = None,
         compartment_id: Optional[str] = None,
         defined_tags: Optional[Dict] = None,
@@ -250,13 +249,15 @@ class AquaModelApp(AquaApp):
             List of AquaMultiModelRef instances for creating a multi-model group.
         model_custom_metadata : ModelCustomMetadata
             Custom metadata for creating model group.
+            All model group custom metadata, including 'multi_model_metadata' and 'MULTI_MODEL_CONFIG' will be translated as a
+            list of dict and placed under environment variable 'OCI_MODEL_GROUP_CUSTOM_METADATA' in model deployment.
         model_group_display_name: str
             The model group display name.
         model_group_description: str
             The model group description.
         tags: Dict
             The tags of model group.
-        combined_models: str
+        combined_model_names: str
             The name of models to be grouped and deployed.
         project_id : Optional[str]
             The project ID for the multi-model group.
@@ -279,21 +280,20 @@ class AquaModelApp(AquaApp):
             .with_freeform_tags(**tags)
             .with_defined_tags(**(defined_tags or {}))
             .with_custom_metadata_list(model_custom_metadata)
-            .with_member_models(
-                [MemberModel(model_id=model.model_id).model_dump() for model in models]
-            )
+            # TODO: add member model inference key
+            .with_member_models([{"model_id": model.model_id for model in models}])
         )
         custom_model_group.create()
 
         logger.info(
-            f"Aqua Model Group'{custom_model_group.id}' created with models: {combined_models}."
+            f"Aqua Model Group'{custom_model_group.id}' created with models: {combined_model_names}."
         )
 
         # Track telemetry event
         self.telemetry.record_event_async(
             category="aqua/multimodel",
             action="create",
-            detail=combined_models,
+            detail=combined_model_names,
         )
 
         return custom_model_group

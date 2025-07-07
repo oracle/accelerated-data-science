@@ -529,7 +529,7 @@ class TestAquaModel:
             model_group_display_name="test_model_group_name",
             model_group_description="test_model_group_description",
             tags={"aqua_multimodel": "true"},
-            combined_models="test_combined_models",
+            combined_model_names="test_combined_models",
             project_id="test_project_id",
             compartment_id="test_compartment_id",
             source_models=model_details,

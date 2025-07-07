@@ -81,6 +81,11 @@ class ModelDeploymentLogType:
     ACCESS = "access"
 
 
+class ModelDeploymentType:
+    SINGLE_MODEL = "SINGLE_MODEL"
+    MODEL_GROUP = "MODEL_GROUP"
+
+
 class LogNotConfiguredError(Exception):  # pragma: no cover
     pass
 
@@ -1750,7 +1755,7 @@ class ModelDeployment(Builder):
             )
 
         model_deployment_configuration_details = {
-            infrastructure.CONST_DEPLOYMENT_TYPE: "SINGLE_MODEL",
+            infrastructure.CONST_DEPLOYMENT_TYPE: ModelDeploymentType.SINGLE_MODEL,
             infrastructure.CONST_MODEL_CONFIG_DETAILS: model_configuration_details,
             runtime.CONST_ENVIRONMENT_CONFIG_DETAILS: environment_configuration_details,
         }
@@ -1758,7 +1763,7 @@ class ModelDeployment(Builder):
         if runtime.model_group_id:
             model_deployment_configuration_details[
                 infrastructure.CONST_DEPLOYMENT_TYPE
-            ] = "MODEL_GROUP"
+            ] = ModelDeploymentType.MODEL_GROUP
             model_deployment_configuration_details["modelGroupConfigurationDetails"] = {
                 runtime.CONST_MODEL_GROUP_ID: runtime.model_group_id
             }

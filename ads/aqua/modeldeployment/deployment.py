@@ -334,7 +334,7 @@ class AquaDeploymentApp(AquaApp):
                 model_group_description,
                 tags,
                 model_custom_metadata,
-                combined_models,
+                combined_model_names,
             ) = self._build_model_group_configs(
                 models=create_deployment_details.models,
                 create_deployment_details=create_deployment_details,
@@ -349,7 +349,7 @@ class AquaDeploymentApp(AquaApp):
                 model_group_display_name=model_group_display_name,
                 model_group_description=model_group_description,
                 tags=tags,
-                combined_models=combined_models,
+                combined_model_names=combined_model_names,
                 compartment_id=compartment_id,
                 project_id=project_id,
                 defined_tags=defined_tags,
@@ -360,7 +360,6 @@ class AquaDeploymentApp(AquaApp):
                 container_config=container_config,
             )
 
-    @telemetry(entry_point="plugin=model&action=create", name="aqua")
     def _build_model_group_configs(
         self,
         models: List[AquaMultiModelRef],
@@ -392,7 +391,7 @@ class AquaDeploymentApp(AquaApp):
         Returns
         -------
         tuple
-            A tuple of required metadata and strings to create model group.
+            A tuple of required metadata ('multi_model_metadata' and 'MULTI_MODEL_CONFIG') and strings to create model group.
         """
 
         if not models:
@@ -583,8 +582,8 @@ class AquaDeploymentApp(AquaApp):
         # Generate model group details
         timestamp = datetime.now().strftime("%Y%m%d")
         model_group_display_name = f"model_group_{timestamp}"
-        combined_models = ", ".join(display_name_list)
-        model_group_description = f"Multi-model grouping using {combined_models}."
+        combined_model_names = ", ".join(display_name_list)
+        model_group_description = f"Multi-model grouping using {combined_model_names}."
 
         # Add global metadata
         model_custom_metadata.add(
@@ -605,7 +604,7 @@ class AquaDeploymentApp(AquaApp):
                 create_deployment_details=create_deployment_details,
                 model_config_summary=model_config_summary,
                 deployment_container=deployment_container,
-            ),
+            ).model_dump_json(),
             description="Configs required to deploy multi models.",
             category="Other",
         )
@@ -629,7 +628,7 @@ class AquaDeploymentApp(AquaApp):
             model_group_description,
             tags,
             model_custom_metadata,
-            combined_models,
+            combined_model_names,
         )
 
     def _extract_model_task(
@@ -657,7 +656,7 @@ class AquaDeploymentApp(AquaApp):
         create_deployment_details,
         model_config_summary,
         deployment_container: str,
-    ) -> str:
+    ) -> ModelGroupConfig:
         """Builds model group config required to deploy multi models."""
         container_type_key = (
             create_deployment_details.container_family or deployment_container
@@ -674,7 +673,7 @@ class AquaDeploymentApp(AquaApp):
             container_params,
         )
 
-        return multi_model_config.model_dump_json()
+        return multi_model_config
 
     def _create(
         self,
@@ -1059,7 +1058,7 @@ class AquaDeploymentApp(AquaApp):
             .with_overwrite_existing_artifact(True)
             .with_remove_existing_artifact(True)
         )
-        if "datasciencemodelgroup" in aqua_model_id:
+        if self._if_model_group(aqua_model_id):
             container_runtime.with_model_group_id(aqua_model_id)
         else:
             container_runtime.with_model_uri(aqua_model_id)
@@ -1299,7 +1298,7 @@ class AquaDeploymentApp(AquaApp):
                     f"Make sure the {Tags.AQUA_MODEL_ID_TAG} tag is added to the deployment."
                 )
 
-            if "datasciencemodelgroup" in aqua_model_id:
+            if self._if_model_group(aqua_model_id):
                 aqua_model = DataScienceModelGroup.from_id(aqua_model_id)
             else:
                 aqua_model = DataScienceModel.from_id(aqua_model_id)
@@ -1333,6 +1332,11 @@ class AquaDeploymentApp(AquaApp):
             ),
             log=AquaResourceIdentifier(log_id, log_name, log_url),
         )
+
+    @staticmethod
+    def _if_model_group(model_id: str) -> bool:
+        """Checks if it's model group id or not."""
+        return "datasciencemodelgroup" in model_id.lower()
 
     @telemetry(
         entry_point="plugin=deployment&action=get_deployment_config", name="aqua"
