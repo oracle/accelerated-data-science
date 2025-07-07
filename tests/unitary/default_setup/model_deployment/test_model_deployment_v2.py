@@ -370,6 +370,7 @@ spec:
             ModelDeploymentInfrastructure.CONST_SHAPE_NAME: infrastructure.shape_name,
             ModelDeploymentInfrastructure.CONST_BANDWIDTH_MBPS: 10,
             ModelDeploymentInfrastructure.CONST_SHAPE_CONFIG_DETAILS: {
+                "cpu_baseline": None,
                 "ocpus": 10.0,
                 "memory_in_gbs": 36.0,
             },
