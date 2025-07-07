@@ -222,7 +222,7 @@ class AquaDeploymentApp(AquaApp):
                 Tags.TASK, ModelTask.TIME_SERIES_FORECASTING
             ):
                 create_deployment_details.env_var.update(
-                    {Tags.TASK.upper(), ModelTask.TIME_SERIES_FORECASTING}
+                    {Tags.TASK.upper(): ModelTask.TIME_SERIES_FORECASTING}
                 )
             return self._create(
                 aqua_model=aqua_model,
