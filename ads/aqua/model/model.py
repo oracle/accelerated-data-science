@@ -3,7 +3,6 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
 import pathlib
-import re
 from datetime import datetime, timedelta
 from threading import Lock
 from typing import Any, Dict, List, Optional, Set, Union
@@ -80,8 +79,6 @@ from ads.aqua.model.entities import (
     MemberModel,
     ModelValidationResult,
 )
-from ads.aqua.model.enums import MultiModelSupportedTaskType
-from ads.aqua.model.utils import extract_fine_tune_artifacts_path
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import UNKNOWN, get_console_link, is_path_exists, read_file
@@ -235,11 +232,13 @@ class AquaModelApp(AquaApp):
         self,
         models: List[AquaMultiModelRef],
         model_custom_metadata: ModelCustomMetadata,
+        model_group_display_name: str,
+        model_group_description: str,
+        tags: Dict,
+        combined_models: str,
         project_id: Optional[str] = None,
         compartment_id: Optional[str] = None,
-        freeform_tags: Optional[Dict] = None,
         defined_tags: Optional[Dict] = None,
-        source_models: Optional[Dict[str, DataScienceModel]] = None,
         **kwargs,  # noqa: ARG002
     ) -> DataScienceModelGroup:
         """
@@ -251,141 +250,26 @@ class AquaModelApp(AquaApp):
             List of AquaMultiModelRef instances for creating a multi-model group.
         model_custom_metadata : ModelCustomMetadata
             Custom metadata for creating model group.
+        model_group_display_name: str
+            The model group display name.
+        model_group_description: str
+            The model group description.
+        tags: Dict
+            The tags of model group.
+        combined_models: str
+            The name of models to be grouped and deployed.
         project_id : Optional[str]
             The project ID for the multi-model group.
         compartment_id : Optional[str]
             The compartment ID for the multi-model group.
-        freeform_tags : Optional[Dict]
-            Freeform tags for the model.
         defined_tags : Optional[Dict]
             Defined tags for the model.
-        source_models: Optional[Dict[str, DataScienceModel]]
-            A mapping of model OCIDs to their corresponding `DataScienceModel` objects.
-            This dictionary contains metadata for all models involved in the multi-model deployment,
-            including both base models and fine-tuned weights.
 
         Returns
         -------
         DataScienceModelGroup
             Instance of DataScienceModelGroup object.
         """
-        display_name_list = []
-
-        # Process each model in the input list
-        for model in models:
-            # Retrieve base model metadata
-            source_model: DataScienceModel = source_models.get(model.model_id)
-            if not source_model:
-                logger.error(
-                    "Failed to fetch metadata for base model ID: %s", model.model_id
-                )
-                raise AquaValueError(
-                    f"Unable to retrieve metadata for base model ID: {model.model_id}."
-                )
-
-            # Use display name as fallback if model name not provided
-            model.model_name = model.model_name or source_model.display_name
-
-            # Validate model file description
-            model_file_description = source_model.model_file_description
-            if not model_file_description:
-                logger.error(
-                    "Model '%s' (%s) has no file description.",
-                    source_model.display_name,
-                    model.model_id,
-                )
-                raise AquaValueError(
-                    f"Model '{source_model.display_name}' (ID: {model.model_id}) has no file description. "
-                    "Please register the model with a file description."
-                )
-
-            # Ensure base model has a valid artifact
-            if not source_model.artifact:
-                logger.error(
-                    "Base model '%s' (%s) has no artifact.",
-                    model.model_name,
-                    model.model_id,
-                )
-                raise AquaValueError(
-                    f"Model '{model.model_name}' (ID: {model.model_id}) has no registered artifacts. "
-                    "Please register the model before deployment."
-                )
-
-            # Set base model artifact path
-            model.artifact_location = source_model.artifact
-            logger.debug(
-                "Model '%s' artifact path set to: %s",
-                model.model_name,
-                model.artifact_location,
-            )
-
-            display_name_list.append(model.model_name)
-
-            # Extract model task metadata from source model
-            self._extract_model_task(model, source_model)
-
-            # Process fine-tuned weights if provided
-            for ft_model in model.fine_tune_weights or []:
-                fine_tune_source_model: DataScienceModel = source_models.get(
-                    ft_model.model_id
-                )
-                if not fine_tune_source_model:
-                    logger.error(
-                        "Failed to fetch metadata for fine-tuned model ID: %s",
-                        ft_model.model_id,
-                    )
-                    raise AquaValueError(
-                        f"Unable to retrieve metadata for fine-tuned model ID: {ft_model.model_id}."
-                    )
-
-                # Validate model file description
-                ft_model_file_description = (
-                    fine_tune_source_model.model_file_description
-                )
-                if not ft_model_file_description:
-                    logger.error(
-                        "Model '%s' (%s) has no file description.",
-                        fine_tune_source_model.display_name,
-                        ft_model.model_id,
-                    )
-                    raise AquaValueError(
-                        f"Model '{fine_tune_source_model.display_name}' (ID: {ft_model.model_id}) has no file description. "
-                        "Please register the model with a file description."
-                    )
-
-                # Extract fine-tuned model path
-                _, fine_tune_path = extract_fine_tune_artifacts_path(
-                    fine_tune_source_model
-                )
-                logger.debug(
-                    "Resolved fine-tuned model path for '%s': %s",
-                    ft_model.model_id,
-                    fine_tune_path,
-                )
-                ft_model.model_path = fine_tune_path
-
-                # Use fallback name if needed
-                ft_model.model_name = (
-                    ft_model.model_name or fine_tune_source_model.display_name
-                )
-
-                display_name_list.append(ft_model.model_name)
-
-        # Generate model group details
-        timestamp = datetime.now().strftime("%Y%m%d")
-        model_group_display_name = f"model_group_{timestamp}"
-        combined_models = ", ".join(display_name_list)
-        model_group_description = f"Multi-model grouping using {combined_models}."
-
-        # Combine tags. The `Tags.AQUA_TAG` has been excluded, because we don't want to show
-        # the models created for multi-model purpose in the AQUA models list.
-        tags = {
-            # Tags.AQUA_TAG: "active",
-            Tags.MULTIMODEL_TYPE_TAG: "true",
-            **(freeform_tags or {}),
-        }
-
-        # Create multi-model group
         custom_model_group = (
             DataScienceModelGroup()
             .with_compartment_id(compartment_id)
@@ -399,11 +283,10 @@ class AquaModelApp(AquaApp):
                 [MemberModel(model_id=model.model_id).model_dump() for model in models]
             )
         )
-
         custom_model_group.create()
 
         logger.info(
-            f"Aqua Model Group'{custom_model_group.id}' created with models: {', '.join(display_name_list)}."
+            f"Aqua Model Group'{custom_model_group.id}' created with models: {combined_models}."
         )
 
         # Track telemetry event
@@ -678,26 +561,6 @@ class AquaModelApp(AquaApp):
                 logger.info(f"Updated model details for the model {id}.")
         else:
             raise AquaRuntimeError("Only registered unverified models can be edited.")
-
-    def _extract_model_task(
-        self,
-        model: AquaMultiModelRef,
-        source_model: DataScienceModel,
-    ) -> None:
-        """In a Multi Model Deployment, will set model_task parameter in AquaMultiModelRef from freeform tags or user"""
-        # user does not supply model task, we extract from model metadata
-        if not model.model_task:
-            model.model_task = source_model.freeform_tags.get(Tags.TASK, UNKNOWN)
-
-        task_tag = re.sub(r"-", "_", model.model_task).lower()
-        # re-visit logic when more model task types are supported
-        if task_tag in MultiModelSupportedTaskType:
-            model.model_task = task_tag
-        else:
-            raise AquaValueError(
-                f"Invalid or missing {task_tag} tag for selected model {source_model.display_name}. "
-                f"Currently only `{MultiModelSupportedTaskType.values()}` models are supported for multi model deployment."
-            )
 
     def _fetch_metric_from_metadata(
         self,

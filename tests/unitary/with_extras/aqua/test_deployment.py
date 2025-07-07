@@ -1793,9 +1793,7 @@ class TestAquaDeployment(unittest.TestCase):
     @patch.object(AquaApp, "get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_deployment_config")
-    @patch(
-        "ads.aqua.modeldeployment.AquaDeploymentApp._create_model_group_custom_metadata"
-    )
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp._build_model_group_configs")
     @patch(
         "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_multimodel_deployment_feasibility"
     )
@@ -1808,7 +1806,7 @@ class TestAquaDeployment(unittest.TestCase):
         mock_get_multi_source,
         mock_validate_input_models,
         mock_validate_multimodel_deployment_feasibility,
-        mock_create_model_group_custom_metadata,
+        mock_build_model_group_configs,
         mock_get_deployment_config,
         mock_deploy,
         mock_get_container_image,
@@ -1816,7 +1814,13 @@ class TestAquaDeployment(unittest.TestCase):
         mock_get_container_config,
     ):
         """Test to create a deployment for multi models."""
-        mock_create_model_group_custom_metadata.return_value = MagicMock()
+        mock_build_model_group_configs.return_value = (
+            "mock_group_name",
+            "mock_group_description",
+            {},
+            MagicMock(),
+            "mock_combined_models",
+        )
         mock_get_container_config.return_value = (
             AquaContainerConfig.from_service_config(
                 service_containers=TestDataset.CONTAINER_LIST

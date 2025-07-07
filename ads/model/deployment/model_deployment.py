@@ -1521,9 +1521,9 @@ class ModelDeployment(Builder):
             self.infrastructure.CONST_CATEGORY_LOG_DETAILS: self._build_category_log_details(),
         }
 
-        return CreateModelDeploymentDetails(
-            **ads_utils.batch_convert_case(create_model_deployment_details, "snake")
-        )
+        return OCIDataScienceModelDeployment(
+            **create_model_deployment_details
+        ).to_oci_model(CreateModelDeploymentDetails)
 
     def _update_model_deployment_details(
         self, **kwargs
@@ -1548,10 +1548,9 @@ class ModelDeployment(Builder):
             self.infrastructure.CONST_MODEL_DEPLOYMENT_CONFIG_DETAILS: self._build_model_deployment_configuration_details(),
             self.infrastructure.CONST_CATEGORY_LOG_DETAILS: self._build_category_log_details(),
         }
-
-        return UpdateModelDeploymentDetails(
-            **ads_utils.batch_convert_case(update_model_deployment_details, "snake")
-        )
+        return OCIDataScienceModelDeployment(
+            **update_model_deployment_details
+        ).to_oci_model(UpdateModelDeploymentDetails)
 
     def _update_spec(self, **kwargs) -> "ModelDeployment":
         """Updates model deployment specs from kwargs.

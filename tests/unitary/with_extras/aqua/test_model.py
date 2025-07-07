@@ -526,6 +526,10 @@ class TestAquaModel:
         model_group = self.app.create_multi(
             models=[model_info_1, model_info_2, model_info_3],
             model_custom_metadata=model_custom_metadata,
+            model_group_display_name="test_model_group_name",
+            model_group_description="test_model_group_description",
+            tags={"aqua_multimodel": "true"},
+            combined_models="test_combined_models",
             project_id="test_project_id",
             compartment_id="test_compartment_id",
             source_models=model_details,

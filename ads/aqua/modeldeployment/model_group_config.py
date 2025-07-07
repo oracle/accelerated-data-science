@@ -73,7 +73,7 @@ class BaseModelSpec(BaseModel):
 
         os_path = ObjectStorageDetails.from_path(artifact_path_prefix)
         artifact_path_prefix = os_path.filepath.rstrip("/")
-        return model_id + "/" + artifact_path_prefix
+        return model_id + "/" + artifact_path_prefix.lstrip("/")
 
     @classmethod
     def dedup_lora_modules(cls, fine_tune_weights: List[LoraModuleSpec]):
