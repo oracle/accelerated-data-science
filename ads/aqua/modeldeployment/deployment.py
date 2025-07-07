@@ -218,8 +218,9 @@ class AquaDeploymentApp(AquaApp):
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
             )
-            if aqua_model.freeform_tags.get(
-                Tags.TASK, ModelTask.TIME_SERIES_FORECASTING
+            if (
+                aqua_model.freeform_tags.get(Tags.TASK, UNKNOWN)
+                == ModelTask.TIME_SERIES_FORECASTING
             ):
                 create_deployment_details.env_var.update(
                     {Tags.TASK.upper(): ModelTask.TIME_SERIES_FORECASTING}
