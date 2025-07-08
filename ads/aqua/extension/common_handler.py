@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
-
+import json
+import os
 from importlib import metadata
 
 import huggingface_hub
@@ -18,6 +18,10 @@ from ads.aqua.common.utils import (
 )
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
+from ads.common.object_storage_details import ObjectStorageDetails
+from ads.common.utils import read_file
+from ads.config import CONDA_BUCKET_NAME, CONDA_BUCKET_NS
+from ads.opctl.operator.common.utils import default_signer
 
 
 class ADSVersionHandler(AquaAPIhandler):
@@ -26,6 +30,46 @@ class ADSVersionHandler(AquaAPIhandler):
     @handle_exceptions
     def get(self):
         self.finish({"data": metadata.version("oracle_ads")})
+
+
+class AquaVersionHandler(AquaAPIhandler):
+    @handle_exceptions
+    def get(self):
+        """
+        Returns the current and latest deployed version of AQUA
+
+        {
+          "installed": {
+            "aqua": "0.1.3.0",
+            "ads": "2.14.2"
+          },
+          "latest": {
+            "aqua": "0.1.4.0",
+            "ads": "2.14.4"
+          }
+        }
+
+        """
+
+        current_aqua_version_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "..", "version.json"
+        )
+        current_aqua_version = json.loads(read_file(current_aqua_version_path))
+        current_ads_version = {"ads": metadata.version("oracle_ads")}
+        current_version = {"installed": {**current_aqua_version, **current_ads_version}}
+        try:
+            latest_version_artifact_path = ObjectStorageDetails(
+                CONDA_BUCKET_NAME,
+                CONDA_BUCKET_NS,
+                "service_pack/aqua_latest_version.json",
+            ).path
+            latest_version = json.loads(
+                read_file(latest_version_artifact_path, auth=default_signer())
+            )
+        except Exception:
+            latest_version = {"latest": current_version["installed"]}
+        response = {**current_version, **latest_version}
+        return self.finish(response)
 
 
 class CompatibilityCheckHandler(AquaAPIhandler):
@@ -118,4 +162,5 @@ __handlers__ = [
     ("network_status", NetworkStatusHandler),
     ("hf_login", HFLoginHandler),
     ("hf_logged_in", HFUserStatusHandler),
+    ("aqua_version", AquaVersionHandler),
 ]
