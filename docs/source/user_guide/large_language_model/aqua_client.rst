@@ -277,3 +277,35 @@ The asynchronous client, ``AsynOpenAI``, extends the AsyncOpenAI client. If no a
             print(event)
 
     asyncio.run(test_async())
+
+
+Using the Native OpenAI Client
+------------------------------
+
+If you prefer to use the **original `openai.OpenAI` client**, you must manually provide:
+
+- A custom HTTP client created via `ads.aqua.get_httpx_client()`, and
+- `api_key="OCI"` (required for SDK compatibility).
+
+.. code-block:: python
+
+    import ads
+    from openai import OpenAI
+
+    ads.set_auth(auth="security_token")
+
+    # Create the patched HTTP client with OCI signer
+    http_client = ads.aqua.get_httpx_client()
+
+    client = OpenAI(
+        api_key="OCI",
+        base_url="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<OCID>/predict/v1",
+        http_client=http_client
+    )
+
+    response = client.chat.completions.create(
+        model="odsc-llm",
+        messages=[{"role": "user", "content": "Write a short story about a unicorn."}],
+    )
+
+    print(response)
