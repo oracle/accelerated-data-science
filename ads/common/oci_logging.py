@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
 # Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -7,15 +6,15 @@
 import datetime
 import logging
 import time
-from typing import Dict, Union, List
+from typing import Dict, List, Union
 
+import oci.exceptions
 import oci.logging
 import oci.loggingsearch
-import oci.exceptions
+
 from ads.common.decorator.utils import class_or_instance_method
 from ads.common.oci_mixin import OCIModelMixin, OCIWorkRequestMixin
 from ads.common.oci_resource import OCIResource, ResourceNotFoundError
-
 
 logger = logging.getLogger(__name__)
 
@@ -862,9 +861,7 @@ class ConsolidatedLog:
             time_start=time_start,
             log_filter=log_filter,
         )
-        self._print(
-            sorted(tail_logs, key=lambda log: log["time"])
-        )
+        self._print(sorted(tail_logs, key=lambda log: log["time"]))
 
     def head(
         self,
