@@ -26,6 +26,7 @@ class ModelTask(ExtendedEnum):
     TEXT_GENERATION = "text-generation"
     IMAGE_TEXT_TO_TEXT = "image-text-to-text"
     IMAGE_TO_TEXT = "image-to-text"
+    TIME_SERIES_FORECASTING = "time-series-forecasting"
 
 
 class FineTuningMetricCategories(ExtendedEnum):

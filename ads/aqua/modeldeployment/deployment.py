@@ -48,7 +48,11 @@ from ads.aqua.constants import (
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model import AquaModelApp
-from ads.aqua.model.constants import AquaModelMetadataKeys, ModelCustomMetadataFields
+from ads.aqua.model.constants import (
+    AquaModelMetadataKeys,
+    ModelCustomMetadataFields,
+    ModelTask,
+)
 from ads.aqua.model.utils import (
     extract_base_model_from_ft,
     extract_fine_tune_artifacts_path,
@@ -215,6 +219,14 @@ class AquaDeploymentApp(AquaApp):
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
             )
+            task_tag = aqua_model.freeform_tags.get(Tags.TASK, UNKNOWN)
+            if (
+                task_tag == ModelTask.TIME_SERIES_FORECASTING
+                or task_tag == ModelTask.TIME_SERIES_FORECASTING.replace("-", "_")
+            ):
+                create_deployment_details.env_var.update(
+                    {Tags.TASK.upper(): ModelTask.TIME_SERIES_FORECASTING}
+                )
             return self._create(
                 aqua_model=aqua_model,
                 create_deployment_details=create_deployment_details,
