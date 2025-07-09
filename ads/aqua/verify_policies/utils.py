@@ -1,7 +1,6 @@
 import logging
 from ads.aqua.model.model import AquaModelApp
-from ads.aqua.modeldeployment import AquaDeploymentApp
-from ads.aqua.verify_policies.constants import OBS_MANAGE_TEST_FILE, TEST_DEFAULT_JOB_SHAPE, TEST_MD_NAME, \
+from ads.aqua.verify_policies.constants import DUMMY_TEST_BYTE, OBS_MANAGE_TEST_FILE, TEST_DEFAULT_JOB_SHAPE, TEST_MD_NAME, \
     TEST_MODEL_NAME
 from ads.aqua.verify_policies.entities import PolicyStatus
 from ads.common.auth import default_signer
@@ -33,46 +32,135 @@ class VerifyPoliciesUtils:
         self.limit = 3
 
     def list_compartments(self, **kwargs):
+        """
+        List compartments in a given tenancy.
+
+        Parameters:
+            compartment_id (str, optional): OCID of the parent compartment. Defaults to TENANCY_OCID.
+            limit (int, optional): Maximum number of compartments to return. Defaults to 3.
+
+        Returns:
+            List[oci.identity.models.Compartment]: List of compartment data objects.
+        """
         compartment_id = kwargs.pop("compartment_id", TENANCY_OCID)
         limit = kwargs.pop("limit", self.limit)
         return self.aqua_model.identity_client.list_compartments(compartment_id=compartment_id, limit=limit,
                                                                  **kwargs).data
 
     def list_models(self, **kwargs):
+        """
+        List models registered in Data Science.
+
+        Parameters:
+            **kwParameters: Filters such as display_name, lifecycle_state, etc.
+
+        Returns:
+            List[oci.data_science.models.Model]: List of model metadata.
+        """
         return self.aqua_model.list(**kwargs)
 
     def list_log_groups(self, **kwargs):
+        """
+        List log groups in the compartment.
+
+        Parameters:
+            compartment_id (str, optional): Compartment OCID. Defaults to COMPARTMENT_OCID.
+            limit (int, optional): Maximum results. Defaults to 3.
+
+        Returns:
+            List[oci.logging.models.LogGroupSummary]: List of log groups.
+        """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         limit = kwargs.pop("limit", self.limit)
         return self.aqua_model.logging_client.list_log_groups(compartment_id=compartment_id, limit=limit, **kwargs).data
 
     def list_log(self, **kwargs):
+        """
+        List logs under a specific log group.
+
+        Parameters:
+            log_group_id (str): OCID of the log group.
+            limit (int, optional): Maximum number of logs to return. Defaults to 3.
+
+        Returns:
+            List[oci.logging.models.LogSummary]: List of log metadata.
+        """
         log_group_id = kwargs.pop("log_group_id")
         limit = kwargs.pop("limit", self.limit)
         return self.aqua_model.logging_client.list_logs(log_group_id=log_group_id, limit=limit, **kwargs).data
 
     def list_project(self, **kwargs):
+        """
+        List Data Science projects in a compartment.
+
+        Parameters:
+            compartment_id (str, optional): Compartment OCID. Defaults to COMPARTMENT_OCID.
+            limit (int, optional): Maximum number of projects to return. Defaults to 3.
+
+        Returns:
+            List[oci.data_science.models.ProjectSummary]: List of project summaries.
+        """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         limit = kwargs.pop("limit", self.limit)
         return self.aqua_model.ds_client.list_projects(compartment_id=compartment_id, limit=limit, **kwargs).data
 
     def list_model_version_sets(self, **kwargs):
+        """
+        List model version sets in a compartment.
+
+        Parameters:
+            compartment_id (str, optional): Compartment OCID. Defaults to COMPARTMENT_OCID.
+            limit (int, optional): Max results. Defaults to 3.
+
+        Returns:
+            List[oci.data_science.models.ModelVersionSetSummary]: List of version sets.
+        """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         limit = kwargs.pop("limit", self.limit)
         return self.aqua_model.ds_client.list_model_version_sets(compartment_id=compartment_id, limit=limit,
                                                                  **kwargs).data
 
     def list_jobs(self, **kwargs):
+        """
+        List Data Science jobs in a compartment.
+
+        Parameters:
+            compartment_id (str, optional): Compartment OCID. Defaults to COMPARTMENT_OCID.
+            limit (int, optional): Max results. Defaults to 3.
+
+        Returns:
+            List[oci.data_science.models.JobSummary]: List of job summaries.
+        """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         limit = kwargs.pop("limit", self.limit)
         return self.aqua_model.ds_client.list_jobs(compartment_id=compartment_id, limit=limit, **kwargs).data
 
     def list_job_runs(self, **kwargs):
+        """
+        List job runs in a compartment.
+
+        Parameters:
+            compartment_id (str, optional): Compartment OCID. Defaults to COMPARTMENT_OCID.
+            limit (int, optional): Max results. Defaults to 3.
+
+        Returns:
+            List[oci.data_science.models.JobRunSummary]: List of job run records.
+        """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         limit = kwargs.pop("limit", self.limit)
         return self.aqua_model.ds_client.list_job_runs(compartment_id=compartment_id, limit=limit, **kwargs).data
 
     def list_buckets(self, **kwargs):
+        """
+        List Object Storage buckets in a compartment.
+
+        Parameters:
+            compartment_id (str, optional): Compartment OCID. Defaults to COMPARTMENT_OCID.
+            limit (int, optional): Max results. Defaults to self.limit.
+
+        Returns:
+            List[oci.object_storage.models.BucketSummary]: List of buckets.
+        """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         limit = kwargs.pop("limit", self.limit)
         namespace_name = self.obs_client.get_namespace(compartment_id=compartment_id).data
@@ -80,6 +168,16 @@ class VerifyPoliciesUtils:
                                             **kwargs).data
 
     def manage_bucket(self, **kwargs):
+        """
+        Verify Object Storage access by creating and deleting a test file in a bucket.
+
+        Parameters:
+            bucket (str): Name of the bucket to test access in.
+            compartment_id (str, optional): Compartment OCID. Defaults to COMPARTMENT_OCID.
+
+        Returns:
+            bool: True if test object operations succeeded.
+        """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         namespace_name = self.obs_client.get_namespace(compartment_id=compartment_id).data
         bucket = kwargs.pop("bucket")
@@ -90,12 +188,32 @@ class VerifyPoliciesUtils:
         return True
 
     def list_model_deployment_shapes(self, **kwargs):
+        """
+        List available model deployment compute shapes.
+
+        Parameters:
+            compartment_id (str, optional): Compartment OCID. Defaults to COMPARTMENT_OCID.
+            limit (int, optional): Max results. Defaults to 3.
+
+        Returns:
+            List[oci.data_science.models.ModelDeploymentShapeSummary]: List of shapes.
+        """
         limit = kwargs.pop("limit", self.limit)
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         return self.aqua_model.ds_client.list_model_deployment_shapes(compartment_id=compartment_id, limit=limit,
                                                                       **kwargs).data
 
     def get_resource_availability(self, **kwargs):
+        """
+        Get quota availability for a specific resource.
+
+        Parameters:
+            limit_name (str): Name of the limit (e.g., 'ds-gpu-a10-count').
+            compartment_id (str, optional): Compartment OCID. Defaults to COMPARTMENT_OCID.
+
+        Returns:
+            oci.limits.models.ResourceAvailability: Quota availability information.
+        """
         limits_client = oci_client.OCIClientFactory(**default_signer()).limits
         limit_name = kwargs.pop("limit_name")
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
@@ -104,6 +222,16 @@ class VerifyPoliciesUtils:
                                                        limit_name=limit_name).data
 
     def register_model(self, **kwargs):
+        """
+        Register a new model with test metadata and a dummy artifact.
+
+        Parameters:
+            compartment_id (str, optional): Compartment OCID. Defaults to COMPARTMENT_OCID.
+            project_id (str, optional): Project OCID. Defaults to PROJECT_OCID.
+
+        Returns:
+            str: OCID of the registered model.
+        """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         project_id = kwargs.pop("project_id", PROJECT_OCID)
 
@@ -116,12 +244,22 @@ class VerifyPoliciesUtils:
         model_id = self.aqua_model.ds_client.create_model(create_model_details=create_model_details).data.id
         self.aqua_model.ds_client.create_model_artifact(
             model_id=model_id,
-            model_artifact=b"7IV6cktUGcHIhur4bXTv"
+            model_artifact=DUMMY_TEST_BYTE
         ).data
         self.model_id = model_id
         return model_id
 
     def create_model_deployment(self, **kwargs):
+        """
+        Create and deploy a model using a predefined container image and configuration.
+
+        Parameters:
+            model_id (str): OCID of the model to deploy.
+            instance_shape (str): Compute shape to use (e.g., 'VM.Standard2.1').
+
+        Returns:
+            str: OCID of the created model deployment.
+        """
         model_id = kwargs.pop("model_id")
         instance_shape = kwargs.pop("instance_shape")
         model_deployment_instance_shape_config_details = oci.data_science.models.ModelDeploymentInstanceShapeConfigDetails(
@@ -162,6 +300,19 @@ class VerifyPoliciesUtils:
         return getattr(response.data, 'lifecycle_state').upper() in LIFECYCLE_STOP_STATE
 
     def create_job(self, **kwargs):
+        """
+        Create a standalone Data Science job with default config and dummy artifact.
+
+        Parameters:
+            display_name (str): Display name of the job.
+            compartment_id (str, optional): Compartment OCID. Defaults to COMPARTMENT_OCID.
+            project_id (str, optional): Project OCID. Defaults to PROJECT_OCID.
+            shape_name (str, optional): Compute shape name. Defaults to TEST_DEFAULT_JOB_SHAPE.
+            subnet_id (str, optional): Optional subnet ID.
+
+        Returns:
+            str: OCID of the created job.
+        """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         project_id = kwargs.pop("project_id", PROJECT_OCID)
         shape_name = kwargs.pop("shape_name", TEST_DEFAULT_JOB_SHAPE)
@@ -196,6 +347,18 @@ class VerifyPoliciesUtils:
         return job_id
 
     def create_job_run(self, **kwargs):
+        """
+        Start a job run from an existing job and wait for its completion.
+
+        Parameters:
+            job_id (str): OCID of the job to run.
+            display_name (str): Display name of the job run.
+            compartment_id (str, optional): Compartment OCID. Defaults to COMPARTMENT_OCID.
+            project_id (str, optional): Project OCID. Defaults to PROJECT_OCID.
+
+        Returns:
+            oci.data_science.models.JobRun: Job run response after completion.
+        """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         project_id = kwargs.pop("project_id", PROJECT_OCID)
         job_id = kwargs.pop("job_id")
@@ -226,6 +389,17 @@ class VerifyPoliciesUtils:
         return job_run_status
 
     def create_model_version_set(self, **kwargs):
+        """
+        Create a new model version set with the specified name.
+
+        Parameters:
+            name (str): Name of the model version set.
+            compartment_id (str, optional): Compartment OCID. Defaults to COMPARTMENT_OCID.
+            project_id (str, optional): Project OCID. Defaults to PROJECT_OCID.
+
+        Returns:
+            oci.data_science.models.ModelVersionSet: Model version set creation response.
+        """
         name = kwargs.pop("name")
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
         project_id = kwargs.pop("project_id", PROJECT_OCID)

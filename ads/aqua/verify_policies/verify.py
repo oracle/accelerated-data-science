@@ -3,7 +3,7 @@ import logging
 import click
 import oci.exceptions
 
-from ads.aqua.verify_policies.constants import TEST_JOB_NAME, TEST_JOB_RUN_NAME, \
+from ads.aqua.verify_policies.constants import POLICY_HELP_LINK, TEST_JOB_NAME, TEST_JOB_RUN_NAME, TEST_LIMIT_NAME, \
     TEST_MVS_NAME, TEST_MD_NAME, TEST_VM_SHAPE
 from ads.aqua.verify_policies.messages import operation_messages
 from ads.aqua.verify_policies.entities import OperationResultSuccess, OperationResultFailure, PolicyStatus
@@ -34,6 +34,8 @@ def with_spinner(func):
                 logger.warning(result_message)
                 logger.info(result_status.error)
                 logger.info(f"Policy hint: {result_status.policy_hint}")
+                logger.info(f"Refer to: {POLICY_HELP_LINK}")
+                
             return return_value, result_status
 
         if ignore_spinner:
@@ -88,7 +90,7 @@ class AquaVerifyPoliciesApp:
             return OperationResultSuccess(operation=operation_message["name"], status=status)
         if status == PolicyStatus.FAILURE:
             return OperationResultFailure(operation=operation_message["name"], error=operation_message["error"],
-                                          policy_hint=operation_message["policy_hint"])
+                                          policy_hint=f"{operation_message['policy_hint']}" )
 
     @with_spinner
     def _execute(self, function, **kwargs):
@@ -248,7 +250,7 @@ class AquaVerifyPoliciesApp:
             result.append(status.to_dict())
 
         _, get_resource_availability_status = self._execute(self._util.get_resource_availability,
-                                                            limit_name="ds-gpu-a10-count")
+                                                            limit_name=TEST_LIMIT_NAME)
         result.append(get_resource_availability_status.to_dict())
         return result
 
@@ -326,9 +328,10 @@ class AquaVerifyPoliciesApp:
             "Provide bucket name required to save training datasets, scripts, and fine-tuned model outputs")
         
         subnet_id = kwargs.pop("subnet_id", None)
-        if subnet_id is None:
-            if self._prompt("Do you want to use custom subnet", bool=True):
-                subnet_id = self._prompt("Provide subnet id")
+        ignore_subnet = kwargs.pop("ignore_subnet", False)
+        
+        if subnet_id is None and not ignore_subnet and self._prompt("Do you want to use custom subnet", bool=True):
+            subnet_id = self._prompt("Provide subnet id")
         
         _, test_manage_obs_policy = self._execute(self._util.manage_bucket, bucket=bucket, **kwargs)
 
