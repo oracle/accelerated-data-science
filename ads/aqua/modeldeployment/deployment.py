@@ -852,7 +852,7 @@ class AquaDeploymentApp(AquaApp):
                 aqua_model_id = model_deployment.freeform_tags.get(
                     Tags.AQUA_MODEL_ID_TAG, UNKNOWN
                 )
-                if "datasciencemodelgroup" in aqua_model_id:
+                if "datasciencemodelgroup" in aqua_model_id or not aqua_model_id:
                     continue
                 results.append(
                     AquaDeployment.from_oci_model_deployment(
