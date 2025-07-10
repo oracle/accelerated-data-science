@@ -2,8 +2,11 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+
 import json
+import re
 import shlex
+import threading
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
@@ -45,7 +48,11 @@ from ads.aqua.constants import (
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model import AquaModelApp
-from ads.aqua.model.constants import AquaModelMetadataKeys, ModelCustomMetadataFields
+from ads.aqua.model.constants import (
+    AquaModelMetadataKeys,
+    ModelCustomMetadataFields,
+    ModelTask,
+)
 from ads.aqua.model.utils import (
     extract_base_model_from_ft,
     extract_fine_tune_artifacts_path,
@@ -56,6 +63,7 @@ from ads.aqua.modeldeployment.config_loader import (
     ModelDeploymentConfigSummary,
     MultiModelDeploymentConfigLoader,
 )
+from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
@@ -65,10 +73,13 @@ from ads.aqua.modeldeployment.entities import (
 from ads.aqua.modeldeployment.model_group_config import ModelGroupConfig
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN, get_log_links
+from ads.common.work_request import DataScienceWorkRequest
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
+    AQUA_TELEMETRY_BUCKET,
+    AQUA_TELEMETRY_BUCKET_NS,
     COMPARTMENT_OCID,
     PROJECT_OCID,
 )
@@ -208,20 +219,52 @@ class AquaDeploymentApp(AquaApp):
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
             )
+            task_tag = aqua_model.freeform_tags.get(Tags.TASK, UNKNOWN)
+            if (
+                task_tag == ModelTask.TIME_SERIES_FORECASTING
+                or task_tag == ModelTask.TIME_SERIES_FORECASTING.replace("-", "_")
+            ):
+                create_deployment_details.env_var.update(
+                    {Tags.TASK.upper(): ModelTask.TIME_SERIES_FORECASTING}
+                )
             return self._create(
                 aqua_model=aqua_model,
                 create_deployment_details=create_deployment_details,
                 container_config=container_config,
             )
         else:
-            model_ids = [model.model_id for model in create_deployment_details.models]
+            # Collect all unique model IDs (including fine-tuned models)
+            source_model_ids = list(
+                {
+                    model_id
+                    for model in create_deployment_details.models
+                    for model_id in model.all_model_ids()
+                }
+            )
+            logger.debug(
+                "Fetching source model metadata for model IDs: %s", source_model_ids
+            )
+            # Fetch source model metadata
+            source_models = self.get_multi_source(source_model_ids) or {}
+
+            try:
+                create_deployment_details.validate_input_models(
+                    model_details=source_models
+                )
+            except ConfigValidationError as err:
+                raise AquaValueError(f"{err}") from err
+
+            base_model_ids = [
+                model.model_id for model in create_deployment_details.models
+            ]
 
             try:
                 model_config_summary = self.get_multimodel_deployment_config(
-                    model_ids=model_ids, compartment_id=compartment_id
+                    model_ids=base_model_ids, compartment_id=compartment_id
                 )
                 if not model_config_summary.gpu_allocation:
                     raise AquaValueError(model_config_summary.error_message)
+
                 create_deployment_details.validate_multimodel_deployment_feasibility(
                     models_config_summary=model_config_summary
                 )
@@ -292,7 +335,7 @@ class AquaDeploymentApp(AquaApp):
                     )
 
             logger.debug(
-                f"Multi models ({model_ids}) provided. Delegating to multi model creation method."
+                f"Multi models ({source_model_ids}) provided. Delegating to multi model creation method."
             )
 
             aqua_model = model_app.create_multi(
@@ -301,6 +344,7 @@ class AquaDeploymentApp(AquaApp):
                 project_id=project_id,
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
+                source_models=source_models,
             )
             return self._create_multi(
                 aqua_model=aqua_model,
@@ -505,6 +549,9 @@ class AquaDeploymentApp(AquaApp):
                 for key, _ in env.items():
                     if key not in env_var:
                         env_var.update(env)
+
+        env_var.update({"AQUA_TELEMETRY_BUCKET_NS": AQUA_TELEMETRY_BUCKET_NS})
+        env_var.update({"AQUA_TELEMETRY_BUCKET": AQUA_TELEMETRY_BUCKET})
 
         logger.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
 
@@ -718,9 +765,23 @@ class AquaDeploymentApp(AquaApp):
         ).deploy(wait_for_completion=False)
 
         deployment_id = deployment.id
+
         logger.info(
-            f"Aqua model deployment {deployment_id} created for model {aqua_model_id}."
+            f"Aqua model deployment {deployment_id} created for model {aqua_model_id}. Work request Id is {deployment.dsc_model_deployment.workflow_req_id}"
         )
+        status_list = []
+
+        progress_thread = threading.Thread(
+            target=self.get_deployment_status,
+            args=(
+                deployment,
+                deployment.dsc_model_deployment.workflow_req_id,
+                model_type,
+                model_name,
+            ),
+            daemon=True,
+        )
+        progress_thread.start()
 
         # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
         telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
@@ -801,6 +862,13 @@ class AquaDeploymentApp(AquaApp):
             )
 
             if oci_aqua:
+                # skipping the AQUA model deployments that are created from model group
+                # TODO: remove this checker after AQUA deployment is integrated with model group
+                aqua_model_id = model_deployment.freeform_tags.get(
+                    Tags.AQUA_MODEL_ID_TAG, UNKNOWN
+                )
+                if "datasciencemodelgroup" in aqua_model_id:
+                    continue
                 results.append(
                     AquaDeployment.from_oci_model_deployment(
                         model_deployment, self.region
@@ -1209,3 +1277,85 @@ class AquaDeploymentApp(AquaApp):
             )
             for oci_shape in oci_shapes
         ]
+
+    def get_deployment_status(
+        self,
+        deployment: ModelDeployment,
+        work_request_id: str,
+        model_type: str,
+        model_name: str,
+    ) -> None:
+        """Waits for the data science  model deployment to be completed and log its status in telemetry.
+
+        Parameters
+        ----------
+
+        model_deployment_id: str
+            The id of the deployed aqua model.
+        work_request_id: str
+            The work request Id of the model deployment.
+        model_type: str
+            The type of aqua model to be deployed. Allowed values are: `custom`, `service` and `multi_model`.
+
+        Returns
+        -------
+        AquaDeployment
+            An Aqua deployment instance.
+        """
+        ocid = get_ocid_substring(deployment.id, key_len=8)
+        data_science_work_request: DataScienceWorkRequest = DataScienceWorkRequest(
+            work_request_id
+        )
+        try:
+            data_science_work_request.wait_work_request(
+                progress_bar_description="Creating model deployment",
+                max_wait_time=DEFAULT_WAIT_TIME,
+                poll_interval=DEFAULT_POLL_INTERVAL,
+            )
+        except Exception:
+            status = ""
+            logs = deployment.show_logs().sort_values(by="time", ascending=False)
+
+            if logs and len(logs) > 0:
+                status = logs.iloc[0]["message"]
+
+            status = re.sub(r"[^a-zA-Z0-9]", " ", status)
+
+            if data_science_work_request._error_message:
+                error_str = ""
+                for error in data_science_work_request._error_message:
+                    error_str = error_str + " " + error.message
+
+                error_str = re.sub(r"[^a-zA-Z0-9]", " ", error_str)
+                telemetry_kwargs = {
+                    "ocid": ocid,
+                    "model_name": model_name,
+                    "work_request_error": error_str,
+                    "status": status,
+                }
+
+                self.telemetry.record_event(
+                    category=f"aqua/{model_type}/deployment/status",
+                    action="FAILED",
+                    **telemetry_kwargs,
+                )
+            else:
+                telemetry_kwargs = {
+                    "ocid": ocid,
+                    "model_name": model_name,
+                    "status": status,
+                }
+
+                self.telemetry.record_event(
+                    category=f"aqua/{model_type}/deployment/status",
+                    action="FAILED",
+                    **telemetry_kwargs,
+                )
+
+        else:
+            telemetry_kwargs = {"ocid": ocid, "model_name": model_name}
+            self.telemetry.record_event(
+                category=f"aqua/{model_type}/deployment/status",
+                action="SUCCEEDED",
+                **telemetry_kwargs,
+            )

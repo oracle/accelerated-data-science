@@ -2,6 +2,14 @@
 Release Notes
 =============
 
+2.13.12
+-------
+Release date: Jun 18, 2025
+
+* AI Quick Actions: Added support for easy installation of AI Quick Actions extension from JupyterLab and improve telemetry.
+* AI Quick Actions: Bug fix while registering HuggingFace models in UI.
+
+
 2.13.11
 -------
 Release date: Jun 6, 2025

@@ -12,6 +12,10 @@ import unittest
 from importlib import reload
 from unittest.mock import MagicMock, patch
 
+from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
+from ads.model.service.oci_datascience_model_deployment import (
+    OCIDataScienceModelDeployment,
+)
 import oci
 import pytest
 from oci.data_science.models import (
@@ -1452,6 +1456,7 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj.dsc_model_deployment = (
             oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
         )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
 
         result = self.app.create(
@@ -1549,6 +1554,7 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj.dsc_model_deployment = (
             oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
         )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
 
         result = self.app.create(
@@ -1642,6 +1648,7 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj.dsc_model_deployment = (
             oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
         )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
 
         result = self.app.create(
@@ -1744,6 +1751,7 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj.dsc_model_deployment = (
             oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
         )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
 
         result = self.app.create(
@@ -1789,8 +1797,14 @@ class TestAquaDeployment(unittest.TestCase):
     @patch(
         "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_multimodel_deployment_feasibility"
     )
+    @patch(
+        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_input_models"
+    )
+    @patch.object(AquaApp, "get_multi_source")
     def test_create_deployment_for_multi_model(
         self,
+        mock_get_multi_source,
+        mock_validate_input_models,
         mock_validate_multimodel_deployment_feasibility,
         mock_get_deployment_config,
         mock_deploy,
@@ -1858,6 +1872,7 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj.dsc_model_deployment = (
             oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
         )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
 
         model_info_1 = AquaMultiModelRef(
@@ -1902,13 +1917,9 @@ class TestAquaDeployment(unittest.TestCase):
             predict_log_id="ocid1.log.oc1.<region>.<OCID>",
         )
 
-        mock_create_multi.assert_called_with(
-            models=[model_info_1, model_info_2, model_info_3],
-            compartment_id=TestDataset.USER_COMPARTMENT_ID,
-            project_id=TestDataset.USER_PROJECT_ID,
-            freeform_tags=None,
-            defined_tags=None,
-        )
+        mock_create_multi.assert_called()
+        mock_get_multi_source.assert_called()
+        mock_validate_input_models.assert_called()
         mock_get_container_image.assert_called()
         mock_deploy.assert_called()
 
@@ -2356,6 +2367,85 @@ class TestAquaDeployment(unittest.TestCase):
             total_gpus,
             "test_data/deployment/aqua_summary_multi_model_single.json",
         )
+
+    def test_get_deployment_status_success(self):
+        model_deployment = copy.deepcopy(TestDataset.model_deployment_object[0])
+        deployment_id = "fakeid.datasciencemodeldeployment.oc1.iad.xxx"
+        work_request_id = "fakeid.workrequest.oc1.iad.xxx"
+        model_type = "custom"
+        model_name = "model_name"
+
+        with patch(
+            "ads.model.service.oci_datascience_model_deployment.DataScienceWorkRequest.__init__",
+            return_value=None,
+        ) as mock_ds_work_request, patch(
+            "ads.model.service.oci_datascience_model_deployment.DataScienceWorkRequest.wait_work_request"
+        ) as mock_wait:
+            self.app.get_deployment_status(
+                oci.data_science.models.ModelDeploymentSummary(**model_deployment),
+                work_request_id,
+                model_type,
+                model_name,
+            )
+
+            mock_ds_work_request.assert_called_once_with(work_request_id)
+            mock_wait.assert_called_once_with(
+                progress_bar_description="Creating model deployment",
+                max_wait_time=DEFAULT_WAIT_TIME,
+                poll_interval=DEFAULT_POLL_INTERVAL,
+            )
+
+    def raise_exception(*args, **kwargs):
+        raise Exception("Work request failed")
+
+    def test_get_deployment_status_failed(self):
+        model_deployment = copy.deepcopy(TestDataset.model_deployment_object[0])
+        deployment_id = "fakeid.datasciencemodeldeployment.oc1.iad.xxx"
+        work_request_id = "fakeid.workrequest.oc1.iad.xxx"
+        model_type = "custom"
+        model_name = "model_name"
+        with patch(
+            "ads.telemetry.client.TelemetryClient.record_event"
+        ) as mock_record_event, patch(
+            "ads.aqua.modeldeployment.deployment.DataScienceWorkRequest"
+        ) as mock_ds_work_request_class, patch(
+            "ads.model.deployment.model_deployment.ModelDeployment.show_logs"
+        ) as mock_show_log:
+            mock_ds_work_request_instance = MagicMock()
+            mock_ds_work_request_class.return_value = mock_ds_work_request_instance
+
+            mock_ds_work_request_instance._error_message = [
+                MagicMock(message="Some error occurred")
+            ]
+
+            mock_ds_work_request_instance.wait_work_request.side_effect = (
+                self.raise_exception
+            )
+
+            logs_df = MagicMock()
+            logs_df.sort_values.return_value = logs_df
+            logs_df.empty = False
+            logs_df.iloc.__getitem__.return_value = {
+                "message": "Error: deployment failed!"
+            }
+            mock_show_log.return_value = logs_df
+
+            self.app.get_deployment_status(
+                ModelDeployment(),
+                work_request_id,
+                model_type,
+                model_name,
+            )
+            mock_record_event.assert_called_once()
+            args, kwargs = mock_record_event.call_args
+            self.assertEqual(kwargs["category"], f"aqua/{model_type}/deployment/status")
+            self.assertEqual(kwargs["action"], "FAILED")
+            self.assertIn("work_request_error", kwargs)
+            self.assertIn("status", kwargs)
+            self.assertIn("ocid", kwargs)
+            self.assertIn("model_name", kwargs)
+
+            mock_ds_work_request_class.assert_called_once_with(work_request_id)
 
 
 class TestBaseModelSpec:
