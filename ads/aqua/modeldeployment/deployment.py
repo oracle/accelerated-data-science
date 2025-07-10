@@ -867,14 +867,17 @@ class AquaDeploymentApp(AquaApp):
                 aqua_model_id = model_deployment.freeform_tags.get(
                     Tags.AQUA_MODEL_ID_TAG, UNKNOWN
                 )
-                if "datasciencemodelgroup" in aqua_model_id:
+                if (
+                    "datasciencemodelgroup" in aqua_model_id
+                    or model_deployment.model_deployment_configuration_details.deployment_type
+                    == "UNKNOWN_ENUM_VALUE"
+                ):
                     continue
                 results.append(
                     AquaDeployment.from_oci_model_deployment(
                         model_deployment, self.region
                     )
                 )
-
                 # log telemetry if MD is in active or failed state
                 deployment_id = model_deployment.id
                 state = model_deployment.lifecycle_state.upper()
