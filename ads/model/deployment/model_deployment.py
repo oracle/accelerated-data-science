@@ -81,6 +81,11 @@ class ModelDeploymentLogType:
     ACCESS = "access"
 
 
+class ModelDeploymentType:
+    SINGLE_MODEL = "SINGLE_MODEL"
+    MODEL_GROUP = "MODEL_GROUP"
+
+
 class LogNotConfiguredError(Exception):  # pragma: no cover
     pass
 
@@ -1672,13 +1677,13 @@ class ModelDeployment(Builder):
             or DEFAULT_REPLICA,
         }
 
-        if not runtime.model_uri:
+        if not (runtime.model_uri or runtime.model_group_id):
             raise ValueError(
-                "Missing parameter model uri. Try reruning it after model uri is configured."
+                "Missing parameter model uri and model group id. Try reruning it after model or model group is configured."
             )
 
         model_id = runtime.model_uri
-        if not model_id.startswith("ocid"):
+        if model_id and not model_id.startswith("ocid"):
             from ads.model.datascience_model import DataScienceModel
 
             dsc_model = DataScienceModel(
@@ -1752,10 +1757,28 @@ class ModelDeployment(Builder):
             )
 
         model_deployment_configuration_details = {
-            infrastructure.CONST_DEPLOYMENT_TYPE: "SINGLE_MODEL",
+            infrastructure.CONST_DEPLOYMENT_TYPE: ModelDeploymentType.SINGLE_MODEL,
             infrastructure.CONST_MODEL_CONFIG_DETAILS: model_configuration_details,
             runtime.CONST_ENVIRONMENT_CONFIG_DETAILS: environment_configuration_details,
         }
+
+        if runtime.model_group_id:
+            model_deployment_configuration_details[
+                infrastructure.CONST_DEPLOYMENT_TYPE
+            ] = ModelDeploymentType.MODEL_GROUP
+            model_deployment_configuration_details["modelGroupConfigurationDetails"] = {
+                runtime.CONST_MODEL_GROUP_ID: runtime.model_group_id
+            }
+            model_deployment_configuration_details[
+                "infrastructureConfigurationDetails"
+            ] = {
+                "infrastructureType": "INSTANCE_POOL",
+                infrastructure.CONST_BANDWIDTH_MBPS: infrastructure.bandwidth_mbps
+                or DEFAULT_BANDWIDTH_MBPS,
+                infrastructure.CONST_INSTANCE_CONFIG: instance_configuration,
+                infrastructure.CONST_SCALING_POLICY: scaling_policy,
+            }
+            model_configuration_details.pop(runtime.CONST_MODEL_ID)
 
         if runtime.deployment_mode == ModelDeploymentMode.STREAM:
             if not hasattr(oci.data_science.models, "StreamConfigurationDetails"):
