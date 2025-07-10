@@ -864,7 +864,6 @@ class AquaDeploymentApp(AquaApp):
             if oci_aqua:
                 # skipping the AQUA model deployments that are created from model group
                 # TODO: remove this checker after AQUA deployment is integrated with model group
-
                 aqua_model_id = model_deployment.freeform_tags.get(
                     Tags.AQUA_MODEL_ID_TAG, UNKNOWN
                 )
