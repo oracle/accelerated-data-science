@@ -61,7 +61,11 @@ from ads.aqua.modeldeployment.config_loader import (
     ModelDeploymentConfigSummary,
     MultiModelDeploymentConfigLoader,
 )
-from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
+from ads.aqua.modeldeployment.constants import (
+    DEFAULT_DEPLOYMENT_TYPE,
+    DEFAULT_POLL_INTERVAL,
+    DEFAULT_WAIT_TIME,
+)
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
@@ -162,6 +166,7 @@ class AquaDeploymentApp(AquaApp):
                 cmd_var (Optional[List[str]]): Command variables for the container runtime.
                 freeform_tags (Optional[Dict]): Freeform tags for model deployment.
                 defined_tags (Optional[Dict]): Defined tags for model deployment.
+                deployment_type (Optional[str]): The type of model deployment.
 
         Returns
         -------
@@ -206,13 +211,28 @@ class AquaDeploymentApp(AquaApp):
 
         # Create an AquaModelApp instance once to perform the deployment creation.
         model_app = AquaModelApp()
-        if create_deployment_details.model_id:
+        if (
+            create_deployment_details.model_id
+            or create_deployment_details.deployment_type == DEFAULT_DEPLOYMENT_TYPE
+        ):
+            model_id = create_deployment_details.model_id
+            if not model_id:
+                if len(create_deployment_details.models) != 1:
+                    raise AquaValueError(
+                        "Invalid 'models' provided. Only one base model is required for model stack deployment."
+                    )
+                model_id = create_deployment_details.models[0]
+
+            service_model_id = (
+                model_id if isinstance(model_id, str) else model_id.model_id
+            )
             logger.debug(
-                f"Single model ({create_deployment_details.model_id}) provided. "
+                f"Single model ({service_model_id}) provided. "
                 "Delegating to single model creation method."
             )
+
             aqua_model = model_app.create(
-                model_id=create_deployment_details.model_id,
+                model_id=model_id,
                 compartment_id=compartment_id,
                 project_id=project_id,
                 freeform_tags=freeform_tags,
@@ -677,7 +697,7 @@ class AquaDeploymentApp(AquaApp):
 
     def _create(
         self,
-        aqua_model: DataScienceModel,
+        aqua_model: Union[DataScienceModel, DataScienceModelGroup],
         create_deployment_details: CreateModelDeploymentDetails,
         container_config: Dict,
     ) -> AquaDeployment:
@@ -711,7 +731,10 @@ class AquaDeploymentApp(AquaApp):
         tags.update({Tags.TASK: aqua_model.freeform_tags.get(Tags.TASK, UNKNOWN)})
 
         # Set up info to get deployment config
-        config_source_id = create_deployment_details.model_id
+        config_source_id = (
+            create_deployment_details.model_id
+            or create_deployment_details.models[0].model_id
+        )
         model_name = aqua_model.display_name
 
         # set up env and cmd var

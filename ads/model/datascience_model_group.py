@@ -22,6 +22,7 @@ try:
         ModelGroup,
         ModelGroupDetails,
         ModelGroupSummary,
+        StackedModelGroupDetails,
         UpdateModelGroupDetails,
     )
 except ModuleNotFoundError as err:
@@ -511,28 +512,38 @@ class DataScienceModelGroup(Builder):
 
     def _build_model_group_details(self) -> dict:
         """Builds model group details dict for creating or updating oci model group."""
-        model_group_details = HomogeneousModelGroupDetails(
-            custom_metadata_list=[
-                CustomMetadata(
-                    key=custom_metadata.key,
-                    value=custom_metadata.value,
-                    description=custom_metadata.description,
-                    category=custom_metadata.category,
-                )
-                for custom_metadata in self.custom_metadata_list._to_oci_metadata()
-            ]
-        )
+        custom_metadata_list = [
+            CustomMetadata(
+                key=custom_metadata.key,
+                value=custom_metadata.value,
+                description=custom_metadata.description,
+                category=custom_metadata.category,
+            )
+            for custom_metadata in self.custom_metadata_list._to_oci_metadata()
+        ]
+        member_model_details = [
+            MemberModelDetails(**member_model) for member_model in self.member_models
+        ]
+
+        if self.base_model_id:
+            model_group_details = StackedModelGroupDetails(
+                custom_metadata_list=custom_metadata_list,
+                base_model_id=self.base_model_id,
+            )
+            member_model_details.append(MemberModelDetails(model_id=self.base_model_id))
+        else:
+            model_group_details = HomogeneousModelGroupDetails(
+                custom_metadata_list=custom_metadata_list
+            )
 
         member_model_entries = MemberModelEntries(
-            member_model_details=[
-                MemberModelDetails(**member_model)
-                for member_model in self.member_models
-            ]
+            member_model_details=member_model_details
         )
 
         build_model_group_details = copy.deepcopy(self._spec)
         build_model_group_details.pop(self.CONST_CUSTOM_METADATA_LIST)
         build_model_group_details.pop(self.CONST_MEMBER_MODELS)
+        build_model_group_details.pop(self.CONST_BASE_MODEL_ID)
         build_model_group_details.update(
             {
                 self.CONST_COMPARTMENT_ID: self.compartment_id or COMPARTMENT_OCID,
@@ -580,6 +591,9 @@ class DataScienceModelGroup(Builder):
                 category=metadata.category,
             )
         self.set_spec(self.CONST_CUSTOM_METADATA_LIST, model_custom_metadata)
+
+        if hasattr(model_group_details, "base_model_id"):
+            self.set_spec(self.CONST_BASE_MODEL_ID, model_group_details.base_model_id)
 
         # only updates member_models when oci_model_group_instance is an instance of
         # oci.data_science.models.ModelGroup as oci.data_science.models.ModelGroupSummary
