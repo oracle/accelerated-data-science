@@ -757,6 +757,8 @@ class ModelDeployment(Builder):
         log_filter : str, optional
             Expression for filtering the logs. This will be the WHERE clause of the query.
             Defaults to None.
+        status_list : List[str], optional
+            List of status of model deployment. This is used to store list of status from logs.
 
         Returns
         -------

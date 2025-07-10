@@ -218,6 +218,14 @@ class AquaDeploymentApp(AquaApp):
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
             )
+            task_tag = aqua_model.freeform_tags.get(Tags.TASK, UNKNOWN)
+            if (
+                task_tag == ModelTask.TIME_SERIES_FORECASTING
+                or task_tag == ModelTask.TIME_SERIES_FORECASTING.replace("-", "_")
+            ):
+                create_deployment_details.env_var.update(
+                    {Tags.TASK.upper(): ModelTask.TIME_SERIES_FORECASTING}
+                )
             return self._create(
                 aqua_model=aqua_model,
                 create_deployment_details=create_deployment_details,
@@ -1077,14 +1085,16 @@ class AquaDeploymentApp(AquaApp):
         ).deploy(wait_for_completion=False)
 
         deployment_id = deployment.id
+
         logger.info(
             f"Aqua model deployment {deployment_id} created for model {aqua_model_id}. Work request Id is {deployment.dsc_model_deployment.workflow_req_id}"
         )
+        status_list = []
 
         progress_thread = threading.Thread(
             target=self.get_deployment_status,
             args=(
-                deployment_id,
+                deployment,
                 deployment.dsc_model_deployment.workflow_req_id,
                 model_type,
                 model_name,
@@ -1604,7 +1614,7 @@ class AquaDeploymentApp(AquaApp):
 
     def get_deployment_status(
         self,
-        model_deployment_id: str,
+        deployment: ModelDeployment,
         work_request_id: str,
         model_type: str,
         model_name: str,
@@ -1626,13 +1636,10 @@ class AquaDeploymentApp(AquaApp):
         AquaDeployment
             An Aqua deployment instance.
         """
-        ocid = get_ocid_substring(model_deployment_id, key_len=8)
-        telemetry_kwargs = {"ocid": ocid}
-
+        ocid = get_ocid_substring(deployment.id, key_len=8)
         data_science_work_request: DataScienceWorkRequest = DataScienceWorkRequest(
             work_request_id
         )
-
         try:
             data_science_work_request.wait_work_request(
                 progress_bar_description="Creating model deployment",
@@ -1640,23 +1647,49 @@ class AquaDeploymentApp(AquaApp):
                 poll_interval=DEFAULT_POLL_INTERVAL,
             )
         except Exception:
+            status = ""
+            logs = deployment.show_logs().sort_values(by="time", ascending=False)
+
+            if logs and len(logs) > 0:
+                status = logs.iloc[0]["message"]
+
+            status = re.sub(r"[^a-zA-Z0-9]", " ", status)
+
             if data_science_work_request._error_message:
                 error_str = ""
                 for error in data_science_work_request._error_message:
                     error_str = error_str + " " + error.message
 
-            self.telemetry.record_event(
-                category=f"aqua/{model_type}/deployment/status",
-                action="FAILED",
-                detail=error_str,
-                value=model_name,
-                **telemetry_kwargs,
-            )
+                error_str = re.sub(r"[^a-zA-Z0-9]", " ", error_str)
+                telemetry_kwargs = {
+                    "ocid": ocid,
+                    "model_name": model_name,
+                    "work_request_error": error_str,
+                    "status": status,
+                }
+
+                self.telemetry.record_event(
+                    category=f"aqua/{model_type}/deployment/status",
+                    action="FAILED",
+                    **telemetry_kwargs,
+                )
+            else:
+                telemetry_kwargs = {
+                    "ocid": ocid,
+                    "model_name": model_name,
+                    "status": status,
+                }
+
+                self.telemetry.record_event(
+                    category=f"aqua/{model_type}/deployment/status",
+                    action="FAILED",
+                    **telemetry_kwargs,
+                )
 
         else:
-            self.telemetry.record_event_async(
+            telemetry_kwargs = {"ocid": ocid, "model_name": model_name}
+            self.telemetry.record_event(
                 category=f"aqua/{model_type}/deployment/status",
                 action="SUCCEEDED",
-                value=model_name,
                 **telemetry_kwargs,
             )
