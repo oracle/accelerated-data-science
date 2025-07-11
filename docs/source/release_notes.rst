@@ -2,6 +2,16 @@
 Release Notes
 =============
 
+2.13.13
+-------
+Release date: Jul 10, 2025
+
+* Enhance the AQUA OpenAI-compatible client to support multiple inference endpoints within OCI Model Deployment.
+* Add support for time series forecasting models in AQUA.
+* Improve the AQUA CLI by adding a policy verification check for operations related to AQUA.
+* Introduce support for chat templates in AQUA.
+
+
 2.13.12
 -------
 Release date: Jun 18, 2025
