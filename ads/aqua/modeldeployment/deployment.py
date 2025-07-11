@@ -757,7 +757,6 @@ class AquaDeploymentApp(AquaApp):
         logger.info(
             f"Aqua model deployment {deployment_id} created for model {aqua_model_id}. Work request Id is {deployment.dsc_model_deployment.workflow_req_id}"
         )
-        status_list = []
 
         progress_thread = threading.Thread(
             target=self.get_deployment_status,
@@ -1301,25 +1300,17 @@ class AquaDeploymentApp(AquaApp):
                 poll_interval=DEFAULT_POLL_INTERVAL,
             )
         except Exception:
-            status = ""
-            logs = deployment.show_logs().sort_values(by="time", ascending=False)
-
-            if logs and len(logs) > 0:
-                status = logs.iloc[0]["message"]
-
-            status = re.sub(r"[^a-zA-Z0-9]", " ", status)
-
             if data_science_work_request._error_message:
                 error_str = ""
                 for error in data_science_work_request._error_message:
                     error_str = error_str + " " + error.message
 
                 error_str = re.sub(r"[^a-zA-Z0-9]", " ", error_str)
+
                 telemetry_kwargs = {
                     "ocid": ocid,
                     "model_name": model_name,
                     "work_request_error": error_str,
-                    "status": status,
                 }
 
                 self.telemetry.record_event(
@@ -1327,19 +1318,6 @@ class AquaDeploymentApp(AquaApp):
                     action="FAILED",
                     **telemetry_kwargs,
                 )
-            else:
-                telemetry_kwargs = {
-                    "ocid": ocid,
-                    "model_name": model_name,
-                    "status": status,
-                }
-
-                self.telemetry.record_event(
-                    category=f"aqua/{model_type}/deployment/status",
-                    action="FAILED",
-                    **telemetry_kwargs,
-                )
-
         else:
             telemetry_kwargs = {"ocid": ocid, "model_name": model_name}
             self.telemetry.record_event(
