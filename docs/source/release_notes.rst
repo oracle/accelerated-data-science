@@ -2,6 +2,13 @@
 Release Notes
 =============
 
+2.13.14
+-------
+Release date: Jul 10, 2025
+
+* Resolve issues with AQUA telemetry reporting
+
+
 2.13.13
 -------
 Release date: Jul 10, 2025
