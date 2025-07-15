@@ -76,7 +76,7 @@ dependencies = [
   "psutil>=5.7.2",
   "python_jsonschema_objects>=0.3.13",
   "requests",
-  "scikit-learn>=1.0,<1.6.0",
+  "scikit-learn>=1.0",
   "tabulate>=0.8.9",
   "tqdm>=4.59.0",
   "pydantic>=2.6.3",
