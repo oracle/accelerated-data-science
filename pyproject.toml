@@ -90,6 +90,7 @@ bds = ["hdfs[kerberos]", "ibis-framework[impala]", "sqlalchemy"]
 boosted = [
   "lightgbm",
   "xgboost",
+  "scikit-learn>=1.0,<1.6.0",
 ]
 data = [
   "datefinder>=0.7.1",
@@ -109,7 +110,11 @@ huggingface = [
   "transformers",
   "tf-keras"  # Keras 3 installed in py3.11+, but this is not yet supported in Transformers. Need to install the backwards-compatible tf-keras
 ]
-notebook = ["ipython>=7.23.1, <8.0", "ipywidgets~=7.6.3"]
+notebook = [
+  "ipython>=7.23.1, <8.0",
+  "ipywidgets~=7.6.3",
+  "scikit-learn>=1.0,<1.6.0"
+]
 onnx = [
   "lightgbm",
   "onnx>=1.12.0,<=1.15.0; python_version < '3.12'",  # v 1.15.0 set base on onnxrutime version and onnx opset support - https://onnxruntime.ai/docs/reference/compatibility.html#onnx-opset-support
@@ -123,6 +128,7 @@ onnx = [
   "skl2onnx~=1.18.0; python_version >= '3.12'",
   "tf2onnx",
   "xgboost<=1.7",
+  "scikit-learn>=1.0,<1.6.0",
 ]
 opctl = [
   "conda-pack",
