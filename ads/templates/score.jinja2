@@ -207,7 +207,7 @@ class ONNXTransformer(object):
                 X, impute_values=impute_values
             )
         elif isinstance(X, pd.Series):
-            X = X.replace(r"^\s*$", np.NaN, regex=True)
+            X = X.replace(r"^\s*$", np.nan, regex=True)
             if len(impute_values.keys()) == 1:
                 for key, val in impute_values.items():
                     X = X.fillna(val)
@@ -226,11 +226,11 @@ class ONNXTransformer(object):
         for idx, val in impute_values.items():
             if isinstance(idx, int):
                 X.iloc[:, idx] = (
-                    X.iloc[:, idx].replace(r"^\s*$", np.NaN, regex=True).fillna(val)
+                    X.iloc[:, idx].replace(r"^\s*$", np.nan, regex=True).fillna(val)
                 )
             else:
                 X.loc[:, idx] = (
-                    X.loc[:, idx].replace(r"^\s*$", np.NaN, regex=True).fillna(val)
+                    X.loc[:, idx].replace(r"^\s*$", np.nan, regex=True).fillna(val)
                 )
         return X
 
