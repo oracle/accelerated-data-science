@@ -124,6 +124,14 @@ def load_data(data_spec, storage_options=None, **kwargs):
         data = data[columns]
     if limit:
         data = data[:limit]
+    # Filtering by subset if provided
+    subset = kwargs.get('subset', None)
+    if subset is not None:
+        target_category_columns = kwargs.get('target_category_columns', None)
+        mask = False
+        for col in target_category_columns:
+            mask = mask | data[col].isin(subset)
+            data = data[mask]
     return data
 
 
