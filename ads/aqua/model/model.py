@@ -317,7 +317,7 @@ class AquaModelApp(AquaApp):
             .with_defined_tags(**(defined_tags or {}))
             .with_custom_metadata_list(model_custom_metadata)
             # TODO: add member model inference key
-            .with_member_models([{"model_id": model.model_id for model in models}])
+            .with_member_models([{"model_id": model.model_id} for model in models])
         )
         custom_model_group.create()
 

@@ -541,9 +541,9 @@ class DataScienceModelGroup(Builder):
         )
 
         build_model_group_details = copy.deepcopy(self._spec)
-        build_model_group_details.pop(self.CONST_CUSTOM_METADATA_LIST)
-        build_model_group_details.pop(self.CONST_MEMBER_MODELS)
-        build_model_group_details.pop(self.CONST_BASE_MODEL_ID)
+        build_model_group_details.pop(self.CONST_CUSTOM_METADATA_LIST, None)
+        build_model_group_details.pop(self.CONST_MEMBER_MODELS, None)
+        build_model_group_details.pop(self.CONST_BASE_MODEL_ID, None)
         build_model_group_details.update(
             {
                 self.CONST_COMPARTMENT_ID: self.compartment_id or COMPARTMENT_OCID,

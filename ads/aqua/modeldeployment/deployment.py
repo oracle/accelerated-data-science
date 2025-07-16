@@ -24,11 +24,13 @@ from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tag
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     DEFINED_METADATA_TO_FILE_MAP,
+    build_params_string,
     build_pydantic_error_message,
     find_restricted_params,
     get_combined_params,
     get_container_params_type,
     get_ocid_substring,
+    get_params_dict,
     get_params_list,
     get_preferred_compatible_family,
     get_resource_name,
@@ -80,6 +82,7 @@ from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
+    AQUA_MODEL_DEPLOYMENT_FOLDER,
     AQUA_TELEMETRY_BUCKET,
     AQUA_TELEMETRY_BUCKET_NS,
     COMPARTMENT_OCID,
@@ -885,6 +888,20 @@ class AquaDeploymentApp(AquaApp):
         deployment_params = get_combined_params(config_params, user_params)
 
         params = f"{params} {deployment_params}".strip()
+
+        if isinstance(aqua_model, DataScienceModelGroup):
+            env_var.update({"VLLM_ALLOW_RUNTIME_LORA_UPDATING": "true"})
+            env_var.update(
+                {"MODEL": f"{AQUA_MODEL_DEPLOYMENT_FOLDER}{aqua_model.base_model_id}/"}
+            )
+
+            params_dict = get_params_dict(params)
+            # updates `--served-model-name` with service model id
+            params_dict.update({"--served-model-name": aqua_model.base_model_id})
+            # adds `--enable_lora` to parameters
+            params_dict.update({"--enable_lora": UNKNOWN})
+            params = build_params_string(params_dict)
+
         if params:
             env_var.update({"PARAMS": params})
         env_vars = container_spec.env_vars if container_spec else []
