@@ -307,6 +307,16 @@ class AquaModelApp(AquaApp):
         DataScienceModelGroup
             Instance of DataScienceModelGroup object.
         """
+        member_model_ids = [{"model_id": model.model_id} for model in models]
+        for model in models:
+            if model.fine_tune_weights:
+                member_model_ids.extend(
+                    [
+                        {"model_id": fine_tune_model.model_id}
+                        for fine_tune_model in model.fine_tune_weights
+                    ]
+                )
+
         custom_model_group = (
             DataScienceModelGroup()
             .with_compartment_id(compartment_id)
@@ -317,7 +327,7 @@ class AquaModelApp(AquaApp):
             .with_defined_tags(**(defined_tags or {}))
             .with_custom_metadata_list(model_custom_metadata)
             # TODO: add member model inference key
-            .with_member_models([{"model_id": model.model_id} for model in models])
+            .with_member_models(member_model_ids)
         )
         custom_model_group.create()
 
