@@ -257,7 +257,7 @@ class TestBaseClient:
         expected_headers = {
             "Content-Type": "application/json",
             "Accept": "text/event-stream",
-            "enable-streaming": "true",
+            # "enable-streaming": "true",
             "Custom-Header": "Value",
         }
         assert result == expected_headers

@@ -83,14 +83,10 @@ from ads.aqua.model.entities import (
     ModelValidationResult,
 )
 from ads.aqua.model.enums import MultiModelSupportedTaskType
+from ads.aqua.model.utils import extract_fine_tune_artifacts_path
 from ads.common.auth import default_signer
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.common.utils import (
-    UNKNOWN,
-    get_console_link,
-    is_path_exists,
-    read_file,
-)
+from ads.common.utils import UNKNOWN, get_console_link, is_path_exists, read_file
 from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
@@ -243,6 +239,7 @@ class AquaModelApp(AquaApp):
         compartment_id: Optional[str] = None,
         freeform_tags: Optional[Dict] = None,
         defined_tags: Optional[Dict] = None,
+        source_models: Optional[Dict[str, DataScienceModel]] = None,
         **kwargs,  # noqa: ARG002
     ) -> DataScienceModel:
         """
@@ -260,6 +257,10 @@ class AquaModelApp(AquaApp):
             Freeform tags for the model.
         defined_tags : Optional[Dict]
             Defined tags for the model.
+        source_models: Optional[Dict[str, DataScienceModel]]
+            A mapping of model OCIDs to their corresponding `DataScienceModel` objects.
+            This dictionary contains metadata for all models involved in the multi-model deployment,
+            including both base models and fine-tuned weights.
 
         Returns
         -------
@@ -296,45 +297,127 @@ class AquaModelApp(AquaApp):
 
         selected_models_deployment_containers = set()
 
-        # Process each model
+        if not source_models:
+            # Collect all unique model IDs (including fine-tuned models)
+            source_model_ids = list(
+                {model_id for model in models for model_id in model.all_model_ids()}
+            )
+            logger.debug(
+                "Fetching source model metadata for model IDs: %s", source_model_ids
+            )
+
+            # Fetch source model metadata
+            source_models = self.get_multi_source(source_model_ids) or {}
+
+        # Process each model in the input list
         for model in models:
-            source_model = DataScienceModel.from_id(model.model_id)
-            display_name = source_model.display_name
+            # Retrieve base model metadata
+            source_model: DataScienceModel = source_models.get(model.model_id)
+            if not source_model:
+                logger.error(
+                    "Failed to fetch metadata for base model ID: %s", model.model_id
+                )
+                raise AquaValueError(
+                    f"Unable to retrieve metadata for base model ID: {model.model_id}."
+                )
+
+            # Use display name as fallback if model name not provided
+            model.model_name = model.model_name or source_model.display_name
+
+            # Validate model file description
             model_file_description = source_model.model_file_description
-            # Update model name in user's input model
-            model.model_name = model.model_name or display_name
-
-            # TODO Uncomment the section below, if only service models should be allowed for multi-model deployment
-            # if not source_model.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG, UNKNOWN):
-            #     raise AquaValueError(
-            #         f"Invalid selected model {display_name}. "
-            #         "Currently only service models are supported for multi model deployment."
-            #     )
-
-            display_name_list.append(display_name)
-
-            self._extract_model_task(model, source_model)
-
-            # Retrieve model artifact
-            model_artifact_path = source_model.artifact
-            if not model_artifact_path:
-                raise AquaValueError(
-                    f"Model '{display_name}' (ID: {model.model_id}) has no artifacts. "
-                    "Please register the model first."
-                )
-
-            # Update model artifact location in user's input model
-            model.artifact_location = model_artifact_path
-
             if not model_file_description:
+                logger.error(
+                    "Model '%s' (%s) has no file description.",
+                    source_model.display_name,
+                    model.model_id,
+                )
                 raise AquaValueError(
-                    f"Model '{display_name}' (ID: {model.model_id}) has no file description. "
-                    "Please register the model first."
+                    f"Model '{source_model.display_name}' (ID: {model.model_id}) has no file description. "
+                    "Please register the model with a file description."
                 )
 
+            # Track model file description in a validated structure
             model_file_description_list.append(
                 ModelFileDescription(**model_file_description)
             )
+
+            # Ensure base model has a valid artifact
+            if not source_model.artifact:
+                logger.error(
+                    "Base model '%s' (%s) has no artifact.",
+                    model.model_name,
+                    model.model_id,
+                )
+                raise AquaValueError(
+                    f"Model '{model.model_name}' (ID: {model.model_id}) has no registered artifacts. "
+                    "Please register the model before deployment."
+                )
+
+            # Set base model artifact path
+            model.artifact_location = source_model.artifact
+            logger.debug(
+                "Model '%s' artifact path set to: %s",
+                model.model_name,
+                model.artifact_location,
+            )
+
+            display_name_list.append(model.model_name)
+
+            # Extract model task metadata from source model
+            self._extract_model_task(model, source_model)
+
+            # Process fine-tuned weights if provided
+            for ft_model in model.fine_tune_weights or []:
+                fine_tune_source_model: DataScienceModel = source_models.get(
+                    ft_model.model_id
+                )
+                if not fine_tune_source_model:
+                    logger.error(
+                        "Failed to fetch metadata for fine-tuned model ID: %s",
+                        ft_model.model_id,
+                    )
+                    raise AquaValueError(
+                        f"Unable to retrieve metadata for fine-tuned model ID: {ft_model.model_id}."
+                    )
+
+                # Validate model file description
+                ft_model_file_description = (
+                    fine_tune_source_model.model_file_description
+                )
+                if not ft_model_file_description:
+                    logger.error(
+                        "Model '%s' (%s) has no file description.",
+                        fine_tune_source_model.display_name,
+                        ft_model.model_id,
+                    )
+                    raise AquaValueError(
+                        f"Model '{fine_tune_source_model.display_name}' (ID: {ft_model.model_id}) has no file description. "
+                        "Please register the model with a file description."
+                    )
+
+                # Track model file description in a validated structure
+                model_file_description_list.append(
+                    ModelFileDescription(**ft_model_file_description)
+                )
+
+                # Extract fine-tuned model path
+                _, fine_tune_path = extract_fine_tune_artifacts_path(
+                    fine_tune_source_model
+                )
+                logger.debug(
+                    "Resolved fine-tuned model path for '%s': %s",
+                    ft_model.model_id,
+                    fine_tune_path,
+                )
+                ft_model.model_path = fine_tune_path
+
+                # Use fallback name if needed
+                ft_model.model_name = (
+                    ft_model.model_name or fine_tune_source_model.display_name
+                )
+
+                display_name_list.append(ft_model.model_name)
 
             # Validate deployment container consistency
             deployment_container = source_model.custom_metadata_list.get(
@@ -345,9 +428,15 @@ class AquaModelApp(AquaApp):
             ).value
 
             if deployment_container not in supported_container_families:
+                logger.error(
+                    "Unsupported deployment container '%s' for model '%s'. Supported: %s",
+                    deployment_container,
+                    source_model.id,
+                    supported_container_families,
+                )
                 raise AquaValueError(
                     f"Unsupported deployment container '{deployment_container}' for model '{source_model.id}'. "
-                    f"Only '{supported_container_families}' are supported for multi-model deployments."
+                    f"Only {supported_container_families} are supported for multi-model deployments."
                 )
 
             selected_models_deployment_containers.add(deployment_container)
@@ -367,7 +456,8 @@ class AquaModelApp(AquaApp):
                 raise AquaValueError(
                     "The selected models are associated with different container families: "
                     f"{list(selected_models_deployment_containers)}."
-                    "For multi-model deployment, all models in the group must share the same container family."
+                    "For multi-model deployment, all models in the group must belong to the same container "
+                    "family or to compatible container families."
                 )
         else:
             deployment_container = selected_models_deployment_containers.pop()
@@ -460,8 +550,6 @@ class AquaModelApp(AquaApp):
         ----------
         model_id: str
             The model OCID.
-        load_model_card: (bool, optional). Defaults to `True`.
-            Whether to load model card from artifacts or not.
 
         Returns
         -------

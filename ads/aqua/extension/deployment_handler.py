@@ -2,16 +2,18 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import List, Union
+from typing import List, Optional, Union
 from urllib.parse import urlparse
 
 from tornado.web import HTTPError
 
+from ads.aqua.app import logger
+from ads.aqua.client.client import Client, ExtendedRequestError
 from ads.aqua.common.decorator import handle_exceptions
+from ads.aqua.common.enums import PredictEndpoints
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
-from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
-from ads.aqua.modeldeployment.entities import ModelParams
+from ads.aqua.modeldeployment import AquaDeploymentApp
 from ads.config import COMPARTMENT_OCID
 
 
@@ -175,23 +177,110 @@ class AquaDeploymentHandler(AquaAPIhandler):
         )
 
 
-class AquaDeploymentInferenceHandler(AquaAPIhandler):
-    @staticmethod
-    def validate_predict_url(endpoint):
-        try:
-            url = urlparse(endpoint)
-            if url.scheme != "https":
-                return False
-            if not url.netloc:
-                return False
-            return url.path.endswith("/predict")
-        except Exception:
-            return False
+class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
+    def _get_model_deployment_response(
+        self,
+        model_deployment_id: str,
+        payload: dict,
+        route_override_header: Optional[str],
+    ):
+        """
+        Returns the model deployment inference response in a streaming fashion.
+
+        This method connects to the specified model deployment endpoint and
+        streams the inference output back to the caller, handling both text
+        and chat completion endpoints depending on the route override.
+
+        Parameters
+        ----------
+        model_deployment_id : str
+            The OCID of the model deployment to invoke.
+            Example: 'ocid1.datasciencemodeldeployment.iad.oc1.xxxyz'
+
+        payload : dict
+            Dictionary containing the model inference parameters.
+            Same example for text completions:
+                {
+                    "max_tokens": 1024,
+                    "temperature": 0.5,
+                    "prompt": "what are some good skills deep learning expert. Give us some tips on how to structure interview with some coding example?",
+                    "top_p": 0.4,
+                    "top_k": 100,
+                    "model": "odsc-llm",
+                    "frequency_penalty": 1,
+                    "presence_penalty": 1,
+                    "stream": true
+                }
+
+        route_override_header : Optional[str]
+            Optional override for the inference route, used for routing between
+            different endpoint types (e.g., chat vs. text completions).
+            Example: '/v1/chat/completions'
+
+        Returns
+        -------
+        Generator[str]
+            A generator that yields strings of the model's output as they are received.
+
+        Raises
+        ------
+        HTTPError
+            If the request to the model deployment fails or if streaming cannot be established.
+        """
+
+        model_deployment = AquaDeploymentApp().get(model_deployment_id)
+        endpoint = model_deployment.endpoint + "/predictWithResponseStream"
+        endpoint_type = model_deployment.environment_variables.get(
+            "MODEL_DEPLOY_PREDICT_ENDPOINT", PredictEndpoints.TEXT_COMPLETIONS_ENDPOINT
+        )
+        aqua_client = Client(endpoint=endpoint)
+
+        if PredictEndpoints.CHAT_COMPLETIONS_ENDPOINT in (
+            endpoint_type,
+            route_override_header,
+        ):
+            try:
+                for chunk in aqua_client.chat(
+                    messages=payload.pop("messages"),
+                    payload=payload,
+                    stream=True,
+                ):
+                    try:
+                        if "text" in chunk["choices"][0]:
+                            yield chunk["choices"][0]["text"]
+                        elif "content" in chunk["choices"][0]["delta"]:
+                            yield chunk["choices"][0]["delta"]["content"]
+                    except Exception as e:
+                        logger.debug(
+                            f"Exception occurred while parsing streaming response: {e}"
+                        )
+            except ExtendedRequestError as ex:
+                raise HTTPError(400, str(ex))
+            except Exception as ex:
+                raise HTTPError(500, str(ex))
+
+        elif endpoint_type == PredictEndpoints.TEXT_COMPLETIONS_ENDPOINT:
+            try:
+                for chunk in aqua_client.generate(
+                    prompt=payload.pop("prompt"),
+                    payload=payload,
+                    stream=True,
+                ):
+                    try:
+                        yield chunk["choices"][0]["text"]
+                    except Exception as e:
+                        logger.debug(
+                            f"Exception occurred while parsing streaming response: {e}"
+                        )
+            except ExtendedRequestError as ex:
+                raise HTTPError(400, str(ex))
+            except Exception as ex:
+                raise HTTPError(500, str(ex))
 
     @handle_exceptions
-    def post(self, *args, **kwargs):  # noqa: ARG002
+    def post(self, model_deployment_id):
         """
-        Handles inference request for the Active Model Deployments
+        Handles streaming inference request for the Active Model Deployments
         Raises
         ------
         HTTPError
@@ -205,32 +294,29 @@ class AquaDeploymentInferenceHandler(AquaAPIhandler):
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)
 
-        endpoint = input_data.get("endpoint")
-        if not endpoint:
-            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("endpoint"))
-
-        if not self.validate_predict_url(endpoint):
-            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT.format("endpoint"))
-
         prompt = input_data.get("prompt")
-        if not prompt:
-            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("prompt"))
+        messages = input_data.get("messages")
 
-        model_params = (
-            input_data.get("model_params") if input_data.get("model_params") else {}
+        if not prompt and not messages:
+            raise HTTPError(
+                400, Errors.MISSING_REQUIRED_PARAMETER.format("prompt/messages")
+            )
+        if not input_data.get("model"):
+            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("model"))
+        route_override_header = self.request.headers.get("route", None)
+        self.set_header("Content-Type", "text/event-stream")
+        response_gen = self._get_model_deployment_response(
+            model_deployment_id, input_data, route_override_header
         )
         try:
-            model_params_obj = ModelParams(**model_params)
+            for chunk in response_gen:
+                self.write(chunk)
+                self.flush()
+            self.finish()
         except Exception as ex:
-            raise HTTPError(
-                400, Errors.INVALID_INPUT_DATA_FORMAT.format("model_params")
-            ) from ex
-
-        return self.finish(
-            MDInferenceResponse(prompt, model_params_obj).get_model_deployment_response(
-                endpoint
-            )
-        )
+            self.set_status(ex.status_code)
+            self.write({"message": "Error occurred", "reason": str(ex)})
+            self.finish()
 
 
 class AquaDeploymentParamsHandler(AquaAPIhandler):
@@ -294,5 +380,5 @@ __handlers__ = [
     ("deployments/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)/activate", AquaDeploymentHandler),
     ("deployments/?([^/]*)/deactivate", AquaDeploymentHandler),
-    ("inference", AquaDeploymentInferenceHandler),
+    ("inference/stream/?([^/]*)", AquaDeploymentStreamingInferenceHandler),
 ]

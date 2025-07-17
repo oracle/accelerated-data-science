@@ -832,7 +832,9 @@ def get_params_dict(params: Union[str, List[str]]) -> dict:
     """
     params_list = get_params_list(params) if isinstance(params, str) else params
     return {
-        split_result[0]: split_result[1] if len(split_result) > 1 else UNKNOWN
+        split_result[0]: " ".join(split_result[1:])
+        if len(split_result) > 1
+        else UNKNOWN
         for split_result in (x.split() for x in params_list)
     }
 
@@ -868,6 +870,41 @@ def get_combined_params(params1: str = None, params2: str = None) -> str:
     return " ".join(combined_params)
 
 
+def find_restricted_params(
+    default_params: Union[str, List[str]],
+    user_params: Union[str, List[str]],
+    container_family: str,
+) -> List[str]:
+    """Returns a list of restricted params that user chooses to override when creating an Aqua deployment.
+    The default parameters coming from the container index json file cannot be overridden.
+
+    Parameters
+    ----------
+    default_params:
+        Inference container parameter string with default values.
+    user_params:
+        Inference container parameter string with user provided values.
+    container_family: str
+        The image family of model deployment container runtime.
+
+    Returns
+    -------
+        A list with params keys common between params1 and params2.
+
+    """
+    restricted_params = []
+    if default_params and user_params:
+        default_params_dict = get_params_dict(default_params)
+        user_params_dict = get_params_dict(user_params)
+
+        restricted_params_set = get_restricted_params_by_container(container_family)
+        for key, _items in user_params_dict.items():
+            if key in default_params_dict or key in restricted_params_set:
+                restricted_params.append(key.lstrip("-"))
+
+    return restricted_params
+
+
 def build_params_string(params: dict) -> str:
     """Builds params string from params dict
 
@@ -881,7 +918,9 @@ def build_params_string(params: dict) -> str:
         A params string.
     """
     return (
-        " ".join(f"{name} {value}" for name, value in params.items()).strip()
+        " ".join(
+            f"{name} {value}" if value else f"{name}" for name, value in params.items()
+        ).strip()
         if params
         else UNKNOWN
     )

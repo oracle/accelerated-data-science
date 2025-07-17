@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2021 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -11,12 +10,14 @@ Classes:
     IpAddressV6
         The IpAddressV6 feature type.
 """
+
 import re
 
 import pandas as pd
+
+from ads.feature_engineering import schema
 from ads.feature_engineering.feature_type.base import FeatureType
 from ads.feature_engineering.utils import _count_unique_missing
-from ads.feature_engineering import schema
 
 PATTERN = re.compile(
     r"\s*(?!.*::.*::)(?:(?!:)|:(?=:))(?:[0-9a-f]{0,4}(?:(?<=::)|(?<!::):)){6}(?:[0-9a-f]{0,4}(?:(?<=::)|(?<!::):)[0-9a-f]{0,4}(?:(?<=::)|(?<!:)|(?<=:)(?<!::):)|(?:25[0-4]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-4]|2[0-4]\d|1\d\d|[1-9]?\d)){3})\s*",
@@ -69,7 +70,7 @@ class IpAddressV6(FeatureType):
     >>> from ads.feature_engineering.feature_type.ip_address_v6 import IpAddressV6
     >>> import pandas as pd
     >>> import numpy as np
-    >>> s = pd.Series(['192.168.0.1', '2001:db8::', '', np.NaN, None], name='ip_address')
+    >>> s = pd.Series(['192.168.0.1', '2001:db8::', '', np.nan, None], name='ip_address')
     >>> s.ads.feature_type = ['ip_address_v6']
     >>> IpAddressV6.validator.is_ip_address_v6(s)
     0    False
@@ -90,7 +91,7 @@ class IpAddressV6(FeatureType):
 
         Examples
         --------
-        >>> s = pd.Series(['2002:db8::', '2001:db8::', '2001:db8::', '2002:db8::', np.NaN, None], name='ip_address')
+        >>> s = pd.Series(['2002:db8::', '2001:db8::', '2001:db8::', '2002:db8::', np.nan, None], name='ip_address')
         >>> s.ads.feature_type = ['ip_address_v6']
         >>> s.ads.feature_stat()
             Metric  Value
@@ -112,7 +113,7 @@ class IpAddressV6(FeatureType):
 
         Examples
         --------
-        >>> s = pd.Series(['2002:db8::', '2001:db8::', '2001:db8::', '2002:db8::', np.NaN, None], name='ip_address_v6')
+        >>> s = pd.Series(['2002:db8::', '2001:db8::', '2001:db8::', '2002:db8::', np.nan, None], name='ip_address_v6')
         >>> s.ads.feature_type = ['ip_address_v6']
         >>> s.ads.feature_domain()
         constraints: []

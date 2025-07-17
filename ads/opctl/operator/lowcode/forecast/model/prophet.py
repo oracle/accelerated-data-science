@@ -43,22 +43,27 @@ def _fit_model(data, params, additional_regressors):
     from prophet import Prophet
 
     monthly_seasonality = params.pop("monthly_seasonality", False)
-    data_floor = params.pop("min", None)
-    data_cap = params.pop("max", None)
-    if data_cap or data_floor:
+
+    has_min = "min" in params
+    has_max = "max" in params
+    if has_min or has_max:
         params["growth"] = "logistic"
+        data_floor = params.pop("min", None)
+        data_cap = params.pop("max", None)
+    
     model = Prophet(**params)
     if monthly_seasonality:
         model.add_seasonality(name="monthly", period=30.5, fourier_order=5)
         params["monthly_seasonality"] = monthly_seasonality
     for add_reg in additional_regressors:
         model.add_regressor(add_reg)
-    if data_floor:
+        
+    if has_min:
         data["floor"] = float(data_floor)
-        params["floor"] = data_floor
-    if data_cap:
+        params["min"] = data_floor
+    if has_max:
         data["cap"] = float(data_cap)
-        params["cap"] = data_cap
+        params["max"] = data_cap
 
     model.fit(data)
     return model
@@ -304,7 +309,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             # Global Expl
             g_expl = self.drop_horizon(expl_df).mean()
             g_expl.name = s_id
-            global_expl.append(g_expl)
+            global_expl.append(np.abs(g_expl))
         self.global_explanation = pd.concat(global_expl, axis=1)
         self.formatted_global_explanation = (
             self.global_explanation / self.global_explanation.sum(axis=0) * 100
