@@ -582,6 +582,20 @@ class Client(BaseClient):
         payload = {**(payload or {}), "input": input}
         return self._request(payload=payload, headers=headers)
 
+    def list_models(self) -> Union[Dict[str, Any], Iterator[Mapping[str, Any]]]:
+        """Generate embeddings by sending a request to the endpoint.
+
+        Args:
+
+        Returns:
+            Union[Dict[str, Any], Iterator[Mapping[str, Any]]]: The server's response, typically including the generated embeddings.
+        """
+        headers = {"Content-Type", "application/json"}
+        response = self._client.get(self.endpoint, headers=headers, json={}).json()
+        json_response = response.json()
+        logger.debug(f"Response JSON: {json_response}")
+        return json_response
+
 
 class AsyncClient(BaseClient):
     """
