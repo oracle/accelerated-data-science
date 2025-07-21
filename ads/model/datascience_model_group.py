@@ -541,6 +541,7 @@ class DataScienceModelGroup(Builder):
         )
 
         build_model_group_details = copy.deepcopy(self._spec)
+        # pop out the unrequired specs for building `CreateModelGroupDetails` or `UpdateModelGroupDetails`.
         build_model_group_details.pop(self.CONST_CUSTOM_METADATA_LIST, None)
         build_model_group_details.pop(self.CONST_MEMBER_MODELS, None)
         build_model_group_details.pop(self.CONST_BASE_MODEL_ID, None)

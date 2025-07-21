@@ -216,13 +216,17 @@ class AquaDeploymentApp(AquaApp):
         model_app = AquaModelApp()
         if (
             create_deployment_details.model_id
-            or create_deployment_details.deployment_type == DEFAULT_DEPLOYMENT_TYPE
+            or create_deployment_details.deployment_type
         ):
             model_id = create_deployment_details.model_id
             if not model_id:
                 if len(create_deployment_details.models) != 1:
                     raise AquaValueError(
                         "Invalid 'models' provided. Only one base model is required for model stack deployment."
+                    )
+                if create_deployment_details.deployment_type != DEFAULT_DEPLOYMENT_TYPE:
+                    raise AquaValueError(
+                        f"Invalid 'deployment_type' provided. Only {DEFAULT_DEPLOYMENT_TYPE} is supported for model stack deployment."
                     )
                 model_id = create_deployment_details.models[0]
 
