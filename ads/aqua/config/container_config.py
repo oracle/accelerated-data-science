@@ -189,11 +189,10 @@ class AquaContainerConfig(Serializable):
                 container_item.model_formats.append(
                     additional_configurations.get("modelFormats")
                 )
-                print(
-                    "additional_configurations.get(env_vars)",
-                    additional_configurations.get("env_vars"),
+                env_vars_dict = json.loads(
+                    additional_configurations.get("env_vars") or "{}"
                 )
-                env_vars = json.loads(additional_configurations.get("env_vars"))
+                env_vars = [{key: value} for key, value in env_vars_dict.items()]
 
                 # Build container spec
                 container_item.spec = AquaContainerConfigSpec(
