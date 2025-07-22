@@ -192,7 +192,7 @@ class AquaContainerConfig(Serializable):
                 env_vars_dict = json.loads(
                     additional_configurations.get("env_vars") or "{}"
                 )
-                env_vars = [{key: value} for key, value in env_vars_dict.items()]
+                env_vars = [{key: str(value)} for key, value in env_vars_dict.items()]
 
                 # Build container spec
                 container_item.spec = AquaContainerConfigSpec(
