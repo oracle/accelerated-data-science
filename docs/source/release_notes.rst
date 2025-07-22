@@ -2,6 +2,36 @@
 Release Notes
 =============
 
+2.13.16
+-------
+Release date: Jul 16, 2025
+
+* AI Quick Actions enhancements.
+
+2.13.15
+-------
+Release date: Jul 15, 2025
+
+* Relaxes the version constraint for Matplotlib to improve compatibility with a broader range of environments and dependencies.
+
+
+2.13.14
+-------
+Release date: Jul 10, 2025
+
+* Resolve issues with AQUA telemetry reporting
+
+
+2.13.13
+-------
+Release date: Jul 10, 2025
+
+* Enhance the AQUA OpenAI-compatible client to support multiple inference endpoints within OCI Model Deployment.
+* Add support for time series forecasting models in AQUA.
+* Improve the AQUA CLI by adding a policy verification check for operations related to AQUA.
+* Introduce support for chat templates in AQUA.
+
+
 2.13.12
 -------
 Release date: Jun 18, 2025

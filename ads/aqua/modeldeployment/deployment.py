@@ -4,6 +4,7 @@
 
 
 import json
+import re
 import shlex
 import threading
 from datetime import datetime, timedelta
@@ -47,7 +48,11 @@ from ads.aqua.constants import (
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model import AquaModelApp
-from ads.aqua.model.constants import AquaModelMetadataKeys, ModelCustomMetadataFields
+from ads.aqua.model.constants import (
+    AquaModelMetadataKeys,
+    ModelCustomMetadataFields,
+    ModelTask,
+)
 from ads.aqua.model.utils import (
     extract_base_model_from_ft,
     extract_fine_tune_artifacts_path,
@@ -214,20 +219,52 @@ class AquaDeploymentApp(AquaApp):
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
             )
+            task_tag = aqua_model.freeform_tags.get(Tags.TASK, UNKNOWN)
+            if (
+                task_tag == ModelTask.TIME_SERIES_FORECASTING
+                or task_tag == ModelTask.TIME_SERIES_FORECASTING.replace("-", "_")
+            ):
+                create_deployment_details.env_var.update(
+                    {Tags.TASK.upper(): ModelTask.TIME_SERIES_FORECASTING}
+                )
             return self._create(
                 aqua_model=aqua_model,
                 create_deployment_details=create_deployment_details,
                 container_config=container_config,
             )
         else:
-            model_ids = [model.model_id for model in create_deployment_details.models]
+            # Collect all unique model IDs (including fine-tuned models)
+            source_model_ids = list(
+                {
+                    model_id
+                    for model in create_deployment_details.models
+                    for model_id in model.all_model_ids()
+                }
+            )
+            logger.debug(
+                "Fetching source model metadata for model IDs: %s", source_model_ids
+            )
+            # Fetch source model metadata
+            source_models = self.get_multi_source(source_model_ids) or {}
+
+            try:
+                create_deployment_details.validate_input_models(
+                    model_details=source_models
+                )
+            except ConfigValidationError as err:
+                raise AquaValueError(f"{err}") from err
+
+            base_model_ids = [
+                model.model_id for model in create_deployment_details.models
+            ]
 
             try:
                 model_config_summary = self.get_multimodel_deployment_config(
-                    model_ids=model_ids, compartment_id=compartment_id
+                    model_ids=base_model_ids, compartment_id=compartment_id
                 )
                 if not model_config_summary.gpu_allocation:
                     raise AquaValueError(model_config_summary.error_message)
+
                 create_deployment_details.validate_multimodel_deployment_feasibility(
                     models_config_summary=model_config_summary
                 )
@@ -298,7 +335,7 @@ class AquaDeploymentApp(AquaApp):
                     )
 
             logger.debug(
-                f"Multi models ({model_ids}) provided. Delegating to multi model creation method."
+                f"Multi models ({source_model_ids}) provided. Delegating to multi model creation method."
             )
 
             aqua_model = model_app.create_multi(
@@ -307,6 +344,7 @@ class AquaDeploymentApp(AquaApp):
                 project_id=project_id,
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
+                source_models=source_models,
             )
             return self._create_multi(
                 aqua_model=aqua_model,
@@ -727,6 +765,7 @@ class AquaDeploymentApp(AquaApp):
         ).deploy(wait_for_completion=False)
 
         deployment_id = deployment.id
+
         logger.info(
             f"Aqua model deployment {deployment_id} created for model {aqua_model_id}. Work request Id is {deployment.dsc_model_deployment.workflow_req_id}"
         )
@@ -734,7 +773,7 @@ class AquaDeploymentApp(AquaApp):
         progress_thread = threading.Thread(
             target=self.get_deployment_status,
             args=(
-                deployment_id,
+                deployment,
                 deployment.dsc_model_deployment.workflow_req_id,
                 model_type,
                 model_name,
@@ -822,12 +861,22 @@ class AquaDeploymentApp(AquaApp):
             )
 
             if oci_aqua:
+                # skipping the AQUA model deployments that are created from model group
+                # TODO: remove this checker after AQUA deployment is integrated with model group
+                aqua_model_id = model_deployment.freeform_tags.get(
+                    Tags.AQUA_MODEL_ID_TAG, UNKNOWN
+                )
+                if (
+                    "datasciencemodelgroup" in aqua_model_id
+                    or model_deployment.model_deployment_configuration_details.deployment_type
+                    == "UNKNOWN_ENUM_VALUE"
+                ):
+                    continue
                 results.append(
                     AquaDeployment.from_oci_model_deployment(
                         model_deployment, self.region
                     )
                 )
-
                 # log telemetry if MD is in active or failed state
                 deployment_id = model_deployment.id
                 state = model_deployment.lifecycle_state.upper()
@@ -1233,7 +1282,7 @@ class AquaDeploymentApp(AquaApp):
 
     def get_deployment_status(
         self,
-        model_deployment_id: str,
+        deployment: ModelDeployment,
         work_request_id: str,
         model_type: str,
         model_name: str,
@@ -1255,13 +1304,10 @@ class AquaDeploymentApp(AquaApp):
         AquaDeployment
             An Aqua deployment instance.
         """
-        ocid = get_ocid_substring(model_deployment_id, key_len=8)
-        telemetry_kwargs = {"ocid": ocid}
-
+        ocid = get_ocid_substring(deployment.id, key_len=8)
         data_science_work_request: DataScienceWorkRequest = DataScienceWorkRequest(
             work_request_id
         )
-
         try:
             data_science_work_request.wait_work_request(
                 progress_bar_description="Creating model deployment",
@@ -1274,18 +1320,23 @@ class AquaDeploymentApp(AquaApp):
                 for error in data_science_work_request._error_message:
                     error_str = error_str + " " + error.message
 
+                error_str = re.sub(r"[^a-zA-Z0-9]", " ", error_str)
+
+                telemetry_kwargs = {
+                    "ocid": ocid,
+                    "model_name": model_name,
+                    "work_request_error": error_str,
+                }
+
+                self.telemetry.record_event(
+                    category=f"aqua/{model_type}/deployment/status",
+                    action="FAILED",
+                    **telemetry_kwargs,
+                )
+        else:
+            telemetry_kwargs = {"ocid": ocid, "model_name": model_name}
             self.telemetry.record_event(
                 category=f"aqua/{model_type}/deployment/status",
-                action="FAILED",
-                detail=error_str,
-                value=model_name,
-                **telemetry_kwargs,
-            )
-
-        else:
-            self.telemetry.record_event_async(
-                category=f"aqua/{model_type}/deployment/status",
                 action="SUCCEEDED",
-                value=model_name,
                 **telemetry_kwargs,
             )
