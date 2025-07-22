@@ -15,7 +15,6 @@ from ads.aqua.constants import (
     UNKNOWN_JSON_STR,
 )
 from ads.common.extended_enum import ExtendedEnum
-from ads.common.utils import UNKNOWN
 
 
 class Usage(ExtendedEnum):
@@ -190,22 +189,10 @@ class AquaContainerConfig(Serializable):
                 container_item.model_formats.append(
                     additional_configurations.get("modelFormats")
                 )
-
-                # Parse environment variables from `additional_configurations`.
-                # Only keys present in the configuration will be added to the result.
-                config_keys = {
-                    "MODEL_DEPLOY_PREDICT_ENDPOINT": UNKNOWN,
-                    "MODEL_DEPLOY_HEALTH_ENDPOINT": UNKNOWN,
-                    "PORT": UNKNOWN,
-                    "HEALTH_CHECK_PORT": UNKNOWN,
-                    "VLLM_USE_V1": UNKNOWN,
-                }
-
-                env_vars = [
-                    {key: additional_configurations.get(key, default)}
-                    for key, default in config_keys.items()
-                    if key in additional_configurations
-                ]
+                env_vars_dict = json.loads(
+                    additional_configurations.get("env_vars") or "{}"
+                )
+                env_vars = [{key: value} for key, value in env_vars_dict.items()]
 
                 # Build container spec
                 container_item.spec = AquaContainerConfigSpec(
