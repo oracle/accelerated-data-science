@@ -191,6 +191,7 @@ class AquaContainerConfig(Serializable):
                     additional_configurations.get("modelFormats")
                 )
 
+                # TODO: Remove the else condition once SMC env variable config is updated everywhere
                 if additional_configurations.get("env_vars", None):
                     env_vars_dict = json.loads(
                         additional_configurations.get("env_vars") or "{}"
