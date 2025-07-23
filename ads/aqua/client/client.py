@@ -590,10 +590,11 @@ class Client(BaseClient):
         Returns:
             Union[Dict[str, Any], Iterator[Mapping[str, Any]]]: The server's response, typically including the generated embeddings.
         """
-        headers = {"Content-Type", "application/json"}
-        response = self._client.get(self.endpoint, headers=headers, json={}).json()
+        # headers = {"Content-Type", "application/json"}
+        response = self._client.get(self.endpoint)
+        logger.debug(f"Response JSON: {response}")
         json_response = response.json()
-        logger.debug(f"Response JSON: {json_response}")
+        print(json_response)
         return json_response
 
 

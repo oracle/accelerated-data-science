@@ -18,6 +18,7 @@ from ads.aqua.extension.deployment_handler import (
     AquaDeploymentHandler,
     AquaDeploymentParamsHandler,
     AquaDeploymentStreamingInferenceHandler,
+    AquaModelListHandler,
 )
 
 
@@ -260,3 +261,31 @@ class TestAquaDeploymentStreamingInferenceHandler(unittest.TestCase):
         self.handler.write.assert_any_call("chunk1")
         self.handler.write.assert_any_call("chunk2")
         self.handler.finish.assert_called_once()
+
+
+class AquaModelListHandlerTestCase(unittest.TestCase):
+    default_params = ["--seed 42", "--trust-remote-code"]
+
+    @patch.object(IPythonHandler, "__init__")
+    def setUp(self, ipython_init_mock) -> None:
+        ipython_init_mock.return_value = None
+        self.test_instance = AquaModelListHandler(MagicMock(), MagicMock())
+
+    @patch("notebook.base.handlers.APIHandler.finish")
+    # @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_deployment_default_params")
+    def test_get_model_list(self, mock_get_model_list_default_params, mock_finish):
+        """Test to check the handler get method to return model list."""
+
+        mock_get_model_list_default_params.return_value = self.default_params
+        mock_finish.side_effect = lambda x: x
+
+        # args = {"instance_shape": TestDataset.INSTANCE_SHAPE}
+        # self.test_instance.get_argument = MagicMock(
+        #     side_effect=lambda arg, default=None : args.get(arg, default)
+        # )
+        result = self.test_instance.get(model_id="test_model_id")
+        self.assertCountEqual(result["data"], self.default_params)
+
+        mock_get_model_list_default_params.assert_called_with(
+            model_id="test_model_id",
+        )
