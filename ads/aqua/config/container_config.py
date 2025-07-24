@@ -191,21 +191,28 @@ class AquaContainerConfig(Serializable):
                     additional_configurations.get("modelFormats")
                 )
 
-                # Parse environment variables from `additional_configurations`.
-                # Only keys present in the configuration will be added to the result.
-                config_keys = {
-                    "MODEL_DEPLOY_PREDICT_ENDPOINT": UNKNOWN,
-                    "MODEL_DEPLOY_HEALTH_ENDPOINT": UNKNOWN,
-                    "PORT": UNKNOWN,
-                    "HEALTH_CHECK_PORT": UNKNOWN,
-                    "VLLM_USE_V1": UNKNOWN,
-                }
+                # TODO: Remove the else condition once SMC env variable config is updated everywhere
+                if additional_configurations.get("env_vars", None):
+                    env_vars_dict = json.loads(
+                        additional_configurations.get("env_vars") or "{}"
+                    )
+                    env_vars = [
+                        {key: str(value)} for key, value in env_vars_dict.items()
+                    ]
+                else:
+                    config_keys = {
+                        "MODEL_DEPLOY_PREDICT_ENDPOINT": UNKNOWN,
+                        "MODEL_DEPLOY_HEALTH_ENDPOINT": UNKNOWN,
+                        "PORT": UNKNOWN,
+                        "HEALTH_CHECK_PORT": UNKNOWN,
+                        "VLLM_USE_V1": UNKNOWN,
+                    }
 
-                env_vars = [
-                    {key: additional_configurations.get(key, default)}
-                    for key, default in config_keys.items()
-                    if key in additional_configurations
-                ]
+                    env_vars = [
+                        {key: additional_configurations.get(key, default)}
+                        for key, default in config_keys.items()
+                        if key in additional_configurations
+                    ]
 
                 # Build container spec
                 container_item.spec = AquaContainerConfigSpec(
