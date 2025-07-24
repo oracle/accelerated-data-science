@@ -28,7 +28,9 @@ from .forecast_datasets import ForecastDatasets, ForecastOutput
 
 logging.getLogger("report_creator").setLevel(logging.WARNING)
 AUTOMLX_N_ALGOS_TUNED = 4
-AUTOMLX_DEFAULT_SCORE_METRIC = "neg_sym_mean_abs_percent_error"
+AUTOMLX_DEFAULT_SCORE_METRIC = ['neg_sym_mean_abs_percent_error',
+                                'neg_mean_abs_percent_error',
+                                'neg_root_mean_squared_error']
 
 
 class AutoMLXOperatorModel(ForecastOperatorBaseModel):
@@ -45,10 +47,13 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         model_kwargs_cleaned["n_algos_tuned"] = model_kwargs_cleaned.get(
             "n_algos_tuned", AUTOMLX_N_ALGOS_TUNED
         )
-        model_kwargs_cleaned["score_metric"] = AUTOMLX_METRIC_MAP.get(
-            self.spec.metric,
-            model_kwargs_cleaned.get("score_metric", AUTOMLX_DEFAULT_SCORE_METRIC),
-        )
+        metric_to_optimize = AUTOMLX_METRIC_MAP.get(self.spec.metric)
+        model_kwargs_cleaned["score_metric"] = AUTOMLX_DEFAULT_SCORE_METRIC
+        # The first score metric in the list will be the one for which the pipeline optimizes
+        if metric_to_optimize is not None:
+            model_kwargs_cleaned["score_metric"].remove(metric_to_optimize)
+            model_kwargs_cleaned["score_metric"].insert(0, metric_to_optimize)
+
         model_kwargs_cleaned.pop("task", None)
         time_budget = model_kwargs_cleaned.pop("time_budget", -1)
         model_kwargs_cleaned["preprocessing"] = (
@@ -70,7 +75,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     @runtime_dependency(
         module="automlx",
         err_msg=(
-            "Please run `pip3 install oracle-automlx[forecasting]>=25.1.1` "
+            "Please run `pip3 install oracle-automlx[forecasting]>=25.3.0` "
             "to install the required dependencies for automlx."
         ),
     )
@@ -163,7 +168,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 self.models[s_id] = {}
                 self.models[s_id]["model"] = model
                 self.models[s_id]["le"] = self.le[s_id]
-                self.models[s_id]["score"] = self.get_validation_score_and_metric(model)
+                self.models[s_id]["score"] = self.get_all_metrics(model)
 
                 # In case of Naive model, model.forecast function call does not return confidence intervals.
                 if f"{target}_ci_upper" not in summary_frame:
@@ -518,26 +523,27 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 )
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
 
-    def get_validation_score_and_metric(self, model):
+    def get_all_metrics(self, model):
         trials = model.completed_trials_summary_
         model_params = model.selected_model_params_
         if len(trials) > 0:
-            score_col = [col for col in trials.columns if "Score" in col][0]
-            validation_score = trials[trials.Hyperparameters == model_params][
-                score_col
+            all_metrics = trials[trials.Hyperparameters == model_params][
+                "All Metrics"
             ].iloc[0]
         else:
-            validation_score = 0
-        return -1 * validation_score
+            all_metrics = {}
+        reverse_map = {v: k for k, v in AUTOMLX_METRIC_MAP.items()}
+        all_metrics = {reverse_map[key]: -1 * value for key, value in all_metrics.items() if key in reverse_map}
+        return all_metrics
 
     def generate_train_metrics(self) -> pd.DataFrame:
         """
-        Generate Training Metrics when fitted data is not available.
+        Generate Training Metrics for Automlx
         """
         total_metrics = pd.DataFrame()
         for s_id in self.forecast_output.list_series_ids():
             try:
-                metrics = {self.spec.metric.upper(): self.models[s_id]["score"]}
+                metrics = self.models[s_id]["score"]
                 metrics_df = pd.DataFrame.from_dict(
                     metrics, orient="index", columns=[s_id]
                 )
