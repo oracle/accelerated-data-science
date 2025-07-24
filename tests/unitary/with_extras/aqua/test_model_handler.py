@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*--
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import json
 from unicodedata import category
 from unittest import TestCase
 from unittest.mock import MagicMock, patch, ANY
@@ -272,11 +273,13 @@ class AquaModelChatTemplateHandlerTestCase(TestCase):
         mock_urlparse.return_value = request_path
 
         model_mock = MagicMock()
-        model_mock.get_custom_metadata_artifact.return_value = "chat_template_string"
+        model_mock.get_custom_metadata_artifact.return_value = b"chat_template_string"
         mock_from_id.return_value = model_mock
 
         self.model_chat_template_handler.get(model_id="test_model_id")
-        self.model_chat_template_handler.finish.assert_called_with("chat_template_string")
+        self.model_chat_template_handler.finish.assert_called_with(
+            json.dumps({"chat_template": "chat_template_string"})
+        )
         model_mock.get_custom_metadata_artifact.assert_called_with("chat_template")
 
     @patch("ads.aqua.extension.model_handler.urlparse")
@@ -361,7 +364,7 @@ class AquaModelChatTemplateHandlerTestCase(TestCase):
         _, exc_instance, _ = exc_info
         assert isinstance(exc_instance, HTTPError)
         assert exc_instance.status_code == 404
-        assert "Model not found" in str(exc_instance)
+        assert "Model not found for id" in str(exc_instance)
 
 
 class TestAquaHuggingFaceHandler:

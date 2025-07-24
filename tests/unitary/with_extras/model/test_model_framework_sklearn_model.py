@@ -10,15 +10,15 @@
 import base64
 import os
 import shutil
+import sys
 from io import BytesIO
 
+import mock
 import numpy as np
 import onnx
 import onnxruntime as rt
 import pandas as pd
-import pytest, sys
-from ads.model.framework.sklearn_model import SklearnModel
-from ads.model.serde.model_serializer import SklearnOnnxModelSerializer
+import pytest
 from joblib import load
 from lightgbm import LGBMClassifier, LGBMRegressor
 from skl2onnx.common.data_types import (
@@ -34,7 +34,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from xgboost import XGBClassifier
-import sys, mock
+
+from ads.model.framework.sklearn_model import SklearnModel
+from ads.model.serde.model_serializer import SklearnOnnxModelSerializer
 
 tmp_model_dir = "/tmp/model"
 
@@ -336,7 +338,12 @@ class TestSklearnModel:
         self.xgb_pipe.artifact_dir = target_dir
         target_path = os.path.join(target_dir, "test_pipeline.onnx")
         self.xgb_pipe.model_file_name = "test_pipeline.onnx"
-        self.xgb_pipe.serialize_model(as_onnx=True, X_sample=self.X_iris[:10])
+
+        initial_types = [("input", FloatTensorType([None, self.X_iris.shape[1]]))]
+
+        self.xgb_pipe.serialize_model(
+            as_onnx=True, X_sample=self.X_iris[:10], initial_types=initial_types
+        )
         assert os.path.exists(target_path)
 
         sess = rt.InferenceSession(target_path)
@@ -540,6 +547,12 @@ class TestSklearnModel:
                 sklearn_onnx = SklearnOnnxModelSerializer()._to_onnx(
                     X_sample=np.array([[1, 2, 3], [1, 2, 3]])
                 )
+
+    def teardown_class(cls):
+        shutil.rmtree(tmp_model_dir, ignore_errors=True)
+
+    def teardown_class(cls):
+        shutil.rmtree(tmp_model_dir, ignore_errors=True)
 
     def teardown_class(cls):
         shutil.rmtree(tmp_model_dir, ignore_errors=True)

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -16,7 +15,7 @@ pd.options.mode.chained_assignment = None
 
 # Note to developers: If you make any changes to this class, copy and paste those changes over to
 # templates/score_onnx.jinja2 and templates/score_onnx_new.jinja2. We do not yet have an automatic way of doing this.
-class ONNXTransformer(object):
+class ONNXTransformer:
     """
     This is a transformer to convert X [pandas.Dataframe, pd.Series] data into Onnx
     readable dtypes and formats. It is Serializable, so it can be reloaded at another time.
@@ -199,7 +198,7 @@ class ONNXTransformer(object):
                 X, impute_values=impute_values
             )
         elif isinstance(X, pd.Series):
-            X = X.replace(r"^\s*$", np.NaN, regex=True)
+            X = X.replace(r"^\s*$", np.nan, regex=True)
             if len(impute_values.keys()) == 1:
                 for key, val in impute_values.items():
                     X = X.fillna(val)
@@ -208,7 +207,7 @@ class ONNXTransformer(object):
                     "Multiple imputed values are provided, but `X` has only one dim."
                 )
         else:
-            raise NotImplemented(
+            raise NotImplementedError(
                 f"{type(X)} is not supported. Convert `X` to pandas dataframe or numpy array."
             )
         return X
@@ -218,11 +217,11 @@ class ONNXTransformer(object):
         for idx, val in impute_values.items():
             if isinstance(idx, int):
                 X.iloc[:, idx] = (
-                    X.iloc[:, idx].replace(r"^\s*$", np.NaN, regex=True).fillna(val)
+                    X.iloc[:, idx].replace(r"^\s*$", np.nan, regex=True).fillna(val)
                 )
             else:
                 X.loc[:, idx] = (
-                    X.loc[:, idx].replace(r"^\s*$", np.NaN, regex=True).fillna(val)
+                    X.loc[:, idx].replace(r"^\s*$", np.nan, regex=True).fillna(val)
                 )
         return X
 
@@ -294,7 +293,7 @@ class ONNXTransformer(object):
             The loaded model
         """
         # Make sure you have  pandas, numpy, and sklearn imported
-        with open(filename, "r") as f:
+        with open(filename) as f:
             export_dict = json.load(f)
 
         onnx_transformer = ONNXTransformer()

@@ -1,18 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import numpy as np
 import matplotlib as mpl
+import numpy as np
 import pandas as pd
 from sklearn.datasets import load_iris
 
 from ads.feature_engineering.utils import (
     _is_float,
-    _str_lat_long_to_point,
     _plot_gis_scatter,
+    _str_lat_long_to_point,
     _to_lat_long,
     _zip_code,
 )
@@ -34,16 +34,16 @@ class TestFeaturePlot:
     )
 
     address_invalid = pd.Series(
-        ["1 Miller Drive, New York, NY 0987", "", None, np.NaN], name="address"
+        ["1 Miller Drive, New York, NY 0987", "", None, np.nan], name="address"
     )
 
     ### boolean
-    boolean = pd.Series([True, False, True, False, np.NaN, None], name="bool")
-    boolean_invalid = pd.Series([np.NaN, None], name="bool")
+    boolean = pd.Series([True, False, True, False, np.nan, None], name="bool")
+    boolean_invalid = pd.Series([np.nan, None], name="bool")
 
     ### constant
     constant = pd.Series([1, 1, 1, 1, 1], name="constant")
-    constant_invalid = pd.Series([np.NaN, None], name="constant")
+    constant_invalid = pd.Series([np.nan, None], name="constant")
 
     ### continuous
     cts = pd.Series([123.32, 23.243, 324.342, np.nan], name="cts")
@@ -72,7 +72,7 @@ class TestFeaturePlot:
             "S",
             "S",
             "",
-            np.NaN,
+            np.nan,
             None,
         ],
         name="category",
@@ -150,14 +150,14 @@ class TestFeaturePlot:
             "-44.510428,-169.269477",
             "-56,-166",
             "",
-            np.NaN,
+            np.nan,
             None,
         ],
         name="latlon",
     )
 
     latlong_invalid = pd.Series(
-        ["[-56.3344375,-166.407038]", "", np.NaN, None], name="latlon"
+        ["[-56.3344375,-166.407038]", "", np.nan, None], name="latlon"
     )
 
     ### string
@@ -183,12 +183,12 @@ class TestFeaturePlot:
             "S",
             "S",
             "",
-            np.NaN,
+            np.nan,
             None,
         ],
         name="string",
     )
-    string_invalid = pd.Series([123, "", np.NaN, None], name="string")
+    string_invalid = pd.Series([123, "", np.nan, None], name="string")
 
     ### text
     text = pd.Series(
@@ -214,16 +214,16 @@ class TestFeaturePlot:
             "S",
             123,
             1.5,
-            np.NaN,
+            np.nan,
             None,
         ],
         name="text",
     )
-    text_invalid = pd.Series(["", np.NaN, None], name="text")
+    text_invalid = pd.Series(["", np.nan, None], name="text")
 
     ### zip code
-    zipcode = pd.Series(["94065", "90210", np.NaN, None], name="zipcode")
-    zipcode_invalid = pd.Series([94065, "cat", np.NaN, None], name="zipcode")
+    zipcode = pd.Series(["94065", "90210", np.nan, None], name="zipcode")
+    zipcode_invalid = pd.Series([94065, "cat", np.nan, None], name="zipcode")
     zipcode_coord = _zip_code()
 
     def test_feature_plot_return_type(self):

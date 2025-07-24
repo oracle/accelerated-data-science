@@ -782,9 +782,7 @@ class JsonConverter(json.JSONEncoder):
             ),
         ):
             return int(obj)
-        elif isinstance(
-            obj, (np.float_, np.float16, np.float32, np.float64, np.double)
-        ):
+        elif isinstance(obj, (np.float16, np.float32, np.float64, np.double)):
             return float(obj)
         elif isinstance(obj, (np.ndarray,)):
             return obj.tolist()
