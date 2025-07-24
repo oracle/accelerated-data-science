@@ -76,7 +76,7 @@ class ForecastOutputColumns(ExtendedEnum):
 
 AUTOMLX_METRIC_MAP = {
     "smape": "neg_sym_mean_abs_percent_error",
-    "mape": "neg_sym_mean_abs_percent_error",
+    "mape": "neg_mean_abs_percent_error",
     "mase": "neg_mean_abs_scaled_error",
     "mae": "neg_mean_absolute_error",
     "mse": "neg_mean_squared_error",
