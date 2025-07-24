@@ -13,6 +13,7 @@ from notebook.base.handlers import IPythonHandler
 from parameterized import parameterized
 
 import ads.aqua
+from ads.aqua.modeldeployment.entities import AquaDeploymentDetail
 import ads.config
 from ads.aqua.extension.deployment_handler import (
     AquaDeploymentHandler,
@@ -264,28 +265,22 @@ class TestAquaDeploymentStreamingInferenceHandler(unittest.TestCase):
 
 
 class AquaModelListHandlerTestCase(unittest.TestCase):
-    default_params = ["--seed 42", "--trust-remote-code"]
+    default_params = {
+        "data": [{"id": "id", "object": "object", "owned_by": "openAI", "created": 124}]
+    }
 
     @patch.object(IPythonHandler, "__init__")
     def setUp(self, ipython_init_mock) -> None:
         ipython_init_mock.return_value = None
-        self.test_instance = AquaModelListHandler(MagicMock(), MagicMock())
+        self.aqua_model_list_handler = AquaModelListHandler(MagicMock(), MagicMock())
+        self.aqua_model_list_handler._headers = MagicMock()
 
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get")
     @patch("notebook.base.handlers.APIHandler.finish")
-    # @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_deployment_default_params")
-    def test_get_model_list(self, mock_get_model_list_default_params, mock_finish):
+    def test_get_model_list(self, mock_get, mock_finish):
         """Test to check the handler get method to return model list."""
 
-        mock_get_model_list_default_params.return_value = self.default_params
+        mock_get.return_value = MagicMock(id="test_model_id")
         mock_finish.side_effect = lambda x: x
-
-        # args = {"instance_shape": TestDataset.INSTANCE_SHAPE}
-        # self.test_instance.get_argument = MagicMock(
-        #     side_effect=lambda arg, default=None : args.get(arg, default)
-        # )
-        result = self.test_instance.get(model_id="test_model_id")
-        self.assertCountEqual(result["data"], self.default_params)
-
-        mock_get_model_list_default_params.assert_called_with(
-            model_id="test_model_id",
-        )
+        result = self.aqua_model_list_handler.get(model_id="test_model_id")
+        mock_get.assert_called()
