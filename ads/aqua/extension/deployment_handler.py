@@ -395,13 +395,10 @@ class AquaModelListHandler(AquaAPIhandler):
         self.set_header("Content-Type", "application/json")
 
         model_deployment = AquaDeploymentApp().get(model_deployment_id)
-
         endpoint = model_deployment.endpoint + "/predict/v1/models"
-        print(endpoint)
         aqua_client = Client(endpoint=endpoint)
         try:
             list_model_result = aqua_client.list_models()
-            print(list_model_result)
             return self.finish(list_model_result)
         except Exception as ex:
             raise HTTPError(500, str(ex))

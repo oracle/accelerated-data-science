@@ -592,9 +592,7 @@ class Client(BaseClient):
         """
         # headers = {"Content-Type", "application/json"}
         response = self._client.get(self.endpoint)
-        logger.debug(f"Response JSON: {response}")
         json_response = response.json()
-        print(json_response)
         return json_response
 
 
