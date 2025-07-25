@@ -393,9 +393,12 @@ class AquaModelListHandler(AquaAPIhandler):
         """
 
         self.set_header("Content-Type", "application/json")
-
+        endpoint: str = ""
         model_deployment = AquaDeploymentApp().get(model_deployment_id)
-        endpoint = model_deployment.endpoint + "/predict/v1/models"
+        if model_deployment.endpoint.endswith("/"):
+            endpoint = model_deployment.endpoint + "predict/v1/models"
+        else:
+            endpoint = model_deployment.endpoint + "/predict/v1/models"
         aqua_client = Client(endpoint=endpoint)
         try:
             list_model_result = aqua_client.list_models()
