@@ -13,7 +13,7 @@ from ads.aqua.shaperecommend.estimator import MemoryEstimator
 
 class RequestRecommend(BaseModel):
     """
-    A request to recommend a compute shape for a given model.
+    A request to recommend compute shapes and parameters for a given model.
     """
 
     model_ocid: str = Field(..., description="The OCID of the model to recommend feasible compute shapes.")
@@ -28,7 +28,7 @@ class DeploymentParams(BaseModel):  # noqa: N801
         None, description="Type of quantization (e.g. int8)."
     )
     max_model_len: int = Field(..., description="Maximum length of input sequence.")
-    batch_size: int = Field(..., description="Batch size for training.")
+    batch_size: Optional[int] = Field(1, description="Batch size for training.")
 
 
 class ModelDetail(BaseModel):
@@ -77,7 +77,7 @@ class ModelConfig(BaseModel):
         - Computes a recommendation string using `limiting_factor`.
         """
         deployment_params = DeploymentParams(
-            quantization=getattr(estimator.config, "quantization", None),
+            quantization=getattr(estimator.llm_config, "quantization", None),
             max_model_len=getattr(estimator, "seq_len", None)
         )
         model_detail = ModelDetail(
@@ -128,14 +128,14 @@ class ShapeReport(BaseModel):
 
         cand_cost = self.shape_details.gpu_specs.ranking.cost
         cand_perf = self.shape_details.gpu_specs.ranking.performance
-        cand_quant = QUANT_MAPPING.get(self.configurations[0].vllm_params.quantization, 0)
-        cand_maxlen = self.configurations[0].vllm_params.max_model_len
+        cand_quant = QUANT_MAPPING.get(self.configurations[0].deployment_params.quantization, 0)
+        cand_maxlen = self.configurations[0].deployment_params.max_model_len
 
         for other in others:
             other_cost = other.shape_details.gpu_specs.ranking.cost
             other_perf = other.shape_details.gpu_specs.ranking.performance
-            other_quant = QUANT_MAPPING.get(other.configurations[0].vllm_params.quantization, 0)
-            other_maxlen = other.configurations[0].vllm_params.max_model_len
+            other_quant = QUANT_MAPPING.get(other.configurations[0].deployment_params.quantization, 0)
+            other_maxlen = other.configurations[0].deployment_params.max_model_len
             if (
                 other_cost <= cand_cost and
                 other_perf >= cand_perf and
@@ -176,13 +176,19 @@ class ShapeReport(BaseModel):
 
 class ShapeRecommendationReport(BaseModel):
     """
-    Contains shape fit recommendations and an optional troubleshooting summary.
+    Full report of shape fit recommendations and troubleshooting, if applicable.
+
+    Attributes:
+        recommendations (List[DeploymentShapeSummary]): Recommended deployment shapes
+            for each tested batch size and max sequence length combination.
+        troubleshoot (Optional[TroubleshootShapeSummary]): Troubleshooting information
+            if no valid deployment shapes are available.
     """
 
     recommendations: List[ShapeReport] = Field(
         default_factory=list, description="List of shape fit recommendations."
     )
-    troubleshoot: Optional[List[ShapeReport]] = Field(
-        default_factory=list,
-        description="Optional list of shape fit reports for troubleshooting.",
+    troubleshoot: Optional[str] = Field(
+        None,
+        description="details for troubleshooting if no shapes fit the current model.",
     )

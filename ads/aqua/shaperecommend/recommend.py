@@ -5,14 +5,23 @@ from pydantic import ValidationError
 
 from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.entities import ComputeShapeSummary
-from ads.aqua.common.errors import AquaValueError
+from ads.aqua.common.errors import (
+    AquaFileNotFoundError,
+    AquaRecommendationError,
+    AquaValueError,
+)
 from ads.aqua.common.utils import (
     build_pydantic_error_message,
-    get_model_by_reference_paths,
+    get_resource_type,
     load_config,
+    load_gpu_shapes_index,
 )
-from ads.aqua.model.constants import ModelTask
-from ads.aqua.shaperecommend.constants import SHAPES_METADATA
+from ads.aqua.shaperecommend.constants import (
+    SAFETENSORS,
+    SHAPES_METADATA,
+    TEXT_GENERATION,
+    TROUBLESHOOT_MSG,
+)
 from ads.aqua.shaperecommend.estimator import get_estimator
 from ads.aqua.shaperecommend.llm_config import LLMConfig
 from ads.aqua.shaperecommend.shape_report import (
@@ -52,16 +61,14 @@ class AquaRecommendApp(AquaApp):
 
         Parameters
         ----------
-        model : str
-            Name of the model to deploy.
-        max_model_len : int, optional
-            Maximum sequence length/user context length the model should support.
+        model_ocid : str
+           OCID of the model to recommend feasible compute shapes.
 
         Returns
         -------
         ShapeRecommendationReport
             A recommendation report with compatible deployment shapes, or troubleshooting info
-            if no shape is suitable.
+            citing the largest shapes if no shape is suitable.
 
         Raises
         ------
@@ -70,29 +77,108 @@ class AquaRecommendApp(AquaApp):
         """
         try:
             request = RequestRecommend(**kwargs)
-            model = DataScienceModel.from_id(request.model_ocid)
+            data = self.get_model_config(request.model_ocid)
+            llm_config = LLMConfig.from_raw_config(data)
 
-            if ModelTask.TEXT_GENERATION not in model.freeform_tags:
-                AquaValueError()
+            available_shapes = self.valid_compute_shapes()
+            recommendations = self.summarize_shapes_for_seq_lens(
+                llm_config, available_shapes
+            )
 
-            model.artifact
-
-            config = load_config()
+        # custom error to catch model incompatibility issues
+        except AquaRecommendationError as error:
+            return ShapeRecommendationReport(
+            recommendations=[], troubleshoot=str(error)
+            )
 
         except ValidationError as ex:
             custom_errors = build_pydantic_error_message(ex)
             raise AquaValueError(
-                f"Invalid parameters for creating a model deployment. Error details: {custom_errors}."
+                f"Invalid parameters to read config.json of LLM Artifact. Error details: {custom_errors}."
             ) from ex
+        except AquaValueError as ex:
+            logger.error(f"Error with LLM config: {ex}")
+            raise
 
-        available_shapes = self.valid_compute_shapes()
-
-        return self.summarize_shapes_for_seq_lens(
-            config, available_shapes
-        )
+        return recommendations
 
     @staticmethod
-    def valid_compute_shapes(file: str = SHAPES_METADATA) -> List["ComputeShapeSummary"]:
+    def get_model_config(ocid: str):
+        """
+        Loads the configuration for a given Oracle Cloud Data Science model.
+
+        Validates the resource type associated with the provided OCID, ensures the model
+        is for text-generation with a supported decoder-only architecture, and loads the model's
+        configuration JSON from the artifact path.
+
+        Parameters
+        ----------
+        ocid : str
+            The OCID of the Data Science model.
+
+        Returns
+        -------
+        dict
+            The parsed configuration dictionary from config.json.
+
+        Raises
+        ------
+        AquaValueError
+            If the OCID is not for a Data Science model, or if the model type is not supported,
+            or if required files/tags are not present.
+        """
+        resource_type = get_resource_type(ocid)
+
+        if resource_type != "datasciencemodel":
+            raise AquaValueError(
+                f"The provided OCID '{ocid}' is not a valid Oracle Cloud Data Science Model OCID. "
+                "Please provide an OCID corresponding to a Data Science model resource. "
+                "Tip: Data Science model OCIDs typically start with 'ocid1.datasciencemodel...'."
+            )
+
+        model = DataScienceModel.from_id(ocid)
+
+        model_task = model.freeform_tags.get("task", "").lower()
+        model_format = model.freeform_tags.get("model_format", "").lower()
+
+        logger.info(f"Current model task type: {model_task}")
+        logger.info(f"Current model format: {model_format}")
+
+        if TEXT_GENERATION not in model_task:
+            raise AquaRecommendationError(
+                "Please provide a decoder-only text-generation model (ex. Llama, Falcon, etc.). "
+                f"Only text-generation models are supported in this tool at this time. Current model task type: {model_task}"
+            )
+        if SAFETENSORS not in model_format:
+            msg = "Please provide a model in Safetensor format."
+            if model_format:
+                msg += f"The current model format ({model_format}) is not supported by this tool at this time."
+
+            raise AquaRecommendationError(msg)
+
+        if not model.artifact:
+            raise AquaValueError(
+                "Unable to retrieve model artifact. Ensure model is registered and active."
+            )
+
+        try:
+            data = load_config(model.artifact, "config.json")
+
+        except AquaFileNotFoundError as e:
+            logger.error(
+                f"config.json not found in model artifact at {model.artifact}: {e}"
+            )
+            raise AquaRecommendationError(
+                "The configuration file 'config.json' was not found in the specified model directory. "
+                "Please ensure your model follows the Hugging Face format and includes a 'config.json' with the necessary architecture parameters."
+            ) from e
+
+        return data
+
+    @staticmethod
+    def valid_compute_shapes(
+        file: str = SHAPES_METADATA,
+    ) -> List["ComputeShapeSummary"]:
         """
         Returns a filtered list of GPU-only ComputeShapeSummary objects by reading and parsing a JSON file.
 
@@ -111,20 +197,16 @@ class AquaRecommendApp(AquaApp):
         ValueError
             If the file cannot be opened, parsed, or the 'shapes' key is missing.
         """
-        try:
-            with open(file) as f:
-                data = json.load(f)
-        except (OSError, json.JSONDecodeError) as e:
-            raise ValueError(f"Failed to read or parse shapes JSON file '{file}': {e}")  # noqa: B904
+        gpu_shapes_metadata = load_gpu_shapes_index().shapes
 
-        if 'shapes' not in data or not isinstance(data['shapes'], dict):
-            raise ValueError(f"'shapes' key is missing or invalid in the JSON file: {file}")
-
-        shapes = data['shapes']
         valid_shapes = []
-        for name, spec in shapes.items():
-            valid_shapes.append(ComputeShapeSummary(name=name, shape_series="GPU", gpu_specs=spec))
-        valid_shapes.sort(key=lambda shape: shape.gpu_specs.gpu_memory_in_gbs, reverse=True)
+        for name, spec in gpu_shapes_metadata.items():
+            valid_shapes.append(
+                ComputeShapeSummary(name=name, shape_series="GPU", gpu_specs=spec)
+            )
+        valid_shapes.sort(
+            key=lambda shape: shape.gpu_specs.gpu_memory_in_gbs, reverse=True
+        )
         return valid_shapes
 
     @staticmethod
@@ -134,7 +216,7 @@ class AquaRecommendApp(AquaApp):
         batch_size: int = 1,
     ) -> ShapeRecommendationReport:
         """
-        Generate a recommendation report for eligible deployment shapes by evaluating 
+        Generate a recommendation report for eligible deployment shapes by evaluating
         model memory consumption and maximum model length for given configurations.
 
         Parameters
@@ -165,7 +247,9 @@ class AquaRecommendApp(AquaApp):
         recommendations = []
 
         if not shapes:
-            raise ValueError("No GPU shapes were passed for recommendation. Ensure shape parsing succeeded.")
+            raise ValueError(
+                "No GPU shapes were passed for recommendation. Ensure shape parsing succeeded."
+            )
 
         # Pre-quantized: only consider different max-seq-len
         if config.quantization_type:
@@ -174,10 +258,22 @@ class AquaRecommendApp(AquaApp):
                 if config.quantization_type in shape.gpu_specs.quantization:
                     allowed_gpu_memory = shape.gpu_specs.gpu_memory_in_gbs
                     for max_seq_len in deployment_config:
-                        estimator = get_estimator(config=config, seq_len=max_seq_len, batch_size=batch_size)
+                        estimator = get_estimator(
+                            llm_config=config,
+                            seq_len=max_seq_len,
+                            batch_size=batch_size,
+                        )
                         if estimator.validate_shape(estimator, allowed_gpu_memory):
-                            best_config = [ModelConfig.constuct_model_config(estimator, allowed_gpu_memory)]
-                            recommendations.append(ShapeReport(shape_details=shape, configurations=best_config))
+                            best_config = [
+                                ModelConfig.constuct_model_config(
+                                    estimator, allowed_gpu_memory
+                                )
+                            ]
+                            recommendations.append(
+                                ShapeReport(
+                                    shape_details=shape, configurations=best_config
+                                )
+                            )
                             break
 
         # unquantized: consider inflight quantization (4bit and 8bit)
@@ -188,30 +284,54 @@ class AquaRecommendApp(AquaApp):
                 allowed_gpu_memory = shape.gpu_specs.gpu_memory_in_gbs
                 for quantization, max_seq_len in deployment_config:
                     if quantization != prev_quant:
-                        updated_config = config.model_copy(update={"quantization": quantization})
+                        updated_config = config.model_copy(
+                            update={"quantization": quantization}
+                        )
                         prev_quant = quantization
-                    estimator = get_estimator(config=updated_config, seq_len=max_seq_len, batch_size=batch_size)
+                    estimator = get_estimator(
+                        llm_config=updated_config,
+                        seq_len=max_seq_len,
+                        batch_size=batch_size,
+                    )
                     if estimator.validate_shape(allowed_gpu_memory):
-                        best_config = [ModelConfig.constuct_model_config(estimator, allowed_gpu_memory)]
-                        recommendations.append(ShapeReport(shape_details=shape, configurations=best_config))
+                        best_config = [
+                            ModelConfig.constuct_model_config(
+                                estimator, allowed_gpu_memory
+                            )
+                        ]
+                        recommendations.append(
+                            ShapeReport(shape_details=shape, configurations=best_config)
+                        )
                         break
 
-        troubleshoot = []
+        troubleshoot_msg = ""
+
         if len(recommendations) > 5:
             recommendations = ShapeReport.pareto_front(recommendations)
 
         if not recommendations:
             # Troubleshooting advice if nothing fits
             # Assumes shapes is sorted largest to smallest and quantizations 'fp8'/'4bit' exist
-            largest_shapes = [(shapes[0], "fp8"), (shapes[1], "4bit")] if len(shapes) > 1 else []
+            troubleshoot_msg += TROUBLESHOOT_MSG
+
+            largest_shapes = (
+                [(shapes[0], "fp8"), (shapes[1], "4bit")] if len(shapes) > 1 else []
+            )
             for shape, quantization in largest_shapes:
-                updated_config = config.model_copy(update={"quantization": quantization})
-                estimator = get_estimator(config=updated_config, seq_len=2048, batch_size=batch_size)
+                updated_config = config.model_copy(
+                    update={"quantization": quantization}
+                )
+                estimator = get_estimator(
+                    llm_config=updated_config, seq_len=2048, batch_size=batch_size
+                )
                 allowed_gpu_memory = shape.gpu_specs.gpu_memory_in_gbs * 0.9
-                best_config = [ModelConfig.constuct_model_config(estimator, allowed_gpu_memory)]
-                troubleshoot.append(ShapeReport(shape_details=shape, configurations=best_config))
+                best_config = [
+                    ModelConfig.constuct_model_config(estimator, allowed_gpu_memory)
+                ]
+                recommendations.append(
+                    ShapeReport(shape_details=shape, configurations=best_config)
+                )
 
         return ShapeRecommendationReport(
-            recommendations=recommendations,
-            troubleshoot=troubleshoot
+            recommendations=recommendations, troubleshoot=troubleshoot_msg
         )

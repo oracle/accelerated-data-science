@@ -55,6 +55,11 @@ class AquaValueError(AquaError, ValueError):
     def __init__(self, reason, status=403, service_payload=None):
         super().__init__(reason, status, service_payload)
 
+class AquaRecommendationError(AquaError):
+    """Exception raised for models incompatible with shape recommendation tool."""
+
+    def __init__(self, reason, status=400, service_payload=None):
+        super().__init__(reason, status, service_payload)
 
 class AquaFileNotFoundError(AquaError, FileNotFoundError):
     """Exception raised for missing target file."""

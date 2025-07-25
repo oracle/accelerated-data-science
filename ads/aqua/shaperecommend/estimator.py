@@ -84,7 +84,6 @@ class MemoryEstimator(BaseModel):
         """
         return self.model_memory + self.kv_cache_memory
 
-
     def validate_shape(self, allowed_gpu_memory: float) -> bool:
         """
         Validates if a given model estimator fits within the allowed GPU memory budget, using a fixed utilization margin.
@@ -122,10 +121,10 @@ class MemoryEstimator(BaseModel):
         """
         kv_gb = self.kv_cache_memory
         wt_gb = self.model_memory
-        batch_size = getattr(self, "batch_size", "unknown")
-        seq_len = getattr(self, "seq_len", "unknown")
-        weight_size = getattr(self.config, "weight_dtype", "unknown")
-        config = self.config
+        batch_size = self.batch_size
+        seq_len = self.seq_len
+        weight_size = getattr(self.llm_config, "weight_dtype", "unknown")
+        config = self.llm_config
 
         suggested_quant_msg = None
         quant_advice = ", ".join(getattr(config, "suggested_quantizations", []))
@@ -193,22 +192,29 @@ class MemoryEstimator(BaseModel):
             Advice message about model fit and limiting factors.
         """
         required = self.total_memory
-        quantization = getattr(self.config, "quantization", "None")
-        weight_size = getattr(self.config, "weight_dtype", "unknown")
-        batch_size = getattr(self.config, "batch_size", "unknown")
-        seq_len = getattr(self.config, "seq_len", "unknown")
+        batch_size = self.batch_size
+        seq_len = self.seq_len
+        weight_size = getattr(self.llm_config, "weight_dtype", "unknown")
+        quantization = getattr(self.llm_config, "quantization", "None")
 
         # Warn if required is close to but under allowed
         if allowed_gpu_memory > required > allowed_gpu_memory * warn_delta:
             model_params = self.suggest_param_advice(allowed_gpu_memory)
             advice = (
-                f"The selected model configuration is close to GPU Memory Limit "
-                f"({required:.1f}GB used / {allowed_gpu_memory:.1f}GB allowed).\n"
-                f"{model_params}"
+                f"While the selected compute shape is estimated to work "
+                f"({required:.1f}GB used / {allowed_gpu_memory:.1f}GB allowed), "
+                f"the model configuration is close to the GPU memory limit. "
+                "This estimation is theoretical; actual memory usage may vary at runtime.\n\n"
+                "If you encounter issues with this shape, consider the following options to reduce memory usage:\n\n"
+                f"{model_params.lstrip()}"
             )
         elif required > allowed_gpu_memory:
             model_params = self.suggest_param_advice(allowed_gpu_memory)
-            advice = f"Model does not fit within GPU memory budget. {model_params}"
+            advice = (
+                f"Model does not fit within GPU memory budget. "
+                "Consider the following options to reduce memory usage:\n\n"
+                f"{model_params.lstrip()}"
+            )
         else:
             advice = (
                 f"Model fits well within the allowed compute shape "
