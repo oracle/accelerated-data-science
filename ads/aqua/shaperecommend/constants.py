@@ -37,12 +37,8 @@ NEXT_QUANT = {
 TEXT_GENERATION = "text_generation"
 SAFETENSORS = "safetensors"
 
-#TODO:
-SHAPES_METADATA = "/Users/elizjo/tmp/accelerated-data-science/ads/aqua/resources/gpu_shapes_index.json"
-
 TROUBLESHOOT_MSG = "The selected model is too large to fit on standard GPU shapes with the current configuration.\nAs troubleshooting, we have suggested the two largest available GPU shapes using the smallest quantization level ('4bit') to maximize chances of fitting the model. "
 
-TEXT_MODEL = "text-generation"
 
 QUANT_MAPPING = {
             "float32": 4,

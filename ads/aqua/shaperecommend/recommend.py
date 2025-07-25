@@ -18,7 +18,6 @@ from ads.aqua.common.utils import (
 )
 from ads.aqua.shaperecommend.constants import (
     SAFETENSORS,
-    SHAPES_METADATA,
     TEXT_GENERATION,
     TROUBLESHOOT_MSG,
 )
@@ -126,6 +125,9 @@ class AquaRecommendApp(AquaApp):
         AquaValueError
             If the OCID is not for a Data Science model, or if the model type is not supported,
             or if required files/tags are not present.
+
+        AquaRecommendationError
+            If the model OCID provided is not supported (only text-generation decoder models in safetensor format supported).
         """
         resource_type = get_resource_type(ocid)
 
@@ -176,9 +178,7 @@ class AquaRecommendApp(AquaApp):
         return data
 
     @staticmethod
-    def valid_compute_shapes(
-        file: str = SHAPES_METADATA,
-    ) -> List["ComputeShapeSummary"]:
+    def valid_compute_shapes() -> List["ComputeShapeSummary"]:
         """
         Returns a filtered list of GPU-only ComputeShapeSummary objects by reading and parsing a JSON file.
 
@@ -306,7 +306,7 @@ class AquaRecommendApp(AquaApp):
 
         troubleshoot_msg = ""
 
-        if len(recommendations) > 5:
+        if len(recommendations) > 2:
             recommendations = ShapeReport.pareto_front(recommendations)
 
         if not recommendations:
