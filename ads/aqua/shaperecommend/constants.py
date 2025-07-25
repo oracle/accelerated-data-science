@@ -24,18 +24,23 @@ MOE_REQUIRED_FIELDS = LLAMA_REQUIRED_FIELDS + [
 ]
 
 NEXT_QUANT = {
-    "float32": ["4bit", "8bit"], # bits and bytes does not support bfloat16, pytorch responsibility
-    "bfloat16": ["4bit", "8bit"],
-    "float16": ["4bit", "8bit"],
+    "float32": ["8bit", "4bit"], # bits and bytes does not support bfloat16, pytorch responsibility
+    "bfloat16": ["8bit", "4bit"],
+    "float16": ["8bit", "4bit"],
     "int8": ["4bit"],
-    "fp8":  ["4bit", "8bit"],
+    "fp8":  ["4bit"],
     "8bit": ["4bit"],
     "int4": ["No smaller quantization available"],
     "4bit": ["No smaller quantization available"]
 }
 
+TEXT_GENERATION = "text_generation"
+SAFETENSORS = "safetensors"
+
 #TODO:
-SHAPES_METADATA = "/Users/elizjo/tmp/accelerated-data-science/ads/aqua/resources/shapes.json"
+SHAPES_METADATA = "/Users/elizjo/tmp/accelerated-data-science/ads/aqua/resources/gpu_shapes_index.json"
+
+TROUBLESHOOT_MSG = "The selected model is too large to fit on standard GPU shapes with the current configuration.\nAs troubleshooting, we have suggested the two largest available GPU shapes using the smallest quantization level ('4bit') to maximize chances of fitting the model. "
 
 TEXT_MODEL = "text-generation"
 

@@ -46,5 +46,5 @@ class AquaRecommendHandler(AquaAPIhandler):
         self.finish(AquaRecommendApp().which_gpu(**input_data))
 
 __handlers__ = [
-    ("gpu-shape-recommendation/?([^/]*)", AquaRecommendHandler),
+    ("recommendation/?([^/]*)", AquaRecommendHandler),
 ]

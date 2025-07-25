@@ -7,6 +7,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from ads.aqua.common.errors import AquaRecommendationError, AquaValueError
 from ads.aqua.shaperecommend.constants import NEXT_QUANT, QUANT_MAPPING
 
 
@@ -180,12 +181,16 @@ class LLMConfig(BaseModel):
         """
         Validates if model is decoder-only. Check for text-generation model occurs at DataScienceModel level.
         """
-        if raw.get("is_encoder_decoder", False) or raw.get(
-            "model_type", ""
-        ).lower() in ["t5", "gemma", "bart"]:
-            raise ValueError(
-                "Only decoder-only, text-generation models are supported."
-                "Encoder-decoder models (ex. T5, Gemma) are not supported in this tool."
+        excluded_models = {"t5", "gemma", "bart", "bert", "roberta", "albert"}
+        if (
+            raw.get("is_encoder_decoder", False) # exclude encoder-decoder models
+            or (raw.get("is_decoder") is False) # exclude explicit encoder-only models (altho no text-generation task ones, just dbl check)
+            or raw.get("model_type", "").lower() # exclude by known model types
+            in excluded_models
+        ):
+            raise AquaRecommendationError(
+                "Please provide a decoder-only text-generation model (ex. Llama, Falcon, etc). "
+                "Encoder-decoder models (ex. T5, Gemma) and encoder-only (BERT) are not supported in this tool at this time."
             )
 
     @classmethod
