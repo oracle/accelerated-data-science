@@ -64,9 +64,9 @@ from ads.aqua.modeldeployment.config_loader import (
     MultiModelDeploymentConfigLoader,
 )
 from ads.aqua.modeldeployment.constants import (
-    DEFAULT_DEPLOYMENT_TYPE,
     DEFAULT_POLL_INTERVAL,
     DEFAULT_WAIT_TIME,
+    DeploymentType,
 )
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
@@ -216,30 +216,24 @@ class AquaDeploymentApp(AquaApp):
         model_app = AquaModelApp()
         if (
             create_deployment_details.model_id
-            or create_deployment_details.deployment_type
+            or create_deployment_details.deployment_type == DeploymentType.STACKED
         ):
-            model_id = create_deployment_details.model_id
-            if not model_id:
+            model = create_deployment_details.model_id
+            if not model:
                 if len(create_deployment_details.models) != 1:
                     raise AquaValueError(
                         "Invalid 'models' provided. Only one base model is required for model stack deployment."
                     )
-                if create_deployment_details.deployment_type != DEFAULT_DEPLOYMENT_TYPE:
-                    raise AquaValueError(
-                        f"Invalid 'deployment_type' provided. Only {DEFAULT_DEPLOYMENT_TYPE} is supported for model stack deployment."
-                    )
-                model_id = create_deployment_details.models[0]
+                model = create_deployment_details.models[0]
 
-            service_model_id = (
-                model_id if isinstance(model_id, str) else model_id.model_id
-            )
+            service_model_id = model if isinstance(model, str) else model.model_id
             logger.debug(
                 f"Single model ({service_model_id}) provided. "
                 "Delegating to single model creation method."
             )
 
             aqua_model = model_app.create(
-                model_id=model_id,
+                model=model,
                 compartment_id=compartment_id,
                 project_id=project_id,
                 freeform_tags=freeform_tags,
@@ -250,6 +244,7 @@ class AquaDeploymentApp(AquaApp):
                 create_deployment_details=create_deployment_details,
                 container_config=container_config,
             )
+        # TODO: add multi model validation from deployment_type
         else:
             # Collect all unique model IDs (including fine-tuned models)
             source_model_ids = list(

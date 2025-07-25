@@ -1515,7 +1515,7 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
         mock_create.assert_called_with(
-            model_id=TestDataset.MODEL_ID,
+            model=TestDataset.MODEL_ID,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=freeform_tags,
@@ -1611,7 +1611,7 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
         mock_create.assert_called_with(
-            model_id=TestDataset.MODEL_ID,
+            model=TestDataset.MODEL_ID,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
@@ -1707,7 +1707,7 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
         mock_create.assert_called_with(
-            model_id=TestDataset.MODEL_ID,
+            model=TestDataset.MODEL_ID,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
@@ -1810,7 +1810,7 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
         mock_create.assert_called_with(
-            model_id=TestDataset.MODEL_ID,
+            model=TestDataset.MODEL_ID,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
@@ -1928,7 +1928,7 @@ class TestAquaDeployment(unittest.TestCase):
             predict_log_id="ocid1.log.oc1.<region>.<OCID>",
             freeform_tags=freeform_tags,
             defined_tags=defined_tags,
-            deployment_type="MODEL_STACK",
+            deployment_type="STACKED",
         )
 
         mock_create.assert_called()

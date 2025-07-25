@@ -141,7 +141,7 @@ class AquaModelApp(AquaApp):
     @telemetry(entry_point="plugin=model&action=create", name="aqua")
     def create(
         self,
-        model_id: Union[str, AquaMultiModelRef],
+        model: Union[str, AquaMultiModelRef],
         project_id: Optional[str] = None,
         compartment_id: Optional[str] = None,
         freeform_tags: Optional[Dict] = None,
@@ -153,7 +153,7 @@ class AquaModelApp(AquaApp):
 
         Parameters
         ----------
-        model_id : Union[str, AquaMultiModelRef]
+        model : Union[str, AquaMultiModelRef]
             The model ID as a string or a AquaMultiModelRef instance to be deployed.
         project_id : Optional[str]
             The project ID for the custom model.
@@ -171,11 +171,11 @@ class AquaModelApp(AquaApp):
             The instance of DataScienceModel or DataScienceModelGroup.
         """
         fine_tune_weights = []
-        if isinstance(model_id, AquaMultiModelRef):
-            fine_tune_weights = model_id.fine_tune_weights
-            model_id = model_id.model_id
+        if isinstance(model, AquaMultiModelRef):
+            fine_tune_weights = model.fine_tune_weights
+            model = model.model_id
 
-        service_model = DataScienceModel.from_id(model_id)
+        service_model = DataScienceModel.from_id(model)
         target_project = project_id or PROJECT_OCID
         target_compartment = compartment_id or COMPARTMENT_OCID
 
@@ -192,7 +192,7 @@ class AquaModelApp(AquaApp):
         custom_model = None
         if fine_tune_weights:
             custom_model = self._create_model_group(
-                model_id=model_id,
+                model_id=model,
                 compartment_id=target_compartment,
                 project_id=target_project,
                 freeform_tags=combined_freeform_tags,
@@ -202,18 +202,16 @@ class AquaModelApp(AquaApp):
             )
 
             logger.info(
-                f"Aqua Model Group {custom_model.id} created with the service model {model_id}."
+                f"Aqua Model Group {custom_model.id} created with the service model {model}."
             )
         else:
             # Skip model copying if it is registered model or fine-tuned model
             if (
-                service_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None)
-                is not None
-                or service_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG)
-                is not None
+                Tags.BASE_MODEL_CUSTOM in service_model.freeform_tags
+                or Tags.AQUA_FINE_TUNED_MODEL_TAG in service_model.freeform_tags
             ):
                 logger.info(
-                    f"Aqua Model {model_id} already exists in the user's compartment."
+                    f"Aqua Model {model} already exists in the user's compartment."
                     "Skipped copying."
                 )
                 return service_model
@@ -227,7 +225,7 @@ class AquaModelApp(AquaApp):
                 **kwargs,
             )
             logger.info(
-                f"Aqua Model {custom_model.id} created with the service model {model_id}."
+                f"Aqua Model {custom_model.id} created with the service model {model}."
             )
 
         # Track unique models that were created in the user's compartment
