@@ -141,19 +141,19 @@ class AquaModelApp(AquaApp):
     @telemetry(entry_point="plugin=model&action=create", name="aqua")
     def create(
         self,
-        model_id: Union[str, AquaMultiModelRef],
+        model: Union[str, AquaMultiModelRef],
         project_id: Optional[str] = None,
         compartment_id: Optional[str] = None,
         freeform_tags: Optional[Dict] = None,
         defined_tags: Optional[Dict] = None,
         **kwargs,
-    ) -> DataScienceModel:
+    ) -> Union[DataScienceModel, DataScienceModelGroup]:
         """
-        Creates a custom Aqua model from a service model.
+        Creates a custom Aqua model or model group from a service model.
 
         Parameters
         ----------
-        model_id : Union[str, AquaMultiModelRef]
+        model : Union[str, AquaMultiModelRef]
             The model ID as a string or a AquaMultiModelRef instance to be deployed.
         project_id : Optional[str]
             The project ID for the custom model.
@@ -167,27 +167,17 @@ class AquaModelApp(AquaApp):
 
         Returns
         -------
-        DataScienceModel
-            The instance of DataScienceModel.
+        Union[DataScienceModel, DataScienceModelGroup]
+            The instance of DataScienceModel or DataScienceModelGroup.
         """
-        model_id = (
-            model_id.model_id if isinstance(model_id, AquaMultiModelRef) else model_id
-        )
-        service_model = DataScienceModel.from_id(model_id)
+        fine_tune_weights = []
+        if isinstance(model, AquaMultiModelRef):
+            fine_tune_weights = model.fine_tune_weights
+            model = model.model_id
+
+        service_model = DataScienceModel.from_id(model)
         target_project = project_id or PROJECT_OCID
         target_compartment = compartment_id or COMPARTMENT_OCID
-
-        # Skip model copying if it is registered model or fine-tuned model
-        if (
-            service_model.freeform_tags.get(Tags.BASE_MODEL_CUSTOM, None) is not None
-            or service_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG)
-            is not None
-        ):
-            logger.info(
-                f"Aqua Model {model_id} already exists in the user's compartment."
-                "Skipped copying."
-            )
-            return service_model
 
         # combine tags
         combined_freeform_tags = {
@@ -199,29 +189,112 @@ class AquaModelApp(AquaApp):
             **(defined_tags or {}),
         }
 
-        custom_model = (
-            DataScienceModel()
-            .with_compartment_id(target_compartment)
-            .with_project_id(target_project)
-            .with_model_file_description(json_dict=service_model.model_file_description)
-            .with_display_name(service_model.display_name)
-            .with_description(service_model.description)
-            .with_freeform_tags(**combined_freeform_tags)
-            .with_defined_tags(**combined_defined_tags)
-            .with_custom_metadata_list(service_model.custom_metadata_list)
-            .with_defined_metadata_list(service_model.defined_metadata_list)
-            .with_provenance_metadata(service_model.provenance_metadata)
-            .create(model_by_reference=True, **kwargs)
-        )
-        logger.info(
-            f"Aqua Model {custom_model.id} created with the service model {model_id}."
-        )
+        custom_model = None
+        if fine_tune_weights:
+            custom_model = self._create_model_group(
+                model_id=model,
+                compartment_id=target_compartment,
+                project_id=target_project,
+                freeform_tags=combined_freeform_tags,
+                defined_tags=combined_defined_tags,
+                fine_tune_weights=fine_tune_weights,
+                service_model=service_model,
+            )
+
+            logger.info(
+                f"Aqua Model Group {custom_model.id} created with the service model {model}."
+            )
+        else:
+            # Skip model copying if it is registered model or fine-tuned model
+            if (
+                Tags.BASE_MODEL_CUSTOM in service_model.freeform_tags
+                or Tags.AQUA_FINE_TUNED_MODEL_TAG in service_model.freeform_tags
+            ):
+                logger.info(
+                    f"Aqua Model {model} already exists in the user's compartment."
+                    "Skipped copying."
+                )
+                return service_model
+
+            custom_model = self._create_model(
+                compartment_id=target_compartment,
+                project_id=target_project,
+                freeform_tags=combined_freeform_tags,
+                defined_tags=combined_defined_tags,
+                service_model=service_model,
+                **kwargs,
+            )
+            logger.info(
+                f"Aqua Model {custom_model.id} created with the service model {model}."
+            )
 
         # Track unique models that were created in the user's compartment
         self.telemetry.record_event_async(
             category="aqua/service/model",
             action="create",
             detail=service_model.display_name,
+        )
+
+        return custom_model
+
+    def _create_model(
+        self,
+        compartment_id: str,
+        project_id: str,
+        freeform_tags: Dict,
+        defined_tags: Dict,
+        service_model: DataScienceModel,
+        **kwargs,
+    ):
+        """Creates a data science model by reference."""
+        custom_model = (
+            DataScienceModel()
+            .with_compartment_id(compartment_id)
+            .with_project_id(project_id)
+            .with_model_file_description(json_dict=service_model.model_file_description)
+            .with_display_name(service_model.display_name)
+            .with_description(service_model.description)
+            .with_freeform_tags(**freeform_tags)
+            .with_defined_tags(**defined_tags)
+            .with_custom_metadata_list(service_model.custom_metadata_list)
+            .with_defined_metadata_list(service_model.defined_metadata_list)
+            .with_provenance_metadata(service_model.provenance_metadata)
+            .create(model_by_reference=True, **kwargs)
+        )
+
+        return custom_model
+
+    def _create_model_group(
+        self,
+        model_id: str,
+        compartment_id: str,
+        project_id: str,
+        freeform_tags: Dict,
+        defined_tags: Dict,
+        fine_tune_weights: List,
+        service_model: DataScienceModel,
+    ):
+        """Creates a data science model group."""
+        custom_model = (
+            DataScienceModelGroup()
+            .with_compartment_id(compartment_id)
+            .with_project_id(project_id)
+            .with_display_name(service_model.display_name)
+            .with_description(service_model.description)
+            .with_freeform_tags(**freeform_tags)
+            .with_defined_tags(**defined_tags)
+            .with_custom_metadata_list(service_model.custom_metadata_list)
+            .with_base_model_id(model_id)
+            .with_member_models(
+                [
+                    {
+                        "inference_key": fine_tune_weight.model_name,
+                        "model_id": fine_tune_weight.model_id,
+                    }
+                    for fine_tune_weight in fine_tune_weights
+                ]
+            )
+            .create()
         )
 
         return custom_model
@@ -271,6 +344,16 @@ class AquaModelApp(AquaApp):
         DataScienceModelGroup
             Instance of DataScienceModelGroup object.
         """
+        member_model_ids = [{"model_id": model.model_id} for model in models]
+        for model in models:
+            if model.fine_tune_weights:
+                member_model_ids.extend(
+                    [
+                        {"model_id": fine_tune_model.model_id}
+                        for fine_tune_model in model.fine_tune_weights
+                    ]
+                )
+
         custom_model_group = (
             DataScienceModelGroup()
             .with_compartment_id(compartment_id)
@@ -281,7 +364,7 @@ class AquaModelApp(AquaApp):
             .with_defined_tags(**(defined_tags or {}))
             .with_custom_metadata_list(model_custom_metadata)
             # TODO: add member model inference key
-            .with_member_models([{"model_id": model.model_id for model in models}])
+            .with_member_models(member_model_ids)
         )
         custom_model_group.create()
 

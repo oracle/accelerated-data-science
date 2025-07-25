@@ -24,11 +24,13 @@ from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tag
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     DEFINED_METADATA_TO_FILE_MAP,
+    build_params_string,
     build_pydantic_error_message,
     find_restricted_params,
     get_combined_params,
     get_container_params_type,
     get_ocid_substring,
+    get_params_dict,
     get_params_list,
     get_preferred_compatible_family,
     get_resource_name,
@@ -61,7 +63,11 @@ from ads.aqua.modeldeployment.config_loader import (
     ModelDeploymentConfigSummary,
     MultiModelDeploymentConfigLoader,
 )
-from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
+from ads.aqua.modeldeployment.constants import (
+    DEFAULT_POLL_INTERVAL,
+    DEFAULT_WAIT_TIME,
+    DeploymentType,
+)
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
@@ -76,6 +82,7 @@ from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
+    AQUA_MODEL_DEPLOYMENT_FOLDER,
     AQUA_TELEMETRY_BUCKET,
     AQUA_TELEMETRY_BUCKET_NS,
     COMPARTMENT_OCID,
@@ -162,6 +169,7 @@ class AquaDeploymentApp(AquaApp):
                 cmd_var (Optional[List[str]]): Command variables for the container runtime.
                 freeform_tags (Optional[Dict]): Freeform tags for model deployment.
                 defined_tags (Optional[Dict]): Defined tags for model deployment.
+                deployment_type (Optional[str]): The type of model deployment.
 
         Returns
         -------
@@ -206,13 +214,26 @@ class AquaDeploymentApp(AquaApp):
 
         # Create an AquaModelApp instance once to perform the deployment creation.
         model_app = AquaModelApp()
-        if create_deployment_details.model_id:
+        if (
+            create_deployment_details.model_id
+            or create_deployment_details.deployment_type == DeploymentType.STACKED
+        ):
+            model = create_deployment_details.model_id
+            if not model:
+                if len(create_deployment_details.models) != 1:
+                    raise AquaValueError(
+                        "Invalid 'models' provided. Only one base model is required for model stack deployment."
+                    )
+                model = create_deployment_details.models[0]
+
+            service_model_id = model if isinstance(model, str) else model.model_id
             logger.debug(
-                f"Single model ({create_deployment_details.model_id}) provided. "
+                f"Single model ({service_model_id}) provided. "
                 "Delegating to single model creation method."
             )
+
             aqua_model = model_app.create(
-                model_id=create_deployment_details.model_id,
+                model=model,
                 compartment_id=compartment_id,
                 project_id=project_id,
                 freeform_tags=freeform_tags,
@@ -231,6 +252,7 @@ class AquaDeploymentApp(AquaApp):
                 create_deployment_details=create_deployment_details,
                 container_config=container_config,
             )
+        # TODO: add multi model validation from deployment_type
         else:
             # Collect all unique model IDs (including fine-tuned models)
             source_model_ids = list(
@@ -685,7 +707,7 @@ class AquaDeploymentApp(AquaApp):
 
     def _create(
         self,
-        aqua_model: DataScienceModel,
+        aqua_model: Union[DataScienceModel, DataScienceModelGroup],
         create_deployment_details: CreateModelDeploymentDetails,
         container_config: Dict,
     ) -> AquaDeployment:
@@ -719,7 +741,10 @@ class AquaDeploymentApp(AquaApp):
         tags.update({Tags.TASK: aqua_model.freeform_tags.get(Tags.TASK, UNKNOWN)})
 
         # Set up info to get deployment config
-        config_source_id = create_deployment_details.model_id
+        config_source_id = (
+            create_deployment_details.model_id
+            or create_deployment_details.models[0].model_id
+        )
         model_name = aqua_model.display_name
 
         # set up env and cmd var
@@ -870,6 +895,20 @@ class AquaDeploymentApp(AquaApp):
         deployment_params = get_combined_params(config_params, user_params)
 
         params = f"{params} {deployment_params}".strip()
+
+        if isinstance(aqua_model, DataScienceModelGroup):
+            env_var.update({"VLLM_ALLOW_RUNTIME_LORA_UPDATING": "true"})
+            env_var.update(
+                {"MODEL": f"{AQUA_MODEL_DEPLOYMENT_FOLDER}{aqua_model.base_model_id}/"}
+            )
+
+            params_dict = get_params_dict(params)
+            # updates `--served-model-name` with service model id
+            params_dict.update({"--served-model-name": aqua_model.base_model_id})
+            # adds `--enable_lora` to parameters
+            params_dict.update({"--enable_lora": UNKNOWN})
+            params = build_params_string(params_dict)
+
         if params:
             env_var.update({"PARAMS": params})
         env_vars = container_spec.env_vars if container_spec else []

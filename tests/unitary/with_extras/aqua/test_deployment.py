@@ -13,6 +13,7 @@ from importlib import reload
 from unittest.mock import MagicMock, patch
 
 from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
+from ads.model.datascience_model_group import DataScienceModelGroup
 from ads.model.service.oci_datascience_model_deployment import (
     OCIDataScienceModelDeployment,
 )
@@ -1059,6 +1060,50 @@ class TestDataset:
         ],
     }
 
+    aqua_deployment_stack_model = {
+        "id": "ocid1.datasciencemodelgroupint.oc1.iad.<OCID>",
+        "compartmentId": "ocid1.compartment.oc1..<OCID>",
+        "projectId": "ocid1.datascienceproject.oc1.iad.<OCID>",
+        "displayName": "model_group_20250715",
+        "description": "Multi-model grouping using meta-llama/Meta-Llama-3.1-8B, meta-llama/Meta-Llama-3.1-8B-Instruct.",
+        "freeformTags": {"aqua_multimodel": "true"},
+        "lifecycleState": "ACTIVE",
+        "base_model_id": "ocid1.datasciencemodel.oc1.iad.<OCID>",
+        "customMetadataList": ModelCustomMetadata.from_dict(
+            {
+                "data": [
+                    {
+                        "key": "artifact_location",
+                        "value": "service_models/model-name/artifact",
+                        "description": "artifact location",
+                        "category": "Other",
+                        "has_artifact": False,
+                    },
+                    {
+                        "key": "modelDescription",
+                        "value": True,
+                        "description": "model by reference flag",
+                        "category": "Other",
+                        "has_artifact": False,
+                    },
+                    {
+                        "key": "deployment-container",
+                        "value": "odsc-vllm-serving",
+                        "description": "Deployment container mapping for SMC",
+                        "category": "Other",
+                        "has_artifact": False,
+                    },
+                ]
+            }
+        ),
+        "memberModels": [
+            {
+                "inference_key": "custom_inference_key",
+                "model_id": "ocid1.datasciencemodel.oc1.iad.<OCID>",
+            }
+        ],
+    }
+
 
 class TestAquaDeployment(unittest.TestCase):
     def setUp(self):
@@ -1470,7 +1515,7 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
         mock_create.assert_called_with(
-            model_id=TestDataset.MODEL_ID,
+            model=TestDataset.MODEL_ID,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=freeform_tags,
@@ -1566,7 +1611,7 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
         mock_create.assert_called_with(
-            model_id=TestDataset.MODEL_ID,
+            model=TestDataset.MODEL_ID,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
@@ -1662,7 +1707,7 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
         mock_create.assert_called_with(
-            model_id=TestDataset.MODEL_ID,
+            model=TestDataset.MODEL_ID,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
@@ -1765,7 +1810,7 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
         mock_create.assert_called_with(
-            model_id=TestDataset.MODEL_ID,
+            model=TestDataset.MODEL_ID,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
@@ -1786,6 +1831,117 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result["environment_variables"] = (
             TestDataset.aqua_deployment_tei_byoc_embeddings_env_vars
         )
+        assert actual_attributes == expected_result
+
+    @patch.object(AquaApp, "get_container_config_item")
+    @patch("ads.aqua.model.AquaModelApp.create")
+    @patch.object(AquaApp, "get_container_image")
+    @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
+    @patch.object(AquaApp, "get_container_config")
+    def test_create_deployment_for_stack_model(
+        self,
+        mock_get_container_config,
+        mock_deploy,
+        mock_get_container_image,
+        mock_create,
+        mock_get_container_config_item,
+    ):
+        mock_get_container_config.return_value = (
+            AquaContainerConfig.from_service_config(
+                service_containers=TestDataset.CONTAINER_LIST
+            )
+        )
+
+        aqua_model_group = DataScienceModelGroup(
+            spec=TestDataset.aqua_deployment_stack_model
+        )
+        mock_create.return_value = aqua_model_group
+        config_json = os.path.join(
+            self.curr_dir, "test_data/deployment/deployment_config.json"
+        )
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        self.app.get_deployment_config = MagicMock(
+            return_value=AquaDeploymentConfig(**config)
+        )
+
+        freeform_tags = {"ftag1": "fvalue1", "ftag2": "fvalue2"}
+        defined_tags = {"dtag1": "dvalue1", "dtag2": "dvalue2"}
+
+        mock_get_container_config_item.return_value = (
+            TestDataset.INFERENCE_CONTAINER_CONFIG_ITEM
+        )
+
+        shapes = []
+
+        with open(
+            os.path.join(
+                self.curr_dir,
+                "test_data/deployment/aqua_deployment_shapes.json",
+            ),
+            "r",
+        ) as _file:
+            shapes = [
+                ComputeShapeSummary(**item) for item in json.load(_file)["shapes"]
+            ]
+
+        self.app.list_shapes = MagicMock(return_value=shapes)
+
+        mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
+        aqua_deployment = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_create_deployment.yaml"
+        )
+        model_deployment_obj = ModelDeployment.from_yaml(uri=aqua_deployment)
+        model_deployment_dsc_obj = copy.deepcopy(TestDataset.model_deployment_object[0])
+        model_deployment_dsc_obj["lifecycle_state"] = "CREATING"
+        model_deployment_dsc_obj["defined_tags"] = defined_tags
+        model_deployment_dsc_obj["freeform_tags"].update(freeform_tags)
+        model_deployment_obj.dsc_model_deployment = (
+            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+        )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
+        mock_deploy.return_value = model_deployment_obj
+
+        ft_weights = [
+            LoraModuleSpec(
+                model_id="ocid1.datasciencemodel.oc1..<OCID>",
+                model_name="ft_model",
+                model_path="oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
+            )
+        ]
+        model_info = AquaMultiModelRef(
+            model_id="test_model_id",
+            model_name="test_model",
+            model_task="code_synthesis",
+            gpu_count=2,
+            artifact_location="oci://test_location",
+            fine_tune_weights=ft_weights,
+        )
+
+        result = self.app.create(
+            models=[model_info],
+            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
+            display_name="model-deployment-name",
+            log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
+            access_log_id="ocid1.log.oc1.<region>.<OCID>",
+            predict_log_id="ocid1.log.oc1.<region>.<OCID>",
+            freeform_tags=freeform_tags,
+            defined_tags=defined_tags,
+            deployment_type="STACKED",
+        )
+
+        mock_create.assert_called()
+        mock_get_container_image.assert_called()
+        mock_deploy.assert_called()
+
+        expected_attributes = set(AquaDeployment.__annotations__.keys())
+        actual_attributes = result.to_dict()
+        assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
+        expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
+        expected_result["state"] = "CREATING"
+        expected_result["tags"].update(freeform_tags)
+        expected_result["tags"].update(defined_tags)
         assert actual_attributes == expected_result
 
     @patch.object(AquaApp, "get_container_config")

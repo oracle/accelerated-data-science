@@ -418,7 +418,7 @@ class TestAquaModel:
 
         # will not copy service model
         self.app.create(
-            model_id="test_model_id",
+            model="test_model_id",
             project_id="test_project_id",
             compartment_id="test_compartment_id",
         )
@@ -433,7 +433,7 @@ class TestAquaModel:
         mock_model.freeform_tags.pop(Tags.BASE_MODEL_CUSTOM)
         # will copy service model
         model = self.app.create(
-            model_id="test_model_id",
+            model="test_model_id",
             project_id="test_project_id",
             compartment_id="test_compartment_id",
         )
