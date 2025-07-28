@@ -325,6 +325,9 @@ class CreateModelDeploymentDetails(BaseModel):
     defined_tags: Optional[Dict] = Field(
         None, description="Defined tags for model deployment."
     )
+    deployment_type: Optional[str] = Field(
+        None, description="The type of model deployment."
+    )
 
     @model_validator(mode="before")
     @classmethod

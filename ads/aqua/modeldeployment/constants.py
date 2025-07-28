@@ -9,5 +9,12 @@ aqua.modeldeployment.constants
 This module contains constants used in Aqua Model Deployment.
 """
 
+from ads.common.extended_enum import ExtendedEnum
+
 DEFAULT_WAIT_TIME = 12000
 DEFAULT_POLL_INTERVAL = 10
+
+
+class DeploymentType(ExtendedEnum):
+    STACKED = "STACKED"
+    MULTI = "MULTI"
