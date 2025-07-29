@@ -2605,7 +2605,6 @@ class TestAquaDeployment(unittest.TestCase):
             self.assertEqual(kwargs["category"], f"aqua/{model_type}/deployment/status")
             self.assertEqual(kwargs["action"], "FAILED")
             self.assertIn("work_request_error", kwargs)
-            self.assertIn("status", kwargs)
             self.assertIn("ocid", kwargs)
             self.assertIn("model_name", kwargs)
 

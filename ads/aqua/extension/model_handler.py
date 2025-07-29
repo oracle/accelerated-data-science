@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
+import json
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -341,9 +341,13 @@ class AquaModelChatTemplateHandler(AquaAPIhandler):
         ):
             try:
                 oci_data_science_model = OCIDataScienceModel.from_id(model_id)
+                chat_template = oci_data_science_model.get_custom_metadata_artifact("chat_template")
+                chat_template = chat_template.decode("utf-8")
+
+                return self.finish(json.dumps({"chat_template": chat_template}))
+
             except Exception as e:
-                raise HTTPError(404, f"Model not found for id: {model_id}. Details: {str(e)}")
-            return self.finish(oci_data_science_model.get_custom_metadata_artifact("chat_template"))
+                raise HTTPError(404, f"Failed to fetch chat template for model_id={model_id}. Details: {str(e)}")
 
         raise HTTPError(400, f"The request {self.request.path} is invalid.")
 

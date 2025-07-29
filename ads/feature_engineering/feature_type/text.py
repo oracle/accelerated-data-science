@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -11,16 +10,16 @@ Classes:
     Text
         The Text feature type.
 """
+
 import matplotlib.pyplot as plt
 import pandas as pd
-from ads.feature_engineering.feature_type.string import String
-from ads.feature_engineering.utils import random_color_func, SchemeNeutral
 
-from ads.common import utils, logger
 from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
     OptionalDependency,
+    runtime_dependency,
 )
+from ads.feature_engineering.feature_type.string import String
+from ads.feature_engineering.utils import SchemeNeutral, random_color_func
 
 
 class Text(String):
@@ -53,7 +52,7 @@ class Text(String):
         Examples
         --------
         >>> text = pd.Series(['S', 'C', 'S', 'S', 'S', 'Q', 'S', 'S', 'S', 'C', 'S', 'S', 'S',
-                'S', 'S', 'S', 'Q', 'S', 'S', '', np.NaN, None], name='text')
+                'S', 'S', 'S', 'Q', 'S', 'S', '', np.nan, None], name='text')
         >>> text.ads.feature_type = ['text']
         >>> text.ads.feature_plot()
 
