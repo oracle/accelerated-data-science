@@ -385,7 +385,7 @@ class AquaModelListHandler(AquaAPIhandler):
     @handle_exceptions
     def get(self, model_deployment_id):
         """
-        Handles streaming inference request for the Active Model Deployments
+        Handles get model list for the Active Model Deployment
         Raises
         ------
         HTTPError
@@ -395,10 +395,7 @@ class AquaModelListHandler(AquaAPIhandler):
         self.set_header("Content-Type", "application/json")
         endpoint: str = ""
         model_deployment = AquaDeploymentApp().get(model_deployment_id)
-        if model_deployment.endpoint.endswith("/"):
-            endpoint = model_deployment.endpoint + "predict/v1/models"
-        else:
-            endpoint = model_deployment.endpoint + "/predict/v1/models"
+        endpoint = model_deployment.endpoint.rstrip("/") + "/predict/v1/models"       
         aqua_client = Client(endpoint=endpoint)
         try:
             list_model_result = aqua_client.list_models()

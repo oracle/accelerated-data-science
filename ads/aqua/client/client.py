@@ -582,13 +582,13 @@ class Client(BaseClient):
         payload = {**(payload or {}), "input": input}
         return self._request(payload=payload, headers=headers)
 
-    def list_models(self) -> Union[Dict[str, Any], Iterator[Mapping[str, Any]]]:
-        """Generate embeddings by sending a request to the endpoint.
+    def fetch_data(self) -> Union[Dict[str, Any], Iterator[Mapping[str, Any]]]:
+        """Fetch Data in json format by sending a request to the endpoint.
 
         Args:
 
         Returns:
-            Union[Dict[str, Any], Iterator[Mapping[str, Any]]]: The server's response, typically including the generated embeddings.
+            Union[Dict[str, Any], Iterator[Mapping[str, Any]]]: The server's response, typically including the data in JSON format.
         """
         # headers = {"Content-Type", "application/json"}
         response = self._client.get(self.endpoint)
