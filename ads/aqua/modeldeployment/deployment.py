@@ -51,7 +51,11 @@ from ads.aqua.constants import (
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model import AquaModelApp
-from ads.aqua.model.constants import AquaModelMetadataKeys, ModelCustomMetadataFields
+from ads.aqua.model.constants import (
+    AquaModelMetadataKeys,
+    ModelCustomMetadataFields,
+    ModelTask,
+)
 from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.aqua.model.utils import (
     extract_base_model_from_ft,
