@@ -155,6 +155,7 @@ class AquaDeploymentApp(AquaApp):
                 health_check_port (Optional[int]): Health check port for the Docker container image.
                 env_var (Optional[Dict[str, str]]): Environment variables for deployment.
                 container_family (Optional[str]): Image family of the model deployment container runtime.
+                container_tag (Optional[str]): Image tag of the model deployment container runtime
                 memory_in_gbs (Optional[float]): Memory (in GB) for the selected shape.
                 ocpus (Optional[float]): OCPU count for the selected shape.
                 model_file (Optional[str]): File used for model deployment.
@@ -425,7 +426,10 @@ class AquaDeploymentApp(AquaApp):
 
         container_image_uri = (
             create_deployment_details.container_image_uri
-            or self.get_container_image(container_type=container_type_key)
+            or self.get_container_image(
+                container_type=container_type_key,
+                container_tag=create_deployment_details.container_tag,
+            )
         )
         if not container_image_uri:
             try:
@@ -631,7 +635,10 @@ class AquaDeploymentApp(AquaApp):
 
         container_image_uri = (
             create_deployment_details.container_image_uri
-            or self.get_container_image(container_type=container_type_key)
+            or self.get_container_image(
+                container_type=container_type_key,
+                container_tag=create_deployment_details.container_tag,
+            )
         )
         server_port = create_deployment_details.server_port or (
             container_spec.server_port if container_spec else None
