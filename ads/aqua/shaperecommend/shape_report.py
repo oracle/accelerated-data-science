@@ -81,9 +81,9 @@ class ModelConfig(BaseModel):
             max_model_len=getattr(estimator, "seq_len", None)
         )
         model_detail = ModelDetail(
-            model_size_gb=round(getattr(estimator, "model_memory", 0.0), 3),
-            kv_cache_size_gb=round(getattr(estimator, "kv_cache_memory", 0.0), 3),
-            total_model_gb=round(getattr(estimator, "total_memory", 0.0), 3)
+            model_size_gb=round(getattr(estimator, "model_memory", 0.0), 2),
+            kv_cache_size_gb=round(getattr(estimator, "kv_cache_memory", 0.0), 2),
+            total_model_gb=round(getattr(estimator, "total_memory", 0.0), 2)
         )
         return ModelConfig(
             model_details=model_detail,
@@ -184,11 +184,13 @@ class ShapeRecommendationReport(BaseModel):
         troubleshoot (Optional[TroubleshootShapeSummary]): Troubleshooting information
             if no valid deployment shapes are available.
     """
-
+    model_name: Optional[str] = Field(
+        "", description="Name of the model used for recommendations."
+    )
     recommendations: List[ShapeReport] = Field(
         default_factory=list, description="List of shape fit recommendations."
     )
     troubleshoot: Optional[str] = Field(
         None,
-        description="details for troubleshooting if no shapes fit the current model.",
+        description="Details for troubleshooting if no shapes fit the current model.",
     )

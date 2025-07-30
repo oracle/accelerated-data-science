@@ -14,8 +14,8 @@ from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.model import AquaModelApp
 from ads.aqua.modeldeployment import AquaDeploymentApp
-from ads.aqua.verify_policies import AquaVerifyPoliciesApp
 from ads.aqua.shaperecommend.recommend import AquaRecommendApp
+from ads.aqua.verify_policies import AquaVerifyPoliciesApp
 from ads.common.utils import LOG_LEVELS
 
 
@@ -113,5 +113,5 @@ class AquaCommand:
         wheel_file_path = os.environ.get(
             "AQUA_EXTENSTION_PATH", "/ads/extension/adsjupyterlab_aqua_extension*.whl"
         )
-        status = subprocess.run(f"pip install {wheel_file_path}", shell=True)
+        status = subprocess.run(f"pip install {wheel_file_path}", shell=True, check=False)
         return status.check_returncode
