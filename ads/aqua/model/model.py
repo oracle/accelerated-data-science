@@ -147,6 +147,7 @@ class AquaModelApp(AquaApp):
     def create(
         self,
         model_id: Union[str, AquaMultiModelRef],
+        display_name: Optional[str] = None,
         project_id: Optional[str] = None,
         compartment_id: Optional[str] = None,
         freeform_tags: Optional[Dict] = None,
@@ -203,6 +204,9 @@ class AquaModelApp(AquaApp):
             **(service_model.defined_tags or {}),
             **(defined_tags or {}),
         }
+
+        if display_name:
+            service_model.display_name = display_name
 
         custom_model = (
             DataScienceModel()
