@@ -7,7 +7,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from ads.aqua.common.errors import AquaRecommendationError, AquaValueError
+from ads.aqua.common.errors import AquaRecommendationError
 from ads.aqua.shaperecommend.constants import NEXT_QUANT, QUANT_MAPPING
 
 

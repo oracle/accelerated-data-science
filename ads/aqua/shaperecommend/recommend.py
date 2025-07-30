@@ -1,7 +1,8 @@
-import json
+import shutil
 from typing import List
 
 from pydantic import ValidationError
+from rich.table import Table
 
 from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.entities import ComputeShapeSummary
@@ -76,12 +77,13 @@ class AquaRecommendApp(AquaApp):
         """
         try:
             request = RequestRecommend(**kwargs)
-            data = self.get_model_config(request.model_ocid)
+            data, model_name = self.get_model_config(request.model_ocid)
+
             llm_config = LLMConfig.from_raw_config(data)
 
             available_shapes = self.valid_compute_shapes()
             recommendations = self.summarize_shapes_for_seq_lens(
-                llm_config, available_shapes
+                llm_config, available_shapes, model_name
             )
 
         # custom error to catch model incompatibility issues
@@ -100,6 +102,110 @@ class AquaRecommendApp(AquaApp):
             raise
 
         return recommendations
+
+    @staticmethod
+    def rich_diff_table(shape_report: ShapeRecommendationReport) -> Table:
+        """
+        Generates a rich-formatted table comparing deployment recommendations
+        from a ShapeRecommendationReport object.
+
+        Args:
+            shape_report (ShapeRecommendationReport): The report containing shape recommendations.
+
+        Returns:
+            Table: A rich Table displaying model deployment recommendations.
+        """
+        logger.debug("Starting to generate rich diff table from ShapeRecommendationReport.")
+
+        name = shape_report.model_name
+        header = f"Model Deployment Recommendations: {name}" if name else "Model Deployment Recommendations"
+        logger.debug(f"Table header set to: {header!r}")
+
+        if shape_report.troubleshoot:
+            header = f"{header}\n{shape_report.troubleshoot}"
+            logger.debug("Appended troubleshoot message to the header.")
+
+        term_columns = shutil.get_terminal_size((120, 20)).columns
+
+        recs_width = min(term_columns - 50, 60)
+        logger.debug(f"Calculated recommendation column width: {recs_width}")
+
+        table = Table(
+            title=header,
+            show_lines=True,
+        )
+        logger.debug("Initialized Table object.")
+
+        table.add_column("Shape Name", max_width=16)
+        table.add_column("GPU Count", max_width=7)
+        table.add_column("Total GPU Memory (GB)", max_width=7)
+        table.add_column("Model Size (GB)", max_width=7)
+        table.add_column("KV Cache Size (GB)", max_width=7)
+        table.add_column("Total Model (GB)", max_width=7)
+        table.add_column("Deployment Quantization", max_width=10)
+        table.add_column("Max Model Length", max_width=7)
+        table.add_column("Recommendation", max_width=recs_width)
+        logger.debug("Added table columns with specified max widths.")
+
+        recs = getattr(shape_report, "recommendations", [])
+        logger.debug(f"Number of recommendations: {len(recs)}")
+
+        for entry in recs:
+            shape = entry.shape_details
+            gpu = shape.gpu_specs
+            conf = entry.configurations[0]
+            model = conf.model_details
+            deploy = conf.deployment_params
+            full_recommendation = conf.recommendation
+
+            table.add_row(
+                shape.name,
+                str(gpu.gpu_count),
+                str(gpu.gpu_memory_in_gbs),
+                str(model.model_size_gb),
+                str(model.kv_cache_size_gb),
+                str(model.total_model_gb),
+                deploy.quantization,
+                str(deploy.max_model_len),
+                full_recommendation
+            )
+
+        logger.debug("Completed populating table with recommendation rows.")
+        return table
+
+
+    def shapes(self, **kwargs) -> Table:
+        """
+        For the CLI, generates the table (in rich diff) with valid GPU deployment shapes
+        for the provided model and configuration.
+
+        Validates if recommendations are generated, calls method to construct the rich diff
+        table with the recommendation data.
+
+        Parameters
+        ----------
+        model_ocid : str
+           OCID of the model to recommend feasible compute shapes.
+
+        Returns
+        -------
+        Table
+            A table format for the recommendation report with compatible deployment shapes
+            or troubleshooting info citing the largest shapes if no shape is suitable.
+
+        Raises
+        ------
+        AquaValueError
+            If model type is unsupported by tool (no recommendation report generated)
+        """
+        shape_recommend_report = self.which_gpu(**kwargs)
+        if not shape_recommend_report.recommendations:
+            if shape_recommend_report.troubleshoot:
+                raise AquaValueError(shape_recommend_report.troubleshoot)
+            else:
+                raise AquaValueError("Unable to generate recommendations from model. Please ensure model is registered and is a decoder-only text-generation model.")
+
+        return self.rich_diff_table(shape_recommend_report)
 
     @staticmethod
     def get_model_config(ocid: str):
@@ -140,6 +246,8 @@ class AquaRecommendApp(AquaApp):
 
         model = DataScienceModel.from_id(ocid)
 
+        model_name = model.display_name
+
         model_task = model.freeform_tags.get("task", "").lower()
         model_format = model.freeform_tags.get("model_format", "").lower()
 
@@ -175,7 +283,7 @@ class AquaRecommendApp(AquaApp):
                 "Please ensure your model follows the Hugging Face format and includes a 'config.json' with the necessary architecture parameters."
             ) from e
 
-        return data
+        return data, model_name
 
     @staticmethod
     def valid_compute_shapes() -> List["ComputeShapeSummary"]:
@@ -213,6 +321,7 @@ class AquaRecommendApp(AquaApp):
     def summarize_shapes_for_seq_lens(
         config: LLMConfig,
         shapes: List[ComputeShapeSummary],
+        name: str,
         batch_size: int = 1,
     ) -> ShapeRecommendationReport:
         """
@@ -225,6 +334,8 @@ class AquaRecommendApp(AquaApp):
             The loaded model configuration.
         shapes : List[ComputeShapeSummary]
             All candidate deployment shapes.
+        name : str
+            name of the model
         batch_size : int, optional
             Batch size to evaluate (default is 1).
 
@@ -263,7 +374,7 @@ class AquaRecommendApp(AquaApp):
                             seq_len=max_seq_len,
                             batch_size=batch_size,
                         )
-                        if estimator.validate_shape(estimator, allowed_gpu_memory):
+                        if estimator.validate_shape(allowed_gpu_memory):
                             best_config = [
                                 ModelConfig.constuct_model_config(
                                     estimator, allowed_gpu_memory
@@ -333,5 +444,5 @@ class AquaRecommendApp(AquaApp):
                 )
 
         return ShapeRecommendationReport(
-            recommendations=recommendations, troubleshoot=troubleshoot_msg
+            model_name=name, recommendations=recommendations, troubleshoot=troubleshoot_msg
         )

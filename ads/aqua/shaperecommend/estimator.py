@@ -84,7 +84,7 @@ class MemoryEstimator(BaseModel):
         """
         return self.model_memory + self.kv_cache_memory
 
-    def validate_shape(self, allowed_gpu_memory: float) -> bool:
+    def validate_shape(self, allowed_gpu_memory: float, gpu_utilization: float = 0.9) -> bool:
         """
         Validates if a given model estimator fits within the allowed GPU memory budget, using a fixed utilization margin.
 
@@ -100,7 +100,6 @@ class MemoryEstimator(BaseModel):
         bool
             True if estimator uses less than adjusted GPU memory, else False.
         """
-        gpu_utilization = 0.9
         return (allowed_gpu_memory * gpu_utilization) > self.total_memory
 
     def suggest_param_advice(self, allowed: float) -> str:
@@ -130,8 +129,10 @@ class MemoryEstimator(BaseModel):
         quant_advice = ", ".join(getattr(config, "suggested_quantizations", []))
         quantization = getattr(config, "quantization", None)
 
+        advice = []
+
         if getattr(config, "suggested_quantizations", []):
-            to_do = f", which is smaller than the current quantization/weight size: {quantization if quantization in NEXT_QUANT else weight_size}."
+            to_do = f", which is smaller than the current {quantization if quantization in NEXT_QUANT else weight_size} format."
             if "No" in quant_advice:
                 suggested_quant_msg = "No smaller quantized version exists. Use a model with fewer parameters."
             elif not quant_advice:
@@ -141,24 +142,22 @@ class MemoryEstimator(BaseModel):
                 )
             else:
                 suggested_quant_msg = (
-                    f"Use the same model with {quant_advice} quantization" + to_do
+                    f"Use a model with or apply in-flight {quant_advice} quantization" + to_do
                 )
 
-        kv_advice = (
-            f"To reduce KV cache memory usage:\n"
-            f"1. Reduce maximum context length (set --max-model-len < {seq_len})\n"
-            f"2. Reduce batch size to less than {batch_size}."
-            if batch_size != 1
-            else ""
-        )
+        kv_advice = [
+            f"Reduce maximum context length (set --max-model-len < {seq_len})"
+        ]
 
-        wt_advice = (
-            "To reduce model size:\n"
-            "1. Use a model with fewer parameters.\n"
-            f"2. {suggested_quant_msg}"
+        if batch_size != 1:
+            kv_advice.append(f"Reduce batch size to less than {batch_size}.")
+
+        wt_advice = [
+            "Use a model with fewer parameters.",
+            f"{suggested_quant_msg}"
             if suggested_quant_msg
             else ""
-        )
+        ]
 
         if kv_gb > wt_gb and kv_gb > allowed * 0.5:
             main = "KV cache memory usage is the main limiting factor."
@@ -168,8 +167,12 @@ class MemoryEstimator(BaseModel):
             advice = wt_advice
         else:
             main = "Both model weights and KV cache are significant contributors to memory use."
-            advice = f"{kv_advice}\n{wt_advice}"
-        return f"{main} (KV cache: {kv_gb:.1f}GB, Weights: {wt_gb:.1f}GB).\n{advice}"
+            advice = kv_advice
+            advice.extend(wt_advice)
+
+        advice_str = "\n".join(f"{i}. {item}" for i, item in enumerate(advice, 1))
+
+        return f"{advice_str}\n\n{main} (KV cache: {kv_gb:.1f}GB, Weights: {wt_gb:.1f}GB)."
 
     def limiting_factor(
         self, allowed_gpu_memory: float, warn_delta: float = 0.85
@@ -192,10 +195,6 @@ class MemoryEstimator(BaseModel):
             Advice message about model fit and limiting factors.
         """
         required = self.total_memory
-        batch_size = self.batch_size
-        seq_len = self.seq_len
-        weight_size = getattr(self.llm_config, "weight_dtype", "unknown")
-        quantization = getattr(self.llm_config, "quantization", "None")
 
         # Warn if required is close to but under allowed
         if allowed_gpu_memory > required > allowed_gpu_memory * warn_delta:
@@ -218,9 +217,7 @@ class MemoryEstimator(BaseModel):
         else:
             advice = (
                 f"Model fits well within the allowed compute shape "
-                f"({required:.1f}GB used / {allowed_gpu_memory:.1f}GB allowed).\n"
-                f"(Batch size: {batch_size}, seq len: {seq_len}, "
-                f"quantization/weight size: {quantization or weight_size})."
+                f"({required:.1f}GB used / {allowed_gpu_memory:.1f}GB allowed)."
             )
         return advice
 
