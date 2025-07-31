@@ -16,7 +16,12 @@ class RequestRecommend(BaseModel):
     A request to recommend compute shapes and parameters for a given model.
     """
 
-    model_ocid: str = Field(..., description="The OCID of the model to recommend feasible compute shapes.")
+    model_ocid: str = Field(
+        ..., description="The OCID of the model to recommend feasible compute shapes."
+    )
+
+    class Config:
+        protected_namespaces = ()
 
 
 class DeploymentParams(BaseModel):  # noqa: N801
@@ -42,6 +47,9 @@ class ModelDetail(BaseModel):
         ..., description="Total size of model and cache in GB."
     )
 
+    class Config:
+        protected_namespaces = ()
+
 
 class ModelConfig(BaseModel):
     """
@@ -54,8 +62,13 @@ class ModelConfig(BaseModel):
     )
     recommendation: str = Field(..., description="GPU recommendation for the model.")
 
+    class Config:
+        protected_namespaces = ()
+
     @classmethod
-    def constuct_model_config(cls, estimator: MemoryEstimator, allowed_gpu_memory: float) -> "ModelConfig":
+    def constuct_model_config(
+        cls, estimator: MemoryEstimator, allowed_gpu_memory: float
+    ) -> "ModelConfig":
         """
         Assembles a complete ModelConfig, including model details, deployment parameters (vLLM), and recommendations.
 
@@ -78,17 +91,17 @@ class ModelConfig(BaseModel):
         """
         deployment_params = DeploymentParams(
             quantization=getattr(estimator.llm_config, "quantization", None),
-            max_model_len=getattr(estimator, "seq_len", None)
+            max_model_len=getattr(estimator, "seq_len", None),
         )
         model_detail = ModelDetail(
             model_size_gb=round(getattr(estimator, "model_memory", 0.0), 2),
             kv_cache_size_gb=round(getattr(estimator, "kv_cache_memory", 0.0), 2),
-            total_model_gb=round(getattr(estimator, "total_memory", 0.0), 2)
+            total_model_gb=round(getattr(estimator, "total_memory", 0.0), 2),
         )
         return ModelConfig(
             model_details=model_detail,
             deployment_params=deployment_params,
-            recommendation= estimator.limiting_factor(allowed_gpu_memory)
+            recommendation=estimator.limiting_factor(allowed_gpu_memory),
         )
 
 
@@ -96,14 +109,15 @@ class ShapeReport(BaseModel):
     """
     The feasible deployment configurations for the model per shape.
     """
-    shape_details: 'ComputeShapeSummary' = Field(
+
+    shape_details: "ComputeShapeSummary" = Field(
         ..., description="Details about the compute shape (ex. VM.GPU.A10.2)."
     )
-    configurations: List['ModelConfig'] = Field(
+    configurations: List["ModelConfig"] = Field(
         default_factory=list, description="List of model configurations."
     )
 
-    def is_dominated(self, others: List['ShapeReport']) -> bool:
+    def is_dominated(self, others: List["ShapeReport"]) -> bool:
         """
         Determines whether this shape is dominated by any other shape in a Pareto sense.
 
@@ -128,31 +142,35 @@ class ShapeReport(BaseModel):
 
         cand_cost = self.shape_details.gpu_specs.ranking.cost
         cand_perf = self.shape_details.gpu_specs.ranking.performance
-        cand_quant = QUANT_MAPPING.get(self.configurations[0].deployment_params.quantization, 0)
+        cand_quant = QUANT_MAPPING.get(
+            self.configurations[0].deployment_params.quantization, 0
+        )
         cand_maxlen = self.configurations[0].deployment_params.max_model_len
 
         for other in others:
             other_cost = other.shape_details.gpu_specs.ranking.cost
             other_perf = other.shape_details.gpu_specs.ranking.performance
-            other_quant = QUANT_MAPPING.get(other.configurations[0].deployment_params.quantization, 0)
+            other_quant = QUANT_MAPPING.get(
+                other.configurations[0].deployment_params.quantization, 0
+            )
             other_maxlen = other.configurations[0].deployment_params.max_model_len
             if (
-                other_cost <= cand_cost and
-                other_perf >= cand_perf and
-                other_quant >= cand_quant and
-                other_maxlen >= cand_maxlen and
-                (
-                    other_cost < cand_cost or
-                    other_perf > cand_perf or
-                    other_quant > cand_quant or
-                    other_maxlen > cand_maxlen
+                other_cost <= cand_cost
+                and other_perf >= cand_perf
+                and other_quant >= cand_quant
+                and other_maxlen >= cand_maxlen
+                and (
+                    other_cost < cand_cost
+                    or other_perf > cand_perf
+                    or other_quant > cand_quant
+                    or other_maxlen > cand_maxlen
                 )
             ):
                 return True
         return False
 
     @classmethod
-    def pareto_front(cls, shapes: List['ShapeReport']) -> List['ShapeReport']:
+    def pareto_front(cls, shapes: List["ShapeReport"]) -> List["ShapeReport"]:
         """
         Filters a list of shapes/configurations to those on the Pareto frontier.
 
@@ -171,7 +189,11 @@ class ShapeReport(BaseModel):
         The returned set contains non-dominated deployments for maximizing
         performance, quantization, and model length, while minimizing cost.
         """
-        return [shape for shape in shapes if not shape.is_dominated([s for s in shapes if s != shape])]
+        return [
+            shape
+            for shape in shapes
+            if not shape.is_dominated([s for s in shapes if s != shape])
+        ]
 
 
 class ShapeRecommendationReport(BaseModel):
@@ -184,7 +206,8 @@ class ShapeRecommendationReport(BaseModel):
         troubleshoot (Optional[TroubleshootShapeSummary]): Troubleshooting information
             if no valid deployment shapes are available.
     """
-    model_name: Optional[str] = Field(
+
+    display_name: Optional[str] = Field(
         "", description="Name of the model used for recommendations."
     )
     recommendations: List[ShapeReport] = Field(
