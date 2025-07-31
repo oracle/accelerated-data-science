@@ -14,6 +14,7 @@ class FineTuneCustomMetadata(ExtendedEnum):
     SERVICE_MODEL_ARTIFACT_LOCATION = "artifact_location"
     SERVICE_MODEL_DEPLOYMENT_CONTAINER = "deployment-container"
     SERVICE_MODEL_FINE_TUNE_CONTAINER = "finetune-container"
+    FINE_TUNE_INCLUDE_BASE_MODEL_ARTIFACT = "include_base_model_artifact"
 
 
 class FineTuningRestrictedParams(ExtendedEnum):
