@@ -373,6 +373,7 @@ spec:
                 "cpu_baseline": None,
                 "ocpus": 10.0,
                 "memory_in_gbs": 36.0,
+                "cpu_baseline": None,
             },
             ModelDeploymentInfrastructure.CONST_REPLICA: 1,
         }
