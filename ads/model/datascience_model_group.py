@@ -530,7 +530,6 @@ class DataScienceModelGroup(Builder):
                 custom_metadata_list=custom_metadata_list,
                 base_model_id=self.base_model_id,
             )
-            member_model_details.append(MemberModelDetails(model_id=self.base_model_id))
         else:
             model_group_details = HomogeneousModelGroupDetails(
                 custom_metadata_list=custom_metadata_list
