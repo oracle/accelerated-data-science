@@ -61,7 +61,7 @@ class AquaRecommendApp(AquaApp):
 
         Parameters
         ----------
-        model_ocid : str
+        ocid : str
            OCID of the model to recommend feasible compute shapes.
 
         Returns
@@ -77,11 +77,15 @@ class AquaRecommendApp(AquaApp):
         """
         try:
             request = RequestRecommend(**kwargs)
-            data, model_name = self.get_model_config(request.model_ocid)
+            ds_model = self.validate_model_ocid(request.model_ocid)
+            data = self.get_model_config(ds_model)
 
             llm_config = LLMConfig.from_raw_config(data)
 
             available_shapes = self.valid_compute_shapes()
+
+            model_name = ds_model.display_name if ds_model.display_name else ""
+
             recommendations = self.summarize_shapes_for_seq_lens(
                 llm_config, available_shapes, model_name
             )
@@ -89,7 +93,7 @@ class AquaRecommendApp(AquaApp):
         # custom error to catch model incompatibility issues
         except AquaRecommendationError as error:
             return ShapeRecommendationReport(
-            recommendations=[], troubleshoot=str(error)
+                recommendations=[], troubleshoot=str(error)
             )
 
         except ValidationError as ex:
@@ -115,10 +119,16 @@ class AquaRecommendApp(AquaApp):
         Returns:
             Table: A rich Table displaying model deployment recommendations.
         """
-        logger.debug("Starting to generate rich diff table from ShapeRecommendationReport.")
+        logger.debug(
+            "Starting to generate rich diff table from ShapeRecommendationReport."
+        )
 
-        name = shape_report.model_name
-        header = f"Model Deployment Recommendations: {name}" if name else "Model Deployment Recommendations"
+        name = shape_report.display_name
+        header = (
+            f"Model Deployment Recommendations: {name}"
+            if name
+            else "Model Deployment Recommendations"
+        )
         logger.debug(f"Table header set to: {header!r}")
 
         if shape_report.troubleshoot:
@@ -167,12 +177,11 @@ class AquaRecommendApp(AquaApp):
                 str(model.total_model_gb),
                 deploy.quantization,
                 str(deploy.max_model_len),
-                full_recommendation
+                full_recommendation,
             )
 
         logger.debug("Completed populating table with recommendation rows.")
         return table
-
 
     def shapes(self, **kwargs) -> Table:
         """
@@ -203,12 +212,31 @@ class AquaRecommendApp(AquaApp):
             if shape_recommend_report.troubleshoot:
                 raise AquaValueError(shape_recommend_report.troubleshoot)
             else:
-                raise AquaValueError("Unable to generate recommendations from model. Please ensure model is registered and is a decoder-only text-generation model.")
+                raise AquaValueError(
+                    "Unable to generate recommendations from model. Please ensure model is registered and is a decoder-only text-generation model."
+                )
 
         return self.rich_diff_table(shape_recommend_report)
 
     @staticmethod
-    def get_model_config(ocid: str):
+    def validate_model_ocid(ocid: str) -> DataScienceModel:
+        """
+        Ensures the OCID passed is valid for referencing a DataScienceModel resource.
+        """
+        resource_type = get_resource_type(ocid)
+
+        if resource_type != "datasciencemodel":
+            raise AquaValueError(
+                f"The provided OCID '{ocid}' is not a valid Oracle Cloud Data Science Model OCID. "
+                "Please provide an OCID corresponding to a Data Science model resource. "
+                "Tip: Data Science model OCIDs typically start with 'ocid1.datasciencemodel...'."
+            )
+
+        model = DataScienceModel.from_id(ocid)
+        return model
+
+    @staticmethod
+    def get_model_config(model: DataScienceModel):
         """
         Loads the configuration for a given Oracle Cloud Data Science model.
 
@@ -218,8 +246,8 @@ class AquaRecommendApp(AquaApp):
 
         Parameters
         ----------
-        ocid : str
-            The OCID of the Data Science model.
+        model : DataScienceModel
+            The DataScienceModel representation of the model used in recommendations
 
         Returns
         -------
@@ -235,18 +263,6 @@ class AquaRecommendApp(AquaApp):
         AquaRecommendationError
             If the model OCID provided is not supported (only text-generation decoder models in safetensor format supported).
         """
-        resource_type = get_resource_type(ocid)
-
-        if resource_type != "datasciencemodel":
-            raise AquaValueError(
-                f"The provided OCID '{ocid}' is not a valid Oracle Cloud Data Science Model OCID. "
-                "Please provide an OCID corresponding to a Data Science model resource. "
-                "Tip: Data Science model OCIDs typically start with 'ocid1.datasciencemodel...'."
-            )
-
-        model = DataScienceModel.from_id(ocid)
-
-        model_name = model.display_name
 
         model_task = model.freeform_tags.get("task", "").lower()
         model_format = model.freeform_tags.get("model_format", "").lower()
@@ -283,7 +299,7 @@ class AquaRecommendApp(AquaApp):
                 "Please ensure your model follows the Hugging Face format and includes a 'config.json' with the necessary architecture parameters."
             ) from e
 
-        return data, model_name
+        return data
 
     @staticmethod
     def valid_compute_shapes() -> List["ComputeShapeSummary"]:
@@ -444,5 +460,7 @@ class AquaRecommendApp(AquaApp):
                 )
 
         return ShapeRecommendationReport(
-            model_name=name, recommendations=recommendations, troubleshoot=troubleshoot_msg
+            display_name=name,
+            recommendations=recommendations,
+            troubleshoot=troubleshoot_msg,
         )

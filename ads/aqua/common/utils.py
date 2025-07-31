@@ -1253,24 +1253,24 @@ def load_gpu_shapes_index(
     file_name = "gpu_shapes_index.json"
 
     # Try remote load
-    # remote_data: Dict[str, Any] = {}
-    # if CONDA_BUCKET_NS:
-    #     try:
-    #         auth = auth or authutil.default_signer()
-    #         storage_path = (
-    #             f"oci://{CONDA_BUCKET_NAME}@{CONDA_BUCKET_NS}/service_pack/{file_name}"
-    #         )
-    #         logger.debug(
-    #             "Loading GPU shapes index from Object Storage: %s", storage_path
-    #         )
-    #         with fsspec.open(storage_path, mode="r", **auth) as f:
-    #             remote_data = json.load(f)
-    #         logger.debug(
-    #             "Loaded %d shapes from Object Storage",
-    #             len(remote_data.get("shapes", {})),
-    #         )
-    #     except Exception as ex:
-    #         logger.debug("Remote load failed (%s); falling back to local", ex)
+    remote_data: Dict[str, Any] = {}
+    if CONDA_BUCKET_NS:
+        try:
+            auth = auth or authutil.default_signer()
+            storage_path = (
+                f"oci://{CONDA_BUCKET_NAME}@{CONDA_BUCKET_NS}/service_pack/{file_name}"
+            )
+            logger.debug(
+                "Loading GPU shapes index from Object Storage: %s", storage_path
+            )
+            with fsspec.open(storage_path, mode="r", **auth) as f:
+                remote_data = json.load(f)
+            logger.debug(
+                "Loaded %d shapes from Object Storage",
+                len(remote_data.get("shapes", {})),
+            )
+        except Exception as ex:
+            logger.debug("Remote load failed (%s); falling back to local", ex)
 
     # Load local copy
     local_data: Dict[str, Any] = {}
