@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from ads.aqua.common.entities import ComputeShapeSummary, GPUShapesIndex
+from ads.aqua.common.entities import ComputeShapeSummary
 from ads.aqua.common.errors import AquaRecommendationError
 from ads.aqua.shaperecommend.estimator import (
     LlamaMemoryEstimator,
@@ -202,13 +202,12 @@ class TestLLMConfig:
             max_seq_len=2048,
         )
         suggestions = c.suggested_quantizations
-        assert "8bit" in suggestions
         assert "4bit" in suggestions
 
     @pytest.mark.parametrize(
         "config_file, expected_quantizations",
         [
-            ("Devstral-Small-2507-GQA.json", {"8bit", "4bit"}),
+            ("Devstral-Small-2507-GQA.json", {"4bit"}),
             ("Kimi-K2-Instruct-MOE.json", {"4bit"}),
             ("Qwen3-235B-A22B-Instruct-2507-FP8.json", {"4bit"}),
         ],
@@ -261,11 +260,11 @@ class MockDataScienceModel:
 
 
 class TestAquaRecommendApp:
-    def test_which_gpu_valid(self, monkeypatch):
+    def test_which_gpu_valid(self, monkeypatch, **kwargs):
         app = AquaRecommendApp()
         mock_model = MockDataScienceModel.create()
         monkeypatch.setattr(
-            "ads.aqua.app.DataScienceModel.from_id", lambda ocid: mock_model
+            "ads.aqua.app.DataScienceModel.from_id", lambda _: mock_model
         )
         monkeypatch.setattr(
             app,
@@ -279,7 +278,7 @@ class TestAquaRecommendApp:
                 "max_position_embeddings": 2048,
             },
         )
-        monkeypatch.setattr(app, "valid_compute_shapes", lambda: [])
+        monkeypatch.setattr(app, "valid_compute_shapes", lambda *args, **kwargs: [])
         monkeypatch.setattr(
             app, "summarize_shapes_for_seq_lens", lambda  *args, **kwargs: "mocked_report"
         )
@@ -297,12 +296,12 @@ class TestAquaRecommendApp:
             ),
         ],
     )
-    def test_which_gpu_valid_from_file(self, monkeypatch, config_file, result_file):
+    def test_which_gpu_valid_from_file(self, monkeypatch, config_file, result_file, **kwargs):
         raw = load_config(config_file)
         app = AquaRecommendApp()
         mock_model = MockDataScienceModel.create(config_file)
         monkeypatch.setattr(
-            "ads.aqua.app.DataScienceModel.from_id", lambda ocid: mock_model
+            "ads.aqua.app.DataScienceModel.from_id", lambda _: mock_model
         )
         monkeypatch.setattr(app, "get_model_config", lambda _: raw)
 
@@ -311,7 +310,7 @@ class TestAquaRecommendApp:
             ComputeShapeSummary(name=name, shape_series="GPU", gpu_specs=spec)
             for name, spec in shapes_index.shapes.items()
         ]
-        monkeypatch.setattr(app, "valid_compute_shapes", lambda: real_shapes)
+        monkeypatch.setattr(app, "valid_compute_shapes", lambda *args, **kwargs: real_shapes)
 
         result = app.which_gpu(model_ocid="ocid1.datasciencemodel.oc1.TEST")
 
@@ -343,7 +342,7 @@ class TestShapeReport:
                         model_size_gb=1, kv_cache_size_gb=1, total_model_gb=2
                     ),
                     deployment_params=DeploymentParams(
-                        quantization="8bit", max_model_len=2048
+                        quantization="8bit", max_model_len=2048, params = ""
                     ),
                     recommendation="ok",
                 )
@@ -357,7 +356,7 @@ class TestShapeReport:
                         model_size_gb=1, kv_cache_size_gb=1, total_model_gb=2
                     ),
                     deployment_params=DeploymentParams(
-                        quantization="8bit", max_model_len=2048
+                        quantization="8bit", max_model_len=2048, params = ""
                     ),
                     recommendation="ok",
                 )
@@ -371,7 +370,7 @@ class TestShapeReport:
                         model_size_gb=1, kv_cache_size_gb=1, total_model_gb=2
                     ),
                     deployment_params=DeploymentParams(
-                        quantization="bfloat16", max_model_len=2048
+                        quantization="bfloat16", max_model_len=2048, params = ""
                     ),
                     recommendation="ok",
                 )
@@ -385,7 +384,7 @@ class TestShapeReport:
                         model_size_gb=1, kv_cache_size_gb=1, total_model_gb=2
                     ),
                     deployment_params=DeploymentParams(
-                        quantization="8bit", max_model_len=4096
+                        quantization="8bit", max_model_len=4096, params=""
                     ),
                     recommendation="ok",
                 )

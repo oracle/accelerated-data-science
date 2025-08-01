@@ -7,10 +7,12 @@ from pydantic import BaseModel, Field
 
 from ads.aqua.app import logger
 from ads.aqua.shaperecommend.constants import (
+    IN_FLIGHT_QUANTIZATION,
     LLAMA_REQUIRED_FIELDS,
     MOE_REQUIRED_FIELDS,
     NEXT_QUANT,
     QUANT_MAPPING,
+    VLLM_PARAMS,
 )
 from ads.aqua.shaperecommend.llm_config import LLMConfig
 
@@ -47,7 +49,7 @@ class MemoryEstimator(BaseModel):
         c = self.llm_config
         kv_cache_dtype_bytes = QUANT_MAPPING.get(
             c.weight_dtype, 2
-        )  # vLLM uses model's weight/quantization applied to KV cache
+        )  # vLLM uses model's weight applied to KV cache
 
         total_bytes = (
             self.batch_size
@@ -84,7 +86,9 @@ class MemoryEstimator(BaseModel):
         """
         return self.model_memory + self.kv_cache_memory
 
-    def validate_shape(self, allowed_gpu_memory: float, gpu_utilization: float = 0.9) -> bool:
+    def validate_shape(
+        self, allowed_gpu_memory: float, gpu_utilization: float = 0.9
+    ) -> bool:
         """
         Validates if a given model estimator fits within the allowed GPU memory budget, using a fixed utilization margin.
 
@@ -101,6 +105,30 @@ class MemoryEstimator(BaseModel):
             True if estimator uses less than adjusted GPU memory, else False.
         """
         return (allowed_gpu_memory * gpu_utilization) > self.total_memory
+
+    def construct_deployment_params(self) -> str:
+        """
+        Constructs a deployment parameter string for the model.
+
+        This method assembles runtime configuration parameters to be passed
+        during model deployment. It:
+        - Overrides the max sequence length if a shorter length is provided.
+        - Suggests in-flight quantization **only if the model is unquantized**
+            and in-flight quantization (such as '4bit') is requested in config.
+
+        Returns:
+            str: Parameter string for model deployment.
+        """
+        c = self.llm_config
+        params = ""
+        if self.seq_len < c.max_seq_len:
+            params += f"{VLLM_PARAMS['max_model_len']} {str(self.seq_len)}"
+
+        # Only suggest in-flight quantization for unquantized models when such quantization is requested
+        if not c.quantization and c.in_flight_quantization in IN_FLIGHT_QUANTIZATION:
+            params += " " + VLLM_PARAMS["in_flight_quant"]
+
+        return params
 
     def suggest_param_advice(self, allowed: float) -> str:
         """
@@ -126,12 +154,12 @@ class MemoryEstimator(BaseModel):
         config = self.llm_config
 
         suggested_quant_msg = None
-        quant_advice = ", ".join(getattr(config, "suggested_quantizations", []))
+        quant_advice = ", ".join(config.suggested_quantizations)
         quantization = getattr(config, "quantization", None)
 
         advice = []
 
-        if getattr(config, "suggested_quantizations", []):
+        if config.suggested_quantizations:
             to_do = f", which is smaller than the current {quantization if quantization in NEXT_QUANT else weight_size} format."
             if "No" in quant_advice:
                 suggested_quant_msg = "No smaller quantized version exists. Use a model with fewer parameters."
@@ -142,37 +170,36 @@ class MemoryEstimator(BaseModel):
                 )
             else:
                 suggested_quant_msg = (
-                    f"Use a model with or apply in-flight {quant_advice} quantization" + to_do
+                    f"Either use a pre-quantized model at {quant_advice}, or apply in-flight {quant_advice} quantization"
+                    + to_do
                 )
 
-        kv_advice = [
-            f"Reduce maximum context length (set --max-model-len < {seq_len})"
-        ]
+        kv_advice = [f"Reduce maximum context length (set --max-model-len < {seq_len})"]
 
         if batch_size != 1:
             kv_advice.append(f"Reduce batch size to less than {batch_size}.")
 
         wt_advice = [
             "Use a model with fewer parameters.",
-            f"{suggested_quant_msg}"
-            if suggested_quant_msg
-            else ""
+            f"{suggested_quant_msg}" if suggested_quant_msg else "",
         ]
 
         if kv_gb > wt_gb and kv_gb > allowed * 0.5:
-            main = "KV cache memory usage is the main limiting factor."
+            main = "KV cache memory usage is the main limiting factor"
             advice = kv_advice
         elif wt_gb > kv_gb and wt_gb > allowed * 0.5:
-            main = "Model weights are the main limiting factor."
+            main = "Model weights are the main limiting factor"
             advice = wt_advice
         else:
-            main = "Both model weights and KV cache are significant contributors to memory use."
+            main = "Both model weights and KV cache are significant contributors to memory use"
             advice = kv_advice
             advice.extend(wt_advice)
 
         advice_str = "\n".join(f"{i}. {item}" for i, item in enumerate(advice, 1))
 
-        return f"{advice_str}\n\n{main} (KV cache: {kv_gb:.1f}GB, Weights: {wt_gb:.1f}GB)."
+        return (
+            f"{advice_str}\n\n{main} (KV cache: {kv_gb:.1f}GB, Weights: {wt_gb:.1f}GB)."
+        )
 
     def limiting_factor(
         self, allowed_gpu_memory: float, warn_delta: float = 0.85
@@ -202,8 +229,7 @@ class MemoryEstimator(BaseModel):
             advice = (
                 f"While the selected compute shape is estimated to work "
                 f"({required:.1f}GB used / {allowed_gpu_memory:.1f}GB allowed), "
-                f"the model configuration is close to the GPU memory limit. "
-                "This estimation is theoretical; actual memory usage may vary at runtime.\n\n"
+                f"the model configuration is close to the GPU memory limit.\n\n"
                 "If you encounter issues with this shape, consider the following options to reduce memory usage:\n\n"
                 f"{model_params.lstrip()}"
             )
@@ -216,7 +242,7 @@ class MemoryEstimator(BaseModel):
             )
         else:
             advice = (
-                f"Model fits well within the allowed compute shape "
+                f"No override PARAMS needed. \n\nModel fits well within the allowed compute shape "
                 f"({required:.1f}GB used / {allowed_gpu_memory:.1f}GB allowed)."
             )
         return advice
@@ -252,6 +278,7 @@ class LlamaMemoryEstimator(MemoryEstimator):
         layer_params = attn_params + mlp_params
         # Total params
         num_params = c.num_hidden_layers * layer_params + embedding_params
+
         return num_params * c.bytes_per_parameter / 1e9
 
     @property

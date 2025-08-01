@@ -17,6 +17,7 @@ from ads.aqua.common.utils import (
     load_config,
     load_gpu_shapes_index,
 )
+from ads.aqua.modeldeployment.deployment import AquaDeploymentApp
 from ads.aqua.shaperecommend.constants import (
     SAFETENSORS,
     TEXT_GENERATION,
@@ -30,6 +31,7 @@ from ads.aqua.shaperecommend.shape_report import (
     ShapeRecommendationReport,
     ShapeReport,
 )
+from ads.config import COMPARTMENT_OCID
 from ads.model.datascience_model import DataScienceModel
 
 
@@ -77,12 +79,14 @@ class AquaRecommendApp(AquaApp):
         """
         try:
             request = RequestRecommend(**kwargs)
+            # compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
             ds_model = self.validate_model_ocid(request.model_ocid)
             data = self.get_model_config(ds_model)
 
             llm_config = LLMConfig.from_raw_config(data)
-
-            available_shapes = self.valid_compute_shapes()
+            available_shapes = self.valid_compute_shapes(
+                compartment_id=request.compartment_id
+            )
 
             model_name = ds_model.display_name if ds_model.display_name else ""
 
@@ -147,13 +151,12 @@ class AquaRecommendApp(AquaApp):
         logger.debug("Initialized Table object.")
 
         table.add_column("Shape Name", max_width=16)
+        table.add_column("Avaliable", max_width=7)
+        table.add_column("Shape Type", max_width=7)
         table.add_column("GPU Count", max_width=7)
-        table.add_column("Total GPU Memory (GB)", max_width=7)
-        table.add_column("Model Size (GB)", max_width=7)
-        table.add_column("KV Cache Size (GB)", max_width=7)
-        table.add_column("Total Model (GB)", max_width=7)
+        table.add_column("Total Memory (GB)", max_width=10)
+        table.add_column("Model Deployment Size (GB)", max_width=7)
         table.add_column("Deployment Quantization", max_width=10)
-        table.add_column("Max Model Length", max_width=7)
         table.add_column("Recommendation", max_width=recs_width)
         logger.debug("Added table columns with specified max widths.")
 
@@ -166,18 +169,29 @@ class AquaRecommendApp(AquaApp):
             conf = entry.configurations[0]
             model = conf.model_details
             deploy = conf.deployment_params
-            full_recommendation = conf.recommendation
+            recommendation = conf.recommendation
+
+            if deploy.params:
+                recommendation = (
+                    f"Suggested PARAMS: {deploy.params}\n\n" + recommendation
+                )
+
+            if gpu.gpu_memory_in_gbs and shape.memory_in_gbs:
+                total_memory = f"GPU: {str(gpu.gpu_memory_in_gbs)}\nCPU: {str(shape.memory_in_gbs)}"
+            elif gpu.gpu_memory_in_gbs:
+                total_memory = f"GPU: {str(gpu.gpu_memory_in_gbs)}"
+            else:
+                total_memory = f"CPU: {str(shape.memory_in_gbs)}"
 
             table.add_row(
                 shape.name,
+                str(shape.available),
+                str(shape.shape_series),
                 str(gpu.gpu_count),
-                str(gpu.gpu_memory_in_gbs),
-                str(model.model_size_gb),
-                str(model.kv_cache_size_gb),
+                total_memory,
                 str(model.total_model_gb),
                 deploy.quantization,
-                str(deploy.max_model_len),
-                full_recommendation,
+                recommendation,
             )
 
         logger.debug("Completed populating table with recommendation rows.")
@@ -301,8 +315,7 @@ class AquaRecommendApp(AquaApp):
 
         return data
 
-    @staticmethod
-    def valid_compute_shapes() -> List["ComputeShapeSummary"]:
+    def valid_compute_shapes(self, compartment_id) -> List["ComputeShapeSummary"]:
         """
         Returns a filtered list of GPU-only ComputeShapeSummary objects by reading and parsing a JSON file.
 
@@ -321,13 +334,25 @@ class AquaRecommendApp(AquaApp):
         ValueError
             If the file cannot be opened, parsed, or the 'shapes' key is missing.
         """
+        user_shapes = AquaDeploymentApp().list_shapes(compartment_id=compartment_id)
+        set_user_shapes = {shape.name: shape for shape in user_shapes}
+
         gpu_shapes_metadata = load_gpu_shapes_index().shapes
 
         valid_shapes = []
+        # only loops through GPU shapes, update later to include CPU shapes
         for name, spec in gpu_shapes_metadata.items():
-            valid_shapes.append(
-                ComputeShapeSummary(name=name, shape_series="GPU", gpu_specs=spec)
-            )
+            if name in set_user_shapes:
+                compute_shape = set_user_shapes.get(name)
+                compute_shape.available = True
+                compute_shape.shape_series = "GPU"
+                valid_shapes.append(compute_shape)
+            else:
+                valid_shapes.append(
+                    ComputeShapeSummary(
+                        available=False, name=name, shape_series="GPU", gpu_specs=spec
+                    )
+                )
         valid_shapes.sort(
             key=lambda shape: shape.gpu_specs.gpu_memory_in_gbs, reverse=True
         )
@@ -403,7 +428,7 @@ class AquaRecommendApp(AquaApp):
                             )
                             break
 
-        # unquantized: consider inflight quantization (4bit and 8bit)
+        # unquantized: consider inflight quantization (4bit)
         else:
             deployment_config = config.optimal_config()
             prev_quant = None
@@ -412,7 +437,7 @@ class AquaRecommendApp(AquaApp):
                 for quantization, max_seq_len in deployment_config:
                     if quantization != prev_quant:
                         updated_config = config.model_copy(
-                            update={"quantization": quantization}
+                            update={"in_flight_quantization": quantization}
                         )
                         prev_quant = quantization
                     estimator = get_estimator(
@@ -442,12 +467,20 @@ class AquaRecommendApp(AquaApp):
             troubleshoot_msg += TROUBLESHOOT_MSG
 
             largest_shapes = (
-                [(shapes[0], "fp8"), (shapes[1], "4bit")] if len(shapes) > 1 else []
-            )
-            for shape, quantization in largest_shapes:
-                updated_config = config.model_copy(
-                    update={"quantization": quantization}
-                )
+                [(shapes[0], "fp8", False), (shapes[1], "4bit", True)]
+                if len(shapes) > 1
+                else []
+            )  # shape, quantization, in_flight_quantization
+
+            for shape, quantization, in_flight in largest_shapes:
+                if in_flight:
+                    updated_config = config.model_copy(
+                        update={"in_flight_quantization": quantization}
+                    )
+                else:
+                    updated_config = config.model_copy(
+                        update={"quantization": quantization}
+                    )
                 estimator = get_estimator(
                     llm_config=updated_config, seq_len=2048, batch_size=batch_size
                 )

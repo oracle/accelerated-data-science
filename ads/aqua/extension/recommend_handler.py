@@ -4,6 +4,7 @@ from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.shaperecommend.recommend import AquaRecommendApp
+from ads.config import COMPARTMENT_OCID
 
 
 class AquaRecommendHandler(AquaAPIhandler):

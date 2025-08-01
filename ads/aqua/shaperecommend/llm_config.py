@@ -8,7 +8,13 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from ads.aqua.common.errors import AquaRecommendationError
-from ads.aqua.shaperecommend.constants import NEXT_QUANT, QUANT_MAPPING
+from ads.aqua.shaperecommend.constants import (
+    BITS_AND_BYTES_4BIT,
+    BITS_AND_BYTES_8BIT,
+    DEFAULT_WEIGHT_SIZE,
+    NEXT_QUANT,
+    QUANT_MAPPING,
+)
 
 
 class LLMConfig(BaseModel):
@@ -35,10 +41,11 @@ class LLMConfig(BaseModel):
         description="Dimension of each attention head. Typically hidden_size // num_attention_heads.",
     )
     max_seq_len: Optional[int] = Field(
-        8192, description="Maximum input sequence length (context window)."
+        4096, description="Maximum input sequence length (context window)."
     )
     weight_dtype: Optional[str] = Field(
-        "float32", description="Parameter data type: 'float32', 'float16', etc."
+        DEFAULT_WEIGHT_SIZE,
+        description="Parameter data type: 'float32', 'float16', etc.",
     )
     quantization: Optional[str] = Field(
         None,
@@ -47,6 +54,11 @@ class LLMConfig(BaseModel):
     quantization_type: Optional[str] = Field(
         None,
         description="Quantization method (e.g., '8bit', '4bit', 'gptq', 'awq') or None if unquantized.",
+    )
+
+    in_flight_quantization: Optional[str] = Field(
+        None,
+        description="By setting this, enables recalculation of model footprint using 4bit in-flight quantization",
     )
 
     num_key_value_heads: Optional[int] = Field(
@@ -82,9 +94,13 @@ class LLMConfig(BaseModel):
             bits = int(m[1])
             return bits / 8  # bytes per parameter
 
+        # consider in-flight quantization
+        if self.in_flight_quantization in QUANT_MAPPING:
+            return QUANT_MAPPING[self.in_flight_quantization]
+
         # Fallback to dtype mapping
-        dtype = (self.weight_dtype or "float32").lower()
-        return QUANT_MAPPING.get(dtype, QUANT_MAPPING["float32"])
+        dtype = (self.weight_dtype or DEFAULT_WEIGHT_SIZE).lower()
+        return QUANT_MAPPING.get(dtype, QUANT_MAPPING[DEFAULT_WEIGHT_SIZE])
 
     @classmethod
     def detect_quantization_type(cls, raw: dict) -> Optional[str]:
@@ -114,9 +130,9 @@ class LLMConfig(BaseModel):
         Detects quantization bit-width as a string (e.g., '4bit', '8bit') from Hugging Face config dict.
         """
         if raw.get("load_in_8bit"):
-            return "8bit"
+            return BITS_AND_BYTES_8BIT
         if raw.get("load_in_4bit"):
-            return "4bit"
+            return BITS_AND_BYTES_4BIT
         if "quantization_config" in raw:
             qcfg = raw["quantization_config"]
             bits = qcfg.get("bits") or qcfg.get("wbits")
@@ -132,7 +148,12 @@ class LLMConfig(BaseModel):
         If model is un-quantized, uses the weight size.
         If model is pre-quantized, uses the quantization level.
         """
-        key = (self.quantization or self.weight_dtype or "float32").lower()
+        key = (
+            self.quantization
+            or self.in_flight_quantization
+            or self.weight_dtype
+            or DEFAULT_WEIGHT_SIZE
+        ).lower()
         return NEXT_QUANT.get(key, [])
 
     def calculate_possible_seq_len(self, min_len=2048):
@@ -142,22 +163,21 @@ class LLMConfig(BaseModel):
         """
         vals = []
         curr = min_len
-        max_seq_len = 16384 if not self.max_seq_len else self.max_seq_len
-        while curr <= max_seq_len:
+        while curr <= self.max_seq_len:
             vals.append(curr)
             curr *= 2
-        if vals and vals[-1] != max_seq_len:
-            vals.append(max_seq_len)
+        if vals and vals[-1] != self.max_seq_len:
+            vals.append(self.max_seq_len)
         return vals
 
     def optimal_config(self):
         """
         Builds a list of optimal configuration parameters (sorted descending). Combination of:
-            - Quantization / weight sizes: bfloat16 weight size -> 8bit -> 4bit
+            - Quantization / weight sizes: bfloat16 weight size -> 4bit
             - max-model-len: power-of-two model lengths from max length (config.json of model) to 2048 tokens.
 
         Example:
-        [('bfloat16', max_model_len supported by model) ('bfloat16', 1/2 of max_model_len) ... ('int8', 2048), ('int4', 4096), ('int4', 2048)]
+        [('bfloat16', max_model_len supported by model) ('bfloat16', 1/2 of max_model_len) ... ('int4', 4096), ('int4', 2048)]
 
         """
         # Create a copy of the suggested_quantizations list
@@ -183,9 +203,11 @@ class LLMConfig(BaseModel):
         """
         excluded_models = {"t5", "gemma", "bart", "bert", "roberta", "albert"}
         if (
-            raw.get("is_encoder_decoder", False) # exclude encoder-decoder models
-            or (raw.get("is_decoder") is False) # exclude explicit encoder-only models (altho no text-generation task ones, just dbl check)
-            or raw.get("model_type", "").lower() # exclude by known model types
+            raw.get("is_encoder_decoder", False)  # exclude encoder-decoder models
+            or (
+                raw.get("is_decoder") is False
+            )  # exclude explicit encoder-only models (altho no text-generation task ones, just dbl check)
+            or raw.get("model_type", "").lower()  # exclude by known model types
             in excluded_models
         ):
             raise AquaRecommendationError(
@@ -207,7 +229,7 @@ class LLMConfig(BaseModel):
         )
         hidden_size = raw.get("hidden_size") or raw.get("n_embd") or raw.get("d_model")
         vocab_size = raw.get("vocab_size")
-        weight_dtype = str(raw.get("torch_dtype", "float32"))
+        weight_dtype = str(raw.get("torch_dtype", DEFAULT_WEIGHT_SIZE))
         quantization = cls.detect_quantization_bits(raw)
         quantization_type = cls.detect_quantization_type(raw)
 
