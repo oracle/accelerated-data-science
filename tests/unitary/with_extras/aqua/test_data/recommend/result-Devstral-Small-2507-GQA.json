@@ -3,6 +3,7 @@
     "recommendations": [
         {
             "shape_details": {
+                "available": false,
                 "core_count": null,
                 "memory_in_gbs": null,
                 "name": "BM.GPU.H200.8",
@@ -39,14 +40,15 @@
                     "deployment_params": {
                         "quantization": "bfloat16",
                         "max_model_len": 131072,
-                        "batch_size": 1
+                        "params": ""
                     },
-                    "recommendation": "Model fits well within the allowed compute shape (69.5GB used / 1128.0GB allowed)."
+                    "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 1128.0GB allowed)."
                 }
             ]
         },
         {
             "shape_details": {
+                "available": false,
                 "core_count": null,
                 "memory_in_gbs": null,
                 "name": "BM.GPU.MI300X.8",
@@ -75,14 +77,15 @@
                     "deployment_params": {
                         "quantization": "bfloat16",
                         "max_model_len": 131072,
-                        "batch_size": 1
+                        "params": ""
                     },
-                    "recommendation": "Model fits well within the allowed compute shape (69.5GB used / 1536.0GB allowed)."
+                    "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 1536.0GB allowed)."
                 }
             ]
         },
         {
             "shape_details": {
+                "available": false,
                 "core_count": null,
                 "memory_in_gbs": null,
                 "name": "BM.GPU.L40S-NC.4",
@@ -119,14 +122,15 @@
                     "deployment_params": {
                         "quantization": "bfloat16",
                         "max_model_len": 131072,
-                        "batch_size": 1
+                        "params": ""
                     },
-                    "recommendation": "Model fits well within the allowed compute shape (69.5GB used / 192.0GB allowed)."
+                    "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 192.0GB allowed)."
                 }
             ]
         },
         {
             "shape_details": {
+                "available": false,
                 "core_count": null,
                 "memory_in_gbs": null,
                 "name": "BM.GPU.L40S.4",
@@ -163,14 +167,15 @@
                     "deployment_params": {
                         "quantization": "bfloat16",
                         "max_model_len": 131072,
-                        "batch_size": 1
+                        "params": ""
                     },
-                    "recommendation": "Model fits well within the allowed compute shape (69.5GB used / 192.0GB allowed)."
+                    "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 192.0GB allowed)."
                 }
             ]
         },
         {
             "shape_details": {
+                "available": false,
                 "core_count": null,
                 "memory_in_gbs": null,
                 "name": "VM.GPU.A10.1",
@@ -206,14 +211,15 @@
                     "deployment_params": {
                         "quantization": "4bit",
                         "max_model_len": 32768,
-                        "batch_size": 1
+                        "params": "--max-model-len 32768 --quantization bitsandbytes --load-format bitsandbytes"
                     },
-                    "recommendation": "Model fits well within the allowed compute shape (17.4GB used / 24.0GB allowed)."
+                    "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (17.4GB used / 24.0GB allowed)."
                 }
             ]
         },
         {
             "shape_details": {
+                "available": false,
                 "core_count": null,
                 "memory_in_gbs": null,
                 "name": "VM.GPU.A10.2",
@@ -242,21 +248,22 @@
             "configurations": [
                 {
                     "model_details": {
-                        "model_size_gb": 23.99,
-                        "kv_cache_size_gb": 10.74,
-                        "total_model_gb": 34.73
+                        "model_size_gb": 12.0,
+                        "kv_cache_size_gb": 21.47,
+                        "total_model_gb": 33.47
                     },
                     "deployment_params": {
-                        "quantization": "8bit",
-                        "max_model_len": 65536,
-                        "batch_size": 1
+                        "quantization": "4bit",
+                        "max_model_len": 131072,
+                        "params": " --quantization bitsandbytes --load-format bitsandbytes"
                     },
-                    "recommendation": "Model fits well within the allowed compute shape (34.7GB used / 48.0GB allowed)."
+                    "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (33.5GB used / 48.0GB allowed)."
                 }
             ]
         },
         {
             "shape_details": {
+                "available": false,
                 "core_count": null,
                 "memory_in_gbs": null,
                 "name": "BM.GPU.A10.4",
@@ -292,14 +299,15 @@
                     "deployment_params": {
                         "quantization": "bfloat16",
                         "max_model_len": 131072,
-                        "batch_size": 1
+                        "params": ""
                     },
-                    "recommendation": "Model fits well within the allowed compute shape (69.5GB used / 96.0GB allowed)."
+                    "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 96.0GB allowed)."
                 }
             ]
         },
         {
             "shape_details": {
+                "available": false,
                 "core_count": null,
                 "memory_in_gbs": null,
                 "name": "BM.GPU2.2",
@@ -320,21 +328,22 @@
             "configurations": [
                 {
                     "model_details": {
-                        "model_size_gb": 23.99,
-                        "kv_cache_size_gb": 2.68,
-                        "total_model_gb": 26.68
+                        "model_size_gb": 12.0,
+                        "kv_cache_size_gb": 10.74,
+                        "total_model_gb": 22.73
                     },
                     "deployment_params": {
-                        "quantization": "8bit",
-                        "max_model_len": 16384,
-                        "batch_size": 1
+                        "quantization": "4bit",
+                        "max_model_len": 65536,
+                        "params": "--max-model-len 65536 --quantization bitsandbytes --load-format bitsandbytes"
                     },
-                    "recommendation": "Model fits well within the allowed compute shape (26.7GB used / 32.0GB allowed)."
+                    "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (22.7GB used / 32.0GB allowed)."
                 }
             ]
         },
         {
             "shape_details": {
+                "available": false,
                 "core_count": null,
                 "memory_in_gbs": null,
                 "name": "VM.GPU2.1",
@@ -362,9 +371,9 @@
                     "deployment_params": {
                         "quantization": "4bit",
                         "max_model_len": 8192,
-                        "batch_size": 1
+                        "params": "--max-model-len 8192 --quantization bitsandbytes --load-format bitsandbytes"
                     },
-                    "recommendation": "Model fits well within the allowed compute shape (13.3GB used / 16.0GB allowed)."
+                    "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (13.3GB used / 16.0GB allowed)."
                 }
             ]
         }

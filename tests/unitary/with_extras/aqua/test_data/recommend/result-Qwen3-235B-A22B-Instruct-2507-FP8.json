@@ -3,6 +3,7 @@
     "recommendations": [
         {
             "shape_details": {
+                "available": false,
                 "core_count": null,
                 "memory_in_gbs": null,
                 "name": "BM.GPU.H200.8",
@@ -39,14 +40,15 @@
                     "deployment_params": {
                         "quantization": "fp8",
                         "max_model_len": 2048,
-                        "batch_size": 1
+                        "params": "--max-model-len 2048"
                     },
-                    "recommendation": "Model fits well within the allowed compute shape (232.3GB used / 1128.0GB allowed)."
+                    "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (232.3GB used / 1128.0GB allowed)."
                 }
             ]
         },
         {
             "shape_details": {
+                "available": false,
                 "core_count": null,
                 "memory_in_gbs": null,
                 "name": "BM.GPU.MI300X.8",
@@ -75,9 +77,9 @@
                     "deployment_params": {
                         "quantization": "fp8",
                         "max_model_len": 2048,
-                        "batch_size": 1
+                        "params": "--max-model-len 2048"
                     },
-                    "recommendation": "Model fits well within the allowed compute shape (232.3GB used / 1536.0GB allowed)."
+                    "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (232.3GB used / 1536.0GB allowed)."
                 }
             ]
         }

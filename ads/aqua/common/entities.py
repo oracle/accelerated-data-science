@@ -101,6 +101,10 @@ class ComputeShapeSummary(Serializable):
     including CPU, memory, and optional GPU characteristics.
     """
 
+    available: Optional[bool] = Field(
+        default = False,
+        description="True if shape is available on user tenancy, "
+    )
     core_count: Optional[int] = Field(
         default=None,
         description="Total number of CPU cores available for the compute shape.",

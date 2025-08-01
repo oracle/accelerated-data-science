@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from ads.aqua.common.entities import ComputeShapeSummary
 from ads.aqua.shaperecommend.constants import QUANT_MAPPING
 from ads.aqua.shaperecommend.estimator import MemoryEstimator
+from ads.config import COMPARTMENT_OCID
 
 
 class RequestRecommend(BaseModel):
@@ -18,6 +19,9 @@ class RequestRecommend(BaseModel):
 
     model_ocid: str = Field(
         ..., description="The OCID of the model to recommend feasible compute shapes."
+    )
+    compartment_id: Optional[str] = Field(
+        COMPARTMENT_OCID, description="The OCID of user's compartment"
     )
 
     class Config:
@@ -30,10 +34,12 @@ class DeploymentParams(BaseModel):  # noqa: N801
     """
 
     quantization: Optional[str] = Field(
-        None, description="Type of quantization (e.g. int8)."
+        None, description="Type of quantization (e.g. 4bit)."
     )
     max_model_len: int = Field(..., description="Maximum length of input sequence.")
-    batch_size: Optional[int] = Field(1, description="Batch size for training.")
+    params: str = Field(
+        ..., description="Runtime parameters for deployment with vLLM, etc."
+    )
 
 
 class ModelDetail(BaseModel):
@@ -89,9 +95,11 @@ class ModelConfig(BaseModel):
         - Rounds all sizes to 3 decimal digits.
         - Computes a recommendation string using `limiting_factor`.
         """
+        c = estimator.llm_config
         deployment_params = DeploymentParams(
-            quantization=getattr(estimator.llm_config, "quantization", None),
+            quantization=c.quantization or c.in_flight_quantization or c.weight_dtype,
             max_model_len=getattr(estimator, "seq_len", None),
+            params=estimator.construct_deployment_params(),
         )
         model_detail = ModelDetail(
             model_size_gb=round(getattr(estimator, "model_memory", 0.0), 2),

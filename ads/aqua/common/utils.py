@@ -1287,7 +1287,6 @@ def load_gpu_shapes_index(
 
     # Merge: remote shapes override local
     local_shapes = local_data.get("shapes", {})
-    remote_data = {}
     remote_shapes = remote_data.get("shapes", {})
     merged_shapes = {**local_shapes, **remote_shapes}
 
