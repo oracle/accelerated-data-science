@@ -147,11 +147,11 @@ class AquaModelApp(AquaApp):
     def create(
         self,
         model_id: Union[str, AquaMultiModelRef],
-        display_name: Optional[str] = None,
         project_id: Optional[str] = None,
         compartment_id: Optional[str] = None,
         freeform_tags: Optional[Dict] = None,
         defined_tags: Optional[Dict] = None,
+        display_name: Optional[str] = None,
         **kwargs,
     ) -> DataScienceModel:
         """
@@ -170,6 +170,8 @@ class AquaModelApp(AquaApp):
             Freeform tags for the model.
         defined_tags : Optional[Dict]
             Defined tags for the model.
+        display_name: ptional[str]
+            The display name of the custom model.
 
         Returns
         -------
