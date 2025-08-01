@@ -32,7 +32,7 @@ PIPELINE_PAYLOAD = dict(
     nb_session_ocid="ocid1.datasciencenotebooksession.oc1.iad..<unique_ocid>",
     shape_name="VM.Standard.E3.Flex",
     block_storage_size_in_gbs=100,
-    shape_config_details={"ocpus": 1, "memory_in_gbs": 16},
+    shape_config_details={"ocpus": 1.0, "memory_in_gbs": 16.0, "cpu_baseline": None},
 )
 PIPELINE_OCID = "ocid.xxx.datasciencepipeline.<unique_ocid>"
 
@@ -334,10 +334,8 @@ class TestDataSciencePipelineBase:
                             "jobId": "TestJobIdOne",
                             "description": "Test description one",
                             "commandLineArguments": "ARGUMENT --KEY VALUE",
-                            "environmentVariables": {
-                                "ENV": "VALUE"
-                            },
-                            "maximumRuntimeInMinutes": 20
+                            "environmentVariables": {"ENV": "VALUE"},
+                            "maximumRuntimeInMinutes": 20,
                         },
                     },
                     {
@@ -1066,10 +1064,8 @@ class TestDataSciencePipelineBase:
                             "jobId": "TestJobIdOne",
                             "description": "Test description one",
                             "commandLineArguments": "ARGUMENT --KEY VALUE",
-                            "environmentVariables": {
-                                "ENV": "VALUE"
-                            },
-                            "maximumRuntimeInMinutes": 20
+                            "environmentVariables": {"ENV": "VALUE"},
+                            "maximumRuntimeInMinutes": 20,
                         },
                     },
                     {

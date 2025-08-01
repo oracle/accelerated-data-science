@@ -373,6 +373,37 @@ class AquaDeploymentParamsHandler(AquaAPIhandler):
         )
 
 
+class AquaModelListHandler(AquaAPIhandler):
+    """Handler for Aqua model list params REST APIs.
+
+    Methods
+    -------
+    get(self, *args, **kwargs)
+        Validates parameters for the given model id.
+    """
+
+    @handle_exceptions
+    def get(self, model_deployment_id):
+        """
+        Handles get model list for the Active Model Deployment
+        Raises
+        ------
+        HTTPError
+            Raises HTTPError if inputs are missing or are invalid
+        """
+
+        self.set_header("Content-Type", "application/json")
+        endpoint: str = ""
+        model_deployment = AquaDeploymentApp().get(model_deployment_id)
+        endpoint = model_deployment.endpoint.rstrip("/") + "/predict/v1/models"
+        aqua_client = Client(endpoint=endpoint)
+        try:
+            list_model_result = aqua_client.fetch_data()
+            return self.finish(list_model_result)
+        except Exception as ex:
+            raise HTTPError(500, str(ex))
+
+
 __handlers__ = [
     ("deployments/?([^/]*)/params", AquaDeploymentParamsHandler),
     ("deployments/config/?([^/]*)", AquaDeploymentHandler),
@@ -381,4 +412,5 @@ __handlers__ = [
     ("deployments/?([^/]*)/activate", AquaDeploymentHandler),
     ("deployments/?([^/]*)/deactivate", AquaDeploymentHandler),
     ("inference/stream/?([^/]*)", AquaDeploymentStreamingInferenceHandler),
+    ("deployments/models/list/?([^/]*)", AquaModelListHandler),
 ]
