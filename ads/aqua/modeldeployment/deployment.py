@@ -214,6 +214,7 @@ class AquaDeploymentApp(AquaApp):
             )
             aqua_model = model_app.create(
                 model_id=create_deployment_details.model_id,
+                display_name=create_deployment_details.model_name,
                 compartment_id=compartment_id,
                 project_id=project_id,
                 freeform_tags=freeform_tags,
@@ -446,6 +447,7 @@ class AquaDeploymentApp(AquaApp):
             cmd_var_string = aqua_model.custom_metadata_list.get(
                 AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME
             ).value
+
             default_cmd_var = shlex.split(cmd_var_string)
             if default_cmd_var:
                 cmd_var = validate_cmd_var(default_cmd_var, cmd_var)
@@ -538,7 +540,6 @@ class AquaDeploymentApp(AquaApp):
                 )
 
         deployment_params = get_combined_params(config_params, user_params)
-
         params = f"{params} {deployment_params}".strip()
         if params:
             env_var.update({"PARAMS": params})
@@ -560,6 +561,8 @@ class AquaDeploymentApp(AquaApp):
             AQUA_MODEL_TYPE_CUSTOM if is_fine_tuned_model else AQUA_MODEL_TYPE_SERVICE
         )
 
+        is_custom_base_model = Tags.BASE_MODEL_CUSTOM in aqua_model.freeform_tags
+
         return self._create_deployment(
             create_deployment_details=create_deployment_details,
             aqua_model_id=aqua_model.id,
@@ -571,6 +574,7 @@ class AquaDeploymentApp(AquaApp):
             env_var=env_var,
             tags=tags,
             cmd_var=cmd_var,
+            is_custom_base_model=is_custom_base_model,
         )
 
     def _create_multi(
@@ -647,6 +651,7 @@ class AquaDeploymentApp(AquaApp):
         }
 
         model_name = f"{MODEL_NAME_DELIMITER} ".join(model_name_list)
+        is_custom_base_model = Tags.BASE_MODEL_CUSTOM in aqua_model.freeform_tags
 
         aqua_deployment = self._create_deployment(
             create_deployment_details=create_deployment_details,
@@ -658,6 +663,7 @@ class AquaDeploymentApp(AquaApp):
             health_check_port=health_check_port,
             env_var=env_var,
             tags=tags,
+            is_custom_base_model=is_custom_base_model,
         )
         aqua_deployment.models = create_deployment_details.models
         return aqua_deployment
@@ -673,6 +679,7 @@ class AquaDeploymentApp(AquaApp):
         health_check_port: str,
         env_var: dict,
         tags: dict,
+        is_custom_base_model: bool = False,
         cmd_var: Optional[dict] = None,
     ):
         """Creates data science model deployment.
@@ -698,6 +705,8 @@ class AquaDeploymentApp(AquaApp):
             The environment variables input for the deployment.
         tags: dict
             The tags input for the deployment.
+        is_custom_base_model: bool, optional
+            The flag set true for custom model.
         cmd_var: dict, optional
             The cmd arguments input for the deployment.
 
@@ -785,8 +794,8 @@ class AquaDeploymentApp(AquaApp):
         # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
         telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
 
-        if Tags.BASE_MODEL_CUSTOM in tags:
-            telemetry_kwargs["custom_base_model"] = True
+        if is_custom_base_model:
+            telemetry_kwargs["custom_base_model"] = "True"
 
         # tracks unique deployments that were created in the user compartment
         self.telemetry.record_event_async(
