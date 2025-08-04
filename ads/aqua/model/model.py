@@ -710,6 +710,11 @@ class AquaModelApp(AquaApp):
             .create(model_by_reference=True)
         )
 
+        logger.info(
+            f"Successfully converted legacy AQUA fine tuned model '{model_id}' to version '{AQUA_FINE_TUNE_MODEL_VERSION}'. "
+            f"Use new AQUA fine tuned model '{fine_tune_model_v2.id}' for future deployment."
+        )
+
         if delete_model:
             legacy_fine_tuned_model.delete()
 
