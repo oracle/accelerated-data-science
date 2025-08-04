@@ -90,8 +90,9 @@ class AquaShapeRecommend(BaseModel):
             )
 
             if request.generate_table and shape_recommendation_report.recommendations:
-                shape_recommendation_report = self._rich_diff_table(shape_recommendation_report)
-
+                shape_recommendation_report = self._rich_diff_table(
+                    shape_recommendation_report
+                )
 
         # custom error to catch model incompatibility issues
         except AquaRecommendationError as error:

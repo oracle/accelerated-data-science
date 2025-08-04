@@ -23,9 +23,12 @@ class RequestRecommend(BaseModel):
     shapes: List[ComputeShapeSummary] = Field(
         ..., description="The list of shapes on OCI."
     )
-    generate_table : Optional[bool] = Field(
-        True, description="True - to generate the rich diff Table, False - generate the JSON response"
-    ),
+    generate_table: Optional[bool] = (
+        Field(
+            True,
+            description="True - to generate the rich diff Table, False - generate the JSON response",
+        ),
+    )
     compartment_id: Optional[str] = Field(
         COMPARTMENT_OCID, description="The OCID of user's compartment"
     )

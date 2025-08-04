@@ -64,7 +64,11 @@ from ads.aqua.modeldeployment.config_loader import (
     ModelDeploymentConfigSummary,
     MultiModelDeploymentConfigLoader,
 )
-from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME, SHAPE_MAP
+from ads.aqua.modeldeployment.constants import (
+    DEFAULT_POLL_INTERVAL,
+    DEFAULT_WAIT_TIME,
+    SHAPE_MAP,
+)
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
@@ -1282,17 +1286,17 @@ class AquaDeploymentApp(AquaApp):
                 oci_shape = set_user_shapes.get(name)
 
                 compute_shape = ComputeShapeSummary(
-                        available=True,
-                        core_count= oci_shape.core_count,
-                        memory_in_gbs= oci_shape.memory_in_gbs,
-                        shape_series= SHAPE_MAP.get(oci_shape.shape_series, "GPU"),
-                        name= oci_shape.name,
-                        gpu_specs= spec
-                    )
+                    available=True,
+                    core_count=oci_shape.core_count,
+                    memory_in_gbs=oci_shape.memory_in_gbs,
+                    shape_series=SHAPE_MAP.get(oci_shape.shape_series, "GPU"),
+                    name=oci_shape.name,
+                    gpu_specs=spec,
+                )
             else:
                 compute_shape = ComputeShapeSummary(
-                        available=False, name=name, shape_series="GPU", gpu_specs=spec
-                    )
+                    available=False, name=name, shape_series="GPU", gpu_specs=spec
+                )
             valid_shapes.append(compute_shape)
 
         valid_shapes.sort(
@@ -1300,10 +1304,7 @@ class AquaDeploymentApp(AquaApp):
         )
         return valid_shapes
 
-
-    def recommend_shape(
-        self, **kwargs
-    ) -> Union[Table, ShapeRecommendationReport]:
+    def recommend_shape(self, **kwargs) -> Union[Table, ShapeRecommendationReport]:
         """
         For the CLI (set generate_table = True), generates the table (in rich diff) with valid
         GPU deployment shapes for the provided model and configuration.
@@ -1334,9 +1335,6 @@ class AquaDeploymentApp(AquaApp):
         AquaValueError
             If model type is unsupported by tool (no recommendation report generated)
         """
-        # generate_table = kwargs.pop(
-        #     "generate_table", True
-        # )  # Generate rich diff table by default
         compartment_id = kwargs.get("compartment_id", COMPARTMENT_OCID)
 
         kwargs["shapes"] = self.valid_compute_shapes(compartment_id=compartment_id)
