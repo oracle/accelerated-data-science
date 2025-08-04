@@ -11,3 +11,5 @@ This module contains constants used in Aqua Model Deployment.
 
 DEFAULT_WAIT_TIME = 12000
 DEFAULT_POLL_INTERVAL = 10
+
+SHAPE_MAP = {"NVIDIA_GPU": "GPU"}

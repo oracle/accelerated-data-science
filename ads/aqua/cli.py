@@ -14,7 +14,6 @@ from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.model import AquaModelApp
 from ads.aqua.modeldeployment import AquaDeploymentApp
-from ads.aqua.shaperecommend.recommend import AquaRecommendApp
 from ads.aqua.verify_policies import AquaVerifyPoliciesApp
 from ads.common.utils import LOG_LEVELS
 
@@ -32,7 +31,6 @@ class AquaCommand:
     deployment = AquaDeploymentApp
     evaluation = AquaEvaluationApp
     verify_policies = AquaVerifyPoliciesApp
-    recommend = AquaRecommendApp
 
     def __init__(
         self,

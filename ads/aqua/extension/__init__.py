@@ -13,7 +13,6 @@ from ads.aqua.extension.deployment_handler import (
 from ads.aqua.extension.evaluation_handler import __handlers__ as __eval_handlers__
 from ads.aqua.extension.finetune_handler import __handlers__ as __finetune_handlers__
 from ads.aqua.extension.model_handler import __handlers__ as __model_handlers__
-from ads.aqua.extension.recommend_handler import __handlers__ as __gpu_handlers__
 from ads.aqua.extension.ui_handler import __handlers__ as __ui_handlers__
 from ads.aqua.extension.ui_websocket_handler import __handlers__ as __ws_handlers__
 
@@ -25,7 +24,6 @@ __handlers__ = (
     + __ui_handlers__
     + __eval_handlers__
     + __ws_handlers__
-    + __gpu_handlers__
 )
 
 

@@ -8,11 +8,12 @@ import re
 import shlex
 import threading
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from cachetools import TTLCache, cached
 from oci.data_science.models import ModelDeploymentShapeSummary
 from pydantic import ValidationError
+from rich.table import Table
 
 from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.entities import (
@@ -63,7 +64,7 @@ from ads.aqua.modeldeployment.config_loader import (
     ModelDeploymentConfigSummary,
     MultiModelDeploymentConfigLoader,
 )
-from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
+from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME, SHAPE_MAP
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
@@ -71,6 +72,8 @@ from ads.aqua.modeldeployment.entities import (
     CreateModelDeploymentDetails,
 )
 from ads.aqua.modeldeployment.model_group_config import ModelGroupConfig
+from ads.aqua.shaperecommend.recommend import AquaShapeRecommend
+from ads.aqua.shaperecommend.shape_report import ShapeRecommendationReport
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN, get_log_links
 from ads.common.work_request import DataScienceWorkRequest
@@ -1242,6 +1245,107 @@ class AquaDeploymentApp(AquaApp):
                 f"and cannot be overridden or are invalid."
             )
         return {"valid": True}
+
+    def valid_compute_shapes(self, **kwargs) -> List["ComputeShapeSummary"]:
+        """
+        Returns a filtered list of GPU-only ComputeShapeSummary objects by reading and parsing a JSON file.
+
+        Parameters
+        ----------
+        file : str
+            Path to the JSON file containing shape data.
+
+        Returns
+        -------
+        List[ComputeShapeSummary]
+            List of ComputeShapeSummary objects passing the checks.
+
+        Raises
+        ------
+        ValueError
+            If the file cannot be opened, parsed, or the 'shapes' key is missing.
+        """
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        oci_shapes: list[ModelDeploymentShapeSummary] = self.list_resource(
+            self.ds_client.list_model_deployment_shapes,
+            compartment_id=compartment_id,
+            **kwargs,
+        )
+        set_user_shapes = {shape.name: shape for shape in oci_shapes}
+
+        gpu_shapes_metadata = load_gpu_shapes_index().shapes
+
+        valid_shapes = []
+        # only loops through GPU shapes, update later to include CPU shapes
+        for name, spec in gpu_shapes_metadata.items():
+            if name in set_user_shapes:
+                oci_shape = set_user_shapes.get(name)
+
+                compute_shape = ComputeShapeSummary(
+                        available=True,
+                        core_count= oci_shape.core_count,
+                        memory_in_gbs= oci_shape.memory_in_gbs,
+                        shape_series= SHAPE_MAP.get(oci_shape.shape_series, "GPU"),
+                        name= oci_shape.name,
+                        gpu_specs= spec
+                    )
+            else:
+                compute_shape = ComputeShapeSummary(
+                        available=False, name=name, shape_series="GPU", gpu_specs=spec
+                    )
+            valid_shapes.append(compute_shape)
+
+        valid_shapes.sort(
+            key=lambda shape: shape.gpu_specs.gpu_memory_in_gbs, reverse=True
+        )
+        return valid_shapes
+
+
+    def recommend_shape(
+        self, **kwargs
+    ) -> Union[Table, ShapeRecommendationReport]:
+        """
+        For the CLI (set generate_table = True), generates the table (in rich diff) with valid
+        GPU deployment shapes for the provided model and configuration.
+
+        For the API (set generate_table = False), generates the JSON with valid
+        GPU deployment shapes for the provided model and configuration.
+
+        Validates if recommendations are generated, calls method to construct the rich diff
+        table with the recommendation data.
+
+        Parameters
+        ----------
+        model_ocid : str
+        OCID of the model to recommend feasible compute shapes.
+
+        Returns
+        -------
+        Table (generate_table = True)
+            A table format for the recommendation report with compatible deployment shapes
+            or troubleshooting info citing the largest shapes if no shape is suitable.
+
+        ShapeRecommendationReport (generate_table = False)
+            A recommendation report with compatible deployment shapes, or troubleshooting info
+            citing the largest shapes if no shape is suitable.
+
+        Raises
+        ------
+        AquaValueError
+            If model type is unsupported by tool (no recommendation report generated)
+        """
+        # generate_table = kwargs.pop(
+        #     "generate_table", True
+        # )  # Generate rich diff table by default
+        compartment_id = kwargs.get("compartment_id", COMPARTMENT_OCID)
+
+        kwargs["shapes"] = self.valid_compute_shapes(compartment_id=compartment_id)
+
+        shape_recommend = AquaShapeRecommend()
+
+        shape_recommend_report = shape_recommend.which_shapes(**kwargs)
+
+        return shape_recommend_report
 
     @telemetry(entry_point="plugin=deployment&action=list_shapes", name="aqua")
     @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=5), timer=datetime.now))

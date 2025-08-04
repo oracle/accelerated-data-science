@@ -17,9 +17,15 @@ class RequestRecommend(BaseModel):
     A request to recommend compute shapes and parameters for a given model.
     """
 
-    model_ocid: str = Field(
+    model_id: str = Field(
         ..., description="The OCID of the model to recommend feasible compute shapes."
     )
+    shapes: List[ComputeShapeSummary] = Field(
+        ..., description="The list of shapes on OCI."
+    )
+    generate_table : Optional[bool] = Field(
+        True, description="True - to generate the rich diff Table, False - generate the JSON response"
+    ),
     compartment_id: Optional[str] = Field(
         COMPARTMENT_OCID, description="The OCID of user's compartment"
     )
@@ -147,35 +153,37 @@ class ShapeReport(BaseModel):
         - Cost (to be minimized)
         - Performance, quantization level, max sequence length (to be maximized)
         """
-
-        cand_cost = self.shape_details.gpu_specs.ranking.cost
-        cand_perf = self.shape_details.gpu_specs.ranking.performance
-        cand_quant = QUANT_MAPPING.get(
-            self.configurations[0].deployment_params.quantization, 0
-        )
-        cand_maxlen = self.configurations[0].deployment_params.max_model_len
-
-        for other in others:
-            other_cost = other.shape_details.gpu_specs.ranking.cost
-            other_perf = other.shape_details.gpu_specs.ranking.performance
-            other_quant = QUANT_MAPPING.get(
-                other.configurations[0].deployment_params.quantization, 0
+        try:
+            cand_cost = self.shape_details.gpu_specs.ranking.cost
+            cand_perf = self.shape_details.gpu_specs.ranking.performance
+            cand_quant = QUANT_MAPPING.get(
+                self.configurations[0].deployment_params.quantization, 0
             )
-            other_maxlen = other.configurations[0].deployment_params.max_model_len
-            if (
-                other_cost <= cand_cost
-                and other_perf >= cand_perf
-                and other_quant >= cand_quant
-                and other_maxlen >= cand_maxlen
-                and (
-                    other_cost < cand_cost
-                    or other_perf > cand_perf
-                    or other_quant > cand_quant
-                    or other_maxlen > cand_maxlen
+            cand_maxlen = self.configurations[0].deployment_params.max_model_len
+
+            for other in others:
+                other_cost = other.shape_details.gpu_specs.ranking.cost
+                other_perf = other.shape_details.gpu_specs.ranking.performance
+                other_quant = QUANT_MAPPING.get(
+                    other.configurations[0].deployment_params.quantization, 0
                 )
-            ):
-                return True
-        return False
+                other_maxlen = other.configurations[0].deployment_params.max_model_len
+                if (
+                    other_cost <= cand_cost
+                    and other_perf >= cand_perf
+                    and other_quant >= cand_quant
+                    and other_maxlen >= cand_maxlen
+                    and (
+                        other_cost < cand_cost
+                        or other_perf > cand_perf
+                        or other_quant > cand_quant
+                        or other_maxlen > cand_maxlen
+                    )
+                ):
+                    return True
+            return False
+        except AttributeError:
+            return False
 
     @classmethod
     def pareto_front(cls, shapes: List["ShapeReport"]) -> List["ShapeReport"]:
