@@ -170,7 +170,7 @@ class AquaModelApp(AquaApp):
             Freeform tags for the model.
         defined_tags : Optional[Dict]
             Defined tags for the model.
-        display_name: ptional[str]
+        display_name: Optional[str]
             The display name of the custom model.
 
         Returns
