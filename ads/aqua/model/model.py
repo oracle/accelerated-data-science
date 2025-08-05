@@ -675,12 +675,14 @@ class AquaModelApp(AquaApp):
             == AQUA_FINE_TUNE_MODEL_VERSION
         ):
             raise AquaValueError(
-                f"Invalid model id {model_id}. Only legacy AQUA fine tuned model is supported to convert to version {AQUA_FINE_TUNE_MODEL_VERSION}."
+                f"Model '{model_id}' is not eligible for conversion. Only legacy AQUA fine-tuned models "
+                f"without the 'fine_tune_model_version={AQUA_FINE_TUNE_MODEL_VERSION}' tag are supported."
             )
 
         if not legacy_fine_tuned_model.model_file_description:
             raise AquaValueError(
-                f"Invalid model id {model_id}. Only legacy AQUA fine tuned model created by model by reference is supported to convert to version {AQUA_FINE_TUNE_MODEL_VERSION}."
+                f"Model '{model_id}' is missing required metadata and cannot be converted. "
+                "This may indicate the model was not created properly or is not a supported legacy AQUA fine-tuned model."
             )
 
         # add 'fine_tune_model_version' tag as 'v2'
@@ -711,8 +713,8 @@ class AquaModelApp(AquaApp):
         )
 
         logger.info(
-            f"Successfully converted legacy AQUA fine tuned model '{model_id}' to version '{AQUA_FINE_TUNE_MODEL_VERSION}'. "
-            f"Use new AQUA fine tuned model '{fine_tune_model_v2.id}' for future deployment."
+            f"Successfully created version '{AQUA_FINE_TUNE_MODEL_VERSION}' fine-tuned model: '{fine_tune_model_v2.id}' "
+            f"based on legacy model '{model_id}'. This new model is now ready for deployment."
         )
 
         if delete_model:
