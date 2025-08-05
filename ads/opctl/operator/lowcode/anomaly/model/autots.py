@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -22,7 +22,7 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
     """Class representing AutoTS Anomaly Detection operator model."""
 
     model_mapping = {
-        "isolationforest": "IsolationForest",
+        # "isolationforest": "IsolationForest",
         "lof": "LOF",
         "ee": "EE",
         "zscore": "zscore",
@@ -43,7 +43,7 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
         from autots.evaluator.anomaly_detector import AnomalyDetector
 
         method = (
-            SupportedModels.ISOLATIONFOREST
+            SupportedModels.IQR
             if self.spec.model == SupportedModels.AutoTS
             else self.spec.model
         )
@@ -55,7 +55,7 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
         }
         # Supported methods with contamination param
         if method in [
-            SupportedModels.ISOLATIONFOREST,
+            # SupportedModels.IsolationForest,
             SupportedModels.LOF,
             SupportedModels.EE,
         ]:
