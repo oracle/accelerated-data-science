@@ -12,7 +12,11 @@ from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaValueError
 from ads.aqua.config.utils.serializer import Serializable
-from ads.aqua.constants import UNKNOWN_DICT
+from ads.aqua.constants import (
+    AQUA_FINE_TUNE_MODEL_VERSION,
+    INCLUDE_BASE_MODEL,
+    UNKNOWN_DICT,
+)
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.constants import FineTuneCustomMetadata
 from ads.aqua.modeldeployment.config_loader import (
@@ -515,7 +519,7 @@ class CreateModelDeploymentDetails(BaseModel):
         - The base model must be explicitly provided.
         - The base model must be in 'ACTIVE' state.
         - Fine-tuned models must have a tag 'fine_tune_model_version' as v2 to be supported.
-        - Fine-tuned models must not have custom metadata 'include_base_model_artifact' as '1'.
+        - Fine-tuned models must not have custom metadata 'include_base_model_artifact' as 1.
         - Fine-tuned model IDs must refer to valid, tagged fine-tuned models.
         - Fine-tuned models must refer back to the same base model.
         - All model names (including fine-tuned variants) must be unique.
@@ -591,20 +595,6 @@ class CreateModelDeploymentDetails(BaseModel):
                         f"Fine-tuned model not found: '{ft_model_id}'."
                     )
 
-                if (
-                    ft_model.freeform_tags.get(
-                        Tags.AQUA_FINE_TUNE_MODEL_VERSION, UNKNOWN
-                    ).lower()
-                    != "v2"
-                ):
-                    logger.error(
-                        "Validation failed: Fine-tuned model ID '%s' is not supported for stacked or multi model deployment.",
-                        ft_model_id,
-                    )
-                    raise ConfigValidationError(
-                        f"Invalid fine-tuned model ID '{ft_model_id}': only fine tune model v2 is supported for stacked or multi model deployment."
-                    )
-
                 if ft_model.lifecycle_state != "ACTIVE":
                     logger.error(
                         "Validation failed: Fine-tuned model '%s' is in state '%s'.",
@@ -625,6 +615,8 @@ class CreateModelDeploymentDetails(BaseModel):
                         f"Invalid fine-tuned model ID '{ft_model_id}': missing tag '{Tags.AQUA_FINE_TUNED_MODEL_TAG}'."
                     )
 
+                self.validate_ft_model_v2(model=ft_model)
+
                 ft_base_model_id = ft_model.custom_metadata_list.get(
                     FineTuneCustomMetadata.FINE_TUNE_SOURCE,
                     ModelCustomMetadataItem(
@@ -642,22 +634,6 @@ class CreateModelDeploymentDetails(BaseModel):
                     raise ConfigValidationError(
                         f"Fine-tuned model '{ft_model_id}' belongs to base model '{ft_base_model_id}', "
                         f"but was included under base model '{base_model_id}'."
-                    )
-
-                include_base_model_artifact = ft_model.custom_metadata_list.get(
-                    FineTuneCustomMetadata.FINE_TUNE_INCLUDE_BASE_MODEL_ARTIFACT,
-                    ModelCustomMetadataItem(
-                        key=FineTuneCustomMetadata.FINE_TUNE_INCLUDE_BASE_MODEL_ARTIFACT
-                    ),
-                ).value
-
-                if include_base_model_artifact == "1":
-                    logger.error(
-                        "Validation failed: Fine-tuned model ID '%s' is not supported.",
-                        ft_model_id,
-                    )
-                    raise ConfigValidationError(
-                        f"Fine-tuned model '{ft_model_id}' not supported."
                     )
 
                 # Validate fine-tuned model name uniqueness
@@ -682,39 +658,45 @@ class CreateModelDeploymentDetails(BaseModel):
                 f"{', '.join(sorted(duplicate_names))}. Model names must be unique for proper routing in multi-model deployments."
             )
 
-    def validate_input_model_id(self, model_id: str) -> None:
+    def validate_ft_model_v2(
+        self, model_id: Optional[str] = None, model: Optional[DataScienceModel] = None
+    ) -> None:
         """
-        Validates the input model id for a single model deployment configuration.
+        Validates the input fine tuned model for model deployment configuration.
 
         Validation Criteria:
-        - Fine-tuned models must not have a tag 'fine_tune_model_version' as v2 to be supported.
+        - Fine-tuned models must have a tag 'fine_tune_model_version' as v2 to be supported.
         - Fine-tuned models must not have custom metadata 'include_base_model_artifact' as '1'.
 
         Parameters
         ----------
         model_id : str
             The OCID of DataScienceModel instance.
+        model : DataScienceModel
+            The DataScienceModel instance.
 
         Raises
         ------
         ConfigValidationError
             If any of the above conditions are violated.
         """
-        base_model = DataScienceModel.from_id(model_id)
+        base_model = DataScienceModel.from_id(model_id) if model_id else model
         if Tags.AQUA_FINE_TUNED_MODEL_TAG in base_model.freeform_tags:
             if (
                 base_model.freeform_tags.get(
                     Tags.AQUA_FINE_TUNE_MODEL_VERSION, UNKNOWN
                 ).lower()
-                == "v2"
+                != AQUA_FINE_TUNE_MODEL_VERSION
             ):
                 logger.error(
-                    "Validation failed: Fine-tuned model ID '%s' is not supported for single model deployment.",
-                    model_id,
+                    "Validation failed: Fine-tuned model ID '%s' is not supported for model deployment.",
+                    base_model.id,
                 )
                 raise ConfigValidationError(
-                    f"Invalid fine-tuned model ID '{model_id}': only legacy fine tune model is supported for single model deployment."
+                    f"Invalid fine-tuned model ID '{base_model.id}': only fine tune model {AQUA_FINE_TUNE_MODEL_VERSION} is supported for model deployment. "
+                    f"Run 'ads aqua model convert_fine_tune --model_id {base_model.id}' to convert legacy AQUA fine tuned model to version {AQUA_FINE_TUNE_MODEL_VERSION} for deployment."
                 )
+
             include_base_model_artifact = base_model.custom_metadata_list.get(
                 FineTuneCustomMetadata.FINE_TUNE_INCLUDE_BASE_MODEL_ARTIFACT,
                 ModelCustomMetadataItem(
@@ -722,13 +704,13 @@ class CreateModelDeploymentDetails(BaseModel):
                 ),
             ).value
 
-            if include_base_model_artifact == "1":
+            if include_base_model_artifact == INCLUDE_BASE_MODEL:
                 logger.error(
-                    "Validation failed: Fine-tuned model ID '%s' is not supported.",
-                    model_id,
+                    "Validation failed: Fine-tuned model ID '%s' is not supported for model deployment.",
+                    base_model.id,
                 )
                 raise ConfigValidationError(
-                    f"Fine-tuned model '{model_id}' not supported."
+                    f"Invalid fine-tuned model ID '{base_model.id}': for fine tuned models like Phi4, the deployment is not supported. "
                 )
 
     class Config:

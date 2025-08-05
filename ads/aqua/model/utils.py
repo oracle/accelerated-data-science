@@ -8,6 +8,7 @@ from typing import Tuple
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaValueError
 from ads.aqua.common.utils import get_model_by_reference_paths
+from ads.aqua.constants import AQUA_FINE_TUNE_MODEL_VERSION
 from ads.aqua.finetuning.constants import FineTuneCustomMetadata
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.model.datascience_model import DataScienceModel
@@ -37,7 +38,7 @@ def extract_fine_tune_artifacts_path(aqua_model: DataScienceModel) -> Tuple[str,
 
     is_ft_model_v2 = (
         aqua_model.freeform_tags.get(Tags.AQUA_FINE_TUNE_MODEL_VERSION, "").lower()
-        == "v2"
+        == AQUA_FINE_TUNE_MODEL_VERSION
     )
     base_model_path, fine_tune_output_path = get_model_by_reference_paths(
         aqua_model.model_file_description, is_ft_model_v2
