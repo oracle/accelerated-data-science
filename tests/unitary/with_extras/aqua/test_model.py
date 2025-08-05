@@ -918,7 +918,7 @@ class TestAquaModel:
         # missing 'OCI_AQUA' tag
         with pytest.raises(
             AquaValueError,
-            match="Invalid model id mock_model_id. Only legacy AQUA fine tuned model is supported to convert to version v2.",
+            match="Model 'mock_model_id' is not eligible for conversion. Only legacy AQUA fine-tuned models without the 'fine_tune_model_version=v2' tag are supported.",
         ):
             self.app.convert_fine_tune(model_id="mock_model_id")
 
