@@ -671,12 +671,19 @@ class AquaModelApp(AquaApp):
         if (
             Tags.AQUA_TAG not in legacy_tags
             or Tags.AQUA_FINE_TUNED_MODEL_TAG not in legacy_tags
-            or legacy_tags.get(Tags.AQUA_FINE_TUNE_MODEL_VERSION, UNKNOWN).lower()
-            == AQUA_FINE_TUNE_MODEL_VERSION
         ):
             raise AquaValueError(
                 f"Model '{model_id}' is not eligible for conversion. Only legacy AQUA fine-tuned models "
                 f"without the 'fine_tune_model_version={AQUA_FINE_TUNE_MODEL_VERSION}' tag are supported."
+            )
+
+        if (
+            legacy_tags.get(Tags.AQUA_FINE_TUNE_MODEL_VERSION, UNKNOWN).lower()
+            == AQUA_FINE_TUNE_MODEL_VERSION
+        ):
+            raise AquaValueError(
+                f"Model '{model_id}' is already a fine-tuned model in version '{AQUA_FINE_TUNE_MODEL_VERSION}'. "
+                "No conversion is necessary."
             )
 
         if not legacy_fine_tuned_model.model_file_description:
