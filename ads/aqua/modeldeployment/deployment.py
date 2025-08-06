@@ -214,7 +214,6 @@ class AquaDeploymentApp(AquaApp):
             )
             aqua_model = model_app.create(
                 model_id=create_deployment_details.model_id,
-                display_name=create_deployment_details.model_name,
                 compartment_id=compartment_id,
                 project_id=project_id,
                 freeform_tags=freeform_tags,
@@ -448,7 +447,6 @@ class AquaDeploymentApp(AquaApp):
             cmd_var_string = aqua_model.custom_metadata_list.get(
                 AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME
             ).value
-
             default_cmd_var = shlex.split(cmd_var_string)
             if default_cmd_var:
                 cmd_var = validate_cmd_var(default_cmd_var, cmd_var)
@@ -541,6 +539,7 @@ class AquaDeploymentApp(AquaApp):
                 )
 
         deployment_params = get_combined_params(config_params, user_params)
+
         params = f"{params} {deployment_params}".strip()
         if params:
             env_var.update({"PARAMS": params})

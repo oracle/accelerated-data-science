@@ -151,7 +151,6 @@ class AquaModelApp(AquaApp):
         compartment_id: Optional[str] = None,
         freeform_tags: Optional[Dict] = None,
         defined_tags: Optional[Dict] = None,
-        display_name: Optional[str] = None,
         **kwargs,
     ) -> DataScienceModel:
         """
@@ -170,8 +169,6 @@ class AquaModelApp(AquaApp):
             Freeform tags for the model.
         defined_tags : Optional[Dict]
             Defined tags for the model.
-        display_name: Optional[str]
-            The display name of the custom model.
 
         Returns
         -------
@@ -206,9 +203,6 @@ class AquaModelApp(AquaApp):
             **(service_model.defined_tags or {}),
             **(defined_tags or {}),
         }
-
-        if display_name:
-            service_model.display_name = display_name
 
         custom_model = (
             DataScienceModel()
