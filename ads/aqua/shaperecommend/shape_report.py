@@ -20,9 +20,6 @@ class RequestRecommend(BaseModel):
     model_id: str = Field(
         ..., description="The OCID of the model to recommend feasible compute shapes."
     )
-    shapes: List[ComputeShapeSummary] = Field(
-        ..., description="The list of shapes on OCI."
-    )
     generate_table: Optional[bool] = (
         Field(
             True,

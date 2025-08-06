@@ -67,3 +67,12 @@ QUANT_MAPPING = {
     "4bit": 0.5,
     "int4": 0.5,
 }
+
+SHAPE_MAP = {
+    "NVIDIA_GPU": "GPU",
+    "AMD_ROME": "CPU",
+    "GENERIC": "CPU",
+    "LEGACY": "CPU",
+    "ARM": "CPU",
+    "UNKNOWN_ENUM_VALUE": "N/A",
+}

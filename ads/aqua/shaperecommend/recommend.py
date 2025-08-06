@@ -15,9 +15,11 @@ from ads.aqua.common.utils import (
     build_pydantic_error_message,
     get_resource_type,
     load_config,
+    load_gpu_shapes_index,
 )
 from ads.aqua.shaperecommend.constants import (
     SAFETENSORS,
+    SHAPE_MAP,
     TEXT_GENERATION,
     TROUBLESHOOT_MSG,
 )
@@ -30,9 +32,12 @@ from ads.aqua.shaperecommend.shape_report import (
     ShapeReport,
 )
 from ads.model.datascience_model import DataScienceModel
+from ads.model.service.oci_datascience_model_deployment import (
+    OCIDataScienceModelDeployment,
+)
 
 
-class AquaShapeRecommend(BaseModel):
+class AquaShapeRecommend:
     """
     Interface for recommending GPU shapes for machine learning model deployments
     on Oracle Cloud Infrastructure Data Science service.
@@ -42,7 +47,7 @@ class AquaShapeRecommend(BaseModel):
     Must be used within a properly configured and authenticated OCI environment.
     """
 
-    def which_shapes(self, **kwargs) -> Union[ShapeRecommendationReport, Table]:
+    def which_shapes(self, request: RequestRecommend) -> Union[ShapeRecommendationReport, Table]:
         """
         Lists valid GPU deployment shapes for the provided model and configuration.
 
@@ -77,7 +82,8 @@ class AquaShapeRecommend(BaseModel):
             If parameters are missing or invalid, or if no valid sequence length is requested.
         """
         try:
-            request = RequestRecommend(**kwargs)
+            shapes = self.valid_compute_shapes(compartment_id=request.compartment_id)
+
             ds_model = self._validate_model_ocid(request.model_id)
             data = self._get_model_config(ds_model)
 
@@ -86,7 +92,7 @@ class AquaShapeRecommend(BaseModel):
             model_name = ds_model.display_name if ds_model.display_name else ""
 
             shape_recommendation_report = self._summarize_shapes_for_seq_lens(
-                llm_config, request.shapes, model_name
+                llm_config, shapes, model_name
             )
 
             if request.generate_table and shape_recommendation_report.recommendations:
@@ -107,9 +113,60 @@ class AquaShapeRecommend(BaseModel):
             ) from ex
         except AquaValueError as ex:
             logger.error(f"Error with LLM config: {ex}")
-            raise
+            raise AquaValueError(  # noqa: B904
+                f"An error occured while producing recommendations: {ex}"
+            )
 
         return shape_recommendation_report
+
+    def valid_compute_shapes(self, compartment_id: str) -> List["ComputeShapeSummary"]:
+        """
+        Returns a filtered list of GPU-only ComputeShapeSummary objects by reading and parsing a JSON file.
+
+        Parameters
+        ----------
+        file : str
+            Path to the JSON file containing shape data.
+
+        Returns
+        -------
+        List[ComputeShapeSummary]
+            List of ComputeShapeSummary objects passing the checks.
+
+        Raises
+        ------
+        ValueError
+            If the file cannot be opened, parsed, or the 'shapes' key is missing.
+        """
+        oci_shapes = OCIDataScienceModelDeployment.shapes(compartment_id=compartment_id)
+        set_user_shapes = {shape.name: shape for shape in oci_shapes}
+
+        gpu_shapes_metadata = load_gpu_shapes_index().shapes
+
+        valid_shapes = []
+        # only loops through GPU shapes, update later to include CPU shapes
+        for name, spec in gpu_shapes_metadata.items():
+            if name in set_user_shapes:
+                oci_shape = set_user_shapes.get(name)
+
+                compute_shape = ComputeShapeSummary(
+                    available=True,
+                    core_count=oci_shape.core_count,
+                    memory_in_gbs=oci_shape.memory_in_gbs,
+                    shape_series=SHAPE_MAP.get(oci_shape.shape_series, "GPU"),
+                    name=oci_shape.name,
+                    gpu_specs=spec,
+                )
+            else:
+                compute_shape = ComputeShapeSummary(
+                    available=False, name=name, shape_series="GPU", gpu_specs=spec
+                )
+            valid_shapes.append(compute_shape)
+
+        valid_shapes.sort(
+            key=lambda shape: shape.gpu_specs.gpu_memory_in_gbs, reverse=True
+        )
+        return valid_shapes
 
     @staticmethod
     def _rich_diff_table(shape_report: ShapeRecommendationReport) -> Table:
@@ -321,7 +378,7 @@ class AquaShapeRecommend(BaseModel):
         recommendations = []
 
         if not shapes:
-            raise ValueError(
+            raise AquaValueError(
                 "No GPU shapes were passed for recommendation. Ensure shape parsing succeeded."
             )
 

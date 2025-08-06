@@ -212,7 +212,7 @@ class LLMConfig(BaseModel):
         ):
             raise AquaRecommendationError(
                 "Please provide a decoder-only text-generation model (ex. Llama, Falcon, etc). "
-                "Encoder-decoder models (ex. T5, Gemma) and encoder-only (BERT) are not supported in this tool at this time."
+                "Encoder-decoder models (ex. T5, Gemma) and encoder-only (BERT) are not supported at this time."
             )
 
     @classmethod

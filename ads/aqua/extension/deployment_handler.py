@@ -58,12 +58,11 @@ class AquaDeploymentHandler(AquaAPIhandler):
                 model_id=id.split(",") if "," in id else id
             )
         elif paths.startswith("aqua/deployments/recommend_shapes"):
-            id = id or self.get_argument("model_id", default=None)
             if not id or not isinstance(id, str):
                 raise HTTPError(
                     400,
                     f"Invalid request format for {self.request.path}. "
-                    "Expected a single model OCID",
+                    "Expected a single model OCID specified as --model_id",
                 )
             id = id.replace(" ", "")
             return self.get_recommend_shape(model_id=id)
@@ -189,14 +188,10 @@ class AquaDeploymentHandler(AquaAPIhandler):
 
         compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
 
-        generate_table = (
-            self.get_argument("generate_table", default="True").lower() == "true"
-        )
-
         recommend_report = app.recommend_shape(
             model_id=model_id,
             compartment_id=compartment_id,
-            generate_table=generate_table,
+            generate_table=False,
         )
 
         return self.finish(recommend_report)

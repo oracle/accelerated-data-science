@@ -67,7 +67,6 @@ from ads.aqua.modeldeployment.config_loader import (
 from ads.aqua.modeldeployment.constants import (
     DEFAULT_POLL_INTERVAL,
     DEFAULT_WAIT_TIME,
-    SHAPE_MAP,
 )
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
@@ -77,7 +76,10 @@ from ads.aqua.modeldeployment.entities import (
 )
 from ads.aqua.modeldeployment.model_group_config import ModelGroupConfig
 from ads.aqua.shaperecommend.recommend import AquaShapeRecommend
-from ads.aqua.shaperecommend.shape_report import ShapeRecommendationReport
+from ads.aqua.shaperecommend.shape_report import (
+    RequestRecommend,
+    ShapeRecommendationReport,
+)
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN, get_log_links
 from ads.common.work_request import DataScienceWorkRequest
@@ -1250,60 +1252,6 @@ class AquaDeploymentApp(AquaApp):
             )
         return {"valid": True}
 
-    def valid_compute_shapes(self, **kwargs) -> List["ComputeShapeSummary"]:
-        """
-        Returns a filtered list of GPU-only ComputeShapeSummary objects by reading and parsing a JSON file.
-
-        Parameters
-        ----------
-        file : str
-            Path to the JSON file containing shape data.
-
-        Returns
-        -------
-        List[ComputeShapeSummary]
-            List of ComputeShapeSummary objects passing the checks.
-
-        Raises
-        ------
-        ValueError
-            If the file cannot be opened, parsed, or the 'shapes' key is missing.
-        """
-        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
-        oci_shapes: list[ModelDeploymentShapeSummary] = self.list_resource(
-            self.ds_client.list_model_deployment_shapes,
-            compartment_id=compartment_id,
-            **kwargs,
-        )
-        set_user_shapes = {shape.name: shape for shape in oci_shapes}
-
-        gpu_shapes_metadata = load_gpu_shapes_index().shapes
-
-        valid_shapes = []
-        # only loops through GPU shapes, update later to include CPU shapes
-        for name, spec in gpu_shapes_metadata.items():
-            if name in set_user_shapes:
-                oci_shape = set_user_shapes.get(name)
-
-                compute_shape = ComputeShapeSummary(
-                    available=True,
-                    core_count=oci_shape.core_count,
-                    memory_in_gbs=oci_shape.memory_in_gbs,
-                    shape_series=SHAPE_MAP.get(oci_shape.shape_series, "GPU"),
-                    name=oci_shape.name,
-                    gpu_specs=spec,
-                )
-            else:
-                compute_shape = ComputeShapeSummary(
-                    available=False, name=name, shape_series="GPU", gpu_specs=spec
-                )
-            valid_shapes.append(compute_shape)
-
-        valid_shapes.sort(
-            key=lambda shape: shape.gpu_specs.gpu_memory_in_gbs, reverse=True
-        )
-        return valid_shapes
-
     def recommend_shape(self, **kwargs) -> Union[Table, ShapeRecommendationReport]:
         """
         For the CLI (set generate_table = True), generates the table (in rich diff) with valid
@@ -1335,13 +1283,16 @@ class AquaDeploymentApp(AquaApp):
         AquaValueError
             If model type is unsupported by tool (no recommendation report generated)
         """
-        compartment_id = kwargs.get("compartment_id", COMPARTMENT_OCID)
-
-        kwargs["shapes"] = self.valid_compute_shapes(compartment_id=compartment_id)
+        try:
+            request = RequestRecommend(**kwargs)
+        except ValidationError as e:
+            custom_error = build_pydantic_error_message(e)
+            raise AquaValueError(  # noqa: B904
+                f"Failed to request shape recommendation due to invalid input parameters: {custom_error}"
+            )
 
         shape_recommend = AquaShapeRecommend()
-
-        shape_recommend_report = shape_recommend.which_shapes(**kwargs)
+        shape_recommend_report = shape_recommend.which_shapes(request)
 
         return shape_recommend_report
 

@@ -14,11 +14,12 @@ from ads.aqua.shaperecommend.estimator import (
     get_estimator,
 )
 from ads.aqua.shaperecommend.llm_config import LLMConfig
-from ads.aqua.shaperecommend.recommend import AquaRecommendApp
+from ads.aqua.shaperecommend.recommend import AquaShapeRecommend
 from ads.aqua.shaperecommend.shape_report import (
     DeploymentParams,
     ModelConfig,
     ModelDetail,
+    RequestRecommend,
     ShapeReport,
 )
 from ads.model.model_metadata import ModelCustomMetadata, ModelProvenanceMetadata
@@ -259,30 +260,36 @@ class MockDataScienceModel:
         return mock_model
 
 
-class TestAquaRecommendApp:
+class TestAquaShapeRecommend:
+
     def test_which_gpu_valid(self, monkeypatch, **kwargs):
-        app = AquaRecommendApp()
+        app = AquaShapeRecommend()
         mock_model = MockDataScienceModel.create()
+
         monkeypatch.setattr(
-            "ads.aqua.app.DataScienceModel.from_id", lambda _: mock_model
+            "ads.aqua.app.DataScienceModel.from_id",
+            lambda _: mock_model
         )
-        monkeypatch.setattr(
-            app,
-            "get_model_config",
-            lambda _: {
-                "num_hidden_layers": 2,
-                "hidden_size": 64,
-                "vocab_size": 1000,
-                "num_attention_heads": 4,
-                "head_dim": 16,
-                "max_position_embeddings": 2048,
-            },
-        )
-        monkeypatch.setattr(app, "valid_compute_shapes", lambda *args, **kwargs: [])
-        monkeypatch.setattr(
-            app, "summarize_shapes_for_seq_lens", lambda  *args, **kwargs: "mocked_report"
-        )
-        result = app.which_gpu(model_ocid="ocid1.datasciencemodel.oc1.TEST")
+
+        config = {
+            "num_hidden_layers": 2,
+            "hidden_size": 64,
+            "vocab_size": 1000,
+            "num_attention_heads": 4,
+            "head_dim": 16,
+            "max_position_embeddings": 2048,
+        }
+
+        app._get_model_config = MagicMock(return_value=config)
+        app.valid_compute_shapes = MagicMock(return_value=[])
+        app._summarize_shapes_for_seq_lens = MagicMock(return_value="mocked_report")
+
+        request = RequestRecommend(model_id="ocid1.datasciencemodel.oc1.TEST")
+        result = app.which_shapes(request)
+
+        app.valid_compute_shapes.assert_called_once()
+        llm_config = LLMConfig.from_raw_config(config)
+        app._summarize_shapes_for_seq_lens.assert_called_once_with(llm_config, [], "")
         assert result == "mocked_report"
 
     @pytest.mark.parametrize(
@@ -298,12 +305,12 @@ class TestAquaRecommendApp:
     )
     def test_which_gpu_valid_from_file(self, monkeypatch, config_file, result_file, **kwargs):
         raw = load_config(config_file)
-        app = AquaRecommendApp()
+        app = AquaShapeRecommend()
         mock_model = MockDataScienceModel.create(config_file)
         monkeypatch.setattr(
             "ads.aqua.app.DataScienceModel.from_id", lambda _: mock_model
         )
-        monkeypatch.setattr(app, "get_model_config", lambda _: raw)
+        monkeypatch.setattr(app, "_get_model_config", lambda _: raw)
 
         shapes_index = GPUShapesIndexMock()
         real_shapes = [
