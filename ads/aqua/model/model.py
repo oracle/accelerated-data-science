@@ -43,6 +43,7 @@ from ads.aqua.common.utils import (
 )
 from ads.aqua.config.container_config import AquaContainerConfig
 from ads.aqua.constants import (
+    AQUA_FINE_TUNE_MODEL_VERSION,
     AQUA_MODEL_ARTIFACT_CONFIG,
     AQUA_MODEL_ARTIFACT_CONFIG_MODEL_NAME,
     AQUA_MODEL_ARTIFACT_CONFIG_MODEL_TYPE,
@@ -644,6 +645,89 @@ class AquaModelApp(AquaApp):
                 logger.info(f"Updated model details for the model {id}.")
         else:
             raise AquaRuntimeError("Only registered unverified models can be edited.")
+
+    def convert_fine_tune(
+        self, model_id: str, delete_model: Optional[bool] = False
+    ) -> DataScienceModel:
+        """Converts legacy fine tuned model to fine tuned model v2.
+        1. 'fine_tune_model_version' tag will be added as 'v2' to new fine tuned model.
+        2. 'model_file_description' json will only contain fine tuned artifacts for new fine tuned model.
+
+        Parameters
+        ----------
+        model_id: str
+            The legacy fine tuned model OCID.
+        delete_model: bool
+            Flag whether to delete the legacy model or not. Defaults to False.
+
+        Returns
+        -------
+        DataScienceModel:
+            The instance of DataScienceModel.
+        """
+        legacy_fine_tuned_model = DataScienceModel.from_id(model_id)
+        legacy_tags = legacy_fine_tuned_model.freeform_tags or {}
+
+        if (
+            Tags.AQUA_TAG not in legacy_tags
+            or Tags.AQUA_FINE_TUNED_MODEL_TAG not in legacy_tags
+        ):
+            raise AquaValueError(
+                f"Model '{model_id}' is not eligible for conversion. Only legacy AQUA fine-tuned models "
+                f"without the 'fine_tune_model_version={AQUA_FINE_TUNE_MODEL_VERSION}' tag are supported."
+            )
+
+        if (
+            legacy_tags.get(Tags.AQUA_FINE_TUNE_MODEL_VERSION, UNKNOWN).lower()
+            == AQUA_FINE_TUNE_MODEL_VERSION
+        ):
+            raise AquaValueError(
+                f"Model '{model_id}' is already a fine-tuned model in version '{AQUA_FINE_TUNE_MODEL_VERSION}'. "
+                "No conversion is necessary."
+            )
+
+        if not legacy_fine_tuned_model.model_file_description:
+            raise AquaValueError(
+                f"Model '{model_id}' is missing required metadata and cannot be converted. "
+                "This may indicate the model was not created properly or is not a supported legacy AQUA fine-tuned model."
+            )
+
+        # add 'fine_tune_model_version' tag as 'v2'
+        fine_tune_model_v2_tags = {
+            **legacy_tags,
+            Tags.AQUA_FINE_TUNE_MODEL_VERSION: AQUA_FINE_TUNE_MODEL_VERSION,
+        }
+
+        # remove base model artifacts in 'model_file_description' json file
+        # base model artifacts are placed as the first entry in 'models' list
+        legacy_fine_tuned_model.model_file_description["models"].pop(0)
+
+        fine_tune_model_v2 = (
+            DataScienceModel()
+            .with_compartment_id(legacy_fine_tuned_model.compartment_id)
+            .with_project_id(legacy_fine_tuned_model.project_id)
+            .with_model_file_description(
+                json_dict=legacy_fine_tuned_model.model_file_description
+            )
+            .with_display_name(legacy_fine_tuned_model.display_name)
+            .with_description(legacy_fine_tuned_model.description)
+            .with_freeform_tags(**fine_tune_model_v2_tags)
+            .with_defined_tags(**(legacy_fine_tuned_model.defined_tags or {}))
+            .with_custom_metadata_list(legacy_fine_tuned_model.custom_metadata_list)
+            .with_defined_metadata_list(legacy_fine_tuned_model.defined_metadata_list)
+            .with_provenance_metadata(legacy_fine_tuned_model.provenance_metadata)
+            .create(model_by_reference=True)
+        )
+
+        logger.info(
+            f"Successfully created version '{AQUA_FINE_TUNE_MODEL_VERSION}' fine-tuned model: '{fine_tune_model_v2.id}' "
+            f"based on legacy model '{model_id}'. This new model is now ready for deployment."
+        )
+
+        if delete_model:
+            legacy_fine_tuned_model.delete()
+
+        return fine_tune_model_v2
 
     def _fetch_metric_from_metadata(
         self,
