@@ -924,6 +924,8 @@ class AquaDeploymentApp(AquaApp):
             params_dict = get_params_dict(params)
             # updates `--served-model-name` with service model id
             params_dict.update({"--served-model-name": aqua_model.base_model_id})
+            # TODO: sets `--max-lora-rank` as 30 in params for now, will revisit later
+            params_dict.update({"--max-lora-rank": 30})
             # adds `--enable_lora` to parameters
             params_dict.update({"--enable_lora": UNKNOWN})
             params = build_params_string(params_dict)
