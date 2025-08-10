@@ -1161,10 +1161,7 @@ class AquaDeploymentApp(AquaApp):
                 f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field for model {model_id}."
             )
 
-        if (
-            container_type_key
-            and container_type_key in InferenceContainerTypeFamily.values()
-        ):
+        if container_type_key:
             deployment_config = self.get_deployment_config(model_id)
 
             instance_shape_config = deployment_config.configuration.get(
