@@ -27,6 +27,7 @@ from ads.aqua.common.utils import (
     build_pydantic_error_message,
     find_restricted_params,
     get_combined_params,
+    get_container_env_type,
     get_container_params_type,
     get_ocid_substring,
     get_params_list,
@@ -1042,6 +1043,7 @@ class AquaDeploymentApp(AquaApp):
         config = self.get_config_from_metadata(
             model_id, AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION
         ).config
+
         if config:
             logger.info(
                 f"Fetched {AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION} from defined metadata for model: {model_id}."
@@ -1126,7 +1128,7 @@ class AquaDeploymentApp(AquaApp):
         model_id: str,
         instance_shape: str,
         gpu_count: int = None,
-    ) -> List[str]:
+    ) -> Dict:
         """Gets the default params set in the deployment configs for the given model and instance shape.
 
         Parameters
@@ -1148,6 +1150,7 @@ class AquaDeploymentApp(AquaApp):
 
         """
         default_params = []
+        default_envs = {}
         config_params = {}
         model = DataScienceModel.from_id(model_id)
         try:
@@ -1157,19 +1160,15 @@ class AquaDeploymentApp(AquaApp):
         except ValueError:
             container_type_key = UNKNOWN
             logger.debug(
-                f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field for model {model_id}."
+                f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the "
+                f"custom metadata field for model {model_id}."
             )
 
-        if (
-            container_type_key
-            and container_type_key in InferenceContainerTypeFamily.values()
-        ):
+        if container_type_key:
             deployment_config = self.get_deployment_config(model_id)
-
             instance_shape_config = deployment_config.configuration.get(
                 instance_shape, ConfigurationItem()
             )
-
             if instance_shape_config.multi_model_deployment and gpu_count:
                 gpu_params = instance_shape_config.multi_model_deployment
 
@@ -1178,11 +1177,17 @@ class AquaDeploymentApp(AquaApp):
                         config_params = gpu_config.parameters.get(
                             get_container_params_type(container_type_key), UNKNOWN
                         )
+                        default_envs = instance_shape_config.env.get(
+                            get_container_env_type(container_type_key), {}
+                        )
                         break
 
             else:
                 config_params = instance_shape_config.parameters.get(
                     get_container_params_type(container_type_key), UNKNOWN
+                )
+                default_envs = instance_shape_config.env.get(
+                    get_container_env_type(container_type_key), {}
                 )
 
             if config_params:
@@ -1196,7 +1201,7 @@ class AquaDeploymentApp(AquaApp):
                     if params.split()[0] not in restricted_params_set:
                         default_params.append(params)
 
-        return default_params
+        return {"data": default_params, "env": default_envs}
 
     def validate_deployment_params(
         self,
