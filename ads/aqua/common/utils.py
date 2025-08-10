@@ -14,7 +14,7 @@ import shlex
 import shutil
 import subprocess
 from datetime import datetime, timedelta
-from functools import lru_cache, wraps
+from functools import wraps
 from pathlib import Path
 from string import Template
 from typing import Any, Dict, List, Optional, Union
@@ -997,7 +997,6 @@ def get_container_params_type(container_type_name: str) -> str:
         return UNKNOWN
 
 
-@lru_cache(maxsize=None)
 def get_container_env_type(container_type_name: Optional[str]) -> str:
     """
     Determine the container environment type based on the container type name.
