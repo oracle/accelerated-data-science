@@ -199,7 +199,7 @@ class AquaDeploymentApp(AquaApp):
         if create_deployment_details.instance_shape.lower() not in available_shapes:
             raise AquaValueError(
                 f"Invalid Instance Shape. The selected shape '{create_deployment_details.instance_shape}' "
-                f"is not available in the {self.region} region. Please choose another shape to deploy the model."
+                f"is not supported in the {self.region} region. Please choose another shape to deploy the model."
             )
 
         # Get container config
