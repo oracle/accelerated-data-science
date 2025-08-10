@@ -381,6 +381,7 @@ class AquaDeploymentApp(AquaApp):
             Tags.AQUA_SERVICE_MODEL_TAG,
             Tags.AQUA_FINE_TUNED_MODEL_TAG,
             Tags.AQUA_TAG,
+            Tags.BASE_MODEL_CUSTOM,
         ]:
             if tag in aqua_model.freeform_tags:
                 tags[tag] = aqua_model.freeform_tags[tag]
