@@ -88,6 +88,7 @@ class MultiModelConfig(Serializable):
         gpu_count (int, optional): Number of GPUs count to this model of this shape.
         parameters (Dict[str, str], optional): A dictionary of parameters (e.g., VLLM_PARAMS) to
             configure the behavior of a particular GPU shape.
+        env (Dict[str, Dict[str, str]]): Environment variables grouped by namespace (e.g., "VLLM": {"VAR": "VAL"}).
     """
 
     gpu_count: Optional[int] = Field(
@@ -96,6 +97,10 @@ class MultiModelConfig(Serializable):
     parameters: Optional[Dict[str, str]] = Field(
         default_factory=dict,
         description="Key-value pairs for GPU shape parameters (e.g., VLLM_PARAMS).",
+    )
+    env: Optional[Dict[str, Dict[str, str]]] = Field(
+        default_factory=dict,
+        description="Environment variables grouped by namespace",
     )
 
     class Config:
@@ -130,6 +135,7 @@ class ConfigurationItem(Serializable):
             configure the behavior of a particular GPU shape.
         multi_model_deployment (List[MultiModelConfig], optional): A list of multi model configuration details.
         shape_info (DeploymentShapeInfo, optional): The shape information to this model for specific CPU shape.
+        env (Dict[str, Dict[str, str]]): Environment variables grouped by namespace (e.g., "VLLM": {"VAR": "VAL"}).
     """
 
     parameters: Optional[Dict[str, str]] = Field(
@@ -142,6 +148,10 @@ class ConfigurationItem(Serializable):
     shape_info: Optional[DeploymentShapeInfo] = Field(
         default_factory=DeploymentShapeInfo,
         description="The shape information to this model for specific shape",
+    )
+    env: Optional[Dict[str, Dict[str, str]]] = Field(
+        default_factory=dict,
+        description="Environment variables grouped by namespace",
     )
 
     class Config:
