@@ -233,6 +233,7 @@ class CreateModelDeploymentDetails(BaseModel):
         None, description="The description of the deployment."
     )
     model_id: Optional[str] = Field(None, description="The model OCID to deploy.")
+
     models: Optional[List[AquaMultiModelRef]] = Field(
         None, description="List of models for multimodel deployment."
     )
