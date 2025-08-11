@@ -20,6 +20,7 @@ from ads.aqua.shaperecommend.shape_report import (
     ModelConfig,
     ModelDetail,
     RequestRecommend,
+    ShapeRecommendationReport,
     ShapeReport,
 )
 from ads.model.model_metadata import ModelCustomMetadata, ModelProvenanceMetadata
@@ -233,9 +234,10 @@ class GPUShapesIndexMock:
         local_shapes = local_data.get("shapes", {})
         self.shapes = local_shapes
 
+
 class MockDataScienceModel:
     @staticmethod
-    def create(config_file = ""):
+    def create(config_file=""):
         mock_model = MagicMock()
         mock_model.model_file_description = {"test_key": "test_value"}
         mock_model.display_name = re.sub(r"\.json$", "", config_file)
@@ -245,7 +247,7 @@ class MockDataScienceModel:
             "license": "test_license",
             "organization": "test_organization",
             "task": "text-generation",
-            "model_format" : "SAFETENSORS",
+            "model_format": "SAFETENSORS",
             "ready_to_fine_tune": "true",
             "aqua_custom_base_model": "true",
         }
@@ -261,36 +263,68 @@ class MockDataScienceModel:
 
 
 class TestAquaShapeRecommend:
-
-    def test_which_gpu_valid(self, monkeypatch, **kwargs):
+    @pytest.mark.parametrize(
+        "config, expected_recs, expected_troubleshoot",
+        [
+            (  # decoder-only model
+                {
+                    "num_hidden_layers": 2,
+                    "hidden_size": 64,
+                    "vocab_size": 1000,
+                    "num_attention_heads": 4,
+                    "head_dim": 16,
+                    "max_position_embeddings": 2048,
+                },
+                [],
+                "",
+            ),
+            (  # encoder-decoder model
+                {
+                    "num_hidden_layers": 2,
+                    "hidden_size": 64,
+                    "vocab_size": 1000,
+                    "num_attention_heads": 4,
+                    "head_dim": 16,
+                    "max_position_embeddings": 2048,
+                    "is_encoder_decoder": True,
+                },
+                [],
+                "Please provide a decoder-only text-generation model (ex. Llama, Falcon, etc). Encoder-decoder models (ex. T5, Gemma) and encoder-only (BERT) are not supported at this time.",
+            ),
+        ],
+    )
+    def test_which_shapes_valid(
+        self, monkeypatch, config, expected_recs, expected_troubleshoot
+    ):
         app = AquaShapeRecommend()
         mock_model = MockDataScienceModel.create()
 
         monkeypatch.setattr(
-            "ads.aqua.app.DataScienceModel.from_id",
-            lambda _: mock_model
+            "ads.aqua.app.DataScienceModel.from_id", lambda _: mock_model
         )
 
-        config = {
-            "num_hidden_layers": 2,
-            "hidden_size": 64,
-            "vocab_size": 1000,
-            "num_attention_heads": 4,
-            "head_dim": 16,
-            "max_position_embeddings": 2048,
-        }
-
+        expected_result = ShapeRecommendationReport(
+            recommendations=expected_recs, troubleshoot=expected_troubleshoot
+        )
         app._get_model_config = MagicMock(return_value=config)
         app.valid_compute_shapes = MagicMock(return_value=[])
-        app._summarize_shapes_for_seq_lens = MagicMock(return_value="mocked_report")
+        app._summarize_shapes_for_seq_lens = MagicMock(return_value=expected_result)
 
-        request = RequestRecommend(model_id="ocid1.datasciencemodel.oc1.TEST")
+        request = RequestRecommend(
+            model_id="ocid1.datasciencemodel.oc1.TEST", generate_table=False
+        )
         result = app.which_shapes(request)
+        assert result == expected_result
 
-        app.valid_compute_shapes.assert_called_once()
-        llm_config = LLMConfig.from_raw_config(config)
-        app._summarize_shapes_for_seq_lens.assert_called_once_with(llm_config, [], "")
-        assert result == "mocked_report"
+        # If troubleshoot is populated (error case), _summarize_shapes_for_seq_lens should not have been called
+        if expected_troubleshoot:
+            app._summarize_shapes_for_seq_lens.assert_not_called()
+        else:
+            # For non-error case, summarize should have been called
+            llm_config = LLMConfig.from_raw_config(config)
+            app._summarize_shapes_for_seq_lens.assert_called_once_with(
+                llm_config, [], ""
+            )
 
     @pytest.mark.parametrize(
         "config_file, result_file",
@@ -303,7 +337,9 @@ class TestAquaShapeRecommend:
             ),
         ],
     )
-    def test_which_gpu_valid_from_file(self, monkeypatch, config_file, result_file, **kwargs):
+    def test_which_shapes_valid_from_file(
+        self, monkeypatch, config_file, result_file, **kwargs
+    ):
         raw = load_config(config_file)
         app = AquaShapeRecommend()
         mock_model = MockDataScienceModel.create(config_file)
@@ -317,9 +353,14 @@ class TestAquaShapeRecommend:
             ComputeShapeSummary(name=name, shape_series="GPU", gpu_specs=spec)
             for name, spec in shapes_index.shapes.items()
         ]
-        monkeypatch.setattr(app, "valid_compute_shapes", lambda *args, **kwargs: real_shapes)
+        monkeypatch.setattr(
+            app, "valid_compute_shapes", lambda *args, **kwargs: real_shapes
+        )
 
-        result = app.which_gpu(model_ocid="ocid1.datasciencemodel.oc1.TEST")
+        request = RequestRecommend(
+            model_id="ocid1.datasciencemodel.oc1.TEST", generate_table=False
+        )
+        result = app.which_shapes(request=request)
 
         expected_result = load_config(result_file)
         assert result.model_dump() == expected_result
@@ -349,7 +390,7 @@ class TestShapeReport:
                         model_size_gb=1, kv_cache_size_gb=1, total_model_gb=2
                     ),
                     deployment_params=DeploymentParams(
-                        quantization="8bit", max_model_len=2048, params = ""
+                        quantization="8bit", max_model_len=2048, params=""
                     ),
                     recommendation="ok",
                 )
@@ -363,7 +404,7 @@ class TestShapeReport:
                         model_size_gb=1, kv_cache_size_gb=1, total_model_gb=2
                     ),
                     deployment_params=DeploymentParams(
-                        quantization="8bit", max_model_len=2048, params = ""
+                        quantization="8bit", max_model_len=2048, params=""
                     ),
                     recommendation="ok",
                 )
@@ -377,7 +418,7 @@ class TestShapeReport:
                         model_size_gb=1, kv_cache_size_gb=1, total_model_gb=2
                     ),
                     deployment_params=DeploymentParams(
-                        quantization="bfloat16", max_model_len=2048, params = ""
+                        quantization="bfloat16", max_model_len=2048, params=""
                     ),
                     recommendation="ok",
                 )

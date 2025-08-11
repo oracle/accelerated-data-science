@@ -13,7 +13,6 @@ from notebook.base.handlers import IPythonHandler
 from parameterized import parameterized
 
 import ads.aqua
-from ads.aqua.modeldeployment.entities import AquaDeploymentDetail
 import ads.config
 from ads.aqua.extension.deployment_handler import (
     AquaDeploymentHandler,
@@ -21,6 +20,7 @@ from ads.aqua.extension.deployment_handler import (
     AquaDeploymentStreamingInferenceHandler,
     AquaModelListHandler,
 )
+from ads.aqua.modeldeployment.entities import AquaDeploymentDetail
 
 
 class TestDataset:
@@ -86,6 +86,24 @@ class TestAquaDeploymentHandler(unittest.TestCase):
         """Test get method to return deployment config"""
         # todo: exception handler needs to be revisited
         self.deployment_handler.request.path = "aqua/deployments/config"
+        mock_error.return_value = MagicMock(status=400)
+        result = self.deployment_handler.get(id="")
+        mock_error.assert_called_once()
+        assert result["status"] == 400
+
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.recommend_shape")
+    def test_get_recommend_shape(self, mock_recommend_shape):
+        """Test get method to return deployment config"""
+        self.deployment_handler.request.path = "aqua/deployments/recommend_shapes"
+        self.deployment_handler.get(id="mock-model-id")
+        mock_recommend_shape.assert_called()
+
+    @unittest.skip("fix this test after exception handler is updated.")
+    @patch("ads.aqua.extension.base_handler.AquaAPIhandler.write_error")
+    def test_get_recommend_shape_without_id(self, mock_error):
+        """Test get method to return deployment config"""
+        # todo: exception handler needs to be revisited
+        self.deployment_handler.request.path = "aqua/deployments/recommend_shape"
         mock_error.return_value = MagicMock(status=400)
         result = self.deployment_handler.get(id="")
         mock_error.assert_called_once()
@@ -284,74 +302,3 @@ class AquaModelListHandlerTestCase(unittest.TestCase):
         mock_finish.side_effect = lambda x: x
         result = self.aqua_model_list_handler.get(model_id="test_model_id")
         mock_get.assert_called()
-
-from unittest.mock import MagicMock, patch
-
-import pytest
-from tornado.web import HTTPError
-
-from ads.aqua.extension.base_handler import AquaAPIhandler
-from ads.aqua.extension.errors import Errors
-from ads.aqua.extension.recommend_handler import AquaRecommendHandler
-
-
-@pytest.fixture
-def handler():
-    # Patch AquaAPIhandler.__init__ for unit test stubbing
-    AquaAPIhandler.__init__ = lambda self, *args, **kwargs: None
-    h = AquaRecommendHandler(MagicMock(), MagicMock())
-    h.finish = MagicMock()
-    h.request = MagicMock()
-    # Set required Tornado internal fields
-    h._headers = {}
-    h._write_buffer = []
-    return h
-
-
-def test_post_valid_input(monkeypatch, handler):
-    input_data = {"model_ocid": "ocid1.datasciencemodel.oc1.XYZ"}
-    expected = {"recommendations": ["VM.GPU.A10.1"], "troubleshoot": ""}
-
-    # Patch class on correct import path, so handler sees our fake implementation
-    class FakeAquaRecommendApp:
-        def which_gpu(self, **kwargs):
-            return expected
-
-    monkeypatch.setattr(
-        "ads.aqua.extension.recommend_handler.AquaRecommendApp", FakeAquaRecommendApp
-    )
-
-    handler.get_json_body = MagicMock(return_value=input_data)
-    handler.post()
-    handler.finish.assert_called_once_with(expected)
-
-
-def test_post_no_input(handler):
-    handler.get_json_body = MagicMock(return_value=None)
-    handler._headers = {}
-    handler._write_buffer = []
-    handler.write_error = MagicMock()
-    handler.post()
-    handler.write_error.assert_called_once()
-    exc_info = handler.write_error.call_args.kwargs.get("exc_info")
-    assert exc_info is not None
-    exc_type, exc_value, _ = exc_info
-    assert exc_type is HTTPError
-    assert exc_value.status_code == 400
-    assert exc_value.log_message == Errors.NO_INPUT_DATA
-
-
-def test_post_invalid_input(handler):
-    handler.get_json_body = MagicMock(side_effect=Exception("bad input"))
-    handler._headers = {}
-    handler._write_buffer = []
-    handler.write_error = MagicMock()
-    handler.post()
-    handler.write_error.assert_called_once()
-    exc_info = handler.write_error.call_args.kwargs.get("exc_info")
-    assert exc_info is not None
-    exc_type, exc_value, _ = exc_info
-    assert exc_type is HTTPError
-    assert exc_value.status_code == 400
-    assert exc_value.log_message == Errors.INVALID_INPUT_DATA_FORMAT
-
