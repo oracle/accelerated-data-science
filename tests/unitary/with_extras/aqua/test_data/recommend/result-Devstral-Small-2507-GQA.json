@@ -14,6 +14,50 @@
             "model_size_gb": 47.98,
             "total_model_gb": 69.46
           },
+          "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 96.0GB allowed)."
+        }
+      ],
+      "shape_details": {
+        "available": false,
+        "core_count": null,
+        "gpu_specs": {
+          "gpu_count": 4,
+          "gpu_memory_in_gbs": 96,
+          "gpu_type": "A10",
+          "quantization": [
+            "awq",
+            "gptq",
+            "marlin",
+            "int8",
+            "bitblas",
+            "aqlm",
+            "bitsandbytes",
+            "deepspeedfp",
+            "gguf"
+          ],
+          "ranking": {
+            "cost": 50,
+            "performance": 50
+          }
+        },
+        "memory_in_gbs": null,
+        "name": "BM.GPU.A10.4",
+        "shape_series": "GPU"
+      }
+    },
+    {
+      "configurations": [
+        {
+          "deployment_params": {
+            "max_model_len": 131072,
+            "params": "",
+            "quantization": "bfloat16"
+          },
+          "model_details": {
+            "kv_cache_size_gb": 21.47,
+            "model_size_gb": 47.98,
+            "total_model_gb": 69.46
+          },
           "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 1128.0GB allowed)."
         }
       ],
@@ -43,43 +87,6 @@
         },
         "memory_in_gbs": null,
         "name": "BM.GPU.H200.8",
-        "shape_series": "GPU"
-      }
-    },
-    {
-      "configurations": [
-        {
-          "deployment_params": {
-            "max_model_len": 131072,
-            "params": "",
-            "quantization": "bfloat16"
-          },
-          "model_details": {
-            "kv_cache_size_gb": 21.47,
-            "model_size_gb": 47.98,
-            "total_model_gb": 69.46
-          },
-          "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 1536.0GB allowed)."
-        }
-      ],
-      "shape_details": {
-        "available": false,
-        "core_count": null,
-        "gpu_specs": {
-          "gpu_count": 8,
-          "gpu_memory_in_gbs": 1536,
-          "gpu_type": "MI300X",
-          "quantization": [
-            "fp8",
-            "gguf"
-          ],
-          "ranking": {
-            "cost": 90,
-            "performance": 90
-          }
-        },
-        "memory_in_gbs": null,
-        "name": "BM.GPU.MI300X.8",
         "shape_series": "GPU"
       }
     },
@@ -177,6 +184,43 @@
       "configurations": [
         {
           "deployment_params": {
+            "max_model_len": 131072,
+            "params": "",
+            "quantization": "bfloat16"
+          },
+          "model_details": {
+            "kv_cache_size_gb": 21.47,
+            "model_size_gb": 47.98,
+            "total_model_gb": 69.46
+          },
+          "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 1536.0GB allowed)."
+        }
+      ],
+      "shape_details": {
+        "available": false,
+        "core_count": null,
+        "gpu_specs": {
+          "gpu_count": 8,
+          "gpu_memory_in_gbs": 1536,
+          "gpu_type": "MI300X",
+          "quantization": [
+            "fp8",
+            "gguf"
+          ],
+          "ranking": {
+            "cost": 90,
+            "performance": 90
+          }
+        },
+        "memory_in_gbs": null,
+        "name": "BM.GPU.MI300X.8",
+        "shape_series": "GPU"
+      }
+    },
+    {
+      "configurations": [
+        {
+          "deployment_params": {
             "max_model_len": 32768,
             "params": "--max-model-len 32768 --quantization bitsandbytes --load-format bitsandbytes",
             "quantization": "4bit"
@@ -222,7 +266,7 @@
         {
           "deployment_params": {
             "max_model_len": 131072,
-            "params": " --quantization bitsandbytes --load-format bitsandbytes",
+            "params": "--quantization bitsandbytes --load-format bitsandbytes",
             "quantization": "4bit"
           },
           "model_details": {
@@ -258,50 +302,6 @@
         },
         "memory_in_gbs": null,
         "name": "VM.GPU.A10.2",
-        "shape_series": "GPU"
-      }
-    },
-    {
-      "configurations": [
-        {
-          "deployment_params": {
-            "max_model_len": 131072,
-            "params": "",
-            "quantization": "bfloat16"
-          },
-          "model_details": {
-            "kv_cache_size_gb": 21.47,
-            "model_size_gb": 47.98,
-            "total_model_gb": 69.46
-          },
-          "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 96.0GB allowed)."
-        }
-      ],
-      "shape_details": {
-        "available": false,
-        "core_count": null,
-        "gpu_specs": {
-          "gpu_count": 4,
-          "gpu_memory_in_gbs": 96,
-          "gpu_type": "A10",
-          "quantization": [
-            "awq",
-            "gptq",
-            "marlin",
-            "int8",
-            "bitblas",
-            "aqlm",
-            "bitsandbytes",
-            "deepspeedfp",
-            "gguf"
-          ],
-          "ranking": {
-            "cost": 50,
-            "performance": 50
-          }
-        },
-        "memory_in_gbs": null,
-        "name": "BM.GPU.A10.4",
         "shape_series": "GPU"
       }
     }

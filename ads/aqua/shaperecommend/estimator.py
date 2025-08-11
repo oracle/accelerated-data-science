@@ -116,25 +116,22 @@ class MemoryEstimator(BaseModel):
         - Suggests in-flight quantization **only if the model is unquantized**
             and in-flight quantization (such as '4bit') is requested in config.
 
-        Parameters
-        ----------
-        shape_quantization : set[str]
-            Allowed quantization methods for the compute shape
-
         Returns
         -------
             str: Parameter string for model deployment.
         """
         c = self.llm_config
-        params = ""
+        params = []
         if self.seq_len < c.max_seq_len:
-            params += f"{VLLM_PARAMS['max_model_len']} {str(self.seq_len)}"
+            params.append(VLLM_PARAMS["max_model_len"])
+            params.append(str(self.seq_len))
 
         # Only suggest in-flight quantization for unquantized models when such quantization is requested
         if not c.quantization and c.in_flight_quantization in IN_FLIGHT_QUANTIZATION:
             # vLLM only supports 4bit in-flight quantization
-            params += " " + VLLM_PARAMS["in_flight_quant"]
+            params.append(VLLM_PARAMS["in_flight_quant"])
 
+        params = " ".join(params) if params else ""
         return params
 
     def suggest_param_advice(self, allowed: float) -> str:
