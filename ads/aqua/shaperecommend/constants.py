@@ -28,9 +28,9 @@ LLAMA_REQUIRED_FIELDS = [
 MOE_REQUIRED_FIELDS = LLAMA_REQUIRED_FIELDS + ["num_local_experts", "intermediate_size"]
 
 NEXT_QUANT = {
-    "float32": ["4bit"],  # vLLM only supports 4bit in-flight-quantization
-    "bfloat16": ["4bit"],
-    "float16": ["4bit"],
+    "float32": ["8bit", "4bit"],
+    "bfloat16": ["8bit", "4bit"],
+    "float16": ["8bit", "4bit"],
     "int8": ["4bit"],
     "fp8": ["4bit"],
     "8bit": ["4bit"],
@@ -38,10 +38,45 @@ NEXT_QUANT = {
     "4bit": ["No smaller quantization available"],
 }
 
+
 TEXT_GENERATION = "text_generation"
 SAFETENSORS = "safetensors"
 
-IN_FLIGHT_QUANTIZATION = {"4bit"}
+QUANT_METHODS = [
+    "aqlm",
+    "awq",
+    "deepspeedfp",
+    "tpu_int8",
+    "fp8",
+    "ptpc_fp8",
+    "fbgemm_fp8",
+    "modelopt",
+    "modelopt_fp4",
+    "marlin",
+    "bitblas",
+    "gguf",
+    "gptq_marlin_24",
+    "gptq_marlin",
+    "gptq_bitblas",
+    "awq_marlin",
+    "gptq",
+    "compressed-tensors",
+    "bitsandbytes",
+    "qqq",
+    "hqq",
+    "experts_int8",
+    "neuron_quant",
+    "ipex",
+    "quark",
+    "moe_wna16",
+    "torchao",
+    "auto-round",
+    "rtn",
+    "inc",
+    "mxfp4",
+]
+
+IN_FLIGHT_QUANTIZATION = {"4bit"}  # vLLM only supports 4bit in-flight-quantization
 
 TROUBLESHOOT_MSG = "The selected model is too large to fit on standard GPU shapes with the current configuration.\nAs troubleshooting, we have suggested the two largest available GPU shapes using the smallest quantization level ('4bit') to maximize chances of fitting the model. "
 
@@ -54,6 +89,9 @@ DEFAULT_WEIGHT_SIZE = "float32"
 
 BITS_AND_BYTES_8BIT = "8bit"
 BITS_AND_BYTES_4BIT = "4bit"
+
+BITSANDBYTES = "bitsandbytes"
+
 
 QUANT_MAPPING = {
     "float32": 4,

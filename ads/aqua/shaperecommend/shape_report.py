@@ -86,10 +86,8 @@ class ModelConfig(BaseModel):
 
         Parameters
         ----------
-        estimator : MemoryEstimator
-            Estimator with model details and processed config.
-        allowed_gpu_memory : float
-            Maximum allowed GPU memory (in GBs) for this configuration.
+        shape_quantization : set[str]
+            Allowed quantization methods for the compute shape
 
         Returns
         -------

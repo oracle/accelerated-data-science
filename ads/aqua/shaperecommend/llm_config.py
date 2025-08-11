@@ -14,6 +14,7 @@ from ads.aqua.shaperecommend.constants import (
     DEFAULT_WEIGHT_SIZE,
     NEXT_QUANT,
     QUANT_MAPPING,
+    QUANT_METHODS,
 )
 
 
@@ -110,16 +111,7 @@ class LLMConfig(BaseModel):
         qcfg = raw.get("quantization_config", {})
         if raw.get("load_in_8bit") or raw.get("load_in_4bit"):
             return "bitsandbytes"
-        for key in [
-            "gptq",
-            "awq",
-            "marlin",
-            "bitblas",
-            "aqlm",
-            "deepspeedfp",
-            "gguf",
-            "fp8",
-        ]:
+        for key in QUANT_METHODS:
             if key in str(qcfg).lower() or key in str(raw).lower():
                 return key
         return None
@@ -173,16 +165,16 @@ class LLMConfig(BaseModel):
     def optimal_config(self):
         """
         Builds a list of optimal configuration parameters (sorted descending). Combination of:
-            - Quantization / weight sizes: bfloat16 weight size -> 4bit
+            - Quantization / weight sizes: bfloat16 weight size -> 8bit -> 4bit
             - max-model-len: power-of-two model lengths from max length (config.json of model) to 2048 tokens.
 
         Example:
-        [('bfloat16', max_model_len supported by model) ('bfloat16', 1/2 of max_model_len) ... ('int4', 4096), ('int4', 2048)]
+        [('bfloat16', max_model_len supported by model) ('bfloat16', 1/2 of max_model_len) ... ('4bit', 4096), ('4bit', 2048)]
 
         """
-        # Create a copy of the suggested_quantizations list
-        quantizations = self.suggested_quantizations[:]
-        quantizations.append("bfloat16")
+        # use later-Create a copy of the suggested_quantizations list
+        # quantizations = self.suggested_quantizations[:]
+        quantizations = ["bfloat16", "4bit"]
 
         lengths = self.calculate_possible_seq_len()
 

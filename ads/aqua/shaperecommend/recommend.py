@@ -1,7 +1,11 @@
+#!/usr/bin/env python
+# Copyright (c) 2025 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
 import shutil
 from typing import List, Union
 
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 from rich.table import Table
 
 from ads.aqua.app import logger
@@ -18,6 +22,8 @@ from ads.aqua.common.utils import (
     load_gpu_shapes_index,
 )
 from ads.aqua.shaperecommend.constants import (
+    BITS_AND_BYTES_4BIT,
+    BITSANDBYTES,
     SAFETENSORS,
     SHAPE_MAP,
     TEXT_GENERATION,
@@ -47,7 +53,9 @@ class AquaShapeRecommend:
     Must be used within a properly configured and authenticated OCI environment.
     """
 
-    def which_shapes(self, request: RequestRecommend) -> Union[ShapeRecommendationReport, Table]:
+    def which_shapes(
+        self, request: RequestRecommend
+    ) -> Union[ShapeRecommendationReport, Table]:
         """
         Lists valid GPU deployment shapes for the provided model and configuration.
 
@@ -386,7 +394,8 @@ class AquaShapeRecommend:
         if config.quantization_type:
             deployment_config = config.calculate_possible_seq_len()
             for shape in shapes:
-                if config.quantization_type in shape.gpu_specs.quantization:
+                shape_quantization = set(shape.gpu_specs.quantization)
+                if config.quantization_type in shape_quantization:
                     allowed_gpu_memory = shape.gpu_specs.gpu_memory_in_gbs
                     for max_seq_len in deployment_config:
                         estimator = get_estimator(
@@ -412,8 +421,14 @@ class AquaShapeRecommend:
             deployment_config = config.optimal_config()
             prev_quant = None
             for shape in shapes:
+                shape_quantization = set(shape.gpu_specs.quantization)
                 allowed_gpu_memory = shape.gpu_specs.gpu_memory_in_gbs
                 for quantization, max_seq_len in deployment_config:
+                    if (
+                        quantization == BITS_AND_BYTES_4BIT
+                        and BITSANDBYTES not in shape_quantization
+                    ):
+                        continue
                     if quantization != prev_quant:
                         updated_config = config.model_copy(
                             update={"in_flight_quantization": quantization}
