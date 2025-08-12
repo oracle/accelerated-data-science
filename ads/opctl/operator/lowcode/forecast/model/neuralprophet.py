@@ -19,12 +19,10 @@ from ads.opctl import logger
 from ads.opctl.operator.lowcode.common.utils import (
     disable_print,
     enable_print,
-)
-from ads.opctl.operator.lowcode.forecast.utils import (
-    _select_plot_list,
     load_pkl,
     write_pkl,
 )
+from ads.opctl.operator.lowcode.forecast.utils import _select_plot_list
 
 from ..const import DEFAULT_TRIALS, SupportedModels
 from ..operator_config import ForecastOperatorConfig
@@ -159,20 +157,18 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 upper_bound=self.get_horizon(forecast[upper_bound_col_name]).values,
                 lower_bound=self.get_horizon(forecast[lower_bound_col_name]).values,
             )
-            core_columns = set(forecast.columns) - set(
-                [
-                    "y",
-                    "yhat1",
-                    upper_bound_col_name,
-                    lower_bound_col_name,
-                    "future_regressors_additive",
-                    "future_regressors_multiplicative",
-                ]
-            )
+            core_columns = set(forecast.columns) - {
+                "y",
+                "yhat1",
+                upper_bound_col_name,
+                lower_bound_col_name,
+                "future_regressors_additive",
+                "future_regressors_multiplicative",
+            }
             exog_variables = set(
                 filter(lambda x: x.startswith("future_regressor_"), list(core_columns))
             )
-            combine_terms = list(core_columns - exog_variables - set(["ds"]))
+            combine_terms = list(core_columns - exog_variables - {"ds"})
             temp_df = (
                 forecast[list(core_columns)]
                 .rename({"ds": "Date"}, axis=1)

@@ -5,6 +5,7 @@
 import json
 import os
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import fields
 from datetime import datetime, timedelta
 from itertools import chain
@@ -22,7 +23,7 @@ from ads import set_auth
 from ads.aqua import logger
 from ads.aqua.common.entities import ModelConfigResult
 from ads.aqua.common.enums import ConfigFolder, Tags
-from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
+from ads.aqua.common.errors import AquaValueError
 from ads.aqua.common.utils import (
     _is_valid_mvs,
     get_artifact_path,
@@ -58,12 +59,15 @@ from ads.telemetry.client import TelemetryClient
 class AquaApp:
     """Base Aqua App to contain common components."""
 
+    MAX_WORKERS = 10  # Number of workers for asynchronous resource loading
+
     @telemetry(name="aqua")
     def __init__(self) -> None:
         if OCI_RESOURCE_PRINCIPAL_VERSION:
             set_auth("resource_principal")
         self._auth = default_signer({"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT})
         self.ds_client = oc.OCIClientFactory(**self._auth).data_science
+        self.compute_client = oc.OCIClientFactory(**default_signer()).compute
         self.logging_client = oc.OCIClientFactory(**default_signer()).logging_management
         self.identity_client = oc.OCIClientFactory(**default_signer()).identity
         self.region = extract_region(self._auth)
@@ -127,19 +131,68 @@ class AquaApp:
             update_model_provenance_details=update_model_provenance_details,
         )
 
-    # TODO: refactor model evaluation implementation to use it.
     @staticmethod
     def get_source(source_id: str) -> Union[ModelDeployment, DataScienceModel]:
-        if is_valid_ocid(source_id):
-            if "datasciencemodeldeployment" in source_id:
-                return ModelDeployment.from_id(source_id)
-            elif "datasciencemodel" in source_id:
-                return DataScienceModel.from_id(source_id)
+        """
+        Fetches a model or model deployment based on the provided OCID.
 
+        Parameters
+        ----------
+        source_id : str
+            OCID of the Data Science model or model deployment.
+
+        Returns
+        -------
+        Union[ModelDeployment, DataScienceModel]
+            The corresponding resource object.
+
+        Raises
+        ------
+        AquaValueError
+            If the OCID is invalid or unsupported.
+        """
+        logger.debug(f"Resolving source for ID: {source_id}")
+        if not is_valid_ocid(source_id):
+            logger.error(f"Invalid OCID format: {source_id}")
+            raise AquaValueError(
+                f"Invalid source ID: {source_id}. Please provide a valid model or model deployment OCID."
+            )
+
+        if "datasciencemodeldeployment" in source_id:
+            logger.debug(f"Identified as ModelDeployment OCID: {source_id}")
+            return ModelDeployment.from_id(source_id)
+
+        if "datasciencemodel" in source_id:
+            logger.debug(f"Identified as DataScienceModel OCID: {source_id}")
+            return DataScienceModel.from_id(source_id)
+
+        logger.error(f"Unrecognized OCID type: {source_id}")
         raise AquaValueError(
-            f"Invalid source {source_id}. "
-            "Specify either a model or model deployment id."
+            f"Unsupported source ID type: {source_id}. Must be a model or model deployment OCID."
         )
+
+    def get_multi_source(
+        self,
+        ids: List[str],
+    ) -> Dict[str, Union[ModelDeployment, DataScienceModel]]:
+        """
+        Retrieves multiple DataScience resources concurrently.
+
+        Parameters
+        ----------
+        ids : List[str]
+            A list of DataScience OCIDs.
+
+        Returns
+        -------
+        Dict[str, Union[ModelDeployment, DataScienceModel]]
+            A mapping from OCID to the corresponding resolved resource object.
+        """
+        logger.debug(f"Fetching {ids} sources in parallel.")
+        with ThreadPoolExecutor(max_workers=self.MAX_WORKERS) as executor:
+            results = list(executor.map(self.get_source, ids))
+
+        return dict(zip(ids, results))
 
     # TODO: refactor model evaluation implementation to use it.
     @staticmethod
@@ -283,8 +336,11 @@ class AquaApp:
                 logger.info(f"Artifact not found in model {model_id}.")
                 return False
 
+    @cached(cache=TTLCache(maxsize=5, ttl=timedelta(minutes=1), timer=datetime.now))
     def get_config_from_metadata(
-        self, model_id: str, metadata_key: str
+        self,
+        model_id: str,
+        metadata_key: str,
     ) -> ModelConfigResult:
         """Gets the config for the given Aqua model from model catalog metadata content.
 
@@ -299,8 +355,9 @@ class AquaApp:
         ModelConfigResult
             A Pydantic model containing the model_details (extracted from OCI) and the config dictionary.
         """
-        config = {}
+        config: Dict[str, Any] = {}
         oci_model = self.ds_client.get_model(model_id).data
+
         try:
             config = self.ds_client.get_model_defined_metadatum_artifact_content(
                 model_id, metadata_key
@@ -320,7 +377,7 @@ class AquaApp:
             )
         return ModelConfigResult(config=config, model_details=oci_model)
 
-    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=1), timer=datetime.now))
+    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=5), timer=datetime.now))
     def get_config(
         self,
         model_id: str,
@@ -345,8 +402,10 @@ class AquaApp:
         ModelConfigResult
             A Pydantic model containing the model_details (extracted from OCI) and the config dictionary.
         """
-        config_folder = config_folder or ConfigFolder.CONFIG
+        config: Dict[str, Any] = {}
         oci_model = self.ds_client.get_model(model_id).data
+
+        config_folder = config_folder or ConfigFolder.CONFIG
         oci_aqua = (
             (
                 Tags.AQUA_TAG in oci_model.freeform_tags
@@ -356,9 +415,9 @@ class AquaApp:
             else False
         )
         if not oci_aqua:
-            raise AquaRuntimeError(f"Target model {oci_model.id} is not an Aqua model.")
+            logger.debug(f"Target model {oci_model.id} is not an Aqua model.")
+            return ModelConfigResult(config=config, model_details=oci_model)
 
-        config: Dict[str, Any] = {}
         artifact_path = get_artifact_path(oci_model.custom_metadata_list)
         if not artifact_path:
             logger.debug(

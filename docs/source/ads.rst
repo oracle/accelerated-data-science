@@ -7,6 +7,7 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   ads.aqua
    ads.bds
    ads.catalog
    ads.common

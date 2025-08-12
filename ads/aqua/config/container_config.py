@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 from oci.data_science.models import ContainerSummary
 from pydantic import Field
 
+from ads.aqua import logger
 from ads.aqua.config.utils.serializer import Serializable
 from ads.aqua.constants import (
     SERVICE_MANAGED_CONTAINER_URI_SCHEME,
@@ -168,50 +169,53 @@ class AquaContainerConfig(Serializable):
             container_type = container.family_name
             usages = [x.upper() for x in container.usages]
             if "INFERENCE" in usages or "MULTI_MODEL" in usages:
+                # Extract additional configurations
+                additional_configurations = {}
+                try:
+                    additional_configurations = (
+                        container.workload_configuration_details_list[
+                            0
+                        ].additional_configurations
+                    )
+                except (AttributeError, IndexError) as ex:
+                    logger.debug(
+                        "Failed to extract `additional_configurations` for container '%s': %s",
+                        getattr(container, "container_name", "<unknown>"),
+                        ex,
+                    )
+
                 container_item.platforms.append(
-                    container.workload_configuration_details_list[
-                        0
-                    ].additional_configurations.get("platforms")
+                    additional_configurations.get("platforms")
                 )
                 container_item.model_formats.append(
-                    container.workload_configuration_details_list[
-                        0
-                    ].additional_configurations.get("modelFormats")
+                    additional_configurations.get("modelFormats")
                 )
-                env_vars = [
-                    {
-                        "MODEL_DEPLOY_PREDICT_ENDPOINT": container.workload_configuration_details_list[
-                            0
-                        ].additional_configurations.get(
-                            "MODEL_DEPLOY_PREDICT_ENDPOINT", UNKNOWN
-                        )
-                    },
-                    {
-                        "MODEL_DEPLOY_HEALTH_ENDPOINT": container.workload_configuration_details_list[
-                            0
-                        ].additional_configurations.get(
-                            "MODEL_DEPLOY_HEALTH_ENDPOINT", UNKNOWN
-                        )
-                    },
-                    {
-                        "MODEL_DEPLOY_ENABLE_STREAMING": container.workload_configuration_details_list[
-                            0
-                        ].additional_configurations.get(
-                            "MODEL_DEPLOY_ENABLE_STREAMING", UNKNOWN
-                        )
-                    },
-                    {
-                        "PORT": container.workload_configuration_details_list[
-                            0
-                        ].additional_configurations.get("PORT", "")
-                    },
-                    {
-                        "HEALTH_CHECK_PORT": container.workload_configuration_details_list[
-                            0
-                        ].additional_configurations.get("HEALTH_CHECK_PORT", UNKNOWN),
-                    },
-                ]
-                container_spec = AquaContainerConfigSpec(
+
+                # TODO: Remove the else condition once SMC env variable config is updated everywhere
+                if additional_configurations.get("env_vars", None):
+                    env_vars_dict = json.loads(
+                        additional_configurations.get("env_vars") or "{}"
+                    )
+                    env_vars = [
+                        {key: str(value)} for key, value in env_vars_dict.items()
+                    ]
+                else:
+                    config_keys = {
+                        "MODEL_DEPLOY_PREDICT_ENDPOINT": UNKNOWN,
+                        "MODEL_DEPLOY_HEALTH_ENDPOINT": UNKNOWN,
+                        "PORT": UNKNOWN,
+                        "HEALTH_CHECK_PORT": UNKNOWN,
+                        "VLLM_USE_V1": UNKNOWN,
+                    }
+
+                    env_vars = [
+                        {key: additional_configurations.get(key, default)}
+                        for key, default in config_keys.items()
+                        if key in additional_configurations
+                    ]
+
+                # Build container spec
+                container_item.spec = AquaContainerConfigSpec(
                     cli_param=container.workload_configuration_details_list[0].cmd,
                     server_port=str(
                         container.workload_configuration_details_list[0].server_port
@@ -236,13 +240,14 @@ class AquaContainerConfig(Serializable):
                         )
                     ),
                 )
-                container_item.spec = container_spec
+
             if "INFERENCE" in usages or "MULTI_MODEL" in usages:
                 inference_items[container_type] = container_item
             if "FINE_TUNE" in usages:
                 finetune_items[container_type] = container_item
             if "EVALUATION" in usages:
                 evaluate_items[container_type] = container_item
+
         return cls(
             inference=inference_items, finetune=finetune_items, evaluate=evaluate_items
         )

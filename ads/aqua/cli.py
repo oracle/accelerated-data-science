@@ -14,6 +14,7 @@ from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.model import AquaModelApp
 from ads.aqua.modeldeployment import AquaDeploymentApp
+from ads.aqua.verify_policies import AquaVerifyPoliciesApp
 from ads.common.utils import LOG_LEVELS
 
 
@@ -29,6 +30,7 @@ class AquaCommand:
     fine_tuning = AquaFineTuningApp
     deployment = AquaDeploymentApp
     evaluation = AquaEvaluationApp
+    verify_policies = AquaVerifyPoliciesApp
 
     def __init__(
         self,
@@ -94,3 +96,18 @@ class AquaCommand:
                 "If you intend to chain a function call to the result, please separate the "
                 "flag and the subsequent function call with separator `-`."
             )
+    
+    @staticmethod
+    def install():
+        """Install ADS Aqua Extension from wheel file. Set enviroment variable `AQUA_EXTENSTION_PATH` to change the wheel file path.
+
+        Return 
+        ------
+        int:
+            Installatation status.
+        """
+        import subprocess
+
+        wheel_file_path = os.environ.get("AQUA_EXTENSTION_PATH", "/ads/extension/adsjupyterlab_aqua_extension*.whl")
+        status =  subprocess.run(f"pip install {wheel_file_path}",shell=True)
+        return status.check_returncode

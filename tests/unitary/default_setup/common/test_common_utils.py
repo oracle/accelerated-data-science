@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -10,11 +10,12 @@ import shutil
 import sys
 import tempfile
 from datetime import datetime
-from unittest.mock import MagicMock, patch, ANY
+from unittest.mock import ANY, MagicMock, patch
 
 import numpy as np
 import pandas as pd
 import pytest
+from oci import object_storage
 from sklearn import datasets
 from sklearn.model_selection import train_test_split
 
@@ -32,7 +33,6 @@ from ads.common.utils import (
     remove_file,
     upload_to_os,
 )
-from oci import object_storage
 
 DEFAULT_SIGNER_CONF = {"config": {}}
 
@@ -197,7 +197,7 @@ class TestCommonUtils:
         json = self.json_conv.default(int_a)
         assert json == 10
 
-        float_b = np.float_(10.0)
+        float_b = np.float64(10.0)
         json = self.json_conv.default(float_b)
         assert json == 10.0
 

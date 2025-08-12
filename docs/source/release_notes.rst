@@ -2,6 +2,79 @@
 Release Notes
 =============
 
+2.13.17
+-------
+Release date: Aug 10, 2025
+
+* AI Quick Actions enhancements.
+
+2.13.16
+-------
+Release date: Jul 16, 2025
+
+* AI Quick Actions enhancements.
+
+2.13.15
+-------
+Release date: Jul 15, 2025
+
+* Relaxes the version constraint for Matplotlib to improve compatibility with a broader range of environments and dependencies.
+
+
+2.13.14
+-------
+Release date: Jul 10, 2025
+
+* Resolve issues with AQUA telemetry reporting
+
+
+2.13.13
+-------
+Release date: Jul 10, 2025
+
+* Enhance the AQUA OpenAI-compatible client to support multiple inference endpoints within OCI Model Deployment.
+* Add support for time series forecasting models in AQUA.
+* Improve the AQUA CLI by adding a policy verification check for operations related to AQUA.
+* Introduce support for chat templates in AQUA.
+
+
+2.13.12
+-------
+Release date: Jun 18, 2025
+
+* AI Quick Actions: Added support for easy installation of AI Quick Actions extension from JupyterLab and improve telemetry.
+* AI Quick Actions: Bug fix while registering HuggingFace models in UI.
+
+
+2.13.11
+-------
+Release date: Jun 6, 2025
+
+* AI Quick Actions: Added support for LlamaCpp in the client to enable the new ``predictWithResponseStream`` endpoint for streaming inference.
+
+
+2.13.10
+-------
+Release date: Jun 4, 2025
+
+* AI Quick Actions: Enhanced the client to support the new ``predictWithResponseStream`` endpoint for streaming inference.
+
+
+2.13.9
+-------
+Release date: May 19, 2025
+
+* Additional precision support in ForecastOperator.
+* AI Quick Actions: Use defined-metadata to include configuration for fine-tuned models.
+* AI Quick Actions: Support for embedding models in a multi model deployment.
+* AI Quick Actions: Fixed a bug in multi-model deployment to use model artifact json directly instead of accessing service bucket when creating a new grouped model.
+* AI Quick Actions telemetry improvements and enhancement to use threadpool instead of creating unbounded number of threads for telemetry.
+* AI Quick Actions: Support for ``list`` API for compute capacity reservations to onboard Bring-your-own-reservations (BYOR).
+* AI Quick Actions: Fixed a bug which now allows multiple parameters for deployment parameters.
+* AI Quick Actions: Enhances the model deployment logic for  vLLM architecture version.
+* AI Quick Actions: Enhances functionality to retrieve deployment configuration for fine-tuned models.
+
+
 2.13.8
 -------
 Release date: April 15, 2025

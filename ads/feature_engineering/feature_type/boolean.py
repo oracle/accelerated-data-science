@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -15,19 +14,21 @@ Functions:
     default_handler(data: pd.Series) -> pd.Series
         Processes given data and indicates if the data matches requirements.
 """
+
 import matplotlib.pyplot as plt
 import pandas as pd
-from ads.feature_engineering.feature_type.base import FeatureType
-from ads.feature_engineering.utils import (
-    _count_unique_missing,
-    is_boolean,
-    _set_seaborn_theme,
-    SchemeTeal,
+
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
 )
 from ads.feature_engineering import schema
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
+from ads.feature_engineering.feature_type.base import FeatureType
+from ads.feature_engineering.utils import (
+    SchemeTeal,
+    _count_unique_missing,
+    _set_seaborn_theme,
+    is_boolean,
 )
 
 
@@ -44,7 +45,7 @@ def default_handler(data: pd.Series, *args, **kwargs) -> pd.Series:
     :class:`pandas.Series`
         The logical list indicating if the data matches requirements.
     """
-    return pd.Series((is_boolean(value) for value in data.values))
+    return pd.Series(is_boolean(value) for value in data.values)
 
 
 class Boolean(FeatureType):
@@ -74,7 +75,7 @@ class Boolean(FeatureType):
     >>> from ads.feature_engineering.feature_type.boolean import Boolean
     >>> import pandas as pd
     >>> import numpy as np
-    >>> s = pd.Series([True, False, True, False, np.NaN, None], name='bool')
+    >>> s = pd.Series([True, False, True, False, np.nan, None], name='bool')
     >>> s.ads.feature_type = ['boolean']
     >>> Boolean.validator.is_boolean(s)
     0     True
@@ -106,7 +107,7 @@ class Boolean(FeatureType):
 
         Examples
         --------
-        >>> s = pd.Series([True, False, True, False, np.NaN, None], name='bool')
+        >>> s = pd.Series([True, False, True, False, np.nan, None], name='bool')
         >>> s.ads.feature_type = ['boolean']
         >>> s.ads.feature_stat()
             Metric  Value
@@ -134,7 +135,7 @@ class Boolean(FeatureType):
 
         Examples
         --------
-        >>> s = pd.Series([True, False, True, False, np.NaN, None], name='bool')
+        >>> s = pd.Series([True, False, True, False, np.nan, None], name='bool')
         >>> s.ads.feature_type = ['boolean']
         >>> s.ads.feature_plot()
         """
@@ -155,7 +156,7 @@ class Boolean(FeatureType):
 
         Examples
         --------
-        >>> s = pd.Series([True, False, True, False, np.NaN, None], name='bool')
+        >>> s = pd.Series([True, False, True, False, np.nan, None], name='bool')
         >>> s.ads.feature_type = ['boolean']
         >>> s.ads.feature_domain()
         constraints:

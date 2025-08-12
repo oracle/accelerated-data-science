@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -11,20 +10,23 @@ Classes:
     GIS
         The GIS feature type.
 """
+
+import re
+
 import matplotlib.pyplot as plt
 import pandas as pd
-import re
-from ads.feature_engineering.feature_type.base import FeatureType
-from ads.feature_engineering.utils import (
-    _count_unique_missing,
-    _str_lat_long_to_point,
-    SchemeNeutral,
-    SchemeTeal,
+
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
 )
 from ads.feature_engineering import schema
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
+from ads.feature_engineering.feature_type.base import FeatureType
+from ads.feature_engineering.utils import (
+    SchemeNeutral,
+    SchemeTeal,
+    _count_unique_missing,
+    _str_lat_long_to_point,
 )
 
 PATTERN = re.compile(r"^[(]?(\-?\d+\.\d+?),\s*(\-?\d+\.\d+?)[)]?$", re.VERBOSE)
@@ -126,7 +128,7 @@ class GIS(FeatureType):
             "-44.510428,-169.269477",
             "-56.3344375,-166.407038",
             "",
-            np.NaN,
+            np.nan,
             None
             ],
             name='gis'
@@ -165,7 +167,7 @@ class GIS(FeatureType):
             "-44.510428,-169.269477",
             "-56.3344375,-166.407038",
             "",
-            np.NaN,
+            np.nan,
             None
             ],
             name='gis'
@@ -221,7 +223,7 @@ class GIS(FeatureType):
             "-44.510428,-169.269477",
             "-56.3344375,-166.407038",
             "",
-            np.NaN,
+            np.nan,
             None
             ],
             name='gis'

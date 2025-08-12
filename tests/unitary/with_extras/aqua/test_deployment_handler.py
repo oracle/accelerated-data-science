@@ -8,16 +8,18 @@ import os
 import unittest
 from importlib import reload
 from unittest.mock import MagicMock, patch
-from parameterized import parameterized
 
 from notebook.base.handlers import IPythonHandler
+from parameterized import parameterized
 
 import ads.aqua
+from ads.aqua.modeldeployment.entities import AquaDeploymentDetail
 import ads.config
 from ads.aqua.extension.deployment_handler import (
     AquaDeploymentHandler,
-    AquaDeploymentInferenceHandler,
     AquaDeploymentParamsHandler,
+    AquaDeploymentStreamingInferenceHandler,
+    AquaModelListHandler,
 )
 
 
@@ -224,23 +226,61 @@ class AquaDeploymentParamsHandlerTestCase(unittest.TestCase):
         )
 
 
-class TestAquaDeploymentInferenceHandler(unittest.TestCase):
+class TestAquaDeploymentStreamingInferenceHandler(unittest.TestCase):
     @patch.object(IPythonHandler, "__init__")
     def setUp(self, ipython_init_mock) -> None:
         ipython_init_mock.return_value = None
-        self.inference_handler = AquaDeploymentInferenceHandler(
-            MagicMock(), MagicMock()
-        )
-        self.inference_handler.request = MagicMock()
-        self.inference_handler.finish = MagicMock()
+        self.handler = AquaDeploymentStreamingInferenceHandler(MagicMock(), MagicMock())
+        self.handler.request = MagicMock()
+        self.handler.set_header = MagicMock()
+        self.handler.write = MagicMock()
+        self.handler.flush = MagicMock()
+        self.handler.finish = MagicMock()
 
-    @patch("ads.aqua.modeldeployment.MDInferenceResponse.get_model_deployment_response")
+    @patch.object(
+        AquaDeploymentStreamingInferenceHandler, "_get_model_deployment_response"
+    )
     def test_post(self, mock_get_model_deployment_response):
         """Test post method to return model deployment response."""
-        self.inference_handler.get_json_body = MagicMock(
-            return_value=TestDataset.inference_request
+        mock_response_gen = iter(["chunk1", "chunk2"])
+
+        mock_get_model_deployment_response.return_value = mock_response_gen
+
+        self.handler.get_json_body = MagicMock(
+            return_value={"prompt": "Hello", "model": "some-model"}
         )
-        self.inference_handler.post()
+        self.handler.request.headers = MagicMock()
+        self.handler.request.headers.get.return_value = "test-route"
+
+        self.handler.post("mock-deployment-id")
+
         mock_get_model_deployment_response.assert_called_with(
-            TestDataset.inference_request["endpoint"]
+            "mock-deployment-id",
+            {"prompt": "Hello", "model": "some-model"},
+            "test-route",
         )
+        self.handler.write.assert_any_call("chunk1")
+        self.handler.write.assert_any_call("chunk2")
+        self.handler.finish.assert_called_once()
+
+
+class AquaModelListHandlerTestCase(unittest.TestCase):
+    default_params = {
+        "data": [{"id": "id", "object": "object", "owned_by": "openAI", "created": 124}]
+    }
+
+    @patch.object(IPythonHandler, "__init__")
+    def setUp(self, ipython_init_mock) -> None:
+        ipython_init_mock.return_value = None
+        self.aqua_model_list_handler = AquaModelListHandler(MagicMock(), MagicMock())
+        self.aqua_model_list_handler._headers = MagicMock()
+
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get")
+    @patch("notebook.base.handlers.APIHandler.finish")
+    def test_get_model_list(self, mock_get, mock_finish):
+        """Test to check the handler get method to return model list."""
+
+        mock_get.return_value = MagicMock(id="test_model_id")
+        mock_finish.side_effect = lambda x: x
+        result = self.aqua_model_list_handler.get(model_id="test_model_id")
+        mock_get.assert_called()
