@@ -21,6 +21,7 @@ class UnSupportedModelError(Exception):
         super().__init__(
             f"Model: `{model_type}` "
             f"is not supported. Supported models: {SupportedModels.values()}"
+            "\nPlease refer to the troubleshooting guide at https://github.com/oracle/accelerated-data-science/blob/main/ads/opctl/operator/lowcode/forecast/model/troubleshooting.MD for resolution steps."
         )
 
 
