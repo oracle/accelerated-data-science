@@ -44,7 +44,9 @@ from ads.aqua.constants import (
     AQUA_MODEL_TYPE_SERVICE,
     AQUA_MULTI_MODEL_CONFIG,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
+    MODEL_GROUP,
     MODEL_NAME_DELIMITER,
+    SINGLE_MODEL_FLEX,
     UNKNOWN_DICT,
 )
 from ads.aqua.data import AquaResourceIdentifier
@@ -868,10 +870,11 @@ class AquaDeploymentApp(AquaApp):
                 aqua_model_id = model_deployment.freeform_tags.get(
                     Tags.AQUA_MODEL_ID_TAG, UNKNOWN
                 )
+                UNKNOWN_ENUM_VALUE = "UNKNOWN_ENUM_VALUE"
                 if (
                     "datasciencemodelgroup" in aqua_model_id
                     or model_deployment.model_deployment_configuration_details.deployment_type
-                    in ["UNKNOWN_ENUM_VALUE", "MODEL_GROUP", "SINGLE_MODEL_FLEX"]
+                    in [UNKNOWN_ENUM_VALUE, MODEL_GROUP, SINGLE_MODEL_FLEX]
                 ):
                     continue
                 try:
@@ -885,6 +888,9 @@ class AquaDeploymentApp(AquaApp):
                         f"There was an issue processing the list of model deployments . Error: {str(e)}",
                         exc_info=True,
                     )
+                    raise AquaRuntimeError(
+                        f"There was an issue processing the list of model deployments . Error: {str(e)}"
+                    ) from e
 
                 # log telemetry if MD is in active or failed state
                 deployment_id = model_deployment.id
