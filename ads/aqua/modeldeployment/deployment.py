@@ -48,6 +48,7 @@ from ads.aqua.constants import (
     MODEL_NAME_DELIMITER,
     SINGLE_MODEL_FLEX,
     UNKNOWN_DICT,
+    UNKNOWN_ENUM_VALUE,
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model import AquaModelApp
@@ -870,7 +871,6 @@ class AquaDeploymentApp(AquaApp):
                 aqua_model_id = model_deployment.freeform_tags.get(
                     Tags.AQUA_MODEL_ID_TAG, UNKNOWN
                 )
-                UNKNOWN_ENUM_VALUE = "UNKNOWN_ENUM_VALUE"
                 if (
                     "datasciencemodelgroup" in aqua_model_id
                     or model_deployment.model_deployment_configuration_details.deployment_type
