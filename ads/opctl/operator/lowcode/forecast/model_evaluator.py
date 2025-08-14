@@ -79,6 +79,7 @@ class ModelEvaluator:
             raise InsufficientDataError(
                 "Insufficient data to evaluate multiple models. Please specify a model "
                 "instead of using auto-select."
+                "\nPlease refer to the troubleshooting guide at https://github.com/oracle/accelerated-data-science/blob/main/ads/opctl/operator/lowcode/forecast/model/troubleshooting.MD for resolution steps."
             )
         training_datasets = [
             sampled_historical_data[sampled_historical_data[date_col] <= cut_off_date]

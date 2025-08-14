@@ -719,6 +719,7 @@ class ForecastOperatorBaseModel(ABC):
             raise ValueError(
                 "AUTOMLX explanation accuracy mode is only supported for AutoMLX models. "
                 "Please select mode other than AUTOMLX from the available explanations_accuracy_mode options"
+                "\nPlease refer to the troubleshooting guide at https://github.com/oracle/accelerated-data-science/blob/main/ads/opctl/operator/lowcode/forecast/model/troubleshooting.MD for resolution steps."
             )
 
     @runtime_dependency(

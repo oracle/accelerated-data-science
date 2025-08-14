@@ -12,6 +12,7 @@ class ForecastSchemaYamlError(Exception):
             "Invalid forecast operator specification. Check the YAML structure and ensure it "
             "complies with the required schema for forecast operator. \n"
             f"{error}"
+            "\nPlease refer to the troubleshooting guide at https://github.com/oracle/accelerated-data-science/blob/main/ads/opctl/operator/lowcode/forecast/model/troubleshooting.MD for resolution steps."
         )
 
 
@@ -23,4 +24,5 @@ class ForecastInputDataError(Exception):
             "Invalid input data. Check the input data and ensure it "
             "complies with the validation criteria. \n"
             f"{error}"
+            "\nPlease refer to the troubleshooting guide at https://github.com/oracle/accelerated-data-science/blob/main/ads/opctl/operator/lowcode/forecast/model/troubleshooting.MD for resolution steps."
         )
