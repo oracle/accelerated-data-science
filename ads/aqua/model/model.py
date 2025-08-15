@@ -172,8 +172,10 @@ class AquaModelApp(AquaApp):
             The instance of DataScienceModel or DataScienceModelGroup.
         """
         fine_tune_weights = []
+        model_name = ""
         if isinstance(model, AquaMultiModelRef):
             fine_tune_weights = model.fine_tune_weights
+            model_name = model.model_name
             model = model.model_id
 
         service_model = DataScienceModel.from_id(model)
@@ -194,6 +196,7 @@ class AquaModelApp(AquaApp):
         if fine_tune_weights:
             custom_model = self._create_model_group(
                 model_id=model,
+                model_name=model_name,
                 compartment_id=target_compartment,
                 project_id=target_project,
                 freeform_tags=combined_freeform_tags,
@@ -268,6 +271,7 @@ class AquaModelApp(AquaApp):
     def _create_model_group(
         self,
         model_id: str,
+        model_name: str,
         compartment_id: str,
         project_id: str,
         freeform_tags: Dict,
@@ -276,6 +280,20 @@ class AquaModelApp(AquaApp):
         service_model: DataScienceModel,
     ):
         """Creates a data science model group."""
+        member_models = [
+            {
+                "inference_key": fine_tune_weight.model_name,
+                "model_id": fine_tune_weight.model_id,
+            }
+            for fine_tune_weight in fine_tune_weights
+        ]
+        # must also include base model info in member models to create stacked model group
+        member_models.append(
+            {
+                "inference_key": model_name or service_model.display_name,
+                "model_id": model_id,
+            }
+        )
         custom_model = (
             DataScienceModelGroup()
             .with_compartment_id(compartment_id)
@@ -286,15 +304,7 @@ class AquaModelApp(AquaApp):
             .with_defined_tags(**defined_tags)
             .with_custom_metadata_list(service_model.custom_metadata_list)
             .with_base_model_id(model_id)
-            .with_member_models(
-                [
-                    {
-                        "inference_key": fine_tune_weight.model_name,
-                        "model_id": fine_tune_weight.model_id,
-                    }
-                    for fine_tune_weight in fine_tune_weights
-                ]
-            )
+            .with_member_models(member_models)
             .create()
         )
 

@@ -228,7 +228,13 @@ class AquaDeploymentApp(AquaApp):
                     raise AquaValueError(
                         "Invalid 'models' provided. Only one base model is required for model stack deployment."
                     )
+                self._validate_input_models(create_deployment_details)
                 model = create_deployment_details.models[0]
+            else:
+                try:
+                    create_deployment_details.validate_ft_model_v2(model_id=model)
+                except ConfigValidationError as err:
+                    raise AquaValueError(f"{err}") from err
 
             service_model_id = model if isinstance(model, str) else model.model_id
             logger.debug(
@@ -258,26 +264,9 @@ class AquaDeploymentApp(AquaApp):
             )
         # TODO: add multi model validation from deployment_type
         else:
-            # Collect all unique model IDs (including fine-tuned models)
-            source_model_ids = list(
-                {
-                    model_id
-                    for model in create_deployment_details.models
-                    for model_id in model.all_model_ids()
-                }
+            source_models, source_model_ids = self._validate_input_models(
+                create_deployment_details
             )
-            logger.debug(
-                "Fetching source model metadata for model IDs: %s", source_model_ids
-            )
-            # Fetch source model metadata
-            source_models = self.get_multi_source(source_model_ids) or {}
-
-            try:
-                create_deployment_details.validate_input_models(
-                    model_details=source_models
-                )
-            except ConfigValidationError as err:
-                raise AquaValueError(f"{err}") from err
 
             base_model_ids = [
                 model.model_id for model in create_deployment_details.models
@@ -393,6 +382,32 @@ class AquaDeploymentApp(AquaApp):
                 create_deployment_details=create_deployment_details,
                 container_config=container_config,
             )
+
+    def _validate_input_models(
+        self,
+        create_deployment_details: CreateModelDeploymentDetails,
+    ):
+        """Validates the base models and associated fine tuned models from 'models' in create_deployment_details for stacked or multi model deployment."""
+        # Collect all unique model IDs (including fine-tuned models)
+        source_model_ids = list(
+            {
+                model_id
+                for model in create_deployment_details.models
+                for model_id in model.all_model_ids()
+            }
+        )
+        logger.debug(
+            "Fetching source model metadata for model IDs: %s", source_model_ids
+        )
+        # Fetch source model metadata
+        source_models = self.get_multi_source(source_model_ids) or {}
+
+        try:
+            create_deployment_details.validate_input_models(model_details=source_models)
+        except ConfigValidationError as err:
+            raise AquaValueError(f"{err}") from err
+
+        return source_models, source_model_ids
 
     def _build_model_group_configs(
         self,
@@ -909,6 +924,8 @@ class AquaDeploymentApp(AquaApp):
             params_dict = get_params_dict(params)
             # updates `--served-model-name` with service model id
             params_dict.update({"--served-model-name": aqua_model.base_model_id})
+            # TODO: sets `--max-lora-rank` as 32 in params for now, will revisit later
+            params_dict.update({"--max-lora-rank": 32})
             # adds `--enable_lora` to parameters
             params_dict.update({"--enable_lora": UNKNOWN})
             params = build_params_string(params_dict)
