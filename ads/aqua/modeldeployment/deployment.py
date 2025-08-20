@@ -1266,7 +1266,7 @@ class AquaDeploymentApp(AquaApp):
 
         if not runtime.model_group_id:
             raise AquaValueError(
-                "Invalid `model_deployment_id`. Only model group deployment is supported to update."
+                "Invalid 'model_deployment_id'. Only model group deployment is supported to update."
             )
 
         model = self._update_model_group(
@@ -1363,7 +1363,7 @@ class AquaDeploymentApp(AquaApp):
         model_group_id: str,
         update_model_deployment_details: UpdateModelGroupDeploymentDetails,
     ) -> DataScienceModelGroup:
-        """Creates a new model group if fine tuned weights changes.
+        """Creates a new model group if fine tuned weights changed.
 
         Parameters
         ----------
@@ -1381,11 +1381,15 @@ class AquaDeploymentApp(AquaApp):
         model_group = DataScienceModelGroup.from_id(model_group_id)
         # create a new model group if fine tune weights changed as member models in ds model group is inmutable
         if update_model_deployment_details.models:
+            if len(update_model_deployment_details.models) != 1:
+                raise AquaValueError(
+                    "Invalid 'models' provided. Only one base model is required for updating model stack deployment."
+                )
             target_stacked_model = update_model_deployment_details.models[0]
             target_base_model_id = target_stacked_model.model_id
             if model_group.base_model_id != target_base_model_id:
                 raise AquaValueError(
-                    "Invalid parameter `models`. Base model id can't be changed for stacked model deployment."
+                    "Invalid parameter 'models'. Base model id can't be changed for stacked model deployment."
                 )
 
             # add member models
