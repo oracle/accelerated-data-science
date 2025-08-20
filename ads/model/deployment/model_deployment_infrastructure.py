@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/from typing import Dict
 
 
@@ -187,19 +186,44 @@ class ModelDeploymentInfrastructure(Builder):
         "model_deployment_configuration_details.model_configuration_details"
     )
 
+    MODEL_INFRA_CONFIG_DETAILS_PATH = (
+        "model_deployment_configuration_details.infrastructure_configuration_details"
+    )
+
     payload_attribute_map = {
         CONST_PROJECT_ID: "project_id",
         CONST_COMPARTMENT_ID: "compartment_id",
-        CONST_SHAPE_NAME: f"{MODEL_CONFIG_DETAILS_PATH}.instance_configuration.instance_shape_name",
-        CONST_SHAPE_CONFIG_DETAILS: f"{MODEL_CONFIG_DETAILS_PATH}.instance_configuration.model_deployment_instance_shape_config_details",
-        CONST_SUBNET_ID: f"{MODEL_CONFIG_DETAILS_PATH}.instance_configuration.subnet_id",
-        CONST_PRIVATE_ENDPOINT_ID: f"{MODEL_CONFIG_DETAILS_PATH}.instance_configuration.private_endpoint_id",
-        CONST_REPLICA: f"{MODEL_CONFIG_DETAILS_PATH}.scaling_policy.instance_count",
-        CONST_BANDWIDTH_MBPS: f"{MODEL_CONFIG_DETAILS_PATH}.bandwidth_mbps",
+        CONST_SHAPE_NAME: [
+            f"{MODEL_CONFIG_DETAILS_PATH}.instance_configuration.instance_shape_name",
+            f"{MODEL_INFRA_CONFIG_DETAILS_PATH}.instance_configuration.instance_shape_name",
+        ],
+        CONST_SHAPE_CONFIG_DETAILS: [
+            f"{MODEL_CONFIG_DETAILS_PATH}.instance_configuration.model_deployment_instance_shape_config_details",
+            f"{MODEL_INFRA_CONFIG_DETAILS_PATH}.instance_configuration.model_deployment_instance_shape_config_details",
+        ],
+        CONST_SUBNET_ID: [
+            f"{MODEL_CONFIG_DETAILS_PATH}.instance_configuration.subnet_id",
+            f"{MODEL_INFRA_CONFIG_DETAILS_PATH}.instance_configuration.subnet_id",
+        ],
+        CONST_PRIVATE_ENDPOINT_ID: [
+            f"{MODEL_CONFIG_DETAILS_PATH}.instance_configuration.private_endpoint_id",
+            f"{MODEL_INFRA_CONFIG_DETAILS_PATH}.instance_configuration.private_endpoint_id",
+        ],
+        CONST_REPLICA: [
+            f"{MODEL_CONFIG_DETAILS_PATH}.scaling_policy.instance_count",
+            f"{MODEL_INFRA_CONFIG_DETAILS_PATH}.scaling_policy.instance_count",
+        ],
+        CONST_BANDWIDTH_MBPS: [
+            f"{MODEL_CONFIG_DETAILS_PATH}.bandwidth_mbps",
+            f"{MODEL_INFRA_CONFIG_DETAILS_PATH}.bandwidth_mbps",
+        ],
         CONST_ACCESS_LOG: "category_log_details.access",
         CONST_PREDICT_LOG: "category_log_details.predict",
         CONST_DEPLOYMENT_TYPE: "model_deployment_configuration_details.deployment_type",
-        CONST_POLICY_TYPE: f"{MODEL_CONFIG_DETAILS_PATH}.scaling_policy.policy_type",
+        CONST_POLICY_TYPE: [
+            f"{MODEL_CONFIG_DETAILS_PATH}.scaling_policy.policy_type",
+            f"{MODEL_INFRA_CONFIG_DETAILS_PATH}.scaling_policy.policy_type",
+        ],
     }
 
     sub_level_attribute_maps = {
@@ -621,7 +645,9 @@ class ModelDeploymentInfrastructure(Builder):
         """
         return self.get_spec(self.CONST_SUBNET_ID, None)
 
-    def with_private_endpoint_id(self, private_endpoint_id: str) -> "ModelDeploymentInfrastructure":
+    def with_private_endpoint_id(
+        self, private_endpoint_id: str
+    ) -> "ModelDeploymentInfrastructure":
         """Sets the private endpoint id of model deployment.
 
         Parameters

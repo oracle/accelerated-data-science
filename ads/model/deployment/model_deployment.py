@@ -86,6 +86,11 @@ class ModelDeploymentType:
     MODEL_GROUP = "MODEL_GROUP"
 
 
+class ModelDeploymentUpdateType:
+    ZDT = "ZDT"
+    LIVE = "LIVE"
+
+
 class LogNotConfiguredError(Exception):  # pragma: no cover
     pass
 
@@ -237,6 +242,7 @@ class ModelDeployment(Builder):
     CONST_LIFECYCLE_STATE = "lifecycleState"
     CONST_LIFECYCLE_DETAILS = "lifecycleDetails"
     CONST_TIME_CREATED = "timeCreated"
+    CONST_UPDATE_TYPE = "updateType"
 
     attribute_map = {
         CONST_ID: "id",
@@ -677,6 +683,7 @@ class ModelDeployment(Builder):
         wait_for_completion: bool = True,
         max_wait_time: int = DEFAULT_WAIT_TIME,
         poll_interval: int = DEFAULT_POLL_INTERVAL,
+        update_type: str = ModelDeploymentUpdateType.ZDT,
         **kwargs,
     ):
         """Updates a model deployment
@@ -699,6 +706,9 @@ class ModelDeployment(Builder):
             Negative implies infinite wait time.
         poll_interval: int
             Poll interval in seconds (Defaults to 10).
+        update_type: str
+            Update type for the deployment. Allowed values: ['ZDT', 'LIVE'].
+            'LIVE' update can only be used if model group id has been changed.
         kwargs:
             dict
 
@@ -722,7 +732,9 @@ class ModelDeployment(Builder):
         update_model_deployment_details = (
             updated_properties.to_update_deployment()
             if properties or updated_properties.oci_model_deployment or kwargs
-            else self._update_model_deployment_details(**kwargs)
+            else self._update_model_deployment_details(
+                update_type=update_type, **kwargs
+            )
         )
 
         response = self.dsc_model_deployment.update(
@@ -1488,16 +1500,22 @@ class ModelDeployment(Builder):
             The ModelDeploymentInfrastructure or ModelDeploymentRuntime instance.
         """
         for infra_attr, dsc_attr in dsc_instance.payload_attribute_map.items():
-            value = get_value(oci_model_instance, dsc_attr)
-            if value:
-                if infra_attr not in sub_level:
-                    dsc_instance._spec[infra_attr] = value
-                else:
-                    dsc_instance._spec[infra_attr] = {}
-                    for sub_infra_attr, sub_dsc_attr in sub_level[infra_attr].items():
-                        sub_value = get_value(value, sub_dsc_attr)
-                        if sub_value:
-                            dsc_instance._spec[infra_attr][sub_infra_attr] = sub_value
+            dsc_attr = dsc_attr if isinstance(dsc_attr, list) else [dsc_attr]
+            for dsc_value in dsc_attr:
+                value = get_value(oci_model_instance, dsc_value)
+                if value:
+                    if infra_attr not in sub_level:
+                        dsc_instance._spec[infra_attr] = value
+                    else:
+                        dsc_instance._spec[infra_attr] = {}
+                        for sub_infra_attr, sub_dsc_attr in sub_level[
+                            infra_attr
+                        ].items():
+                            sub_value = get_value(value, sub_dsc_attr)
+                            if sub_value:
+                                dsc_instance._spec[infra_attr][sub_infra_attr] = (
+                                    sub_value
+                                )
         return dsc_instance
 
     def _build_model_deployment_details(self) -> CreateModelDeploymentDetails:
@@ -1533,9 +1551,15 @@ class ModelDeployment(Builder):
         ).to_oci_model(CreateModelDeploymentDetails)
 
     def _update_model_deployment_details(
-        self, **kwargs
+        self, update_type: str, **kwargs
     ) -> UpdateModelDeploymentDetails:
         """Builds UpdateModelDeploymentDetails from model deployment instance.
+
+        Parameters
+        ----------
+        update_type: str
+            Update type for the deployment. Allowed values: ['ZDT', 'LIVE'].
+            'LIVE' update can only be used if model group id has been changed.
 
         Returns
         -------
@@ -1555,9 +1579,13 @@ class ModelDeployment(Builder):
             self.infrastructure.CONST_MODEL_DEPLOYMENT_CONFIG_DETAILS: self._build_model_deployment_configuration_details(),
             self.infrastructure.CONST_CATEGORY_LOG_DETAILS: self._build_category_log_details(),
         }
-        return OCIDataScienceModelDeployment(
-            **update_model_deployment_details
-        ).to_oci_model(UpdateModelDeploymentDetails)
+
+        update_model_deployment_details[
+            self.infrastructure.CONST_MODEL_DEPLOYMENT_CONFIG_DETAILS
+        ][self.CONST_UPDATE_TYPE] = update_type
+        return UpdateModelDeploymentDetails(
+            **ads_utils.batch_convert_case(update_model_deployment_details, "snake")
+        )
 
     def _update_spec(self, **kwargs) -> "ModelDeployment":
         """Updates model deployment specs from kwargs.
