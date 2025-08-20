@@ -749,3 +749,54 @@ class CreateModelDeploymentDetails(BaseModel):
     class Config:
         extra = "allow"
         protected_namespaces = ()
+
+
+class UpdateModelGroupDeploymentDetails(BaseModel):
+    """Class for updating Aqua model deployments."""
+
+    display_name: Optional[str] = Field(
+        None, description="The name of the model deployment."
+    )
+    description: Optional[str] = Field(
+        None, description="The description of the deployment."
+    )
+    models: Optional[List[AquaMultiModelRef]] = Field(
+        None, description="List of models for multimodel deployment."
+    )
+    instance_count: Optional[int] = Field(
+        None, description="Number of instances used for deployment."
+    )
+    log_group_id: Optional[str] = Field(
+        None, description="OCI logging group ID for logs."
+    )
+    access_log_id: Optional[str] = Field(
+        None,
+        description="OCID for access logs. "
+        "https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm",
+    )
+    predict_log_id: Optional[str] = Field(
+        None,
+        description="OCID for prediction logs."
+        "https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm",
+    )
+    bandwidth_mbps: Optional[int] = Field(
+        None, description="Bandwidth limit on the load balancer in Mbps."
+    )
+    web_concurrency: Optional[int] = Field(
+        None, description="Number of worker processes/threads for handling requests."
+    )
+    memory_in_gbs: Optional[float] = Field(
+        None, description="Memory (in GB) for the selected shape."
+    )
+    ocpus: Optional[float] = Field(
+        None, description="OCPU count for the selected shape."
+    )
+    private_endpoint_id: Optional[str] = Field(
+        None, description="Private endpoint ID for model deployment."
+    )
+    freeform_tags: Optional[Dict] = Field(
+        None, description="Freeform tags for model deployment."
+    )
+    defined_tags: Optional[Dict] = Field(
+        None, description="Defined tags for model deployment."
+    )
