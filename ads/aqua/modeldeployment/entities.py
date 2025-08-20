@@ -800,3 +800,7 @@ class UpdateModelGroupDeploymentDetails(BaseModel):
     defined_tags: Optional[Dict] = Field(
         None, description="Defined tags for model deployment."
     )
+
+    class Config:
+        extra = "allow"
+        protected_namespaces = ()
