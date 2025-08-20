@@ -825,6 +825,125 @@ class TestAquaModel:
             "evaluation_container": "odsc-llm-evaluate",
         }
 
+    @patch.object(DataScienceModel, "create")
+    @patch.object(DataScienceModel, "from_id")
+    def test_convert_fine_tune(self, mock_from_id, mock_create):
+        ds_model = MagicMock()
+        ds_model.id = "test_id"
+        ds_model.compartment_id = "test_model_compartment_id"
+        ds_model.project_id = "test_project_id"
+        ds_model.display_name = "test_display_name"
+        ds_model.description = "test_description"
+        ds_model.model_version_set_id = "test_model_version_set_id"
+        ds_model.model_version_set_name = "test_model_version_set_name"
+        ds_model.freeform_tags = {
+            "license": "test_license",
+            "organization": "test_organization",
+            "task": "test_task",
+            "aqua_fine_tuned_model": "test_finetuned_model",
+        }
+        ds_model.time_created = "2024-01-19T17:57:39.158000+00:00"
+        ds_model.lifecycle_state = "ACTIVE"
+        custom_metadata_list = ModelCustomMetadata()
+        custom_metadata_list.add(
+            **{"key": "artifact_location", "value": "oci://bucket@namespace/prefix/"}
+        )
+        custom_metadata_list.add(
+            **{"key": "fine_tune_source", "value": "test_fine_tuned_source_id"}
+        )
+        custom_metadata_list.add(
+            **{"key": "fine_tune_source_name", "value": "test_fine_tuned_source_name"}
+        )
+        custom_metadata_list.add(
+            **{
+                "key": "deployment-container",
+                "value": "odsc-vllm-serving",
+            }
+        )
+        custom_metadata_list.add(
+            **{
+                "key": "evaluation-container",
+                "value": "odsc-llm-evaluate",
+            }
+        )
+        custom_metadata_list.add(
+            **{
+                "key": "finetune-container",
+                "value": "odsc-llm-fine-tuning",
+            }
+        )
+        ds_model.custom_metadata_list = custom_metadata_list
+        defined_metadata_list = ModelTaxonomyMetadata()
+        defined_metadata_list["Hyperparameters"].value = {
+            "training_data": "test_training_data",
+            "val_set_size": "test_val_set_size",
+        }
+        ds_model.defined_metadata_list = defined_metadata_list
+        ds_model.provenance_metadata = ModelProvenanceMetadata(
+            training_id="test_training_job_run_id"
+        )
+        ds_model.model_file_description = {
+            "version": "1.0",
+            "type": "modelOSSReferenceDescription",
+            "models": [
+                {
+                    "namespace": "test_namespace_one",
+                    "bucketName": "test_bucket_name_one",
+                    "prefix": "test_prefix_one",
+                    "objects": [
+                        {
+                            "name": "artifact/.gitattributes",
+                            "version": "123",
+                            "sizeInBytes": 1519,
+                        }
+                    ],
+                },
+                {
+                    "namespace": "test_namespace_two",
+                    "bucketName": "test_bucket_name_two",
+                    "prefix": "test_prefix_two",
+                    "objects": [
+                        {
+                            "name": "/README.md",
+                            "version": "b52c2608-009f-4774-8325-60ec226ae003",
+                            "sizeInBytes": 5189,
+                        }
+                    ],
+                },
+            ],
+        }
+
+        mock_from_id.return_value = ds_model
+
+        # missing 'OCI_AQUA' tag
+        with pytest.raises(
+            AquaValueError,
+            match="Model 'mock_model_id' is not eligible for conversion. Only legacy AQUA fine-tuned models without the 'fine_tune_model_version=v2' tag are supported.",
+        ):
+            self.app.convert_fine_tune(model_id="mock_model_id")
+
+        # add 'OCI_AQUA' tag
+        mock_from_id.return_value.freeform_tags["OCI_AQUA"] = "ACTIVE"
+
+        self.app.convert_fine_tune(model_id="mock_model_id")
+
+        mock_create.assert_called_with(model_by_reference=True)
+
+        assert mock_from_id.return_value.model_file_description["models"] == [
+            {
+                "namespace": "test_namespace_two",
+                "bucketName": "test_bucket_name_two",
+                "prefix": "test_prefix_two",
+                "objects": [
+                    {
+                        "name": "/README.md",
+                        "version": "b52c2608-009f-4774-8325-60ec226ae003",
+                        "sizeInBytes": 5189,
+                    }
+                ],
+            }
+        ]
+
     @pytest.mark.parametrize(
         ("artifact_location_set", "download_from_hf", "cleanup_model_cache"),
         [

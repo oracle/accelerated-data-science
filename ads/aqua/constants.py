@@ -45,6 +45,8 @@ MODEL_NAME_DELIMITER = ";"
 AQUA_TROUBLESHOOTING_LINK = "https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md"
 MODEL_FILE_DESCRIPTION_VERSION = "1.0"
 MODEL_FILE_DESCRIPTION_TYPE = "modelOSSReferenceDescription"
+AQUA_FINE_TUNE_MODEL_VERSION = "v2"
+INCLUDE_BASE_MODEL = 1
 
 TRAINING_METRICS_FINAL = "training_metrics_final"
 VALIDATION_METRICS_FINAL = "validation_metrics_final"

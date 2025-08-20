@@ -643,7 +643,9 @@ def get_resource_name(ocid: str) -> str:
     return name
 
 
-def get_model_by_reference_paths(model_file_description: dict):
+def get_model_by_reference_paths(
+    model_file_description: dict, is_ft_model_v2: bool = False
+):
     """Reads the model file description json dict and returns the base model path and fine-tuned path for
         models created by reference.
 
@@ -651,6 +653,8 @@ def get_model_by_reference_paths(model_file_description: dict):
     ----------
     model_file_description: dict
         json dict containing model paths and objects for models created by reference.
+    is_ft_model_v2: bool
+        Flag to indicate if it's fine tuned model v2. Defaults to False.
 
     Returns
     -------
@@ -666,8 +670,18 @@ def get_model_by_reference_paths(model_file_description: dict):
             "Please check if the model created by reference has the correct artifact."
         )
 
+    if is_ft_model_v2:
+        # model_file_description json for fine tuned model v2 contains only fine tuned model artifacts
+        # so first model is always the fine tuned model
+        ft_model_artifact = models[0]
+        fine_tune_output_path = f"oci://{ft_model_artifact['bucketName']}@{ft_model_artifact['namespace']}/{ft_model_artifact['prefix']}".rstrip(
+            "/"
+        )
+
+        return UNKNOWN, fine_tune_output_path
+
     if len(models) > 0:
-        # since the model_file_description json does not have a flag to identify the base model, we consider
+        # since the model_file_description json for legacy fine tuned model does not have a flag to identify the base model, we consider
         # the first instance to be the base model.
         base_model_artifact = models[0]
         base_model_path = f"oci://{base_model_artifact['bucketName']}@{base_model_artifact['namespace']}/{base_model_artifact['prefix']}".rstrip(
