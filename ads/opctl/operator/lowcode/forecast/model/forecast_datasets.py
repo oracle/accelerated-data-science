@@ -23,8 +23,9 @@ from ..operator_config import ForecastOperatorConfig
 
 
 class HistoricalData(AbstractData):
-    def __init__(self, spec, historical_data=None):
-        super().__init__(spec=spec, name="historical_data", data=historical_data)
+    def __init__(self, spec, historical_data=None, subset=None):
+        super().__init__(spec=spec, name="historical_data", data=historical_data, subset=subset)
+        self.subset = subset
 
     def _ingest_data(self, spec):
         try:
@@ -53,12 +54,13 @@ class HistoricalData(AbstractData):
 
 
 class AdditionalData(AbstractData):
-    def __init__(self, spec, historical_data, additional_data=None):
+    def __init__(self, spec, historical_data, additional_data=None, subset=None):
+        self.subset = subset
         if additional_data is not None:
-            super().__init__(spec=spec, name="additional_data", data=additional_data)
+            super().__init__(spec=spec, name="additional_data", data=additional_data, subset=subset)
             self.additional_regressors = list(self.data.columns)
         elif spec.additional_data is not None:
-            super().__init__(spec=spec, name="additional_data")
+            super().__init__(spec=spec, name="additional_data", subset=subset)
             add_dates = self.data.index.get_level_values(0).unique().tolist()
             add_dates.sort()
             if historical_data.get_max_time() > add_dates[-spec.horizon]:
@@ -130,6 +132,7 @@ class ForecastDatasets:
         historical_data=None,
         additional_data=None,
         test_data=None,
+        subset=None,  # New parameter for subsetting by group
     ):
         """Instantiates the DataIO instance.
 
@@ -137,26 +140,28 @@ class ForecastDatasets:
         ----------
         config: ForecastOperatorConfig
             The forecast operator configuration.
+        subset: list, optional
+            List of group keys to subset the data on initialization.
         """
+        self.config = config  # Store the config for later use
         self.historical_data: HistoricalData = None
         self.additional_data: AdditionalData = None
         self._horizon = config.spec.horizon
         self._datetime_column_name = config.spec.datetime_column.name
         self._target_col = config.spec.target_column
         if historical_data is not None:
-            self.historical_data = HistoricalData(config.spec, historical_data)
+            self.historical_data = HistoricalData(config.spec, historical_data, subset=subset)
             self.additional_data = AdditionalData(
-                config.spec, self.historical_data, additional_data
+                config.spec, self.historical_data, additional_data, subset=subset
             )
         else:
-            self._load_data(config.spec)
+            self._load_data(config.spec, subset=subset)
         self.test_data = TestData(config.spec, test_data)
 
-    def _load_data(self, spec):
+    def _load_data(self, spec, subset=None):
         """Loads forecasting input data."""
-        self.historical_data = HistoricalData(spec)
-        self.additional_data = AdditionalData(spec, self.historical_data)
-
+        self.historical_data = HistoricalData(spec, subset=subset)
+        self.additional_data = AdditionalData(spec, self.historical_data, subset=subset)
         if spec.generate_explanations and spec.additional_data is None:
             logger.warning(
                 "Unable to generate explanations as there is no additional data passed in. Either set generate_explanations to False, or pass in additional data."
@@ -499,3 +504,25 @@ class ForecastResults:
 
     def get_errors_dict(self):
         return getattr(self, "errors_dict", None)
+
+    def merge(self, other: 'ForecastResults'):
+        """Merge another ForecastResults object into this one."""
+        # Merge DataFrames if they exist, else just set
+        for attr in [
+            'forecast', 'metrics', 'test_metrics', 'local_explanations', 'global_explanations', 'model_parameters', 'models', 'errors_dict']:
+            val_self = getattr(self, attr, None)
+            val_other = getattr(other, attr, None)
+            if val_self is not None and val_other is not None:
+                if isinstance(val_self, pd.DataFrame) and isinstance(val_other, pd.DataFrame):
+                    setattr(self, attr, pd.concat([val_self, val_other], ignore_index=True, axis=0))
+                elif isinstance(val_self, dict) and isinstance(val_other, dict):
+                    val_self.update(val_other)
+                    setattr(self, attr, val_self)
+                elif isinstance(val_self, list) and isinstance(val_other, list):
+                    setattr(self, attr, val_self + val_other)
+                else:
+                    # If not mergeable, just keep self's value
+                    pass
+            elif val_other is not None:
+                setattr(self, attr, val_other)
+        return self

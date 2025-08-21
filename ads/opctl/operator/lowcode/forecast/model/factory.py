@@ -5,10 +5,13 @@
 
 from ..const import (
     AUTO_SELECT,
+    AUTO_SELECT_SERIES
     TROUBLESHOOTING_GUIDE,
     SpeedAccuracyMode,
     SupportedModels,
 )
+from ads.opctl.operator.lowcode.common.transformations import Transformations
+from ..meta_selector import MetaSelector
 from ..model_evaluator import ModelEvaluator
 from ..operator_config import ForecastOperatorConfig
 from .arima import ArimaOperatorModel
@@ -69,7 +72,28 @@ class ForecastOperatorModelFactory:
             In case of not supported model.
         """
         model_type = operator_config.spec.model
-        if model_type == AUTO_SELECT:
+
+        if model_type == AUTO_SELECT_SERIES:
+            # Initialize MetaSelector for series-specific model selection
+            selector = MetaSelector()
+            # Create a Transformations instance
+            transformer = Transformations(dataset_info=datasets.historical_data.spec)
+
+            # Calculate meta-features
+            meta_features = selector.select_best_model(
+                meta_features_df=transformer.build_fforms_meta_features(
+                    data=datasets.historical_data.raw_data,
+                    target_col=datasets.historical_data.spec.target_column,
+                    group_cols=datasets.historical_data.spec.target_category_columns
+                )
+            )
+            # Get the most common model as default
+            model_type = meta_features['selected_model'].mode().iloc[0]
+            # Store the series-specific model selections in the config for later use
+            operator_config.spec.meta_features = meta_features
+            operator_config.spec.model_kwargs = {}
+
+        elif model_type == AUTO_SELECT:
             model_type = cls.auto_select_model(datasets, operator_config)
             operator_config.spec.model_kwargs = {}
             # set the explanations accuracy mode to AUTOMLX if the selected model is automlx

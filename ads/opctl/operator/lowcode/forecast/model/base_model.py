@@ -8,6 +8,7 @@ import os
 import tempfile
 import time
 import traceback
+import warnings
 from abc import ABC, abstractmethod
 from typing import Tuple
 
@@ -99,10 +100,21 @@ class ForecastOperatorBaseModel(ABC):
             self.spec.tuning.n_trials is not None
         )
 
-    def generate_report(self):
-        """Generates the forecasting report."""
-        import warnings
+    def build_model(self):
+        """Builds the model and returns the result DataFrame and elapsed time."""
+        import time
 
+        start_time = time.time()
+        result_df = self._build_model()
+        elapsed_time = time.time() - start_time
+        logger.info("Building the models completed in %s seconds", elapsed_time)
+        return result_df, elapsed_time
+
+    def generate_report(
+        self, result_df=None, elapsed_time=None, save_sub_reports=False
+    ):
+        """Generates the forecasting report. Optionally accepts a precomputed result_df and elapsed_time.
+        If save_sub_reports is True, unique filenames are generated for all outputs."""
         from sklearn.exceptions import ConvergenceWarning
 
         with warnings.catch_warnings():
@@ -115,10 +127,8 @@ class ForecastOperatorBaseModel(ABC):
             if self.spec.previous_output_dir is not None:
                 self._load_model()
 
-            start_time = time.time()
-            result_df = self._build_model()
-            elapsed_time = time.time() - start_time
-            logger.info("Building the models completed in %s seconds", elapsed_time)
+            if result_df is None or elapsed_time is None:
+                result_df, elapsed_time = self.build_model()
 
             # Generate metrics
             summary_metrics = None
@@ -355,6 +365,7 @@ class ForecastOperatorBaseModel(ABC):
                 metrics_df=self.eval_metrics,
                 test_metrics_df=self.test_eval_metrics,
                 test_data=test_data,
+                save_sub_reports=save_sub_reports,
             )
 
     def _test_evaluate_metrics(self, elapsed_time=0):
@@ -472,8 +483,9 @@ class ForecastOperatorBaseModel(ABC):
         metrics_df: pd.DataFrame,
         test_metrics_df: pd.DataFrame,
         test_data: pd.DataFrame,
+        save_sub_reports: bool = False,
     ):
-        """Saves resulting reports to the given folder."""
+        """Saves resulting reports to the given folder. If save_sub_reports is True, use unique filenames."""
 
         unique_output_dir = self.spec.output_directory.url
         results = ForecastResults()
@@ -484,6 +496,12 @@ class ForecastOperatorBaseModel(ABC):
             else {}
         )
 
+        def get_path(filename):
+            path = os.path.join(unique_output_dir, filename)
+            if save_sub_reports:
+                return self._get_unique_filename(path, storage_options)
+            return path
+
         # report-creator html report
         if self.spec.generate_report:
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -493,7 +511,7 @@ class ForecastOperatorBaseModel(ABC):
                     report.save(rc.Block(*report_sections), report_local_path)
                 enable_print()
 
-                report_path = os.path.join(unique_output_dir, self.spec.report_filename)
+                report_path = get_path(self.spec.report_filename)
                 write_file(
                     local_filename=report_local_path,
                     remote_filename=report_path,
@@ -512,9 +530,10 @@ class ForecastOperatorBaseModel(ABC):
             else result_df.drop(DataColumns.Series, axis=1)
         )
         if self.spec.generate_forecast_file:
+            forecast_path = get_path(self.spec.forecast_filename)
             write_data(
                 data=result_df,
-                filename=os.path.join(unique_output_dir, self.spec.forecast_filename),
+                filename=forecast_path,
                 format="csv",
                 storage_options=storage_options,
             )
@@ -532,11 +551,10 @@ class ForecastOperatorBaseModel(ABC):
                     {"index": "metrics", "Series 1": metrics_col_name}, axis=1
                 )
                 if self.spec.generate_metrics_file:
+                    metrics_path = get_path(self.spec.metrics_filename)
                     write_data(
                         data=metrics_df_formatted,
-                        filename=os.path.join(
-                            unique_output_dir, self.spec.metrics_filename
-                        ),
+                        filename=metrics_path,
                         format="csv",
                         storage_options=storage_options,
                         index=False,
@@ -554,11 +572,10 @@ class ForecastOperatorBaseModel(ABC):
                         {"index": "metrics", "Series 1": metrics_col_name}, axis=1
                     )
                     if self.spec.generate_metrics_file:
+                        test_metrics_path = get_path(self.spec.test_metrics_filename)
                         write_data(
                             data=test_metrics_df_formatted,
-                            filename=os.path.join(
-                                unique_output_dir, self.spec.test_metrics_filename
-                            ),
+                            filename=test_metrics_path,
                             format="csv",
                             storage_options=storage_options,
                             index=False,
@@ -568,6 +585,7 @@ class ForecastOperatorBaseModel(ABC):
                     logger.warning(
                         f"Attempted to generate the {self.spec.test_metrics_filename} file with the test metrics, however the test metrics could not be properly generated."
                     )
+
         # explanations csv reports
         if self.spec.generate_explanations:
             try:
@@ -580,11 +598,12 @@ class ForecastOperatorBaseModel(ABC):
                         else col
                     )
                     if self.spec.generate_explanation_files:
+                        global_exp_path = get_path(
+                            self.spec.global_explanation_filename
+                        )
                         write_data(
                             data=global_expl_rounded,
-                            filename=os.path.join(
-                                unique_output_dir, self.spec.global_explanation_filename
-                            ),
+                            filename=global_exp_path,
                             format="csv",
                             storage_options=storage_options,
                             index=True,
@@ -604,11 +623,10 @@ class ForecastOperatorBaseModel(ABC):
                         else col
                     )
                     if self.spec.generate_explanation_files:
+                        local_exp_path = get_path(self.spec.local_explanation_filename)
                         write_data(
                             data=local_expl_rounded,
-                            filename=os.path.join(
-                                unique_output_dir, self.spec.local_explanation_filename
-                            ),
+                            filename=local_exp_path,
                             format="csv",
                             storage_options=storage_options,
                             index=True,
@@ -626,9 +644,10 @@ class ForecastOperatorBaseModel(ABC):
 
         if self.spec.generate_model_parameters:
             # model params
+            model_params_path = get_path("model_params.json")
             write_data(
                 data=pd.DataFrame.from_dict(self.model_parameters),
-                filename=os.path.join(unique_output_dir, "model_params.json"),
+                filename=model_params_path,
                 format="json",
                 storage_options=storage_options,
                 index=True,
@@ -638,7 +657,13 @@ class ForecastOperatorBaseModel(ABC):
 
         # model pickle
         if self.spec.generate_model_pickle:
-            self._save_model(unique_output_dir, storage_options)
+            pickle_path = get_path("model.pkl")
+            write_pkl(
+                obj=self.models,
+                filename=os.path.basename(pickle_path),
+                output_dir=os.path.dirname(pickle_path),
+                storage_options=storage_options,
+            )
             results.set_models(self.models)
 
         logger.info(
@@ -649,11 +674,10 @@ class ForecastOperatorBaseModel(ABC):
             f"The outputs have been successfully generated and placed into the directory: {unique_output_dir}."
         )
         if self.errors_dict:
+            errors_path = get_path(self.spec.errors_dict_filename)
             write_json(
                 json_dict=self.errors_dict,
-                filename=os.path.join(
-                    unique_output_dir, self.spec.errors_dict_filename
-                ),
+                filename=errors_path,
                 storage_options=storage_options,
             )
             results.set_errors_dict(self.errors_dict)
@@ -851,9 +875,9 @@ class ForecastOperatorBaseModel(ABC):
 
         # Add date column to local explanation DataFrame
         local_kernel_explnr_df[ForecastOutputColumns.DATE] = (
-            self.datasets.get_horizon_at_series(
-                s_id=series_id
-            )[self.spec.datetime_column.name].reset_index(drop=True)
+            self.datasets.get_horizon_at_series(s_id=series_id)[
+                self.spec.datetime_column.name
+            ].reset_index(drop=True)
         )
         self.local_explanation[series_id] = local_kernel_explnr_df
 
@@ -875,3 +899,66 @@ class ForecastOperatorBaseModel(ABC):
             return fcst
 
         return _custom_predict
+
+    def _get_unique_filename(self, base_path: str, storage_options: dict = None) -> str:
+        """Generate a unique filename by appending a sequential number if file exists.
+
+        Args:
+            base_path: The original file path to check
+            storage_options: Optional storage options for OCI paths
+
+        Returns:
+            A unique file path that doesn't exist
+        """
+        if not ObjectStorageDetails.is_oci_path(base_path):
+            # For local files
+            directory = os.path.dirname(base_path)
+            basename = os.path.basename(base_path)
+            name, ext = os.path.splitext(basename)
+
+            model_suffix = "_" + self.spec.model
+            new_name = f"{name}{model_suffix}"
+            new_path = os.path.join(directory, f"{new_name}{ext}")
+            counter = 1
+            while os.path.exists(new_path):
+                new_path = os.path.join(directory, f"{new_name}_{counter}{ext}")
+                counter += 1
+            return new_path
+        else:
+            # For OCI paths, we need to list objects and check
+            try:
+                from oci.object_storage import ObjectStorageClient
+
+                client = ObjectStorageClient(config=storage_options)
+
+                # Parse OCI path components
+                bucket_name = ObjectStorageDetails.get_bucket_name(base_path)
+                namespace = ObjectStorageDetails.get_namespace(base_path)
+                object_name = ObjectStorageDetails.get_object_name(base_path)
+
+                name, ext = os.path.splitext(object_name)
+
+                model_suffix = "_" + self.spec.model
+                new_name = f"{name}{model_suffix}"
+                new_object_name = f"{new_name}{ext}"
+                counter = 1
+                while True:
+                    try:
+                        # Try to head the object to see if it exists
+                        client.head_object(namespace, bucket_name, new_object_name)
+                        # If we get here, the object exists
+                        new_object_name = f"{new_name}_{counter}{ext}"
+                        counter += 1
+                    except:
+                        # Object doesn't exist, we can use this name
+                        break
+
+                # Reconstruct the full path
+                return ObjectStorageDetails.get_path(
+                    namespace, bucket_name, new_object_name
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Error checking OCI path existence: {e}. Using original path."
+                )
+                return base_path
