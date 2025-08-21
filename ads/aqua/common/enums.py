@@ -126,6 +126,7 @@ CONTAINER_FAMILY_COMPATIBILITY: Dict[str, List[str]] = {
     InferenceContainerTypeFamily.AQUA_VLLM_V1_CONTAINER_FAMILY: [
         InferenceContainerTypeFamily.AQUA_VLLM_V1_CONTAINER_FAMILY,
         InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY,
+        InferenceContainerTypeFamily.AQUA_VLLM_OPENAI_CONTAINER_FAMILY,
     ],
     InferenceContainerTypeFamily.AQUA_VLLM_LLAMA4_CONTAINER_FAMILY: [
         InferenceContainerTypeFamily.AQUA_VLLM_LLAMA4_CONTAINER_FAMILY,
