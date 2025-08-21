@@ -3,7 +3,12 @@
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from ..const import AUTO_SELECT, SpeedAccuracyMode, SupportedModels
+from ..const import (
+    AUTO_SELECT,
+    TROUBLESHOOTING_GUIDE,
+    SpeedAccuracyMode,
+    SupportedModels,
+)
 from ..model_evaluator import ModelEvaluator
 from ..operator_config import ForecastOperatorConfig
 from .arima import ArimaOperatorModel
@@ -21,7 +26,7 @@ class UnSupportedModelError(Exception):
         super().__init__(
             f"Model: `{model_type}` "
             f"is not supported. Supported models: {SupportedModels.values()}"
-            "\nPlease refer to the troubleshooting guide at https://github.com/oracle/accelerated-data-science/blob/main/ads/opctl/operator/lowcode/forecast/model/troubleshooting.MD for resolution steps."
+            f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
         )
 
 

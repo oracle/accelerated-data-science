@@ -10,7 +10,10 @@ import pandas as pd
 from ads.opctl import logger
 from ads.opctl.operator.lowcode.common.const import DataColumns
 from ads.opctl.operator.lowcode.common.errors import InsufficientDataError
-from ads.opctl.operator.lowcode.forecast.const import BACKTEST_REPORT_NAME
+from ads.opctl.operator.lowcode.forecast.const import (
+    BACKTEST_REPORT_NAME,
+    TROUBLESHOOTING_GUIDE,
+)
 from ads.opctl.operator.lowcode.forecast.model.factory import SupportedModels
 
 from .model.forecast_datasets import ForecastDatasets
@@ -79,7 +82,7 @@ class ModelEvaluator:
             raise InsufficientDataError(
                 "Insufficient data to evaluate multiple models. Please specify a model "
                 "instead of using auto-select."
-                "\nPlease refer to the troubleshooting guide at https://github.com/oracle/accelerated-data-science/blob/main/ads/opctl/operator/lowcode/forecast/model/troubleshooting.MD for resolution steps."
+                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             )
         training_datasets = [
             sampled_historical_data[sampled_historical_data[date_col] <= cut_off_date]
@@ -224,6 +227,7 @@ class ModelEvaluator:
             model = SupportedModels.Prophet
             logger.error(
                 f"Running {model} model as auto-select failed with the following error: {e.message}"
+                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             )
             return model
         nonempty_metrics = {
