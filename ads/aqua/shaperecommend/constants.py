@@ -78,6 +78,11 @@ QUANT_METHODS = [
 
 IN_FLIGHT_QUANTIZATION = {"4bit"}  # vLLM only supports 4bit in-flight-quantization
 
+VLLM_PARAMS_KEY = "VLLM_PARAMS"
+VLLM_ENV_KEY = "VLLM"
+QUANT_FLAG = "--quantization"
+MAX_MODEL_LEN_FLAG = "--max-model-len"
+
 TROUBLESHOOT_MSG = "The selected model is too large to fit on standard GPU shapes with the current configuration.\nAs troubleshooting, we have suggested the two largest available GPU shapes using the smallest quantization level ('4bit') to maximize chances of fitting the model. "
 
 VLLM_PARAMS = {
@@ -85,7 +90,8 @@ VLLM_PARAMS = {
     "in_flight_quant": "--quantization bitsandbytes --load-format bitsandbytes",
 }
 
-DEFAULT_WEIGHT_SIZE = "float32"
+DEFAULT_WEIGHT_SIZE = "bfloat16"
+DEFAULT_MAX_SEQ_LEN = 4096
 
 BITS_AND_BYTES_8BIT = "8bit"
 BITS_AND_BYTES_4BIT = "4bit"

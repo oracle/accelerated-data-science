@@ -11,6 +11,7 @@ from ads.aqua.common.errors import AquaRecommendationError
 from ads.aqua.shaperecommend.constants import (
     BITS_AND_BYTES_4BIT,
     BITS_AND_BYTES_8BIT,
+    DEFAULT_MAX_SEQ_LEN,
     DEFAULT_WEIGHT_SIZE,
     NEXT_QUANT,
     QUANT_MAPPING,
@@ -42,7 +43,7 @@ class LLMConfig(BaseModel):
         description="Dimension of each attention head. Typically hidden_size // num_attention_heads.",
     )
     max_seq_len: Optional[int] = Field(
-        4096, description="Maximum input sequence length (context window)."
+        DEFAULT_MAX_SEQ_LEN, description="Maximum input sequence length (context window)."
     )
     weight_dtype: Optional[str] = Field(
         DEFAULT_WEIGHT_SIZE,
