@@ -921,9 +921,15 @@ class AquaDeploymentApp(AquaApp):
                 {"MODEL": f"{AQUA_MODEL_DEPLOYMENT_FOLDER}{aqua_model.base_model_id}/"}
             )
 
+            base_model_inference_key = aqua_model.base_model_id
+            for item in aqua_model.member_models:
+                if item["model_id"] == aqua_model.base_model_id:
+                    base_model_inference_key = item["inference_key"]
+                    break
+
             params_dict = get_params_dict(params)
-            # updates `--served-model-name` with service model id
-            params_dict.update({"--served-model-name": aqua_model.base_model_id})
+            # updates `--served-model-name` with service model inference key
+            params_dict.update({"--served-model-name": base_model_inference_key})
             # TODO: sets `--max-lora-rank` as 32 in params for now, will revisit later
             params_dict.update({"--max-lora-rank": 32})
             # adds `--enable_lora` to parameters
