@@ -57,6 +57,15 @@ class AquaDeploymentHandler(AquaAPIhandler):
             return self.get_deployment_config(
                 model_id=id.split(",") if "," in id else id
             )
+        elif paths.startswith("aqua/deployments/recommend_shapes"):
+            if not id or not isinstance(id, str):
+                raise HTTPError(
+                    400,
+                    f"Invalid request format for {self.request.path}. "
+                    "Expected a single model OCID specified as --model_id",
+                )
+            id = id.replace(" ", "")
+            return self.get_recommend_shape(model_id=id)
         elif paths.startswith("aqua/deployments/shapes"):
             return self.list_shapes()
         elif paths.startswith("aqua/deployments"):
@@ -160,6 +169,32 @@ class AquaDeploymentHandler(AquaAPIhandler):
             deployment_config = app.get_deployment_config(model_id=model_id)
 
         return self.finish(deployment_config)
+
+    def get_recommend_shape(self, model_id: str):
+        """
+        Retrieves the valid shape and deployment parameter configuration for one Aqua Model.
+
+        Parameters
+        ----------
+        model_id : str
+            A single model ID (str).
+
+        Returns
+        -------
+        None
+            The function sends the ShapeRecommendReport (generate_table = False) or Rich Diff Table (generate_table = True)
+        """
+        app = AquaDeploymentApp()
+
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
+
+        recommend_report = app.recommend_shape(
+            model_id=model_id,
+            compartment_id=compartment_id,
+            generate_table=False,
+        )
+
+        return self.finish(recommend_report)
 
     def list_shapes(self):
         """
@@ -408,6 +443,7 @@ __handlers__ = [
     ("deployments/?([^/]*)/params", AquaDeploymentParamsHandler),
     ("deployments/config/?([^/]*)", AquaDeploymentHandler),
     ("deployments/shapes/?([^/]*)", AquaDeploymentHandler),
+    ("deployments/recommend_shapes/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)/activate", AquaDeploymentHandler),
     ("deployments/?([^/]*)/deactivate", AquaDeploymentHandler),

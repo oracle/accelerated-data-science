@@ -7,6 +7,8 @@ import logging
 import sys
 import traceback
 import uuid
+from rich.console import Console
+from rich.table import Table
 
 import fire
 from pydantic import BaseModel
@@ -92,6 +94,12 @@ def serialize(data):
                 print(str(item))
     elif isinstance(data, BaseModel):
         print(json.dumps(data.dict(), indent=4))
+    elif isinstance(data, Table):
+        console = Console()
+        console.print(data)
+        return
+    elif data is None:
+        return
     else:
         print(str(data))
 
@@ -131,7 +139,7 @@ def exit_program(ex: Exception, logger: "logging.Logger") -> None:
 
     request_id = str(uuid.uuid4())
     logger.debug(f"Error Request ID: {request_id}\nError: {traceback.format_exc()}")
-    logger.error(f"Error Request ID: {request_id}\n" f"Error: {str(ex)}")
+    logger.error(f"Error Request ID: {request_id}\nError: {str(ex)}")
 
     exit_code = getattr(ex, "exit_code", 1)
     logger.error(f"Exit code: {exit_code}")
