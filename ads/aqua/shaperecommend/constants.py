@@ -88,6 +88,7 @@ TROUBLESHOOT_MSG = "The selected model is too large to fit on standard GPU shape
 VLLM_PARAMS = {
     "max_model_len": "--max-model-len",
     "in_flight_quant": "--quantization bitsandbytes --load-format bitsandbytes",
+    "trust_remote_code": "--trust-remote-code"
 }
 
 DEFAULT_WEIGHT_SIZE = "bfloat16"

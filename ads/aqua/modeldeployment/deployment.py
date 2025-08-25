@@ -1291,7 +1291,7 @@ class AquaDeploymentApp(AquaApp):
         """
         deployment_config = self.get_deployment_config(model_id=kwargs.get("model_id"))
         kwargs["deployment_config"] = deployment_config
-        print(deployment_config)
+
         try:
             request = RequestRecommend(**kwargs)
         except ValidationError as e:

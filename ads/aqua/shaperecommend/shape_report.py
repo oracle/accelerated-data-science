@@ -250,55 +250,83 @@ class ShapeRecommendationReport(BaseModel):
     @classmethod
     def from_deployment_config(cls, deployment_config: AquaDeploymentConfig, model_name: str, valid_shapes: List[ComputeShapeSummary]) -> "ShapeRecommendationReport":
         """
-        For service models, pre-set deployment configurations (AquaDeploymentConfig) are available.
-        Derives ShapeRecommendationReport from AquaDeploymentConfig (if service model & available)
+        Creates a ShapeRecommendationReport from an AquaDeploymentConfig, extracting recommended
+        model configurations for each valid compute shape.
+
+        Parameters
+        ----------
+        deployment_config : AquaDeploymentConfig
+            The object containing per-shape deployment configurations.
+        model_name : str
+            The name of the model for which to generate recommendations.
+        valid_shapes : list of ComputeShapeSummary
+            List of compute shapes to evaluate and recommend deployment configurations for.
+
+        Returns
+        -------
+        ShapeRecommendationReport
+            Report containing recommendations for each valid compute shape.
+
+        Notes
+        -----
+        For service models, this method interprets pre-set deployment configurations to derive
+        recommendations for each allowed compute shape, including environment variables, quantization,
+        and maximum model length parameters.
         """
 
         recs = []
-        # may need to sort?
         for shape in valid_shapes:
             current_config = deployment_config.configuration.get(shape.name)
-            if current_config:
-                quantization = None
-                max_model_len = None
-                recommendation = ""
-                current_params = current_config.parameters.get(VLLM_PARAMS_KEY)
-                current_env = current_config.env.get(VLLM_ENV_KEY)
+            if not current_config:
+                continue
 
-                if current_params:
-                    param_list = current_params.split()
+            quantization = None
+            max_model_len = None
+            recommendation = ""
+            current_params = current_config.parameters.get(VLLM_PARAMS_KEY)
+            current_env = current_config.env.get(VLLM_ENV_KEY)
 
-                    if QUANT_FLAG in param_list and (idx := param_list.index(QUANT_FLAG)) + 1 < len(param_list):
+            if current_params:
+                param_list = current_params.split()
+
+                if QUANT_FLAG in param_list:
+                    idx = param_list.index(QUANT_FLAG)
+                    if idx + 1 < len(param_list):
                         quantization = param_list[idx + 1]
 
-                    if MAX_MODEL_LEN_FLAG in param_list and (idx := param_list.index(MAX_MODEL_LEN_FLAG)) + 1 < len(param_list):
-                        max_model_len = param_list[idx + 1]
-                        max_model_len = int(max_model_len)
+                if MAX_MODEL_LEN_FLAG in param_list:
+                    idx = param_list.index(MAX_MODEL_LEN_FLAG)
+                    if idx + 1 < len(param_list):
+                        try:
+                            max_model_len = int(param_list[idx + 1])
+                        except ValueError:
+                            max_model_len = None
 
-                if current_env:
-                    recommendation += f"ENV: {json.dumps(current_env)}\n\n"
+            if current_env:
+                recommendation += f"ENV: {json.dumps(current_env)}\n\n"
 
-                recommendation += "Model fits well within the allowed compute shape."
+            if not current_params and not current_env: # model works with default params and no extra env variables
+                recommendation += "No override PARAMS and ENV variables needed. \n\n"
 
-                deployment_params = DeploymentParams(
-                    quantization=quantization if quantization else DEFAULT_WEIGHT_SIZE,
-                    max_model_len=max_model_len,
-                    params=current_params if current_params else "",
-                )
+            recommendation += "Model fits well within the allowed compute shape."
 
-                # TODO: calculate memory footprint based on params??
-                # TODO: add --env vars not just params, current_config.env
-                # are there multiple configurations in the SMM configs per shape??
-                configuration = [ModelConfig(
-                    deployment_params=deployment_params,
-                    recommendation=recommendation,
-                )]
+            deployment_params = DeploymentParams(
+                quantization=quantization if quantization else DEFAULT_WEIGHT_SIZE,
+                max_model_len=max_model_len,
+                params=current_params if current_params else "",
+            )
 
-                recs.append(ShapeReport(
-                    shape_details=shape,
-                    configurations=configuration
-                )
-                )
+            # need to adjust for multiple configs per shape
+            configuration = [ModelConfig(
+                deployment_params=deployment_params,
+                recommendation=recommendation,
+            )]
+
+            recs.append(ShapeReport(
+                shape_details=shape,
+                configurations=configuration
+            )
+            )
 
         return ShapeRecommendationReport(
             display_name=model_name,

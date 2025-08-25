@@ -1,0 +1,74 @@
+{
+  "shape": [
+    "VM.GPU.A10.1",
+    "BM.GPU.H100.8",
+    "BM.GPU.H200.8"
+  ],
+  "configuration": {
+    "VM.GPU.A10.1": {
+      "parameters": {
+        "VLLM_PARAMS": "--gpu-memory-utilization 0.98  --trust-remote-code  --enforce-eager --max-num-seqs 32 --max-model-len 6000  --dtype auto --enable-lora --max-lora-rank 320 --lora-extra-vocab-size 512 --limit-mm-per-prompt audio=1,image=1 --max-loras 2  --lora-modules speech=/opt/ds/model/deployed_model/service_models/Phi-4-multimodal-instruct/0af439b/artifact/speech-lora vision=/opt/ds/model/deployed_model/service_models/Phi-4-multimodal-instruct/0af439b/artifact/vision-lora"
+      }
+    },
+    "BM.GPU.A10.4": {
+      "multi_model_deployment": [
+        {
+          "gpu_count": 1,
+          "parameters": {
+            "VLLM_PARAMS": "--trust-remote-code"
+          }
+        }
+      ]
+    },
+    "BM.GPU.L40S-NC.4": {
+      "multi_model_deployment": [
+        {
+          "gpu_count": 1,
+          "parameters": {
+            "VLLM_PARAMS": "--trust-remote-code"
+          }
+        }
+      ]
+    },
+    "BM.GPU4.8": {
+      "multi_model_deployment": [
+        {
+          "gpu_count": 1,
+          "parameters": {
+            "VLLM_PARAMS": "--trust-remote-code"
+          }
+        }
+      ]
+    },
+    "BM.GPU.A100-v2.8": {
+      "multi_model_deployment": [
+        {
+          "gpu_count": 1,
+          "parameters": {
+            "VLLM_PARAMS": "--trust-remote-code"
+          }
+        }
+      ]
+    },
+    "BM.GPU.H100.8": {
+      "multi_model_deployment": [
+        {
+          "gpu_count": 1,
+          "parameters": {
+            "VLLM_PARAMS": "--trust-remote-code"
+          }
+        }
+      ]
+    },
+    "BM.GPU.H200.8": {
+      "multi_model_deployment": [
+        {
+          "gpu_count": 1,
+          "parameters": {
+            "VLLM_PARAMS": "--trust-remote-code"
+          }
+        }
+      ]
+    }
+  }
+}
