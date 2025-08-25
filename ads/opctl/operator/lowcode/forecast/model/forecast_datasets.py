@@ -18,7 +18,7 @@ from ads.opctl.operator.lowcode.common.utils import (
     get_frequency_of_datetime,
 )
 
-from ..const import ForecastOutputColumns, SupportedModels
+from ..const import ForecastOutputColumns, SupportedModels, TROUBLESHOOTING_GUIDE
 from ..operator_config import ForecastOperatorConfig
 
 
@@ -49,7 +49,8 @@ class HistoricalData(AbstractData):
                 f"{SupportedModels.AutoMLX} requires data with a frequency of at least one hour. Please try using a different model,"
                 " or select the 'auto' option."
             )
-            raise InvalidParameterError(message)
+            raise InvalidParameterError(f"{message}"
+                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps.")
 
 
 class AdditionalData(AbstractData):
@@ -65,10 +66,12 @@ class AdditionalData(AbstractData):
             if historical_data.get_max_time() > add_dates[-spec.horizon]:
                 raise DataMismatchError(
                     f"The Historical Data ends on {historical_data.get_max_time()}. The additional data horizon starts on {add_dates[-spec.horizon]}. The horizon should have exactly {spec.horizon} dates after the Historical at a frequency of {historical_data.freq}"
+                    f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
                 )
             elif historical_data.get_max_time() != add_dates[-(spec.horizon + 1)]:
                 raise DataMismatchError(
                     f"The Additional Data must be present for all historical data and the entire horizon. The Historical Data ends on {historical_data.get_max_time()}. The additonal data horizon starts after {add_dates[-(spec.horizon+1)]}. These should be the same date."
+                    f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
                 )
         else:
             self.name = "additional_data"
@@ -215,6 +218,7 @@ class ForecastDatasets:
         except Exception as e:
             raise InvalidParameterError(
                 f"Unable to retrieve series id: {s_id} from data. Available series ids are: {self.list_series_ids()}"
+                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             ) from e
 
     def get_horizon_at_series(self, s_id):
@@ -296,6 +300,7 @@ class ForecastOutput:
         if not overwrite and series_id in self.series_id_map:
             raise ValueError(
                 f"Attempting to update ForecastOutput for series_id {series_id} when this already exists. Set overwrite to True."
+                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             )
         forecast = self._check_forecast_format(forecast)
         self.series_id_map[series_id] = forecast
@@ -336,6 +341,7 @@ class ForecastOutput:
         except KeyError as e:
             raise ValueError(
                 f"Attempting to update output for series: {series_id}, however no series output has been initialized."
+                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             ) from e
 
         if (output_i.shape[0] - self.horizon) == len(fit_val):
@@ -356,18 +362,21 @@ class ForecastOutput:
         if len(forecast_val) != self.horizon:
             raise ValueError(
                 f"Attempting to set forecast along horizon ({self.horizon}) for series: {series_id}, however forecast is only length {len(forecast_val)}"
+                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             )
         output_i["forecast_value"].iloc[-self.horizon :] = forecast_val
 
         if len(upper_bound) != self.horizon:
             raise ValueError(
                 f"Attempting to set upper_bound along horizon ({self.horizon}) for series: {series_id}, however upper_bound is only length {len(upper_bound)}"
+                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             )
         output_i[self.upper_bound_name].iloc[-self.horizon :] = upper_bound
 
         if len(lower_bound) != self.horizon:
             raise ValueError(
                 f"Attempting to set lower_bound along horizon ({self.horizon}) for series: {series_id}, however lower_bound is only length {len(lower_bound)}"
+                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             )
         output_i[self.lower_bound_name].iloc[-self.horizon :] = lower_bound
 
