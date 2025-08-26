@@ -1294,6 +1294,8 @@ class AquaDeploymentApp(AquaApp):
                     f"Invalid parameters for updating a model group deployment. Error details: {custom_errors}."
                 ) from ex
 
+        self._validate_input_models(update_model_deployment_details)
+
         model_deployment = ModelDeployment.from_id(model_deployment_id)
 
         infrastructure = model_deployment.infrastructure
