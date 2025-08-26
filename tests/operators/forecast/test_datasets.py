@@ -2,23 +2,20 @@
 
 # Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import os
 import json
-import yaml
-import tempfile
+import os
 import subprocess
+import tempfile
+from copy import deepcopy
+from time import sleep
+
 import pandas as pd
 import pytest
-from time import sleep, time
-from copy import deepcopy
-from pathlib import Path
-import random
-import pathlib
-import datetime
+import yaml
+
 from ads.opctl.operator.cmd import run
 from ads.opctl.operator.lowcode.forecast.__main__ import operate as forecast_operate
 from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorConfig
-
 
 DATASET_PREFIX = f"{os.path.dirname(os.path.abspath(__file__))}/../data/timeseries/"
 
@@ -37,6 +34,7 @@ MODELS = [
     "autots",
     # "lgbforecast",
     "auto-select",
+    "auto-select-series",
 ]
 
 TEMPLATE_YAML = {
@@ -77,14 +75,43 @@ for dataset_i in DATASETS_LIST:  #  + [DATASETS_LIST[-2]]
 
 
 def verify_explanations(tmpdirname, additional_cols, target_category_columns):
-    glb_expl = pd.read_csv(f"{tmpdirname}/results/global_explanation.csv", index_col=0)
-    loc_expl = pd.read_csv(f"{tmpdirname}/results/local_explanation.csv")
-    assert loc_expl.shape[0] == PERIODS
-    columns = ["Date", "Series"]
-    if not target_category_columns:
-        columns.remove("Series")
-    for x in columns:
-        assert x in set(loc_expl.columns)
+    result_files = os.listdir(f"{tmpdirname}/results")
+    if model == "auto-select-series":
+        # Find all local and global explanation files
+        local_expl_files = [
+            f
+            for f in result_files
+            if f.startswith("local_explanation_") and f.endswith(".csv")
+        ]
+        global_expl_files = [
+            f
+            for f in result_files
+            if f.startswith("global_explanation_") and f.endswith(".csv")
+        ]
+
+        # Verify for each model's explanation files
+        for loc_file, glb_file in zip(local_expl_files, global_expl_files):
+            glb_expl = pd.read_csv(f"{tmpdirname}/results/{glb_file}", index_col=0)
+            loc_expl = pd.read_csv(f"{tmpdirname}/results/{loc_file}")
+
+            assert loc_expl.shape[0] == PERIODS
+            columns = ["Date", "Series"]
+            if not target_category_columns:
+                columns.remove("Series")
+            for x in columns:
+                assert x in set(loc_expl.columns)
+    else:
+        glb_expl = pd.read_csv(
+            f"{tmpdirname}/results/global_explanation.csv", index_col=0
+        )
+        loc_expl = pd.read_csv(f"{tmpdirname}/results/local_explanation.csv")
+
+        assert loc_expl.shape[0] == PERIODS
+        columns = ["Date", "Series"]
+        if not target_category_columns:
+            columns.remove("Series")
+        for x in columns:
+            assert x in set(loc_expl.columns)
     # for x in additional_cols:
     #     assert x in set(loc_expl.columns)
     #     assert x in set(glb_expl.index)
@@ -159,10 +186,38 @@ def test_load_datasets(model, data_details):
                 target_category_columns=yaml_i["spec"]["target_category_columns"],
             )
         if include_test_data:
-            test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")
-            print(test_metrics)
-            train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
-            print(train_metrics)
+            result_files = os.listdir(f"{tmpdirname}/results")
+            if model == "auto-select-series":
+                # Find all metrics files for each model
+                test_metrics_files = [
+                    f
+                    for f in result_files
+                    if f.startswith("test_metrics_") and f.endswith(".csv")
+                ]
+                train_metrics_files = [
+                    f
+                    for f in result_files
+                    if f.startswith("metrics_") and f.endswith(".csv")
+                ]
+
+                # Print metrics for each model
+                for test_file, train_file in zip(
+                    test_metrics_files, train_metrics_files
+                ):
+                    print(
+                        f"\nMetrics for {test_file.replace('test_metrics_', '').replace('.csv', '')}:"
+                    )
+                    test_metrics = pd.read_csv(f"{tmpdirname}/results/{test_file}")
+                    print("Test metrics:")
+                    print(test_metrics)
+                    train_metrics = pd.read_csv(f"{tmpdirname}/results/{train_file}")
+                    print("Train metrics:")
+                    print(train_metrics)
+            else:
+                test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")
+                print(test_metrics)
+                train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
+                print(train_metrics)
 
 
 @pytest.mark.parametrize("model", MODELS[:-2])

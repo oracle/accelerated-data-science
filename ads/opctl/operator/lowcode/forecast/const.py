@@ -89,4 +89,6 @@ SUMMARY_METRICS_HORIZON_LIMIT = 10
 PROPHET_INTERNAL_DATE_COL = "ds"
 RENDER_LIMIT = 5000
 AUTO_SELECT = "auto-select"
+AUTO_SELECT_SERIES = "auto-select-series"
 BACKTEST_REPORT_NAME = "back_test.csv"
+TROUBLESHOOTING_GUIDE = "https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-operators/troubleshooting.md"
