@@ -82,7 +82,8 @@ from ads.aqua.modeldeployment.entities import (
     AquaDeploymentDetail,
     ConfigValidationError,
     CreateModelDeploymentDetails,
-    UpdateModelGroupDeploymentDetails,
+    ModelDeploymentDetails,
+    UpdateModelDeploymentDetails,
 )
 from ads.aqua.modeldeployment.model_group_config import ModelGroupConfig
 from ads.aqua.shaperecommend.recommend import AquaShapeRecommend
@@ -399,14 +400,14 @@ class AquaDeploymentApp(AquaApp):
 
     def _validate_input_models(
         self,
-        create_deployment_details: CreateModelDeploymentDetails,
+        deployment_details: ModelDeploymentDetails,
     ):
-        """Validates the base models and associated fine tuned models from 'models' in create_deployment_details for stacked or multi model deployment."""
+        """Validates the base models and associated fine tuned models from 'models' in create_deployment_details or update_deployment_details for stacked or multi model deployment."""
         # Collect all unique model IDs (including fine-tuned models)
         source_model_ids = list(
             {
                 model_id
-                for model in create_deployment_details.models
+                for model in deployment_details.models
                 for model_id in model.all_model_ids()
             }
         )
@@ -417,7 +418,7 @@ class AquaDeploymentApp(AquaApp):
         source_models = self.get_multi_source(source_model_ids) or {}
 
         try:
-            create_deployment_details.validate_input_models(model_details=source_models)
+            deployment_details.validate_input_models(model_details=source_models)
         except ConfigValidationError as err:
             raise AquaValueError(f"{err}") from err
 
@@ -1255,16 +1256,14 @@ class AquaDeploymentApp(AquaApp):
     def update(
         self,
         model_deployment_id: str,
-        update_model_deployment_details: Optional[
-            UpdateModelGroupDeploymentDetails
-        ] = None,
+        update_model_deployment_details: Optional[UpdateModelDeploymentDetails] = None,
         **kwargs,
     ) -> AquaDeployment:
         """Updates a AQUA model group deployment.
 
         Args:
-            update_model_deployment_details : UpdateModelGroupDeploymentDetails, optional
-                An instance of UpdateModelGroupDeploymentDetails containing all optional
+            update_model_deployment_details : UpdateModelDeploymentDetails, optional
+                An instance of UpdateModelDeploymentDetails containing all optional
                 fields for updating a model deployment via Aqua.
             kwargs:
                 display_name (str): The name of the model deployment.
@@ -1289,14 +1288,14 @@ class AquaDeploymentApp(AquaApp):
         """
         if not update_model_deployment_details:
             try:
-                update_model_deployment_details = UpdateModelGroupDeploymentDetails(
-                    **kwargs
-                )
+                update_model_deployment_details = UpdateModelDeploymentDetails(**kwargs)
             except ValidationError as ex:
                 custom_errors = build_pydantic_error_message(ex)
                 raise AquaValueError(
                     f"Invalid parameters for updating a model group deployment. Error details: {custom_errors}."
                 ) from ex
+
+        self._validate_input_models(update_model_deployment_details)
 
         model_deployment = ModelDeployment.from_id(model_deployment_id)
 
@@ -1308,6 +1307,7 @@ class AquaDeploymentApp(AquaApp):
                 "Invalid 'model_deployment_id'. Only model group deployment is supported to update."
             )
 
+        # updates model group if fine tuned weights changed.
         model = self._update_model_group(
             runtime.model_group_id, update_model_deployment_details
         )
@@ -1323,10 +1323,6 @@ class AquaDeploymentApp(AquaApp):
             .with_web_concurrency(
                 update_model_deployment_details.web_concurrency
                 or infrastructure.web_concurrency
-            )
-            .with_private_endpoint_id(
-                update_model_deployment_details.private_endpoint_id
-                or infrastructure.private_endpoint_id
             )
         )
 
@@ -1358,6 +1354,7 @@ class AquaDeploymentApp(AquaApp):
                 memory_in_gbs=update_model_deployment_details.memory_in_gbs,
             )
 
+        # applies ZDT as default type to update parameters if model group id hasn't been changed
         update_type = ModelDeploymentUpdateType.ZDT
         # applies LIVE update if model group id has been changed
         if runtime.model_group_id != model.id:
@@ -1400,7 +1397,7 @@ class AquaDeploymentApp(AquaApp):
     def _update_model_group(
         self,
         model_group_id: str,
-        update_model_deployment_details: UpdateModelGroupDeploymentDetails,
+        update_model_deployment_details: UpdateModelDeploymentDetails,
     ) -> DataScienceModelGroup:
         """Creates a new model group if fine tuned weights changed.
 
@@ -1408,8 +1405,8 @@ class AquaDeploymentApp(AquaApp):
         ----------
         model_group_id: str
             The model group id.
-        update_model_deployment_details: UpdateModelGroupDeploymentDetails
-            An instance of UpdateModelGroupDeploymentDetails containing all optional
+        update_model_deployment_details: UpdateModelDeploymentDetails
+            An instance of UpdateModelDeploymentDetails containing all optional
             fields for updating a model deployment via Aqua.
 
         Returns
@@ -1460,6 +1457,10 @@ class AquaDeploymentApp(AquaApp):
                 .with_base_model_id(target_base_model_id)
                 .with_member_models(member_models)
                 .create()
+            )
+
+            logger.info(
+                f"Model group of base model {target_base_model_id} has been updated: {model_group.id}."
             )
 
         return model_group
