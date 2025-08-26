@@ -1580,12 +1580,15 @@ class ModelDeployment(Builder):
             self.infrastructure.CONST_CATEGORY_LOG_DETAILS: self._build_category_log_details(),
         }
 
-        update_model_deployment_details[
-            self.infrastructure.CONST_MODEL_DEPLOYMENT_CONFIG_DETAILS
-        ][self.CONST_UPDATE_TYPE] = update_type
-        return UpdateModelDeploymentDetails(
-            **ads_utils.batch_convert_case(update_model_deployment_details, "snake")
+        dsc_update_model_deployment_details: UpdateModelDeploymentDetails = (
+            OCIDataScienceModelDeployment(
+                **update_model_deployment_details
+            ).to_oci_model(UpdateModelDeploymentDetails)
         )
+
+        dsc_update_model_deployment_details.model_deployment_configuration_details.update_type = update_type
+
+        return dsc_update_model_deployment_details
 
     def _update_spec(self, **kwargs) -> "ModelDeployment":
         """Updates model deployment specs from kwargs.
