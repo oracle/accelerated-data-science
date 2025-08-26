@@ -1244,7 +1244,6 @@ class AquaDeploymentApp(AquaApp):
                 web_concurrency (Optional[int]): Number of worker processes/threads for handling requests.
                 memory_in_gbs (Optional[float]): Memory (in GB) for the selected shape.
                 ocpus (Optional[float]): OCPU count for the selected shape.
-                private_endpoint_id (Optional[str]): Private endpoint ID for model deployment.
                 freeform_tags (Optional[Dict]): Freeform tags for model deployment.
                 defined_tags (Optional[Dict]): Defined tags for model deployment.
 
@@ -1279,6 +1278,7 @@ class AquaDeploymentApp(AquaApp):
             runtime.model_group_id, update_model_deployment_details
         )
 
+        # updates model group deployment infrastructure
         (
             infrastructure.with_bandwidth_mbps(
                 update_model_deployment_details.bandwidth_mbps
@@ -1337,7 +1337,7 @@ class AquaDeploymentApp(AquaApp):
             or model_deployment.defined_tags
         )
 
-        # configure model deployment and deploy model on container runtime
+        # updates model group deployment
         (
             model_deployment.with_display_name(
                 update_model_deployment_details.display_name
