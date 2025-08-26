@@ -76,7 +76,7 @@ class ForecastOutputColumns(ExtendedEnum):
 
 AUTOMLX_METRIC_MAP = {
     "smape": "neg_sym_mean_abs_percent_error",
-    "mape": "neg_sym_mean_abs_percent_error",
+    "mape": "neg_mean_abs_percent_error",
     "mase": "neg_mean_abs_scaled_error",
     "mae": "neg_mean_absolute_error",
     "mse": "neg_mean_squared_error",
@@ -89,4 +89,6 @@ SUMMARY_METRICS_HORIZON_LIMIT = 10
 PROPHET_INTERNAL_DATE_COL = "ds"
 RENDER_LIMIT = 5000
 AUTO_SELECT = "auto-select"
+AUTO_SELECT_SERIES = "auto-select-series"
 BACKTEST_REPORT_NAME = "back_test.csv"
+TROUBLESHOOTING_GUIDE = "https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-operators/troubleshooting.md"

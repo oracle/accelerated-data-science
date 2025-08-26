@@ -997,6 +997,44 @@ def get_container_params_type(container_type_name: str) -> str:
         return UNKNOWN
 
 
+def get_container_env_type(container_type_name: Optional[str]) -> str:
+    """
+    Determine the container environment type based on the container type name.
+
+    This function matches the provided container type name against the known
+    values of `InferenceContainerType`. The check is case-insensitive and
+    allows for partial matches so that changes in container naming conventions
+    (e.g., prefixes or suffixes) will still be matched correctly.
+
+    Examples:
+        >>> get_container_env_type("odsc-vllm-serving")
+        'vllm'
+        >>> get_container_env_type("ODSC-TGI-Serving")
+        'tgi'
+        >>> get_container_env_type("custom-unknown-container")
+        'UNKNOWN'
+
+    Args:
+        container_type_name (Optional[str]):
+            The deployment container type name (e.g., "odsc-vllm-serving").
+
+    Returns:
+        str:
+            - A matching `InferenceContainerType` value string (e.g., "VLLM", "TGI", "LLAMA-CPP").
+            - `"UNKNOWN"` if no match is found or the input is empty/None.
+    """
+    if not container_type_name:
+        return UNKNOWN
+
+    needle = container_type_name.strip().casefold()
+
+    for container_type in InferenceContainerType.values():
+        if container_type and container_type.casefold() in needle:
+            return container_type.upper()
+
+    return UNKNOWN
+
+
 def get_restricted_params_by_container(container_type_name: str) -> set:
     """The utility function accepts the deployment container type name and returns a set of restricted params
         for that container.
