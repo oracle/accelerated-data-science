@@ -4,7 +4,14 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ads.opctl.operator.lowcode.common.transformations import Transformations
-from ..const import AUTO_SELECT, SpeedAccuracyMode, SupportedModels, AUTO_SELECT_SERIES
+
+from ..const import (
+    AUTO_SELECT,
+    AUTO_SELECT_SERIES,
+    TROUBLESHOOTING_GUIDE,
+    SpeedAccuracyMode,
+    SupportedModels,
+)
 from ..meta_selector import MetaSelector
 from ..model_evaluator import ModelEvaluator
 from ..operator_config import ForecastOperatorConfig
@@ -23,6 +30,7 @@ class UnSupportedModelError(Exception):
         super().__init__(
             f"Model: `{model_type}` "
             f"is not supported. Supported models: {SupportedModels.values()}"
+            f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
         )
 
 
