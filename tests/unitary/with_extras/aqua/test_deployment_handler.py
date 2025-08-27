@@ -13,7 +13,6 @@ from notebook.base.handlers import IPythonHandler
 from parameterized import parameterized
 
 import ads.aqua
-from ads.aqua.modeldeployment.entities import AquaDeploymentDetail
 import ads.config
 from ads.aqua.extension.deployment_handler import (
     AquaDeploymentHandler,
@@ -21,6 +20,7 @@ from ads.aqua.extension.deployment_handler import (
     AquaDeploymentStreamingInferenceHandler,
     AquaModelListHandler,
 )
+from ads.aqua.modeldeployment.entities import AquaDeploymentDetail
 
 
 class TestDataset:
@@ -86,6 +86,24 @@ class TestAquaDeploymentHandler(unittest.TestCase):
         """Test get method to return deployment config"""
         # todo: exception handler needs to be revisited
         self.deployment_handler.request.path = "aqua/deployments/config"
+        mock_error.return_value = MagicMock(status=400)
+        result = self.deployment_handler.get(id="")
+        mock_error.assert_called_once()
+        assert result["status"] == 400
+
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.recommend_shape")
+    def test_get_recommend_shape(self, mock_recommend_shape):
+        """Test get method to return deployment config"""
+        self.deployment_handler.request.path = "aqua/deployments/recommend_shapes"
+        self.deployment_handler.get(id="mock-model-id")
+        mock_recommend_shape.assert_called()
+
+    @unittest.skip("fix this test after exception handler is updated.")
+    @patch("ads.aqua.extension.base_handler.AquaAPIhandler.write_error")
+    def test_get_recommend_shape_without_id(self, mock_error):
+        """Test get method to return deployment config"""
+        # todo: exception handler needs to be revisited
+        self.deployment_handler.request.path = "aqua/deployments/recommend_shape"
         mock_error.return_value = MagicMock(status=400)
         result = self.deployment_handler.get(id="")
         mock_error.assert_called_once()
