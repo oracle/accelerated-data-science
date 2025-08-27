@@ -110,7 +110,15 @@ class AquaDeploymentHandler(AquaAPIhandler):
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)
 
-        self.finish(AquaDeploymentApp().create(**input_data))
+        model_deployment_id = input_data.pop("model_deployment_id", None)
+        if model_deployment_id:
+            self.finish(
+                AquaDeploymentApp().update(
+                    model_deployment_id=model_deployment_id, **input_data
+                )
+            )
+        else:
+            self.finish(AquaDeploymentApp().create(**input_data))
 
     def read(self, id):
         """Read the information of an Aqua model deployment."""
