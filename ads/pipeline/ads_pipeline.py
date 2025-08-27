@@ -1728,15 +1728,19 @@ class Pipeline(Builder):
 
     def __step_infrastructure_configuration_details(self, step) -> dict:
         step_infrastructure_configuration_details = {}
-        step_infrastructure_configuration_details[
-            "blockStorageSizeInGBs"
-        ] = step.infrastructure.block_storage_size
-        step_infrastructure_configuration_details[
-            "shapeName"
-        ] = step.infrastructure.shape_name
-        step_infrastructure_configuration_details[
-            "shapeConfigDetails"
-        ] = step.infrastructure.shape_config_details
+        step_infrastructure_configuration_details["blockStorageSizeInGBs"] = (
+            step.infrastructure.block_storage_size
+        )
+        step_infrastructure_configuration_details["shapeName"] = (
+            step.infrastructure.shape_name
+        )
+        step_infrastructure_configuration_details["shapeConfigDetails"] = (
+            step.infrastructure.shape_config_details
+        )
+        if getattr(step.infrastructure, "subnet_id", ""):
+            step_infrastructure_configuration_details["subnetId"] = (
+                step.infrastructure.subnet_id
+            )
         return step_infrastructure_configuration_details
 
     def __step_configuration_details(self, pipeline_details: Dict, step) -> dict:
