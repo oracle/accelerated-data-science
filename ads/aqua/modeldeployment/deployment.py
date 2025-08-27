@@ -1261,8 +1261,6 @@ class AquaDeploymentApp(AquaApp):
                     f"Invalid parameters for updating a model group deployment. Error details: {custom_errors}."
                 ) from ex
 
-        self._validate_input_models(update_model_deployment_details)
-
         model_deployment = ModelDeployment.from_id(model_deployment_id)
 
         infrastructure = model_deployment.infrastructure
@@ -1388,6 +1386,8 @@ class AquaDeploymentApp(AquaApp):
                 raise AquaValueError(
                     "Invalid 'models' provided. Only one base model is required for updating model stack deployment."
                 )
+            # validates input base and fine tune models
+            self._validate_input_models(update_model_deployment_details)
             target_stacked_model = update_model_deployment_details.models[0]
             target_base_model_id = target_stacked_model.model_id
             if model_group.base_model_id != target_base_model_id:
