@@ -45,8 +45,11 @@ from ads.aqua.constants import (
     AQUA_MODEL_TYPE_SERVICE,
     AQUA_MULTI_MODEL_CONFIG,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
+    MODEL_GROUP,
     MODEL_NAME_DELIMITER,
+    SINGLE_MODEL_FLEX,
     UNKNOWN_DICT,
+    UNKNOWN_ENUM_VALUE,
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model import AquaModelApp
@@ -873,21 +876,26 @@ class AquaDeploymentApp(AquaApp):
 
             if oci_aqua:
                 # skipping the AQUA model deployments that are created from model group
-                # TODO: remove this checker after AQUA deployment is integrated with model group
-                aqua_model_id = model_deployment.freeform_tags.get(
-                    Tags.AQUA_MODEL_ID_TAG, UNKNOWN
-                )
                 if (
-                    "datasciencemodelgroup" in aqua_model_id
-                    or model_deployment.model_deployment_configuration_details.deployment_type
-                    == "UNKNOWN_ENUM_VALUE"
+                    model_deployment.model_deployment_configuration_details.deployment_type
+                    in [UNKNOWN_ENUM_VALUE, MODEL_GROUP, SINGLE_MODEL_FLEX]
                 ):
                     continue
-                results.append(
-                    AquaDeployment.from_oci_model_deployment(
-                        model_deployment, self.region
+                try:
+                    results.append(
+                        AquaDeployment.from_oci_model_deployment(
+                            model_deployment, self.region
+                        )
                     )
-                )
+                except Exception as e:
+                    logger.error(
+                        f"There was an issue processing the list of model deployments . Error: {str(e)}",
+                        exc_info=True,
+                    )
+                    raise AquaRuntimeError(
+                        f"There was an issue processing the list of model deployments . Error: {str(e)}"
+                    ) from e
+
                 # log telemetry if MD is in active or failed state
                 deployment_id = model_deployment.id
                 state = model_deployment.lifecycle_state.upper()

@@ -111,7 +111,17 @@ class AquaShapeRecommend:
                 shape_recommendation_report = self._summarize_shapes_for_seq_lens(
                     llm_config, shapes, model_name
                 )
+                
+            data = self._get_model_config(ds_model)
 
+            llm_config = LLMConfig.from_raw_config(data)
+
+            model_name = ds_model.display_name if ds_model.display_name else ""
+
+            shape_recommendation_report = self._summarize_shapes_for_seq_lens(
+                llm_config, shapes, model_name
+            )
+            
             if request.generate_table and shape_recommendation_report.recommendations:
                 shape_recommendation_report = self._rich_diff_table(
                     shape_recommendation_report
@@ -256,6 +266,7 @@ class AquaShapeRecommend:
                 total_memory = f"GPU: {str(gpu.gpu_memory_in_gbs)}"
             else:
                 total_memory = f"CPU: {str(shape.memory_in_gbs)}"
+
 
             if model:
                 model_size = str(model.total_model_gb)

@@ -1751,6 +1751,7 @@ class DataScienceJob(Infrastructure):
         return (
             MULTI_NODE_JOB_SUPPORT
             and isinstance(runtime, MultiNodeRuntime)
+            and runtime.replica
             and runtime.replica > 1
         )
 

@@ -88,6 +88,7 @@ class TestMemoryEstimator:
     @pytest.mark.parametrize(
         "config_file,should_raise",
         [
+
             ("config-json-files/Devstral-Small-2507-GQA.json", False),
             ("config-json-files/Kimi-K2-Instruct-MOE.json", False),
             ("config-json-files/Qwen3-235B-A22B-Instruct-2507-FP8.json", False),
@@ -115,6 +116,9 @@ class TestMemoryEstimator:
             ("config-json-files/Devstral-Small-2507-GQA.json", LlamaMemoryEstimator),
             ("config-json-files/Kimi-K2-Instruct-MOE.json", MixtureMemoryEstimator),
             ("config-json-files/Qwen3-235B-A22B-Instruct-2507-FP8.json", MixtureMemoryEstimator),
+            ("Devstral-Small-2507-GQA.json", LlamaMemoryEstimator),
+            ("Kimi-K2-Instruct-MOE.json", MixtureMemoryEstimator),
+            ("Qwen3-235B-A22B-Instruct-2507-FP8.json", MixtureMemoryEstimator),
         ],
     )
     def test_get_estimator_types_from_config_file(
@@ -147,7 +151,6 @@ class TestLLMConfig:
     @pytest.mark.parametrize(
         "config_file, expected_hidden_size, expected_max_seq_len, expected_dtype, exp_num_key_value_heads, exp_num_local_experts, expected_head_dim, expected_quant",
         [
-            (
                 "config-json-files/Devstral-Small-2507-GQA.json",
                 5120,
                 131072,
@@ -219,6 +222,9 @@ class TestLLMConfig:
             ("config-json-files/Devstral-Small-2507-GQA.json", {"4bit"}),
             ("config-json-files/Kimi-K2-Instruct-MOE.json", {"4bit"}),
             ("config-json-files/Qwen3-235B-A22B-Instruct-2507-FP8.json", {"4bit"}),
+            ("Devstral-Small-2507-GQA.json", {"4bit"}),
+            ("Kimi-K2-Instruct-MOE.json", {"4bit"}),
+            ("Qwen3-235B-A22B-Instruct-2507-FP8.json", {"4bit"}),
         ],
     )
     def test_suggested_quantizations_from_file(
@@ -348,13 +354,22 @@ class TestAquaShapeRecommend:
             (
                 "service-config/example_3.json",
                 "service-config/result-example_3.json", True
+        "config_file, result_file",
+        [
+            ("Devstral-Small-2507-GQA.json", "result-Devstral-Small-2507-GQA.json"),
+            ("Kimi-K2-Instruct-MOE.json", "result-Kimi-K2-Instruct-MOE.json"),
+            (
+                "Qwen3-235B-A22B-Instruct-2507-FP8.json",
+                "result-Qwen3-235B-A22B-Instruct-2507-FP8.json",
             ),
         ],
     )
     def test_which_shapes_valid_from_file(
         self, monkeypatch, config_file, result_file, service_managed_model, **kwargs
     ):
-
+        self, monkeypatch, config_file, result_file, **kwargs
+    ):
+        raw = load_config(config_file)
         app = AquaShapeRecommend()
         mock_model = MockDataScienceModel.create(config_file)
         monkeypatch.setattr(
@@ -389,6 +404,25 @@ class TestAquaShapeRecommend:
 
         # expected_result = load_config(result_file)
         # assert result.model_dump() == expected_result
+
+        monkeypatch.setattr(app, "_get_model_config", lambda _: raw)
+
+        shapes_index = GPUShapesIndexMock()
+        real_shapes = [
+            ComputeShapeSummary(name=name, shape_series="GPU", gpu_specs=spec)
+            for name, spec in shapes_index.shapes.items()
+        ]
+        monkeypatch.setattr(
+            app, "valid_compute_shapes", lambda *args, **kwargs: real_shapes
+        )
+
+        request = RequestRecommend(
+            model_id="ocid1.datasciencemodel.oc1.TEST", generate_table=False
+        )
+        result = app.which_shapes(request=request)
+
+        expected_result = load_config(result_file)
+        assert result.model_dump() == expected_result
 
 
 # --- Tests for shape_report.py ---
@@ -467,21 +501,3 @@ class TestShapeReport:
         assert c and d in pf
         assert a and b not in pf
         assert len(pf) == 2
-
-    # @pytest.mark.parametrize(
-    #     "config_file, result_file",
-    #     [
-    #         ("config-json-files/example_1.json", "config-json-files/result-example_1.json"),
-    #         ("config-json-files/example_2.json", "config-json-files/result-example_2.json"),
-    #         (
-    #             "config-json-files/example_3.json",
-    #             "config-json-files/result-example_3.json",
-    #         ),
-    #     ],
-    # )
-    # def test_from_deployment_config_basic(self):
-
-    #     result = app.which_shapes(request=request)
-
-    #     expected_result = load_config(result_file)
-    #     assert result.model_dump() == expected_result

@@ -3,6 +3,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
+
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
@@ -17,6 +18,7 @@ from ads.aqua.shaperecommend.constants import (
     VLLM_ENV_KEY,
     VLLM_PARAMS_KEY,
 )
+from ads.aqua.shaperecommend.constants import QUANT_MAPPING
 from ads.aqua.shaperecommend.estimator import MemoryEstimator
 from ads.config import COMPARTMENT_OCID
 
@@ -56,6 +58,8 @@ class DeploymentParams(BaseModel):  # noqa: N801
         None, description="Type of quantization (e.g. 4bit)."
     )
     max_model_len: Optional[int] = Field(None, description="Maximum length of input sequence.")
+    max_model_len: int = Field(..., description="Maximum length of input sequence.")
+
     params: str = Field(
         ..., description="Runtime parameters for deployment with vLLM, etc."
     )
@@ -87,6 +91,12 @@ class ModelConfig(BaseModel):
     model_details: Optional[ModelDetail] = Field(None, description="Details about the model.")
 
     recommendation: Optional[str] = Field("", description="GPU recommendation for the model.")
+
+    model_details: ModelDetail = Field(..., description="Details about the model.")
+    deployment_params: DeploymentParams = Field(
+        ..., description="Parameters for deployment."
+    )
+    recommendation: str = Field(..., description="GPU recommendation for the model.")
 
     class Config:
         protected_namespaces = ()
@@ -245,7 +255,6 @@ class ShapeRecommendationReport(BaseModel):
         None,
         description="Details for troubleshooting if no shapes fit the current model.",
     )
-
 
     @classmethod
     def from_deployment_config(cls, deployment_config: AquaDeploymentConfig, model_name: str, valid_shapes: List[ComputeShapeSummary]) -> "ShapeRecommendationReport":

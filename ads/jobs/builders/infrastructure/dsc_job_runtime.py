@@ -365,6 +365,11 @@ class RuntimeHandler:
             dsc_job,
             "job_node_configuration_details.job_node_group_configuration_details_list",
         )
+        if node_groups is None:
+            node_groups = get_value(
+                dsc_job,
+                "job_node_configuration_details.jobNodeGroupConfigurationDetailsList",
+            )
         if node_groups and len(node_groups) == 1:
             return node_groups[0]
         return None
@@ -373,6 +378,7 @@ class RuntimeHandler:
         node_group = self._get_node_group(dsc_job)
         if node_group:
             replica = get_value(node_group, "replicas")
+            envs.pop(self.CONST_NODE_COUNT, None)
         elif not envs:
             replica = None
         elif self.CONST_WORKER_COUNT in envs:
@@ -399,7 +405,9 @@ class RuntimeHandler:
         env_attr = "job_configuration_details.environment_variables"
         node_group = self._get_node_group(dsc_job)
         if node_group:
-            envs = get_value(node_group, env_attr)
+            envs = get_value(node_group, env_attr) or get_value(
+                node_group, "jobConfigurationDetails.environment_variables"
+            )
         else:
             envs = get_value(dsc_job, env_attr)
         if envs:
