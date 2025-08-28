@@ -11,6 +11,7 @@ from ads.aqua.common.errors import AquaRecommendationError
 from ads.aqua.shaperecommend.constants import (
     BITS_AND_BYTES_4BIT,
     BITS_AND_BYTES_8BIT,
+    DEFAULT_MAX_SEQ_LEN,
     DEFAULT_WEIGHT_SIZE,
     NEXT_QUANT,
     QUANT_MAPPING,
@@ -42,7 +43,7 @@ class LLMConfig(BaseModel):
         description="Dimension of each attention head. Typically hidden_size // num_attention_heads.",
     )
     max_seq_len: Optional[int] = Field(
-        4096, description="Maximum input sequence length (context window)."
+        DEFAULT_MAX_SEQ_LEN, description="Maximum input sequence length (context window)."
     )
     weight_dtype: Optional[str] = Field(
         DEFAULT_WEIGHT_SIZE,
@@ -74,7 +75,9 @@ class LLMConfig(BaseModel):
         None, description="For MoE architectures, size of the MLP activation layer."
     )
 
-    tie_word_embeddings: Optional[bool] = Field(None)
+    tie_word_embeddings: Optional[bool] = Field(True, description="if True, input and output embedding matrices share the same parameters in memory.")
+
+    trust_remote_code: Optional[bool] = Field(False, description="if True, the model requires custom code to operate.")
 
     @property
     def bytes_per_parameter(self) -> float:
@@ -207,6 +210,17 @@ class LLMConfig(BaseModel):
                 "Encoder-decoder models (ex. T5, Gemma) and encoder-only (BERT) are not supported at this time."
             )
 
+    @staticmethod
+    def get_bool(raw, key, default=False):
+        val = raw.get(key)
+        if val is None:
+            return default
+        if isinstance(val, bool):
+            return val
+        if isinstance(val, str):
+            return val.lower() == "true"
+        return bool(val)
+
     @classmethod
     def from_raw_config(cls, raw: dict) -> "LLMConfig":
         """
@@ -257,6 +271,10 @@ class LLMConfig(BaseModel):
             "intermediate_size"
         )
 
+        tie_word_embeddings = LLMConfig.get_bool(raw, "tie_word_embeddings", True)
+
+        trust_remote_code = "auto_map" in raw # trust-remote-code is always needed when this key is present
+
         # Type safety: minimal assertion
         if None in [
             num_hidden_layers,
@@ -280,4 +298,6 @@ class LLMConfig(BaseModel):
             max_seq_len=int(max_seq_len),
             num_local_experts=num_local_experts,
             intermediate_size=intermediate_size,
+            tie_word_embeddings=tie_word_embeddings,
+            trust_remote_code=trust_remote_code
         )

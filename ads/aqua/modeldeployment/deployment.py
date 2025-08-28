@@ -1297,6 +1297,9 @@ class AquaDeploymentApp(AquaApp):
         AquaValueError
             If model type is unsupported by tool (no recommendation report generated)
         """
+        deployment_config = self.get_deployment_config(model_id=kwargs.get("model_id"))
+        kwargs["deployment_config"] = deployment_config
+
         try:
             request = RequestRecommend(**kwargs)
         except ValidationError as e:

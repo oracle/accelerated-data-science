@@ -13,6 +13,7 @@ import pytest
 
 from ads.aqua.common.entities import ComputeShapeSummary
 from ads.aqua.common.errors import AquaRecommendationError
+from ads.aqua.modeldeployment.config_loader import AquaDeploymentConfig
 from ads.aqua.shaperecommend.estimator import (
     LlamaMemoryEstimator,
     MemoryEstimator,
@@ -87,10 +88,11 @@ class TestMemoryEstimator:
     @pytest.mark.parametrize(
         "config_file,should_raise",
         [
-            ("Devstral-Small-2507-GQA.json", False),
-            ("Kimi-K2-Instruct-MOE.json", False),
-            ("Qwen3-235B-A22B-Instruct-2507-FP8.json", False),
-            ("t5gemma-ml-ml-prefixlm.json", True),  # This one is expected to raise
+
+            ("config-json-files/Devstral-Small-2507-GQA.json", False),
+            ("config-json-files/Kimi-K2-Instruct-MOE.json", False),
+            ("config-json-files/Qwen3-235B-A22B-Instruct-2507-FP8.json", False),
+            ("config-json-files/t5gemma-ml-ml-prefixlm.json", True),  # This one is expected to raise
         ],
     )
     def test_memory_estimator_properties_from_file(self, config_file, should_raise):
@@ -111,6 +113,9 @@ class TestMemoryEstimator:
     @pytest.mark.parametrize(
         "config_file, expected_estimator_cls",
         [
+            ("config-json-files/Devstral-Small-2507-GQA.json", LlamaMemoryEstimator),
+            ("config-json-files/Kimi-K2-Instruct-MOE.json", MixtureMemoryEstimator),
+            ("config-json-files/Qwen3-235B-A22B-Instruct-2507-FP8.json", MixtureMemoryEstimator),
             ("Devstral-Small-2507-GQA.json", LlamaMemoryEstimator),
             ("Kimi-K2-Instruct-MOE.json", MixtureMemoryEstimator),
             ("Qwen3-235B-A22B-Instruct-2507-FP8.json", MixtureMemoryEstimator),
@@ -146,8 +151,7 @@ class TestLLMConfig:
     @pytest.mark.parametrize(
         "config_file, expected_hidden_size, expected_max_seq_len, expected_dtype, exp_num_key_value_heads, exp_num_local_experts, expected_head_dim, expected_quant",
         [
-            (
-                "Devstral-Small-2507-GQA.json",
+                "config-json-files/Devstral-Small-2507-GQA.json",
                 5120,
                 131072,
                 "bfloat16",
@@ -157,7 +161,7 @@ class TestLLMConfig:
                 None,
             ),
             (
-                "Kimi-K2-Instruct-MOE.json",
+                "config-json-files/Kimi-K2-Instruct-MOE.json",
                 7168,
                 131072,
                 "bfloat16",
@@ -167,7 +171,7 @@ class TestLLMConfig:
                 "fp8",
             ),
             (
-                "Qwen3-235B-A22B-Instruct-2507-FP8.json",
+                "config-json-files/Qwen3-235B-A22B-Instruct-2507-FP8.json",
                 4096,
                 262144,
                 "bfloat16",
@@ -215,6 +219,9 @@ class TestLLMConfig:
     @pytest.mark.parametrize(
         "config_file, expected_quantizations",
         [
+            ("config-json-files/Devstral-Small-2507-GQA.json", {"4bit"}),
+            ("config-json-files/Kimi-K2-Instruct-MOE.json", {"4bit"}),
+            ("config-json-files/Qwen3-235B-A22B-Instruct-2507-FP8.json", {"4bit"}),
             ("Devstral-Small-2507-GQA.json", {"4bit"}),
             ("Kimi-K2-Instruct-MOE.json", {"4bit"}),
             ("Qwen3-235B-A22B-Instruct-2507-FP8.json", {"4bit"}),
@@ -333,6 +340,20 @@ class TestAquaShapeRecommend:
             )
 
     @pytest.mark.parametrize(
+        "config_file, result_file, service_managed_model",
+        [   # config.json cases
+            # ("config-json-files/Devstral-Small-2507-GQA.json", "config-json-files/result-Devstral-Small-2507-GQA.json", False),
+            # ("config-json-files/Kimi-K2-Instruct-MOE.json", "config-json-files/result-Kimi-K2-Instruct-MOE.json", False),
+            # (
+            #     "config-json-files/Qwen3-235B-A22B-Instruct-2507-FP8.json",
+            #     "config-json-files/result-Qwen3-235B-A22B-Instruct-2507-FP8.json", False
+            # ),
+            # # SMM config cases
+            ("service-config/example_1.json", "service-config/result-example_1.json", True),
+            ("service-config/example_2.json", "service-config/result-example_2.json", True),
+            (
+                "service-config/example_3.json",
+                "service-config/result-example_3.json", True
         "config_file, result_file",
         [
             ("Devstral-Small-2507-GQA.json", "result-Devstral-Small-2507-GQA.json"),
@@ -344,6 +365,8 @@ class TestAquaShapeRecommend:
         ],
     )
     def test_which_shapes_valid_from_file(
+        self, monkeypatch, config_file, result_file, service_managed_model, **kwargs
+    ):
         self, monkeypatch, config_file, result_file, **kwargs
     ):
         raw = load_config(config_file)
@@ -352,6 +375,36 @@ class TestAquaShapeRecommend:
         monkeypatch.setattr(
             "ads.aqua.app.DataScienceModel.from_id", lambda _: mock_model
         )
+
+        raw = load_config(config_file)
+
+        if service_managed_model:
+            config = AquaDeploymentConfig(**raw)
+
+            request = RequestRecommend(
+                model_id="ocid1.datasciencemodel.oc1.TEST", generate_table=False, deployment_config=config
+            )
+        else:
+            monkeypatch.setattr(app, "_get_model_config", lambda _: raw)
+
+            shapes_index = GPUShapesIndexMock()
+            real_shapes = [
+                ComputeShapeSummary(name=name, shape_series="GPU", gpu_specs=spec)
+                for name, spec in shapes_index.shapes.items()
+            ]
+            monkeypatch.setattr(
+                app, "valid_compute_shapes", lambda *args, **kwargs: real_shapes
+            )
+
+            request = RequestRecommend(
+                model_id="ocid1.datasciencemodel.oc1.TEST", generate_table=False
+            )
+        result = app.which_shapes(request=request)
+        print(result.model_dump_json())
+
+        # expected_result = load_config(result_file)
+        # assert result.model_dump() == expected_result
+
         monkeypatch.setattr(app, "_get_model_config", lambda _: raw)
 
         shapes_index = GPUShapesIndexMock()
