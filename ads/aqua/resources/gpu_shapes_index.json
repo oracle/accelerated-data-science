@@ -1,6 +1,85 @@
 {
+  "BM.GPU.B200.8": {
+    "cpu_count": 128,
+    "cpu_memory_in_gbs": 4096,
+    "gpu_count": 8,
+    "gpu_memory_in_gbs": 1440,
+    "gpu_type": "B200",
+    "quantization": [
+      "fp4",
+      "fp8",
+      "fp16",
+      "bf16",
+      "tf32",
+      "int8",
+      "fp64"
+    ],
+    "ranking": {
+      "cost": 120,
+      "performance": 130
+    }
+  },
+  "BM.GPU.GB200.4": {
+    "cpu_count": 144,
+    "cpu_memory_in_gbs": 1024,
+    "gpu_count": 4,
+    "gpu_memory_in_gbs": 768,
+    "gpu_type": "GB200",
+    "quantization": [
+      "fp4",
+      "fp8",
+      "fp6",
+      "int8",
+      "fp16",
+      "bf16",
+      "tf32",
+      "fp64"
+    ],
+    "ranking": {
+      "cost": 110,
+      "performance": 120
+    }
+  },
+  "BM.GPU4.8": {
+    "cpu_count": 64,
+    "cpu_memory_in_gbs": 2048,
+    "gpu_count": 8,
+    "gpu_memory_in_gbs": 320,
+    "gpu_type": "A100",
+    "quantization": [
+      "int8",
+      "fp16",
+      "bf16",
+      "tf32"
+    ],
+    "ranking": {
+      "cost": 57,
+      "performance": 65
+    }
+  },
+  "VM.GPU3.8": {
+    "cpu_count": 24,
+    "cpu_memory_in_gbs": 768,
+    "gpu_count": 8,
+    "gpu_memory_in_gbs": 128,
+    "gpu_type": "V100",
+    "quantization": [
+      "gptq",
+      "bitblas",
+      "aqlm",
+      "bitsandbytes",
+      "deepspeedfp",
+      "gguf"
+    ],
+    "ranking": {
+      "cost": 56,
+      "performance": 46
+    }
+  },
   "shapes": {
     "BM.GPU.A10.4": {
+      "cpu_count": 64,
+      "cpu_memory_in_gbs": 1024,
       "gpu_count": 4,
       "gpu_memory_in_gbs": 96,
       "gpu_type": "A10",
@@ -21,6 +100,8 @@
       }
     },
     "BM.GPU.A100-V2.8": {
+      "cpu_count": 128,
+      "cpu_memory_in_gbs": 2048,
       "gpu_count": 8,
       "gpu_memory_in_gbs": 640,
       "gpu_type": "A100",
@@ -41,6 +122,8 @@
       }
     },
     "BM.GPU.B4.8": {
+      "cpu_count": 64,
+      "cpu_memory_in_gbs": 2048,
       "gpu_count": 8,
       "gpu_memory_in_gbs": 320,
       "gpu_type": "A100",
@@ -61,6 +144,8 @@
       }
     },
     "BM.GPU.H100.8": {
+      "cpu_count": 112,
+      "cpu_memory_in_gbs": 2048,
       "gpu_count": 8,
       "gpu_memory_in_gbs": 640,
       "gpu_type": "H100",
@@ -82,6 +167,8 @@
       }
     },
     "BM.GPU.H200.8": {
+      "cpu_count": 112,
+      "cpu_memory_in_gbs": 3072,
       "gpu_count": 8,
       "gpu_memory_in_gbs": 1128,
       "gpu_type": "H200",
@@ -103,6 +190,8 @@
       }
     },
     "BM.GPU.L40S-NC.4": {
+      "cpu_count": 112,
+      "cpu_memory_in_gbs": 1024,
       "gpu_count": 4,
       "gpu_memory_in_gbs": 192,
       "gpu_type": "L40S",
@@ -124,6 +213,8 @@
       }
     },
     "BM.GPU.L40S.4": {
+      "cpu_count": 112,
+      "cpu_memory_in_gbs": 1024,
       "gpu_count": 4,
       "gpu_memory_in_gbs": 192,
       "gpu_type": "L40S",
@@ -145,6 +236,8 @@
       }
     },
     "BM.GPU.MI300X.8": {
+      "cpu_count": 112,
+      "cpu_memory_in_gbs": 2048,
       "gpu_count": 8,
       "gpu_memory_in_gbs": 1536,
       "gpu_type": "MI300X",
@@ -158,6 +251,8 @@
       }
     },
     "BM.GPU2.2": {
+      "cpu_count": 28,
+      "cpu_memory_in_gbs": 192,
       "gpu_count": 2,
       "gpu_memory_in_gbs": 32,
       "gpu_type": "P100",
@@ -170,6 +265,8 @@
       }
     },
     "VM.GPU.A10.1": {
+      "cpu_count": 15,
+      "cpu_memory_in_gbs": 240,
       "gpu_count": 1,
       "gpu_memory_in_gbs": 24,
       "gpu_type": "A10",
@@ -190,6 +287,8 @@
       }
     },
     "VM.GPU.A10.2": {
+      "cpu_count": 30,
+      "cpu_memory_in_gbs": 480,
       "gpu_count": 2,
       "gpu_memory_in_gbs": 48,
       "gpu_type": "A10",
@@ -210,6 +309,8 @@
       }
     },
     "VM.GPU2.1": {
+      "cpu_count": 12,
+      "cpu_memory_in_gbs": 72,
       "gpu_count": 1,
       "gpu_memory_in_gbs": 16,
       "gpu_type": "P100",
@@ -222,6 +323,8 @@
       }
     },
     "VM.GPU3.1": {
+      "cpu_count": 6,
+      "cpu_memory_in_gbs": 90,
       "gpu_count": 1,
       "gpu_memory_in_gbs": 16,
       "gpu_type": "V100",
@@ -239,6 +342,8 @@
       }
     },
     "VM.GPU3.2": {
+      "cpu_count": 12,
+      "cpu_memory_in_gbs": 180,
       "gpu_count": 2,
       "gpu_memory_in_gbs": 32,
       "gpu_type": "V100",
@@ -256,6 +361,8 @@
       }
     },
     "VM.GPU3.4": {
+      "cpu_count": 24,
+      "cpu_memory_in_gbs": 360,
       "gpu_count": 4,
       "gpu_memory_in_gbs": 64,
       "gpu_type": "V100",
