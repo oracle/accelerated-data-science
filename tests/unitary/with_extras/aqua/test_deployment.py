@@ -1438,11 +1438,11 @@ class TestAquaDeployment(unittest.TestCase):
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     @patch.object(AquaApp, "get_container_config")
     @patch(
-        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_ft_model_v2"
+        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_base_model"
     )
     def test_create_deployment_for_foundation_model(
         self,
-        mock_validate_ft_model_v2,
+        mock_validate_base_model,
         mock_get_container_config,
         mock_deploy,
         mock_get_container_image,
@@ -1518,7 +1518,7 @@ class TestAquaDeployment(unittest.TestCase):
             defined_tags=defined_tags,
         )
 
-        mock_validate_ft_model_v2.assert_called()
+        mock_validate_base_model.assert_called()
         mock_create.assert_called_with(
             model=TestDataset.MODEL_ID,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
@@ -1544,11 +1544,11 @@ class TestAquaDeployment(unittest.TestCase):
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     @patch.object(AquaApp, "get_container_config")
     @patch(
-        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_ft_model_v2"
+        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_base_model"
     )
     def test_create_deployment_for_fine_tuned_model(
         self,
-        mock_validate_ft_model_v2,
+        mock_validate_base_model,
         mock_get_container_config,
         mock_deploy,
         mock_get_container_image,
@@ -1619,7 +1619,7 @@ class TestAquaDeployment(unittest.TestCase):
             predict_log_id="ocid1.log.oc1.<region>.<OCID>",
         )
 
-        mock_validate_ft_model_v2.assert_called()
+        mock_validate_base_model.assert_called()
         mock_create.assert_called_with(
             model=TestDataset.MODEL_ID,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
@@ -1643,11 +1643,11 @@ class TestAquaDeployment(unittest.TestCase):
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     @patch.object(AquaApp, "get_container_config")
     @patch(
-        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_ft_model_v2"
+        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_base_model"
     )
     def test_create_deployment_for_gguf_model(
         self,
-        mock_validate_ft_model_v2,
+        mock_validate_base_model,
         mock_get_container_config,
         mock_deploy,
         mock_get_container_image,
@@ -1720,7 +1720,7 @@ class TestAquaDeployment(unittest.TestCase):
             memory_in_gbs=60.0,
         )
 
-        mock_validate_ft_model_v2.assert_called()
+        mock_validate_base_model.assert_called()
         mock_create.assert_called_with(
             model=TestDataset.MODEL_ID,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
@@ -1748,11 +1748,11 @@ class TestAquaDeployment(unittest.TestCase):
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     @patch.object(AquaApp, "get_container_config")
     @patch(
-        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_ft_model_v2"
+        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_base_model"
     )
     def test_create_deployment_for_tei_byoc_embedding_model(
         self,
-        mock_validate_ft_model_v2,
+        mock_validate_base_model,
         mock_get_container_config,
         mock_deploy,
         mock_get_container_image,
@@ -1828,7 +1828,7 @@ class TestAquaDeployment(unittest.TestCase):
             cmd_var=[],
         )
 
-        mock_validate_ft_model_v2.assert_called()
+        mock_validate_base_model.assert_called()
         mock_create.assert_called_with(
             model=TestDataset.MODEL_ID,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
