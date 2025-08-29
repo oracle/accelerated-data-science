@@ -713,6 +713,35 @@ class CreateModelDeploymentDetails(BaseModel):
                     f"Invalid fine-tuned model ID '{base_model.id}': for fine tuned models like Phi4, the deployment is not supported. "
                 )
 
+    def validate_base_model(self, model_id: str) -> None:
+        """
+        Validates the input base model for single model deployment configuration.
+
+        Validation Criteria:
+        - Fine-tuned models are not supported in single model deployment.
+
+        Parameters
+        ----------
+        model_id : str
+            The OCID of DataScienceModel instance.
+
+        Raises
+        ------
+        ConfigValidationError
+            If any of the above conditions are violated.
+        """
+        base_model = DataScienceModel.from_id(model_id)
+        if Tags.AQUA_FINE_TUNED_MODEL_TAG in base_model.freeform_tags:
+            logger.error(
+                "Validation failed: Fine-tuned model ID '%s' is not supported for single-model deployment.",
+                base_model.id,
+            )
+            raise ConfigValidationError(
+                f"Invalid base model ID '{base_model.id}': "
+                "single-model deployment does not support fine-tuned models. "
+                f"Please deploy the fine-tuned model '{base_model.id}' as a stacked model deployment instead."
+            )
+
     class Config:
         extra = "allow"
         protected_namespaces = ()
