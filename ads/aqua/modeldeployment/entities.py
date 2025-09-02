@@ -236,6 +236,7 @@ class CreateModelDeploymentDetails(BaseModel):
     model_name: Optional[str] = Field(
         None, description="The model name specified by user to deploy."
     )
+
     models: Optional[List[AquaMultiModelRef]] = Field(
         None, description="List of models for multimodel deployment."
     )

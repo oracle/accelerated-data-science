@@ -997,6 +997,44 @@ def get_container_params_type(container_type_name: str) -> str:
         return UNKNOWN
 
 
+def get_container_env_type(container_type_name: Optional[str]) -> str:
+    """
+    Determine the container environment type based on the container type name.
+
+    This function matches the provided container type name against the known
+    values of `InferenceContainerType`. The check is case-insensitive and
+    allows for partial matches so that changes in container naming conventions
+    (e.g., prefixes or suffixes) will still be matched correctly.
+
+    Examples:
+        >>> get_container_env_type("odsc-vllm-serving")
+        'vllm'
+        >>> get_container_env_type("ODSC-TGI-Serving")
+        'tgi'
+        >>> get_container_env_type("custom-unknown-container")
+        'UNKNOWN'
+
+    Args:
+        container_type_name (Optional[str]):
+            The deployment container type name (e.g., "odsc-vllm-serving").
+
+    Returns:
+        str:
+            - A matching `InferenceContainerType` value string (e.g., "VLLM", "TGI", "LLAMA-CPP").
+            - `"UNKNOWN"` if no match is found or the input is empty/None.
+    """
+    if not container_type_name:
+        return UNKNOWN
+
+    needle = container_type_name.strip().casefold()
+
+    for container_type in InferenceContainerType.values():
+        if container_type and container_type.casefold() in needle:
+            return container_type.upper()
+
+    return UNKNOWN
+
+
 def get_restricted_params_by_container(container_type_name: str) -> set:
     """The utility function accepts the deployment container type name and returns a set of restricted params
         for that container.
@@ -1229,10 +1267,10 @@ def load_gpu_shapes_index(
     auth: Optional[Dict[str, Any]] = None,
 ) -> GPUShapesIndex:
     """
-    Load the GPU shapes index, preferring the OS bucket copy over the local one.
+    Load the GPU shapes index, merging based on freshness.
 
-    Attempts to read `gpu_shapes_index.json` from OCI Object Storage first;
-    if that succeeds, those entries will override the local defaults.
+    Compares last-modified timestamps of local and remote files,
+    merging the shapes from the fresher file on top of the older one.
 
     Parameters
     ----------
@@ -1253,7 +1291,9 @@ def load_gpu_shapes_index(
     file_name = "gpu_shapes_index.json"
 
     # Try remote load
-    remote_data: Dict[str, Any] = {}
+    local_data, remote_data = {}, {}
+    local_mtime, remote_mtime = None, None
+
     if CONDA_BUCKET_NS:
         try:
             auth = auth or authutil.default_signer()
@@ -1263,8 +1303,24 @@ def load_gpu_shapes_index(
             logger.debug(
                 "Loading GPU shapes index from Object Storage: %s", storage_path
             )
-            with fsspec.open(storage_path, mode="r", **auth) as f:
+
+            fs = fsspec.filesystem("oci", **auth)
+            with fs.open(storage_path, mode="r") as f:
                 remote_data = json.load(f)
+
+            remote_info = fs.info(storage_path)
+            remote_mtime_str = remote_info.get("timeModified", None)
+            if remote_mtime_str:
+                # Convert OCI timestamp (e.g., 'Mon, 04 Aug 2025 06:37:13 GMT') to epoch time
+                remote_mtime = datetime.strptime(
+                    remote_mtime_str, "%a, %d %b %Y %H:%M:%S %Z"
+                ).timestamp()
+
+                logger.debug(
+                    "Remote GPU shapes last-modified time: %s",
+                    datetime.fromtimestamp(remote_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+                )
+
             logger.debug(
                 "Loaded %d shapes from Object Storage",
                 len(remote_data.get("shapes", {})),
@@ -1273,12 +1329,19 @@ def load_gpu_shapes_index(
             logger.debug("Remote load failed (%s); falling back to local", ex)
 
     # Load local copy
-    local_data: Dict[str, Any] = {}
     local_path = os.path.join(os.path.dirname(__file__), "../resources", file_name)
     try:
         logger.debug("Loading GPU shapes index from local file: %s", local_path)
         with open(local_path) as f:
             local_data = json.load(f)
+
+        local_mtime = os.path.getmtime(local_path)
+
+        logger.debug(
+            "Local GPU shapes last-modified time: %s",
+            datetime.fromtimestamp(local_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
         logger.debug(
             "Loaded %d shapes from local file", len(local_data.get("shapes", {}))
         )
@@ -1288,7 +1351,24 @@ def load_gpu_shapes_index(
     # Merge: remote shapes override local
     local_shapes = local_data.get("shapes", {})
     remote_shapes = remote_data.get("shapes", {})
-    merged_shapes = {**local_shapes, **remote_shapes}
+    merged_shapes = {}
+
+    if local_mtime and remote_mtime:
+        if remote_mtime >= local_mtime:
+            logger.debug("Remote data is fresher or equal; merging remote over local.")
+            merged_shapes = {**local_shapes, **remote_shapes}
+        else:
+            logger.debug("Local data is fresher; merging local over remote.")
+            merged_shapes = {**remote_shapes, **local_shapes}
+    elif remote_shapes:
+        logger.debug("Only remote shapes available.")
+        merged_shapes = remote_shapes
+    elif local_shapes:
+        logger.debug("Only local shapes available.")
+        merged_shapes = local_shapes
+    else:
+        logger.error("No GPU shapes data found in either source.")
+        merged_shapes = {}
 
     return GPUShapesIndex(shapes=merged_shapes)
 

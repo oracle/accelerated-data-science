@@ -158,7 +158,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 summary_frame = model.forecast(
                     X=X_pred,
                     periods=horizon,
-                    alpha=1 - (self.spec.confidence_interval_width / 100),
+                    alpha=1 - self.spec.confidence_interval_width,
                 )
 
                 fitted_values = model.predict(data_i.drop(target, axis=1))[
