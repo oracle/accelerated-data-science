@@ -119,8 +119,7 @@ class AdditionalData(AbstractData):
 
 class TestData(AbstractData):
     def __init__(self, spec, test_data):
-        if test_data is not None or spec.test_data is not None:
-            super().__init__(spec=spec, name="test_data", data=test_data)
+        super().__init__(spec=spec, name="test_data", data=test_data)
         self.dt_column_name = spec.datetime_column.name
         self.target_name = spec.target_column
 
@@ -146,6 +145,7 @@ class ForecastDatasets:
         self.config = config  # Store the config for later use
         self.historical_data: HistoricalData = None
         self.additional_data: AdditionalData = None
+        self.test_data: TestData = None
         self._horizon = config.spec.horizon
         self._datetime_column_name = config.spec.datetime_column.name
         self._target_col = config.spec.target_column
@@ -156,7 +156,8 @@ class ForecastDatasets:
             )
         else:
             self._load_data(config.spec, subset=subset)
-        self.test_data = TestData(config.spec, test_data)
+        if test_data is not None or config.spec.test_data is not None:
+            self.test_data = TestData(config.spec, test_data)
 
     def _load_data(self, spec, subset=None):
         """Loads forecasting input data."""
