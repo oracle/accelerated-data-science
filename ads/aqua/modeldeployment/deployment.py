@@ -227,7 +227,6 @@ class AquaDeploymentApp(AquaApp):
             )
             aqua_model = model_app.create(
                 model_id=create_deployment_details.model_id,
-                display_name=create_deployment_details.model_name,
                 compartment_id=compartment_id,
                 project_id=project_id,
                 freeform_tags=freeform_tags,
@@ -758,6 +757,7 @@ class AquaDeploymentApp(AquaApp):
             .with_image(container_image_uri)
             .with_server_port(server_port)
             .with_health_check_port(health_check_port)
+            .with_custom_model_name(create_deployment_details.model_name)
             .with_env(env_var)
             .with_deployment_mode(ModelDeploymentMode.HTTPS)
             .with_model_uri(aqua_model_id)

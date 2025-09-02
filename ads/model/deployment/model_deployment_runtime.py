@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/from typing import Dict
 
 
 from typing import Dict, List
+
 from ads.jobs.builders.base import Builder
 
 MODEL_DEPLOYMENT_RUNTIME_KIND = "runtime"
@@ -519,6 +519,8 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         The server port of model deployment container runtime.
     health_check_port: int
         The health check port of model deployment container runtime.
+    custom_model_name : str
+        The custom model name for single model deployment, to be used in predict calls
 
     Methods
     -------
@@ -534,6 +536,8 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         Sets the server port of model deployment container runtime
     with_health_check_port(health_check_port)
         Sets the health check port of model deployment container runtime
+    with_custom_model_name(custom_model_name)
+        Sets a custom model name for single model deployment, to be used in predict calls
 
     Examples
     --------
@@ -560,6 +564,7 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
     CONST_SERVER_PORT = "serverPort"
     CONST_HEALTH_CHECK_PORT = "healthCheckPort"
     CONST_INFERENCE_SERVER = "inferenceServer"
+    CONST_CUSTOM_MODEL_NAME = "customModelName"
 
     attribute_map = {
         **ModelDeploymentRuntime.attribute_map,
@@ -570,6 +575,7 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         CONST_SERVER_PORT: "server_port",
         CONST_HEALTH_CHECK_PORT: "health_check_port",
         CONST_INFERENCE_SERVER: "inference_server",
+        CONST_CUSTOM_MODEL_NAME: "custom_model_name",
     }
 
     payload_attribute_map = {
@@ -580,6 +586,7 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         CONST_ENTRYPOINT: f"{ModelDeploymentRuntime.ENVIRONMENT_CONFIG_DETAILS_PATH}.entrypoint",
         CONST_SERVER_PORT: f"{ModelDeploymentRuntime.ENVIRONMENT_CONFIG_DETAILS_PATH}.server_port",
         CONST_HEALTH_CHECK_PORT: f"{ModelDeploymentRuntime.ENVIRONMENT_CONFIG_DETAILS_PATH}.health_check_port",
+        CONST_CUSTOM_MODEL_NAME: f"{ModelDeploymentRuntime.ENVIRONMENT_CONFIG_DETAILS_PATH}.custom_model_name",
     }
 
     @property
@@ -819,6 +826,62 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         >>> deployment.deploy()
         """
         return self.set_spec(self.CONST_INFERENCE_SERVER, inference_server.lower())
+
+    @property
+    def custom_model_name(self) -> str:
+        """Returns the custom model name.
+
+        Returns
+        -------
+        str
+            The custom model name.
+        """
+        return self.get_spec(self.CONST_CUSTOM_MODEL_NAME, None)
+
+    def with_custom_model_name(
+        self, custom_model_name: str = "odsc-llm"
+    ) -> "ModelDeploymentContainerRuntime":
+        """Sets the custom model name. Defaults to odsc-llm if you  do not set the custom model name.
+
+        Parameters
+        ----------
+        custom_model_name: str
+            Set the custom model name to be used for inferencing.
+
+        Returns
+        -------
+        ModelDeploymentContainerRuntime
+            The ModelDeploymentContainerRuntime instance (self).
+
+        Example
+        -------
+        >>> from ads.model.deployment import ModelDeployment, ModelDeploymentContainerRuntime, ModelDeploymentInfrastructure
+        >>> import ads
+        >>> ads.set_auth("resource_principal")
+        >>> infrastructure = ModelDeploymentInfrastructure()\
+        ...                 .with_project_id(<project_id>)\
+        ...                 .with_compartment_id(<comparment_id>)\
+        ...                 .with_shape_name("VM.Standard.E4.Flex")\
+        ...                 .with_replica(2)\
+        ...                 .with_bandwidth_mbps(10)\
+        ...                 .with_access_log(log_group_id=<deployment_log_group_id>, log_id=<deployment_access_log_id>)\
+        ...                 .with_predict_log(log_group_id=<deployment_log_group_id>, log_id=<deployment_predict_log_id>)
+
+        >>> runtime = ModelDeploymentContainerRuntime()\
+        ...                 .with_image(<container_image>)\
+        ...                 .with_server_port(<server_port>)\
+        ...                 .with_health_check_port(<health_check_port>)\
+        ...                 .with_model_uri(<model_id>)\
+        ...                 .with_env({"key":"value", "key2":"value2"})\
+        ...                 .with_inference_server("triton")
+        >>> deployment = ModelDeployment()\
+        ...                 .with_display_name("Triton Example")\
+        ...                 .with_infrastructure(infrastructure)\
+        ...                 .with_runtime(runtime)
+                            .with_custom_model_name("myModel")
+        >>> deployment.deploy()
+        """
+        return self.set_spec(self.CONST_CUSTOM_MODEL_NAME, custom_model_name)
 
     def init(self, **kwargs) -> "ModelDeploymentContainerRuntime":
         """Initializes a starter specification for the runtime.
