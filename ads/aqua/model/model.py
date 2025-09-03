@@ -173,10 +173,12 @@ class AquaModelApp(AquaApp):
         """
         fine_tune_weights = []
         model_name = ""
+        is_stacked = False
         if isinstance(model, AquaMultiModelRef):
-            fine_tune_weights = model.fine_tune_weights
+            fine_tune_weights = model.fine_tune_weights or []
             model_name = model.model_name
             model = model.model_id
+            is_stacked = True
 
         service_model = DataScienceModel.from_id(model)
         target_project = project_id or PROJECT_OCID
@@ -193,7 +195,7 @@ class AquaModelApp(AquaApp):
         }
 
         custom_model = None
-        if fine_tune_weights:
+        if is_stacked:
             custom_model = self._create_model_group(
                 model_id=model,
                 model_name=model_name,
@@ -290,7 +292,7 @@ class AquaModelApp(AquaApp):
         # must also include base model info in member models to create stacked model group
         member_models.append(
             {
-                "inference_key": model_name or service_model.display_name,
+                "inference_key": model_name,
                 "model_id": model_id,
             }
         )
