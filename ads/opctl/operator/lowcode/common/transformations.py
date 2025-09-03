@@ -329,6 +329,8 @@ class Transformations(ABC):
         if target_col not in data.columns:
             raise ValueError(f"Target column '{target_col}' not found in DataFrame")
 
+        data[target_col] = data[target_col].fillna(0)
+
         # Check if group_cols are provided and valid
         if group_cols is not None:
             if not isinstance(group_cols, list):

@@ -9,14 +9,13 @@ import os
 import sys
 from typing import Dict, List
 
-import pandas as pd
 import yaml
 
 from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
 
-from .const import AUTO_SELECT_SERIES
+from .const import AUTO_SELECT, AUTO_SELECT_SERIES
 from .model.forecast_datasets import ForecastDatasets, ForecastResults
 from .operator_config import ForecastOperatorConfig
 from .whatifserve import ModelDeploymentManager
@@ -29,8 +28,10 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
     datasets = ForecastDatasets(operator_config)
     model = ForecastOperatorModelFactory.get_model(operator_config, datasets)
 
-    if operator_config.spec.model == AUTO_SELECT_SERIES and hasattr(
-        operator_config.spec, "meta_features"
+    if (
+        operator_config.spec.model == AUTO_SELECT_SERIES
+        and hasattr(operator_config.spec, "meta_features")
+        and operator_config.spec.target_category_columns
     ):
         # For AUTO_SELECT_SERIES, handle each series with its specific model
         meta_features = operator_config.spec.meta_features
@@ -64,8 +65,6 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
             )
             sub_results_list.append(sub_results)
 
-            # results_df = pd.concat([results_df, sub_result_df], ignore_index=True, axis=0)
-            # elapsed_time += sub_elapsed_time
         # Merge all sub_results into a single ForecastResults object
         if sub_results_list:
             results = sub_results_list[0]
@@ -75,6 +74,15 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
             results = None
 
     else:
+        # When AUTO_SELECT_SERIES is specified but target_category_columns is not,
+        # we fall back to AUTO_SELECT behavior.
+        if (
+            operator_config.spec.model == AUTO_SELECT_SERIES
+            and not operator_config.spec.target_category_columns
+        ):
+
+            operator_config.spec.model = AUTO_SELECT
+            model = ForecastOperatorModelFactory.get_model(operator_config, datasets)
         # For other cases, use the single selected model
         results = model.generate_report()
     # saving to model catalog
