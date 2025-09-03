@@ -530,6 +530,15 @@ class AquaDeploymentApp(AquaApp):
 
         # validate user provided params
         user_params = env_var.get("PARAMS", UNKNOWN)
+
+        if (
+            create_deployment_details.model_name
+            and "--served-model-name" not in user_params
+        ):
+            user_params = f"{user_params} --served-model-name {create_deployment_details.model_name}"
+        elif "--served-model-name" not in user_params:
+            user_params = f"{user_params} --served-model-name odsc-llm"
+
         if user_params:
             # todo: remove this check in the future version, logic to be moved to container_index
             if (
@@ -546,6 +555,7 @@ class AquaDeploymentApp(AquaApp):
             restricted_params = find_restricted_params(
                 params, user_params, container_type_key
             )
+
             if restricted_params:
                 raise AquaValueError(
                     f"Parameters {restricted_params} are set by Aqua "
@@ -553,7 +563,9 @@ class AquaDeploymentApp(AquaApp):
                 )
 
         deployment_params = get_combined_params(config_params, user_params)
+
         params = f"{params} {deployment_params}".strip()
+
         if params:
             env_var.update({"PARAMS": params})
         env_vars = container_spec.env_vars if container_spec else []
@@ -614,7 +626,7 @@ class AquaDeploymentApp(AquaApp):
         """
         model_name_list = []
         env_var = {**(create_deployment_details.env_var or UNKNOWN_DICT)}
-
+        logger.info(f"**** Env vars used for deploying : {env_var}.")
         container_type_key = self._get_container_type_key(
             model=aqua_model,
             container_family=create_deployment_details.container_family,
@@ -623,6 +635,7 @@ class AquaDeploymentApp(AquaApp):
         container_spec = container_config.spec if container_config else UNKNOWN
 
         container_params = container_spec.cli_param if container_spec else UNKNOWN
+        logger.info(f"Env vars used for deploying {aqua_model.id} : {env_var}.")
 
         multi_model_config = ModelGroupConfig.from_create_model_deployment_details(
             create_deployment_details,
@@ -757,7 +770,6 @@ class AquaDeploymentApp(AquaApp):
             .with_image(container_image_uri)
             .with_server_port(server_port)
             .with_health_check_port(health_check_port)
-            .with_custom_model_name(create_deployment_details.model_name)
             .with_env(env_var)
             .with_deployment_mode(ModelDeploymentMode.HTTPS)
             .with_model_uri(aqua_model_id)
