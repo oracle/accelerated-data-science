@@ -924,7 +924,8 @@ class AquaDeploymentApp(AquaApp):
             base_model_inference_key = aqua_model.base_model_id
             for item in aqua_model.member_models:
                 if item["model_id"] == aqua_model.base_model_id:
-                    base_model_inference_key = item["inference_key"]
+                    if item["inference_key"]:
+                        base_model_inference_key = item["inference_key"]
                     break
 
             params_dict = get_params_dict(params)
