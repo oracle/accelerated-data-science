@@ -530,14 +530,6 @@ class AquaDeploymentApp(AquaApp):
         # validate user provided params
         user_params = env_var.get("PARAMS", UNKNOWN)
 
-        if (
-            create_deployment_details.model_name
-            and "--served-model-name" not in user_params
-        ):
-            user_params = f"{user_params} --served-model-name {create_deployment_details.model_name}"
-        elif "--served-model-name" not in user_params:
-            user_params = f"{user_params} --served-model-name odsc-llm"
-
         if user_params:
             # todo: remove this check in the future version, logic to be moved to container_index
             if (
@@ -563,6 +555,13 @@ class AquaDeploymentApp(AquaApp):
         deployment_params = get_combined_params(config_params, user_params)
 
         params = f"{params} {deployment_params}".strip()
+
+        if create_deployment_details.model_name and "--served-model-name" in params:
+            params = params.replace("--served-model-name odsc-llm", "")
+            params = (
+                f"{params} --served-model-name {create_deployment_details.model_name}"
+            )
+
         if params:
             env_var.update({"PARAMS": params})
         env_vars = container_spec.env_vars if container_spec else []
