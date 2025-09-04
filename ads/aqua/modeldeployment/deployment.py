@@ -68,10 +68,7 @@ from ads.aqua.modeldeployment.config_loader import (
     ModelDeploymentConfigSummary,
     MultiModelDeploymentConfigLoader,
 )
-from ads.aqua.modeldeployment.constants import (
-    DEFAULT_POLL_INTERVAL,
-    DEFAULT_WAIT_TIME,
-)
+from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
@@ -556,11 +553,16 @@ class AquaDeploymentApp(AquaApp):
 
         params = f"{params} {deployment_params}".strip()
 
-        if create_deployment_details.model_name and "--served-model-name" in params:
-            params = params.replace("--served-model-name odsc-llm", "")
-            params = (
-                f"{params} --served-model-name {create_deployment_details.model_name}"
-            )
+        if create_deployment_details.model_name:
+            # Replace existing --served-model-name argument if present, otherwise add it
+            if "--served-model-name" in params:
+                params = re.sub(
+                    r"--served-model-name\s+\S+",
+                    f"--served-model-name {create_deployment_details.model_name}",
+                    params,
+                )
+            else:
+                params += f" --served-model-name {create_deployment_details.model_name}"
 
         if params:
             env_var.update({"PARAMS": params})
