@@ -46,37 +46,77 @@ class ModelConfigResult(BaseModel):
         arbitrary_types_allowed = True
         protected_namespaces = ()
 
+
 class ComputeRank(Serializable):
     """
-    Represents the cost and performance ranking for a compute shape.
+    Represents the cost and performance rankings for a specific compute shape.
+    These rankings help compare different shapes based on their relative pricing
+    and computational capabilities.
     """
-    cost: int = Field(
-    None, description="The relative rank of the cost of the shape. Range is [10 (cost-effective), 100 (most-expensive)]"
+
+    cost: Optional[int] = Field(
+        None,
+        description=(
+            "Relative cost ranking of the compute shape. "
+            "Value ranges from 10 (most cost-effective) to 100 (most expensive). "
+            "Lower values indicate cheaper compute options."
+        ),
     )
 
-    performance: int = Field(
-    None, description="The relative rank of the performance of the shape. Range is [10 (lower performance), 110 (highest performance)]"
+    performance: Optional[int] = Field(
+        None,
+        description=(
+            "Relative performance ranking of the compute shape. "
+            "Value ranges from 10 (lowest performance) to 110 (highest performance). "
+            "Higher values indicate better compute performance."
+        ),
     )
+
 
 class GPUSpecs(Serializable):
     """
-    Represents the GPU specifications for a compute instance.
+    Represents the specifications and capabilities of a GPU-enabled compute shape.
+    Includes details about GPU and CPU resources, supported quantization formats, and
+    relative rankings for cost and performance.
     """
 
-    gpu_memory_in_gbs: Optional[int] = Field(
-        default=None, description="The amount of GPU memory available (in GB)."
-    )
     gpu_count: Optional[int] = Field(
-        default=None, description="The number of GPUs available."
+        default=None,
+        description="Number of physical GPUs available on the compute shape.",
     )
+
+    gpu_memory_in_gbs: Optional[int] = Field(
+        default=None, description="Total GPU memory available in gigabytes (GB)."
+    )
+
     gpu_type: Optional[str] = Field(
-        default=None, description="The type of GPU (e.g., 'V100, A100, H100')."
+        default=None,
+        description="Type of GPU and architecture. Example: 'H100', 'GB200'.",
     )
+
     quantization: Optional[List[str]] = Field(
-        default_factory=list, description="The quantization format supported by shape. (ex.  bitsandbytes, fp8, etc.)"
+        default_factory=list,
+        description=(
+            "List of supported quantization formats for the GPU. "
+            "Examples: 'fp16', 'int8', 'bitsandbytes', 'bf16', 'fp4', etc."
+        ),
     )
+
+    cpu_count: Optional[int] = Field(
+        default=None, description="Number of CPU cores available on the shape."
+    )
+
+    cpu_memory_in_gbs: Optional[int] = Field(
+        default=None, description="Total CPU memory available in gigabytes (GB)."
+    )
+
     ranking: Optional[ComputeRank] = Field(
-        None, description="The relative rank of the cost and performance of the shape."
+        default=None,
+        description=(
+            "Relative cost and performance rankings of this shape. "
+            "Cost is ranked from 10 (least expensive) to 100+ (most expensive), "
+            "and performance from 10 (lowest) to 100+ (highest)."
+        ),
     )
 
 
@@ -97,50 +137,49 @@ class GPUShapesIndex(Serializable):
 
 class ComputeShapeSummary(Serializable):
     """
-    Represents the specifications of a compute instance shape,
-    including CPU, memory, and optional GPU characteristics.
+    Represents a compute shape's specification including CPU, memory, and (if applicable) GPU configuration.
     """
 
     available: Optional[bool] = Field(
-        default = False,
-        description="True if shape is available on user tenancy, "
+        default=False,
+        description="True if the shape is available in the user's tenancy/region.",
     )
+
     core_count: Optional[int] = Field(
-        default=None,
-        description="Total number of CPU cores available for the compute shape.",
+        default=None, description="Number of vCPUs available for the compute shape."
     )
+
     memory_in_gbs: Optional[int] = Field(
-        default=None,
-        description="Amount of memory (in GB) available for the compute shape.",
+        default=None, description="Total CPU memory available for the shape (in GB)."
     )
+
     name: Optional[str] = Field(
-        default=None,
-        description="Full name of the compute shape, e.g., 'VM.GPU.A10.2'.",
+        default=None, description="Name of the compute shape, e.g., 'VM.GPU.A10.2'."
     )
+
     shape_series: Optional[str] = Field(
         default=None,
-        description="Shape family or series, e.g., 'GPU', 'Standard', etc.",
+        description="Series or family of the shape, e.g., 'GPU', 'Standard'.",
     )
+
     gpu_specs: Optional[GPUSpecs] = Field(
-        default=None,
-        description="Optional GPU specifications associated with the shape.",
+        default=None, description="GPU configuration for the shape, if applicable."
     )
 
     @model_validator(mode="after")
     @classmethod
-    def set_gpu_specs(cls, model: "ComputeShapeSummary") -> "ComputeShapeSummary":
+    def populate_gpu_specs(cls, model: "ComputeShapeSummary") -> "ComputeShapeSummary":
         """
-        Validates and populates GPU specifications if the shape_series indicates a GPU-based shape.
+        Attempts to populate GPU specs if the shape is GPU-based and no GPU specs are explicitly set.
 
-        - If the shape_series contains "GPU", the validator first checks if the shape name exists
-          in the GPU_SPECS dictionary. If found, it creates a GPUSpecs instance with the corresponding data.
-        - If the shape is not found in the GPU_SPECS, it attempts to extract the GPU count from the shape name
-          using a regex pattern (looking for a number following a dot at the end of the name).
-
-        The information about shapes is taken from: https://docs.oracle.com/en-us/iaas/data-science/using/supported-shapes.htm
+        Logic:
+        - If `shape_series` includes 'GPU' and `gpu_specs` is None:
+          - Tries to parse the shape name to extract GPU count (e.g., from 'VM.GPU.A10.2').
+          - Fallback is based on suffix numeric group (e.g., '.2' → gpu_count=2).
+        - If extraction fails, logs debug-level error but does not raise.
 
         Returns:
-            ComputeShapeSummary: The updated instance with gpu_specs populated if applicable.
+            ComputeShapeSummary: The updated model instance.
         """
         try:
             if (
@@ -149,16 +188,15 @@ class ComputeShapeSummary(Serializable):
                 and model.name
                 and not model.gpu_specs
             ):
-                # Try to extract gpu_count from the shape name using a regex (e.g., "VM.GPU3.2" -> gpu_count=2)
                 match = re.search(r"\.(\d+)$", model.name)
                 if match:
                     gpu_count = int(match.group(1))
                     model.gpu_specs = GPUSpecs(gpu_count=gpu_count)
         except Exception as err:
             logger.debug(
-                f"Error occurred in attempt to extract GPU specification for the f{model.name}. "
-                f"Details: {err}"
+                f"[populate_gpu_specs] Failed to auto-populate GPU specs for shape '{model.name}': {err}"
             )
+
         return model
 
 
