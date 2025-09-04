@@ -31,7 +31,9 @@ from ads.aqua.shaperecommend.shape_report import (
 )
 from ads.model.model_metadata import ModelCustomMetadata, ModelProvenanceMetadata
 
-CONFIG_ROOT = os.path.join(os.path.dirname(__file__), "test_data/recommend/")
+CONFIG_ROOT = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "test_data/recommend/"
+)
 
 
 def load_config(filename):
@@ -232,8 +234,12 @@ class TestLLMConfig:
 # --- Tests for recommend.py ---
 class GPUShapesIndexMock:
     def __init__(self):
-        # local_path = os.path.join(os.path.dirname(__file__), "../../resources", "gpu_shapes_index.json")
-        local_path = "ads/aqua/resources/gpu_shapes_index.json"
+        local_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "../../../../ads/aqua/resources",
+            "gpu_shapes_index.json",
+        )
+        # local_path = "ads/aqua/resources/gpu_shapes_index.json"
         with open(local_path) as f:
             local_data = json.load(f)
 
