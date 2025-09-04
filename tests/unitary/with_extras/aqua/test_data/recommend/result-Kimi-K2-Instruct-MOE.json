@@ -1,43 +1,89 @@
 {
-    "display_name": "Kimi-K2-Instruct-MOE",
-    "recommendations": [
+  "display_name": "Kimi-K2-Instruct-MOE",
+  "recommendations": [
+    {
+      "configurations": [
         {
-            "shape_details": {
-                "available": false,
-                "core_count": null,
-                "memory_in_gbs": null,
-                "name": "BM.GPU.MI300X.8",
-                "shape_series": "GPU",
-                "gpu_specs": {
-                    "gpu_memory_in_gbs": 1536,
-                    "gpu_count": 8,
-                    "gpu_type": "MI300X",
-                    "quantization": [
-                        "fp8",
-                        "gguf"
-                    ],
-                    "ranking": {
-                        "cost": 90,
-                        "performance": 90
-                    }
-                }
-            },
-            "configurations": [
-                {
-                    "model_details": {
-                        "model_size_gb": 1046.48,
-                        "kv_cache_size_gb": 3.58,
-                        "total_model_gb": 1050.06
-                    },
-                    "deployment_params": {
-                        "quantization": "fp8",
-                        "max_model_len": 2048,
-                        "params": "--max-model-len 2048"
-                    },
-                    "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (1050.1GB used / 1536.0GB allowed)."
-                }
-            ]
+          "deployment_params": {
+            "max_model_len": 2048,
+            "params": "--max-model-len 2048",
+            "quantization": "fp8"
+          },
+          "model_details": {
+            "kv_cache_size_gb": 3.58,
+            "model_size_gb": 1046.48,
+            "total_model_gb": 1050.06
+          },
+          "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (1050.1GB used / 1440.0GB allowed)."
         }
-    ],
-    "troubleshoot": ""
+      ],
+      "shape_details": {
+        "available": false,
+        "core_count": null,
+        "gpu_specs": {
+          "cpu_count": 128,
+          "cpu_memory_in_gbs": 4096,
+          "gpu_count": 8,
+          "gpu_memory_in_gbs": 1440,
+          "gpu_type": "B200",
+          "quantization": [
+            "fp4",
+            "fp8",
+            "fp16",
+            "bf16",
+            "tf32",
+            "int8",
+            "fp64"
+          ],
+          "ranking": {
+            "cost": 120,
+            "performance": 130
+          }
+        },
+        "memory_in_gbs": null,
+        "name": "BM.GPU.B200.8",
+        "shape_series": "GPU"
+      }
+    },
+    {
+      "configurations": [
+        {
+          "deployment_params": {
+            "max_model_len": 2048,
+            "params": "--max-model-len 2048",
+            "quantization": "fp8"
+          },
+          "model_details": {
+            "kv_cache_size_gb": 3.58,
+            "model_size_gb": 1046.48,
+            "total_model_gb": 1050.06
+          },
+          "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (1050.1GB used / 1536.0GB allowed)."
+        }
+      ],
+      "shape_details": {
+        "available": false,
+        "core_count": null,
+        "gpu_specs": {
+          "cpu_count": 112,
+          "cpu_memory_in_gbs": 2048,
+          "gpu_count": 8,
+          "gpu_memory_in_gbs": 1536,
+          "gpu_type": "MI300X",
+          "quantization": [
+            "fp8",
+            "gguf"
+          ],
+          "ranking": {
+            "cost": 90,
+            "performance": 90
+          }
+        },
+        "memory_in_gbs": null,
+        "name": "BM.GPU.MI300X.8",
+        "shape_series": "GPU"
+      }
+    }
+  ],
+  "troubleshoot": ""
 }
