@@ -131,6 +131,10 @@ class MemoryEstimator(BaseModel):
             # vLLM only supports 4bit in-flight quantization
             params.append(VLLM_PARAMS["in_flight_quant"])
 
+        # add trust-remote-code if custom modules are specified
+        if c.trust_remote_code:
+            params.append(VLLM_PARAMS["trust_remote_code"])
+
         params = " ".join(params) if params else ""
         return params
 
