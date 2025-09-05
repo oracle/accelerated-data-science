@@ -68,10 +68,7 @@ from ads.aqua.modeldeployment.config_loader import (
     ModelDeploymentConfigSummary,
     MultiModelDeploymentConfigLoader,
 )
-from ads.aqua.modeldeployment.constants import (
-    DEFAULT_POLL_INTERVAL,
-    DEFAULT_WAIT_TIME,
-)
+from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
@@ -529,6 +526,7 @@ class AquaDeploymentApp(AquaApp):
 
         # validate user provided params
         user_params = env_var.get("PARAMS", UNKNOWN)
+
         if user_params:
             # todo: remove this check in the future version, logic to be moved to container_index
             if (
@@ -554,6 +552,18 @@ class AquaDeploymentApp(AquaApp):
         deployment_params = get_combined_params(config_params, user_params)
 
         params = f"{params} {deployment_params}".strip()
+
+        if create_deployment_details.model_name:
+            # Replace existing --served-model-name argument if present, otherwise add it
+            if "--served-model-name" in params:
+                params = re.sub(
+                    r"--served-model-name\s+\S+",
+                    f"--served-model-name {create_deployment_details.model_name}",
+                    params,
+                )
+            else:
+                params += f" --served-model-name {create_deployment_details.model_name}"
+
         if params:
             env_var.update({"PARAMS": params})
         env_vars = container_spec.env_vars if container_spec else []
