@@ -233,6 +233,13 @@ class ModelEvaluator:
         nonempty_metrics = {
             model: metric for model, metric in metrics.items() if metric != {}
         }
+        if not nonempty_metrics:
+            model = SupportedModels.Prophet
+            logger.warning(
+                f"No valid metrics calculated for any model. Defaulting to {model}."
+            )
+            return model
+
         avg_backtests_metric = {
             model: sum(value.values()) / len(value.values())
             for model, value in nonempty_metrics.items()
