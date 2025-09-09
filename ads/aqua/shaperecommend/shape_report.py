@@ -18,7 +18,7 @@ class RequestRecommend(BaseModel):
     """
 
     model_id: str = Field(
-        ..., description="The OCID of the model to recommend feasible compute shapes."
+        ..., description="The OCID or Hugging Face ID of the model to recommend feasible compute shapes."
     )
     generate_table: Optional[bool] = (
         Field(

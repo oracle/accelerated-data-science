@@ -8,11 +8,11 @@ import json
 import os
 import re
 from unittest.mock import MagicMock
-
+from unittest.mock import patch
 import pytest
 
 from ads.aqua.common.entities import ComputeShapeSummary
-from ads.aqua.common.errors import AquaRecommendationError
+from ads.aqua.common.errors import AquaRecommendationError, AquaValueError
 from ads.aqua.shaperecommend.estimator import (
     LlamaMemoryEstimator,
     MemoryEstimator,
@@ -20,7 +20,7 @@ from ads.aqua.shaperecommend.estimator import (
     get_estimator,
 )
 from ads.aqua.shaperecommend.llm_config import LLMConfig
-from ads.aqua.shaperecommend.recommend import AquaShapeRecommend
+from ads.aqua.shaperecommend.recommend import AquaShapeRecommend, HuggingFaceModelFetcher
 from ads.aqua.shaperecommend.shape_report import (
     DeploymentParams,
     ModelConfig,
@@ -454,3 +454,56 @@ class TestShapeReport:
         assert c and d in pf
         assert a and b not in pf
         assert len(pf) == 2
+# --- Tests for HuggingFaceModelFetcher ---
+class TestHuggingFaceModelFetcher:
+    @pytest.mark.parametrize("model_id, expected", [
+        ("meta-llama/Llama-2-7b-hf", True),
+        ("mistralai/Mistral-7B-v0.1", True),
+        ("ocid1.datasciencemodel.oc1.iad.xxxxxxxx", False),
+    ])
+    def test_is_huggingface_model_id(self, model_id, expected):
+        assert HuggingFaceModelFetcher.is_huggingface_model_id(model_id) == expected
+
+    @patch('requests.get')
+    def test_fetch_config_only_success(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"model_type": "llama"}
+        mock_get.return_value = mock_response
+
+        config = HuggingFaceModelFetcher.fetch_config_only("some/model")
+        assert config == {"model_type": "llama"}
+        mock_get.assert_called_once()
+
+    @patch('requests.get')
+    def test_fetch_config_only_not_found(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_get.return_value = mock_response
+
+        with pytest.raises(AquaValueError, match="not found on HuggingFace"):
+            HuggingFaceModelFetcher.fetch_config_only("non/existent")
+
+    @patch.dict(os.environ, {"HF_TOKEN": "test_token_123"}, clear=True)
+    def test_get_hf_token(self):
+        assert HuggingFaceModelFetcher.get_hf_token() == "test_token_123"
+        
+    # Add this method inside the TestHuggingFaceModelFetcher class
+
+    @pytest.mark.network
+    def test_fetch_config_only_real_call_success(self):
+        """
+        Tests a real network call to fetch a public model's configuration.
+        This test requires an internet connection.
+        """
+        # Use a well-known, small, public model to minimize test flakiness
+        model_id = "distilbert-base-uncased"
+        
+        try:
+            config = HuggingFaceModelFetcher.fetch_config_only(model_id)
+            # Assert that we got a dictionary with expected keys
+            assert isinstance(config, dict)
+            assert "model_type" in config
+            assert "dim" in config
+        except AquaValueError as e:
+            pytest.fail(f"Real network call to Hugging Face failed: {e}")
