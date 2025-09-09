@@ -520,9 +520,19 @@ class AquaDeploymentApp(AquaApp):
 
         deployment_config = self.get_deployment_config(model_id=config_source_id)
 
+        # Loads frameworks specific default params from the configuration
         config_params = deployment_config.configuration.get(
             create_deployment_details.instance_shape, ConfigurationItem()
         ).parameters.get(get_container_params_type(container_type_key), UNKNOWN)
+
+        # Loads default environment variables from the configuration
+        config_env = deployment_config.configuration.get(
+            create_deployment_details.instance_shape, ConfigurationItem()
+        ).env.get(get_container_params_type(container_type_key), {})
+
+        # Merges user provided environment variables with the ones provided in the deployment config
+        # The values provided by user will override the ones provided by default config
+        env_var = {**config_env, **env_var}
 
         # validate user provided params
         user_params = env_var.get("PARAMS", UNKNOWN)
@@ -643,8 +653,8 @@ class AquaDeploymentApp(AquaApp):
 
         env_var.update({AQUA_MULTI_MODEL_CONFIG: multi_model_config.model_dump_json()})
 
-        env_vars = container_spec.env_vars if container_spec else []
-        for env in env_vars:
+        container_spec_env_vars = container_spec.env_vars if container_spec else []
+        for env in container_spec_env_vars:
             if isinstance(env, dict):
                 env = {k: v for k, v in env.items() if v}
                 for key, _ in env.items():
