@@ -18,6 +18,12 @@ from typing import Any, Dict, Union
 import fsspec
 import yaml
 from ads.opctl.operator.common.utils import print_traceback
+import ads
+from ads.common import oci_client as oc
+from ads.config import (
+    CONDA_BUCKET_NAME,
+    CONDA_BUCKET_NS,
+)
 from tabulate import tabulate
 
 from ads.common import utils as ads_common_utils
@@ -117,6 +123,29 @@ def info(
     )
 
 
+def get_latest_conda_pack(prefix, base_conda) -> str:
+    """
+    get the latest conda pack.
+    """
+    try:
+        auth = ads.auth.default_signer()
+        object_storage = oc.OCIClientFactory(**auth).object_storage
+        objects = object_storage.list_objects(namespace_name=CONDA_BUCKET_NS,
+                                              bucket_name=CONDA_BUCKET_NAME,
+                                              prefix=prefix).data.objects
+
+        def extract_version(obj_name):
+            match = re.search(rf"{prefix}([\d.]+)/", obj_name)
+            return tuple(map(int, match.group(1).split("."))) if match else (0,)
+
+        latest_obj = max(objects, key=lambda obj: extract_version(obj.name))
+        return latest_obj.name.split("/")[-1]
+    except Exception as e:
+        logger.warning(f"Error while fetching latest conda pack: {e}")
+        return base_conda
+
+
+
 def init(
     type: str,
     output: Union[str, None] = None,
@@ -157,6 +186,7 @@ def init(
 
     # load operator info
     operator_info: OperatorInfo = OperatorLoader.from_uri(uri=type).load()
+    operator_info.conda = get_latest_conda_pack(operator_info.prefix, operator_info.conda)
 
     # create TMP folder if one is not provided by user
     if output:
