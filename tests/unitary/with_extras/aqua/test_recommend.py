@@ -454,7 +454,7 @@ class TestShapeReport:
         assert c and d in pf
         assert a and b not in pf
         assert len(pf) == 2
-# --- Tests for HuggingFaceModelFetcher ---
+
 class TestHuggingFaceModelFetcher:
     @pytest.mark.parametrize("model_id, expected", [
         ("meta-llama/Llama-2-7b-hf", True),
@@ -488,7 +488,6 @@ class TestHuggingFaceModelFetcher:
     def test_get_hf_token(self):
         assert HuggingFaceModelFetcher.get_hf_token() == "test_token_123"
         
-    # Add this method inside the TestHuggingFaceModelFetcher class
 
     @pytest.mark.network
     def test_fetch_config_only_real_call_success(self):
@@ -496,12 +495,10 @@ class TestHuggingFaceModelFetcher:
         Tests a real network call to fetch a public model's configuration.
         This test requires an internet connection.
         """
-        # Use a well-known, small, public model to minimize test flakiness
         model_id = "distilbert-base-uncased"
         
         try:
             config = HuggingFaceModelFetcher.fetch_config_only(model_id)
-            # Assert that we got a dictionary with expected keys
             assert isinstance(config, dict)
             assert "model_type" in config
             assert "dim" in config
