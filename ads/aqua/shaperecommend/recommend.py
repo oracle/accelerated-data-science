@@ -24,6 +24,7 @@ from ads.aqua.common.utils import (
     get_resource_type,
     load_config,
     load_gpu_shapes_index,
+    is_valid_ocid,
 )
 from ads.aqua.shaperecommend.constants import (
     BITS_AND_BYTES_4BIT,
@@ -32,6 +33,7 @@ from ads.aqua.shaperecommend.constants import (
     SHAPE_MAP,
     TEXT_GENERATION,
     TROUBLESHOOT_MSG,
+    HUGGINGFACE_CONFIG_URL,
 )
 from ads.aqua.shaperecommend.estimator import get_estimator
 from ads.aqua.shaperecommend.llm_config import LLMConfig
@@ -50,11 +52,10 @@ class HuggingFaceModelFetcher:
     """
     Utility class to fetch model configurations from HuggingFace.
     """
-    HUGGINGFACE_CONFIG_URL = "https://huggingface.co/{model_id}/resolve/main/config.json"
 
     @classmethod
     def is_huggingface_model_id(cls, model_id: str) -> bool:
-        if model_id.startswith("ocid1."):
+        if is_valid_ocid(model_id):
             return False
         hf_pattern = r'^[a-zA-Z0-9_-]+(/[a-zA-Z0-9_.-]+)?$'
         return bool(re.match(hf_pattern, model_id))
@@ -66,7 +67,7 @@ class HuggingFaceModelFetcher:
     @classmethod
     def fetch_config_only(cls, model_id: str) -> Dict[str, Any]:
         try:
-            config_url = cls.HUGGINGFACE_CONFIG_URL.format(model_id=model_id)
+            config_url = HUGGINGFACE_CONFIG_URL.format(model_id=model_id)
             headers = {}
             token = cls.get_hf_token()
             if token:
@@ -74,7 +75,7 @@ class HuggingFaceModelFetcher:
             response = requests.get(config_url, headers=headers, timeout=10)
             if response.status_code == 401:
                 raise AquaValueError(
-                    f"Model '{model_id}' requires authentication. Please set your HuggingFace token."
+                    f"Model '{model_id}' requires authentication. Please set your HuggingFace access token as an environment variable."
                 )
             elif response.status_code == 404:
                 raise AquaValueError(f"Model '{model_id}' not found on HuggingFace.")
