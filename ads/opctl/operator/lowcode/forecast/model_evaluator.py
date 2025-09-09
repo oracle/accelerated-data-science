@@ -149,6 +149,7 @@ class ModelEvaluator:
         backtest_spec["output_directory"] = {"url": output_file_path}
         backtest_spec["target_category_columns"] = [DataColumns.Series]
         backtest_spec["generate_explanations"] = False
+        backtest_spec.pop('postprocessing', None)
         cleaned_config = self.remove_none_values(backtest_op_config_draft)
 
         backtest_op_config = ForecastOperatorConfig.from_dict(obj_dict=cleaned_config)
@@ -233,12 +234,6 @@ class ModelEvaluator:
         nonempty_metrics = {
             model: metric for model, metric in metrics.items() if metric != {}
         }
-        if not nonempty_metrics:
-            model = SupportedModels.Prophet
-            logger.warning(
-                f"No valid metrics calculated for any model. Defaulting to {model}."
-            )
-            return model
 
         avg_backtests_metric = {
             model: sum(value.values()) / len(value.values())
