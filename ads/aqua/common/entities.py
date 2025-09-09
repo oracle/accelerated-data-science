@@ -368,7 +368,7 @@ class AquaMultiModelRef(Serializable):
         Dict[str, str]
             Dictionary with parameter names as keys and their corresponding values as strings.
         """
-        if not params:
+        if not params or not isinstance(params, (str, list)):
             return {}
 
         # Normalize string to list of "--key value" strings
