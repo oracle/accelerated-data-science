@@ -114,3 +114,5 @@ SHAPE_MAP = {
     "ARM": "CPU",
     "UNKNOWN_ENUM_VALUE": "N/A",
 }
+
+HUGGINGFACE_CONFIG_URL = "https://huggingface.co/{model_id}/resolve/main/config.json"
