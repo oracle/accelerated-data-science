@@ -4,9 +4,16 @@
 # Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from typing import Dict, List, Union
+from unittest.mock import MagicMock, patch
+
 import pytest
 
-from ads.aqua.common.entities import ComputeShapeSummary, ContainerPath
+from ads.aqua.common.entities import (
+    AquaMultiModelRef,
+    ComputeShapeSummary,
+    ContainerPath,
+)
 
 
 class TestComputeShapeSummary:
@@ -119,3 +126,127 @@ class TestContainerPath:
     )
     def test_positive(self, image_path, expected_result):
         assert ContainerPath(full_path=image_path).model_dump() == expected_result
+
+
+class TestAquaMultiModelRef:
+    @pytest.mark.parametrize(
+        "env_var, params, expected_params",
+        [
+            (
+                {"PARAMS": "--max-model-len 8192 --enforce-eager"},
+                {},
+                {"--max-model-len": "8192", "--enforce-eager": "UNKNOWN"},
+            ),
+            (
+                {"PARAMS": "--a 1 --b 2"},
+                {"--a": "existing"},
+                {"--a": "existing", "--b": "2"},
+            ),
+            (
+                {"PARAMS": "--x 1"},
+                None,
+                {"--x": "1"},
+            ),
+            (
+                {},  # No PARAMS key
+                {"--existing": "value"},
+                {"--existing": "value"},
+            ),
+        ],
+    )
+    @patch.object(AquaMultiModelRef, "_parse_params")
+    def test_extract_params_from_env_var(
+        self, mock_parse_params, env_var, params, expected_params
+    ):
+        mock_parse_params.return_value = {k: v for k, v in expected_params.items()}
+
+        values = {
+            "model_id": "ocid1.model.oc1..xxxx",
+            "env_var": dict(env_var),  # copy
+            "params": params,
+        }
+
+        result = AquaMultiModelRef.model_validate(values)
+        assert result.params == expected_params
+        assert "PARAMS" not in result.env_var
+
+    @patch.object(AquaMultiModelRef, "_parse_params")
+    def test_extract_params_from_env_var_skips_override(self, mock_parse_params):
+        input_params = {"--max-model-len": "65536"}
+        env_var = {"PARAMS": "--max-model-len 8000 --new-flag yes"}
+
+        mock_parse_params.return_value = {
+            "--max-model-len": "8000",
+            "--new-flag": "yes",
+        }
+
+        values = {
+            "model_id": "ocid1.model.oc1..abcd",
+            "params": dict(input_params),
+            "env_var": dict(env_var),
+        }
+
+        result = AquaMultiModelRef.model_validate(values)
+        assert result.params["--max-model-len"] == "65536"  # original
+        assert result.params["--new-flag"] == "yes"
+
+    def test_extract_params_from_env_var_missing_env(self):
+        values = {
+            "model_id": "ocid1.model.oc1..abcd",
+        }
+        result = AquaMultiModelRef.model_validate(values)
+        assert result.env_var == {}
+        assert result.params == {}
+
+    def test_all_model_ids_no_finetunes(self):
+        model = AquaMultiModelRef(model_id="ocid1.model.oc1..base")
+        assert model.all_model_ids() == ["ocid1.model.oc1..base"]
+
+    @patch.object(AquaMultiModelRef, "_parse_params")
+    def test_model_validator_with_other_fields(self, mock_parse_params):
+        values = {
+            "model_id": "ocid1.model.oc1..xyz",
+            "gpu_count": 2,
+            "artifact_location": "some/path",
+            "env_var": {"PARAMS": "--x abc"},
+        }
+
+        mock_parse_params.return_value = {"--x": "abc"}
+
+        result = AquaMultiModelRef.model_validate(values)
+
+        assert result.model_id == "ocid1.model.oc1..xyz"
+        assert result.gpu_count == 2
+        assert result.artifact_location == "some/path"
+        assert result.params == {"--x": "abc"}
+
+    @pytest.mark.parametrize(
+        "input_param,expected_dict",
+        [
+            (
+                "--max-model-len 65536 --enable-streaming",
+                {"--max-model-len": "65536", "--enable-streaming": ""},
+            ),
+            (
+                ["--max-model-len 4096", "--foo bar"],
+                {"--max-model-len": "4096", "--foo": "bar"},
+            ),
+            (
+                "",
+                {},
+            ),
+            (
+                None,
+                {},
+            ),
+            (
+                "--key1 value1 --key2 value with spaces",
+                {"--key1": "value1", "--key2": "value with spaces"},
+            ),
+        ],
+    )
+    def test_parse_params(
+        self, input_param: Union[str, List[str]], expected_dict: Dict[str, str]
+    ):
+        result = AquaMultiModelRef._parse_params(input_param)
+        assert result == expected_dict
