@@ -46,6 +46,7 @@ from ads.aqua.modeldeployment.config_loader import (
     ModelDeploymentConfigSummary,
     MultiModelDeploymentConfigLoader,
 )
+from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
     AquaDeploymentDetail,
@@ -57,6 +58,9 @@ from ads.aqua.modeldeployment.model_group_config import BaseModelSpec, ModelGrou
 from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import ModelCustomMetadata
+from ads.model.service.oci_datascience_model_deployment import (
+    OCIDataScienceModelDeployment,
+)
 from tests.unitary.with_extras.aqua.utils import ServiceManagedContainers
 
 null = None
@@ -486,6 +490,7 @@ class TestDataset:
         "models": [
             {
                 "env_var": {},
+                "params": {},
                 "gpu_count": 2,
                 "model_id": "test_model_id_1",
                 "model_name": "test_model_1",
@@ -495,6 +500,7 @@ class TestDataset:
             },
             {
                 "env_var": {},
+                "params": {},
                 "gpu_count": 2,
                 "model_id": "test_model_id_2",
                 "model_name": "test_model_2",
@@ -504,6 +510,7 @@ class TestDataset:
             },
             {
                 "env_var": {},
+                "params": {},
                 "gpu_count": 2,
                 "model_id": "test_model_id_3",
                 "model_name": "test_model_3",
@@ -606,12 +613,14 @@ class TestDataset:
                 "configuration": {
                     "VM.GPU.A10.2": {
                         "parameters": {},
+                        "env": {},
                         "multi_model_deployment": [
                             {
                                 "gpu_count": 2,
                                 "parameters": {
                                     "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
                                 },
+                                "env": {},
                             }
                         ],
                         "shape_info": {"configs": [], "type": ""},
@@ -620,14 +629,16 @@ class TestDataset:
                         "parameters": {
                             "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
                         },
+                        "env": {},
                         "multi_model_deployment": [
                             {
                                 "gpu_count": 2,
                                 "parameters": {
                                     "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
                                 },
+                                "env": {},
                             },
-                            {"gpu_count": 4, "parameters": {}},
+                            {"gpu_count": 4, "parameters": {}, "env": {}},
                         ],
                         "shape_info": {"configs": [], "type": ""},
                     },
@@ -635,24 +646,28 @@ class TestDataset:
                         "parameters": {
                             "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
                         },
+                        "env": {},
                         "multi_model_deployment": [
                             {
                                 "gpu_count": 1,
                                 "parameters": {
                                     "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
                                 },
+                                "env": {},
                             },
                             {
                                 "gpu_count": 2,
                                 "parameters": {
                                     "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
                                 },
+                                "env": {},
                             },
                             {
                                 "gpu_count": 8,
                                 "parameters": {
                                     "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
                                 },
+                                "env": {},
                             },
                         ],
                         "shape_info": {"configs": [], "type": ""},
@@ -661,10 +676,11 @@ class TestDataset:
                         "parameters": {
                             "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
                         },
+                        "env": {},
                         "multi_model_deployment": [
-                            {"gpu_count": 1, "parameters": {}},
-                            {"gpu_count": 2, "parameters": {}},
-                            {"gpu_count": 8, "parameters": {}},
+                            {"gpu_count": 1, "parameters": {}, "env": {}},
+                            {"gpu_count": 2, "parameters": {}, "env": {}},
+                            {"gpu_count": 8, "parameters": {}, "env": {}},
                         ],
                         "shape_info": {"configs": [], "type": ""},
                     },
@@ -976,6 +992,7 @@ class TestDataset:
     multi_model_deployment_model_attributes = [
         {
             "env_var": {"--test_key_one": "test_value_one"},
+            "params": {},
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_one",
@@ -985,6 +1002,7 @@ class TestDataset:
         },
         {
             "env_var": {"--test_key_two": "test_value_two"},
+            "params": {},
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_two",
@@ -994,6 +1012,7 @@ class TestDataset:
         },
         {
             "env_var": {"--test_key_three": "test_value_three"},
+            "params": {},
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_three",
@@ -2131,6 +2150,7 @@ class TestAquaDeployment(unittest.TestCase):
                 2,
                 ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
                 ["--max-model-len 4096", "--trust-remote-code"],
+                {"VLLM_ATTENTION_BACKEND": "TRITON_ATTN_VLLM_V1"},
             ),
             (
                 "VLLM_PARAMS",
@@ -2138,20 +2158,16 @@ class TestAquaDeployment(unittest.TestCase):
                 None,
                 ["--max-model-len 4096"],
                 ["--max-model-len 4096"],
+                {"VLLM_ATTENTION_BACKEND": "TRITON_ATTN_VLLM_V1"},
             ),
-            (
-                "TGI_PARAMS",
-                "odsc-tgi-serving",
-                1,
-                [],
-                [],
-            ),
+            ("TGI_PARAMS", "odsc-tgi-serving", 1, [], [], {}),
             (
                 "CUSTOM_PARAMS",
                 "custom-container-key",
                 None,
                 ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
                 ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
+                {},
             ),
         ]
     )
@@ -2163,6 +2179,7 @@ class TestAquaDeployment(unittest.TestCase):
         gpu_count,
         params,
         allowed_params,
+        deployment_env,
         mock_from_id,
     ):
         """Test for fetching config details for a given deployment."""
@@ -2172,6 +2189,7 @@ class TestAquaDeployment(unittest.TestCase):
         )
         with open(config_json, "r") as _file:
             config = json.load(_file)
+
         # update config params for testing
         if gpu_count:
             # build field for multi_model_deployment
@@ -2181,6 +2199,7 @@ class TestAquaDeployment(unittest.TestCase):
                 {
                     "gpu_count": gpu_count,
                     "parameters": {container_params_field: " ".join(params)},
+                    # "env": deployment_env
                 }
             ]
         else:
@@ -2206,9 +2225,10 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
         if container_params_field in ("CUSTOM_PARAMS", "TGI_PARAMS"):
-            assert result == []
+            assert result == {"data": [], "env": {}}
         else:
-            assert result == allowed_params
+            assert result["data"] == allowed_params
+            assert result["env"] == deployment_env
 
     @parameterized.expand(
         [

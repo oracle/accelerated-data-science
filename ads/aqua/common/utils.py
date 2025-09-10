@@ -814,35 +814,49 @@ def is_service_managed_container(container):
 
 
 def get_params_list(params: str) -> List[str]:
-    """Parses the string parameter and returns a list of params.
+    """
+    Parses a string of CLI-style double-dash parameters and returns them as a list.
 
     Parameters
     ----------
-    params
-        string parameters by separated by -- delimiter
+    params : str
+        A single string containing parameters separated by the `--` delimiter.
 
     Returns
     -------
-        list of params
+    List[str]
+        A list of parameter strings, each starting with `--`.
 
+    Example
+    -------
+    >>> get_params_list("--max-model-len 65536 --enforce-eager")
+    ['--max-model-len 65536', '--enforce-eager']
     """
     if not params:
         return []
-    return ["--" + param.strip() for param in params.split("--")[1:]]
+    return [f"--{param.strip()}" for param in params.split("--") if param.strip()]
 
 
 def get_params_dict(params: Union[str, List[str]]) -> dict:
-    """Accepts a string or list of string of double-dash parameters and returns a dict with the parameter keys and values.
+    """
+    Converts CLI-style double-dash parameters (as string or list) into a dictionary.
 
     Parameters
     ----------
-    params:
-        List of parameters or parameter string separated by space.
+    params : Union[str, List[str]]
+        Parameters provided either as:
+        - a single string: "--key1 val1 --key2 val2"
+        - a list of strings: ["--key1 val1", "--key2 val2"]
 
     Returns
     -------
-        dict containing parameter keys and values
+    dict
+        A dictionary mapping parameter names to their values. If no value is found, uses `UNKNOWN`.
 
+    Example
+    -------
+    >>> get_params_dict("--max-model-len 65536 --enforce-eager")
+    {'--max-model-len': '65536', '--enforce-eager': ''}
     """
     params_list = get_params_list(params) if isinstance(params, str) else params
     return {
@@ -853,35 +867,43 @@ def get_params_dict(params: Union[str, List[str]]) -> dict:
     }
 
 
-def get_combined_params(params1: str = None, params2: str = None) -> str:
+def get_combined_params(
+    params1: Optional[str] = None, params2: Optional[str] = None
+) -> str:
     """
-    Combines string of double-dash parameters, and overrides the values from the second string in the first.
+    Merges two double-dash parameter strings (`--param value`) into one, with values from `params2`
+    overriding any duplicates from `params1`.
+
     Parameters
     ----------
-    params1:
-        Parameter string with values
-    params2:
-        Parameter string with values that need to be overridden.
+    params1 : Optional[str]
+        The base parameter string. Can be None.
+    params2 : Optional[str]
+        The override parameter string. Parameters in this string will override those in `params1`.
 
     Returns
     -------
-        A combined list with overridden values from params2.
+    str
+        A combined parameter string with deduplicated keys and overridden values from `params2`.
     """
+    if not params1 and not params2:
+        return ""
+
+    # If only one string is provided, return it directly
     if not params1:
-        return params2
+        return params2.strip()
     if not params2:
-        return params1
+        return params1.strip()
 
-    # overwrite values from params2 into params1
-    combined_params = [
-        f"{key} {value}" if value else key
-        for key, value in {
-            **get_params_dict(params1),
-            **get_params_dict(params2),
-        }.items()
-    ]
+    # Combine both dictionaries, with params2 overriding params1
+    merged_dict = {**get_params_dict(params1), **get_params_dict(params2)}
 
-    return " ".join(combined_params)
+    # Reconstruct the string
+    combined = " ".join(
+        f"{key} {value}" if value else key for key, value in merged_dict.items()
+    )
+
+    return combined.strip()
 
 
 def find_restricted_params(
@@ -919,28 +941,46 @@ def find_restricted_params(
     return restricted_params
 
 
-def build_params_string(params: dict) -> str:
-    """Builds params string from params dict
+def build_params_string(params: Optional[Dict[str, Any]]) -> str:
+    """
+    Converts a dictionary of CLI parameters into a command-line friendly string.
+
+    This is typically used to transform framework-specific model parameters (e.g., vLLM or TGI flags)
+    into a space-separated string that can be passed to container startup commands.
 
     Parameters
     ----------
-    params:
-        Parameter dict with key-value pairs
+    params : Optional[Dict[str, Any]]
+        Dictionary containing parameter name as keys (e.g., "--max-model-len") and their corresponding values.
+        If a parameter does not require a value (e.g., a boolean flag), its value can be None or an empty string.
 
     Returns
     -------
-        A params string.
+    str
+        A space-separated string of CLI arguments.
+        Returns "<unknown>" if the input dictionary is None or empty.
+
+    Example
+    -------
+    >>> build_params_string({"--max-model-len": 4096, "--enforce-eager": None})
+    '--max-model-len 4096 --enforce-eager'
     """
-    return (
-        " ".join(
-            f"{name} {value}" if value else f"{name}" for name, value in params.items()
-        ).strip()
-        if params
-        else UNKNOWN
-    )
+    if not params:
+        return UNKNOWN
+
+    parts = []
+    for key, value in params.items():
+        if value is None or value == "":
+            parts.append(str(key))
+        else:
+            parts.append(f"{key} {value}")
+
+    return " ".join(parts).strip()
 
 
-def copy_model_config(artifact_path: str, os_path: str, auth: dict = None):
+def copy_model_config(
+    artifact_path: str, os_path: str, auth: Optional[Dict[str, Any]] = None
+):
     """Copies the aqua model config folder from the artifact path to the user provided object storage path.
     The config folder is overwritten if the files already exist at the destination path.
 
@@ -1009,6 +1049,44 @@ def get_container_params_type(container_type_name: str) -> str:
         return InferenceContainerParamType.PARAM_TYPE_LLAMA_CPP
     else:
         return UNKNOWN
+
+
+def get_container_env_type(container_type_name: Optional[str]) -> str:
+    """
+    Determine the container environment type based on the container type name.
+
+    This function matches the provided container type name against the known
+    values of `InferenceContainerType`. The check is case-insensitive and
+    allows for partial matches so that changes in container naming conventions
+    (e.g., prefixes or suffixes) will still be matched correctly.
+
+    Examples:
+        >>> get_container_env_type("odsc-vllm-serving")
+        'vllm'
+        >>> get_container_env_type("ODSC-TGI-Serving")
+        'tgi'
+        >>> get_container_env_type("custom-unknown-container")
+        'UNKNOWN'
+
+    Args:
+        container_type_name (Optional[str]):
+            The deployment container type name (e.g., "odsc-vllm-serving").
+
+    Returns:
+        str:
+            - A matching `InferenceContainerType` value string (e.g., "VLLM", "TGI", "LLAMA-CPP").
+            - `"UNKNOWN"` if no match is found or the input is empty/None.
+    """
+    if not container_type_name:
+        return UNKNOWN
+
+    needle = container_type_name.strip().casefold()
+
+    for container_type in InferenceContainerType.values():
+        if container_type and container_type.casefold() in needle:
+            return container_type.upper()
+
+    return UNKNOWN
 
 
 def get_restricted_params_by_container(container_type_name: str) -> set:
@@ -1178,36 +1256,45 @@ def parse_cmd_var(cmd_list: List[str]) -> dict:
     return parsed_cmd
 
 
-def validate_cmd_var(cmd_var: List[str], overrides: List[str]) -> List[str]:
-    """This function accepts two lists of parameters and combines them. If the second list shares the common parameter
-    names/keys, then it raises an error.
+def validate_cmd_var(
+    cmd_var: Optional[List[str]], overrides: Optional[List[str]]
+) -> List[str]:
+    """
+    Validates and combines two lists of command-line parameters. Raises an error if any parameter
+    key in the `overrides` list already exists in the `cmd_var` list, preventing unintended overrides.
+
     Parameters
     ----------
-    cmd_var: List[str]
-        Default list of parameters
-    overrides: List[str]
-        List of parameters to override
+    cmd_var : Optional[List[str]]
+        The default list of command-line parameters (e.g., ["--param1", "value1", "--flag"]).
+    overrides : Optional[List[str]]
+        The list of overriding command-line parameters.
+
     Returns
     -------
-        List[str] of combined parameters
+    List[str]
+        A validated and combined list of parameters, with overrides appended.
+
+    Raises
+    ------
+    AquaValueError
+        If `overrides` contain any parameter keys that already exist in `cmd_var`.
     """
-    cmd_var = [str(x) for x in cmd_var]
-    if not overrides:
-        return cmd_var
-    overrides = [str(x) for x in overrides]
+    cmd_var = [str(x).strip() for x in cmd_var or []]
+    overrides = [str(x).strip() for x in overrides or []]
 
     cmd_dict = parse_cmd_var(cmd_var)
     overrides_dict = parse_cmd_var(overrides)
 
-    # check for conflicts
-    common_keys = set(cmd_dict.keys()) & set(overrides_dict.keys())
-    if common_keys:
+    # Check for conflicting keys
+    conflicting_keys = set(cmd_dict.keys()) & set(overrides_dict.keys())
+    if conflicting_keys:
         raise AquaValueError(
-            f"The following CMD input cannot be overridden for model deployment: {', '.join(common_keys)}"
+            f"Cannot override the following model deployment parameters: {', '.join(sorted(conflicting_keys))}"
         )
 
-    combined_cmd_var = cmd_var + overrides
-    return combined_cmd_var
+    combined_params = cmd_var + overrides
+    return combined_params
 
 
 def build_pydantic_error_message(ex: ValidationError):
@@ -1243,10 +1330,10 @@ def load_gpu_shapes_index(
     auth: Optional[Dict[str, Any]] = None,
 ) -> GPUShapesIndex:
     """
-    Load the GPU shapes index, preferring the OS bucket copy over the local one.
+    Load the GPU shapes index, merging based on freshness.
 
-    Attempts to read `gpu_shapes_index.json` from OCI Object Storage first;
-    if that succeeds, those entries will override the local defaults.
+    Compares last-modified timestamps of local and remote files,
+    merging the shapes from the fresher file on top of the older one.
 
     Parameters
     ----------
@@ -1267,7 +1354,9 @@ def load_gpu_shapes_index(
     file_name = "gpu_shapes_index.json"
 
     # Try remote load
-    remote_data: Dict[str, Any] = {}
+    local_data, remote_data = {}, {}
+    local_mtime, remote_mtime = None, None
+
     if CONDA_BUCKET_NS:
         try:
             auth = auth or authutil.default_signer()
@@ -1277,8 +1366,24 @@ def load_gpu_shapes_index(
             logger.debug(
                 "Loading GPU shapes index from Object Storage: %s", storage_path
             )
-            with fsspec.open(storage_path, mode="r", **auth) as f:
+
+            fs = fsspec.filesystem("oci", **auth)
+            with fs.open(storage_path, mode="r") as f:
                 remote_data = json.load(f)
+
+            remote_info = fs.info(storage_path)
+            remote_mtime_str = remote_info.get("timeModified", None)
+            if remote_mtime_str:
+                # Convert OCI timestamp (e.g., 'Mon, 04 Aug 2025 06:37:13 GMT') to epoch time
+                remote_mtime = datetime.strptime(
+                    remote_mtime_str, "%a, %d %b %Y %H:%M:%S %Z"
+                ).timestamp()
+
+                logger.debug(
+                    "Remote GPU shapes last-modified time: %s",
+                    datetime.fromtimestamp(remote_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+                )
+
             logger.debug(
                 "Loaded %d shapes from Object Storage",
                 len(remote_data.get("shapes", {})),
@@ -1287,12 +1392,19 @@ def load_gpu_shapes_index(
             logger.debug("Remote load failed (%s); falling back to local", ex)
 
     # Load local copy
-    local_data: Dict[str, Any] = {}
     local_path = os.path.join(os.path.dirname(__file__), "../resources", file_name)
     try:
         logger.debug("Loading GPU shapes index from local file: %s", local_path)
         with open(local_path) as f:
             local_data = json.load(f)
+
+        local_mtime = os.path.getmtime(local_path)
+
+        logger.debug(
+            "Local GPU shapes last-modified time: %s",
+            datetime.fromtimestamp(local_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
         logger.debug(
             "Loaded %d shapes from local file", len(local_data.get("shapes", {}))
         )
@@ -1302,7 +1414,24 @@ def load_gpu_shapes_index(
     # Merge: remote shapes override local
     local_shapes = local_data.get("shapes", {})
     remote_shapes = remote_data.get("shapes", {})
-    merged_shapes = {**local_shapes, **remote_shapes}
+    merged_shapes = {}
+
+    if local_mtime and remote_mtime:
+        if remote_mtime >= local_mtime:
+            logger.debug("Remote data is fresher or equal; merging remote over local.")
+            merged_shapes = {**local_shapes, **remote_shapes}
+        else:
+            logger.debug("Local data is fresher; merging local over remote.")
+            merged_shapes = {**remote_shapes, **local_shapes}
+    elif remote_shapes:
+        logger.debug("Only remote shapes available.")
+        merged_shapes = remote_shapes
+    elif local_shapes:
+        logger.debug("Only local shapes available.")
+        merged_shapes = local_shapes
+    else:
+        logger.error("No GPU shapes data found in either source.")
+        merged_shapes = {}
 
     return GPUShapesIndex(shapes=merged_shapes)
 
