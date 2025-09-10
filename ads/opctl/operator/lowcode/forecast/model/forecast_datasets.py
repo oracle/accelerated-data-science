@@ -18,13 +18,14 @@ from ads.opctl.operator.lowcode.common.utils import (
     get_frequency_of_datetime,
 )
 
-from ..const import ForecastOutputColumns, SupportedModels
+from ..const import ForecastOutputColumns, SupportedModels, TROUBLESHOOTING_GUIDE
 from ..operator_config import ForecastOperatorConfig
 
 
 class HistoricalData(AbstractData):
-    def __init__(self, spec, historical_data=None):
-        super().__init__(spec=spec, name="historical_data", data=historical_data)
+    def __init__(self, spec, historical_data=None, subset=None):
+        super().__init__(spec=spec, name="historical_data", data=historical_data, subset=subset)
+        self.subset = subset
 
     def _ingest_data(self, spec):
         try:
@@ -48,25 +49,29 @@ class HistoricalData(AbstractData):
                 f"{SupportedModels.AutoMLX} requires data with a frequency of at least one hour. Please try using a different model,"
                 " or select the 'auto' option."
             )
-            raise InvalidParameterError(message)
+            raise InvalidParameterError(f"{message}"
+                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps.")
 
 
 class AdditionalData(AbstractData):
-    def __init__(self, spec, historical_data, additional_data=None):
+    def __init__(self, spec, historical_data, additional_data=None, subset=None):
+        self.subset = subset
         if additional_data is not None:
-            super().__init__(spec=spec, name="additional_data", data=additional_data)
+            super().__init__(spec=spec, name="additional_data", data=additional_data, subset=subset)
             self.additional_regressors = list(self.data.columns)
         elif spec.additional_data is not None:
-            super().__init__(spec=spec, name="additional_data")
+            super().__init__(spec=spec, name="additional_data", subset=subset)
             add_dates = self.data.index.get_level_values(0).unique().tolist()
             add_dates.sort()
             if historical_data.get_max_time() > add_dates[-spec.horizon]:
                 raise DataMismatchError(
                     f"The Historical Data ends on {historical_data.get_max_time()}. The additional data horizon starts on {add_dates[-spec.horizon]}. The horizon should have exactly {spec.horizon} dates after the Historical at a frequency of {historical_data.freq}"
+                    f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
                 )
             elif historical_data.get_max_time() != add_dates[-(spec.horizon + 1)]:
                 raise DataMismatchError(
                     f"The Additional Data must be present for all historical data and the entire horizon. The Historical Data ends on {historical_data.get_max_time()}. The additonal data horizon starts after {add_dates[-(spec.horizon+1)]}. These should be the same date."
+                    f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
                 )
         else:
             self.name = "additional_data"
@@ -114,8 +119,7 @@ class AdditionalData(AbstractData):
 
 class TestData(AbstractData):
     def __init__(self, spec, test_data):
-        if test_data is not None or spec.test_data is not None:
-            super().__init__(spec=spec, name="test_data", data=test_data)
+        super().__init__(spec=spec, name="test_data", data=test_data)
         self.dt_column_name = spec.datetime_column.name
         self.target_name = spec.target_column
 
@@ -127,6 +131,7 @@ class ForecastDatasets:
         historical_data=None,
         additional_data=None,
         test_data=None,
+        subset=None,  # New parameter for subsetting by group
     ):
         """Instantiates the DataIO instance.
 
@@ -134,26 +139,30 @@ class ForecastDatasets:
         ----------
         config: ForecastOperatorConfig
             The forecast operator configuration.
+        subset: list, optional
+            List of group keys to subset the data on initialization.
         """
+        self.config = config  # Store the config for later use
         self.historical_data: HistoricalData = None
         self.additional_data: AdditionalData = None
+        self.test_data: TestData = None
         self._horizon = config.spec.horizon
         self._datetime_column_name = config.spec.datetime_column.name
         self._target_col = config.spec.target_column
         if historical_data is not None:
-            self.historical_data = HistoricalData(config.spec, historical_data)
+            self.historical_data = HistoricalData(config.spec, historical_data, subset=subset)
             self.additional_data = AdditionalData(
-                config.spec, self.historical_data, additional_data
+                config.spec, self.historical_data, additional_data, subset=subset
             )
         else:
-            self._load_data(config.spec)
-        self.test_data = TestData(config.spec, test_data)
+            self._load_data(config.spec, subset=subset)
+        if test_data is not None or config.spec.test_data is not None:
+            self.test_data = TestData(config.spec, test_data)
 
-    def _load_data(self, spec):
+    def _load_data(self, spec, subset=None):
         """Loads forecasting input data."""
-        self.historical_data = HistoricalData(spec)
-        self.additional_data = AdditionalData(spec, self.historical_data)
-
+        self.historical_data = HistoricalData(spec, subset=subset)
+        self.additional_data = AdditionalData(spec, self.historical_data, subset=subset)
         if spec.generate_explanations and spec.additional_data is None:
             logger.warning(
                 "Unable to generate explanations as there is no additional data passed in. Either set generate_explanations to False, or pass in additional data."
@@ -210,6 +219,7 @@ class ForecastDatasets:
         except Exception as e:
             raise InvalidParameterError(
                 f"Unable to retrieve series id: {s_id} from data. Available series ids are: {self.list_series_ids()}"
+                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             ) from e
 
     def get_horizon_at_series(self, s_id):
@@ -291,6 +301,7 @@ class ForecastOutput:
         if not overwrite and series_id in self.series_id_map:
             raise ValueError(
                 f"Attempting to update ForecastOutput for series_id {series_id} when this already exists. Set overwrite to True."
+                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             )
         forecast = self._check_forecast_format(forecast)
         self.series_id_map[series_id] = forecast
@@ -331,6 +342,7 @@ class ForecastOutput:
         except KeyError as e:
             raise ValueError(
                 f"Attempting to update output for series: {series_id}, however no series output has been initialized."
+                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             ) from e
 
         if (output_i.shape[0] - self.horizon) == len(fit_val):
@@ -351,18 +363,21 @@ class ForecastOutput:
         if len(forecast_val) != self.horizon:
             raise ValueError(
                 f"Attempting to set forecast along horizon ({self.horizon}) for series: {series_id}, however forecast is only length {len(forecast_val)}"
+                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             )
         output_i["forecast_value"].iloc[-self.horizon :] = forecast_val
 
         if len(upper_bound) != self.horizon:
             raise ValueError(
                 f"Attempting to set upper_bound along horizon ({self.horizon}) for series: {series_id}, however upper_bound is only length {len(upper_bound)}"
+                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             )
         output_i[self.upper_bound_name].iloc[-self.horizon :] = upper_bound
 
         if len(lower_bound) != self.horizon:
             raise ValueError(
                 f"Attempting to set lower_bound along horizon ({self.horizon}) for series: {series_id}, however lower_bound is only length {len(lower_bound)}"
+                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             )
         output_i[self.lower_bound_name].iloc[-self.horizon :] = lower_bound
 
@@ -490,3 +505,25 @@ class ForecastResults:
 
     def get_errors_dict(self):
         return getattr(self, "errors_dict", None)
+
+    def merge(self, other: 'ForecastResults'):
+        """Merge another ForecastResults object into this one."""
+        # Merge DataFrames if they exist, else just set
+        for attr in [
+            'forecast', 'metrics', 'test_metrics', 'local_explanations', 'global_explanations', 'model_parameters', 'models', 'errors_dict']:
+            val_self = getattr(self, attr, None)
+            val_other = getattr(other, attr, None)
+            if val_self is not None and val_other is not None:
+                if isinstance(val_self, pd.DataFrame) and isinstance(val_other, pd.DataFrame):
+                    setattr(self, attr, pd.concat([val_self, val_other], ignore_index=True, axis=0))
+                elif isinstance(val_self, dict) and isinstance(val_other, dict):
+                    val_self.update(val_other)
+                    setattr(self, attr, val_self)
+                elif isinstance(val_self, list) and isinstance(val_other, list):
+                    setattr(self, attr, val_self + val_other)
+                else:
+                    # If not mergeable, just keep self's value
+                    pass
+            elif val_other is not None:
+                setattr(self, attr, val_other)
+        return self

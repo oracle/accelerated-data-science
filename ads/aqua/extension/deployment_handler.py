@@ -57,6 +57,15 @@ class AquaDeploymentHandler(AquaAPIhandler):
             return self.get_deployment_config(
                 model_id=id.split(",") if "," in id else id
             )
+        elif paths.startswith("aqua/deployments/recommend_shapes"):
+            if not id or not isinstance(id, str):
+                raise HTTPError(
+                    400,
+                    f"Invalid request format for {self.request.path}. "
+                    "Expected a single model OCID specified as --model_id",
+                )
+            id = id.replace(" ", "")
+            return self.get_recommend_shape(model_id=id)
         elif paths.startswith("aqua/deployments/shapes"):
             return self.list_shapes()
         elif paths.startswith("aqua/deployments"):
@@ -160,6 +169,32 @@ class AquaDeploymentHandler(AquaAPIhandler):
             deployment_config = app.get_deployment_config(model_id=model_id)
 
         return self.finish(deployment_config)
+
+    def get_recommend_shape(self, model_id: str):
+        """
+        Retrieves the valid shape and deployment parameter configuration for one Aqua Model.
+
+        Parameters
+        ----------
+        model_id : str
+            A single model ID (str).
+
+        Returns
+        -------
+        None
+            The function sends the ShapeRecommendReport (generate_table = False) or Rich Diff Table (generate_table = True)
+        """
+        app = AquaDeploymentApp()
+
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
+
+        recommend_report = app.recommend_shape(
+            model_id=model_id,
+            compartment_id=compartment_id,
+            generate_table=False,
+        )
+
+        return self.finish(recommend_report)
 
     def list_shapes(self):
         """
@@ -373,12 +408,45 @@ class AquaDeploymentParamsHandler(AquaAPIhandler):
         )
 
 
+class AquaModelListHandler(AquaAPIhandler):
+    """Handler for Aqua model list params REST APIs.
+
+    Methods
+    -------
+    get(self, *args, **kwargs)
+        Validates parameters for the given model id.
+    """
+
+    @handle_exceptions
+    def get(self, model_deployment_id):
+        """
+        Handles get model list for the Active Model Deployment
+        Raises
+        ------
+        HTTPError
+            Raises HTTPError if inputs are missing or are invalid
+        """
+
+        self.set_header("Content-Type", "application/json")
+        endpoint: str = ""
+        model_deployment = AquaDeploymentApp().get(model_deployment_id)
+        endpoint = model_deployment.endpoint.rstrip("/") + "/predict/v1/models"
+        aqua_client = Client(endpoint=endpoint)
+        try:
+            list_model_result = aqua_client.fetch_data()
+            return self.finish(list_model_result)
+        except Exception as ex:
+            raise HTTPError(500, str(ex))
+
+
 __handlers__ = [
     ("deployments/?([^/]*)/params", AquaDeploymentParamsHandler),
     ("deployments/config/?([^/]*)", AquaDeploymentHandler),
     ("deployments/shapes/?([^/]*)", AquaDeploymentHandler),
+    ("deployments/recommend_shapes/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)/activate", AquaDeploymentHandler),
     ("deployments/?([^/]*)/deactivate", AquaDeploymentHandler),
     ("inference/stream/?([^/]*)", AquaDeploymentStreamingInferenceHandler),
+    ("deployments/models/list/?([^/]*)", AquaModelListHandler),
 ]

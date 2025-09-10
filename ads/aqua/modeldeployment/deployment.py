@@ -8,11 +8,12 @@ import re
 import shlex
 import threading
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from cachetools import TTLCache, cached
 from oci.data_science.models import ModelDeploymentShapeSummary
 from pydantic import ValidationError
+from rich.table import Table
 
 from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.entities import (
@@ -27,6 +28,7 @@ from ads.aqua.common.utils import (
     build_pydantic_error_message,
     find_restricted_params,
     get_combined_params,
+    get_container_env_type,
     get_container_params_type,
     get_ocid_substring,
     get_params_list,
@@ -43,8 +45,11 @@ from ads.aqua.constants import (
     AQUA_MODEL_TYPE_SERVICE,
     AQUA_MULTI_MODEL_CONFIG,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
+    MODEL_GROUP,
     MODEL_NAME_DELIMITER,
+    SINGLE_MODEL_FLEX,
     UNKNOWN_DICT,
+    UNKNOWN_ENUM_VALUE,
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model import AquaModelApp
@@ -71,6 +76,11 @@ from ads.aqua.modeldeployment.entities import (
     CreateModelDeploymentDetails,
 )
 from ads.aqua.modeldeployment.model_group_config import ModelGroupConfig
+from ads.aqua.shaperecommend.recommend import AquaShapeRecommend
+from ads.aqua.shaperecommend.shape_report import (
+    RequestRecommend,
+    ShapeRecommendationReport,
+)
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN, get_log_links
 from ads.common.work_request import DataScienceWorkRequest
@@ -200,7 +210,7 @@ class AquaDeploymentApp(AquaApp):
         if create_deployment_details.instance_shape.lower() not in available_shapes:
             raise AquaValueError(
                 f"Invalid Instance Shape. The selected shape '{create_deployment_details.instance_shape}' "
-                f"is not available in the {self.region} region. Please choose another shape to deploy the model."
+                f"is not supported in the {self.region} region. Please choose another shape to deploy the model."
             )
 
         # Get container config
@@ -382,6 +392,7 @@ class AquaDeploymentApp(AquaApp):
             Tags.AQUA_SERVICE_MODEL_TAG,
             Tags.AQUA_FINE_TUNED_MODEL_TAG,
             Tags.AQUA_TAG,
+            Tags.BASE_MODEL_CUSTOM,
         ]:
             if tag in aqua_model.freeform_tags:
                 tags[tag] = aqua_model.freeform_tags[tag]
@@ -513,12 +524,23 @@ class AquaDeploymentApp(AquaApp):
 
         deployment_config = self.get_deployment_config(model_id=config_source_id)
 
+        # Loads frameworks specific default params from the configuration
         config_params = deployment_config.configuration.get(
             create_deployment_details.instance_shape, ConfigurationItem()
         ).parameters.get(get_container_params_type(container_type_key), UNKNOWN)
 
+        # Loads default environment variables from the configuration
+        config_env = deployment_config.configuration.get(
+            create_deployment_details.instance_shape, ConfigurationItem()
+        ).env.get(get_container_params_type(container_type_key), {})
+
+        # Merges user provided environment variables with the ones provided in the deployment config
+        # The values provided by user will override the ones provided by default config
+        env_var = {**config_env, **env_var}
+
         # validate user provided params
         user_params = env_var.get("PARAMS", UNKNOWN)
+
         if user_params:
             # todo: remove this check in the future version, logic to be moved to container_index
             if (
@@ -544,6 +566,18 @@ class AquaDeploymentApp(AquaApp):
         deployment_params = get_combined_params(config_params, user_params)
 
         params = f"{params} {deployment_params}".strip()
+
+        if create_deployment_details.model_name:
+            # Replace existing --served-model-name argument if present, otherwise add it
+            if "--served-model-name" in params:
+                params = re.sub(
+                    r"--served-model-name\s+\S+",
+                    f"--served-model-name {create_deployment_details.model_name}",
+                    params,
+                )
+            else:
+                params += f" --served-model-name {create_deployment_details.model_name}"
+
         if params:
             env_var.update({"PARAMS": params})
         env_vars = container_spec.env_vars if container_spec else []
@@ -623,8 +657,8 @@ class AquaDeploymentApp(AquaApp):
 
         env_var.update({AQUA_MULTI_MODEL_CONFIG: multi_model_config.model_dump_json()})
 
-        env_vars = container_spec.env_vars if container_spec else []
-        for env in env_vars:
+        container_spec_env_vars = container_spec.env_vars if container_spec else []
+        for env in container_spec_env_vars:
             if isinstance(env, dict):
                 env = {k: v for k, v in env.items() if v}
                 for key, _ in env.items():
@@ -869,21 +903,26 @@ class AquaDeploymentApp(AquaApp):
 
             if oci_aqua:
                 # skipping the AQUA model deployments that are created from model group
-                # TODO: remove this checker after AQUA deployment is integrated with model group
-                aqua_model_id = model_deployment.freeform_tags.get(
-                    Tags.AQUA_MODEL_ID_TAG, UNKNOWN
-                )
                 if (
-                    "datasciencemodelgroup" in aqua_model_id
-                    or model_deployment.model_deployment_configuration_details.deployment_type
-                    == "UNKNOWN_ENUM_VALUE"
+                    model_deployment.model_deployment_configuration_details.deployment_type
+                    in [UNKNOWN_ENUM_VALUE, MODEL_GROUP, SINGLE_MODEL_FLEX]
                 ):
                     continue
-                results.append(
-                    AquaDeployment.from_oci_model_deployment(
-                        model_deployment, self.region
+                try:
+                    results.append(
+                        AquaDeployment.from_oci_model_deployment(
+                            model_deployment, self.region
+                        )
                     )
-                )
+                except Exception as e:
+                    logger.error(
+                        f"There was an issue processing the list of model deployments . Error: {str(e)}",
+                        exc_info=True,
+                    )
+                    raise AquaRuntimeError(
+                        f"There was an issue processing the list of model deployments . Error: {str(e)}"
+                    ) from e
+
                 # log telemetry if MD is in active or failed state
                 deployment_id = model_deployment.id
                 state = model_deployment.lifecycle_state.upper()
@@ -1049,6 +1088,7 @@ class AquaDeploymentApp(AquaApp):
         config = self.get_config_from_metadata(
             model_id, AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION
         ).config
+
         if config:
             logger.info(
                 f"Fetched {AquaModelMetadataKeys.DEPLOYMENT_CONFIGURATION} from defined metadata for model: {model_id}."
@@ -1133,7 +1173,7 @@ class AquaDeploymentApp(AquaApp):
         model_id: str,
         instance_shape: str,
         gpu_count: int = None,
-    ) -> List[str]:
+    ) -> Dict:
         """Gets the default params set in the deployment configs for the given model and instance shape.
 
         Parameters
@@ -1155,6 +1195,7 @@ class AquaDeploymentApp(AquaApp):
 
         """
         default_params = []
+        default_envs = {}
         config_params = {}
         model = DataScienceModel.from_id(model_id)
         try:
@@ -1164,19 +1205,15 @@ class AquaDeploymentApp(AquaApp):
         except ValueError:
             container_type_key = UNKNOWN
             logger.debug(
-                f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the custom metadata field for model {model_id}."
+                f"{AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME} key is not available in the "
+                f"custom metadata field for model {model_id}."
             )
 
-        if (
-            container_type_key
-            and container_type_key in InferenceContainerTypeFamily.values()
-        ):
+        if container_type_key:
             deployment_config = self.get_deployment_config(model_id)
-
             instance_shape_config = deployment_config.configuration.get(
                 instance_shape, ConfigurationItem()
             )
-
             if instance_shape_config.multi_model_deployment and gpu_count:
                 gpu_params = instance_shape_config.multi_model_deployment
 
@@ -1185,11 +1222,17 @@ class AquaDeploymentApp(AquaApp):
                         config_params = gpu_config.parameters.get(
                             get_container_params_type(container_type_key), UNKNOWN
                         )
+                        default_envs = instance_shape_config.env.get(
+                            get_container_env_type(container_type_key), {}
+                        )
                         break
 
             else:
                 config_params = instance_shape_config.parameters.get(
                     get_container_params_type(container_type_key), UNKNOWN
+                )
+                default_envs = instance_shape_config.env.get(
+                    get_container_env_type(container_type_key), {}
                 )
 
             if config_params:
@@ -1203,7 +1246,7 @@ class AquaDeploymentApp(AquaApp):
                     if params.split()[0] not in restricted_params_set:
                         default_params.append(params)
 
-        return default_params
+        return {"data": default_params, "env": default_envs}
 
     def validate_deployment_params(
         self,
@@ -1249,6 +1292,50 @@ class AquaDeploymentApp(AquaApp):
                 f"and cannot be overridden or are invalid."
             )
         return {"valid": True}
+
+    def recommend_shape(self, **kwargs) -> Union[Table, ShapeRecommendationReport]:
+        """
+        For the CLI (set generate_table = True), generates the table (in rich diff) with valid
+        GPU deployment shapes for the provided model and configuration.
+
+        For the API (set generate_table = False), generates the JSON with valid
+        GPU deployment shapes for the provided model and configuration.
+
+        Validates if recommendations are generated, calls method to construct the rich diff
+        table with the recommendation data.
+
+        Parameters
+        ----------
+        model_ocid : str
+        OCID of the model to recommend feasible compute shapes.
+
+        Returns
+        -------
+        Table (generate_table = True)
+            A table format for the recommendation report with compatible deployment shapes
+            or troubleshooting info citing the largest shapes if no shape is suitable.
+
+        ShapeRecommendationReport (generate_table = False)
+            A recommendation report with compatible deployment shapes, or troubleshooting info
+            citing the largest shapes if no shape is suitable.
+
+        Raises
+        ------
+        AquaValueError
+            If model type is unsupported by tool (no recommendation report generated)
+        """
+        try:
+            request = RequestRecommend(**kwargs)
+        except ValidationError as e:
+            custom_error = build_pydantic_error_message(e)
+            raise AquaValueError(  # noqa: B904
+                f"Failed to request shape recommendation due to invalid input parameters: {custom_error}"
+            )
+
+        shape_recommend = AquaShapeRecommend()
+        shape_recommend_report = shape_recommend.which_shapes(request)
+
+        return shape_recommend_report
 
     @telemetry(entry_point="plugin=deployment&action=list_shapes", name="aqua")
     @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=5), timer=datetime.now))

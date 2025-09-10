@@ -58,6 +58,7 @@ class InferenceContainerTypeFamily(ExtendedEnum):
     AQUA_VLLM_LLAMA4_CONTAINER_FAMILY = "odsc-vllm-serving-llama4"
     AQUA_TGI_CONTAINER_FAMILY = "odsc-tgi-serving"
     AQUA_LLAMA_CPP_CONTAINER_FAMILY = "odsc-llama-cpp-serving"
+    AQUA_VLLM_OPENAI_CONTAINER_FAMILY = "odsc-vllm-serving-openai"
 
 
 class CustomInferenceContainerTypeFamily(ExtendedEnum):
@@ -122,6 +123,12 @@ class Platform(ExtendedEnum):
 #   - Key: The preferred container family to use when multiple compatible families are selected.
 #   - Value: A list of all compatible families (including the preferred one).
 CONTAINER_FAMILY_COMPATIBILITY: Dict[str, List[str]] = {
+    InferenceContainerTypeFamily.AQUA_VLLM_OPENAI_CONTAINER_FAMILY: [
+        InferenceContainerTypeFamily.AQUA_VLLM_OPENAI_CONTAINER_FAMILY,
+        InferenceContainerTypeFamily.AQUA_VLLM_LLAMA4_CONTAINER_FAMILY,
+        InferenceContainerTypeFamily.AQUA_VLLM_V1_CONTAINER_FAMILY,
+        InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY,
+    ],
     InferenceContainerTypeFamily.AQUA_VLLM_V1_CONTAINER_FAMILY: [
         InferenceContainerTypeFamily.AQUA_VLLM_V1_CONTAINER_FAMILY,
         InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY,
