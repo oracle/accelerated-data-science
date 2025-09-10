@@ -529,9 +529,6 @@ class ModelDeploymentDetails(BaseModel):
                 f"Please deploy the fine-tuned model '{base_model.id}' as a stacked model deployment instead."
             )
 
-    class Config:
-        extra = "allow"
-        protected_namespaces = ()
 
 class CreateModelDeploymentDetails(ModelDeploymentDetails):
     """Class for creating Aqua model deployments."""
