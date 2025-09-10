@@ -504,3 +504,19 @@ class TestHuggingFaceModelFetcher:
             assert "dim" in config
         except AquaValueError as e:
             pytest.fail(f"Real network call to Hugging Face failed: {e}")
+            
+            
+    @patch('ads.aqua.shaperecommend.recommend.OCIDataScienceModelDeployment.shapes')
+    @patch.dict(os.environ, {}, clear=True)
+    def test_valid_compute_shapes_raises_error_no_compartment(self, mock_oci_shapes):
+        """
+        Tests that valid_compute_shapes raises a ValueError when no compartment ID is
+        provided and none can be found in the environment.
+        """
+        app = AquaShapeRecommend()
+        
+        with pytest.raises(AquaValueError, match="A compartment OCID is required"):
+            app.valid_compute_shapes(compartment_id=None)
+        
+        # Verify that the OCI SDK was not called because the check failed early
+        mock_oci_shapes.assert_not_called()
