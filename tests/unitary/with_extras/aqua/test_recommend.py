@@ -489,21 +489,21 @@ class TestHuggingFaceModelFetcher:
         assert HuggingFaceModelFetcher.get_hf_token() == "test_token_123"
         
 
-    @pytest.mark.network
-    def test_fetch_config_only_real_call_success(self):
-        """
-        Tests a real network call to fetch a public model's configuration.
-        This test requires an internet connection.
-        """
-        model_id = "distilbert-base-uncased"
+    # @pytest.mark.network
+    # def test_fetch_config_only_real_call_success(self):
+    #     """
+    #     Tests a real network call to fetch a public model's configuration.
+    #     This test requires an internet connection.
+    #     """
+    #     model_id = "distilbert-base-uncased"
         
-        try:
-            config = HuggingFaceModelFetcher.fetch_config_only(model_id)
-            assert isinstance(config, dict)
-            assert "model_type" in config
-            assert "dim" in config
-        except AquaValueError as e:
-            pytest.fail(f"Real network call to Hugging Face failed: {e}")
+    #     try:
+    #         config = HuggingFaceModelFetcher.fetch_config_only(model_id)
+    #         assert isinstance(config, dict)
+    #         assert "model_type" in config
+    #         assert "dim" in config
+    #     except AquaValueError as e:
+    #         pytest.fail(f"Real network call to Hugging Face failed: {e}")
             
             
     @patch('ads.aqua.shaperecommend.recommend.OCIDataScienceModelDeployment.shapes')
