@@ -198,7 +198,7 @@ class AquaShapeRecommend:
             logger.warning(f"Could not search for model '{model_id}' in catalog: {e}")
         return None
 
-    def valid_compute_shapes(self, compartment_id: str) -> List["ComputeShapeSummary"]:
+    def valid_compute_shapes(self, compartment_id: Optional[str] = None) -> List["ComputeShapeSummary"]:
         """
         Returns a filtered list of GPU-only ComputeShapeSummary objects by reading and parsing a JSON file.
 
@@ -214,9 +214,22 @@ class AquaShapeRecommend:
 
         Raises
         ------
-        ValueError
-            If the file cannot be opened, parsed, or the 'shapes' key is missing.
+        AquaValueError
+            If a compartment_id is not provided and cannot be found in the
+            environment variables.
         """
+        if not compartment_id:
+            compartment_id = os.environ.get("NB_SESSION_COMPARTMENT_OCID") or os.environ.get("PROJECT_COMPARTMENT_OCID")
+            if compartment_id:
+                logger.info(f"Using compartment_id from environment: {compartment_id}")
+
+        if not compartment_id:
+            raise AquaValueError(
+                "A compartment OCID is required to list available shapes. "
+                "Please provide it as a parameter or set the 'NB_SESSION_COMPARTMENT_OCID' "
+                "or 'PROJECT_COMPARTMENT_OCID' environment variable."
+            )
+
         oci_shapes = OCIDataScienceModelDeployment.shapes(compartment_id=compartment_id)
         set_user_shapes = {shape.name: shape for shape in oci_shapes}
 
