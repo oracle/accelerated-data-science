@@ -130,7 +130,7 @@ class ModelGroupConfig(Serializable):
         Validates if user-provided parameters override pre-set parameters by AQUA.
         Updates model name and TP size parameters to user-provided parameters.
         """
-        user_params = build_params_string(model.env_var)
+        user_params = build_params_string(model.params)
         if user_params:
             restricted_params = find_restricted_params(
                 container_params, user_params, container_type_key
@@ -138,8 +138,8 @@ class ModelGroupConfig(Serializable):
             if restricted_params:
                 selected_model = model.model_name or model.model_id
                 raise AquaValueError(
-                    f"Parameters {restricted_params} are set by Aqua "
-                    f"and cannot be overridden or are invalid."
+                    f"Parameters {restricted_params} are set by AI Quick Actions "
+                    f"and cannot be overridden or are invalid. "
                     f"Select other parameters for model {selected_model}."
                 )
 
