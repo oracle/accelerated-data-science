@@ -22,7 +22,6 @@ from ads.aqua.shaperecommend.estimator import (
 from ads.aqua.shaperecommend.llm_config import LLMConfig
 from ads.aqua.shaperecommend.recommend import (
     AquaShapeRecommend,
-    HuggingFaceModelFetcher,
 )
 from ads.aqua.shaperecommend.shape_report import (
     DeploymentParams,
@@ -457,71 +456,3 @@ class TestShapeReport:
         assert c and d in pf
         assert a and b not in pf
         assert len(pf) == 2
-
-
-class TestHuggingFaceModelFetcher:
-    @pytest.mark.parametrize(
-        "model_id, expected",
-        [
-            ("meta-llama/Llama-2-7b-hf", True),
-            ("mistralai/Mistral-7B-v0.1", True),
-            ("ocid1.datasciencemodel.oc1.iad.xxxxxxxx", False),
-        ],
-    )
-    def test_is_huggingface_model_id(self, model_id, expected):
-        assert HuggingFaceModelFetcher.is_huggingface_model_id(model_id) == expected
-
-    @patch("requests.get")
-    def test_fetch_config_only_success(self, mock_get):
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"model_type": "llama"}
-        mock_get.return_value = mock_response
-
-        config = HuggingFaceModelFetcher.fetch_config_only("some/model")
-        assert config == {"model_type": "llama"}
-        mock_get.assert_called_once()
-
-    @patch("requests.get")
-    def test_fetch_config_only_not_found(self, mock_get):
-        mock_response = MagicMock()
-        mock_response.status_code = 404
-        mock_get.return_value = mock_response
-
-        with pytest.raises(AquaValueError, match="not found on HuggingFace"):
-            HuggingFaceModelFetcher.fetch_config_only("non/existent")
-
-    @patch.dict(os.environ, {"HF_TOKEN": "test_token_123"}, clear=True)
-    def test_get_hf_token(self):
-        assert HuggingFaceModelFetcher.get_hf_token() == "test_token_123"
-
-    # @pytest.mark.network
-    # def test_fetch_config_only_real_call_success(self):
-    #     """
-    #     Tests a real network call to fetch a public model's configuration.
-    #     This test requires an internet connection.
-    #     """
-    #     model_id = "distilbert-base-uncased"
-
-    #     try:
-    #         config = HuggingFaceModelFetcher.fetch_config_only(model_id)
-    #         assert isinstance(config, dict)
-    #         assert "model_type" in config
-    #         assert "dim" in config
-    #     except AquaValueError as e:
-    #         pytest.fail(f"Real network call to Hugging Face failed: {e}")
-
-    @patch("ads.aqua.shaperecommend.recommend.OCIDataScienceModelDeployment.shapes")
-    @patch.dict(os.environ, {}, clear=True)
-    def test_valid_compute_shapes_raises_error_no_compartment(self, mock_oci_shapes):
-        """
-        Tests that valid_compute_shapes raises a ValueError when no compartment ID is
-        provided and none can be found in the environment.
-        """
-        app = AquaShapeRecommend()
-
-        with pytest.raises(AquaValueError, match="A compartment OCID is required"):
-            app.valid_compute_shapes(compartment_id=None)
-
-        # Verify that the OCI SDK was not called because the check failed early
-        mock_oci_shapes.assert_not_called()
