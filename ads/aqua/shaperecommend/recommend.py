@@ -14,7 +14,6 @@ from typing import List, Union, Optional, Dict, Any, Tuple
 from pydantic import ValidationError
 from rich.table import Table
 
-# In ads/aqua/shaperecommend/recommend.py
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import HfHubHTTPError
 from ads.aqua.app import logger
