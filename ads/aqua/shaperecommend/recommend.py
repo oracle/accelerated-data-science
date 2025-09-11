@@ -239,6 +239,7 @@ class AquaShapeRecommend:
                 "A compartment OCID is required to list available shapes. "
                 "Please provide it as a parameter or set the 'NB_SESSION_COMPARTMENT_OCID' "
                 "or 'PROJECT_COMPARTMENT_OCID' environment variable."
+                "cli command: export NB_SESSION_COMPARTMENT_OCID=<NB_SESSION_COMPARTMENT_OCID>"
             )
 
         oci_shapes = OCIDataScienceModelDeployment.shapes(compartment_id=compartment_id)
