@@ -131,7 +131,7 @@ class AquaShapeRecommend:
         return shape_recommendation_report
 
     def _get_model_config_and_name(
-        self, model_id: str, compartment_id: str
+        self, model_id: str, compartment_id: Optional[str] = None
     ) -> (dict, str):
         """
         Loads model configuration, handling OCID and Hugging Face model IDs.
@@ -144,21 +144,32 @@ class AquaShapeRecommend:
         logger.info(
             f"'{model_id}' is not an OCID, treating as a Hugging Face model ID."
         )
-        if compartment_id:
-            ds_model = self._search_model_in_catalog(model_id, compartment_id)
-            if ds_model:
-                logger.info(
-                    "Loading configuration from existing model catalog artifact."
+        if not compartment_id:
+            compartment_id = os.environ.get(
+                "NB_SESSION_COMPARTMENT_OCID"
+            ) or os.environ.get("PROJECT_COMPARTMENT_OCID")
+            if compartment_id:
+                logger.info(f"Using compartment_id from environment: {compartment_id}")
+        if not compartment_id:
+            raise AquaValueError(
+                "A compartment OCID is required to list available shapes. "
+                "Please provide it as a parameter or set the 'NB_SESSION_COMPARTMENT_OCID' "
+                "or 'PROJECT_COMPARTMENT_OCID' environment variable."
+                "cli command: export NB_SESSION_COMPARTMENT_OCID=<NB_SESSION_COMPARTMENT_OCID>"
+            )
+
+        ds_model = self._search_model_in_catalog(model_id, compartment_id)
+        if ds_model:
+            logger.info("Loading configuration from existing model catalog artifact.")
+            try:
+                return (
+                    self._get_model_config(ds_model),
+                    ds_model.display_name,
                 )
-                try:
-                    return (
-                        self._get_model_config(ds_model),
-                        ds_model.display_name,
-                    )
-                except AquaFileNotFoundError:
-                    logger.warning(
-                        "config.json not found in artifact, fetching from Hugging Face Hub."
-                    )
+            except AquaFileNotFoundError:
+                logger.warning(
+                    "config.json not found in artifact, fetching from Hugging Face Hub."
+                )
 
         return self._fetch_hf_config(model_id), model_id
 
