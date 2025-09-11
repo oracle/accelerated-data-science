@@ -2,15 +2,18 @@
 # Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+#!/usr/bin/env python
+# Copyright (c) 2025 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
 import shutil
 import os
-import re
 import json
-import requests
-from typing import List, Union, Optional, Dict, Any
+from typing import List, Union, Optional, Dict, Any, Tuple
 
 from pydantic import ValidationError
 from rich.table import Table
+from huggingface_hub import hf_hub_download, HfHubHTTPError
 
 from ads.aqua.app import logger
 from ads.aqua.common.entities import ComputeShapeSummary
@@ -21,7 +24,6 @@ from ads.aqua.common.errors import (
 )
 from ads.aqua.common.utils import (
     build_pydantic_error_message,
-    get_resource_type,
     load_config,
     load_gpu_shapes_index,
     is_valid_ocid,
@@ -33,7 +35,6 @@ from ads.aqua.shaperecommend.constants import (
     SHAPE_MAP,
     TEXT_GENERATION,
     TROUBLESHOOT_MSG,
-    HUGGINGFACE_CONFIG_URL,
 )
 from ads.aqua.shaperecommend.estimator import get_estimator
 from ads.aqua.shaperecommend.llm_config import LLMConfig
@@ -47,54 +48,6 @@ from ads.model.datascience_model import DataScienceModel
 from ads.model.service.oci_datascience_model_deployment import (
     OCIDataScienceModelDeployment,
 )
-
-
-class HuggingFaceModelFetcher:
-    """
-    Utility class to fetch model configurations from HuggingFace.
-    """
-
-    @classmethod
-    def is_huggingface_model_id(cls, model_id: str) -> bool:
-        if is_valid_ocid(model_id):
-            return False
-        hf_pattern = r"^[a-zA-Z0-9_-]+(/[a-zA-Z0-9_.-]+)?$"
-        return bool(re.match(hf_pattern, model_id))
-
-    @classmethod
-    def get_hf_token(cls) -> Optional[str]:
-        return os.environ.get("HUGGING_FACE_HUB_TOKEN") or os.environ.get("HF_TOKEN")
-
-    @classmethod
-    def fetch_config_only(cls, model_id: str) -> Dict[str, Any]:
-        try:
-            config_url = HUGGINGFACE_CONFIG_URL.format(model_id=model_id)
-            headers = {}
-            token = cls.get_hf_token()
-            if token:
-                headers["Authorization"] = f"Bearer {token}"
-            response = requests.get(config_url, headers=headers, timeout=10)
-            if response.status_code == 401:
-                raise AquaValueError(
-                    f"Model '{model_id}' requires authentication. Please set your HuggingFace access token as an environment variable."
-                )
-            elif response.status_code == 404:
-                raise AquaValueError(
-                    f"Model '{model_id}' not found on HuggingFace. Please check the name for typos."
-                )
-            elif response.status_code != 200:
-                raise AquaValueError(
-                    f"Failed to fetch config for '{model_id}'. Status: {response.status_code}"
-                )
-            return response.json()
-        except requests.RequestException as e:
-            raise AquaValueError(
-                f"Network error fetching config for {model_id}: {e}"
-            ) from e
-        except json.JSONDecodeError as e:
-            raise AquaValueError(
-                f"Invalid config format for model '{model_id}'."
-            ) from e
 
 
 class AquaShapeRecommend:
@@ -146,7 +99,7 @@ class AquaShapeRecommend:
         try:
             shapes = self.valid_compute_shapes(compartment_id=request.compartment_id)
             data, model_name = self._get_model_config_and_name(
-                request.model_id, request.compartment_id
+                model_id=request.model_id, compartment_id=request.compartment_id
             )
             llm_config = LLMConfig.from_raw_config(data)
             shape_recommendation_report = self._summarize_shapes_for_seq_lens(
@@ -183,8 +136,15 @@ class AquaShapeRecommend:
         """
         Loads model configuration, handling OCID and Hugging Face model IDs.
         """
-        if HuggingFaceModelFetcher.is_huggingface_model_id(model_id):
-            logger.info(f"'{model_id}' identified as a Hugging Face model ID.")
+        if is_valid_ocid(model_id):
+            logger.info(f"'{model_id}' identified as a model OCID.")
+            ds_model = self._validate_model_ocid(model_id)
+            return self._get_model_config(ds_model), ds_model.display_name
+
+        logger.info(
+            f"'{model_id}' is not an OCID, treating as a Hugging Face model ID."
+        )
+        if compartment_id:
             ds_model = self._search_model_in_catalog(model_id, compartment_id)
             if ds_model:
                 logger.info(
@@ -199,23 +159,45 @@ class AquaShapeRecommend:
                     logger.warning(
                         "config.json not found in artifact, fetching from Hugging Face Hub."
                     )
-            return HuggingFaceModelFetcher.fetch_config_only(model_id), model_id
-        else:
-            logger.info(f"'{model_id}' identified as a model OCID.")
-            ds_model = self._validate_model_ocid(model_id)
-            return self._get_model_config(ds_model), ds_model.display_name
+
+        return self._fetch_hf_config(model_id), model_id
+
+    def _fetch_hf_config(self, model_id: str) -> Dict:
+        """
+        Downloads a model's config.json from Hugging Face Hub using the
+        huggingface_hub library.
+        """
+        try:
+            config_path = hf_hub_download(repo_id=model_id, filename="config.json")
+            with open(config_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except HfHubHTTPError as e:
+            if "401" in str(e):
+                raise AquaValueError(
+                    f"Model '{model_id}' requires authentication. Please set your HuggingFace access token as an environment variable (HF_TOKEN). cli command: export HF_TOKEN=<HF_TOKEN>"
+                )
+            elif "404" in str(e) or "not found" in str(e).lower():
+                raise AquaValueError(
+                    f"Model '{model_id}' not found on HuggingFace. Please check the name for typos."
+                )
+            raise AquaValueError(
+                f"Failed to download config for '{model_id}': {e}"
+            ) from e
 
     def _search_model_in_catalog(
         self, model_id: str, compartment_id: str
     ) -> Optional[DataScienceModel]:
         """
-        Searches for a model in the Data Science model catalog by display name.
+        Searches for a model in the Data Science catalog by its display name.
         """
         try:
-            # This should work since the SDK's list method can filter by display_name.
             models = DataScienceModel.list(
                 compartment_id=compartment_id, display_name=model_id
             )
+            if len(models) > 1:
+                logger.warning(
+                    f"Found multiple models with the name '{model_id}'. Using the first one found."
+                )
             if models:
                 logger.info(f"Found model '{model_id}' in the Data Science catalog.")
                 return models[0]
