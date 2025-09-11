@@ -93,12 +93,6 @@ QUANT_FLAG = "--quantization"
 WEIGHT_DTYPE_FLAG = "--dtype"
 MAX_MODEL_LEN_FLAG = "--max-model-len"
 
-PARAM_FLAG_MAP = {
-    "--quantization": ("quantization", str),
-    "--dtype": ("weight_dtype", str),
-    "--max-model-len": ("max_model_len", int)
-}
-
 TROUBLESHOOT_MSG = "The selected model is too large to fit on standard GPU shapes with the current configuration.\nAs troubleshooting, we have suggested the two largest available GPU shapes using the smallest quantization level ('4bit') to maximize chances of fitting the model. "
 
 VLLM_PARAMS = {
@@ -106,7 +100,6 @@ VLLM_PARAMS = {
     "in_flight_quant": "--quantization bitsandbytes --load-format bitsandbytes",
     "trust_remote_code": "--trust-remote-code"
 }
-
 
 DEFAULT_WEIGHT_SIZE = "float32"
 DEFAULT_MAX_SEQ_LEN = 4096

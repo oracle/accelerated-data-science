@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+#!/usr/bin/env python
 # Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -11,13 +12,12 @@ from pydantic import BaseModel, Field
 from ads.aqua.common.entities import ComputeShapeSummary
 from ads.aqua.modeldeployment.config_loader import AquaDeploymentConfig
 from ads.aqua.shaperecommend.constants import (
-    DEFAULT_WEIGHT_SIZE,
     MAX_MODEL_LEN_FLAG,
-    WEIGHT_DTYPE_FLAG,
     QUANT_FLAG,
     QUANT_MAPPING,
     VLLM_ENV_KEY,
     VLLM_PARAMS_KEY,
+    WEIGHT_DTYPE_FLAG,
 )
 from ads.aqua.shaperecommend.estimator import MemoryEstimator
 from ads.config import COMPARTMENT_OCID

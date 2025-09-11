@@ -45,8 +45,11 @@ from ads.aqua.constants import (
     AQUA_MODEL_TYPE_SERVICE,
     AQUA_MULTI_MODEL_CONFIG,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
+    MODEL_GROUP,
     MODEL_NAME_DELIMITER,
+    SINGLE_MODEL_FLEX,
     UNKNOWN_DICT,
+    UNKNOWN_ENUM_VALUE,
 )
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model import AquaModelApp
@@ -520,12 +523,23 @@ class AquaDeploymentApp(AquaApp):
 
         deployment_config = self.get_deployment_config(model_id=config_source_id)
 
+        # Loads frameworks specific default params from the configuration
         config_params = deployment_config.configuration.get(
             create_deployment_details.instance_shape, ConfigurationItem()
         ).parameters.get(get_container_params_type(container_type_key), UNKNOWN)
 
+        # Loads default environment variables from the configuration
+        config_env = deployment_config.configuration.get(
+            create_deployment_details.instance_shape, ConfigurationItem()
+        ).env.get(get_container_params_type(container_type_key), {})
+
+        # Merges user provided environment variables with the ones provided in the deployment config
+        # The values provided by user will override the ones provided by default config
+        env_var = {**config_env, **env_var}
+
         # validate user provided params
         user_params = env_var.get("PARAMS", UNKNOWN)
+
         if user_params:
             # todo: remove this check in the future version, logic to be moved to container_index
             if (
@@ -551,6 +565,18 @@ class AquaDeploymentApp(AquaApp):
         deployment_params = get_combined_params(config_params, user_params)
 
         params = f"{params} {deployment_params}".strip()
+
+        if create_deployment_details.model_name:
+            # Replace existing --served-model-name argument if present, otherwise add it
+            if "--served-model-name" in params:
+                params = re.sub(
+                    r"--served-model-name\s+\S+",
+                    f"--served-model-name {create_deployment_details.model_name}",
+                    params,
+                )
+            else:
+                params += f" --served-model-name {create_deployment_details.model_name}"
+
         if params:
             env_var.update({"PARAMS": params})
         env_vars = container_spec.env_vars if container_spec else []
@@ -630,8 +656,8 @@ class AquaDeploymentApp(AquaApp):
 
         env_var.update({AQUA_MULTI_MODEL_CONFIG: multi_model_config.model_dump_json()})
 
-        env_vars = container_spec.env_vars if container_spec else []
-        for env in env_vars:
+        container_spec_env_vars = container_spec.env_vars if container_spec else []
+        for env in container_spec_env_vars:
             if isinstance(env, dict):
                 env = {k: v for k, v in env.items() if v}
                 for key, _ in env.items():
@@ -873,21 +899,26 @@ class AquaDeploymentApp(AquaApp):
 
             if oci_aqua:
                 # skipping the AQUA model deployments that are created from model group
-                # TODO: remove this checker after AQUA deployment is integrated with model group
-                aqua_model_id = model_deployment.freeform_tags.get(
-                    Tags.AQUA_MODEL_ID_TAG, UNKNOWN
-                )
                 if (
-                    "datasciencemodelgroup" in aqua_model_id
-                    or model_deployment.model_deployment_configuration_details.deployment_type
-                    == "UNKNOWN_ENUM_VALUE"
+                    model_deployment.model_deployment_configuration_details.deployment_type
+                    in [UNKNOWN_ENUM_VALUE, MODEL_GROUP, SINGLE_MODEL_FLEX]
                 ):
                     continue
-                results.append(
-                    AquaDeployment.from_oci_model_deployment(
-                        model_deployment, self.region
+                try:
+                    results.append(
+                        AquaDeployment.from_oci_model_deployment(
+                            model_deployment, self.region
+                        )
                     )
-                )
+                except Exception as e:
+                    logger.error(
+                        f"There was an issue processing the list of model deployments . Error: {str(e)}",
+                        exc_info=True,
+                    )
+                    raise AquaRuntimeError(
+                        f"There was an issue processing the list of model deployments . Error: {str(e)}"
+                    ) from e
+
                 # log telemetry if MD is in active or failed state
                 deployment_id = model_deployment.id
                 state = model_deployment.lifecycle_state.upper()
@@ -1281,7 +1312,7 @@ class AquaDeploymentApp(AquaApp):
         Returns
         -------
         Table (generate_table = True)
-             If `generate_table` is True, a table displaying the recommendation report with compatible deployment shapes,
+            If `generate_table` is True, a table displaying the recommendation report with compatible deployment shapes,
             or troubleshooting info if no shape is suitable.
 
         ShapeRecommendationReport (generate_table = False)
@@ -1295,7 +1326,7 @@ class AquaDeploymentApp(AquaApp):
         """
         deployment_config = self.get_deployment_config(model_id=kwargs.get("model_id"))
         kwargs["deployment_config"] = deployment_config
-
+       
         try:
             request = RequestRecommend(**kwargs)
         except ValidationError as e:

@@ -11,6 +11,9 @@ from unittest import mock
 
 from ads.jobs import DataScienceJob, DataScienceJobRun, PyTorchDistributedRuntime
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
+    MULTI_NODE_JOB_SUPPORT,
+)
+from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     PyTorchDistributedRuntimeHandler as Handler,
 )
 from ads.jobs.builders.runtimes.pytorch_runtime import (
@@ -133,23 +136,26 @@ class PyTorchRuntimeHandlerTest(unittest.TestCase):
         self.assertIsInstance(main_run, DataScienceJobRun)
         self.assertEqual(main_run.id, test_ocid)
         kwarg_list = [call_args.kwargs for call_args in patched_run.call_args_list]
-        self.assertEqual(
-            kwarg_list,
-            [
-                {
-                    "display_name": "None-0",
-                    "environment_variables": {"NODE_RANK": "0", "NODE_COUNT": "2"},
-                },
-                {
-                    "display_name": "None-1",
-                    "environment_variables": {
-                        "NODE_RANK": "1",
-                        "NODE_COUNT": "2",
-                        "MAIN_JOB_RUN_OCID": test_ocid,
+        if MULTI_NODE_JOB_SUPPORT:
+            self.assertEqual(kwarg_list, [{}])
+        else:
+            self.assertEqual(
+                kwarg_list,
+                [
+                    {
+                        "display_name": "None-0",
+                        "environment_variables": {"NODE_RANK": "0", "NODE_COUNT": "2"},
                     },
-                },
-            ],
-        )
+                    {
+                        "display_name": "None-1",
+                        "environment_variables": {
+                            "NODE_RANK": "1",
+                            "NODE_COUNT": "2",
+                            "MAIN_JOB_RUN_OCID": test_ocid,
+                        },
+                    },
+                ],
+            )
 
     @mock.patch.dict(
         os.environ, {utils.CONST_ENV_INPUT_MAPPINGS: json.dumps({INPUT_SRC: INPUT_DST})}
