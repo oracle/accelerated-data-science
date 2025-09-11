@@ -27,6 +27,7 @@ from ads.aqua.common.utils import (
     load_config,
     load_gpu_shapes_index,
     is_valid_ocid,
+    get_resource_type,
 )
 from ads.aqua.shaperecommend.constants import (
     BITS_AND_BYTES_4BIT,
