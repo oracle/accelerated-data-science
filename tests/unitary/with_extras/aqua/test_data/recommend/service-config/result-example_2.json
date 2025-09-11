@@ -33,9 +33,11 @@
             "configurations": [
                 {
                     "deployment_params": {
+                        "params": "--trust-remote-code --gpu-memory-utilization 0.90 --max-num-seqs 64 --max-model-len 130000 --quantization mxfp4",
                         "quantization": "mxfp4",
-                        "max_model_len": null,
-                        "params": "--trust-remote-code --gpu-memory-utilization 0.98 --enforce-eager --max-num-seqs 64 --max_model_len 130000 --quantization mxfp4"
+                        "weight_dtype": null,
+                        "max_model_len": 130000,
+                        "env_var": null
                     },
                     "model_details": null,
                     "recommendation": "Model fits well within the allowed compute shape."
@@ -74,9 +76,11 @@
             "configurations": [
                 {
                     "deployment_params": {
+                        "params": "--trust-remote-code --gpu-memory-utilization 0.90 --max-num-seqs 64 --max-model-len 130000 --quantization mxfp4",
                         "quantization": "mxfp4",
-                        "max_model_len": null,
-                        "params": "--trust-remote-code --gpu-memory-utilization 0.98 --enforce-eager --max-num-seqs 64 --max_model_len 130000 --quantization mxfp4"
+                        "weight_dtype": null,
+                        "max_model_len": 130000,
+                        "env_var": null
                     },
                     "model_details": null,
                     "recommendation": "Model fits well within the allowed compute shape."
@@ -114,12 +118,14 @@
             "configurations": [
                 {
                     "deployment_params": {
-                        "quantization": "bfloat16",
-                        "max_model_len": null,
-                        "params": "--trust-remote-code --gpu-memory-utilization 0.98 --enforce-eager --max-num-seqs 32 --max_model_len 130000 --dtype bfloat16"
+                        "params": "--trust-remote-code --gpu-memory-utilization 0.90 --max-num-seqs 32 --max-model-len 130000 --dtype bfloat16",
+                        "quantization": null,
+                        "weight_dtype": "bfloat16",
+                        "max_model_len": 130000,
+                        "env_var": null
                     },
                     "model_details": null,
-                    "recommendation": "ENV: {\"VLLM_ATTENTION_BACKEND\": \"TRITON_ATTN_VLLM_V1\"}\n\nModel fits well within the allowed compute shape."
+                    "recommendation": "Model fits well within the allowed compute shape."
                 }
             ]
         },
@@ -134,16 +140,28 @@
                     "gpu_memory_in_gbs": 320,
                     "gpu_count": 8,
                     "gpu_type": "A100",
-                    "quantization": [],
-                    "ranking": null
+                    "quantization": [
+                        "int8",
+                        "fp16",
+                        "bf16",
+                        "tf32"
+                    ],
+                    "ranking": {
+                        "cost": 57,
+                        "performance": 65
+                    }
                 }
             },
             "configurations": [
                 {
                     "deployment_params": {
-                        "quantization": "bfloat16",
-                        "max_model_len": null,
-                        "params": "--trust-remote-code --gpu-memory-utilization 0.98 --enforce-eager --max-num-seqs 32 --max_model_len 130000 --dtype bfloat16"
+                        "params": "--trust-remote-code --gpu-memory-utilization 0.90 --max-num-seqs 32 --max-model-len 130000 --dtype bfloat16",
+                        "quantization": null,
+                        "weight_dtype": "bfloat16",
+                        "max_model_len": 130000,
+                        "env_var": {
+                            "VLLM_ATTENTION_BACKEND": "TRITON_ATTN_VLLM_V1"
+                        }
                     },
                     "model_details": null,
                     "recommendation": "ENV: {\"VLLM_ATTENTION_BACKEND\": \"TRITON_ATTN_VLLM_V1\"}\n\nModel fits well within the allowed compute shape."
@@ -181,9 +199,57 @@
             "configurations": [
                 {
                     "deployment_params": {
-                        "quantization": "bfloat16",
-                        "max_model_len": null,
-                        "params": "--trust-remote-code --gpu-memory-utilization 0.98 --enforce-eager --max-num-seqs 16 --max_model_len 130000 --dtype bfloat16"
+                        "params": "--trust-remote-code --gpu-memory-utilization 0.90 --max-num-seqs 32 --max-model-len 130000 --dtype bfloat16",
+                        "quantization": null,
+                        "weight_dtype": "bfloat16",
+                        "max_model_len": 130000,
+                        "env_var": {
+                            "VLLM_ATTENTION_BACKEND": "TRITON_ATTN_VLLM_V1"
+                        }
+                    },
+                    "model_details": null,
+                    "recommendation": "ENV: {\"VLLM_ATTENTION_BACKEND\": \"TRITON_ATTN_VLLM_V1\"}\n\nModel fits well within the allowed compute shape."
+                }
+            ]
+        },
+        {
+            "shape_details": {
+                "available": true,
+                "core_count": 30,
+                "memory_in_gbs": 480,
+                "name": "VM.GPU.A10.2",
+                "shape_series": "GPU",
+                "gpu_specs": {
+                    "gpu_memory_in_gbs": 48,
+                    "gpu_count": 2,
+                    "gpu_type": "A10",
+                    "quantization": [
+                        "awq",
+                        "gptq",
+                        "marlin",
+                        "int8",
+                        "bitblas",
+                        "aqlm",
+                        "bitsandbytes",
+                        "deepspeedfp",
+                        "gguf"
+                    ],
+                    "ranking": {
+                        "cost": 40,
+                        "performance": 40
+                    }
+                }
+            },
+            "configurations": [
+                {
+                    "deployment_params": {
+                        "params": "--trust-remote-code --gpu-memory-utilization 0.90 --max-num-seqs 5 --max-model-len 8192 --dtype bfloat16",
+                        "quantization": null,
+                        "weight_dtype": "bfloat16",
+                        "max_model_len": 8192,
+                        "env_var": {
+                            "VLLM_ATTENTION_BACKEND": "TRITON_ATTN_VLLM_V1"
+                        }
                     },
                     "model_details": null,
                     "recommendation": "ENV: {\"VLLM_ATTENTION_BACKEND\": \"TRITON_ATTN_VLLM_V1\"}\n\nModel fits well within the allowed compute shape."

@@ -2,6 +2,7 @@
 # Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import argparse
 import json
 from typing import List, Optional
 
@@ -12,6 +13,7 @@ from ads.aqua.modeldeployment.config_loader import AquaDeploymentConfig
 from ads.aqua.shaperecommend.constants import (
     DEFAULT_WEIGHT_SIZE,
     MAX_MODEL_LEN_FLAG,
+    WEIGHT_DTYPE_FLAG,
     QUANT_FLAG,
     QUANT_MAPPING,
     VLLM_ENV_KEY,
@@ -40,7 +42,7 @@ class RequestRecommend(BaseModel):
     )
 
     deployment_config: Optional[AquaDeploymentConfig] = Field(
-        {}, description="The deployment configuration for model (only available for service models)."
+        None, description="The deployment configuration for model (only available for service models)."
     )
 
     class Config:
@@ -52,13 +54,17 @@ class DeploymentParams(BaseModel):  # noqa: N801
     Recommended parameters for deployment and model inferencing (specific to compute shape & model).
     """
 
-    quantization: Optional[str] = Field(
-        None, description="Type of quantization (e.g. 4bit)."
-    )
-    max_model_len: Optional[int] = Field(None, description="Maximum length of input sequence.")
     params: str = Field(
         ..., description="Runtime parameters for deployment with vLLM, etc."
     )
+    quantization: Optional[str] = Field(
+        None, description="Type of quantization (e.g. 4bit)."
+    )
+    weight_dtype: Optional[str] = Field(
+        None, description="Data type that the model weights use (bfloat16)."
+    )
+    max_model_len: Optional[int] = Field(None, description="Maximum length of input sequence.")
+    env_var: Optional[dict] = Field(None, description="Global environment variables needed for deployment.")
 
 
 class ModelDetail(BaseModel):
@@ -246,6 +252,38 @@ class ShapeRecommendationReport(BaseModel):
         description="Details for troubleshooting if no shapes fit the current model.",
     )
 
+    @classmethod
+    def create_deployment_config_from_params_string(cls, config_params: str, config_env: dict) -> DeploymentParams:
+        """
+        Parse a vLLM parameter string and create a DeploymentParams object.
+
+        Parameters
+        ----------
+        config_params : str
+            A space-separated string of deployment parameters
+            (e.g., '--quantization mxfp4 --weight-dtype fp16 --max-model-len 4096').
+            If None or empty, default parameter values are used.
+
+        Returns
+        -------
+        DeploymentParams
+            A DeploymentParams object populated with parsed or default values.
+        """
+        parser = argparse.ArgumentParser()
+        parser.add_argument(QUANT_FLAG, type=str, default=None)
+        parser.add_argument(WEIGHT_DTYPE_FLAG, dest='weight_dtype', type=str, default=None)
+        parser.add_argument(MAX_MODEL_LEN_FLAG, dest='max_model_len', type=int, default=None)
+
+        # Use parse_known_args to gracefully handle unexpected arguments
+        args, _ = parser.parse_known_args(config_params.split() if config_params else [])
+
+        return DeploymentParams(
+            quantization=args.quantization,
+            weight_dtype=args.weight_dtype,
+            max_model_len=args.max_model_len,
+            params=config_params or "",
+            env_var=config_env
+        )
 
     @classmethod
     def from_deployment_config(cls, deployment_config: AquaDeploymentConfig, model_name: str, valid_shapes: List[ComputeShapeSummary]) -> "ShapeRecommendationReport":
@@ -280,27 +318,11 @@ class ShapeRecommendationReport(BaseModel):
             if not current_config:
                 continue
 
-            quantization = None
-            max_model_len = None
             recommendation = ""
             current_params = current_config.parameters.get(VLLM_PARAMS_KEY)
             current_env = current_config.env.get(VLLM_ENV_KEY)
 
-            if current_params:
-                param_list = current_params.split()
-
-                if QUANT_FLAG in param_list:
-                    idx = param_list.index(QUANT_FLAG)
-                    if idx + 1 < len(param_list):
-                        quantization = param_list[idx + 1]
-
-                if MAX_MODEL_LEN_FLAG in param_list:
-                    idx = param_list.index(MAX_MODEL_LEN_FLAG)
-                    if idx + 1 < len(param_list):
-                        try:
-                            max_model_len = int(param_list[idx + 1])
-                        except ValueError:
-                            max_model_len = None
+            deployment_params = cls.create_deployment_config_from_params_string(current_params, current_env)
 
             if current_env:
                 recommendation += f"ENV: {json.dumps(current_env)}\n\n"
@@ -309,12 +331,6 @@ class ShapeRecommendationReport(BaseModel):
                 recommendation += "No override PARAMS and ENV variables needed. \n\n"
 
             recommendation += "Model fits well within the allowed compute shape."
-
-            deployment_params = DeploymentParams(
-                quantization=quantization if quantization else DEFAULT_WEIGHT_SIZE,
-                max_model_len=max_model_len,
-                params=current_params if current_params else "",
-            )
 
             # need to adjust for multiple configs per shape
             configuration = [ModelConfig(

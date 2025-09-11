@@ -59,40 +59,39 @@ class AquaShapeRecommend:
         """
         Lists valid GPU deployment shapes for the provided model and configuration.
 
-        Validates input, retrieves the model configuration, checks the requested sequence length,
+        This method validates input, retrieves the model configuration, checks the requested sequence length,
         identifies available and valid compute shapes, and summarizes which shapes are compatible
         with the current model settings.
 
         Parameters
         ----------
-        ocid : str
-           OCID of the model to recommend feasible compute shapes.
-
-        available_shapes : List[ComputeShapeSummary]
-            List of available shapes to recommend
-
-        generate_table : bool
-            whether to generate a rich diff Table or ShapeRecommendationReport (see Returns section)
+        request : RequestRecommend
+            The request object with all needed recommendation fields:
+            model_id : str
+                OCID of the model to recommend feasible compute shapes for.
+            generate_table : bool, optional
+                If True (default), generate a rich diff table as output. If False, return a ShapeRecommendationReport object.
+            deployment_config : Optional[AquaDeploymentConfig]
+                Deployment configuration for the model (used for service models only).
+            compartment_id : str, optional
+                The OCID of the user's compartment (needed if shape availability is compartment-specific).
 
         Returns
         -------
-        Table (generate_table = True)
-            A table format for the recommendation report with compatible deployment shapes
-            or troubleshooting info citing the largest shapes if no shape is suitable.
-
-        ShapeRecommendationReport (generate_table = False)
-            A recommendation report with compatible deployment shapes, or troubleshooting info
-            citing the largest shapes if no shape is suitable.
+        Table
+            If `generate_table` is True, returns a table with the recommendation report, listing compatible deployment shapes or troubleshooting info citing the largest shapes if no shape is suitable.
+        ShapeRecommendationReport
+            If `generate_table` is False, returns a recommendation report with compatible deployment shapes, or troubleshooting info if no shape is suitable.
 
         Raises
         ------
         AquaValueError
-            If parameters are missing or invalid, or if no valid sequence length is requested.
+            If required parameters are missing or invalid, or if no valid sequence length is available.
         """
         try:
             shapes = self.valid_compute_shapes(compartment_id=request.compartment_id)
 
-            ds_model = self._validate_model_ocid(request.model_id)
+            ds_model = self._get_data_science_model(request.model_id)
 
             model_name = ds_model.display_name if ds_model.display_name else ""
 
@@ -257,10 +256,8 @@ class AquaShapeRecommend:
             else:
                 total_memory = f"CPU: {str(shape.memory_in_gbs)}"
 
-            if model:
-                model_size = str(model.total_model_gb)
-            else:
-                model_size = "Using Pre-Defined Config"
+            model_size = str(model.total_model_gb) if model else "-"
+            quantization = deploy.quantization or deploy.weight_dtype if deploy.quantization  or deploy.weight_dtype else "-"
 
             table.add_row(
                 shape.name,
@@ -269,7 +266,7 @@ class AquaShapeRecommend:
                 str(gpu.gpu_count),
                 total_memory,
                 model_size,
-                deploy.quantization,
+                quantization,
                 recommendation,
             )
 
@@ -277,9 +274,10 @@ class AquaShapeRecommend:
         return table
 
     @staticmethod
-    def _validate_model_ocid(ocid: str) -> DataScienceModel:
+    def _get_data_science_model(ocid: str) -> DataScienceModel:
         """
         Ensures the OCID passed is valid for referencing a DataScienceModel resource.
+        If valid OCID, returns the DataScienceModel
         """
         resource_type = get_resource_type(ocid)
 
@@ -290,8 +288,8 @@ class AquaShapeRecommend:
                 "Tip: Data Science model OCIDs typically start with 'ocid1.datasciencemodel...'."
             )
 
-        model = DataScienceModel.from_id(ocid)
-        return model
+        return DataScienceModel.from_id(ocid)
+
 
     @staticmethod
     def _get_model_config(model: DataScienceModel):

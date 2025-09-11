@@ -33,12 +33,14 @@
             "configurations": [
                 {
                     "deployment_params": {
-                        "quantization": "bfloat16",
+                        "params": "",
+                        "quantization": null,
+                        "weight_dtype": null,
                         "max_model_len": null,
-                        "params": ""
+                        "env_var": null
                     },
                     "model_details": null,
-                    "recommendation": "Model fits well within the allowed compute shape."
+                    "recommendation": "No override PARAMS and ENV variables needed. \n\nModel fits well within the allowed compute shape."
                 }
             ]
         },
@@ -73,12 +75,14 @@
             "configurations": [
                 {
                     "deployment_params": {
-                        "quantization": "bfloat16",
+                        "params": "",
+                        "quantization": null,
+                        "weight_dtype": null,
                         "max_model_len": null,
-                        "params": ""
+                        "env_var": null
                     },
                     "model_details": null,
-                    "recommendation": "Model fits well within the allowed compute shape."
+                    "recommendation": "No override PARAMS and ENV variables needed. \n\nModel fits well within the allowed compute shape."
                 }
             ]
         },
@@ -113,12 +117,14 @@
             "configurations": [
                 {
                     "deployment_params": {
-                        "quantization": "bfloat16",
+                        "params": "",
+                        "quantization": null,
+                        "weight_dtype": null,
                         "max_model_len": null,
-                        "params": ""
+                        "env_var": null
                     },
                     "model_details": null,
-                    "recommendation": "Model fits well within the allowed compute shape."
+                    "recommendation": "No override PARAMS and ENV variables needed. \n\nModel fits well within the allowed compute shape."
                 }
             ]
         },
@@ -153,9 +159,11 @@
             "configurations": [
                 {
                     "deployment_params": {
-                        "quantization": "bfloat16",
+                        "params": "--max-model-len 65536",
+                        "quantization": null,
+                        "weight_dtype": null,
                         "max_model_len": 65536,
-                        "params": "--max-model-len 65536"
+                        "env_var": null
                     },
                     "model_details": null,
                     "recommendation": "Model fits well within the allowed compute shape."

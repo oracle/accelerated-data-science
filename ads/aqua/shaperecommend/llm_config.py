@@ -16,14 +16,12 @@ from ads.aqua.shaperecommend.constants import (
     NEXT_QUANT,
     QUANT_MAPPING,
     QUANT_METHODS,
+    RUNTIME_WEIGHTS,
 )
+from ads.common.utils import parse_bool
 
 
-class LLMConfig(BaseModel):
-    """
-    Standardized configuration object for evaluating the size of Large Language Models (LLMs)
-    based on their architecture and quantization.
-    """
+class GeneralConfig(BaseModel):
 
     num_hidden_layers: int = Field(
         ...,
@@ -31,23 +29,6 @@ class LLMConfig(BaseModel):
     )
     hidden_size: int = Field(
         ..., description="Embedding dimension or hidden size of each layer."
-    )
-    vocab_size: int = Field(..., description="Vocabulary size for input/output tokens.")
-    num_attention_heads: int = Field(
-        ...,
-        description="Number of attention heads (used for queries and to determine head_dim).",
-    )
-
-    head_dim: int = Field(
-        ...,
-        description="Dimension of each attention head. Typically hidden_size // num_attention_heads.",
-    )
-    max_seq_len: Optional[int] = Field(
-        DEFAULT_MAX_SEQ_LEN, description="Maximum input sequence length (context window)."
-    )
-    weight_dtype: Optional[str] = Field(
-        DEFAULT_WEIGHT_SIZE,
-        description="Parameter data type: 'float32', 'float16', etc.",
     )
     quantization: Optional[str] = Field(
         None,
@@ -57,27 +38,37 @@ class LLMConfig(BaseModel):
         None,
         description="Quantization method (e.g., '8bit', '4bit', 'gptq', 'awq') or None if unquantized.",
     )
-
     in_flight_quantization: Optional[str] = Field(
         None,
         description="By setting this, enables recalculation of model footprint using 4bit in-flight quantization",
     )
-
-    num_key_value_heads: Optional[int] = Field(
-        None,
-        description="Number of key/value heads (for GQA architectures: Llama, Mistral, Falcon, Qwen, etc.). Used to determine KV cache size",
+    weight_dtype: Optional[str] = Field(
+        DEFAULT_WEIGHT_SIZE,
+        description="Parameter data type: 'float32', 'float16', etc.",
     )
 
-    num_local_experts: Optional[int] = Field(
-        None, description="For MoE architectures, the number of experts per MoE layer"
-    )
-    intermediate_size: Optional[int] = Field(
-        None, description="For MoE architectures, size of the MLP activation layer."
-    )
+    @classmethod
+    def get_weight_dtype(cls, raw: dict) -> str:
+        # some configs use a different weight dtype at runtime 
+        # for runtime weight keys, see RUNTIME_WEIGHTS
+        runtime_flags = False
+        for flag, dtype in RUNTIME_WEIGHTS.items():
+            value = raw.get(flag)
+            # only permit use_bfloat16 : true
+            if value is True or (isinstance(value, str) and value.lower() == "true"):
+                return dtype
+            if value is False or (isinstance(value, str) and value.lower() == "false"):
+                runtime_flags = True
 
-    tie_word_embeddings: Optional[bool] = Field(True, description="if True, input and output embedding matrices share the same parameters in memory.")
+        # Fallback to torch_dtype if present & no runtime weight dtype
+        if not runtime_flags:
+            torch_dtype = raw.get("torch_dtype")
+            if torch_dtype:
+                return str(torch_dtype).lower()
 
-    trust_remote_code: Optional[bool] = Field(False, description="if True, the model requires custom code to operate.")
+        # if runtime flag present (ex. use_bfloat16: false) or torch_dtype not present
+        return DEFAULT_WEIGHT_SIZE
+
 
     @property
     def bytes_per_parameter(self) -> float:
@@ -151,6 +142,134 @@ class LLMConfig(BaseModel):
         ).lower()
         return NEXT_QUANT.get(key, [])
 
+
+class VisionConfig(GeneralConfig):
+    """
+    For transformer-based vision encoder models (part of the image-text-to-text task models),
+    parses the module responsible for the vision model.
+    """
+    mlp_dim: int = Field(
+        None,
+        description="Size of the MLP/feedforward sub-block in each transformer layer.",
+    )
+    patch_size: int = (
+        Field(
+            None,
+            description="Image is divided into (patch_size x patch_size) pixel squares.",
+        ),
+    )
+    num_hidden_layers: int = Field(...),
+    hidden_size: int = Field(...)
+    image_size: Optional[int] = (
+        Field(
+            None,
+            description="Input image resolution, affects memory consumption in KV cache.",
+        ),
+    )
+    num_attention_heads: Optional[int] = Field(
+        None,
+        description="Number of attention heads, impacts the size of attention parameters (model size).",
+    )
+
+
+    @classmethod
+    def from_raw_config(cls, vision_section: dict) -> "VisionConfig":
+        weight_dtype = cls.get_weight_dtype(vision_section)
+        num_layers = (
+            vision_section.get("num_layers")
+            or vision_section.get("vision_layers")
+            or vision_section.get("num_hidden_layers")
+            or vision_section.get("n_layer")
+        )
+
+        hidden_size = vision_section.get("hidden_size") or vision_section.get(
+            "embed_dim"
+        )
+
+        mlp_dim = vision_section.get("mlp_dim") or vision_section.get(
+            "intermediate_size"
+        )
+
+        num_attention_heads = (
+            vision_section.get("num_attention_heads")
+            or vision_section.get("vision_num_attention_heads")
+            or vision_section.get("n_head")
+        )
+
+        image_size = vision_section.get("image_size") or vision_section.get(
+            "image_resolution"
+        )
+
+        patch_size = vision_section.get("patch_size")
+        weight_dtype = str(cls.get_weight_dtype(vision_section))
+
+
+        return cls(
+            num_hidden_layers=int(num_layers),
+            hidden_size=int(hidden_size),
+            mlp_dim=int(mlp_dim),
+            patch_size=int(patch_size),
+            num_attention_heads=int(num_attention_heads) if num_attention_heads else None,
+            weight_dtype=weight_dtype,
+            image_size=int(image_size) if image_size else None,
+        )
+
+
+class LLMConfig(GeneralConfig):
+    """
+    Standardized configuration object for evaluating the size of Large Language Models (LLMs)
+    based on their architecture and quantization.
+    """
+    vocab_size: int = Field(..., description="Vocabulary size for input/output tokens.")
+    num_attention_heads: int = Field(
+        ...,
+        description="Number of attention heads (used for queries and to determine head_dim).",
+    )
+    num_hidden_layers: int = Field(...)
+    hidden_size: int = Field(...)
+
+    head_dim: int = Field(
+        ...,
+        description="Dimension of each attention head. Typically hidden_size // num_attention_heads.",
+    )
+    max_seq_len: Optional[int] = Field(
+        DEFAULT_MAX_SEQ_LEN,
+        description="Maximum input sequence length (context window).",
+    )
+    weight_dtype: Optional[str] = Field(
+        DEFAULT_WEIGHT_SIZE,
+        description="Parameter data type: 'float32', 'float16', etc.",
+    )
+    quantization: Optional[str] = Field(
+        None,
+        description="Quantization weight (e.g., '8bit', '4bit') or None if unquantized.",
+    )
+    quantization_type: Optional[str] = Field(
+        None,
+        description="Quantization method (e.g., '8bit', '4bit', 'gptq', 'awq') or None if unquantized.",
+    )
+
+    num_key_value_heads: Optional[int] = Field(
+        None,
+        description="Number of key/value heads (for GQA architectures: Llama, Mistral, Falcon, Qwen, etc.). Used to determine KV cache size",
+    )
+
+    num_local_experts: Optional[int] = Field(
+        None, description="For MoE architectures, the number of experts per MoE layer"
+    )
+    intermediate_size: Optional[int] = Field(
+        None, description="For MoE architectures, size of the MLP activation layer."
+    )
+
+    tie_word_embeddings: Optional[bool] = Field(
+        True,
+        description="If True, input and output embedding matrices share the same parameters in memory.",
+    )
+
+    trust_remote_code: Optional[bool] = Field(
+        False, description="If True, the model requires custom code to operate."
+    )
+
     def calculate_possible_seq_len(self, min_len=2048):
         """
         Calculates a list of possible sequence lengths (in tokens).
@@ -210,17 +329,6 @@ class LLMConfig(BaseModel):
                 "Encoder-decoder models (ex. T5, Gemma) and encoder-only (BERT) are not supported at this time."
             )
 
-    @staticmethod
-    def get_bool(raw, key, default=False):
-        val = raw.get(key)
-        if val is None:
-            return default
-        if isinstance(val, bool):
-            return val
-        if isinstance(val, str):
-            return val.lower() == "true"
-        return bool(val)
-
     @classmethod
     def from_raw_config(cls, raw: dict) -> "LLMConfig":
         """
@@ -233,9 +341,10 @@ class LLMConfig(BaseModel):
         num_hidden_layers = (
             raw.get("num_hidden_layers") or raw.get("n_layer") or raw.get("num_layers")
         )
+        weight_dtype = cls.get_weight_dtype(raw)
+
         hidden_size = raw.get("hidden_size") or raw.get("n_embd") or raw.get("d_model")
         vocab_size = raw.get("vocab_size")
-        weight_dtype = str(raw.get("torch_dtype", DEFAULT_WEIGHT_SIZE))
         quantization = cls.detect_quantization_bits(raw)
         quantization_type = cls.detect_quantization_type(raw)
 
@@ -271,19 +380,13 @@ class LLMConfig(BaseModel):
             "intermediate_size"
         )
 
-        tie_word_embeddings = LLMConfig.get_bool(raw, "tie_word_embeddings", True)
+        raw_tie_word_embeddings = raw.get("tie_word_embeddings", True)
+        tie_word_embeddings = parse_bool(raw_tie_word_embeddings)
 
-        trust_remote_code = "auto_map" in raw # trust-remote-code is always needed when this key is present
+        trust_remote_code = (
+            "auto_map" in raw
+        )  # trust-remote-code is always needed when this key is present
 
-        # Type safety: minimal assertion
-        if None in [
-            num_hidden_layers,
-            hidden_size,
-            vocab_size,
-            num_attention_heads,
-            head_dim,
-        ]:
-            raise ValueError("Missing required value in model config.")
 
         return cls(
             num_hidden_layers=int(num_hidden_layers),
@@ -299,5 +402,114 @@ class LLMConfig(BaseModel):
             num_local_experts=num_local_experts,
             intermediate_size=intermediate_size,
             tie_word_embeddings=tie_word_embeddings,
-            trust_remote_code=trust_remote_code
+            trust_remote_code=trust_remote_code,
+        )
+
+
+class ModelConfig(BaseModel):
+    """
+    Represents the configuration for a model, supporting text-only, vision-only,
+    or multimodal (text + vision) architectures.
+
+    Attributes
+    ----------
+    llm_config : Optional[LLMConfig]
+        Parsed configuration for the text-generation (language) model, if present.
+    vision_config : Optional[VisionConfig]
+        Parsed configuration for the vision/image encoder, if present.
+
+    Notes
+    -----
+    If both `llm_config` and `vision_config` are defined, this represents a multimodal model.
+    If only `llm_config` is defined, this represents a text-generation model.
+    If only `vision_config` is defined, this represents a vision-only model (rare).
+    """
+
+    llm_config: Optional[LLMConfig] = Field(
+        None,
+        description="Parsed configuration of the text-generation model if present.",
+    )
+    vision_config: Optional[VisionConfig] = Field(
+        None, description="Parsed configuration of the vision model if present."
+    )
+
+    @classmethod
+    def get_model_config(cls, raw: dict):
+        """
+        Instantiates a ModelConfig by parsing a raw config dictionary (such as a Hugging Face config.json).
+
+        Parameters
+        ----------
+        raw : dict
+            Raw configuration dictionary to parse.
+
+        Returns
+        -------
+        ModelConfig
+            An instance with the relevant llm_config and/or vision_config sub-configurations set.
+
+        Raises
+        ------
+        AquaRecommendationError
+            If neither a text-generation nor a vision model configuration can be parsed from the input.
+
+        Notes
+        -----
+        Handles both sectioned (nested) and flat config formats, with fallback for multiple common field names.
+        """
+        # Sectioned/nested search for text
+        text_section = (
+            raw.get("text_config")
+            or raw.get("llm_config")
+            or raw.get("language_model")
+            or raw.get("language_model_config")
+            or raw.get("decoder_config")
+            or raw.get("model_config")
+            or raw.get("base_model")
+            or raw.get("gpt_config")
+            or next(
+                (
+                    v
+                    for k, v in raw.items()
+                    if ("text" in k or "llm" in k or "gpt" in k) and isinstance(v, dict)
+                ),
+                None,
+            )
+        )
+
+        # Sectioned/nested search for vision
+        vision_section = (
+            raw.get("vision_config")
+            or raw.get("vision_encoder_config")
+            or next(
+                (v for k, v in raw.items() if "vision" in k and isinstance(v, dict)),
+                None,
+            )
+        )
+
+        # Both configs found => multimodal
+        if vision_section and text_section:
+            llm_config = LLMConfig.from_raw_config(text_section)
+            vision_config = VisionConfig.from_raw_config(vision_section)
+            return cls(llm_config=llm_config, vision_config=vision_config)
+
+        # Vision config (sectioned or flat)
+        if vision_section or "patch_size" in raw or "image_size" in raw:
+            if vision_section:
+                vision_config = VisionConfig.from_raw_config(vision_section)
+            else:  # flat case
+                vision_config = VisionConfig.from_raw_config(raw)
+            return cls(vision_config=vision_config)
+
+        # Text config (sectioned or flat)
+        if text_section or "vocab_size" in raw or "tie_word_embeddings" in raw:
+            if text_section:
+                llm_config = LLMConfig.from_raw_config(text_section)
+            else:  # flat case
+                llm_config = LLMConfig.from_raw_config(raw)
+            return cls(llm_config=llm_config)
+
+        # Neither found -- explicit failure
+        raise AquaRecommendationError(
+            "Config could not be parsed as either text, vision, or multimodal model. Check your fields/structure."
         )

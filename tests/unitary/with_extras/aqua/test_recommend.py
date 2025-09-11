@@ -385,10 +385,9 @@ class TestAquaShapeRecommend:
                 model_id="ocid1.datasciencemodel.oc1.TEST", generate_table=False
             )
         result = app.which_shapes(request=request)
-        print(result.model_dump_json())
 
-        # expected_result = load_config(result_file)
-        # assert result.model_dump() == expected_result
+        expected_result = load_config(result_file)
+        assert result.model_dump() == expected_result
 
 
 # --- Tests for shape_report.py ---

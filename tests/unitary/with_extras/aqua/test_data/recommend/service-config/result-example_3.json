@@ -33,12 +33,14 @@
             "configurations": [
                 {
                     "deployment_params": {
-                        "quantization": "bfloat16",
+                        "params": "",
+                        "quantization": null,
+                        "weight_dtype": null,
                         "max_model_len": null,
-                        "params": ""
+                        "env_var": null
                     },
                     "model_details": null,
-                    "recommendation": "Model fits well within the allowed compute shape."
+                    "recommendation": "No override PARAMS and ENV variables needed. \n\nModel fits well within the allowed compute shape."
                 }
             ]
         },
@@ -74,12 +76,14 @@
             "configurations": [
                 {
                     "deployment_params": {
-                        "quantization": "bfloat16",
+                        "params": "",
+                        "quantization": null,
+                        "weight_dtype": null,
                         "max_model_len": null,
-                        "params": ""
+                        "env_var": null
                     },
                     "model_details": null,
-                    "recommendation": "Model fits well within the allowed compute shape."
+                    "recommendation": "No override PARAMS and ENV variables needed. \n\nModel fits well within the allowed compute shape."
                 }
             ]
         },
@@ -94,19 +98,29 @@
                     "gpu_memory_in_gbs": 320,
                     "gpu_count": 8,
                     "gpu_type": "A100",
-                    "quantization": [],
-                    "ranking": null
+                    "quantization": [
+                        "int8",
+                        "fp16",
+                        "bf16",
+                        "tf32"
+                    ],
+                    "ranking": {
+                        "cost": 57,
+                        "performance": 65
+                    }
                 }
             },
             "configurations": [
                 {
                     "deployment_params": {
-                        "quantization": "bfloat16",
+                        "params": "",
+                        "quantization": null,
+                        "weight_dtype": null,
                         "max_model_len": null,
-                        "params": ""
+                        "env_var": null
                     },
                     "model_details": null,
-                    "recommendation": "Model fits well within the allowed compute shape."
+                    "recommendation": "No override PARAMS and ENV variables needed. \n\nModel fits well within the allowed compute shape."
                 }
             ]
         },
@@ -142,12 +156,14 @@
             "configurations": [
                 {
                     "deployment_params": {
-                        "quantization": "bfloat16",
+                        "params": "",
+                        "quantization": null,
+                        "weight_dtype": null,
                         "max_model_len": null,
-                        "params": ""
+                        "env_var": null
                     },
                     "model_details": null,
-                    "recommendation": "Model fits well within the allowed compute shape."
+                    "recommendation": "No override PARAMS and ENV variables needed. \n\nModel fits well within the allowed compute shape."
                 }
             ]
         },
@@ -182,12 +198,14 @@
             "configurations": [
                 {
                     "deployment_params": {
-                        "quantization": "bfloat16",
+                        "params": "",
+                        "quantization": null,
+                        "weight_dtype": null,
                         "max_model_len": null,
-                        "params": ""
+                        "env_var": null
                     },
                     "model_details": null,
-                    "recommendation": "Model fits well within the allowed compute shape."
+                    "recommendation": "No override PARAMS and ENV variables needed. \n\nModel fits well within the allowed compute shape."
                 }
             ]
         },
@@ -222,9 +240,11 @@
             "configurations": [
                 {
                     "deployment_params": {
-                        "quantization": "bfloat16",
+                        "params": "--gpu-memory-utilization 0.98  --trust-remote-code  --enforce-eager --max-num-seqs 32 --max-model-len 6000  --dtype auto --enable-lora --max-lora-rank 320 --lora-extra-vocab-size 512 --limit-mm-per-prompt audio=1,image=1 --max-loras 2  --lora-modules speech=/opt/ds/model/deployed_model/service_models/Phi-4-multimodal-instruct/0af439b/artifact/speech-lora vision=/opt/ds/model/deployed_model/service_models/Phi-4-multimodal-instruct/0af439b/artifact/vision-lora",
+                        "quantization": null,
+                        "weight_dtype": "auto",
                         "max_model_len": 6000,
-                        "params": "--gpu-memory-utilization 0.98  --trust-remote-code  --enforce-eager --max-num-seqs 32 --max-model-len 6000  --dtype auto --enable-lora --max-lora-rank 320 --lora-extra-vocab-size 512 --limit-mm-per-prompt audio=1,image=1 --max-loras 2  --lora-modules speech=/opt/ds/model/deployed_model/service_models/Phi-4-multimodal-instruct/0af439b/artifact/speech-lora vision=/opt/ds/model/deployed_model/service_models/Phi-4-multimodal-instruct/0af439b/artifact/vision-lora"
+                        "env_var": null
                     },
                     "model_details": null,
                     "recommendation": "Model fits well within the allowed compute shape."
