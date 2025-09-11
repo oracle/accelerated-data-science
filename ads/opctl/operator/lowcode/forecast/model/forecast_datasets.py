@@ -5,6 +5,7 @@
 
 from typing import Dict, List
 
+import numpy as np
 import pandas as pd
 
 from ads.opctl import logger
@@ -18,13 +19,15 @@ from ads.opctl.operator.lowcode.common.utils import (
     get_frequency_of_datetime,
 )
 
-from ..const import ForecastOutputColumns, SupportedModels, TROUBLESHOOTING_GUIDE
-from ..operator_config import ForecastOperatorConfig
+from ..const import TROUBLESHOOTING_GUIDE, ForecastOutputColumns, SupportedModels
+from ..operator_config import ForecastOperatorConfig, PostprocessingSteps
 
 
 class HistoricalData(AbstractData):
     def __init__(self, spec, historical_data=None, subset=None):
-        super().__init__(spec=spec, name="historical_data", data=historical_data, subset=subset)
+        super().__init__(
+            spec=spec, name="historical_data", data=historical_data, subset=subset
+        )
         self.subset = subset
 
     def _ingest_data(self, spec):
@@ -49,15 +52,19 @@ class HistoricalData(AbstractData):
                 f"{SupportedModels.AutoMLX} requires data with a frequency of at least one hour. Please try using a different model,"
                 " or select the 'auto' option."
             )
-            raise InvalidParameterError(f"{message}"
-                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps.")
+            raise InvalidParameterError(
+                f"{message}"
+                f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
+            )
 
 
 class AdditionalData(AbstractData):
     def __init__(self, spec, historical_data, additional_data=None, subset=None):
         self.subset = subset
         if additional_data is not None:
-            super().__init__(spec=spec, name="additional_data", data=additional_data, subset=subset)
+            super().__init__(
+                spec=spec, name="additional_data", data=additional_data, subset=subset
+            )
             self.additional_regressors = list(self.data.columns)
         elif spec.additional_data is not None:
             super().__init__(spec=spec, name="additional_data", subset=subset)
@@ -70,7 +77,7 @@ class AdditionalData(AbstractData):
                 )
             elif historical_data.get_max_time() != add_dates[-(spec.horizon + 1)]:
                 raise DataMismatchError(
-                    f"The Additional Data must be present for all historical data and the entire horizon. The Historical Data ends on {historical_data.get_max_time()}. The additonal data horizon starts after {add_dates[-(spec.horizon+1)]}. These should be the same date."
+                    f"The Additional Data must be present for all historical data and the entire horizon. The Historical Data ends on {historical_data.get_max_time()}. The additonal data horizon starts after {add_dates[-(spec.horizon + 1)]}. These should be the same date."
                     f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
                 )
         else:
@@ -150,7 +157,9 @@ class ForecastDatasets:
         self._datetime_column_name = config.spec.datetime_column.name
         self._target_col = config.spec.target_column
         if historical_data is not None:
-            self.historical_data = HistoricalData(config.spec, historical_data, subset=subset)
+            self.historical_data = HistoricalData(
+                config.spec, historical_data, subset=subset
+            )
             self.additional_data = AdditionalData(
                 config.spec, self.historical_data, additional_data, subset=subset
             )
@@ -276,6 +285,7 @@ class ForecastOutput:
         horizon: int,
         target_column: str,
         dt_column: str,
+        postprocessing: PostprocessingSteps,
     ):
         """Forecast Output contains all the details required to generate the forecast.csv output file.
 
@@ -285,12 +295,14 @@ class ForecastOutput:
         horizon: int  length of horizon
         target_column: str the name of the original target column
         dt_column: the name of the original datetime column
+        postprocessing: postprocessing steps to be executed
         """
         self.series_id_map = {}
         self._set_ci_column_names(confidence_interval_width)
         self.horizon = horizon
         self.target_column_name = target_column
         self.dt_column_name = dt_column
+        self.postprocessing = postprocessing
 
     def add_series_id(
         self,
@@ -337,6 +349,12 @@ class ForecastOutput:
         --------
         None
         """
+        min_threshold, max_threshold = (
+            self.postprocessing.set_min_forecast,
+            self.postprocessing.set_max_forecast,
+        )
+        if min_threshold is not None or max_threshold is not None:
+            np.clip(forecast_val, min_threshold, max_threshold, out=forecast_val)
         try:
             output_i = self.series_id_map[series_id]
         except KeyError as e:
@@ -422,9 +440,9 @@ class ForecastOutput:
 
     def _check_forecast_format(self, forecast):
         assert isinstance(forecast, pd.DataFrame)
-        assert (
-            len(forecast.columns) == 7
-        ), f"Expected just 7 columns, but got: {forecast.columns}"
+        assert len(forecast.columns) == 7, (
+            f"Expected just 7 columns, but got: {forecast.columns}"
+        )
         assert ForecastOutputColumns.DATE in forecast.columns
         assert ForecastOutputColumns.SERIES in forecast.columns
         assert ForecastOutputColumns.INPUT_VALUE in forecast.columns
@@ -506,16 +524,30 @@ class ForecastResults:
     def get_errors_dict(self):
         return getattr(self, "errors_dict", None)
 
-    def merge(self, other: 'ForecastResults'):
+    def merge(self, other: "ForecastResults"):
         """Merge another ForecastResults object into this one."""
         # Merge DataFrames if they exist, else just set
         for attr in [
-            'forecast', 'metrics', 'test_metrics', 'local_explanations', 'global_explanations', 'model_parameters', 'models', 'errors_dict']:
+            "forecast",
+            "metrics",
+            "test_metrics",
+            "local_explanations",
+            "global_explanations",
+            "model_parameters",
+            "models",
+            "errors_dict",
+        ]:
             val_self = getattr(self, attr, None)
             val_other = getattr(other, attr, None)
             if val_self is not None and val_other is not None:
-                if isinstance(val_self, pd.DataFrame) and isinstance(val_other, pd.DataFrame):
-                    setattr(self, attr, pd.concat([val_self, val_other], ignore_index=True, axis=0))
+                if isinstance(val_self, pd.DataFrame) and isinstance(
+                    val_other, pd.DataFrame
+                ):
+                    setattr(
+                        self,
+                        attr,
+                        pd.concat([val_self, val_other], ignore_index=True, axis=0),
+                    )
                 elif isinstance(val_self, dict) and isinstance(val_other, dict):
                     val_self.update(val_other)
                     setattr(self, attr, val_self)
