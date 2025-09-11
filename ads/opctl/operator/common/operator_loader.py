@@ -154,6 +154,7 @@ class OperatorInfo(DataClassSerializable):
     conda: str = ""
     conda_type: str = ""
     path: str = ""
+    prefix: str = ""
     keywords: List[str] = None
     backends: List[str] = None
     jobs_default_params: JobsDefaultParams = field(default_factory=JobsDefaultParams)
