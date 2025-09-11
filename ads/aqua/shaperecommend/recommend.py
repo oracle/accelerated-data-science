@@ -98,8 +98,11 @@ class AquaShapeRecommend:
         """
         try:
             shapes = self.valid_compute_shapes(compartment_id=request.compartment_id)
+            # data, model_name = self._get_model_config_and_name(
+            #     model_id=request.model_id, compartment_id=request.compartment_id
+            # )
             data, model_name = self._get_model_config_and_name(
-                model_id=request.model_id, compartment_id=request.compartment_id
+                model_id=request.model_id,
             )
             llm_config = LLMConfig.from_raw_config(data)
             shape_recommendation_report = self._summarize_shapes_for_seq_lens(
@@ -131,7 +134,8 @@ class AquaShapeRecommend:
         return shape_recommendation_report
 
     def _get_model_config_and_name(
-        self, model_id: str, compartment_id: Optional[str]
+        self,
+        model_id: str,
     ) -> Tuple[Dict, str]:
         """
         Loads model configuration by trying OCID logic first, then falling back
@@ -141,8 +145,8 @@ class AquaShapeRecommend:
         ----------
         model_id : str
             The model OCID or Hugging Face model ID.
-        compartment_id : Optional[str]
-            The compartment OCID, used for searching the model catalog.
+        # compartment_id : Optional[str]
+        #     The compartment OCID, used for searching the model catalog.
 
         Returns
         -------
@@ -159,32 +163,32 @@ class AquaShapeRecommend:
         logger.info(
             f"'{model_id}' is not an OCID, treating as a Hugging Face model ID."
         )
-        if not compartment_id:
-            compartment_id = os.environ.get(
-                "NB_SESSION_COMPARTMENT_OCID"
-            ) or os.environ.get("PROJECT_COMPARTMENT_OCID")
-            if compartment_id:
-                logger.info(f"Using compartment_id from environment: {compartment_id}")
-        if not compartment_id:
-            raise AquaValueError(
-                "A compartment OCID is required to list available shapes. "
-                "Please provide it as a parameter or set the 'NB_SESSION_COMPARTMENT_OCID' "
-                "or 'PROJECT_COMPARTMENT_OCID' environment variable."
-                "cli command: export NB_SESSION_COMPARTMENT_OCID=<NB_SESSION_COMPARTMENT_OCID>"
-            )
+        # if not compartment_id:
+        #     compartment_id = os.environ.get(
+        #         "NB_SESSION_COMPARTMENT_OCID"
+        #     ) or os.environ.get("PROJECT_COMPARTMENT_OCID")
+        #     if compartment_id:
+        #         logger.info(f"Using compartment_id from environment: {compartment_id}")
+        # if not compartment_id:
+        #     raise AquaValueError(
+        #         "A compartment OCID is required to list available shapes. "
+        #         "Please provide it as a parameter or set the 'NB_SESSION_COMPARTMENT_OCID' "
+        #         "or 'PROJECT_COMPARTMENT_OCID' environment variable."
+        #         "cli command: export NB_SESSION_COMPARTMENT_OCID=<NB_SESSION_COMPARTMENT_OCID>"
+        #     )
 
-        ds_model = self._search_model_in_catalog(model_id, compartment_id)
-        if ds_model:
-            logger.info("Loading configuration from existing model catalog artifact.")
-            try:
-                return (
-                    self._get_model_config(ds_model),
-                    ds_model.display_name,
-                )
-            except AquaFileNotFoundError:
-                logger.warning(
-                    "config.json not found in artifact, fetching from Hugging Face Hub."
-                )
+        # ds_model = self._search_model_in_catalog(model_id, compartment_id)
+        # if ds_model:
+        #     logger.info("Loading configuration from existing model catalog artifact.")
+        #     try:
+        #         return (
+        #             self._get_model_config(ds_model),
+        #             ds_model.display_name,
+        #         )
+        #     except AquaFileNotFoundError:
+        #         logger.warning(
+        #             "config.json not found in artifact, fetching from Hugging Face Hub."
+        #         )
 
         return self._fetch_hf_config(model_id), model_id
 
@@ -210,26 +214,26 @@ class AquaShapeRecommend:
                 f"Failed to download config for '{model_id}': {e}"
             ) from e
 
-    def _search_model_in_catalog(
-        self, model_id: str, compartment_id: str
-    ) -> Optional[DataScienceModel]:
-        """
-        Searches for a model in the Data Science catalog by its display name.
-        """
-        try:
-            models = DataScienceModel.list(
-                compartment_id=compartment_id, display_name=model_id
-            )
-            if len(models) > 1:
-                logger.warning(
-                    f"Found multiple models with the name '{model_id}'. Using the first one found."
-                )
-            if models:
-                logger.info(f"Found model '{model_id}' in the Data Science catalog.")
-                return models[0]
-        except Exception as e:
-            logger.warning(f"Could not search for model '{model_id}' in catalog: {e}")
-        return None
+    # def _search_model_in_catalog(
+    #     self, model_id: str, compartment_id: str
+    # ) -> Optional[DataScienceModel]:
+    #     """
+    #     Searches for a model in the Data Science catalog by its display name.
+    #     """
+    #     try:
+    #         models = DataScienceModel.list(
+    #             compartment_id=compartment_id, display_name=model_id
+    #         )
+    #         if len(models) > 1:
+    #             logger.warning(
+    #                 f"Found multiple models with the name '{model_id}'. Using the first one found."
+    #             )
+    #         if models:
+    #             logger.info(f"Found model '{model_id}' in the Data Science catalog.")
+    #             return models[0]
+    #     except Exception as e:
+    #         logger.warning(f"Could not search for model '{model_id}' in catalog: {e}")
+    #     return None
 
     def valid_compute_shapes(
         self, compartment_id: Optional[str] = None
