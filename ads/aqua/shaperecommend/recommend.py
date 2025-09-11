@@ -131,10 +131,25 @@ class AquaShapeRecommend:
         return shape_recommendation_report
 
     def _get_model_config_and_name(
-        self, model_id: str, compartment_id: Optional[str] = None
-    ) -> (dict, str):
+        self, model_id: str, compartment_id: Optional[str]
+    ) -> Tuple[Dict, str]:
         """
-        Loads model configuration, handling OCID and Hugging Face model IDs.
+        Loads model configuration by trying OCID logic first, then falling back
+        to treating the model_id as a Hugging Face Hub ID.
+
+        Parameters
+        ----------
+        model_id : str
+            The model OCID or Hugging Face model ID.
+        compartment_id : Optional[str]
+            The compartment OCID, used for searching the model catalog.
+
+        Returns
+        -------
+        Tuple[Dict, str]
+            A tuple containing:
+            - The model configuration dictionary.
+            - The display name for the model.
         """
         if is_valid_ocid(model_id):
             logger.info(f"'{model_id}' identified as a model OCID.")
