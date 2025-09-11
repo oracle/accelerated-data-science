@@ -1,6 +1,50 @@
 {
-    "display_name": "Kimi-K2-Instruct-MOE",
+    "display_name": "config-json-files/Kimi-K2-Instruct-MOE",
     "recommendations": [
+        {
+            "shape_details": {
+                "available": false,
+                "core_count": null,
+                "memory_in_gbs": null,
+                "name": "BM.GPU.B200.8",
+                "shape_series": "GPU",
+                "gpu_specs": {
+                    "gpu_memory_in_gbs": 1440,
+                    "gpu_count": 8,
+                    "gpu_type": "B200",
+                    "quantization": [
+                        "fp4",
+                        "fp8",
+                        "fp16",
+                        "bf16",
+                        "tf32",
+                        "int8",
+                        "fp64"
+                    ],
+                    "ranking": {
+                        "cost": 120,
+                        "performance": 130
+                    }
+                }
+            },
+            "configurations": [
+                {
+                    "deployment_params": {
+                        "params": "--max-model-len 2048 --trust-remote-code",
+                        "quantization": "fp8",
+                        "weight_dtype": null,
+                        "max_model_len": 2048,
+                        "env_var": null
+                    },
+                    "model_details": {
+                        "model_size_gb": 1046.48,
+                        "kv_cache_size_gb": 3.58,
+                        "total_model_gb": 1050.06
+                    },
+                    "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (1050.1GB used / 1440.0GB allowed)."
+                }
+            ]
+        },
         {
             "shape_details": {
                 "available": false,
@@ -24,15 +68,17 @@
             },
             "configurations": [
                 {
+                    "deployment_params": {
+                        "params": "--max-model-len 2048 --trust-remote-code",
+                        "quantization": "fp8",
+                        "weight_dtype": null,
+                        "max_model_len": 2048,
+                        "env_var": null
+                    },
                     "model_details": {
                         "model_size_gb": 1046.48,
                         "kv_cache_size_gb": 3.58,
                         "total_model_gb": 1050.06
-                    },
-                    "deployment_params": {
-                        "quantization": "fp8",
-                        "max_model_len": 2048,
-                        "params": "--max-model-len 2048"
                     },
                     "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (1050.1GB used / 1536.0GB allowed)."
                 }

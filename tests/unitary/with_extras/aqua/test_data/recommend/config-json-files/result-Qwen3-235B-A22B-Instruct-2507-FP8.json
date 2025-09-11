@@ -1,6 +1,95 @@
 {
-    "display_name": "Qwen3-235B-A22B-Instruct-2507-FP8",
+    "display_name": "config-json-files/Qwen3-235B-A22B-Instruct-2507-FP8",
     "recommendations": [
+        {
+            "shape_details": {
+                "available": false,
+                "core_count": null,
+                "memory_in_gbs": null,
+                "name": "BM.GPU.B200.8",
+                "shape_series": "GPU",
+                "gpu_specs": {
+                    "gpu_memory_in_gbs": 1440,
+                    "gpu_count": 8,
+                    "gpu_type": "B200",
+                    "quantization": [
+                        "fp4",
+                        "fp8",
+                        "fp16",
+                        "bf16",
+                        "tf32",
+                        "int8",
+                        "fp64"
+                    ],
+                    "ranking": {
+                        "cost": 120,
+                        "performance": 130
+                    }
+                }
+            },
+            "configurations": [
+                {
+                    "deployment_params": {
+                        "params": "--max-model-len 2048",
+                        "quantization": "fp8",
+                        "weight_dtype": null,
+                        "max_model_len": 2048,
+                        "env_var": null
+                    },
+                    "model_details": {
+                        "model_size_gb": 231.89,
+                        "kv_cache_size_gb": 0.39,
+                        "total_model_gb": 232.28
+                    },
+                    "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (232.3GB used / 1440.0GB allowed)."
+                }
+            ]
+        },
+        {
+            "shape_details": {
+                "available": false,
+                "core_count": null,
+                "memory_in_gbs": null,
+                "name": "BM.GPU.GB200.4",
+                "shape_series": "GPU",
+                "gpu_specs": {
+                    "gpu_memory_in_gbs": 768,
+                    "gpu_count": 4,
+                    "gpu_type": "GB200",
+                    "quantization": [
+                        "fp4",
+                        "fp8",
+                        "fp6",
+                        "int8",
+                        "fp16",
+                        "bf16",
+                        "tf32",
+                        "fp64"
+                    ],
+                    "ranking": {
+                        "cost": 110,
+                        "performance": 120
+                    }
+                }
+            },
+            "configurations": [
+                {
+                    "deployment_params": {
+                        "params": "--max-model-len 2048",
+                        "quantization": "fp8",
+                        "weight_dtype": null,
+                        "max_model_len": 2048,
+                        "env_var": null
+                    },
+                    "model_details": {
+                        "model_size_gb": 231.89,
+                        "kv_cache_size_gb": 0.39,
+                        "total_model_gb": 232.28
+                    },
+                    "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (232.3GB used / 768.0GB allowed)."
+                }
+            ]
+        },
         {
             "shape_details": {
                 "available": false,
@@ -32,15 +121,17 @@
             },
             "configurations": [
                 {
+                    "deployment_params": {
+                        "params": "--max-model-len 2048",
+                        "quantization": "fp8",
+                        "weight_dtype": null,
+                        "max_model_len": 2048,
+                        "env_var": null
+                    },
                     "model_details": {
                         "model_size_gb": 231.89,
                         "kv_cache_size_gb": 0.39,
                         "total_model_gb": 232.28
-                    },
-                    "deployment_params": {
-                        "quantization": "fp8",
-                        "max_model_len": 2048,
-                        "params": "--max-model-len 2048"
                     },
                     "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (232.3GB used / 1128.0GB allowed)."
                 }
@@ -69,15 +160,17 @@
             },
             "configurations": [
                 {
+                    "deployment_params": {
+                        "params": "--max-model-len 2048",
+                        "quantization": "fp8",
+                        "weight_dtype": null,
+                        "max_model_len": 2048,
+                        "env_var": null
+                    },
                     "model_details": {
                         "model_size_gb": 231.89,
                         "kv_cache_size_gb": 0.39,
                         "total_model_gb": 232.28
-                    },
-                    "deployment_params": {
-                        "quantization": "fp8",
-                        "max_model_len": 2048,
-                        "params": "--max-model-len 2048"
                     },
                     "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (232.3GB used / 1536.0GB allowed)."
                 }

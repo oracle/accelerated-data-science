@@ -233,9 +233,9 @@ class TestLLMConfig:
 # --- Tests for recommend.py ---
 class GPUShapesIndexMock:
     def __init__(self):
-        # local_path = os.path.join(os.path.dirname(__file__), "../../resources", "gpu_shapes_index.json")
-        local_path = "ads/aqua/resources/gpu_shapes_index.json"
-        with open(local_path) as f:
+        # update gpu-index.json if changes to accelerated-data-science/ads/aqua/resources/gpu_shapes_index.json occurs
+        local_path = "gpu-index/gpu-index.json"
+        with open(os.path.join(CONFIG_ROOT, local_path)) as f:
             local_data = json.load(f)
 
         local_shapes = local_data.get("shapes", {})
@@ -336,12 +336,12 @@ class TestAquaShapeRecommend:
     @pytest.mark.parametrize(
         "config_file, result_file, service_managed_model",
         [   # config.json cases
-            # ("config-json-files/Devstral-Small-2507-GQA.json", "config-json-files/result-Devstral-Small-2507-GQA.json", False),
-            # ("config-json-files/Kimi-K2-Instruct-MOE.json", "config-json-files/result-Kimi-K2-Instruct-MOE.json", False),
-            # (
-            #     "config-json-files/Qwen3-235B-A22B-Instruct-2507-FP8.json",
-            #     "config-json-files/result-Qwen3-235B-A22B-Instruct-2507-FP8.json", False
-            # ),
+            ("config-json-files/Devstral-Small-2507-GQA.json", "config-json-files/result-Devstral-Small-2507-GQA.json", False),
+            ("config-json-files/Kimi-K2-Instruct-MOE.json", "config-json-files/result-Kimi-K2-Instruct-MOE.json", False),
+            (
+                "config-json-files/Qwen3-235B-A22B-Instruct-2507-FP8.json",
+                "config-json-files/result-Qwen3-235B-A22B-Instruct-2507-FP8.json", False
+            ),
             # # SMM config cases
             ("service-config/example_1.json", "service-config/result-example_1.json", True),
             ("service-config/example_2.json", "service-config/result-example_2.json", True),
@@ -466,21 +466,3 @@ class TestShapeReport:
         assert c and d in pf
         assert a and b not in pf
         assert len(pf) == 2
-
-    # @pytest.mark.parametrize(
-    #     "config_file, result_file",
-    #     [
-    #         ("config-json-files/example_1.json", "config-json-files/result-example_1.json"),
-    #         ("config-json-files/example_2.json", "config-json-files/result-example_2.json"),
-    #         (
-    #             "config-json-files/example_3.json",
-    #             "config-json-files/result-example_3.json",
-    #         ),
-    #     ],
-    # )
-    # def test_from_deployment_config_basic(self):
-
-    #     result = app.which_shapes(request=request)
-
-    #     expected_result = load_config(result_file)
-    #     assert result.model_dump() == expected_result
