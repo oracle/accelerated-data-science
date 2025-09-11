@@ -274,6 +274,9 @@ class CreateModelDeploymentDetails(BaseModel):
     container_family: Optional[str] = Field(
         None, description="Image family of the model deployment container runtime."
     )
+    container_tag: Optional[str] = Field(
+        None, description="Image tag of the model deployment container runtime."
+    )
     memory_in_gbs: Optional[float] = Field(
         None, description="Memory (in GB) for the selected shape."
     )
