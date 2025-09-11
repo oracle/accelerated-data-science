@@ -46,6 +46,17 @@ class ModelConfigResult(BaseModel):
         arbitrary_types_allowed = True
         protected_namespaces = ()
 
+class ComputeRank(Serializable):
+    """
+    Represents the cost and performance ranking for a compute shape.
+    """
+    cost: int = Field(
+    None, description="The relative rank of the cost of the shape. Range is [10 (cost-effective), 100 (most-expensive)]"
+    )
+
+    performance: int = Field(
+    None, description="The relative rank of the performance of the shape. Range is [10 (lower performance), 110 (highest performance)]"
+    )
 
 class ComputeRank(Serializable):
     """
@@ -118,6 +129,12 @@ class GPUSpecs(Serializable):
             "and performance from 10 (lowest) to 100+ (highest)."
         ),
     )
+    quantization: Optional[List[str]] = Field(
+        default_factory=list, description="The quantization format supported by shape. (ex.  bitsandbytes, fp8, etc.)"
+    )
+    ranking: Optional[ComputeRank] = Field(
+        None, description="The relative rank of the cost and performance of the shape."
+    )
 
 
 class GPUShapesIndex(Serializable):
@@ -144,6 +161,7 @@ class ComputeShapeSummary(Serializable):
         default=False,
         description="True if the shape is available in the user's tenancy/region.",
     )
+
 
     core_count: Optional[int] = Field(
         default=None, description="Number of vCPUs available for the compute shape."
