@@ -79,7 +79,9 @@ class HuggingFaceModelFetcher:
                     f"Model '{model_id}' requires authentication. Please set your HuggingFace access token as an environment variable."
                 )
             elif response.status_code == 404:
-                raise AquaValueError(f"Model '{model_id}' not found on HuggingFace.")
+                raise AquaValueError(
+                    f"Model '{model_id}' not found on HuggingFace. Please check the name for typos."
+                )
             elif response.status_code != 200:
                 raise AquaValueError(
                     f"Failed to fetch config for '{model_id}'. Status: {response.status_code}"
@@ -184,13 +186,13 @@ class AquaShapeRecommend:
         if HuggingFaceModelFetcher.is_huggingface_model_id(model_id):
             logger.info(f"'{model_id}' identified as a Hugging Face model ID.")
             ds_model = self._search_model_in_catalog(model_id, compartment_id)
-            if ds_model and ds_model.artifact:
+            if ds_model:
                 logger.info(
                     "Loading configuration from existing model catalog artifact."
                 )
                 try:
                     return (
-                        load_config(ds_model.artifact, "config.json"),
+                        self._get_model_config(ds_model),
                         ds_model.display_name,
                     )
                 except AquaFileNotFoundError:
@@ -207,7 +209,7 @@ class AquaShapeRecommend:
         self, model_id: str, compartment_id: str
     ) -> Optional[DataScienceModel]:
         """
-        Searches for a Hugging Face model in the Data Science model catalog by display name.
+        Searches for a model in the Data Science model catalog by display name.
         """
         try:
             # This should work since the SDK's list method can filter by display_name.
