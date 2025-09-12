@@ -8,11 +8,11 @@ import json
 import os
 import re
 from unittest.mock import MagicMock
-
+from unittest.mock import patch
 import pytest
 
 from ads.aqua.common.entities import ComputeShapeSummary
-from ads.aqua.common.errors import AquaRecommendationError
+from ads.aqua.common.errors import AquaRecommendationError, AquaValueError
 from ads.aqua.shaperecommend.estimator import (
     LlamaMemoryEstimator,
     MemoryEstimator,
@@ -20,7 +20,9 @@ from ads.aqua.shaperecommend.estimator import (
     get_estimator,
 )
 from ads.aqua.shaperecommend.llm_config import LLMConfig
-from ads.aqua.shaperecommend.recommend import AquaShapeRecommend
+from ads.aqua.shaperecommend.recommend import (
+    AquaShapeRecommend,
+)
 from ads.aqua.shaperecommend.shape_report import (
     DeploymentParams,
     ModelConfig,
