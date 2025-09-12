@@ -2,20 +2,17 @@
 # Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-#!/usr/bin/env python
-# Copyright (c) 2025 Oracle and/or its affiliates.
-# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
-import shutil
-import os
 import json
-from typing import List, Union, Optional, Dict, Any, Tuple
+import os
+import shutil
+from typing import Dict, List, Optional, Tuple, Union
 
 from pydantic import ValidationError
 from rich.table import Table
 
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import HfHubHTTPError
+
 from ads.aqua.app import logger
 from ads.aqua.common.entities import ComputeShapeSummary
 from ads.aqua.common.errors import (
@@ -25,14 +22,15 @@ from ads.aqua.common.errors import (
 )
 from ads.aqua.common.utils import (
     build_pydantic_error_message,
+    get_resource_type,
+    is_valid_ocid,
     load_config,
     load_gpu_shapes_index,
-    is_valid_ocid,
-    get_resource_type,
+    format_hf_custom_error_message,
 )
 from ads.aqua.shaperecommend.constants import (
-    BITS_AND_BYTES_4BIT,
     BITSANDBYTES,
+    BITS_AND_BYTES_4BIT,
     SAFETENSORS,
     SHAPE_MAP,
     TEXT_GENERATION,
@@ -46,6 +44,7 @@ from ads.aqua.shaperecommend.shape_report import (
     ShapeRecommendationReport,
     ShapeReport,
 )
+from ads.config import COMPARTMENT_OCID
 from ads.model.datascience_model import DataScienceModel
 from ads.model.service.oci_datascience_model_deployment import (
     OCIDataScienceModelDeployment,
@@ -100,9 +99,6 @@ class AquaShapeRecommend:
         """
         try:
             shapes = self.valid_compute_shapes(compartment_id=request.compartment_id)
-            # data, model_name = self._get_model_config_and_name(
-            #     model_id=request.model_id, compartment_id=request.compartment_id
-            # )
             data, model_name = self._get_model_config_and_name(
                 model_id=request.model_id,
             )
@@ -158,41 +154,18 @@ class AquaShapeRecommend:
             - The display name for the model.
         """
         if is_valid_ocid(model_id):
-            logger.info(f"'{model_id}' identified as a model OCID.")
+            logger.info(f"Detected OCID: Fetching OCI model config for '{model_id}'.")
             ds_model = self._validate_model_ocid(model_id)
-            return self._get_model_config(ds_model), ds_model.display_name
+            config = self._fetch_hf_config(model_id)
+            model_name = ds_model.display_name
+        else:
+            logger.info(
+                f"Assuming Hugging Face model ID: Fetching config for '{model_id}'."
+            )
+            config = self._fetch_hf_config(model_id)
+            model_name = model_id
 
-        logger.info(
-            f"'{model_id}' is not an OCID, treating as a Hugging Face model ID."
-        )
-        # if not compartment_id:
-        #     compartment_id = os.environ.get(
-        #         "NB_SESSION_COMPARTMENT_OCID"
-        #     ) or os.environ.get("PROJECT_COMPARTMENT_OCID")
-        #     if compartment_id:
-        #         logger.info(f"Using compartment_id from environment: {compartment_id}")
-        # if not compartment_id:
-        #     raise AquaValueError(
-        #         "A compartment OCID is required to list available shapes. "
-        #         "Please provide it as a parameter or set the 'NB_SESSION_COMPARTMENT_OCID' "
-        #         "or 'PROJECT_COMPARTMENT_OCID' environment variable."
-        #         "cli command: export NB_SESSION_COMPARTMENT_OCID=<NB_SESSION_COMPARTMENT_OCID>"
-        #     )
-
-        # ds_model = self._search_model_in_catalog(model_id, compartment_id)
-        # if ds_model:
-        #     logger.info("Loading configuration from existing model catalog artifact.")
-        #     try:
-        #         return (
-        #             self._get_model_config(ds_model),
-        #             ds_model.display_name,
-        #         )
-        #     except AquaFileNotFoundError:
-        #         logger.warning(
-        #             "config.json not found in artifact, fetching from Hugging Face Hub."
-        #         )
-
-        return self._fetch_hf_config(model_id), model_id
+        return config, model_name
 
     def _fetch_hf_config(self, model_id: str) -> Dict:
         """
@@ -204,38 +177,7 @@ class AquaShapeRecommend:
             with open(config_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except HfHubHTTPError as e:
-            if "401" in str(e):
-                raise AquaValueError(
-                    f"Model '{model_id}' requires authentication. Please set your HuggingFace access token as an environment variable (HF_TOKEN). cli command: export HF_TOKEN=<HF_TOKEN>"
-                )
-            elif "404" in str(e) or "not found" in str(e).lower():
-                raise AquaValueError(
-                    f"Model '{model_id}' not found on HuggingFace. Please check the name for typos."
-                )
-            raise AquaValueError(
-                f"Failed to download config for '{model_id}': {e}"
-            ) from e
-
-    # def _search_model_in_catalog(
-    #     self, model_id: str, compartment_id: str
-    # ) -> Optional[DataScienceModel]:
-    #     """
-    #     Searches for a model in the Data Science catalog by its display name.
-    #     """
-    #     try:
-    #         models = DataScienceModel.list(
-    #             compartment_id=compartment_id, display_name=model_id
-    #         )
-    #         if len(models) > 1:
-    #             logger.warning(
-    #                 f"Found multiple models with the name '{model_id}'. Using the first one found."
-    #             )
-    #         if models:
-    #             logger.info(f"Found model '{model_id}' in the Data Science catalog.")
-    #             return models[0]
-    #     except Exception as e:
-    #         logger.warning(f"Could not search for model '{model_id}' in catalog: {e}")
-    #     return None
+            format_hf_custom_error_message(e)
 
     def valid_compute_shapes(
         self, compartment_id: Optional[str] = None
@@ -260,18 +202,16 @@ class AquaShapeRecommend:
             environment variables.
         """
         if not compartment_id:
-            compartment_id = os.environ.get(
-                "NB_SESSION_COMPARTMENT_OCID"
-            ) or os.environ.get("PROJECT_COMPARTMENT_OCID")
+            compartment_id = COMPARTMENT_OCID
             if compartment_id:
                 logger.info(f"Using compartment_id from environment: {compartment_id}")
 
         if not compartment_id:
             raise AquaValueError(
                 "A compartment OCID is required to list available shapes. "
-                "Please provide it as a parameter or set the 'NB_SESSION_COMPARTMENT_OCID' "
-                "or 'PROJECT_COMPARTMENT_OCID' environment variable."
-                "cli command: export NB_SESSION_COMPARTMENT_OCID=<NB_SESSION_COMPARTMENT_OCID>"
+                "Please specify it using the --compartment_id parameter.\n\n"
+                "Example:\n"
+                'ads aqua deployment recommend_shape --model_id "<YOUR_MODEL_OCID>" --compartment_id "<YOUR_COMPARTMENT_OCID>"'
             )
 
         oci_shapes = OCIDataScienceModelDeployment.shapes(compartment_id=compartment_id)
