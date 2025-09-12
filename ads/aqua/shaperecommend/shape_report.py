@@ -16,7 +16,7 @@ from ads.aqua.shaperecommend.constants import (
     QUANT_FLAG,
     QUANT_MAPPING,
     VLLM_ENV,
-    VLLM_PARAMS,
+    VLLM_PARAMS_FAMILY,
     WEIGHT_DTYPE_FLAG,
 )
 from ads.aqua.shaperecommend.estimator import MemoryEstimator
@@ -341,7 +341,7 @@ class ShapeRecommendationReport(BaseModel):
                 continue
 
             recommendation = ""
-            current_params = current_config.parameters.get(VLLM_PARAMS)
+            current_params = current_config.parameters.get(VLLM_PARAMS_FAMILY)
             current_env = current_config.env.get(VLLM_ENV)
 
             deployment_params = cls.create_deployment_config_from_params_string(

@@ -86,7 +86,7 @@ QUANT_METHODS = [
 
 IN_FLIGHT_QUANTIZATION = {"4bit"}  # vLLM only supports 4bit in-flight-quantization
 
-VLLM_PARAMS = "VLLM_PARAMS"
+VLLM_PARAMS_FAMILY = "VLLM_PARAMS"
 VLLM_ENV = "VLLM"
 
 QUANT_FLAG = "--quantization"
