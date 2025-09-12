@@ -383,6 +383,21 @@ class TestAquaShapeRecommend:
             "ads.aqua.app.DataScienceModel.from_id", lambda _: mock_model
         )
 
+        shapes_index = GPUShapesIndexMock()
+        real_shapes = [
+            ComputeShapeSummary(name=name, shape_series="GPU", gpu_specs=spec)
+            for name, spec in shapes_index.shapes.items()
+        ]
+
+        monkeypatch.setattr(
+            app,
+            "valid_compute_shapes",
+            lambda *args, **kwargs: (
+                print("Monkeypatch valid_compute_shapes hit"),
+                real_shapes,
+            )[1],
+        )
+
         raw = load_config(config_file)
 
         if service_managed_model:
@@ -396,19 +411,12 @@ class TestAquaShapeRecommend:
         else:
             monkeypatch.setattr(app, "_get_model_config", lambda _: raw)
 
-            shapes_index = GPUShapesIndexMock()
-            real_shapes = [
-                ComputeShapeSummary(name=name, shape_series="GPU", gpu_specs=spec)
-                for name, spec in shapes_index.shapes.items()
-            ]
-            monkeypatch.setattr(
-                app, "valid_compute_shapes", lambda *args, **kwargs: real_shapes
-            )
-
             request = RequestRecommend(
                 model_id="ocid1.datasciencemodel.oc1.TEST", generate_table=False
             )
+
         result = app.which_shapes(request=request)
+        print(result.model_dump_json())
 
         expected_result = load_config(result_file)
         assert result.model_dump() == expected_result

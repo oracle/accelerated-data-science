@@ -19,16 +19,15 @@
         "available": false,
         "core_count": null,
         "gpu_specs": {
-          "cpu_count": 112,
-          "cpu_memory_in_gbs": 3072,
-          "gpu_count": 8,
-          "gpu_memory_in_gbs": 1128,
-          "gpu_type": "H200",
+          "cpu_count": 64,
+          "cpu_memory_in_gbs": 1024,
+          "gpu_count": 4,
+          "gpu_memory_in_gbs": 96,
+          "gpu_type": "A10",
           "quantization": [
             "awq",
             "gptq",
             "marlin",
-            "fp8",
             "int8",
             "bitblas",
             "aqlm",
@@ -37,12 +36,12 @@
             "gguf"
           ],
           "ranking": {
-            "cost": 100,
-            "performance": 110
+            "cost": 50,
+            "performance": 50
           }
         },
         "memory_in_gbs": null,
-        "name": "BM.GPU.H200.8",
+        "name": "BM.GPU.A10.4",
         "shape_series": "GPU"
       }
     },
@@ -106,27 +105,33 @@
         }
       ],
       "shape_details": {
-        "available": true,
-        "core_count": 64,
+        "available": false,
+        "core_count": null,
         "gpu_specs": {
-          "cpu_count": 64,
-          "cpu_memory_in_gbs": 2048,
+          "cpu_count": 112,
+          "cpu_memory_in_gbs": 3072,
           "gpu_count": 8,
-          "gpu_memory_in_gbs": 320,
-          "gpu_type": "A100",
+          "gpu_memory_in_gbs": 1128,
+          "gpu_type": "H200",
           "quantization": [
+            "awq",
+            "gptq",
+            "marlin",
+            "fp8",
             "int8",
-            "fp16",
-            "bf16",
-            "tf32"
+            "bitblas",
+            "aqlm",
+            "bitsandbytes",
+            "deepspeedfp",
+            "gguf"
           ],
           "ranking": {
-            "cost": 57,
-            "performance": 65
+            "cost": 100,
+            "performance": 110
           }
         },
-        "memory_in_gbs": 2048,
-        "name": "BM.GPU4.8",
+        "memory_in_gbs": null,
+        "name": "BM.GPU.H200.8",
         "shape_series": "GPU"
       }
     },
@@ -145,8 +150,8 @@
         }
       ],
       "shape_details": {
-        "available": true,
-        "core_count": 112,
+        "available": false,
+        "core_count": null,
         "gpu_specs": {
           "cpu_count": 112,
           "cpu_memory_in_gbs": 1024,
@@ -170,7 +175,7 @@
             "performance": 80
           }
         },
-        "memory_in_gbs": 1024,
+        "memory_in_gbs": null,
         "name": "BM.GPU.L40S-NC.4",
         "shape_series": "GPU"
       }
@@ -190,32 +195,27 @@
         }
       ],
       "shape_details": {
-        "available": true,
-        "core_count": 64,
+        "available": false,
+        "core_count": null,
         "gpu_specs": {
           "cpu_count": 64,
-          "cpu_memory_in_gbs": 1024,
-          "gpu_count": 4,
-          "gpu_memory_in_gbs": 96,
-          "gpu_type": "A10",
+          "cpu_memory_in_gbs": 2048,
+          "gpu_count": 8,
+          "gpu_memory_in_gbs": 320,
+          "gpu_type": "A100",
           "quantization": [
-            "awq",
-            "gptq",
-            "marlin",
             "int8",
-            "bitblas",
-            "aqlm",
-            "bitsandbytes",
-            "deepspeedfp",
-            "gguf"
+            "fp16",
+            "bf16",
+            "tf32"
           ],
           "ranking": {
-            "cost": 50,
-            "performance": 50
+            "cost": 57,
+            "performance": 65
           }
         },
-        "memory_in_gbs": 1024,
-        "name": "BM.GPU.A10.4",
+        "memory_in_gbs": null,
+        "name": "BM.GPU4.8",
         "shape_series": "GPU"
       }
     },
@@ -234,8 +234,8 @@
         }
       ],
       "shape_details": {
-        "available": true,
-        "core_count": 15,
+        "available": false,
+        "core_count": null,
         "gpu_specs": {
           "cpu_count": 15,
           "cpu_memory_in_gbs": 240,
@@ -258,7 +258,7 @@
             "performance": 30
           }
         },
-        "memory_in_gbs": 240,
+        "memory_in_gbs": null,
         "name": "VM.GPU.A10.1",
         "shape_series": "GPU"
       }
