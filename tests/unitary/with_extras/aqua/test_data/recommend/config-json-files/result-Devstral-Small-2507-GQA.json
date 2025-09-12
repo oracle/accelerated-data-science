@@ -1,20 +1,22 @@
 {
-  "display_name": "Devstral-Small-2507-GQA",
+  "display_name": "config-json-files/Devstral-Small-2507-GQA",
   "recommendations": [
     {
       "configurations": [
         {
           "deployment_params": {
+            "env_var": null,
             "max_model_len": 131072,
             "params": "",
-            "quantization": "bfloat16"
+            "quantization": "bfloat16",
+            "weight_dtype": null
           },
           "model_details": {
             "kv_cache_size_gb": 21.47,
             "model_size_gb": 47.98,
             "total_model_gb": 69.46
           },
-          "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 96.0GB allowed)."
+          "recommendation": "Model fits well within the allowed compute shape (69.5GB used / 96.0GB allowed)."
         }
       ],
       "shape_details": {
@@ -51,16 +53,18 @@
       "configurations": [
         {
           "deployment_params": {
+            "env_var": null,
             "max_model_len": 131072,
             "params": "",
-            "quantization": "bfloat16"
+            "quantization": "bfloat16",
+            "weight_dtype": null
           },
           "model_details": {
             "kv_cache_size_gb": 21.47,
             "model_size_gb": 47.98,
             "total_model_gb": 69.46
           },
-          "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 1440.0GB allowed)."
+          "recommendation": "Model fits well within the allowed compute shape (69.5GB used / 1440.0GB allowed)."
         }
       ],
       "shape_details": {
@@ -95,16 +99,18 @@
       "configurations": [
         {
           "deployment_params": {
+            "env_var": null,
             "max_model_len": 131072,
             "params": "",
-            "quantization": "bfloat16"
+            "quantization": "bfloat16",
+            "weight_dtype": null
           },
           "model_details": {
             "kv_cache_size_gb": 21.47,
             "model_size_gb": 47.98,
             "total_model_gb": 69.46
           },
-          "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 768.0GB allowed)."
+          "recommendation": "Model fits well within the allowed compute shape (69.5GB used / 768.0GB allowed)."
         }
       ],
       "shape_details": {
@@ -140,16 +146,18 @@
       "configurations": [
         {
           "deployment_params": {
+            "env_var": null,
             "max_model_len": 131072,
             "params": "",
-            "quantization": "bfloat16"
+            "quantization": "bfloat16",
+            "weight_dtype": null
           },
           "model_details": {
             "kv_cache_size_gb": 21.47,
             "model_size_gb": 47.98,
             "total_model_gb": 69.46
           },
-          "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 1128.0GB allowed)."
+          "recommendation": "Model fits well within the allowed compute shape (69.5GB used / 1128.0GB allowed)."
         }
       ],
       "shape_details": {
@@ -187,16 +195,18 @@
       "configurations": [
         {
           "deployment_params": {
+            "env_var": null,
             "max_model_len": 131072,
             "params": "",
-            "quantization": "bfloat16"
+            "quantization": "bfloat16",
+            "weight_dtype": null
           },
           "model_details": {
             "kv_cache_size_gb": 21.47,
             "model_size_gb": 47.98,
             "total_model_gb": 69.46
           },
-          "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 192.0GB allowed)."
+          "recommendation": "Model fits well within the allowed compute shape (69.5GB used / 192.0GB allowed)."
         }
       ],
       "shape_details": {
@@ -234,16 +244,18 @@
       "configurations": [
         {
           "deployment_params": {
+            "env_var": null,
             "max_model_len": 131072,
             "params": "",
-            "quantization": "bfloat16"
+            "quantization": "bfloat16",
+            "weight_dtype": null
           },
           "model_details": {
             "kv_cache_size_gb": 21.47,
             "model_size_gb": 47.98,
             "total_model_gb": 69.46
           },
-          "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 192.0GB allowed)."
+          "recommendation": "Model fits well within the allowed compute shape (69.5GB used / 192.0GB allowed)."
         }
       ],
       "shape_details": {
@@ -281,16 +293,18 @@
       "configurations": [
         {
           "deployment_params": {
+            "env_var": null,
             "max_model_len": 131072,
             "params": "",
-            "quantization": "bfloat16"
+            "quantization": "bfloat16",
+            "weight_dtype": null
           },
           "model_details": {
             "kv_cache_size_gb": 21.47,
             "model_size_gb": 47.98,
             "total_model_gb": 69.46
           },
-          "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 1536.0GB allowed)."
+          "recommendation": "Model fits well within the allowed compute shape (69.5GB used / 1536.0GB allowed)."
         }
       ],
       "shape_details": {
@@ -320,16 +334,18 @@
       "configurations": [
         {
           "deployment_params": {
+            "env_var": null,
             "max_model_len": 131072,
             "params": "",
-            "quantization": "bfloat16"
+            "quantization": "bfloat16",
+            "weight_dtype": null
           },
           "model_details": {
             "kv_cache_size_gb": 21.47,
             "model_size_gb": 47.98,
             "total_model_gb": 69.46
           },
-          "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (69.5GB used / 320.0GB allowed)."
+          "recommendation": "Model fits well within the allowed compute shape (69.5GB used / 320.0GB allowed)."
         }
       ],
       "shape_details": {
@@ -361,16 +377,18 @@
       "configurations": [
         {
           "deployment_params": {
+            "env_var": null,
             "max_model_len": 32768,
             "params": "--max-model-len 32768 --quantization bitsandbytes --load-format bitsandbytes",
-            "quantization": "4bit"
+            "quantization": "4bit",
+            "weight_dtype": null
           },
           "model_details": {
             "kv_cache_size_gb": 5.37,
             "model_size_gb": 12.0,
             "total_model_gb": 17.36
           },
-          "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (17.4GB used / 24.0GB allowed)."
+          "recommendation": "Model fits well within the allowed compute shape (17.4GB used / 24.0GB allowed)."
         }
       ],
       "shape_details": {
@@ -407,16 +425,18 @@
       "configurations": [
         {
           "deployment_params": {
+            "env_var": null,
             "max_model_len": 131072,
             "params": "--quantization bitsandbytes --load-format bitsandbytes",
-            "quantization": "4bit"
+            "quantization": "4bit",
+            "weight_dtype": null
           },
           "model_details": {
             "kv_cache_size_gb": 21.47,
             "model_size_gb": 12.0,
             "total_model_gb": 33.47
           },
-          "recommendation": "No override PARAMS needed. \n\nModel fits well within the allowed compute shape (33.5GB used / 48.0GB allowed)."
+          "recommendation": "Model fits well within the allowed compute shape (33.5GB used / 48.0GB allowed)."
         }
       ],
       "shape_details": {

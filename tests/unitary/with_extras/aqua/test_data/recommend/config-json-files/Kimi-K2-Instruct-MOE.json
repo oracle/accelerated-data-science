@@ -45,8 +45,6 @@
     ]
   },
   "rms_norm_eps": 1e-06,
-  "rope_theta": 50000.0,
-  "routed_scaling_factor": 2.827,
   "rope_scaling": {
     "beta_fast": 1.0,
     "beta_slow": 1.0,
@@ -56,6 +54,8 @@
     "original_max_position_embeddings": 4096,
     "type": "yarn"
   },
+  "rope_theta": 50000.0,
+  "routed_scaling_factor": 2.827,
   "scoring_func": "sigmoid",
   "seq_aux": true,
   "tie_word_embeddings": false,

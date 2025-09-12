@@ -24,19 +24,9 @@
   "num_hidden_layers": 94,
   "num_key_value_heads": 4,
   "output_router_logits": false,
-  "rms_norm_eps": 1e-06,
-  "rope_scaling": null,
-  "rope_theta": 5000000,
-  "router_aux_loss_coef": 0.001,
-  "sliding_window": null,
-  "tie_word_embeddings": false,
-  "torch_dtype": "bfloat16",
-  "transformers_version": "4.51.0",
-  "use_cache": true,
-  "use_sliding_window": false,
-  "vocab_size": 151936,  
   "quantization_config": {
     "activation_scheme": "dynamic",
+    "fmt": "e4m3",
     "modules_to_not_convert": [
       "lm_head",
       "model.layers.0.input_layernorm",
@@ -322,11 +312,21 @@
       "model.layers.93.mlp.gate",
       "model.layers.93.post_attention_layernorm"
     ],
-    "fmt": "e4m3",
     "quant_method": "fp8",
     "weight_block_size": [
       128,
       128
     ]
-  }
+  },
+  "rms_norm_eps": 1e-06,
+  "rope_scaling": null,
+  "rope_theta": 5000000,
+  "router_aux_loss_coef": 0.001,
+  "sliding_window": null,
+  "tie_word_embeddings": false,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.51.0",
+  "use_cache": true,
+  "use_sliding_window": false,
+  "vocab_size": 151936
 }
