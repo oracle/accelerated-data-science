@@ -416,7 +416,6 @@ class TestAquaShapeRecommend:
             )
 
         result = app.which_shapes(request=request)
-        print(result.model_dump_json())
 
         expected_result = load_config(result_file)
         assert result.model_dump() == expected_result
