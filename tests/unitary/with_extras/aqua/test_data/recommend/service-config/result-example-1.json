@@ -1,0 +1,183 @@
+{
+  "display_name": "service-config/example-1",
+  "recommendations": [
+    {
+      "configurations": [
+        {
+          "deployment_params": {
+            "env_var": null,
+            "max_model_len": null,
+            "params": "",
+            "quantization": null,
+            "weight_dtype": null
+          },
+          "model_details": null,
+          "recommendation": "No override PARAMS and ENV variables needed. \n\nModel fits well within the allowed compute shape."
+        }
+      ],
+      "shape_details": {
+        "available": true,
+        "core_count": 112,
+        "gpu_specs": {
+          "cpu_count": 112,
+          "cpu_memory_in_gbs": 1024,
+          "gpu_count": 4,
+          "gpu_memory_in_gbs": 192,
+          "gpu_type": "L40S",
+          "quantization": [
+            "awq",
+            "gptq",
+            "marlin",
+            "fp8",
+            "int8",
+            "bitblas",
+            "aqlm",
+            "bitsandbytes",
+            "deepspeedfp",
+            "gguf"
+          ],
+          "ranking": {
+            "cost": 60,
+            "performance": 80
+          }
+        },
+        "memory_in_gbs": 1024,
+        "name": "BM.GPU.L40S-NC.4",
+        "shape_series": "GPU"
+      }
+    },
+    {
+      "configurations": [
+        {
+          "deployment_params": {
+            "env_var": null,
+            "max_model_len": null,
+            "params": "",
+            "quantization": null,
+            "weight_dtype": null
+          },
+          "model_details": null,
+          "recommendation": "No override PARAMS and ENV variables needed. \n\nModel fits well within the allowed compute shape."
+        }
+      ],
+      "shape_details": {
+        "available": true,
+        "core_count": 64,
+        "gpu_specs": {
+          "cpu_count": 64,
+          "cpu_memory_in_gbs": 1024,
+          "gpu_count": 4,
+          "gpu_memory_in_gbs": 96,
+          "gpu_type": "A10",
+          "quantization": [
+            "awq",
+            "gptq",
+            "marlin",
+            "int8",
+            "bitblas",
+            "aqlm",
+            "bitsandbytes",
+            "deepspeedfp",
+            "gguf"
+          ],
+          "ranking": {
+            "cost": 50,
+            "performance": 50
+          }
+        },
+        "memory_in_gbs": 1024,
+        "name": "BM.GPU.A10.4",
+        "shape_series": "GPU"
+      }
+    },
+    {
+      "configurations": [
+        {
+          "deployment_params": {
+            "env_var": null,
+            "max_model_len": null,
+            "params": "",
+            "quantization": null,
+            "weight_dtype": null
+          },
+          "model_details": null,
+          "recommendation": "No override PARAMS and ENV variables needed. \n\nModel fits well within the allowed compute shape."
+        }
+      ],
+      "shape_details": {
+        "available": true,
+        "core_count": 30,
+        "gpu_specs": {
+          "cpu_count": 30,
+          "cpu_memory_in_gbs": 480,
+          "gpu_count": 2,
+          "gpu_memory_in_gbs": 48,
+          "gpu_type": "A10",
+          "quantization": [
+            "awq",
+            "gptq",
+            "marlin",
+            "int8",
+            "bitblas",
+            "aqlm",
+            "bitsandbytes",
+            "deepspeedfp",
+            "gguf"
+          ],
+          "ranking": {
+            "cost": 40,
+            "performance": 40
+          }
+        },
+        "memory_in_gbs": 480,
+        "name": "VM.GPU.A10.2",
+        "shape_series": "GPU"
+      }
+    },
+    {
+      "configurations": [
+        {
+          "deployment_params": {
+            "env_var": null,
+            "max_model_len": 65536,
+            "params": "--max-model-len 65536",
+            "quantization": null,
+            "weight_dtype": null
+          },
+          "model_details": null,
+          "recommendation": "Model fits well within the allowed compute shape."
+        }
+      ],
+      "shape_details": {
+        "available": true,
+        "core_count": 15,
+        "gpu_specs": {
+          "cpu_count": 15,
+          "cpu_memory_in_gbs": 240,
+          "gpu_count": 1,
+          "gpu_memory_in_gbs": 24,
+          "gpu_type": "A10",
+          "quantization": [
+            "awq",
+            "gptq",
+            "marlin",
+            "int8",
+            "bitblas",
+            "aqlm",
+            "bitsandbytes",
+            "deepspeedfp",
+            "gguf"
+          ],
+          "ranking": {
+            "cost": 20,
+            "performance": 30
+          }
+        },
+        "memory_in_gbs": 240,
+        "name": "VM.GPU.A10.1",
+        "shape_series": "GPU"
+      }
+    }
+  ],
+  "troubleshoot": null
+}
