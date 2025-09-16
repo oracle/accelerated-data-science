@@ -722,7 +722,7 @@ class CreateModelDeploymentDetails(BaseModel):
         Validates the input base model for single model deployment configuration.
 
         Validation Criteria:
-        - Legacy fine-tuned models are not supported in single model deployment.
+        - Legacy fine-tuned models will be deployed as single model deployment.
         - Fine-tuned models v2 will be deployed as stacked deployment.
 
         Parameters
