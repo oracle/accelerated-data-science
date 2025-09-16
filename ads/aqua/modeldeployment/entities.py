@@ -760,10 +760,15 @@ class CreateModelDeploymentDetails(BaseModel):
                         f"Invalid fine-tuned model ID '{base_model.id}': missing or invalid tag '{Tags.AQUA_FINE_TUNED_MODEL_TAG}' format. "
                         f"Make sure tag '{Tags.AQUA_FINE_TUNED_MODEL_TAG}' is added with format <service_model_id>#<service_model_name>."
                     )
-                return AquaMultiModelRef(
-                    model_id=segments[0],
-                    fine_tune_weights=[LoraModuleSpec(model_id=base_model.id)],
-                )
+                # reset the model_id and models in create_model_deployment_details for stack deployment
+                self.model_id = None
+                self.models = [
+                    AquaMultiModelRef(
+                        model_id=segments[0],
+                        fine_tune_weights=[LoraModuleSpec(model_id=base_model.id)],
+                    )
+                ]
+                return self.models[0]
 
         return model_id
 
