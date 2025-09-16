@@ -12,7 +12,9 @@ from unittest.mock import patch
 import pytest
 
 from ads.aqua.common.entities import ComputeShapeSummary
+
 from ads.aqua.common.errors import AquaRecommendationError, AquaValueError
+from ads.aqua.modeldeployment.config_loader import AquaDeploymentConfig
 from ads.aqua.shaperecommend.estimator import (
     LlamaMemoryEstimator,
     MemoryEstimator,
@@ -33,9 +35,7 @@ from ads.aqua.shaperecommend.shape_report import (
 )
 from ads.model.model_metadata import ModelCustomMetadata, ModelProvenanceMetadata
 
-CONFIG_ROOT = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "test_data/recommend/"
-)
+CONFIG_ROOT = os.path.join(os.path.dirname(__file__), "test_data/recommend/")
 
 
 def load_config(filename):
@@ -91,10 +91,13 @@ class TestMemoryEstimator:
     @pytest.mark.parametrize(
         "config_file,should_raise",
         [
-            ("Devstral-Small-2507-GQA.json", False),
-            ("Kimi-K2-Instruct-MOE.json", False),
-            ("Qwen3-235B-A22B-Instruct-2507-FP8.json", False),
-            ("t5gemma-ml-ml-prefixlm.json", True),  # This one is expected to raise
+            ("config-json-files/Devstral-Small-2507-GQA.json", False),
+            ("config-json-files/Kimi-K2-Instruct-MOE.json", False),
+            ("config-json-files/Qwen3-235B-A22B-Instruct-2507-FP8.json", False),
+            (
+                "config-json-files/t5gemma-ml-ml-prefixlm.json",
+                True,
+            ),  # This one is expected to raise
         ],
     )
     def test_memory_estimator_properties_from_file(self, config_file, should_raise):
@@ -115,9 +118,12 @@ class TestMemoryEstimator:
     @pytest.mark.parametrize(
         "config_file, expected_estimator_cls",
         [
-            ("Devstral-Small-2507-GQA.json", LlamaMemoryEstimator),
-            ("Kimi-K2-Instruct-MOE.json", MixtureMemoryEstimator),
-            ("Qwen3-235B-A22B-Instruct-2507-FP8.json", MixtureMemoryEstimator),
+            ("config-json-files/Devstral-Small-2507-GQA.json", LlamaMemoryEstimator),
+            ("config-json-files/Kimi-K2-Instruct-MOE.json", MixtureMemoryEstimator),
+            (
+                "config-json-files/Qwen3-235B-A22B-Instruct-2507-FP8.json",
+                MixtureMemoryEstimator,
+            ),
         ],
     )
     def test_get_estimator_types_from_config_file(
@@ -151,7 +157,7 @@ class TestLLMConfig:
         "config_file, expected_hidden_size, expected_max_seq_len, expected_dtype, exp_num_key_value_heads, exp_num_local_experts, expected_head_dim, expected_quant",
         [
             (
-                "Devstral-Small-2507-GQA.json",
+                "config-json-files/Devstral-Small-2507-GQA.json",
                 5120,
                 131072,
                 "bfloat16",
@@ -161,7 +167,7 @@ class TestLLMConfig:
                 None,
             ),
             (
-                "Kimi-K2-Instruct-MOE.json",
+                "config-json-files/Kimi-K2-Instruct-MOE.json",
                 7168,
                 131072,
                 "bfloat16",
@@ -171,7 +177,7 @@ class TestLLMConfig:
                 "fp8",
             ),
             (
-                "Qwen3-235B-A22B-Instruct-2507-FP8.json",
+                "config-json-files/Qwen3-235B-A22B-Instruct-2507-FP8.json",
                 4096,
                 262144,
                 "bfloat16",
@@ -219,9 +225,9 @@ class TestLLMConfig:
     @pytest.mark.parametrize(
         "config_file, expected_quantizations",
         [
-            ("Devstral-Small-2507-GQA.json", {"4bit"}),
-            ("Kimi-K2-Instruct-MOE.json", {"4bit"}),
-            ("Qwen3-235B-A22B-Instruct-2507-FP8.json", {"4bit"}),
+            ("config-json-files/Devstral-Small-2507-GQA.json", {"4bit"}),
+            ("config-json-files/Kimi-K2-Instruct-MOE.json", {"4bit"}),
+            ("config-json-files/Qwen3-235B-A22B-Instruct-2507-FP8.json", {"4bit"}),
         ],
     )
     def test_suggested_quantizations_from_file(
@@ -236,15 +242,10 @@ class TestLLMConfig:
 # --- Tests for recommend.py ---
 class GPUShapesIndexMock:
     def __init__(self):
-        local_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "../../../../ads/aqua/resources",
-            "gpu_shapes_index.json",
-        )
-        # local_path = "ads/aqua/resources/gpu_shapes_index.json"
-        with open(local_path) as f:
+        # update gpu-index.json if changes to accelerated-data-science/ads/aqua/resources/gpu_shapes_index.json occurs
+        local_path = "gpu-index/gpu-index.json"
+        with open(os.path.join(CONFIG_ROOT, local_path)) as f:
             local_data = json.load(f)
-
         local_shapes = local_data.get("shapes", {})
         self.shapes = local_shapes
 
@@ -341,39 +342,82 @@ class TestAquaShapeRecommend:
             )
 
     @pytest.mark.parametrize(
-        "config_file, result_file",
-        [
-            ("Devstral-Small-2507-GQA.json", "result-Devstral-Small-2507-GQA.json"),
-            ("Kimi-K2-Instruct-MOE.json", "result-Kimi-K2-Instruct-MOE.json"),
+        "config_file, result_file, service_managed_model",
+        [  # config.json cases
             (
-                "Qwen3-235B-A22B-Instruct-2507-FP8.json",
-                "result-Qwen3-235B-A22B-Instruct-2507-FP8.json",
+                "config-json-files/Devstral-Small-2507-GQA.json",
+                "config-json-files/result-Devstral-Small-2507-GQA.json",
+                False,
+            ),
+            (
+                "config-json-files/Kimi-K2-Instruct-MOE.json",
+                "config-json-files/result-Kimi-K2-Instruct-MOE.json",
+                False,
+            ),
+            (
+                "config-json-files/Qwen3-235B-A22B-Instruct-2507-FP8.json",
+                "config-json-files/result-Qwen3-235B-A22B-Instruct-2507-FP8.json",
+                False,
+            ),
+            # # SMM config cases
+            (
+                "service-config/example-1.json",
+                "service-config/result-example-1.json",
+                True,
+            ),
+            (
+                "service-config/example-2.json",
+                "service-config/result-example-2.json",
+                True,
+            ),
+            (
+                "service-config/example-3.json",
+                "service-config/result-example-3.json",
+                True,
             ),
         ],
     )
     def test_which_shapes_valid_from_file(
-        self, monkeypatch, config_file, result_file, **kwargs
+        self, monkeypatch, config_file, result_file, service_managed_model, **kwargs
     ):
-        raw = load_config(config_file)
         app = AquaShapeRecommend()
         mock_model = MockDataScienceModel.create(config_file)
         monkeypatch.setattr(
             "ads.aqua.app.DataScienceModel.from_id", lambda _: mock_model
         )
-        monkeypatch.setattr(app, "_get_model_config", lambda _: raw)
 
         shapes_index = GPUShapesIndexMock()
         real_shapes = [
             ComputeShapeSummary(name=name, shape_series="GPU", gpu_specs=spec)
             for name, spec in shapes_index.shapes.items()
         ]
+
         monkeypatch.setattr(
-            app, "valid_compute_shapes", lambda *args, **kwargs: real_shapes
+            app,
+            "valid_compute_shapes",
+            lambda *args, **kwargs: (
+                print("Monkeypatch valid_compute_shapes hit"),
+                real_shapes,
+            )[1],
         )
 
-        request = RequestRecommend(
-            model_id="ocid1.datasciencemodel.oc1.TEST", generate_table=False
-        )
+        raw = load_config(config_file)
+
+        if service_managed_model:
+            config = AquaDeploymentConfig(**raw)
+
+            request = RequestRecommend(
+                model_id="ocid1.datasciencemodel.oc1.TEST",
+                generate_table=False,
+                deployment_config=config,
+            )
+        else:
+            monkeypatch.setattr(app, "_get_model_config", lambda _: raw)
+
+            request = RequestRecommend(
+                model_id="ocid1.datasciencemodel.oc1.TEST", generate_table=False
+            )
+
         result = app.which_shapes(request=request)
 
         expected_result = load_config(result_file)
