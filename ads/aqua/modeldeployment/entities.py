@@ -750,19 +750,19 @@ class CreateModelDeploymentDetails(BaseModel):
                 logger.debug(
                     f"Detected base model is fine-tuned model {AQUA_FINE_TUNE_MODEL_VERSION} and switched to stack deployment."
                 )
+                segments = aqua_fine_tuned_model.split("#")
+                if len(segments) != 2:
+                    logger.error(
+                        "Validation failed: Fine-tuned model ID '%s' is not supported for model deployment.",
+                        base_model.id,
+                    )
+                    raise ConfigValidationError(
+                        f"Invalid fine-tuned model ID '{base_model.id}': missing or invalid tag '{Tags.AQUA_FINE_TUNED_MODEL_TAG}' format. "
+                        f"Make sure tag '{Tags.AQUA_FINE_TUNED_MODEL_TAG}' is added with format <service_model_id>#<service_model_name>."
+                    )
                 return AquaMultiModelRef(
-                    model_id=aqua_fine_tuned_model.split("#")[0],
+                    model_id=segments[0],
                     fine_tune_weights=[LoraModuleSpec(model_id=base_model.id)],
-                )
-            else:
-                logger.error(
-                    "Validation failed: Fine-tuned model ID '%s' is not supported for single-model deployment.",
-                    base_model.id,
-                )
-                raise ConfigValidationError(
-                    f"Invalid base model ID '{base_model.id}': "
-                    "single-model deployment does not support legacy fine-tuned models. "
-                    f"Run 'ads aqua model convert_fine_tune --model_id {base_model.id}' to convert legacy AQUA fine tuned model to version {AQUA_FINE_TUNE_MODEL_VERSION} for deployment."
                 )
 
         return model_id
