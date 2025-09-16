@@ -7,7 +7,7 @@
 import json
 import os
 import re
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, mock_open
 from unittest.mock import patch
 import pytest
 
@@ -277,6 +277,40 @@ class MockDataScienceModel:
 
 
 class TestAquaShapeRecommend:
+
+    @patch("ads.aqua.shaperecommend.recommend.hf_hub_download")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_fetch_hf_config_success(self, mock_file, mock_download):
+        """Test successful config fetch from Hugging Face"""
+        app = AquaShapeRecommend()
+        model_id = "test/model"
+        config_path = "/fake/path/config.json"
+        expected_config = {"model_type": "llama", "hidden_size": 4096}
+
+        mock_download.return_value = config_path
+        mock_file.return_value.read.return_value = json.dumps(expected_config)
+
+        result = app._fetch_hf_config(model_id)
+
+        assert result == expected_config
+        mock_download.assert_called_once_with(repo_id=model_id, filename="config.json")
+
+    @patch("ads.aqua.shaperecommend.recommend.hf_hub_download")
+    @patch("ads.aqua.shaperecommend.recommend.format_hf_custom_error_message")
+    def test_fetch_hf_config_http_error(self, mock_format_error, mock_download):
+        """Test error handling when Hugging Face request fails"""
+        from huggingface_hub.utils import HfHubHTTPError
+
+        app = AquaShapeRecommend()
+        model_id = "nonexistent/model"
+        http_error = HfHubHTTPError("Model not found")
+        mock_download.side_effect = http_error
+
+        with pytest.raises(HfHubHTTPError):
+            app._fetch_hf_config(model_id)
+
+        mock_format_error.assert_called_once_with(http_error)
+
     @pytest.mark.parametrize(
         "config, expected_recs, expected_troubleshoot",
         [
