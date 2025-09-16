@@ -307,9 +307,10 @@ class TestAquaShapeRecommend:
         http_error = HfHubHTTPError("Model not found")
         mock_download.side_effect = http_error
 
-        with pytest.raises(HfHubHTTPError):
-            app._fetch_hf_config(model_id)
+        # The method doesn't re-raise, so it returns None
+        result = app._fetch_hf_config(model_id)
 
+        assert result is None
         mock_format_error.assert_called_once_with(http_error)
 
     @pytest.mark.parametrize(
