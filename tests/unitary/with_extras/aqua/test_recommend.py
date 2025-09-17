@@ -436,10 +436,11 @@ class TestAquaShapeRecommend:
             )[1],
         )
 
-        raw = load_config(config_file)
+        mock_raw_config = load_config(config_file)
+        mock_ds_model_name = mock_model.display_name
 
         if service_managed_model:
-            config = AquaDeploymentConfig(**raw)
+            config = AquaDeploymentConfig(**mock_raw_config)
 
             request = RequestRecommend(
                 model_id="ocid1.datasciencemodel.oc1.TEST",
@@ -447,7 +448,7 @@ class TestAquaShapeRecommend:
                 deployment_config=config,
             )
         else:
-            monkeypatch.setattr(app, "_get_model_config", lambda _: raw)
+            monkeypatch.setattr(app, "_get_model_config_and_name", lambda _: (mock_ds_model_name, mock_raw_config))
 
             request = RequestRecommend(
                 model_id="ocid1.datasciencemodel.oc1.TEST", generate_table=False
