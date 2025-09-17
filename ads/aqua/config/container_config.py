@@ -74,6 +74,7 @@ class AquaContainerConfigItem(Serializable):
     platforms (Optional[List[str]]): Supported platforms.
     model_formats (Optional[List[str]]): Supported model formats.
     spec (Optional[AquaContainerConfigSpec]): Container specification details.
+    lifecycle_state (Optional[str]): Lifecycle state of the container
     """
 
     name: Optional[str] = Field(
@@ -100,6 +101,9 @@ class AquaContainerConfigItem(Serializable):
     )
     usages: Optional[List[str]] = Field(
         default_factory=list, description="Supported usages."
+    )
+    lifecycle_state: Optional[str] = Field(
+        default=None, description="Lifecycle state of the container (e.g., 'ACTIVE', 'INACTIVE')."
     )
 
     class Config:
@@ -155,6 +159,8 @@ class AquaContainerConfig(Serializable):
         finetune_items: Dict[str, AquaContainerConfigItem] = {}
         evaluate_items: Dict[str, AquaContainerConfigItem] = {}
         for container in service_containers:
+            if getattr(container, "lifecycle_state", "").upper() != "ACTIVE":
+                continue
             if "INFERENCE" not in container.usages and not container.is_latest:
                 continue
             container_item = AquaContainerConfigItem(
@@ -162,6 +168,7 @@ class AquaContainerConfig(Serializable):
                 version=container.tag,
                 display_name=container.display_name,
                 family=container.family_name,
+                lifecycle_state=container.lifecycle_state,
                 usages=container.usages,
                 platforms=[],
                 model_formats=[],
