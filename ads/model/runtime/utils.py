@@ -5,18 +5,15 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
-import os
-from functools import lru_cache
-from typing import Dict, Tuple
 import logging
+import os
+from typing import Dict, Tuple
 
 import fsspec
-import requests
 import yaml
 from cerberus import DocumentError, Validator
 
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.common.utils import PAR_LINK
 
 MODEL_PROVENANCE_SCHEMA_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
@@ -127,8 +124,8 @@ def _get_index_json_through_bucket(
             service_packs = json.loads(f.read())
         service_pack_list = service_packs.get(SERVICE_PACKS)
     except Exception as e:
-        logging.warn(e)
-        logging.warn(
+        logging.warning(e)
+        logging.warning(
             "Failed to retrieve the full conda pack path from slug. Pass conda pack path 'oci://<bucketname>@<namespace>/<path_to_conda>' instead of slug."
         )
     return service_pack_list
@@ -160,21 +157,15 @@ def get_service_packs(
     service_pack_path_mapping = {}
     service_pack_slug_mapping = {}
     try:
-        response = requests.request("GET", PAR_LINK)
-
-        # if there is internet
-        if response.ok:
-            service_pack_list = response.json().get(SERVICE_PACKS)
-        # response not good.
-        else:
-            service_pack_list = _get_index_json_through_bucket(
-                namespace=namespace, bucketname=bucketname, auth=auth
-            )
-    except Exception as e:
-        # not internet
+        logging.info("Obtaining service packs through bucket.")
         service_pack_list = _get_index_json_through_bucket(
             namespace=namespace, bucketname=bucketname, auth=auth
         )
+    except Exception as e:
+        # not internet
+        logging.warning(e)
+        logging.warning("Failed to obtain service packs through bucket. Please ensure internet connection.")
+
 
     for service_pack in service_pack_list:
         # Here we need to replace the namespace and bucketname
