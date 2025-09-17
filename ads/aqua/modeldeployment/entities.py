@@ -11,6 +11,7 @@ from ads.aqua import logger
 from ads.aqua.common.entities import AquaMultiModelRef, LoraModuleSpec
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaValueError
+from ads.aqua.common.utils import is_valid_ocid
 from ads.aqua.config.utils.serializer import Serializable
 from ads.aqua.constants import (
     AQUA_FINE_TUNE_MODEL_VERSION,
@@ -730,6 +731,11 @@ class CreateModelDeploymentDetails(BaseModel):
         model_id : str
             The OCID of DataScienceModel instance.
 
+        Returns
+        -------
+        Union[str, AquaMultiModelRef]
+            A string of model id or an instance of AquaMultiModelRef.
+
         Raises
         ------
         ConfigValidationError
@@ -751,7 +757,7 @@ class CreateModelDeploymentDetails(BaseModel):
                     f"Detected base model is fine-tuned model {AQUA_FINE_TUNE_MODEL_VERSION} and switched to stack deployment."
                 )
                 segments = aqua_fine_tuned_model.split("#")
-                if len(segments) != 2:
+                if not segments or not is_valid_ocid(segments[0]):
                     logger.error(
                         "Validation failed: Fine-tuned model ID '%s' is not supported for model deployment.",
                         base_model.id,
