@@ -520,9 +520,19 @@ class AquaDeploymentApp(AquaApp):
 
         deployment_config = self.get_deployment_config(model_id=config_source_id)
 
+        # Loads frameworks specific default params from the configuration
         config_params = deployment_config.configuration.get(
             create_deployment_details.instance_shape, ConfigurationItem()
         ).parameters.get(get_container_params_type(container_type_key), UNKNOWN)
+
+        # Loads default environment variables from the configuration
+        config_env = deployment_config.configuration.get(
+            create_deployment_details.instance_shape, ConfigurationItem()
+        ).env.get(get_container_params_type(container_type_key), {})
+
+        # Merges user provided environment variables with the ones provided in the deployment config
+        # The values provided by user will override the ones provided by default config
+        env_var = {**config_env, **env_var}
 
         # validate user provided params
         user_params = env_var.get("PARAMS", UNKNOWN)
@@ -643,8 +653,8 @@ class AquaDeploymentApp(AquaApp):
 
         env_var.update({AQUA_MULTI_MODEL_CONFIG: multi_model_config.model_dump_json()})
 
-        env_vars = container_spec.env_vars if container_spec else []
-        for env in env_vars:
+        container_spec_env_vars = container_spec.env_vars if container_spec else []
+        for env in container_spec_env_vars:
             if isinstance(env, dict):
                 env = {k: v for k, v in env.items() if v}
                 for key, _ in env.items():
@@ -1278,35 +1288,42 @@ class AquaDeploymentApp(AquaApp):
 
     def recommend_shape(self, **kwargs) -> Union[Table, ShapeRecommendationReport]:
         """
-        For the CLI (set generate_table = True), generates the table (in rich diff) with valid
+        For the CLI (set by default, generate_table = True), generates the table (in rich diff) with valid
         GPU deployment shapes for the provided model and configuration.
 
         For the API (set generate_table = False), generates the JSON with valid
         GPU deployment shapes for the provided model and configuration.
 
-        Validates if recommendations are generated, calls method to construct the rich diff
-        table with the recommendation data.
+        Validates the input and determines whether recommendations are available.
 
         Parameters
         ----------
-        model_ocid : str
-        OCID of the model to recommend feasible compute shapes.
+        **kwargs
+            model_ocid : str
+                (Required) The OCID of the model to recommend feasible compute shapes for.
+            generate_table : bool, optional
+                If True, generate and return a rich-diff table; if False, return a JSON response (default is False).
+            compartment_id : str, optional
+                The OCID of the user's compartment to use for the recommendation.
 
         Returns
         -------
         Table (generate_table = True)
-            A table format for the recommendation report with compatible deployment shapes
-            or troubleshooting info citing the largest shapes if no shape is suitable.
+            If `generate_table` is True, a table displaying the recommendation report with compatible deployment shapes,
+            or troubleshooting info if no shape is suitable.
 
         ShapeRecommendationReport (generate_table = False)
-            A recommendation report with compatible deployment shapes, or troubleshooting info
-            citing the largest shapes if no shape is suitable.
+            If `generate_table` is False, a structured recommendation report with compatible deployment shapes,
+            or troubleshooting info and citing the largest shapes if no shape is suitable.
 
         Raises
         ------
         AquaValueError
-            If model type is unsupported by tool (no recommendation report generated)
+            If the model type is unsupported and no recommendation report can be generated.
         """
+        deployment_config = self.get_deployment_config(model_id=kwargs.get("model_id"))
+        kwargs["deployment_config"] = deployment_config
+
         try:
             request = RequestRecommend(**kwargs)
         except ValidationError as e:

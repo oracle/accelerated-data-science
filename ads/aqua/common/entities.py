@@ -3,7 +3,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from oci.data_science.models import Model
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -245,55 +245,71 @@ class AquaMultiModelRef(Serializable):
     """
     Lightweight model descriptor used for multi-model deployment.
 
-    This class only contains essential details
-    required to fetch complete model metadata and deploy models.
+    This class holds essential details required to fetch model metadata and deploy
+    individual models as part of a multi-model deployment group.
 
     Attributes
     ----------
     model_id : str
-        The unique identifier of the model.
+        The unique identifier (OCID) of the base model.
     model_name : Optional[str]
-        The name of the model.
+        Optional name for the model.
     gpu_count : Optional[int]
-        Number of GPUs required for deployment.
+        Number of GPUs required to allocate for this model during deployment.
     model_task : Optional[str]
-        The task that model operates on. Supported tasks are in MultiModelSupportedTaskType
+        The machine learning task this model performs (e.g., text-generation, summarization).
+        Supported values are listed in `MultiModelSupportedTaskType`.
     env_var : Optional[Dict[str, Any]]
-        Optional environment variables to override during deployment.
+        Optional dictionary of environment variables to inject into the runtime environment
+        of the model container.
+    params : Optional[Dict[str, Any]]
+        Optional dictionary of container-specific inference parameters to override.
+        These are typically framework-level flags required by the runtime backend.
+        For example, in vLLM containers, valid params may include:
+        `--tensor-parallel-size`, `--enforce-eager`, `--max-model-len`, etc.
     artifact_location : Optional[str]
-        Artifact path of model in the multimodel group.
+        Relative path or URI of the model artifact inside the multi-model group folder.
     fine_tune_weights : Optional[List[LoraModuleSpec]]
-        For fine tuned models, the artifact path of the modified model weights
+        List of fine-tuned weight artifacts (e.g., LoRA modules) associated with this model.
     """
 
     model_id: str = Field(..., description="The model OCID to deploy.")
-    model_name: Optional[str] = Field(None, description="The name of model.")
+    model_name: Optional[str] = Field(None, description="The name of the model.")
     gpu_count: Optional[int] = Field(
-        None, description="The gpu count allocation for the model."
+        None, description="The number of GPUs allocated for the model."
     )
     model_task: Optional[str] = Field(
         None,
-        description="The task that model operates on. Supported tasks are in MultiModelSupportedTaskType",
+        description="The task this model performs. See `MultiModelSupportedTaskType` for supported values.",
     )
     env_var: Optional[dict] = Field(
-        default_factory=dict, description="The environment variables of the model."
+        default_factory=dict,
+        description="Environment variables to override during container startup.",
+    )
+    params: Optional[dict] = Field(
+        default_factory=dict,
+        description=(
+            "Framework-specific startup parameters required by the container runtime. "
+            "For example, vLLM models may use flags like `--tensor-parallel-size`, `--enforce-eager`, etc."
+        ),
     )
     artifact_location: Optional[str] = Field(
-        None, description="Artifact path of model in the multimodel group."
+        None,
+        description="Path to the model artifact relative to the multi-model base folder.",
     )
     fine_tune_weights: Optional[List[LoraModuleSpec]] = Field(
         None,
-        description="For fine tuned models, the artifact path of the modified model weights",
+        description="List of fine-tuned weight modules (e.g., LoRA) associated with this base model.",
     )
 
     def all_model_ids(self) -> List[str]:
         """
-        Returns all associated model OCIDs, including the base model and any fine-tuned models.
+        Returns all model OCIDs associated with this reference, including fine-tuned weights.
 
         Returns
         -------
         List[str]
-            A list of all model OCIDs associated with this multi-model reference.
+            A list containing the base model OCID and any fine-tuned module OCIDs.
         """
         ids = {self.model_id}
         if self.fine_tune_weights:
@@ -302,8 +318,80 @@ class AquaMultiModelRef(Serializable):
             )
         return list(ids)
 
+    @model_validator(mode="before")
+    @classmethod
+    def extract_params_from_env_var(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        A model-level validator that extracts `PARAMS` from the `env_var` dictionary
+        and injects them into the `params` field as a dictionary.
+
+        This is useful for backward compatibility where users pass CLI-style
+        parameters via environment variables, e.g.:
+        env_var = { "PARAMS": "--max-model-len 65536 --enable-streaming" }
+
+        If `params` is already set, values from `PARAMS` in `env_var` are added
+        only if they do not override existing keys.
+        """
+        env = values.get("env_var", {})
+        param_string = env.pop("PARAMS", None)
+
+        if param_string:
+            parsed_params = cls._parse_params(params=param_string)
+            existing_params = values.get("params", {}) or {}
+            # Avoid overriding existing keys
+            for k, v in parsed_params.items():
+                if k not in existing_params:
+                    existing_params[k] = v
+            values["params"] = existing_params
+            values["env_var"] = env  # cleaned up version without PARAMS
+
+        return values
+
+    @staticmethod
+    def _parse_params(params: Union[str, List[str]]) -> Dict[str, str]:
+        """
+        Parses CLI-style parameters into a dictionary format.
+
+        This method accepts either:
+        - A single string of parameters (e.g., "--key1 val1 --key2 val2")
+        - A list of strings (e.g., ["--key1", "val1", "--key2", "val2"])
+
+        Returns a dictionary of the form { "key1": "val1", "key2": "val2" }.
+
+        Parameters
+        ----------
+        params : Union[str, List[str]]
+            The parameters to parse. Can be a single string or a list of strings.
+
+        Returns
+        -------
+        Dict[str, str]
+            Dictionary with parameter names as keys and their corresponding values as strings.
+        """
+        if not params or not isinstance(params, (str, list)):
+            return {}
+
+        # Normalize string to list of "--key value" strings
+        if isinstance(params, str):
+            params_list = [
+                f"--{param.strip()}" for param in params.split("--") if param.strip()
+            ]
+        else:
+            params_list = params
+
+        parsed = {}
+        for item in params_list:
+            parts = item.strip().split()
+            if not parts:
+                continue
+            key = parts[0]
+            value = " ".join(parts[1:]) if len(parts) > 1 else ""
+            parsed[key] = value
+
+        return parsed
+
     class Config:
-        extra = "ignore"
+        extra = "allow"
         protected_namespaces = ()
 
 
