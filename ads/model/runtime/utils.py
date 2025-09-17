@@ -124,9 +124,10 @@ def _get_index_json_through_bucket(
             service_packs = json.loads(f.read())
         service_pack_list = service_packs.get(SERVICE_PACKS)
     except Exception as e:
-        logging.warning(e)
-        logging.warning(
-            "Failed to retrieve the full conda pack path from slug. Pass conda pack path 'oci://<bucketname>@<namespace>/<path_to_conda>' instead of slug."
+        logging.error(
+            f"Error occurred in attempt to extract the list of the service conda environments "
+            f"from the object storage for bucket '{bucketname}' and namespace '{namespace}'. "
+            f"Please make sure that you've provided correct bucket and namespace."
         )
     return service_pack_list
 
@@ -156,16 +157,21 @@ def get_service_packs(
     """
     service_pack_path_mapping = {}
     service_pack_slug_mapping = {}
+
     try:
-        logging.info("Obtaining service packs through bucket.")
         service_pack_list = _get_index_json_through_bucket(
-            namespace=namespace, bucketname=bucketname, auth=auth
+            namespace=namespace,
+            bucketname=bucketname,
+            auth=auth
         )
     except Exception as e:
-        # not internet
-        logging.warning(e)
-        logging.warning("Failed to obtain service packs through bucket. Please ensure internet connection.")
-
+        logging.error(
+            "Failed to fetch service packs index from namespace '%s' and bucket '%s': %s",
+            namespace,
+            bucketname,
+            str(e),
+        )
+        return service_pack_path_mapping, service_pack_slug_mapping
 
     for service_pack in service_pack_list:
         # Here we need to replace the namespace and bucketname
