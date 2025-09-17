@@ -10,8 +10,13 @@ from pydantic import BaseModel, Field, model_validator
 from ads.aqua import logger
 from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import Tags
+from ads.aqua.common.errors import AquaValueError
 from ads.aqua.config.utils.serializer import Serializable
-from ads.aqua.constants import UNKNOWN_DICT
+from ads.aqua.constants import (
+    AQUA_FINE_TUNE_MODEL_VERSION,
+    INCLUDE_BASE_MODEL,
+    UNKNOWN_DICT,
+)
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.constants import FineTuneCustomMetadata
 from ads.aqua.modeldeployment.config_loader import (
@@ -21,6 +26,7 @@ from ads.aqua.modeldeployment.config_loader import (
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import UNKNOWN, get_console_link
 from ads.model.datascience_model import DataScienceModel
+from ads.model.deployment.model_deployment import ModelDeploymentType
 from ads.model.model_metadata import ModelCustomMetadataItem
 
 
@@ -147,13 +153,39 @@ class AquaDeployment(Serializable):
         AquaDeployment:
             The instance of the Aqua model deployment.
         """
-        instance_configuration = oci_model_deployment.model_deployment_configuration_details.model_configuration_details.instance_configuration
+        model_deployment_configuration_details = (
+            oci_model_deployment.model_deployment_configuration_details
+        )
+        if (
+            model_deployment_configuration_details.deployment_type
+            == ModelDeploymentType.SINGLE_MODEL
+        ):
+            instance_configuration = model_deployment_configuration_details.model_configuration_details.instance_configuration
+            instance_count = model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
+            model_id = model_deployment_configuration_details.model_configuration_details.model_id
+        elif (
+            model_deployment_configuration_details.deployment_type
+            == ModelDeploymentType.MODEL_GROUP
+        ):
+            instance_configuration = model_deployment_configuration_details.infrastructure_configuration_details.instance_configuration
+            instance_count = model_deployment_configuration_details.infrastructure_configuration_details.scaling_policy.instance_count
+            model_id = model_deployment_configuration_details.model_group_configuration_details.model_group_id
+        else:
+            allowed_deployment_types = ", ".join(
+                [key for key in dir(ModelDeploymentType) if not key.startswith("__")]
+            )
+            raise AquaValueError(
+                f"Invalid AQUA deployment with type {model_deployment_configuration_details.deployment_type}."
+                f"Only {allowed_deployment_types} are supported at this moment. Specify a different AQUA model deployment."
+            )
+
         instance_shape_config_details = (
             instance_configuration.model_deployment_instance_shape_config_details
         )
-        instance_count = oci_model_deployment.model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
-        environment_variables = oci_model_deployment.model_deployment_configuration_details.environment_configuration_details.environment_variables
-        cmd = oci_model_deployment.model_deployment_configuration_details.environment_configuration_details.cmd
+        environment_variables = model_deployment_configuration_details.environment_configuration_details.environment_variables
+        cmd = (
+            model_deployment_configuration_details.environment_configuration_details.cmd
+        )
         shape_info = ShapeInfo(
             instance_shape=instance_configuration.instance_shape_name,
             instance_count=instance_count,
@@ -168,7 +200,6 @@ class AquaDeployment(Serializable):
                 else None
             ),
         )
-        model_id = oci_model_deployment._model_deployment_configuration_details.model_configuration_details.model_id
         tags = {}
         tags.update(oci_model_deployment.freeform_tags or UNKNOWN_DICT)
         tags.update(oci_model_deployment.defined_tags or UNKNOWN_DICT)
@@ -301,6 +332,9 @@ class CreateModelDeploymentDetails(BaseModel):
     )
     defined_tags: Optional[Dict] = Field(
         None, description="Defined tags for model deployment."
+    )
+    deployment_type: Optional[str] = Field(
+        None, description="The type of model deployment."
     )
 
     @model_validator(mode="before")
@@ -483,11 +517,13 @@ class CreateModelDeploymentDetails(BaseModel):
 
     def validate_input_models(self, model_details: Dict[str, DataScienceModel]) -> None:
         """
-        Validates the input models for a multi-model deployment configuration.
+        Validates the input models for a stacked-model or multi-model deployment configuration.
 
         Validation Criteria:
         - The base model must be explicitly provided.
         - The base model must be in 'ACTIVE' state.
+        - Fine-tuned models must have a tag 'fine_tune_model_version' as v2 to be supported.
+        - Fine-tuned models must not have custom metadata 'include_base_model_artifact' as 1.
         - Fine-tuned model IDs must refer to valid, tagged fine-tuned models.
         - Fine-tuned models must refer back to the same base model.
         - All model names (including fine-tuned variants) must be unique.
@@ -583,6 +619,8 @@ class CreateModelDeploymentDetails(BaseModel):
                         f"Invalid fine-tuned model ID '{ft_model_id}': missing tag '{Tags.AQUA_FINE_TUNED_MODEL_TAG}'."
                     )
 
+                self.validate_ft_model_v2(model=ft_model)
+
                 ft_base_model_id = ft_model.custom_metadata_list.get(
                     FineTuneCustomMetadata.FINE_TUNE_SOURCE,
                     ModelCustomMetadataItem(
@@ -622,6 +660,90 @@ class CreateModelDeploymentDetails(BaseModel):
             raise ConfigValidationError(
                 f"The following model names are duplicated across base and fine-tuned models: "
                 f"{', '.join(sorted(duplicate_names))}. Model names must be unique for proper routing in multi-model deployments."
+            )
+
+    def validate_ft_model_v2(
+        self, model_id: Optional[str] = None, model: Optional[DataScienceModel] = None
+    ) -> None:
+        """
+        Validates the input fine tuned model for model deployment configuration.
+
+        Validation Criteria:
+        - Fine-tuned models must have a tag 'fine_tune_model_version' as v2 to be supported.
+        - Fine-tuned models must not have custom metadata 'include_base_model_artifact' as '1'.
+
+        Parameters
+        ----------
+        model_id : str
+            The OCID of DataScienceModel instance.
+        model : DataScienceModel
+            The DataScienceModel instance.
+
+        Raises
+        ------
+        ConfigValidationError
+            If any of the above conditions are violated.
+        """
+        base_model = DataScienceModel.from_id(model_id) if model_id else model
+        if Tags.AQUA_FINE_TUNED_MODEL_TAG in base_model.freeform_tags:
+            if (
+                base_model.freeform_tags.get(
+                    Tags.AQUA_FINE_TUNE_MODEL_VERSION, UNKNOWN
+                ).lower()
+                != AQUA_FINE_TUNE_MODEL_VERSION
+            ):
+                logger.error(
+                    "Validation failed: Fine-tuned model ID '%s' is not supported for model deployment.",
+                    base_model.id,
+                )
+                raise ConfigValidationError(
+                    f"Invalid fine-tuned model ID '{base_model.id}': only fine tune model {AQUA_FINE_TUNE_MODEL_VERSION} is supported for model deployment. "
+                    f"Run 'ads aqua model convert_fine_tune --model_id {base_model.id}' to convert legacy AQUA fine tuned model to version {AQUA_FINE_TUNE_MODEL_VERSION} for deployment."
+                )
+
+            include_base_model_artifact = base_model.custom_metadata_list.get(
+                FineTuneCustomMetadata.FINE_TUNE_INCLUDE_BASE_MODEL_ARTIFACT,
+                ModelCustomMetadataItem(
+                    key=FineTuneCustomMetadata.FINE_TUNE_INCLUDE_BASE_MODEL_ARTIFACT
+                ),
+            ).value
+
+            if include_base_model_artifact == INCLUDE_BASE_MODEL:
+                logger.error(
+                    "Validation failed: Fine-tuned model ID '%s' is not supported for model deployment.",
+                    base_model.id,
+                )
+                raise ConfigValidationError(
+                    f"Invalid fine-tuned model ID '{base_model.id}': for fine tuned models like Phi4, the deployment is not supported. "
+                )
+
+    def validate_base_model(self, model_id: str) -> None:
+        """
+        Validates the input base model for single model deployment configuration.
+
+        Validation Criteria:
+        - Fine-tuned models are not supported in single model deployment.
+
+        Parameters
+        ----------
+        model_id : str
+            The OCID of DataScienceModel instance.
+
+        Raises
+        ------
+        ConfigValidationError
+            If any of the above conditions are violated.
+        """
+        base_model = DataScienceModel.from_id(model_id)
+        if Tags.AQUA_FINE_TUNED_MODEL_TAG in base_model.freeform_tags:
+            logger.error(
+                "Validation failed: Fine-tuned model ID '%s' is not supported for single-model deployment.",
+                base_model.id,
+            )
+            raise ConfigValidationError(
+                f"Invalid base model ID '{base_model.id}': "
+                "single-model deployment does not support fine-tuned models. "
+                f"Please deploy the fine-tuned model '{base_model.id}' as a stacked model deployment instead."
             )
 
     class Config:
