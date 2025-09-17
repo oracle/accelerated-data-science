@@ -242,7 +242,9 @@ class AquaDeploymentApp(AquaApp):
                 model = create_deployment_details.models[0]
             else:
                 try:
-                    create_deployment_details.validate_base_model(model_id=model)
+                    model = create_deployment_details.validate_base_model(
+                        model_id=model
+                    )
                 except ConfigValidationError as err:
                     raise AquaValueError(f"{err}") from err
 

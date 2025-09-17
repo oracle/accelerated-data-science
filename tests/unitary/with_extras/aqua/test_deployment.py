@@ -1539,7 +1539,7 @@ class TestAquaDeployment(unittest.TestCase):
 
         mock_validate_base_model.assert_called()
         mock_create.assert_called_with(
-            model=TestDataset.MODEL_ID,
+            model=mock_validate_base_model.return_value,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=freeform_tags,
@@ -1640,7 +1640,7 @@ class TestAquaDeployment(unittest.TestCase):
 
         mock_validate_base_model.assert_called()
         mock_create.assert_called_with(
-            model=TestDataset.MODEL_ID,
+            model=mock_validate_base_model.return_value,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
@@ -1741,7 +1741,7 @@ class TestAquaDeployment(unittest.TestCase):
 
         mock_validate_base_model.assert_called()
         mock_create.assert_called_with(
-            model=TestDataset.MODEL_ID,
+            model=mock_validate_base_model.return_value,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
@@ -1849,7 +1849,7 @@ class TestAquaDeployment(unittest.TestCase):
 
         mock_validate_base_model.assert_called()
         mock_create.assert_called_with(
-            model=TestDataset.MODEL_ID,
+            model=mock_validate_base_model.return_value,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
