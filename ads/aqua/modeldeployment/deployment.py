@@ -563,7 +563,16 @@ class AquaDeploymentApp(AquaApp):
 
         params = f"{params} {deployment_params}".strip()
 
-        if create_deployment_details.model_name:
+        if (
+            container_type_key.lower()
+            in [
+                InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY,
+                InferenceContainerTypeFamily.AQUA_VLLM_V1_CONTAINER_FAMILY,
+                InferenceContainerTypeFamily.AQUA_VLLM_LLAMA4_CONTAINER_FAMILY,
+                InferenceContainerTypeFamily.AQUA_VLLM_OPENAI_CONTAINER_FAMILY,
+            ]
+            and create_deployment_details.model_name
+        ):
             # Replace existing --served-model-name argument if present, otherwise add it
             if "--served-model-name" in params:
                 params = re.sub(
