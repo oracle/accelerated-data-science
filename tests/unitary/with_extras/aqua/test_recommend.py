@@ -7,12 +7,13 @@
 import json
 import os
 import re
-from unittest.mock import MagicMock
-
+from unittest.mock import MagicMock, mock_open
+from unittest.mock import patch
 import pytest
 
 from ads.aqua.common.entities import ComputeShapeSummary
-from ads.aqua.common.errors import AquaRecommendationError
+
+from ads.aqua.common.errors import AquaRecommendationError, AquaValueError
 from ads.aqua.modeldeployment.config_loader import AquaDeploymentConfig
 from ads.aqua.shaperecommend.estimator import (
     LlamaMemoryEstimator,
@@ -21,7 +22,9 @@ from ads.aqua.shaperecommend.estimator import (
     get_estimator,
 )
 from ads.aqua.shaperecommend.llm_config import LLMConfig
-from ads.aqua.shaperecommend.recommend import AquaShapeRecommend
+from ads.aqua.shaperecommend.recommend import (
+    AquaShapeRecommend,
+)
 from ads.aqua.shaperecommend.shape_report import (
     DeploymentParams,
     ModelConfig,
@@ -275,6 +278,41 @@ class MockDataScienceModel:
 
 
 class TestAquaShapeRecommend:
+
+    @patch("ads.aqua.shaperecommend.recommend.hf_hub_download")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_fetch_hf_config_success(self, mock_file, mock_download):
+        """Test successful config fetch from Hugging Face"""
+        app = AquaShapeRecommend()
+        model_id = "test/model"
+        config_path = "/fake/path/config.json"
+        expected_config = {"model_type": "llama", "hidden_size": 4096}
+
+        mock_download.return_value = config_path
+        mock_file.return_value.read.return_value = json.dumps(expected_config)
+
+        result = app._fetch_hf_config(model_id)
+
+        assert result == expected_config
+        mock_download.assert_called_once_with(repo_id=model_id, filename="config.json")
+
+    @patch("ads.aqua.shaperecommend.recommend.hf_hub_download")
+    @patch("ads.aqua.shaperecommend.recommend.format_hf_custom_error_message")
+    def test_fetch_hf_config_http_error(self, mock_format_error, mock_download):
+        """Test error handling when Hugging Face request fails"""
+        from huggingface_hub.utils import HfHubHTTPError
+
+        app = AquaShapeRecommend()
+        model_id = "nonexistent/model"
+        http_error = HfHubHTTPError("Model not found")
+        mock_download.side_effect = http_error
+
+        # The method doesn't re-raise, so it returns None
+        result = app._fetch_hf_config(model_id)
+
+        assert result is None
+        mock_format_error.assert_called_once_with(http_error)
+
     @pytest.mark.parametrize(
         "config, expected_recs, expected_troubleshoot",
         [
@@ -398,10 +436,11 @@ class TestAquaShapeRecommend:
             )[1],
         )
 
-        raw = load_config(config_file)
+        mock_raw_config = load_config(config_file)
+        mock_ds_model_name = mock_model.display_name
 
         if service_managed_model:
-            config = AquaDeploymentConfig(**raw)
+            config = AquaDeploymentConfig(**mock_raw_config)
 
             request = RequestRecommend(
                 model_id="ocid1.datasciencemodel.oc1.TEST",
@@ -409,7 +448,11 @@ class TestAquaShapeRecommend:
                 deployment_config=config,
             )
         else:
-            monkeypatch.setattr(app, "_get_model_config", lambda _: raw)
+            monkeypatch.setattr(
+                app,
+                "_get_model_config_and_name",
+                lambda model_id: (mock_raw_config, mock_ds_model_name),
+            )
 
             request = RequestRecommend(
                 model_id="ocid1.datasciencemodel.oc1.TEST", generate_table=False
