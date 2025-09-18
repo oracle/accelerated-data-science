@@ -99,11 +99,13 @@ class AquaShapeRecommend:
         try:
             shapes = self.valid_compute_shapes(compartment_id=request.compartment_id)
 
-            data, model_name = self._get_model_config_and_name(
-                model_id=request.model_id,
-            )
-
             if request.deployment_config:
+                if is_valid_ocid(request.model_id):
+                    ds_model = self._get_data_science_model(request.model_id)
+                    model_name = ds_model.display_name
+                else:
+                    model_name = request.model_id
+
                 shape_recommendation_report = (
                     ShapeRecommendationReport.from_deployment_config(
                         request.deployment_config, model_name, shapes
@@ -111,6 +113,9 @@ class AquaShapeRecommend:
                 )
 
             else:
+                data, model_name = self._get_model_config_and_name(
+                    model_id=request.model_id,
+                )
                 llm_config = LLMConfig.from_raw_config(data)
 
                 shape_recommendation_report = self._summarize_shapes_for_seq_lens(
@@ -394,7 +399,7 @@ class AquaShapeRecommend:
         """
 
         model_task = model.freeform_tags.get("task", "").lower()
-        model_task =  re.sub(r"-", "_", model_task)
+        model_task = re.sub(r"-", "_", model_task)
         model_format = model.freeform_tags.get("model_format", "").lower()
 
         logger.info(f"Current model task type: {model_task}")

@@ -448,7 +448,11 @@ class TestAquaShapeRecommend:
                 deployment_config=config,
             )
         else:
-            monkeypatch.setattr(app, "_get_model_config_and_name", lambda _: (mock_ds_model_name, mock_raw_config))
+            monkeypatch.setattr(
+                app,
+                "_get_model_config_and_name",
+                lambda model_id: (mock_raw_config, mock_ds_model_name),
+            )
 
             request = RequestRecommend(
                 model_id="ocid1.datasciencemodel.oc1.TEST", generate_table=False
