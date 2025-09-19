@@ -4,6 +4,7 @@ conda_type: service
 name: Anomaly Detection Operator
 conda: anomaly_p310_cpu_x86_64_v1
 gpu: no
+prefix: service_pack/cpu/AI_Forecasting_Operator/
 keywords:
   - Anomaly Detection
 backends:
