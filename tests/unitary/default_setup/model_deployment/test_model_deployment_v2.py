@@ -922,7 +922,7 @@ spec:
         model_deployment = self.initialize_model_deployment()
         model_deployment.dsc_model_deployment.id = "test_model_deployment_id"
         update_model_deployment_details = (
-            model_deployment._update_model_deployment_details()
+            model_deployment._update_model_deployment_details(update_type="ZDT")
         )
         model_deployment.update(wait_for_completion=True)
         mock_create.assert_called()
