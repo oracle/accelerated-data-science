@@ -182,6 +182,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
             horizon=self.spec.horizon,
             target_column=self.original_target_column,
             dt_column=self.date_col,
+            postprocessing=self.spec.postprocessing,
         )
         self._train_model(data_train, data_test, model_kwargs)
         return self.forecast_output.get_forecast_long()
