@@ -252,27 +252,19 @@ class AquaDeploymentDetail(AquaDeployment, DataClassSerializable):
         extra = "allow"
 
 
-class CreateModelDeploymentDetails(BaseModel):
-    """Class for creating Aqua model deployments."""
+class ModelDeploymentDetails(BaseModel):
+    """Class for the base details of creating and updating Aqua model deployments."""
 
-    instance_shape: str = Field(
-        ..., description="The instance shape used for deployment."
+    display_name: Optional[str] = Field(
+        None, description="The name of the model deployment."
     )
-    display_name: str = Field(..., description="The name of the model deployment.")
-    compartment_id: Optional[str] = Field(None, description="The compartment OCID.")
-    project_id: Optional[str] = Field(None, description="The project OCID.")
     description: Optional[str] = Field(
         None, description="The description of the deployment."
     )
-    model_id: Optional[str] = Field(None, description="The model OCID to deploy.")
-    model_name: Optional[str] = Field(
-        None, description="The model name specified by user to deploy."
-    )
-
     models: Optional[List[AquaMultiModelRef]] = Field(
-        None, description="List of models for multimodel deployment."
+        None, description="List of models for multimodel or stacked deployment."
     )
-    instance_count: int = Field(
+    instance_count: Optional[int] = Field(
         None, description="Number of instances used for deployment."
     )
     log_group_id: Optional[str] = Field(
@@ -294,39 +286,11 @@ class CreateModelDeploymentDetails(BaseModel):
     web_concurrency: Optional[int] = Field(
         None, description="Number of worker processes/threads for handling requests."
     )
-    server_port: Optional[int] = Field(
-        None, description="Server port for the Docker container image."
-    )
-    health_check_port: Optional[int] = Field(
-        None, description="Health check port for the Docker container image."
-    )
-    env_var: Optional[Dict[str, str]] = Field(
-        default_factory=dict, description="Environment variables for deployment."
-    )
-    container_family: Optional[str] = Field(
-        None, description="Image family of the model deployment container runtime."
-    )
     memory_in_gbs: Optional[float] = Field(
         None, description="Memory (in GB) for the selected shape."
     )
     ocpus: Optional[float] = Field(
         None, description="OCPU count for the selected shape."
-    )
-    model_file: Optional[str] = Field(
-        None, description="File used for model deployment."
-    )
-    private_endpoint_id: Optional[str] = Field(
-        None, description="Private endpoint ID for model deployment."
-    )
-    container_image_uri: Optional[str] = Field(
-        None,
-        description="Image URI for model deployment container runtime "
-        "(ignored for service-managed containers). "
-        "Required parameter for BYOC based deployments if this parameter was not set during "
-        "model registration.",
-    )
-    cmd_var: Optional[List[str]] = Field(
-        None, description="Command variables for the container runtime."
     )
     freeform_tags: Optional[Dict] = Field(
         None, description="Freeform tags for model deployment."
@@ -334,187 +298,6 @@ class CreateModelDeploymentDetails(BaseModel):
     defined_tags: Optional[Dict] = Field(
         None, description="Defined tags for model deployment."
     )
-    deployment_type: Optional[str] = Field(
-        None, description="The type of model deployment."
-    )
-
-    @model_validator(mode="before")
-    @classmethod
-    def validate(cls, values: Any) -> Any:
-        """Ensures exactly one of `model_id` or `models` is provided."""
-        model_id = values.get("model_id")
-        models = values.get("models")
-        if bool(model_id) == bool(models):  # Both set or both unset
-            raise ValueError(
-                "Exactly one of `model_id` or `models` must be provided to create a model deployment."
-            )
-        return values
-
-    def validate_multimodel_deployment_feasibility(
-        self, models_config_summary: ModelDeploymentConfigSummary
-    ) -> None:
-        """
-        Validates whether the selected model group is feasible for a multi-model deployment
-        on the chosen instance shape.
-
-        Validation Criteria:
-        - Ensures that the model group is not empty.
-        - Verifies that the selected instance shape is supported by the GPU allocation.
-        - Confirms that each model in the group has a corresponding deployment configuration.
-        - Ensures that each model's user-specified GPU allocation is allowed by its deployment configuration.
-        - Checks that the total GPUs requested by the model group does not exceed the available GPU capacity
-            for the selected instance shape.
-
-        Parameters
-        ----------
-        models_config_summary : ModelDeploymentConfigSummary
-            Contains GPU allocations and deployment configuration for models.
-
-        Raises
-        ------
-        ConfigValidationError:
-        - If the model group is empty.
-        - If the selected instance shape is not supported.
-        - If any model is missing from the deployment configuration.
-        - If a model's GPU allocation does not match any valid configuration.
-        - If the total requested GPUs exceed the instance shape’s capacity.
-        """
-        # Ensure that at least one model is provided.
-        if not self.models:
-            logger.error("No models provided in the model group.")
-            raise ConfigValidationError(
-                "Multi-model deployment requires at least one model. Please provide one or more models."
-            )
-
-        selected_shape = self.instance_shape
-
-        if models_config_summary.error_message:
-            logger.error(models_config_summary.error_message)
-            raise ConfigValidationError(models_config_summary.error_message)
-
-        # Verify that the selected shape is supported by the GPU allocation.
-        if selected_shape not in models_config_summary.gpu_allocation:
-            supported_shapes = list(models_config_summary.gpu_allocation.keys())
-            error_message = (
-                f"The model group is not compatible with the selected instance shape `{selected_shape}`. "
-                f"Supported shapes: {supported_shapes}."
-            )
-            logger.error(error_message)
-            raise ConfigValidationError(error_message)
-
-        total_available_gpus: int = models_config_summary.gpu_allocation[
-            selected_shape
-        ].total_gpus_available
-        model_deployment_config = models_config_summary.deployment_config
-
-        # Verify that every model in the group has a corresponding deployment configuration.
-        required_model_ids = {model.model_id for model in self.models}
-        missing_model_ids = required_model_ids - set(model_deployment_config.keys())
-        if missing_model_ids:
-            error_message = (
-                f"Missing deployment configuration for models: {list(missing_model_ids)}. "
-                "Ensure all selected models are properly configured. If you are deploying custom "
-                "models that lack AQUA service configuration, refer to the deployment guidelines here: "
-                "https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/multimodel-deployment-tips.md#custom_models"
-            )
-            logger.error(error_message)
-            raise ConfigValidationError(error_message)
-
-        sum_model_gpus = 0
-        is_single_model = len(self.models) == 1
-
-        # Validate each model's GPU allocation against its deployment configuration.
-        for model in self.models:
-            sum_model_gpus += model.gpu_count
-            aqua_deployment_config = model_deployment_config[model.model_id]
-
-            # Skip validation for models without deployment configuration details.
-            if not aqua_deployment_config.configuration:
-                error_message = (
-                    f"Missing deployment configuration for model `{model.model_id}`. "
-                    "Please verify that the model is correctly configured. If you are deploying custom models without AQUA service configuration, "
-                    "refer to the guidelines at: "
-                    "https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/multimodel-deployment-tips.md#custom_models"
-                )
-
-                logger.error(error_message)
-                raise ConfigValidationError(error_message)
-
-            allowed_shapes = (
-                list(
-                    set(aqua_deployment_config.configuration.keys()).union(
-                        set(aqua_deployment_config.shape or [])
-                    )
-                )
-                if is_single_model
-                else list(aqua_deployment_config.configuration.keys())
-            )
-
-            if selected_shape not in allowed_shapes:
-                error_message = (
-                    f"Model `{model.model_id}` is not compatible with the selected instance shape `{selected_shape}`. "
-                    f"Select a different instance shape from allowed shapes {allowed_shapes}."
-                )
-                logger.error(error_message)
-                raise ConfigValidationError(error_message)
-
-            # Retrieve valid GPU counts for the selected shape.
-            multi_model_configs = aqua_deployment_config.configuration.get(
-                selected_shape, ConfigurationItem()
-            ).multi_model_deployment
-
-            valid_gpu_configurations = [cfg.gpu_count for cfg in multi_model_configs]
-
-            if model.gpu_count not in valid_gpu_configurations:
-                valid_gpu_str = valid_gpu_configurations or []
-
-                if is_single_model:
-                    # If total GPU allocation is not supported by selected model
-                    if selected_shape not in aqua_deployment_config.shape:
-                        error_message = (
-                            f"Model `{model.model_id}` is configured with {model.gpu_count} GPU(s), "
-                            f"which is invalid. The allowed GPU configurations are: {valid_gpu_str}."
-                        )
-                        logger.error(error_message)
-                        raise ConfigValidationError(error_message)
-
-                    if model.gpu_count != total_available_gpus:
-                        error_message = (
-                            f"Model '{model.model_id}' is configured to use {model.gpu_count} GPU(s), "
-                            f"which not fully utilize the selected instance shape with {total_available_gpus} available GPU(s). "
-                            "Consider adjusting the GPU allocation to better utilize the available resources and maximize performance."
-                        )
-                        logger.error(error_message)
-                        raise ConfigValidationError(error_message)
-
-                else:
-                    error_message = (
-                        f"Model `{model.model_id}` is configured with {model.gpu_count} GPU(s), which is invalid. "
-                        f"Valid GPU configurations are: {valid_gpu_str}. Please adjust the GPU allocation "
-                        f"or choose an instance shape that supports a higher GPU count."
-                    )
-                    logger.error(error_message)
-                    raise ConfigValidationError(error_message)
-
-        if sum_model_gpus < total_available_gpus:
-            error_message = (
-                f"Selected models are configured to use {sum_model_gpus} GPU(s), "
-                f"which not fully utilize the selected instance shape with {total_available_gpus} available GPU(s). "
-                "This configuration may lead to suboptimal performance for a multi-model deployment. "
-                "Consider adjusting the GPU allocation to better utilize the available resources and maximize performance."
-            )
-            logger.warning(error_message)
-            # raise ConfigValidationError(error_message)
-
-        # Check that the total GPU count for the model group does not exceed the instance capacity.
-        if sum_model_gpus > total_available_gpus:
-            error_message = (
-                f"The selected instance shape `{selected_shape}` provides `{total_available_gpus}` GPU(s), "
-                f"but the total GPU allocation required by the model group is `{sum_model_gpus}` GPU(s). "
-                "Please adjust the GPU allocation per model or choose an instance shape with greater GPU capacity."
-            )
-            logger.error(error_message)
-            raise ConfigValidationError(error_message)
 
     def validate_input_models(self, model_details: Dict[str, DataScienceModel]) -> None:
         """
@@ -780,4 +563,239 @@ class CreateModelDeploymentDetails(BaseModel):
 
     class Config:
         extra = "allow"
+        protected_namespaces = ()
+
+class CreateModelDeploymentDetails(ModelDeploymentDetails):
+    """Class for creating Aqua model deployments."""
+
+    instance_shape: str = Field(
+        ..., description="The instance shape used for deployment."
+    )
+    compartment_id: Optional[str] = Field(None, description="The compartment OCID.")
+    project_id: Optional[str] = Field(None, description="The project OCID.")
+    model_id: Optional[str] = Field(None, description="The model OCID to deploy.")
+    model_name: Optional[str] = Field(
+        None, description="The model name specified by user to deploy."
+    )
+    server_port: Optional[int] = Field(
+        None, description="Server port for the Docker container image."
+    )
+    health_check_port: Optional[int] = Field(
+        None, description="Health check port for the Docker container image."
+    )
+    env_var: Optional[Dict[str, str]] = Field(
+        default_factory=dict, description="Environment variables for deployment."
+    )
+    container_family: Optional[str] = Field(
+        None, description="Image family of the model deployment container runtime."
+    )
+    model_file: Optional[str] = Field(
+        None, description="File used for model deployment."
+    )
+    container_image_uri: Optional[str] = Field(
+        None,
+        description="Image URI for model deployment container runtime "
+        "(ignored for service-managed containers). "
+        "Required parameter for BYOC based deployments if this parameter was not set during "
+        "model registration.",
+    )
+    private_endpoint_id: Optional[str] = Field(
+        None, description="Private endpoint ID for model deployment."
+    )
+    cmd_var: Optional[List[str]] = Field(
+        None, description="Command variables for the container runtime."
+    )
+    deployment_type: Optional[str] = Field(
+        None, description="The type of model deployment."
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate(cls, values: Any) -> Any:
+        """Ensures exactly one of `model_id` or `models` is provided."""
+        model_id = values.get("model_id")
+        models = values.get("models")
+        if bool(model_id) == bool(models):  # Both set or both unset
+            raise ValueError(
+                "Exactly one of `model_id` or `models` must be provided to create a model deployment."
+            )
+        return values
+
+    def validate_multimodel_deployment_feasibility(
+        self, models_config_summary: ModelDeploymentConfigSummary
+    ) -> None:
+        """
+        Validates whether the selected model group is feasible for a multi-model deployment
+        on the chosen instance shape.
+
+        Validation Criteria:
+        - Ensures that the model group is not empty.
+        - Verifies that the selected instance shape is supported by the GPU allocation.
+        - Confirms that each model in the group has a corresponding deployment configuration.
+        - Ensures that each model's user-specified GPU allocation is allowed by its deployment configuration.
+        - Checks that the total GPUs requested by the model group does not exceed the available GPU capacity
+            for the selected instance shape.
+
+        Parameters
+        ----------
+        models_config_summary : ModelDeploymentConfigSummary
+            Contains GPU allocations and deployment configuration for models.
+
+        Raises
+        ------
+        ConfigValidationError:
+        - If the model group is empty.
+        - If the selected instance shape is not supported.
+        - If any model is missing from the deployment configuration.
+        - If a model's GPU allocation does not match any valid configuration.
+        - If the total requested GPUs exceed the instance shape’s capacity.
+        """
+        # Ensure that at least one model is provided.
+        if not self.models:
+            logger.error("No models provided in the model group.")
+            raise ConfigValidationError(
+                "Multi-model deployment requires at least one model. Please provide one or more models."
+            )
+
+        selected_shape = self.instance_shape
+
+        if models_config_summary.error_message:
+            logger.error(models_config_summary.error_message)
+            raise ConfigValidationError(models_config_summary.error_message)
+
+        # Verify that the selected shape is supported by the GPU allocation.
+        if selected_shape not in models_config_summary.gpu_allocation:
+            supported_shapes = list(models_config_summary.gpu_allocation.keys())
+            error_message = (
+                f"The model group is not compatible with the selected instance shape `{selected_shape}`. "
+                f"Supported shapes: {supported_shapes}."
+            )
+            logger.error(error_message)
+            raise ConfigValidationError(error_message)
+
+        total_available_gpus: int = models_config_summary.gpu_allocation[
+            selected_shape
+        ].total_gpus_available
+        model_deployment_config = models_config_summary.deployment_config
+
+        # Verify that every model in the group has a corresponding deployment configuration.
+        required_model_ids = {model.model_id for model in self.models}
+        missing_model_ids = required_model_ids - set(model_deployment_config.keys())
+        if missing_model_ids:
+            error_message = (
+                f"Missing deployment configuration for models: {list(missing_model_ids)}. "
+                "Ensure all selected models are properly configured. If you are deploying custom "
+                "models that lack AQUA service configuration, refer to the deployment guidelines here: "
+                "https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/multimodel-deployment-tips.md#custom_models"
+            )
+            logger.error(error_message)
+            raise ConfigValidationError(error_message)
+
+        sum_model_gpus = 0
+        is_single_model = len(self.models) == 1
+
+        # Validate each model's GPU allocation against its deployment configuration.
+        for model in self.models:
+            sum_model_gpus += model.gpu_count
+            aqua_deployment_config = model_deployment_config[model.model_id]
+
+            # Skip validation for models without deployment configuration details.
+            if not aqua_deployment_config.configuration:
+                error_message = (
+                    f"Missing deployment configuration for model `{model.model_id}`. "
+                    "Please verify that the model is correctly configured. If you are deploying custom models without AQUA service configuration, "
+                    "refer to the guidelines at: "
+                    "https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/multimodel-deployment-tips.md#custom_models"
+                )
+
+                logger.error(error_message)
+                raise ConfigValidationError(error_message)
+
+            allowed_shapes = (
+                list(
+                    set(aqua_deployment_config.configuration.keys()).union(
+                        set(aqua_deployment_config.shape or [])
+                    )
+                )
+                if is_single_model
+                else list(aqua_deployment_config.configuration.keys())
+            )
+
+            if selected_shape not in allowed_shapes:
+                error_message = (
+                    f"Model `{model.model_id}` is not compatible with the selected instance shape `{selected_shape}`. "
+                    f"Select a different instance shape from allowed shapes {allowed_shapes}."
+                )
+                logger.error(error_message)
+                raise ConfigValidationError(error_message)
+
+            # Retrieve valid GPU counts for the selected shape.
+            multi_model_configs = aqua_deployment_config.configuration.get(
+                selected_shape, ConfigurationItem()
+            ).multi_model_deployment
+
+            valid_gpu_configurations = [cfg.gpu_count for cfg in multi_model_configs]
+
+            if model.gpu_count not in valid_gpu_configurations:
+                valid_gpu_str = valid_gpu_configurations or []
+
+                if is_single_model:
+                    # If total GPU allocation is not supported by selected model
+                    if selected_shape not in aqua_deployment_config.shape:
+                        error_message = (
+                            f"Model `{model.model_id}` is configured with {model.gpu_count} GPU(s), "
+                            f"which is invalid. The allowed GPU configurations are: {valid_gpu_str}."
+                        )
+                        logger.error(error_message)
+                        raise ConfigValidationError(error_message)
+
+                    if model.gpu_count != total_available_gpus:
+                        error_message = (
+                            f"Model '{model.model_id}' is configured to use {model.gpu_count} GPU(s), "
+                            f"which not fully utilize the selected instance shape with {total_available_gpus} available GPU(s). "
+                            "Consider adjusting the GPU allocation to better utilize the available resources and maximize performance."
+                        )
+                        logger.error(error_message)
+                        raise ConfigValidationError(error_message)
+
+                else:
+                    error_message = (
+                        f"Model `{model.model_id}` is configured with {model.gpu_count} GPU(s), which is invalid. "
+                        f"Valid GPU configurations are: {valid_gpu_str}. Please adjust the GPU allocation "
+                        f"or choose an instance shape that supports a higher GPU count."
+                    )
+                    logger.error(error_message)
+                    raise ConfigValidationError(error_message)
+
+        if sum_model_gpus < total_available_gpus:
+            error_message = (
+                f"Selected models are configured to use {sum_model_gpus} GPU(s), "
+                f"which not fully utilize the selected instance shape with {total_available_gpus} available GPU(s). "
+                "This configuration may lead to suboptimal performance for a multi-model deployment. "
+                "Consider adjusting the GPU allocation to better utilize the available resources and maximize performance."
+            )
+            logger.warning(error_message)
+            # raise ConfigValidationError(error_message)
+
+        # Check that the total GPU count for the model group does not exceed the instance capacity.
+        if sum_model_gpus > total_available_gpus:
+            error_message = (
+                f"The selected instance shape `{selected_shape}` provides `{total_available_gpus}` GPU(s), "
+                f"but the total GPU allocation required by the model group is `{sum_model_gpus}` GPU(s). "
+                "Please adjust the GPU allocation per model or choose an instance shape with greater GPU capacity."
+            )
+            logger.error(error_message)
+            raise ConfigValidationError(error_message)
+
+    class Config:
+        extra = "allow"
+        protected_namespaces = ()
+
+
+class UpdateModelDeploymentDetails(ModelDeploymentDetails):
+    """Class for updating Aqua model deployments."""
+
+    class Config:
+        # forbid any other parameter for updating model group deployment
+        extra = "forbid"
         protected_namespaces = ()
