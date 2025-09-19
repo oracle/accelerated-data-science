@@ -965,16 +965,14 @@ class AquaDeploymentApp(AquaApp):
             # adds `--enable_lora` to parameters
             params_dict.update({"--enable_lora": UNKNOWN})
             params = build_params_string(params_dict)
-        if create_deployment_details.model_name:
-            # Replace existing --served-model-name argument if present, otherwise add it
-            if "--served-model-name" in params:
-                params = re.sub(
-                    r"--served-model-name\s+\S+",
-                    f"--served-model-name {create_deployment_details.model_name}",
-                    params,
-                )
-            else:
-                params += f" --served-model-name {create_deployment_details.model_name}"
+
+        if create_deployment_details.model_name and "--served-model-name" in params:
+            # Replace existing --served-model-name argument with custom name provided by user
+            params = re.sub(
+                r"--served-model-name\s+\S+",
+                f"--served-model-name {create_deployment_details.model_name}",
+                params,
+            )
 
         if params:
             env_var.update({"PARAMS": params})
