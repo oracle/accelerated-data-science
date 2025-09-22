@@ -4,14 +4,14 @@
 
 import json
 import os
+import re
 import shutil
 from typing import Dict, List, Optional, Tuple, Union
 
-from pydantic import ValidationError
-from rich.table import Table
-
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import HfHubHTTPError
+from pydantic import ValidationError
+from rich.table import Table
 
 from ads.aqua.app import logger
 from ads.aqua.common.entities import ComputeShapeSummary
@@ -22,15 +22,15 @@ from ads.aqua.common.errors import (
 )
 from ads.aqua.common.utils import (
     build_pydantic_error_message,
+    format_hf_custom_error_message,
     get_resource_type,
     is_valid_ocid,
     load_config,
     load_gpu_shapes_index,
-    format_hf_custom_error_message,
 )
 from ads.aqua.shaperecommend.constants import (
-    BITSANDBYTES,
     BITS_AND_BYTES_4BIT,
+    BITSANDBYTES,
     SAFETENSORS,
     SHAPE_MAP,
     TEXT_GENERATION,
@@ -98,16 +98,14 @@ class AquaShapeRecommend:
         """
         try:
             shapes = self.valid_compute_shapes(compartment_id=request.compartment_id)
-            
-            data, model_name = self._get_model_config_and_name(
-                model_id=request.model_id,
-            )
-            llm_config = LLMConfig.from_raw_config(data)
-            shape_recommendation_report = self._summarize_shapes_for_seq_lens(
-                llm_config, shapes, model_name
-            )
 
             if request.deployment_config:
+                if is_valid_ocid(request.model_id):
+                    ds_model = self._get_data_science_model(request.model_id)
+                    model_name = ds_model.display_name
+                else:
+                    model_name = request.model_id
+
                 shape_recommendation_report = (
                     ShapeRecommendationReport.from_deployment_config(
                         request.deployment_config, model_name, shapes
@@ -115,16 +113,14 @@ class AquaShapeRecommend:
                 )
 
             else:
-                ds_model = self._get_data_science_model(request.model_id)
-                
-                data = self._get_model_config(ds_model)
-
+                data, model_name = self._get_model_config_and_name(
+                    model_id=request.model_id,
+                )
                 llm_config = LLMConfig.from_raw_config(data)
 
                 shape_recommendation_report = self._summarize_shapes_for_seq_lens(
                     llm_config, shapes, model_name
                 )
-                
 
             if request.generate_table and shape_recommendation_report.recommendations:
                 shape_recommendation_report = self._rich_diff_table(
@@ -174,8 +170,8 @@ class AquaShapeRecommend:
         """
         if is_valid_ocid(model_id):
             logger.info(f"Detected OCID: Fetching OCI model config for '{model_id}'.")
-            ds_model = self._validate_model_ocid(model_id)
-            config = self._fetch_hf_config(model_id)
+            ds_model = self._get_data_science_model(model_id)
+            config = self._get_model_config(ds_model)
             model_name = ds_model.display_name
         else:
             logger.info(
@@ -403,6 +399,7 @@ class AquaShapeRecommend:
         """
 
         model_task = model.freeform_tags.get("task", "").lower()
+        model_task = re.sub(r"-", "_", model_task)
         model_format = model.freeform_tags.get("model_format", "").lower()
 
         logger.info(f"Current model task type: {model_task}")

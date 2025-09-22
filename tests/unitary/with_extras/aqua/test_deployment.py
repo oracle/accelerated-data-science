@@ -246,6 +246,74 @@ class TestDataset:
         }
     ]
 
+    stack_model_deployment_object = {
+        "category_log_details": oci.data_science.models.CategoryLogDetails(
+            **{
+                "access": oci.data_science.models.LogDetails(
+                    **{
+                        "log_group_id": "ocid1.loggroup.oc1.<region>.<OCID>",
+                        "log_id": "ocid1.log.oc1.<region>.<OCID>",
+                    }
+                ),
+                "predict": oci.data_science.models.LogDetails(
+                    **{
+                        "log_group_id": "ocid1.loggroup.oc1.<region>.<OCID>",
+                        "log_id": "ocid1.log.oc1.<region>.<OCID>",
+                    }
+                ),
+            }
+        ),
+        "compartment_id": "ocid1.compartment.oc1..<OCID>",
+        "created_by": "ocid1.user.oc1..<OCID>",
+        "defined_tags": {},
+        "description": "Mock description",
+        "display_name": "model-deployment-name",
+        "freeform_tags": {"OCI_AQUA": "active", "aqua_model_name": "model-name"},
+        "id": "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>",
+        "lifecycle_state": "ACTIVE",
+        "model_deployment_configuration_details": oci.data_science.models.ModelGroupDeploymentConfigurationDetails(
+            **{
+                "deployment_type": "MODEL_GROUP",
+                "environment_configuration_details": oci.data_science.models.OcirModelDeploymentEnvironmentConfigurationDetails(
+                    **{
+                        "cmd": [],
+                        "entrypoint": [],
+                        "environment_configuration_type": "OCIR_CONTAINER",
+                        "environment_variables": {
+                            "BASE_MODEL": "service_models/model-name/artifact",
+                            "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
+                            "PARAMS": "--served-model-name custom_base_name odsc-llm --seed 42 --max-lora-rank 32 --enable_lora",
+                        },
+                        "health_check_port": 8080,
+                        "image": "dsmc://image-name:1.0.0.0",
+                        "image_digest": "sha256:mock22373c16f2015f6f33c5c8553923cf8520217da0bd9504471c5e53cbc9d",
+                        "server_port": 8080,
+                    }
+                ),
+                "infrastructure_configuration_details": oci.data_science.models.InstancePoolInfrastructureConfigurationDetails(
+                    **{
+                        "bandwidth_mbps": 10,
+                        "instance_configuration": oci.data_science.models.InstanceConfiguration(
+                            **{
+                                "instance_shape_name": DEPLOYMENT_SHAPE_NAME,
+                                "model_deployment_instance_shape_config_details": null,
+                            }
+                        ),
+                        "scaling_policy": oci.data_science.models.FixedSizeScalingPolicy(
+                            **{"instance_count": 1, "policy_type": "FIXED_SIZE"}
+                        ),
+                    }
+                ),
+                "model_group_configuration_details": oci.data_science.models.ModelGroupConfigurationDetails(
+                    model_group_id="ocid1.datasciencemodelgroupint.oc1.<region>.<OCID>"
+                ),
+            }
+        ),
+        "model_deployment_url": MODEL_DEPLOYMENT_URL,
+        "project_id": USER_PROJECT_ID,
+        "time_created": "2024-01-01T00:00:00.000000+00:00",
+    }
+
     multi_model_deployment_object = {
         "category_log_details": oci.data_science.models.CategoryLogDetails(
             **{
@@ -1117,9 +1185,13 @@ class TestDataset:
         ),
         "memberModels": [
             {
+                "inference_key": "custom_base_key",
+                "model_id": "ocid1.datasciencemodel.oc1.iad.<OCID>",
+            },
+            {
                 "inference_key": "custom_inference_key",
                 "model_id": "ocid1.datasciencemodel.oc1.iad.<OCID>",
-            }
+            },
         ],
     }
 
@@ -2141,6 +2213,85 @@ class TestAquaDeployment(unittest.TestCase):
         expected_result = copy.deepcopy(TestDataset.aqua_multi_deployment_object)
         expected_result["state"] = "CREATING"
         assert actual_attributes == expected_result
+
+    @patch("ads.model.deployment.ModelDeployment.update")
+    @patch.object(DataScienceModelGroup, "create")
+    @patch.object(DataScienceModelGroup, "from_id")
+    @patch("ads.model.deployment.ModelDeployment.from_id")
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp._validate_input_models")
+    def test_update_model_group_deployment(
+        self,
+        mock_validate_input_models,
+        mock_deployment_from_id,
+        mock_model_group_from_id,
+        mock_model_group_create,
+        mock_update,
+    ):
+        model_deployment_dsc_obj = copy.deepcopy(
+            TestDataset.stack_model_deployment_object
+        )
+        model_deployment_dsc_obj["lifecycle_state"] = "UPDATING"
+
+        aqua_deployment = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_create_deployment.yaml"
+        )
+        model_deployment_obj = ModelDeployment.from_yaml(uri=aqua_deployment)
+        model_deployment_obj.runtime.set_spec(
+            model_deployment_obj.runtime.CONST_MODEL_GROUP_ID,
+            "ocid1.datasciencemodelgroup.oc1.iad.<OCID>",
+        )
+        model_deployment_obj.dsc_model_deployment = (
+            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+        )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
+        mock_deployment_from_id.return_value = model_deployment_obj
+
+        aqua_model_group = DataScienceModelGroup(
+            spec=TestDataset.aqua_deployment_stack_model
+        )
+        model_group_details = MagicMock(type="STACKED")
+        aqua_model_group.dsc_model_group = MagicMock(
+            model_group_details=model_group_details
+        )
+        aqua_model_group.set_spec(
+            aqua_model_group.CONST_BASE_MODEL_ID,
+            "ocid1.datasciencemodel.oc1.iad.<OCID>",
+        )
+        mock_model_group_from_id.return_value = aqua_model_group
+
+        updated_aqua_model_group = copy.deepcopy(aqua_model_group)
+        updated_aqua_model_group.set_spec(
+            updated_aqua_model_group.CONST_ID,
+            "ocid1.datasciencemodelgroup.oc1.iad.<UPDATED_OCID>",
+        )
+        mock_model_group_create.return_value = updated_aqua_model_group
+
+        mock_update.return_value = model_deployment_obj
+
+        ft_weights = [
+            LoraModuleSpec(
+                model_id="ocid1.datasciencemodel.oc1..<FT_OCID>",
+                model_name="ft_model",
+            )
+        ]
+        model_info = AquaMultiModelRef(
+            model_id="ocid1.datasciencemodel.oc1.iad.<OCID>",
+            model_name="test_model",
+            model_task="code_synthesis",
+            gpu_count=2,
+            fine_tune_weights=ft_weights,
+        )
+
+        self.app.update(
+            model_deployment_id="ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>",
+            display_name="updated display name",
+            description="updated description",
+            models=[model_info],
+        )
+
+        mock_validate_input_models.assert_called()
+        mock_model_group_create.assert_called()
+        mock_update.assert_called_with(wait_for_completion=False, update_type="LIVE")
 
     @parameterized.expand(
         [
