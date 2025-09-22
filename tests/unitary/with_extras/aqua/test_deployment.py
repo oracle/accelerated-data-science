@@ -2249,6 +2249,10 @@ class TestAquaDeployment(unittest.TestCase):
         aqua_model_group = DataScienceModelGroup(
             spec=TestDataset.aqua_deployment_stack_model
         )
+        model_group_details = MagicMock(type="STACKED")
+        aqua_model_group.dsc_model_group = MagicMock(
+            model_group_details=model_group_details
+        )
         aqua_model_group.set_spec(
             aqua_model_group.CONST_BASE_MODEL_ID,
             "ocid1.datasciencemodel.oc1.iad.<OCID>",

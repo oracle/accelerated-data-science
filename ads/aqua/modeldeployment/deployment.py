@@ -1412,6 +1412,13 @@ class AquaDeploymentApp(AquaApp):
             The instance of DataScienceModelGroup.
         """
         model_group = DataScienceModelGroup.from_id(model_group_id)
+        if (
+            model_group.dsc_model_group.model_group_details.type
+            != DeploymentType.STACKED
+        ):
+            raise AquaValueError(
+                "Invalid 'model_deployment_id'. Only stacked deployment is supported to update."
+            )
         # create a new model group if fine tune weights changed as member models in ds model group is inmutable
         if update_model_deployment_details.models:
             if len(update_model_deployment_details.models) != 1:
