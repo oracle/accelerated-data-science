@@ -22,6 +22,8 @@ from oci.data_science.models import (
     CreateNotebookSessionDetails,
     NotebookSession,
     NotebookSessionConfigurationDetails,
+    NotebookSessionConfigDetails,
+    NotebookSessionShapeConfigDetails,
 )
 from oci.exceptions import ServiceError
 from types import MethodType
@@ -295,6 +297,8 @@ class NotebookCatalog:
         shape=None,
         block_storage_size_in_gbs=None,
         subnet_id=None,
+        ocpus=None,
+        memory_in_gbs=None,
         **kwargs,
     ):
         """
@@ -310,11 +314,15 @@ class NotebookCatalog:
             The value to assign to the shape property of this NotebookSessionConfigurationDetails.
             Allowed values for this property are: "VM.Standard.E2.2", "VM.Standard.E2.4",
             "VM.Standard.E2.8", "VM.Standard2.1", "VM.Standard2.2", "VM.Standard2.4", "VM.Standard2.8",
-            "VM.Standard2.16","VM.Standard2.24".
+            "VM.Standard2.16","VM.Standard2.24". Flexible shapes also supported but require addition of ocpus and memory_in_gbs parameters
         block_storage_size_in_gbs: int, required
             Size of the block storage drive. Limited to values between 50 (GB) and 1024 (1024GB = 1TB)
-        subnet_id: str, required
-            The OCID of the subnet resource where the notebook is to be created.
+        subnet_id: str, optional
+            The OCID of the subnet resource where the notebook is to be created. If no subnet_id is specified the session will use managed egress
+        ocpus: int, optional
+            OCPUs assigned to flexible shapes, such as VM.Standard.E4.Flex
+        memory_in_gbs: int, optional
+            memory (in GBs) assigned to flexible shapes, such as VM.Standard.E4.Flex
         kwargs: dict, optional
             Additional kwargs passed to `DataScienceClient.create_notebook_session()`
 
@@ -326,18 +334,66 @@ class NotebookCatalog:
         ------
         KeyError: If the resource was not found or do not have authorization to access that resource.
         """
-        notebook_session_configuration_details = NotebookSessionConfigurationDetails(
-            shape=shape,
-            block_storage_size_in_gbs=block_storage_size_in_gbs,
-            subnet_id=subnet_id,
-        )
+
         project_id = PROJECT_OCID if project_id is None else project_id
-        create_notebook_details = CreateNotebookSessionDetails(
-            display_name=display_name,
-            project_id=project_id,
-            compartment_id=self.compartment_id,
-            notebook_session_configuration_details=notebook_session_configuration_details,
-        )
+        
+        if ocpus and memory_in_gbs:
+            if subnet_id:
+                notebook_session_configuration_details = NotebookSessionConfigurationDetails(
+                    shape=shape,
+                    block_storage_size_in_gbs=block_storage_size_in_gbs,
+                    subnet_id=subnet_id,
+                    notebook_session_shape_config_details=oci.data_science.models.NotebookSessionShapeConfigDetails(
+                    ocpus=ocpus, 
+                    memory_in_gbs=memory_in_gbs)
+                )
+                create_notebook_details = CreateNotebookSessionDetails(
+                display_name=display_name,
+                project_id=project_id,
+                compartment_id=self.compartment_id,
+                notebook_session_configuration_details=notebook_session_configuration_details,)
+
+            else:
+                notebook_session_configuration_details = NotebookSessionConfigDetails(
+                    shape=shape,
+                    block_storage_size_in_gbs=block_storage_size_in_gbs,
+                    notebook_session_shape_config_details=oci.data_science.models.NotebookSessionShapeConfigDetails(
+                    ocpus=ocpus, 
+                    memory_in_gbs=memory_in_gbs)
+                )
+                create_notebook_details = CreateNotebookSessionDetails(
+                display_name=display_name,
+                project_id=project_id,
+                compartment_id=self.compartment_id,
+                notebook_session_config_details=notebook_session_configuration_details,
+            )
+
+
+        else:
+
+            if subnet_id:
+                notebook_session_configuration_details = NotebookSessionConfigurationDetails(
+                    shape=shape,
+                    block_storage_size_in_gbs=block_storage_size_in_gbs,
+                    subnet_id=subnet_id,
+                )
+                create_notebook_details = CreateNotebookSessionDetails(
+                display_name=display_name,
+                project_id=project_id,
+                compartment_id=self.compartment_id,
+                notebook_session_configuration_details=notebook_session_configuration_details,)
+            else:
+                notebook_session_configuration_details = NotebookSessionConfigDetails(
+                    shape=shape,
+                    block_storage_size_in_gbs=block_storage_size_in_gbs,
+                )
+                create_notebook_details = CreateNotebookSessionDetails(
+                display_name=display_name,
+                project_id=project_id,
+                compartment_id=self.compartment_id,
+                notebook_session_config_details=notebook_session_configuration_details,
+            )
+
         try:
             create_notebook_response = self.ds_client.create_notebook_session(
                 create_notebook_details, **kwargs
