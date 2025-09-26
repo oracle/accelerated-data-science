@@ -454,7 +454,9 @@ class AquaApp:
 
         return ModelConfigResult(config=config, model_details=oci_model)
 
-    def get_container_image(self, container_type: str = None) -> str:
+    def get_container_image(
+        self, container_type: str = None, container_tag: str = None
+    ) -> str:
         """
         Gets the latest smc container complete image name from the given container type.
 
@@ -462,6 +464,9 @@ class AquaApp:
         ----------
         container_type: str
             type of container, can be either odsc-vllm-serving, odsc-llm-fine-tuning, odsc-llm-evaluate
+
+        container_tag: str
+            tag of container, ex: 0.8.5.post1.1
 
         Returns
         -------
@@ -476,13 +481,23 @@ class AquaApp:
         )
         if not container:
             raise AquaValueError(f"Invalid container type : {container_type}")
-        container_image = (
-            SERVICE_MANAGED_CONTAINER_URI_SCHEME
-            + container.container_name
-            + ":"
-            + container.tag
-        )
-        return container_image
+
+        if container_tag:
+            container_image = (
+                SERVICE_MANAGED_CONTAINER_URI_SCHEME
+                + container.container_name
+                + ":"
+                + container_tag
+            )
+            return container_image
+        else:
+            container_image = (
+                SERVICE_MANAGED_CONTAINER_URI_SCHEME
+                + container.container_name
+                + ":"
+                + container.tag
+            )
+            return container_image
 
     @cached(cache=TTLCache(maxsize=20, ttl=timedelta(minutes=30), timer=datetime.now))
     def list_service_containers(self) -> List[ContainerSummary]:
