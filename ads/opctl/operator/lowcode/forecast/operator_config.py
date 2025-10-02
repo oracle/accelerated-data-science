@@ -77,6 +77,14 @@ class PreprocessingSteps(DataClassSerializable):
 
 
 @dataclass(repr=True)
+class PostprocessingSteps(DataClassSerializable):
+    """Class representing postprocessing steps for operator."""
+
+    set_min_forecast: int = None
+    set_max_forecast: int = None
+
+
+@dataclass(repr=True)
 class DataPreprocessor(DataClassSerializable):
     """Class representing operator specification preprocessing details."""
 
@@ -110,6 +118,7 @@ class ForecastOperatorSpec(DataClassSerializable):
     local_explanation_filename: str = None
     target_column: str = None
     preprocessing: DataPreprocessor = field(default_factory=DataPreprocessor)
+    postprocessing: PostprocessingSteps = field(default_factory=PostprocessingSteps)
     datetime_column: DateTimeColumn = field(default_factory=DateTimeColumn)
     target_category_columns: List[str] = field(default_factory=list)
     generate_report: bool = None
@@ -145,6 +154,11 @@ class ForecastOperatorSpec(DataClassSerializable):
             self.preprocessing
             if self.preprocessing is not None
             else DataPreprocessor(enabled=True)
+        )
+        self.postprocessing = (
+            self.postprocessing
+            if self.postprocessing is not None
+            else PostprocessingSteps()
         )
         # For Report Generation. When user doesn't specify defaults to True
         self.generate_report = (
