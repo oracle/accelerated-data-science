@@ -2268,6 +2268,8 @@ class TestAquaDeployment(unittest.TestCase):
 
         mock_update.return_value = model_deployment_obj
 
+        mock_validate_input_models.return_value = (MagicMock(), MagicMock())
+
         ft_weights = [
             LoraModuleSpec(
                 model_id="ocid1.datasciencemodel.oc1..<FT_OCID>",
@@ -2922,8 +2924,8 @@ class TestModelGroupConfig(TestAquaDeployment):
             )
         )
 
-        model_group_config = ModelGroupConfig.from_create_model_deployment_details(
-            create_deployment_details=create_deployment_details,
+        model_group_config = ModelGroupConfig.from_model_deployment_details(
+            deployment_details=create_deployment_details,
             model_config_summary=model_config_summary,
             container_type_key="odsc-vllm-serving",
             container_params="--example-container-params test",
@@ -2945,13 +2947,11 @@ class TestModelGroupConfig(TestAquaDeployment):
                 predict_log_id="ocid1.log.oc1.<region>.<OCID>",
             )
         )
-        model_group_config_no_ft = (
-            ModelGroupConfig.from_create_model_deployment_details(
-                create_deployment_details=create_deployment_details_no_ft,
-                model_config_summary=model_config_summary,
-                container_type_key="odsc-vllm-serving",
-                container_params="--example-container-params test",
-            )
+        model_group_config_no_ft = ModelGroupConfig.from_model_deployment_details(
+            deployment_details=create_deployment_details_no_ft,
+            model_config_summary=model_config_summary,
+            container_type_key="odsc-vllm-serving",
+            container_params="--example-container-params test",
         )
 
         assert (
