@@ -377,7 +377,7 @@ class AquaDeploymentApp(AquaApp):
                 combined_model_names,
             ) = self._build_model_group_configs(
                 models=create_deployment_details.models,
-                create_deployment_details=create_deployment_details,
+                deployment_details=create_deployment_details,
                 model_config_summary=model_config_summary,
                 freeform_tags=freeform_tags,
                 source_models=source_models,
@@ -429,7 +429,9 @@ class AquaDeploymentApp(AquaApp):
     def _build_model_group_configs(
         self,
         models: List[AquaMultiModelRef],
-        create_deployment_details: CreateModelDeploymentDetails,
+        deployment_details: Union[
+            CreateModelDeploymentDetails, UpdateModelDeploymentDetails
+        ],
         model_config_summary: ModelDeploymentConfigSummary,
         freeform_tags: Optional[Dict] = None,
         source_models: Optional[Dict[str, DataScienceModel]] = None,
@@ -442,9 +444,9 @@ class AquaDeploymentApp(AquaApp):
         ----------
         models : List[AquaMultiModelRef]
             List of AquaMultiModelRef instances for creating a multi-model group.
-        create_deployment_details : CreateModelDeploymentDetails
-            An instance of CreateModelDeploymentDetails containing all required and optional
-            fields for creating a model deployment via Aqua.
+        deployment_details : Union[CreateModelDeploymentDetails, UpdateModelDeploymentDetails]
+            An instance of CreateModelDeploymentDetails or UpdateModelDeploymentDetails containing all required and optional
+            fields for creating or updating a model deployment via Aqua.
         model_config_summary : ModelConfigSummary
             Summary Model Deployment configuration for the group of models.
         freeform_tags : Optional[Dict]
@@ -667,7 +669,7 @@ class AquaDeploymentApp(AquaApp):
         model_custom_metadata.add(
             key=AQUA_MULTI_MODEL_CONFIG,
             value=self._build_model_group_config(
-                create_deployment_details=create_deployment_details,
+                deployment_details=deployment_details,
                 model_config_summary=model_config_summary,
                 deployment_container=deployment_container,
             ).model_dump_json(),
@@ -719,21 +721,21 @@ class AquaDeploymentApp(AquaApp):
 
     def _build_model_group_config(
         self,
-        create_deployment_details,
+        deployment_details: Union[
+            CreateModelDeploymentDetails, UpdateModelDeploymentDetails
+        ],
         model_config_summary,
         deployment_container: str,
     ) -> ModelGroupConfig:
         """Builds model group config required to deploy multi models."""
-        container_type_key = (
-            create_deployment_details.container_family or deployment_container
-        )
+        container_type_key = deployment_details.container_family or deployment_container
         container_config = self.get_container_config_item(container_type_key)
         container_spec = container_config.spec if container_config else UNKNOWN
 
         container_params = container_spec.cli_param if container_spec else UNKNOWN
 
-        multi_model_config = ModelGroupConfig.from_create_model_deployment_details(
-            create_deployment_details,
+        multi_model_config = ModelGroupConfig.from_model_deployment_details(
+            deployment_details,
             model_config_summary,
             container_type_key,
             container_params,
@@ -1305,7 +1307,7 @@ class AquaDeploymentApp(AquaApp):
 
         # updates model group if fine tuned weights changed.
         model = self._update_model_group(
-            runtime.model_group_id, update_model_deployment_details
+            runtime.model_group_id, update_model_deployment_details, model_deployment
         )
 
         # updates model group deployment infrastructure
@@ -1356,7 +1358,9 @@ class AquaDeploymentApp(AquaApp):
         # applies LIVE update if model group id has been changed
         if runtime.model_group_id != model.id:
             runtime.with_model_group_id(model.id)
-            update_type = ModelDeploymentUpdateType.LIVE
+            if model.dsc_model_group.model_group_details.type == DeploymentType.STACKED:
+                # only applies LIVE update for stacked deployment
+                update_type = ModelDeploymentUpdateType.LIVE
 
         freeform_tags = (
             update_model_deployment_details.freeform_tags
@@ -1395,6 +1399,7 @@ class AquaDeploymentApp(AquaApp):
         self,
         model_group_id: str,
         update_model_deployment_details: UpdateModelDeploymentDetails,
+        model_deployment: ModelDeployment,
     ) -> DataScienceModelGroup:
         """Creates a new model group if fine tuned weights changed.
 
@@ -1405,6 +1410,8 @@ class AquaDeploymentApp(AquaApp):
         update_model_deployment_details: UpdateModelDeploymentDetails
             An instance of UpdateModelDeploymentDetails containing all optional
             fields for updating a model deployment via Aqua.
+        model_deployment: ModelDeployment
+            An instance of ModelDeployment.
 
         Returns
         -------
@@ -1412,62 +1419,124 @@ class AquaDeploymentApp(AquaApp):
             The instance of DataScienceModelGroup.
         """
         model_group = DataScienceModelGroup.from_id(model_group_id)
-        if (
-            model_group.dsc_model_group.model_group_details.type
-            != DeploymentType.STACKED
-        ):
-            raise AquaValueError(
-                "Invalid 'model_deployment_id'. Only stacked deployment is supported to update."
-            )
-        # create a new model group if fine tune weights changed as member models in ds model group is inmutable
         if update_model_deployment_details.models:
-            if len(update_model_deployment_details.models) != 1:
-                raise AquaValueError(
-                    "Invalid 'models' provided. Only one base model is required for updating model stack deployment."
-                )
             # validates input base and fine tune models
-            self._validate_input_models(update_model_deployment_details)
-            target_stacked_model = update_model_deployment_details.models[0]
-            target_base_model_id = target_stacked_model.model_id
-            if model_group.base_model_id != target_base_model_id:
-                raise AquaValueError(
-                    "Invalid parameter 'models'. Base model id can't be changed for stacked model deployment."
+            source_models, _ = self._validate_input_models(
+                update_model_deployment_details
+            )
+            if (
+                model_group.dsc_model_group.model_group_details.type
+                == DeploymentType.STACKED
+            ):
+                # create a new model group if fine tune weights changed as member models in ds model group is inmutable
+                if len(update_model_deployment_details.models) != 1:
+                    raise AquaValueError(
+                        "Invalid 'models' provided. Only one base model is required for updating model stack deployment."
+                    )
+                target_stacked_model = update_model_deployment_details.models[0]
+                target_base_model_id = target_stacked_model.model_id
+                if model_group.base_model_id != target_base_model_id:
+                    raise AquaValueError(
+                        "Invalid parameter 'models'. Base model id can't be changed for stacked model deployment."
+                    )
+
+                # add member models
+                member_models = [
+                    {
+                        "inference_key": fine_tune_weight.model_name,
+                        "model_id": fine_tune_weight.model_id,
+                    }
+                    for fine_tune_weight in target_stacked_model.fine_tune_weights
+                ]
+                # add base model
+                member_models.append(
+                    {
+                        "inference_key": target_stacked_model.model_name,
+                        "model_id": target_base_model_id,
+                    }
                 )
 
-            # add member models
-            member_models = [
-                {
-                    "inference_key": fine_tune_weight.model_name,
-                    "model_id": fine_tune_weight.model_id,
-                }
-                for fine_tune_weight in target_stacked_model.fine_tune_weights
-            ]
-            # add base model
-            member_models.append(
-                {
-                    "inference_key": target_stacked_model.model_name,
-                    "model_id": target_base_model_id,
-                }
-            )
+                # creates a model group with the same configurations from original model group except member models
+                model_group = (
+                    DataScienceModelGroup()
+                    .with_compartment_id(model_group.compartment_id)
+                    .with_project_id(model_group.project_id)
+                    .with_display_name(model_group.display_name)
+                    .with_description(model_group.description)
+                    .with_freeform_tags(**(model_group.freeform_tags or {}))
+                    .with_defined_tags(**(model_group.defined_tags or {}))
+                    .with_custom_metadata_list(model_group.custom_metadata_list)
+                    .with_base_model_id(target_base_model_id)
+                    .with_member_models(member_models)
+                    .create()
+                )
 
-            # creates a model group with the same configurations from original model group except member models
-            model_group = (
-                DataScienceModelGroup()
-                .with_compartment_id(model_group.compartment_id)
-                .with_project_id(model_group.project_id)
-                .with_display_name(model_group.display_name)
-                .with_description(model_group.description)
-                .with_freeform_tags(**(model_group.freeform_tags or {}))
-                .with_defined_tags(**(model_group.defined_tags or {}))
-                .with_custom_metadata_list(model_group.custom_metadata_list)
-                .with_base_model_id(target_base_model_id)
-                .with_member_models(member_models)
-                .create()
-            )
+                logger.info(
+                    f"Model group of base model {target_base_model_id} has been updated: {model_group.id}."
+                )
+            else:
+                compartment_id = model_deployment.infrastructure.compartment_id
+                project_id = model_deployment.infrastructure.project_id
+                freeform_tags = (
+                    update_model_deployment_details.freeform_tags
+                    or model_deployment.freeform_tags
+                )
+                defined_tags = (
+                    update_model_deployment_details.defined_tags
+                    or model_deployment.defined_tags
+                )
+                # needs instance shape here for building the multi model config from update_model_deployment_details
+                update_model_deployment_details.instance_shape = (
+                    model_deployment.infrastructure.shape_name
+                )
 
-            logger.info(
-                f"Model group of base model {target_base_model_id} has been updated: {model_group.id}."
-            )
+                # rebuilds MULTI_MODEL_CONFIG and creates model group
+                base_model_ids = [
+                    model.model_id for model in update_model_deployment_details.models
+                ]
+
+                try:
+                    model_config_summary = self.get_multimodel_deployment_config(
+                        model_ids=base_model_ids, compartment_id=compartment_id
+                    )
+                    if not model_config_summary.gpu_allocation:
+                        raise AquaValueError(model_config_summary.error_message)
+
+                    update_model_deployment_details.validate_multimodel_deployment_feasibility(
+                        models_config_summary=model_config_summary
+                    )
+                except ConfigValidationError as err:
+                    raise AquaValueError(f"{err}") from err
+
+                (
+                    model_group_display_name,
+                    model_group_description,
+                    tags,
+                    model_custom_metadata,
+                    combined_model_names,
+                ) = self._build_model_group_configs(
+                    models=update_model_deployment_details.models,
+                    deployment_details=update_model_deployment_details,
+                    model_config_summary=model_config_summary,
+                    freeform_tags=freeform_tags,
+                    source_models=source_models,
+                )
+
+                model_group = AquaModelApp().create_multi(
+                    models=update_model_deployment_details.models,
+                    model_custom_metadata=model_custom_metadata,
+                    model_group_display_name=model_group_display_name,
+                    model_group_description=model_group_description,
+                    tags=tags,
+                    combined_model_names=combined_model_names,
+                    compartment_id=compartment_id,
+                    project_id=project_id,
+                    defined_tags=defined_tags,
+                )
+
+                logger.info(
+                    f"Model group of multi model deployment {model_deployment.id} has been updated: {model_group.id}."
+                )
 
         return model_group
 

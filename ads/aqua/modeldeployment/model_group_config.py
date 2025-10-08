@@ -23,7 +23,10 @@ from ads.aqua.modeldeployment.config_loader import (
     ConfigurationItem,
     ModelDeploymentConfigSummary,
 )
-from ads.aqua.modeldeployment.entities import CreateModelDeploymentDetails
+from ads.aqua.modeldeployment.entities import (
+    CreateModelDeploymentDetails,
+    UpdateModelDeploymentDetails,
+)
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN
 
@@ -157,7 +160,9 @@ class ModelGroupConfig(Serializable):
     def _merge_gpu_count_params(
         model: AquaMultiModelRef,
         model_config_summary: ModelDeploymentConfigSummary,
-        create_deployment_details: CreateModelDeploymentDetails,
+        deployment_details: Union[
+            CreateModelDeploymentDetails, UpdateModelDeploymentDetails
+        ],
         container_type_key: str,
         container_params,
     ):
@@ -170,9 +175,7 @@ class ModelGroupConfig(Serializable):
 
         deployment_config = model_config_summary.deployment_config.get(
             model.model_id, AquaDeploymentConfig()
-        ).configuration.get(
-            create_deployment_details.instance_shape, ConfigurationItem()
-        )
+        ).configuration.get(deployment_details.instance_shape, ConfigurationItem())
 
         params_found = False
         for item in deployment_config.multi_model_deployment:
@@ -198,9 +201,11 @@ class ModelGroupConfig(Serializable):
         return params
 
     @classmethod
-    def from_create_model_deployment_details(
+    def from_model_deployment_details(
         cls,
-        create_deployment_details: CreateModelDeploymentDetails,
+        deployment_details: Union[
+            CreateModelDeploymentDetails, UpdateModelDeploymentDetails
+        ],
         model_config_summary: ModelDeploymentConfigSummary,
         container_type_key,
         container_params,
@@ -212,11 +217,11 @@ class ModelGroupConfig(Serializable):
         """
         models = []
         seen_models = set()
-        for model in create_deployment_details.models:
+        for model in deployment_details.models:
             params = ModelGroupConfig._merge_gpu_count_params(
                 model,
                 model_config_summary,
-                create_deployment_details,
+                deployment_details,
                 container_type_key,
                 container_params,
             )
