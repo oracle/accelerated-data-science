@@ -1506,12 +1506,6 @@ class AquaDeploymentApp(AquaApp):
             )
 
             if oci_aqua:
-                # skipping the AQUA model deployments that are created from model group
-                # if (
-                #     model_deployment.model_deployment_configuration_details.deployment_type
-                #     in [UNKNOWN_ENUM_VALUE, MODEL_GROUP, SINGLE_MODEL_FLEX]
-                # ):
-                #     continue
                 try:
                     results.append(
                         AquaDeployment.from_oci_model_deployment(
