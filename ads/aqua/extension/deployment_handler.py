@@ -7,8 +7,8 @@ from urllib.parse import urlparse
 
 from tornado.web import HTTPError
 
-from ads.aqua.app import logger
 from ads.aqua.client.client import Client, ExtendedRequestError
+from ads.aqua.client.openai_client import OpenAI
 from ads.aqua.common.decorator import handle_exceptions
 from ads.aqua.common.enums import PredictEndpoints
 from ads.aqua.extension.base_handler import AquaAPIhandler
@@ -178,6 +178,43 @@ class AquaDeploymentHandler(AquaAPIhandler):
 
 
 class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
+    def _extract_text_from_choice(self, choice):
+        # choice may be a dict or an object
+        if isinstance(choice, dict):
+            # streaming chunk: {"delta": {"content": "..."}}
+            delta = choice.get("delta")
+            if isinstance(delta, dict):
+                return delta.get("content") or delta.get("text") or None
+            # non-streaming: {"message": {"content": "..."}}
+            msg = choice.get("message")
+            if isinstance(msg, dict):
+                return msg.get("content") or msg.get("text")
+            # fallback top-level fields
+            return choice.get("text") or choice.get("content")
+        # object-like choice
+        delta = getattr(choice, "delta", None)
+        if delta is not None:
+            return getattr(delta, "content", None) or getattr(delta, "text", None)
+        msg = getattr(choice, "message", None)
+        if msg is not None:
+            if isinstance(msg, str):
+                return msg
+            return getattr(msg, "content", None) or getattr(msg, "text", None)
+        return getattr(choice, "text", None) or getattr(choice, "content", None)
+
+    def _extract_text_from_chunk(self, chunk):
+        if isinstance(chunk, dict):
+            choices = chunk.get("choices") or []
+            if choices:
+                return self._extract_text_from_choice(choices[0])
+            # fallback top-level
+            return chunk.get("text") or chunk.get("content")
+        # object-like chunk
+        choices = getattr(chunk, "choices", None)
+        if choices:
+            return self._extract_text_from_choice(choices[0])
+        return getattr(chunk, "text", None) or getattr(chunk, "content", None)
+
     def _get_model_deployment_response(
         self,
         model_deployment_id: str,
@@ -233,27 +270,49 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
         endpoint_type = model_deployment.environment_variables.get(
             "MODEL_DEPLOY_PREDICT_ENDPOINT", PredictEndpoints.TEXT_COMPLETIONS_ENDPOINT
         )
-        aqua_client = Client(endpoint=endpoint)
+        aqua_client = OpenAI(base_url=self.endpoint)
+
+        allowed = {
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "stop",
+            "n",
+            "presence_penalty",
+            "frequency_penalty",
+            "logprobs",
+            "user",
+            "echo",
+        }
+
+        # normalize and filter
+        if self.params.get("stop") == []:
+            self.params["stop"] = None
+
+        model = self.params.pop("model")
+        filtered = {k: v for k, v in self.params.items() if k in allowed}
 
         if PredictEndpoints.CHAT_COMPLETIONS_ENDPOINT in (
             endpoint_type,
             route_override_header,
         ):
             try:
-                for chunk in aqua_client.chat(
-                    messages=payload.pop("messages"),
-                    payload=payload,
+                for chunk in aqua_client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": self.prompt}],
                     stream=True,
+                    **filtered,
                 ):
-                    try:
-                        if "text" in chunk["choices"][0]:
-                            yield chunk["choices"][0]["text"]
-                        elif "content" in chunk["choices"][0]["delta"]:
-                            yield chunk["choices"][0]["delta"]["content"]
-                    except Exception as e:
-                        logger.debug(
-                            f"Exception occurred while parsing streaming response: {e}"
-                        )
+                    yield self._extract_text_from_chunk(chunk)
+                    # try:
+                    #     if "text" in chunk["choices"][0]:
+                    #         yield chunk["choices"][0]["text"]
+                    #     elif "content" in chunk["choices"][0]["delta"]:
+                    #         yield chunk["choices"][0]["delta"]["content"]
+                    # except Exception as e:
+                    #     logger.debug(
+                    #         f"Exception occurred while parsing streaming response: {e}"
+                    #     )
             except ExtendedRequestError as ex:
                 raise HTTPError(400, str(ex))
             except Exception as ex:
@@ -261,17 +320,28 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
 
         elif endpoint_type == PredictEndpoints.TEXT_COMPLETIONS_ENDPOINT:
             try:
-                for chunk in aqua_client.generate(
-                    prompt=payload.pop("prompt"),
-                    payload=payload,
-                    stream=True,
+                for chunk in aqua_client.self.session.completions.create(
+                    prompt=self.prompt, stream=True, model=model, **filtered
                 ):
-                    try:
-                        yield chunk["choices"][0]["text"]
-                    except Exception as e:
-                        logger.debug(
-                            f"Exception occurred while parsing streaming response: {e}"
-                        )
+                    yield self._extract_text_from_chunk(chunk)
+                    # try:
+                    #     yield chunk["choices"][0]["text"]
+                    # except Exception as e:
+                    #     logger.debug(
+                    #         f"Exception occurred while parsing streaming response: {e}"
+                    #     )
+            except ExtendedRequestError as ex:
+                raise HTTPError(400, str(ex))
+            except Exception as ex:
+                raise HTTPError(500, str(ex))
+
+        elif endpoint_type == PredictEndpoints.RESPONSES:
+            response = aqua_client.responses.create(
+                prompt=self.prompt, stream=True, model=model, **filtered
+            )
+            try:
+                for chunk in response:
+                    yield self._extract_text_from_chunk(chunk)
             except ExtendedRequestError as ex:
                 raise HTTPError(400, str(ex))
             except Exception as ex:
