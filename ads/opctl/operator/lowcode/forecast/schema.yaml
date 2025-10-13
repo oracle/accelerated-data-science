@@ -459,6 +459,7 @@ spec:
         - automlx
         - autots
         - auto-select
+        - auto-select-series
 
     model_kwargs:
       type: dict

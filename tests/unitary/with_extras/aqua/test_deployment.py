@@ -486,6 +486,7 @@ class TestDataset:
         "models": [
             {
                 "env_var": {},
+                "params": {},
                 "gpu_count": 2,
                 "model_id": "test_model_id_1",
                 "model_name": "test_model_1",
@@ -495,6 +496,7 @@ class TestDataset:
             },
             {
                 "env_var": {},
+                "params": {},
                 "gpu_count": 2,
                 "model_id": "test_model_id_2",
                 "model_name": "test_model_2",
@@ -504,6 +506,7 @@ class TestDataset:
             },
             {
                 "env_var": {},
+                "params": {},
                 "gpu_count": 2,
                 "model_id": "test_model_id_3",
                 "model_name": "test_model_3",
@@ -985,6 +988,7 @@ class TestDataset:
     multi_model_deployment_model_attributes = [
         {
             "env_var": {"--test_key_one": "test_value_one"},
+            "params": {},
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_one",
@@ -994,6 +998,7 @@ class TestDataset:
         },
         {
             "env_var": {"--test_key_two": "test_value_two"},
+            "params": {},
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_two",
@@ -1003,6 +1008,7 @@ class TestDataset:
         },
         {
             "env_var": {"--test_key_three": "test_value_three"},
+            "params": {},
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_three",
