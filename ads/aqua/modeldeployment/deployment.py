@@ -947,6 +947,7 @@ class AquaDeploymentApp(AquaApp):
         params = f"{params} {deployment_params}".strip()
 
         if isinstance(aqua_model, DataScienceModelGroup):
+            tags.update({Tags.STACKED_MODEL_TYPE_TAG: "true"})
             env_var.update({"VLLM_ALLOW_RUNTIME_LORA_UPDATING": "true"})
             env_var.update(
                 {"MODEL": f"{AQUA_MODEL_DEPLOYMENT_FOLDER}{aqua_model.base_model_id}/"}

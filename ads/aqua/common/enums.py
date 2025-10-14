@@ -44,6 +44,7 @@ class Tags(ExtendedEnum):
     MODEL_FORMAT = "model_format"
     MODEL_ARTIFACT_FILE = "model_file"
     MULTIMODEL_TYPE_TAG = "aqua_multimodel"
+    STACKED_MODEL_TYPE_TAG = "aqua_stacked_model"
     AQUA_FINE_TUNE_MODEL_VERSION = "fine_tune_model_version"
 
 
