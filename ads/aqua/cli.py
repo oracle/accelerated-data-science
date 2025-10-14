@@ -111,5 +111,5 @@ class AquaCommand:
         wheel_file_path = os.environ.get(
             "AQUA_EXTENSTION_PATH", "/ads/extension/adsjupyterlab_aqua_extension*.whl"
         )
-        status = subprocess.run(f"pip install {wheel_file_path}", shell=True, check=False)
+        status = subprocess.run(f"pip install {wheel_file_path} --no-deps", shell=True, check=False)
         return status.check_returncode
