@@ -196,6 +196,7 @@ class AquaModelApp(AquaApp):
 
         custom_model = None
         if is_stacked:
+            combined_freeform_tags.update({Tags.STACKED_MODEL_TYPE_TAG: "true"})
             custom_model = self._create_model_group(
                 model_id=model,
                 model_name=model_name,
