@@ -81,6 +81,11 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
             and not operator_config.spec.target_category_columns
         ):
 
+            logger.warning(
+                "AUTO_SELECT_SERIES cannot be run with a single-series dataset or when "
+                "'target_category_columns' is not provided. Falling back to AUTO_SELECT."
+            )
+
             operator_config.spec.model = AUTO_SELECT
             model = ForecastOperatorModelFactory.get_model(operator_config, datasets)
         # For other cases, use the single selected model
