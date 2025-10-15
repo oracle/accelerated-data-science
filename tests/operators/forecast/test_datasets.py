@@ -12,6 +12,7 @@ from time import sleep
 import pandas as pd
 import pytest
 import yaml
+import numpy as np
 
 from ads.opctl.operator.cmd import run
 from ads.opctl.operator.lowcode.forecast.__main__ import operate as forecast_operate
@@ -411,6 +412,45 @@ def run_operator(
 #         output_data_path = f"{tmpdirname}/results"
 #         yaml_i = deepcopy(TEMPLATE_YAML)
 #         generate_train_metrics = True
+
+
+def test_missing_data_autoselect_series():
+    """Test case for auto-select-series with missing data."""
+    data = {
+        "Date": pd.to_datetime(
+            [
+                "2023-01-01",
+                "2023-01-02",
+                "2023-01-03",
+                "2023-01-04",
+                "2023-01-05",
+                "2023-01-06",
+                "2023-01-07",
+                "2023-01-08",
+                "2023-01-09",
+                "2023-01-10",
+            ]
+        ),
+        "Y": [1, 2, np.nan, 4, 5, 6, 7, 8, 9, 10],
+        "Category": ["A", "A", "A", "A", "A", "A", "A", "A", "A", "A"],
+    }
+    df = pd.DataFrame(data)
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        output_data_path = f"{tmpdirname}/results"
+        yaml_i = deepcopy(TEMPLATE_YAML)
+        yaml_i["spec"]["model"] = "auto-select-series"
+        yaml_i["spec"]["historical_data"].pop("url")
+        yaml_i["spec"]["historical_data"]["data"] = df
+        yaml_i["spec"]["target_column"] = "Y"
+        yaml_i["spec"]["datetime_column"]["name"] = "Date"
+        yaml_i["spec"]["target_category_columns"] = ["Category"]
+        yaml_i["spec"]["horizon"] = 2
+        yaml_i["spec"]["output_directory"]["url"] = output_data_path
+
+        operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+        forecast_operate(operator_config)
+        check_output_for_errors(output_data_path)
 
 
 if __name__ == "__main__":
