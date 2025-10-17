@@ -37,6 +37,7 @@ from ads.aqua.common.utils import (
     get_preferred_compatible_family,
     get_resource_name,
     get_restricted_params_by_container,
+    is_valid_ocid,
     load_gpu_shapes_index,
     validate_cmd_var,
 )
@@ -140,6 +141,9 @@ class AquaDeploymentApp(AquaApp):
         the GPU allocations for all compatible shapes.
     list_shapes(self, **kwargs) -> List[Dict]:
         Lists the valid model deployment shapes.
+    recommend_shape(self, **kwargs) -> ShapeRecommendationReport:
+        Generates a recommendation report or table of valid GPU deployment shapes
+        for the provided model and configuration.
 
     Note:
         Use `ads aqua deployment <method_name> --help` to get more details on the parameters available.
@@ -1979,56 +1983,97 @@ class AquaDeploymentApp(AquaApp):
             )
         return {"valid": True}
 
+    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=1), timer=datetime.now))
     def recommend_shape(self, **kwargs) -> Union[Table, ShapeRecommendationReport]:
         """
-        For the CLI (set by default, generate_table = True), generates the table (in rich diff) with valid
-        GPU deployment shapes for the provided model and configuration.
+        Generates a recommendation report or table of valid GPU deployment shapes
+        for the provided model and configuration.
 
-        For the API (set generate_table = False), generates the JSON with valid
-        GPU deployment shapes for the provided model and configuration.
+        For CLI (default `generate_table=True`): generates a rich table.
+        For API (`generate_table=False`): returns a structured JSON report.
+        Example: ads aqua deployment recommend_shape --model-id meta-llama/Llama-3.3-70B-Instruct --generate_table false
 
-        Validates the input and determines whether recommendations are available.
-
-        Parameters
-        ----------
-        **kwargs
-            model_ocid : str
-                (Required) The OCID of the model to recommend feasible compute shapes for.
+        Args:
+            model_id : str
+                (Required) The OCID or Hugging Face model ID to recommend compute shapes for.
             generate_table : bool, optional
-                If True, generate and return a rich-diff table; if False, return a JSON response (default is False).
-            compartment_id : str, optional
-                The OCID of the user's compartment to use for the recommendation.
+                If True, generates and returns a table (default: False).
 
         Returns
         -------
-        Table (generate_table = True)
-            If `generate_table` is True, a table displaying the recommendation report with compatible deployment shapes,
-            or troubleshooting info if no shape is suitable.
+        Table
+            If `generate_table=True`, returns a table of shape recommendations.
 
-        ShapeRecommendationReport (generate_table = False)
-            If `generate_table` is False, a structured recommendation report with compatible deployment shapes,
-            or troubleshooting info and citing the largest shapes if no shape is suitable.
+        ShapeRecommendationReport
+            If `generate_table=False`, returns a structured recommendation report.
 
         Raises
         ------
         AquaValueError
-            If the model type is unsupported and no recommendation report can be generated.
+            If required parameters are missing or invalid.
         """
-        deployment_config = self.get_deployment_config(model_id=kwargs.get("model_id"))
-        kwargs["deployment_config"] = deployment_config
-
-        try:
-            request = RequestRecommend(**kwargs)
-        except ValidationError as e:
-            custom_error = build_pydantic_error_message(e)
-            raise AquaValueError(  # noqa: B904
-                f"Failed to request shape recommendation due to invalid input parameters: {custom_error}"
+        model_id = kwargs.pop("model_id", None)
+        if not model_id:
+            raise AquaValueError(
+                "The 'model_id' parameter is required to generate shape recommendations. "
+                "Please provide a valid OCID or Hugging Face model identifier."
             )
 
-        shape_recommend = AquaShapeRecommend()
-        shape_recommend_report = shape_recommend.which_shapes(request)
+        logger.info(f"Starting shape recommendation for model_id: {model_id}")
 
-        return shape_recommend_report
+        self.telemetry.record_event_async(
+            category="aqua/deployment",
+            action="recommend_shape",
+            detail=get_ocid_substring(model_id, key_len=8)
+            if is_valid_ocid(ocid=model_id)
+            else model_id,
+            **kwargs,
+        )
+
+        if is_valid_ocid(ocid=model_id):
+            logger.debug(
+                f"Attempting to retrieve deployment configuration for model_id={model_id}"
+            )
+            try:
+                deployment_config = self.get_deployment_config(model_id=model_id)
+                kwargs["deployment_config"] = deployment_config
+                logger.debug(
+                    f"Retrieved deployment configuration for model: {model_id}"
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to retrieve deployment configuration for model_id={model_id}: {e}"
+                )
+
+        try:
+            request = RequestRecommend(model_id=model_id, **kwargs)
+        except ValidationError as e:
+            custom_error = build_pydantic_error_message(e)
+            logger.error(
+                f"Validation failed for shape recommendation request: {custom_error}"
+            )
+            raise AquaValueError(
+                f"Invalid input parameters for shape recommendation: {custom_error}"
+            ) from e
+
+        try:
+            shape_recommend = AquaShapeRecommend()
+            logger.info(
+                f"Running shape recommendation for model '{model_id}' "
+                f"with generate_table={getattr(request, 'generate_table', False)}"
+            )
+            shape_recommend_report = shape_recommend.which_shapes(request)
+            logger.info(f"Shape recommendation completed successfully for {model_id}")
+            return shape_recommend_report
+        except AquaValueError:
+            raise
+        except Exception as e:
+            logger.exception(
+                f"Unexpected error while generating shape recommendations: {e}"
+            )
+            raise AquaValueError(
+                f"An unexpected error occurred during shape recommendation: {e}"
+            ) from e
 
     @telemetry(entry_point="plugin=deployment&action=list_shapes", name="aqua")
     @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=5), timer=datetime.now))
