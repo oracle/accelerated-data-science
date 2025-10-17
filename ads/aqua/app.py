@@ -290,6 +290,7 @@ class AquaApp:
         model_taxonomy_metadata: Union[ModelTaxonomyMetadata, Dict],
         compartment_id: str,
         project_id: str,
+        freeform_tags: Dict = None,
         defined_tags: Dict = None,
         **kwargs,
     ) -> DataScienceModel:
@@ -303,6 +304,7 @@ class AquaApp:
             .with_custom_metadata_list(model_custom_metadata)
             .with_defined_metadata_list(model_taxonomy_metadata)
             .with_provenance_metadata(ModelProvenanceMetadata(training_id=UNKNOWN))
+            .with_freeform_tags(**(freeform_tags or {}))
             .with_defined_tags(
                 **(defined_tags or {})
             )  # Create defined tags when a model is created.
