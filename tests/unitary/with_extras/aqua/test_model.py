@@ -1694,5 +1694,4 @@ class TestAquaModel:
             category=ads.config.SERVICE,
         )
 
-        print(results)
         assert len(results) == expected_len
