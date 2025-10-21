@@ -1111,6 +1111,9 @@ class AquaModelApp(AquaApp):
         aqua_models = []
         inference_containers = self.get_container_config().to_dict().get("inference")
         for model in models:
+            freeform_tags = model.freeform_tags or {}
+            if Tags.AQUA_TAG not in freeform_tags:
+                continue
             aqua_models.append(
                 AquaModelSummary(
                     **self._process_model(
