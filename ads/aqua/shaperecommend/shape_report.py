@@ -29,21 +29,30 @@ class RequestRecommend(BaseModel):
     """
 
     model_id: str = Field(
-        ..., description="The OCID of the model to recommend feasible compute shapes."
-    )
-    generate_table: Optional[bool] = (
-        Field(
-            True,
-            description="True - to generate the rich diff Table, False - generate the JSON response",
+        ...,
+        description=(
+            "The OCID or Hugging Face ID of the model for which to recommend feasible compute shapes."
         ),
     )
-    compartment_id: Optional[str] = Field(
-        COMPARTMENT_OCID, description="The OCID of user's compartment"
+
+    generate_table: Optional[bool] = Field(
+        True,
+        description=(
+            "If True, generate a rich formatted table as the response. "
+            "If False, return the recommendation as a JSON structure."
+        ),
     )
 
-    deployment_config: Optional[AquaDeploymentConfig] = Field(
+    compartment_id: Optional[str] = Field(
+        COMPARTMENT_OCID,
+        description="The OCID of the user's compartment.",
+    )
+
+    deployment_config: Optional["AquaDeploymentConfig"] = Field(
         None,
-        description="The deployment configuration for model (only available for service models).",
+        description=(
+            "The deployment configuration for the model (only available for service models)."
+        ),
     )
 
     class Config:

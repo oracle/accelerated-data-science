@@ -40,9 +40,9 @@ from ads.model.deployment import (
 from ads.model.deployment.common.utils import State as ModelDeploymentState
 from ads.model.generic_model import (
     _ATTRIBUTES_TO_SHOW_,
+    ArtifactsNotAvailableError,
     GenericModel,
     NotActiveDeploymentError,
-    ArtifactsNotAvailableError,
     SummaryStatus,
     _prepare_artifact_dir,
 )
@@ -165,7 +165,7 @@ OCI_MODEL_PROVENANCE_PAYLOAD = {
 
 INFERENCE_CONDA_ENV = "oci://bucket@namespace/<path_to_service_pack>"
 TRAINING_CONDA_ENV = "oci://bucket@namespace/<path_to_service_pack>"
-DEFAULT_PYTHON_VERSION = "3.8"
+DEFAULT_PYTHON_VERSION = "3.12"
 MODEL_FILE_NAME = "fake_model_name"
 FAKE_MD_URL = "http://<model-deployment-url>"
 
@@ -257,7 +257,8 @@ class TestGenericModel:
     def test_prepare(self, mock_signer):
         """prepare a trained model."""
         self.generic_model.prepare(
-            "oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1",
+            inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1",
+            inference_python_version=DEFAULT_PYTHON_VERSION,
             model_file_name="fake_model_name",
         )
 
@@ -1449,7 +1450,8 @@ class TestGenericModel:
     @patch("ads.common.auth.default_signer")
     def test__to_dict_prepared(self, moxk_signer):
         self.generic_model.prepare(
-            "oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
+            inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1",
+            inference_python_version=DEFAULT_PYTHON_VERSION
         )
         dictionary = self.generic_model._to_dict()
         for key in _ATTRIBUTES_TO_SHOW_:
@@ -2255,7 +2257,7 @@ class TestCommonMethods:
     def test__prepare_artifact_dir(
         self, mock_signer, mock_mkdtemp, test_value, expected_value
     ):
-        """Ensures that artifact dir name can be benerated propertly."""
+        """Ensures that artifact dir name can be generated propertly."""
 
         assert (
             _prepare_artifact_dir(test_value) == expected_value

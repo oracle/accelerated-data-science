@@ -2,9 +2,13 @@
 # Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
+import re
 import shutil
-from typing import List, Union
+from typing import Dict, List, Optional, Tuple, Union
 
+from huggingface_hub import hf_hub_download
+from huggingface_hub.utils import HfHubHTTPError
 from pydantic import ValidationError
 from rich.table import Table
 
@@ -17,7 +21,9 @@ from ads.aqua.common.errors import (
 )
 from ads.aqua.common.utils import (
     build_pydantic_error_message,
+    format_hf_custom_error_message,
     get_resource_type,
+    is_valid_ocid,
     load_config,
     load_gpu_shapes_index,
 )
@@ -37,6 +43,7 @@ from ads.aqua.shaperecommend.shape_report import (
     ShapeRecommendationReport,
     ShapeReport,
 )
+from ads.config import COMPARTMENT_OCID
 from ads.model.datascience_model import DataScienceModel
 from ads.model.service.oci_datascience_model_deployment import (
     OCIDataScienceModelDeployment,
@@ -91,11 +98,13 @@ class AquaShapeRecommend:
         try:
             shapes = self.valid_compute_shapes(compartment_id=request.compartment_id)
 
-            ds_model = self._get_data_science_model(request.model_id)
-
-            model_name = ds_model.display_name if ds_model.display_name else ""
-
             if request.deployment_config:
+                if is_valid_ocid(request.model_id):
+                    ds_model = self._get_data_science_model(request.model_id)
+                    model_name = ds_model.display_name
+                else:
+                    model_name = request.model_id
+
                 shape_recommendation_report = (
                     ShapeRecommendationReport.from_deployment_config(
                         request.deployment_config, model_name, shapes
@@ -103,8 +112,9 @@ class AquaShapeRecommend:
                 )
 
             else:
-                data = self._get_model_config(ds_model)
-
+                data, model_name = self._get_model_config_and_name(
+                    model_id=request.model_id,
+                )
                 llm_config = LLMConfig.from_raw_config(data)
 
                 shape_recommendation_report = self._summarize_shapes_for_seq_lens(
@@ -135,7 +145,57 @@ class AquaShapeRecommend:
 
         return shape_recommendation_report
 
-    def valid_compute_shapes(self, compartment_id: str) -> List["ComputeShapeSummary"]:
+    def _get_model_config_and_name(
+        self,
+        model_id: str,
+    ) -> Tuple[Dict, str]:
+        """
+        Loads model configuration by trying OCID logic first, then falling back
+        to treating the model_id as a Hugging Face Hub ID.
+
+        Parameters
+        ----------
+        model_id : str
+            The model OCID or Hugging Face model ID.
+        # compartment_id : Optional[str]
+        #     The compartment OCID, used for searching the model catalog.
+
+        Returns
+        -------
+        Tuple[Dict, str]
+            A tuple containing:
+            - The model configuration dictionary.
+            - The display name for the model.
+        """
+        if is_valid_ocid(model_id):
+            logger.info(f"Detected OCID: Fetching OCI model config for '{model_id}'.")
+            ds_model = self._get_data_science_model(model_id)
+            config = self._get_model_config(ds_model)
+            model_name = ds_model.display_name
+        else:
+            logger.info(
+                f"Assuming Hugging Face model ID: Fetching config for '{model_id}'."
+            )
+            config = self._fetch_hf_config(model_id)
+            model_name = model_id
+
+        return config, model_name
+
+    def _fetch_hf_config(self, model_id: str) -> Dict:
+        """
+        Downloads a model's config.json from Hugging Face Hub using the
+        huggingface_hub library.
+        """
+        try:
+            config_path = hf_hub_download(repo_id=model_id, filename="config.json")
+            with open(config_path, encoding="utf-8") as f:
+                return json.load(f)
+        except HfHubHTTPError as e:
+            format_hf_custom_error_message(e)
+
+    def valid_compute_shapes(
+        self, compartment_id: Optional[str] = None
+    ) -> List["ComputeShapeSummary"]:
         """
         Returns a filtered list of GPU-only ComputeShapeSummary objects by reading and parsing a JSON file.
 
@@ -151,9 +211,23 @@ class AquaShapeRecommend:
 
         Raises
         ------
-        ValueError
-            If the file cannot be opened, parsed, or the 'shapes' key is missing.
+        AquaValueError
+            If a compartment_id is not provided and cannot be found in the
+            environment variables.
         """
+        if not compartment_id:
+            compartment_id = COMPARTMENT_OCID
+            if compartment_id:
+                logger.info(f"Using compartment_id from environment: {compartment_id}")
+
+        if not compartment_id:
+            raise AquaValueError(
+                "A compartment OCID is required to list available shapes. "
+                "Please specify it using the --compartment_id parameter.\n\n"
+                "Example:\n"
+                'ads aqua deployment recommend_shape --model_id "<YOUR_MODEL_OCID>" --compartment_id "<YOUR_COMPARTMENT_OCID>"'
+            )
+
         oci_shapes = OCIDataScienceModelDeployment.shapes(compartment_id=compartment_id)
         set_user_shapes = {shape.name: shape for shape in oci_shapes}
 
@@ -206,6 +280,13 @@ class AquaShapeRecommend:
             if name
             else "Model Deployment Recommendations"
         )
+
+        header = (
+            f"{header}\n"
+            "Currently, only the VLLM container is supported. "
+            "All shape and parameter recommendations will be generated for the VLLM container."
+        )
+
         logger.debug(f"Table header set to: {header!r}")
 
         if shape_report.troubleshoot:
@@ -324,6 +405,7 @@ class AquaShapeRecommend:
         """
 
         model_task = model.freeform_tags.get("task", "").lower()
+        model_task = re.sub(r"-", "_", model_task)
         model_format = model.freeform_tags.get("model_format", "").lower()
 
         logger.info(f"Current model task type: {model_task}")

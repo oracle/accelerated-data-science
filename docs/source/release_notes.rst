@@ -2,6 +2,13 @@
 Release Notes
 =============
 
+2.13.20
+-------
+Release date: Sep 29, 2025
+
+* AI Quick Actions fixes and enhancements.
+
+
 2.13.19
 -------
 Release date: Sep 10, 2025
