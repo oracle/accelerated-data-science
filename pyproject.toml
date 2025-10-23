@@ -230,7 +230,7 @@ aqua = [
   "huggingface_hub",
   "python-dotenv",
   "rich",
-  "openai"
+  "openai==1.109.1"
 ]
 
 # To reduce backtracking (decrese deps install time) during test/dev env setup reducing number of versions pip is
