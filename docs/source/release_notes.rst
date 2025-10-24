@@ -2,6 +2,13 @@
 Release Notes
 =============
 
+2.13.21
+-------
+Release date: Oct 23, 2025
+* Support editing multi-model deployment.
+* AI Quick Actions fixes and enhancements.
+
+
 2.13.20
 -------
 Release date: Sep 29, 2025
