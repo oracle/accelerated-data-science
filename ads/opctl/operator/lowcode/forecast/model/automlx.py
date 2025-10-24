@@ -142,17 +142,20 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 )
 
                 if self.loaded_models is not None and s_id in self.loaded_models:
-                    model = self.loaded_models[s_id]
-                else:
-                    model = Pipeline(
-                        task="forecasting",
-                        **model_kwargs,
-                    )
-                    model.fit(
-                        X=data_i.drop(target, axis=1),
-                        y=data_i[[target]],
-                        time_budget=time_budget,
-                    )
+                    model = self.loaded_models[s_id]["model"]
+                    model_kwargs["model_list"] = [model.selected_model_]
+                    model_kwargs["search_space"]={}
+                    model_kwargs["search_space"][model.selected_model_] = model.selected_model_params_
+
+                model = Pipeline(
+                    task="forecasting",
+                    **model_kwargs,
+                )
+                model.fit(
+                    X=data_i.drop(target, axis=1),
+                    y=data_i[[target]],
+                    time_budget=time_budget,
+                )
                 logger.debug(f"Selected model: {model.selected_model_}")
                 logger.debug(f"Selected model params: {model.selected_model_params_}")
                 summary_frame = model.forecast(
