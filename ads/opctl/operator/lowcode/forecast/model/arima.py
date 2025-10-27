@@ -85,7 +85,11 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             X_pred = self.get_horizon(data).drop(target, axis=1)
 
             if self.loaded_models is not None and s_id in self.loaded_models:
-                model = self.loaded_models[s_id]
+                model = self.loaded_models[s_id]["model"]
+                order = model.order
+                seasonal_order = model.seasonal_order
+                model = pm.ARIMA(order=order, seasonal_order=seasonal_order)
+                model.fit(y=y, X=X_in)
             else:
                 # Build and fit model
                 model = pm.auto_arima(y=y, X=X_in, **model_kwargs)
