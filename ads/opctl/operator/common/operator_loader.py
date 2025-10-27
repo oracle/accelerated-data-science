@@ -152,6 +152,8 @@ class OperatorInfo(DataClassSerializable):
     description: str = ""
     version: str = ""
     conda: str = ""
+    prefix: str = ""
+    python_version: str = "3.11"
     conda_type: str = ""
     path: str = ""
     keywords: List[str] = None
