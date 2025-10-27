@@ -181,7 +181,7 @@ forecast = [
   "oci-cli",
   "optuna",
   "pmdarima",
-  "prophet",
+  "prophet==1.1.5",
   "shap",
   "sktime",
   "statsmodels",
