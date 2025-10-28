@@ -9,6 +9,7 @@ import traceback
 import matplotlib as mpl
 import numpy as np
 import optuna
+import inspect
 import pandas as pd
 from joblib import Parallel, delayed
 
@@ -37,6 +38,22 @@ except Exception:
 
 def _add_unit(num, unit):
     return f"{num} {unit}"
+
+
+def _extract_parameter(model):
+    """
+    extract Prophet initialization parameters
+    """
+    from prophet import Prophet
+    sig = inspect.signature(Prophet.__init__)
+    param_names = list(sig.parameters.keys())
+    params = {}
+    for name in param_names:
+        if hasattr(model, name):
+            value = getattr(model, name)
+            if isinstance(value, (int, float, str, bool, type(None), dict, list)):
+                params[name] = value
+    return params
 
 
 def _fit_model(data, params, additional_regressors):
@@ -96,16 +113,17 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             data = self.preprocess(df, series_id)
             data_i = self.drop_horizon(data)
             if self.loaded_models is not None and series_id in self.loaded_models:
-                model = self.loaded_models[series_id]
+                previous_model = self.loaded_models[series_id]["model"]
+                model_kwargs.update(_extract_parameter(previous_model))
             else:
                 if self.perform_tuning:
                     model_kwargs = self.run_tuning(data_i, model_kwargs)
 
-                model = _fit_model(
-                    data=data,
-                    params=model_kwargs,
-                    additional_regressors=self.additional_regressors,
-                )
+            model = _fit_model(
+                data=data,
+                params=model_kwargs,
+                additional_regressors=self.additional_regressors,
+            )
 
             # Get future df for prediction
             future = data.drop("y", axis=1)

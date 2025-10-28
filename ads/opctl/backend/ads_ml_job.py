@@ -11,11 +11,16 @@ import shlex
 import shutil
 import tempfile
 import time
+import re
 from distutils import dir_util
 from typing import Dict, Tuple, Union
 
 from ads.common.auth import AuthContext, AuthType, create_signer
 from ads.common.oci_client import OCIClientFactory
+from ads.config import (
+    CONDA_BUCKET_NAME,
+    CONDA_BUCKET_NS,
+)
 from ads.jobs import (
     ContainerRuntime,
     DataScienceJob,
@@ -65,6 +70,32 @@ class MLJobBackend(Backend):
         self.auth_type = config["execution"].get("auth")
         self.profile = config["execution"].get("oci_profile", None)
         self.client = OCIClientFactory(**self.oci_auth).data_science
+        self.object_storage = OCIClientFactory(**self.oci_auth).object_storage
+
+    def _get_latest_conda_pack(self,
+                               prefix,
+                               python_version,
+                               base_conda) -> str:
+        """
+        get the latest conda pack.
+        """
+        try:
+            objects = self.object_storage.list_objects(namespace_name=CONDA_BUCKET_NS,
+                                                       bucket_name=CONDA_BUCKET_NAME,
+                                                       prefix=prefix).data.objects
+            py_str = python_version.replace(".", "")
+            py_filter = [obj for obj in objects if f"p{py_str}" in obj.name]
+
+            def extract_version(obj_name):
+                match = re.search(rf"{prefix}([\d.]+)/", obj_name)
+                return tuple(map(int, match.group(1).split("."))) if match else (0,)
+
+            latest_obj = max(py_filter, key=lambda obj: extract_version(obj.name))
+            return latest_obj.name.split("/")[-1]
+        except Exception as e:
+            logger.warning(f"Error while fetching latest conda pack: {e}")
+            return base_conda
+
 
     def init(
         self,
@@ -99,6 +130,16 @@ class MLJobBackend(Backend):
             )
             or ""
         ).lower()
+
+        # If a tag is present
+        if ":" in conda_slug:
+            base_conda = conda_slug.split(":")[0]
+            conda_slug = self._get_latest_conda_pack(
+                self.config["prefix"],
+                self.config["python_version"],
+                base_conda
+            )
+            logger.info(f"Proceeding with the {conda_slug} conda pack.")
 
         # if conda slug contains '/' then the assumption is that it is a custom conda pack
         # the conda prefix needs to be added

@@ -2,7 +2,9 @@ type: anomaly
 version: v1
 conda_type: service
 name: Anomaly Detection Operator
-conda: anomaly_p310_cpu_x86_64_v1
+conda: anomaly_p311_cpu_x86_64_v2:latest
+prefix: service_pack/cpu/AI_Anomaly_Detection_Operator/
+python_version: "3.11"
 gpu: no
 keywords:
   - Anomaly Detection

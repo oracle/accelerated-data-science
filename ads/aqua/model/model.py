@@ -1030,6 +1030,11 @@ class AquaModelApp(AquaApp):
         aqua_models = []
         inference_containers = self.get_container_config().to_dict().get("inference")
         for model in models:
+            # Skip models without required tags early
+            freeform_tags = model.freeform_tags or {}
+            if Tags.AQUA_TAG.lower() not in {tag.lower() for tag in freeform_tags}:
+                continue
+
             aqua_models.append(
                 AquaModelSummary(
                     **self._process_model(
@@ -1040,6 +1045,8 @@ class AquaModelApp(AquaApp):
                     project_id=project_id or UNKNOWN,
                 )
             )
+
+        # Adds service models to cache
         if category == SERVICE:
             self._service_models_cache.__setitem__(
                 key=AQUA_SERVICE_MODELS, value=aqua_models
