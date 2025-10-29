@@ -2,6 +2,35 @@
 Release Notes
 =============
 
+2.13.21
+-------
+Release date: Oct 23, 2025
+* Support editing multi-model deployment.
+* AI Quick Actions fixes and enhancements.
+
+
+2.13.20
+-------
+Release date: Sep 29, 2025
+
+* AI Quick Actions fixes and enhancements.
+
+
+2.13.19
+-------
+Release date: Sep 10, 2025
+
+* AI Quick Actions enhancements.
+
+
+2.13.18
+-------
+Release date: Sep 4, 2025
+
+* AI Quick Actions enhancements.
+* MLPipeline: Fixed a bug preventing users from creating a pipeline step with a specific subnet_id.
+
+
 2.13.17
 -------
 Release date: Aug 10, 2025

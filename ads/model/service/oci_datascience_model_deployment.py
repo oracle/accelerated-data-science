@@ -1,22 +1,23 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from functools import wraps
 import logging
-from typing import Callable, List
-from ads.common.oci_datascience import OCIDataScienceMixin
-from ads.common.work_request import DataScienceWorkRequest
-from ads.config import PROJECT_OCID
-from ads.model.deployment.common.utils import OCIClientManager, State
-import oci
+from functools import wraps
+from typing import Callable, List, Optional
 
+import oci
 from oci.data_science.models import (
     CreateModelDeploymentDetails,
+    ModelDeploymentShapeSummary,
     UpdateModelDeploymentDetails,
 )
+
+from ads.common.oci_datascience import OCIDataScienceMixin
+from ads.common.work_request import DataScienceWorkRequest
+from ads.config import COMPARTMENT_OCID, PROJECT_OCID
+from ads.model.deployment.common.utils import OCIClientManager, State
 
 DEFAULT_WAIT_TIME = 1200
 DEFAULT_POLL_INTERVAL = 10
@@ -185,14 +186,13 @@ class OCIDataScienceModelDeployment(
                 self.id,
             )
 
-           
             self.workflow_req_id = response.headers.get("opc-work-request-id", None)
             if wait_for_completion:
                 try:
                     DataScienceWorkRequest(self.workflow_req_id).wait_work_request(
                         progress_bar_description="Activating model deployment",
-                        max_wait_time=max_wait_time, 
-                        poll_interval=poll_interval
+                        max_wait_time=max_wait_time,
+                        poll_interval=poll_interval,
                     )
                 except Exception as e:
                     logger.error(
@@ -239,8 +239,8 @@ class OCIDataScienceModelDeployment(
             try:
                 DataScienceWorkRequest(self.workflow_req_id).wait_work_request(
                     progress_bar_description="Creating model deployment",
-                    max_wait_time=max_wait_time, 
-                    poll_interval=poll_interval
+                    max_wait_time=max_wait_time,
+                    poll_interval=poll_interval,
                 )
             except Exception as e:
                 logger.error("Error while trying to create model deployment: " + str(e))
@@ -290,8 +290,8 @@ class OCIDataScienceModelDeployment(
                 try:
                     DataScienceWorkRequest(self.workflow_req_id).wait_work_request(
                         progress_bar_description="Deactivating model deployment",
-                        max_wait_time=max_wait_time, 
-                        poll_interval=poll_interval
+                        max_wait_time=max_wait_time,
+                        poll_interval=poll_interval,
                     )
                 except Exception as e:
                     logger.error(
@@ -351,14 +351,14 @@ class OCIDataScienceModelDeployment(
         response = self.client.delete_model_deployment(
             self.id,
         )
-        
+
         self.workflow_req_id = response.headers.get("opc-work-request-id", None)
         if wait_for_completion:
             try:
                 DataScienceWorkRequest(self.workflow_req_id).wait_work_request(
                     progress_bar_description="Deleting model deployment",
-                    max_wait_time=max_wait_time, 
-                    poll_interval=poll_interval
+                    max_wait_time=max_wait_time,
+                    poll_interval=poll_interval,
                 )
             except Exception as e:
                 logger.error("Error while trying to delete model deployment: " + str(e))
@@ -493,3 +493,30 @@ class OCIDataScienceModelDeployment(
             An instance of `OCIDataScienceModelDeployment`.
         """
         return super().from_ocid(model_deployment_id)
+
+    @classmethod
+    def shapes(
+        cls,
+        compartment_id: Optional[str] = None,
+        **kwargs,
+    ) -> List[ModelDeploymentShapeSummary]:
+        """
+        Retrieves all available model deployment shapes in the given compartment.
+
+        This method uses OCI's pagination utility to fetch all pages of model
+        deployment shape summaries available in the specified compartment.
+
+        Args:
+            compartment_id (Optional[str]): The OCID of the compartment. If not provided,
+                                            the default COMPARTMENT_ID extracted form env variables is used.
+            **kwargs: Additional keyword arguments to pass to the list_model_deployments call.
+
+        Returns:
+            List[ModelDeploymentShapeSummary]: A list of all model deployment shape summaries.
+        """
+        client = cls().client
+        compartment_id = compartment_id or COMPARTMENT_OCID
+
+        return oci.pagination.list_call_get_all_results(
+            client.list_model_deployment_shapes, compartment_id, **kwargs
+        ).data
