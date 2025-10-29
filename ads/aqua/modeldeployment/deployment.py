@@ -1583,7 +1583,7 @@ class AquaDeploymentApp(AquaApp):
                 # skipping the AQUA model deployments that are created from model group
                 if (
                     model_deployment.model_deployment_configuration_details.deployment_type
-                    in [UNKNOWN_ENUM_VALUE, MODEL_GROUP, SINGLE_MODEL_FLEX]
+                    in [UNKNOWN_ENUM_VALUE]
                 ):
                     continue
                 try:
