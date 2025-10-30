@@ -1214,6 +1214,13 @@ class AquaDeploymentApp(AquaApp):
         if Tags.BASE_MODEL_CUSTOM in tags:
             telemetry_kwargs["custom_base_model"] = True
 
+        if Tags.MULTIMODEL_TYPE_TAG in tags:
+            telemetry_kwargs["deployment_type"] = DeploymentType.MULTI
+        elif Tags.STACKED_MODEL_TYPE_TAG in tags:
+            telemetry_kwargs["deployment_type"] = DeploymentType.STACKED
+        else:
+            telemetry_kwargs["deployment_type"] = DeploymentType.SINGLE
+
         # tracks unique deployments that were created in the user compartment
         self.telemetry.record_event_async(
             category=f"aqua/{model_type}/deployment",

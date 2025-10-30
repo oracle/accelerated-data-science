@@ -16,5 +16,6 @@ DEFAULT_POLL_INTERVAL = 10
 
 
 class DeploymentType(ExtendedEnum):
+    SINGLE = "SINGLE"
     STACKED = "STACKED"
     MULTI = "MULTI"
