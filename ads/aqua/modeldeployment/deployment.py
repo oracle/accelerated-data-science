@@ -49,9 +49,7 @@ from ads.aqua.constants import (
     AQUA_MODEL_TYPE_SERVICE,
     AQUA_MULTI_MODEL_CONFIG,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
-    MODEL_GROUP,
     MODEL_NAME_DELIMITER,
-    SINGLE_MODEL_FLEX,
     UNKNOWN_DICT,
     UNKNOWN_ENUM_VALUE,
 )
@@ -113,9 +111,7 @@ from ads.model.deployment import (
     ModelDeploymentInfrastructure,
     ModelDeploymentMode,
 )
-from ads.model.deployment.model_deployment import (
-    ModelDeploymentUpdateType,
-)
+from ads.model.deployment.model_deployment import ModelDeploymentUpdateType
 from ads.model.model_metadata import ModelCustomMetadata, ModelCustomMetadataItem
 from ads.telemetry import telemetry
 
@@ -1580,6 +1576,13 @@ class AquaDeploymentApp(AquaApp):
             )
 
             if oci_aqua:
+                # skipping the AQUA model deployments that are created with UNKNOWN deployment type
+                if (
+                    model_deployment.model_deployment_configuration_details.deployment_type
+                    in [UNKNOWN_ENUM_VALUE]
+                ):
+                    continue
+
                 try:
                     results.append(
                         AquaDeployment.from_oci_model_deployment(
