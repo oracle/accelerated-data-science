@@ -511,28 +511,34 @@ class ModelDeploymentDetails(BaseModel):
 
             if not base_model:
                 logger.error(
-                    "Validation failed: Base model ID '%s' not found.", base_model_id
-                )
-                raise ConfigValidationError(f"Model not found: '{base_model_id}'.")
-
-            if Tags.AQUA_FINE_TUNED_MODEL_TAG in (base_model.freeform_tags or {}):
-                logger.error(
-                    "Validation failed: Base model ID '%s' is a fine-tuned model.",
+                    "Validation failed: Base model '%s' (id: '%s') not found.",
+                    model.model_name,
                     base_model_id,
                 )
                 raise ConfigValidationError(
-                    f"Invalid base model ID '{base_model_id}'. "
+                    f"Model not found: '{model.model_name}' (id: '{base_model_id}')."
+                )
+
+            if Tags.AQUA_FINE_TUNED_MODEL_TAG in (base_model.freeform_tags or {}):
+                logger.error(
+                    "Validation failed: Base model '%s' (id: '%s') is a fine-tuned model.",
+                    base_model.display_name,
+                    base_model_id,
+                )
+                raise ConfigValidationError(
+                    f"Invalid base model '{base_model.display_name}' (id: '{base_model_id}'). "
                     "Specify a base model OCID in the `models` input, not a fine-tuned model."
                 )
 
             if base_model.lifecycle_state != "ACTIVE":
                 logger.error(
-                    "Validation failed: Base model '%s' is in state '%s'.",
+                    "Validation failed: Base model '%s' (id: '%s') is in state '%s'.",
+                    base_model.display_name,
                     base_model_id,
                     base_model.lifecycle_state,
                 )
                 raise ConfigValidationError(
-                    f"Invalid base model ID '{base_model_id}': must be in ACTIVE state."
+                    f"Invalid base model '{base_model.display_name}' (id: '{base_model_id}'): must be in ACTIVE state."
                 )
 
             # Normalize and validate model name uniqueness
@@ -548,31 +554,34 @@ class ModelDeploymentDetails(BaseModel):
 
                 if not ft_model:
                     logger.error(
-                        "Validation failed: Fine-tuned model ID '%s' not found.",
+                        "Validation failed: Fine-tuned model '%s' (id: '%s') not found.",
+                        lora_module.model_name,
                         ft_model_id,
                     )
                     raise ConfigValidationError(
-                        f"Fine-tuned model not found: '{ft_model_id}'."
+                        f"Fine-tuned model not found: '{lora_module.model_name}' (id: '{ft_model_id}')."
                     )
 
                 if ft_model.lifecycle_state != "ACTIVE":
                     logger.error(
-                        "Validation failed: Fine-tuned model '%s' is in state '%s'.",
+                        "Validation failed: Fine-tuned model '%s' (id: '%s') is in state '%s'.",
+                        ft_model.display_name,
                         ft_model_id,
                         ft_model.lifecycle_state,
                     )
                     raise ConfigValidationError(
-                        f"Invalid Fine-tuned model ID '{ft_model_id}': must be in ACTIVE state."
+                        f"Invalid Fine-tuned model '{ft_model.display_name}' (id: '{ft_model_id}'): must be in ACTIVE state."
                     )
 
                 if Tags.AQUA_FINE_TUNED_MODEL_TAG not in (ft_model.freeform_tags or {}):
                     logger.error(
-                        "Validation failed: Model ID '%s' is missing tag '%s'.",
+                        "Validation failed: Model '%s' (id: '%s') is missing tag '%s'.",
+                        ft_model.display_name,
                         ft_model_id,
                         Tags.AQUA_FINE_TUNED_MODEL_TAG,
                     )
                     raise ConfigValidationError(
-                        f"Invalid fine-tuned model ID '{ft_model_id}': missing tag '{Tags.AQUA_FINE_TUNED_MODEL_TAG}'."
+                        f"Invalid fine-tuned model '{ft_model.display_name}' (id: '{ft_model_id}'): missing tag '{Tags.AQUA_FINE_TUNED_MODEL_TAG}'."
                     )
 
                 self.validate_ft_model_v2(model=ft_model)
@@ -586,14 +595,16 @@ class ModelDeploymentDetails(BaseModel):
 
                 if ft_base_model_id != base_model_id:
                     logger.error(
-                        "Validation failed: Fine-tuned model '%s' is linked to base model '%s' (expected '%s').",
+                        "Validation failed: Fine-tuned model '%s' (id: '%s') is linked to base model '%s' (expected '%s' with id: '%s').",
+                        ft_model.display_name,
                         ft_model_id,
                         ft_base_model_id,
+                        base_model.display_name,
                         base_model_id,
                     )
                     raise ConfigValidationError(
-                        f"Fine-tuned model '{ft_model_id}' belongs to base model '{ft_base_model_id}', "
-                        f"but was included under base model '{base_model_id}'."
+                        f"Fine-tuned model '{ft_model.display_name}' (id: '{ft_model_id}') belongs to base model '{ft_base_model_id}', "
+                        f"but was included under base model '{base_model.display_name}' (id: '{base_model_id}')."
                     )
 
                 # Validate fine-tuned model name uniqueness
@@ -604,8 +615,10 @@ class ModelDeploymentDetails(BaseModel):
                     seen_names.add(lora_model_name)
 
                 logger.debug(
-                    "Validated fine-tuned model '%s' under base model '%s'.",
+                    "Validated fine-tuned model '%s' (id: '%s') under base model '%s' (id: '%s').",
+                    ft_model.display_name,
                     ft_model_id,
+                    base_model.display_name,
                     base_model_id,
                 )
 
@@ -649,11 +662,12 @@ class ModelDeploymentDetails(BaseModel):
                 != AQUA_FINE_TUNE_MODEL_VERSION
             ):
                 logger.error(
-                    "Validation failed: Fine-tuned model ID '%s' is not supported for model deployment.",
+                    "Validation failed: Fine-tuned model '%s' (id: '%s') is not supported for model deployment.",
+                    base_model.display_name,
                     base_model.id,
                 )
                 raise ConfigValidationError(
-                    f"Invalid fine-tuned model ID '{base_model.id}': only fine tune model {AQUA_FINE_TUNE_MODEL_VERSION} is supported for model deployment. "
+                    f"Invalid fine-tuned model '{base_model.display_name}' (id: '{base_model.id}'): only fine tune model {AQUA_FINE_TUNE_MODEL_VERSION} is supported for model deployment. "
                     f"Run 'ads aqua model convert_fine_tune --model_id {base_model.id}' to convert legacy AQUA fine tuned model to version {AQUA_FINE_TUNE_MODEL_VERSION} for deployment."
                 )
 
@@ -666,11 +680,12 @@ class ModelDeploymentDetails(BaseModel):
 
             if include_base_model_artifact == INCLUDE_BASE_MODEL:
                 logger.error(
-                    "Validation failed: Fine-tuned model ID '%s' is not supported for model deployment.",
+                    "Validation failed: Fine-tuned model '%s' (id: '%s') is not supported for model deployment.",
+                    base_model.display_name,
                     base_model.id,
                 )
                 raise ConfigValidationError(
-                    f"Invalid fine-tuned model ID '{base_model.id}': for fine tuned models like Phi4, the deployment is not supported. "
+                    f"Invalid fine-tuned model '{base_model.display_name}' (id: '{base_model.id}'): for fine tuned models like Phi4, the deployment is not supported. "
                 )
 
     def validate_base_model(self, model_id: str) -> Union[str, AquaMultiModelRef]:
@@ -714,11 +729,12 @@ class ModelDeploymentDetails(BaseModel):
                 segments = aqua_fine_tuned_model.split("#")
                 if not segments or not is_valid_ocid(segments[0]):
                     logger.error(
-                        "Validation failed: Fine-tuned model ID '%s' is not supported for model deployment.",
+                        "Validation failed: Fine-tuned model '%s' (id: '%s') is not supported for model deployment.",
+                        base_model.display_name,
                         base_model.id,
                     )
                     raise ConfigValidationError(
-                        f"Invalid fine-tuned model ID '{base_model.id}': missing or invalid tag '{Tags.AQUA_FINE_TUNED_MODEL_TAG}' format. "
+                        f"Invalid fine-tuned model '{base_model.display_name}' (id: '{base_model.id}'): missing or invalid tag '{Tags.AQUA_FINE_TUNED_MODEL_TAG}' format. "
                         f"Make sure tag '{Tags.AQUA_FINE_TUNED_MODEL_TAG}' is added with format <service_model_id>#<service_model_name>."
                     )
                 # reset the model_id and models in create_model_deployment_details for stack deployment
