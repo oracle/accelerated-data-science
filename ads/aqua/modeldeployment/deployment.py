@@ -1566,6 +1566,17 @@ class AquaDeploymentApp(AquaApp):
 
         results = []
         for model_deployment in model_deployments:
+            # skipping the AQUA model deployments that are created with UNKNOWN deployment type
+            if (
+                model_deployment.model_deployment_configuration_details.deployment_type
+                in [UNKNOWN_ENUM_VALUE]
+            ):
+                logger.debug(
+                    f"Skipping model deployment with UNKNOWN deployment type: "
+                    f"{getattr(model_deployment, 'id', '<missing_id>')}"
+                )
+                continue
+
             oci_aqua = (
                 (
                     Tags.AQUA_TAG in model_deployment.freeform_tags
@@ -1576,40 +1587,43 @@ class AquaDeploymentApp(AquaApp):
             )
 
             if oci_aqua:
-                # skipping the AQUA model deployments that are created with UNKNOWN deployment type
-                if (
-                    model_deployment.model_deployment_configuration_details.deployment_type
-                    in [UNKNOWN_ENUM_VALUE]
-                ):
-                    continue
-
                 try:
                     results.append(
                         AquaDeployment.from_oci_model_deployment(
                             model_deployment, self.region
                         )
                     )
+
+                    # log telemetry if MD is in active or failed state
+                    deployment_id = model_deployment.id
+                    state = model_deployment.lifecycle_state.upper()
+                    if state in ["ACTIVE", "FAILED"]:
+                        # tracks unique deployments that were listed in the user compartment
+                        # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
+                        self.telemetry.record_event_async(
+                            category="aqua/deployment",
+                            action="list",
+                            detail=get_ocid_substring(deployment_id, key_len=8),
+                            value=state,
+                        )
                 except Exception as e:
                     logger.error(
-                        f"There was an issue processing the list of model deployments . Error: {str(e)}",
+                        f"Error processing model deployment (ID: {getattr(model_deployment, 'id', 'unknown')}, "
+                        f"Region: {getattr(self, 'region', 'unknown')}). Exception: {type(e).__name__}: {e}",
                         exc_info=True,
                     )
-                    raise AquaRuntimeError(
-                        f"There was an issue processing the list of model deployments . Error: {str(e)}"
-                    ) from e
-
-                # log telemetry if MD is in active or failed state
-                deployment_id = model_deployment.id
-                state = model_deployment.lifecycle_state.upper()
-                if state in ["ACTIVE", "FAILED"]:
-                    # tracks unique deployments that were listed in the user compartment
-                    # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
-                    self.telemetry.record_event_async(
-                        category="aqua/deployment",
-                        action="list",
-                        detail=get_ocid_substring(deployment_id, key_len=8),
-                        value=state,
+                    logger.error(
+                        (
+                            f"Failed to process AQUA model deployment "
+                            f"'{getattr(model_deployment, 'display_name', '<unknown>')}' "
+                            f"(OCID: {getattr(model_deployment, 'id', '<missing>')}, Region: {self.region}).\n"
+                            f"Reason: {type(e).__name__}: {e}"
+                        ),
+                        exc_info=True,
                     )
+                    # raise AquaRuntimeError(
+                    #     f"There was an issue processing the list of model deployments . Error: {str(e)}"
+                    # ) from e
 
         logger.info(
             f"Fetched {len(results)} model deployments from compartment_id={compartment_id}."
