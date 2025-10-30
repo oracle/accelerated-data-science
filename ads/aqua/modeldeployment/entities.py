@@ -742,7 +742,13 @@ class ModelDeploymentDetails(BaseModel):
                 self.models = [
                     AquaMultiModelRef(
                         model_id=segments[0],
-                        fine_tune_weights=[LoraModuleSpec(model_id=base_model.id)],
+                        model_name=segments[1],
+                        fine_tune_weights=[
+                            LoraModuleSpec(
+                                model_id=base_model.id,
+                                model_name=base_model.display_name,
+                            )
+                        ],
                     )
                 ]
                 return self.models[0]
