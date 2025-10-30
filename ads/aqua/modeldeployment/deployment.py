@@ -1608,11 +1608,6 @@ class AquaDeploymentApp(AquaApp):
                         )
                 except Exception as e:
                     logger.error(
-                        f"Error processing model deployment (ID: {getattr(model_deployment, 'id', 'unknown')}, "
-                        f"Region: {getattr(self, 'region', 'unknown')}). Exception: {type(e).__name__}: {e}",
-                        exc_info=True,
-                    )
-                    logger.error(
                         (
                             f"Failed to process AQUA model deployment "
                             f"'{getattr(model_deployment, 'display_name', '<unknown>')}' "
