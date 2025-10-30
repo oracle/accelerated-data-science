@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/from typing import Dict
 
 
 from typing import Dict, List
+
 from ads.jobs.builders.base import Builder
 
 MODEL_DEPLOYMENT_RUNTIME_KIND = "runtime"
@@ -41,6 +41,8 @@ class ModelDeploymentRuntime(Builder):
         The output stream ids of model deployment.
     model_uri: str
         The model uri of model deployment.
+    model_group_id: str
+        The model group id of model deployment.
     bucket_uri: str
         The OCI Object Storage URI where large size model artifacts will be copied to.
     auth: Dict
@@ -66,6 +68,8 @@ class ModelDeploymentRuntime(Builder):
         Sets the output stream ids of model deployment
     with_model_uri(model_uri)
         Sets the model uri of model deployment
+    with_model_group_id(model_group_id)
+        Sets the model group id of model deployment
     with_bucket_uri(bucket_uri)
         Sets the bucket uri when uploading large size model.
     with_auth(auth)
@@ -82,6 +86,7 @@ class ModelDeploymentRuntime(Builder):
 
     CONST_MODEL_ID = "modelId"
     CONST_MODEL_URI = "modelUri"
+    CONST_MODEL_GROUP_ID = "modelGroupId"
     CONST_ENV = "env"
     CONST_ENVIRONMENT_VARIABLES = "environmentVariables"
     CONST_ENVIRONMENT_CONFIG_TYPE = "environmentConfigurationType"
@@ -103,6 +108,7 @@ class ModelDeploymentRuntime(Builder):
         CONST_OUTPUT_STREAM_IDS: "output_stream_ids",
         CONST_DEPLOYMENT_MODE: "deployment_mode",
         CONST_MODEL_URI: "model_uri",
+        CONST_MODEL_GROUP_ID: "model_group_id",
         CONST_BUCKET_URI: "bucket_uri",
         CONST_AUTH: "auth",
         CONST_REGION: "region",
@@ -120,6 +126,9 @@ class ModelDeploymentRuntime(Builder):
     MODEL_CONFIG_DETAILS_PATH = (
         "model_deployment_configuration_details.model_configuration_details"
     )
+    MODEL_GROUP_CONFIG_DETAILS_PATH = (
+        "model_deployment_configuration_details.model_group_configuration_details"
+    )
 
     payload_attribute_map = {
         CONST_ENV: f"{ENVIRONMENT_CONFIG_DETAILS_PATH}.environment_variables",
@@ -127,6 +136,7 @@ class ModelDeploymentRuntime(Builder):
         CONST_OUTPUT_STREAM_IDS: f"{STREAM_CONFIG_DETAILS_PATH}.output_stream_ids",
         CONST_DEPLOYMENT_MODE: "deployment_mode",
         CONST_MODEL_URI: f"{MODEL_CONFIG_DETAILS_PATH}.model_id",
+        CONST_MODEL_GROUP_ID: f"{MODEL_GROUP_CONFIG_DETAILS_PATH}.model_group_id",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -277,6 +287,32 @@ class ModelDeploymentRuntime(Builder):
             The ModelDeploymentRuntime instance (self).
         """
         return self.set_spec(self.CONST_MODEL_URI, model_uri)
+
+    @property
+    def model_group_id(self) -> str:
+        """The model group id of model deployment.
+
+        Returns
+        -------
+        str
+            The model group id of model deployment.
+        """
+        return self.get_spec(self.CONST_MODEL_GROUP_ID, None)
+
+    def with_model_group_id(self, model_group_id: str) -> "ModelDeploymentRuntime":
+        """Sets the model group id of model deployment.
+
+        Parameters
+        ----------
+        model_group_id: str
+            The model group id of model deployment.
+
+        Returns
+        -------
+        ModelDeploymentRuntime
+            The ModelDeploymentRuntime instance (self).
+        """
+        return self.set_spec(self.CONST_MODEL_GROUP_ID, model_group_id)
 
     @property
     def bucket_uri(self) -> str:
