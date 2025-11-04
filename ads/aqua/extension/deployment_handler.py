@@ -444,7 +444,14 @@ class AquaModelListHandler(AquaAPIhandler):
             list_model_result = aqua_client.fetch_data()
             return self.finish(list_model_result)
         except Exception as ex:
-            raise HTTPError(500, str(ex))
+            error_type = type(ex).__name__
+            error_message = (
+                f"Error fetching data from endpoint '{endpoint}' [{error_type}]: {ex}"
+            )
+            logger.error(
+                error_message, exc_info=True
+            )  # Log with stack trace for diagnostics
+            raise HTTPError(500, error_message) from ex
 
 
 __handlers__ = [
