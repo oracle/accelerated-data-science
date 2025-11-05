@@ -76,7 +76,8 @@ class ForecastOperatorModelFactory:
 
         if model_type == AUTO_SELECT_SERIES:
             # Initialize MetaSelector for series-specific model selection
-            selector = MetaSelector()
+            allowed = operator_config.spec.model_kwargs.get("model_list", None) if hasattr(operator_config.spec, "model_kwargs") and operator_config.spec.model_kwargs else None
+            selector = MetaSelector(allowed_models=allowed)
             # Create a Transformations instance
             transformer = Transformations(dataset_info=datasets.historical_data.spec)
 
@@ -89,7 +90,15 @@ class ForecastOperatorModelFactory:
                 )
             )
             # Get the most common model as default
-            model_type = meta_features['selected_model'].mode().iloc[0]
+            selected_str = str(meta_features['selected_model'].mode().iloc[0]).lower()
+            str_to_enum = {
+                "prophet": SupportedModels.Prophet,
+                "arima": SupportedModels.Arima,
+                "neuralprophet": SupportedModels.NeuralProphet,
+                "automlx": SupportedModels.AutoMLX,
+                "autots": SupportedModels.AutoTS,
+            }
+            model_type = str_to_enum.get(selected_str, SupportedModels.Prophet)
             # Store the series-specific model selections in the config for later use
             operator_config.spec.meta_features = meta_features
             operator_config.spec.model_kwargs = {}

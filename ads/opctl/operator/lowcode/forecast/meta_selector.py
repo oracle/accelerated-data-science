@@ -13,7 +13,7 @@ class MetaSelector:
     The rules are based on the meta-features calculated by the FFORMS approach.
     """
 
-    def __init__(self):
+    def __init__(self, allowed_models=None):
         """Initialize the MetaSelector with pre-learned meta rules"""
         # Pre-learned rules based on meta-features
         self._meta_rules = {
@@ -216,6 +216,22 @@ class MetaSelector:
             },
         }
 
+        # Normalize and apply allowed_models filter if provided
+        self._allowed_set = None
+        if allowed_models:
+            known = {"prophet", "arima", "neuralprophet", "automlx", "autots"}
+            if isinstance(allowed_models, (list, tuple, set)):
+                self._allowed_set = {str(m).lower() for m in allowed_models}
+            else:
+                self._allowed_set = {str(allowed_models).lower()}
+            self._allowed_set = {m for m in self._allowed_set if m in known}
+            if self._allowed_set:
+                self._meta_rules = {
+                    name: rule
+                    for name, rule in self._meta_rules.items()
+                    if rule.get("model") in self._allowed_set
+                }
+
     def _evaluate_condition(self, value, operator, threshold):
         """Evaluate a single condition based on pre-defined operators"""
         if pd.isna(value):
@@ -288,7 +304,13 @@ class MetaSelector:
                 series_info["matched_features"] = matched_features[best_rule]
             else:
                 best_rule = "default"
-                best_model = "prophet"  # Default to prophet if no rules match
+                if getattr(self, "_allowed_set", None):
+                    if "prophet" in self._allowed_set:
+                        best_model = "prophet"
+                    else:
+                        best_model = sorted(self._allowed_set)[0]
+                else:
+                    best_model = "prophet"  # Default to prophet if no rules match
                 series_info["matched_features"] = []
 
             series_info["selected_model"] = best_model
