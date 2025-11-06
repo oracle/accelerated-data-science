@@ -1,28 +1,30 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
 import os
-import tempfile
 import sys
-from typing import Any, List, Dict, Mapping, Optional
+import tempfile
+from typing import Any, Dict, List, Mapping, Optional
 from unittest import TestCase
+
 import pytest
 
 if sys.version_info < (3, 9):
     pytest.skip("Requires Python 3.9 or higher", allow_module_level=True)
 
-from langchain.callbacks.manager import CallbackManagerForLLMRun
-from langchain.llms.base import LLM
-from langchain.prompts import PromptTemplate
-from langchain.schema.runnable import RunnableMap, RunnablePassthrough
-from ads.llm.guardrails.huggingface import HuggingFaceEvaluation
-from ads.llm.guardrails.base import BlockedByGuardrail, GuardrailIO
+from langchain_core.callbacks import CallbackManagerForLLMRun
+from langchain_core.language_models.llms import LLM
+from langchain_core.prompts.prompt import PromptTemplate
+from langchain_core.runnables import RunnableMap, RunnablePassthrough
+
 from ads.llm.chain import GuardrailSequence
-from ads.llm.serialize import load, dump
+from ads.llm.guardrails.base import BlockedByGuardrail, GuardrailIO
+from ads.llm.guardrails.huggingface import HuggingFaceEvaluation
+from ads.llm.serialize import dump, load
 
 
 class FakeLLM(LLM):
