@@ -119,7 +119,15 @@ class AquaDeploymentHandler(AquaAPIhandler):
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)
 
-        self.finish(AquaDeploymentApp().create(**input_data))
+        model_deployment_id = input_data.pop("model_deployment_id", None)
+        if model_deployment_id:
+            self.finish(
+                AquaDeploymentApp().update(
+                    model_deployment_id=model_deployment_id, **input_data
+                )
+            )
+        else:
+            self.finish(AquaDeploymentApp().create(**input_data))
 
     def read(self, id):
         """Read the information of an Aqua model deployment."""
@@ -436,7 +444,14 @@ class AquaModelListHandler(AquaAPIhandler):
             list_model_result = aqua_client.fetch_data()
             return self.finish(list_model_result)
         except Exception as ex:
-            raise HTTPError(500, str(ex))
+            error_type = type(ex).__name__
+            error_message = (
+                f"Error fetching data from endpoint '{endpoint}' [{error_type}]: {ex}"
+            )
+            logger.error(
+                error_message, exc_info=True
+            )  # Log with stack trace for diagnostics
+            raise HTTPError(500, error_message) from ex
 
 
 __handlers__ = [
