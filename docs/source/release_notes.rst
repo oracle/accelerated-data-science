@@ -2,7 +2,7 @@
 Release Notes
 =============
 
-2.14.0
+2.14.1
 ------
 Release date: Nov 7, 2025
 
