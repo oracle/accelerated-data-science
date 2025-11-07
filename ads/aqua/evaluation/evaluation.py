@@ -731,6 +731,8 @@ class AquaEvaluationApp(AquaApp):
                 )
                 logger.error(error_message)
                 raise AquaRuntimeError(error_message) from ex
+        else:
+            multi_model_metadata = json.loads(multi_model_metadata_value)
 
         # Build the list of valid model names from custom metadata.
         model_names = []
