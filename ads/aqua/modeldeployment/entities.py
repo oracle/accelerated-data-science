@@ -132,6 +132,9 @@ class AquaDeployment(Serializable):
     cmd: Optional[List[str]] = Field(
         default_factory=list, description="The cmd of the model deployment."
     )
+    subnet_id: Optional[str] = Field(
+        None, description="The custom egress for model deployment."
+    )
 
     @classmethod
     def from_oci_model_deployment(
@@ -210,6 +213,7 @@ class AquaDeployment(Serializable):
         private_endpoint_id = getattr(
             instance_configuration, "private_endpoint_id", UNKNOWN
         )
+        subnet_id = getattr(instance_configuration, "subnet_id", UNKNOWN)
 
         return AquaDeployment(
             id=oci_model_deployment.id,
@@ -235,6 +239,7 @@ class AquaDeployment(Serializable):
             tags=tags,
             environment_variables=environment_variables,
             cmd=cmd,
+            subnet_id=subnet_id,
         )
 
     class Config:
@@ -802,6 +807,9 @@ class CreateModelDeploymentDetails(ModelDeploymentDetails):
     )
     deployment_type: Optional[str] = Field(
         None, description="The type of model deployment."
+    )
+    subnet_id: Optional[str] = Field(
+        None, description="The custom egress for model deployment."
     )
 
     @model_validator(mode="before")
