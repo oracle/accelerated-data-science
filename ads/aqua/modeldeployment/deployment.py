@@ -189,6 +189,7 @@ class AquaDeploymentApp(AquaApp):
                 freeform_tags (Optional[Dict]): Freeform tags for model deployment.
                 defined_tags (Optional[Dict]): Defined tags for model deployment.
                 deployment_type (Optional[str]): The type of model deployment.
+                subnet_id (Optional[str]): The custom egress for model deployment.
 
         Returns
         -------
@@ -1150,6 +1151,7 @@ class AquaDeploymentApp(AquaApp):
                 log_group_id=create_deployment_details.log_group_id,
                 log_id=create_deployment_details.predict_log_id,
             )
+            .with_subnet_id(create_deployment_details.subnet_id)
         )
         if (
             create_deployment_details.memory_in_gbs

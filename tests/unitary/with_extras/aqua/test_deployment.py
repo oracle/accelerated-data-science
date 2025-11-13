@@ -12,11 +12,6 @@ import unittest
 from importlib import reload
 from unittest.mock import MagicMock, patch
 
-from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
-from ads.model.datascience_model_group import DataScienceModelGroup
-from ads.model.service.oci_datascience_model_deployment import (
-    OCIDataScienceModelDeployment,
-)
 import oci
 import pytest
 from oci.data_science.models import (
@@ -56,6 +51,7 @@ from ads.aqua.modeldeployment.entities import (
 )
 from ads.aqua.modeldeployment.model_group_config import BaseModelSpec, ModelGroupConfig
 from ads.model.datascience_model import DataScienceModel
+from ads.model.datascience_model_group import DataScienceModelGroup
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import ModelCustomMetadata
 from ads.model.service.oci_datascience_model_deployment import (
@@ -525,6 +521,7 @@ class TestDataset:
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
         "private_endpoint_id": None,
+        "subnet_id": None,
         "models": [],
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
@@ -555,6 +552,7 @@ class TestDataset:
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
         "private_endpoint_id": None,
+        "subnet_id": None,
         "models": [
             {
                 "env_var": {},
