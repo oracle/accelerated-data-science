@@ -4,7 +4,7 @@
 
 from typing import List, Optional, Tuple, Union
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from typing_extensions import Self
 
 from ads.aqua import logger
@@ -23,7 +23,10 @@ from ads.aqua.modeldeployment.config_loader import (
     ConfigurationItem,
     ModelDeploymentConfigSummary,
 )
-from ads.aqua.modeldeployment.entities import CreateModelDeploymentDetails
+from ads.aqua.modeldeployment.entities import (
+    CreateModelDeploymentDetails,
+    UpdateModelDeploymentDetails,
+)
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import UNKNOWN
 
@@ -61,18 +64,19 @@ class BaseModelSpec(BaseModel):
         description="Optional list of fine-tuned model variants associated with this base model.",
     )
 
-    @field_validator("model_path")
     @classmethod
-    def clean_model_path(cls, artifact_path_prefix: str) -> str:
-        """Validates and cleans the file path for model_path parameter."""
-        if ObjectStorageDetails.is_oci_path(artifact_path_prefix):
-            os_path = ObjectStorageDetails.from_path(artifact_path_prefix)
-            artifact_path_prefix = os_path.filepath.rstrip("/")
-            return artifact_path_prefix
+    def build_model_path(cls, model_id: str, artifact_path_prefix: str) -> str:
+        """Cleans and builds the file path for model_path parameter
+        to format: <model_id>/<artifact_path_prefix>
+        """
+        if not ObjectStorageDetails.is_oci_path(artifact_path_prefix):
+            raise AquaValueError(
+                "The base model path is not available in the model artifact."
+            )
 
-        raise AquaValueError(
-            "The base model path is not available in the model artifact."
-        )
+        os_path = ObjectStorageDetails.from_path(artifact_path_prefix)
+        artifact_path_prefix = os_path.filepath.rstrip("/")
+        return model_id + "/" + artifact_path_prefix.lstrip("/")
 
     @classmethod
     def dedup_lora_modules(cls, fine_tune_weights: List[LoraModuleSpec]):
@@ -99,7 +103,7 @@ class BaseModelSpec(BaseModel):
 
         return cls(
             model_id=model.model_id,
-            model_path=model.artifact_location,
+            model_path=cls.build_model_path(model.model_id, model.artifact_location),
             params=model_params,
             model_task=model.model_task,
             fine_tune_weights=cls.dedup_lora_modules(model.fine_tune_weights),
@@ -156,7 +160,9 @@ class ModelGroupConfig(Serializable):
     def _merge_gpu_count_params(
         model: AquaMultiModelRef,
         model_config_summary: ModelDeploymentConfigSummary,
-        create_deployment_details: CreateModelDeploymentDetails,
+        deployment_details: Union[
+            CreateModelDeploymentDetails, UpdateModelDeploymentDetails
+        ],
         container_type_key: str,
         container_params,
     ):
@@ -169,9 +175,7 @@ class ModelGroupConfig(Serializable):
 
         deployment_config = model_config_summary.deployment_config.get(
             model.model_id, AquaDeploymentConfig()
-        ).configuration.get(
-            create_deployment_details.instance_shape, ConfigurationItem()
-        )
+        ).configuration.get(deployment_details.instance_shape, ConfigurationItem())
 
         params_found = False
         for item in deployment_config.multi_model_deployment:
@@ -197,9 +201,11 @@ class ModelGroupConfig(Serializable):
         return params
 
     @classmethod
-    def from_create_model_deployment_details(
+    def from_model_deployment_details(
         cls,
-        create_deployment_details: CreateModelDeploymentDetails,
+        deployment_details: Union[
+            CreateModelDeploymentDetails, UpdateModelDeploymentDetails
+        ],
         model_config_summary: ModelDeploymentConfigSummary,
         container_type_key,
         container_params,
@@ -211,11 +217,11 @@ class ModelGroupConfig(Serializable):
         """
         models = []
         seen_models = set()
-        for model in create_deployment_details.models:
+        for model in deployment_details.models:
             params = ModelGroupConfig._merge_gpu_count_params(
                 model,
                 model_config_summary,
-                create_deployment_details,
+                deployment_details,
                 container_type_key,
                 container_params,
             )

@@ -99,6 +99,7 @@ from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob
 from ads.jobs.builders.runtimes.base import Runtime
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.model.datascience_model import DataScienceModel
+from ads.model.datascience_model_group import DataScienceModelGroup
 from ads.model.deployment import ModelDeploymentContainerRuntime
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.generic_model import ModelDeploymentRuntimeType
@@ -254,7 +255,11 @@ class AquaEvaluationApp(AquaApp):
                         f"Make sure the {Tags.AQUA_MODEL_ID_TAG} tag is added to the deployment."
                     )
 
-                aqua_model = DataScienceModel.from_id(multi_model_id)
+                aqua_model = (
+                    DataScienceModelGroup.from_id(multi_model_id)
+                    if "datasciencemodelgroup" in multi_model_id
+                    else DataScienceModel.from_id(multi_model_id)
+                )
                 AquaEvaluationApp.validate_model_name(
                     aqua_model, create_aqua_evaluation_details
                 )
@@ -630,7 +635,7 @@ class AquaEvaluationApp(AquaApp):
 
     @staticmethod
     def validate_model_name(
-        evaluation_source: DataScienceModel,
+        evaluation_source: Union[DataScienceModel, DataScienceModelGroup],
         create_aqua_evaluation_details: CreateAquaEvaluationDetails,
     ) -> None:
         """
@@ -638,15 +643,15 @@ class AquaEvaluationApp(AquaApp):
 
         This function verifies that:
         - The model group is not empty.
-        - The model multi metadata is present in the DataScienceModel metadata.
+        - The model multi metadata is present in the DataScienceModel or DataScienceModelGroup metadata.
         - The user provided a non-empty model name.
-        - The provided model name exists in the DataScienceModel metadata.
+        - The provided model name exists in the DataScienceModel or DataScienceModelGroup metadata.
         - The deployment configuration contains core metadata required for validation.
 
         Parameters
         ----------
-        evaluation_source : DataScienceModel
-            The DataScienceModel object containing metadata about each model in the deployment.
+        evaluation_source : Union[DataScienceModel, DataScienceModelGroup]
+            The DataScienceModel or DataScienceModelGroup object containing metadata about each model in the deployment.
         create_aqua_evaluation_details : CreateAquaEvaluationDetails
             Contains required and optional fields for creating the Aqua evaluation.
 
@@ -711,27 +716,32 @@ class AquaEvaluationApp(AquaApp):
             logger.debug(error_message)
             raise AquaRuntimeError(error_message)
 
-        try:
-            multi_model_metadata = json.loads(
-                evaluation_source.dsc_model.get_custom_metadata_artifact(
-                    metadata_key_name=ModelCustomMetadataFields.MULTIMODEL_METADATA
-                ).decode("utf-8")
-            )
-        except Exception as ex:
-            error_message = (
-                f"Error fetching {ModelCustomMetadataFields.MULTIMODEL_METADATA} "
-                f"from custom metadata for evaluation source ID '{evaluation_source.id}'. "
-                f"Details: {ex}"
-            )
-            logger.error(error_message)
-            raise AquaRuntimeError(error_message) from ex
+        if isinstance(evaluation_source, DataScienceModel):
+            try:
+                multi_model_metadata = json.loads(
+                    evaluation_source.dsc_model.get_custom_metadata_artifact(
+                        metadata_key_name=ModelCustomMetadataFields.MULTIMODEL_METADATA
+                    ).decode("utf-8")
+                )
+            except Exception as ex:
+                error_message = (
+                    f"Error fetching {ModelCustomMetadataFields.MULTIMODEL_METADATA} "
+                    f"from custom metadata for evaluation source ID '{evaluation_source.id}'. "
+                    f"Details: {ex}"
+                )
+                logger.error(error_message)
+                raise AquaRuntimeError(error_message) from ex
+        else:
+            multi_model_metadata = json.loads(multi_model_metadata_value)
 
         # Build the list of valid model names from custom metadata.
         model_names = []
         for metadata in multi_model_metadata:
             model = AquaMultiModelRef(**metadata)
             model_names.append(model.model_name)
-            model_names.extend(ft.model_name for ft in (model.fine_tune_weights or []) if ft.model_name)
+            model_names.extend(
+                ft.model_name for ft in (model.fine_tune_weights or []) if ft.model_name
+            )
 
         # Check if the provided model name is among the valid names.
         if user_model_name not in model_names:

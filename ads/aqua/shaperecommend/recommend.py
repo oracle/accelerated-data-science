@@ -3,7 +3,6 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
-import os
 import re
 import shutil
 from typing import Dict, List, Optional, Tuple, Union
@@ -189,7 +188,7 @@ class AquaShapeRecommend:
         """
         try:
             config_path = hf_hub_download(repo_id=model_id, filename="config.json")
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 return json.load(f)
         except HfHubHTTPError as e:
             format_hf_custom_error_message(e)
@@ -281,6 +280,13 @@ class AquaShapeRecommend:
             if name
             else "Model Deployment Recommendations"
         )
+
+        header = (
+            f"{header}\n"
+            "Currently, only the VLLM container is supported. "
+            "All shape and parameter recommendations will be generated for the VLLM container."
+        )
+
         logger.debug(f"Table header set to: {header!r}")
 
         if shape_report.troubleshoot:

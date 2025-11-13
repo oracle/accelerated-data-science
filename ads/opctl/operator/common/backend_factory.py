@@ -362,6 +362,8 @@ class BackendFactory:
                         if operator_info.conda_type == PACK_TYPE.SERVICE
                         else operator_info.conda_prefix,
                         "freeform_tags": freeform_tags,
+                        "python_version": operator_info.python_version,
+                        "prefix": operator_info.prefix,
                     }
                 },
                 {
