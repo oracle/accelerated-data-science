@@ -1,10 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from __future__ import print_function, absolute_import
 import warnings
 
 warnings.warn(
@@ -15,14 +13,16 @@ warnings.warn(
     stacklevel=2,
 )
 import abc
-import ads.common.utils as utils
+from abc import ABCMeta
+
+import pandas as pd
 from oci.util import to_dict
 from pandas import DataFrame
-import pandas as pd
-from abc import ABCMeta
+
+from ads.common import utils
 from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
     OptionalDependency,
+    runtime_dependency,
 )
 
 
@@ -131,8 +131,9 @@ class SummaryList(list, metaclass=ABCMeta):
         -------
         None
         """
-        from IPython.core.display import display
+        from ads.common.utils import get_display
 
+        display = get_display()
         display(
             self.to_dataframe(datetime_format=datetime_format).style.applymap(
                 self._color_lifecycle_state, subset=["lifecycle_state"]

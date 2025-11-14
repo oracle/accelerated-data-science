@@ -1,26 +1,26 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from __future__ import print_function, absolute_import, division
 
 import base64
-from io import BytesIO
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import matplotlib.lines as mlines
-from matplotlib.ticker import FormatStrFormatter
-import numpy as np
+import itertools
 import math
+from io import BytesIO
+
+import matplotlib as mpl
+import matplotlib.lines as mlines
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from matplotlib.ticker import FormatStrFormatter
+
 from ads.common import logger
 from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
     OptionalDependency,
+    runtime_dependency,
 )
-import itertools
-import pandas as pd
 
 MAX_TITLE_LEN = 20
 MAX_LEGEND_LEN = 10
@@ -36,7 +36,7 @@ def _fig_to_html(fig):
     fig.savefig(tmpfile, format="png")
     encoded = base64.b64encode(tmpfile.getvalue()).decode("utf-8")
 
-    html = "<img src='data:image/png;base64,{}'>".format(encoded)
+    html = f"<img src='data:image/png;base64,{encoded}'>"
     return html
 
 
@@ -210,8 +210,11 @@ class EvaluationPlot:
                 pd.Series(label_dict, index=label_dict.keys()),
                 columns=["Shortened labels"],
             )
-            from IPython.core.display import display, HTML
+            from IPython.display import HTML
 
+            from ads.common.utils import get_display
+
+            display = get_display()
             display(
                 HTML(
                     encodings.style.format(precision=4)
@@ -275,7 +278,7 @@ class EvaluationPlot:
             conflict_dict = {}
             for label in classes:
                 prefix = label if len(label) < max_len + 3 else label[:max_len] + "..."
-                if conflict_dict.get(prefix, None) is None:
+                if conflict_dict.get(prefix) is None:
                     conflict_dict[prefix] = [label]
                 else:
                     conflict_dict[prefix].append(label)
@@ -344,12 +347,8 @@ class EvaluationPlot:
             logger.info(
                 "Showing plot types: {}.".format(
                     ", ".join(
-                        [
-                            "{}".format(EvaluationPlot._pretty_titles_map[str(p)])
-                            for p in plots
-                        ]
+                        [f"{EvaluationPlot._pretty_titles_map[str(p)]}" for p in plots]
                     ),
-                    ", ".join(["{}".format(x) for x in map(str, plots)]),
                 )
             )
             logger.info(plot_details)
@@ -424,7 +423,7 @@ class EvaluationPlot:
                 getattr(cls, "_" + plot_type)(ax, evaluation)
                 fig.tight_layout()
                 html_raw.append(_fig_to_html(fig))
-            except KeyError as e:
+            except KeyError:
                 try:
                     if fig_title:
                         plt.close(fig=fig_title)
@@ -707,7 +706,7 @@ class EvaluationPlot:
             color=["teal", "blueviolet", "forestgreen", "peru", "y", "dodgerblue", "r"],
         )
         for j, v in enumerate(y):
-            ax.annotate("{:.3f}".format(v), xy=(v / 2, j), va="center", ha="left")
+            ax.annotate(f"{v:.3f}", xy=(v / 2, j), va="center", ha="left")
         if axis_labels:
             if axis_labels[0]:
                 ax.set_xlabel(axis_labels[0], fontsize=12)
