@@ -1,8 +1,8 @@
 -r test-requirements.txt
 -e ".[forecast]"
--e ".[anomaly]"
--e ".[recommender]"
--e ".[feature-store-marketplace]"
+#-e ".[anomaly]"
+#-e ".[recommender]"
+#-e ".[feature-store-marketplace]"
 plotly
 pandas>=2.0.0
 protobuf==4.25.8
