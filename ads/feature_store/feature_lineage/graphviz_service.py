@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
+
 from ads.common.decorator.runtime_dependency import OptionalDependency
 from ads.feature_store.common.enums import EntityType
 
@@ -173,8 +173,9 @@ class GraphService:
                 visited_edges,
             )
         try:
-            from IPython.core.display import display
+            from ads.common.utils import get_display
 
+            display = get_display()
             display(graph_root)
         except:
             pass
