@@ -2,6 +2,13 @@
 Release Notes
 =============
 
+2.14.3
+------
+Release date: Nov 17, 2025
+
+* Fixed a bug with IPython.
+
+
 2.14.2
 ------
 Release date: Nov 13, 2025
