@@ -2,6 +2,21 @@
 Release Notes
 =============
 
+2.14.2
+------
+Release date: Nov 13, 2025
+
+* AI Quick Actions: Added support for custom networking for Model Deployment.
+
+
+2.14.1
+------
+Release date: Nov 7, 2025
+
+* AI Quick Actions: Added support for Group Multi-Model Deployment and Stacked Model Deployment.
+* AI Quick Actions: Introduced zero-time update for stacked model deployments via CLI.
+
+
 2.13.21
 -------
 Release date: Oct 23, 2025

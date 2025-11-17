@@ -215,8 +215,9 @@ class PipelineGraphRenderer(PipelineRenderer):
             rankdir=rankdir,
         )
         try:
-            from IPython.core.display import display
+            from ads.common.utils import get_display
 
+            display = get_display()
             display(self.graph)
         except:
             pass

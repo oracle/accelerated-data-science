@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import warnings
@@ -27,20 +26,30 @@ from zipfile import ZipFile
 
 import pandas as pd
 import yaml
+from oci.data_science.data_science_client import DataScienceClient
+from oci.data_science.models import (
+    ArtifactExportDetailsObjectStorage,
+    ArtifactImportDetailsObjectStorage,
+    CreateModelDetails,
+    ExportModelArtifactDetails,
+    ImportModelArtifactDetails,
+    ModelSummary,
+    WorkRequest,
+)
+from oci.data_science.models import Model as OCIModel
+from oci.data_science.models.model_provenance import ModelProvenance
+from oci.data_science.models.update_model_details import UpdateModelDetails
+from oci.exceptions import ServiceError
+from oci.identity import IdentityClient
+
 from ads.catalog.summary import SummaryList
 from ads.common import auth, logger, oci_client, utils
 from ads.common.decorator.deprecate import deprecated
 from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
     OptionalDependency,
+    runtime_dependency,
 )
 from ads.common.model_artifact import ConflictStrategy, ModelArtifact
-from ads.model.model_metadata import (
-    METADATA_SIZE_LIMIT,
-    MetadataSizeTooLarge,
-    ModelCustomMetadata,
-    ModelTaxonomyMetadata,
-)
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.config import (
@@ -51,22 +60,14 @@ from ads.config import (
 )
 from ads.dataset.progress import TqdmProgressBar
 from ads.feature_engineering.schema import Schema
-from ads.model.model_version_set import ModelVersionSet, _extract_model_version_set_id
 from ads.model.deployment.model_deployer import ModelDeployer
-from oci.data_science.data_science_client import DataScienceClient
-from oci.data_science.models import (
-    ArtifactExportDetailsObjectStorage,
-    ArtifactImportDetailsObjectStorage,
-    CreateModelDetails,
-    ExportModelArtifactDetails,
-    ImportModelArtifactDetails,
+from ads.model.model_metadata import (
+    METADATA_SIZE_LIMIT,
+    MetadataSizeTooLarge,
+    ModelCustomMetadata,
+    ModelTaxonomyMetadata,
 )
-from oci.data_science.models import Model as OCIModel
-from oci.data_science.models import ModelSummary, WorkRequest
-from oci.data_science.models.model_provenance import ModelProvenance
-from oci.data_science.models.update_model_details import UpdateModelDetails
-from oci.exceptions import ServiceError
-from oci.identity import IdentityClient
+from ads.model.model_version_set import ModelVersionSet, _extract_model_version_set_id
 
 _UPDATE_MODEL_DETAILS_ATTRIBUTES = [
     "display_name",
@@ -391,8 +392,9 @@ class Model:
             Nothing.
         """
         if display_format == "dataframe":
-            from IPython.core.display import display
+            from ads.common.utils import get_display
 
+            display = get_display()
             display(self.to_dataframe())
         elif display_format == "yaml":
             print(self._to_yaml())
@@ -454,9 +456,9 @@ class Model:
         if hasattr(self, "metadata_custom"):
             attributes["custom_metadata_list"] = self.metadata_custom._to_oci_metadata()
         if hasattr(self, "metadata_taxonomy"):
-            attributes[
-                "defined_metadata_list"
-            ] = self.metadata_taxonomy._to_oci_metadata()
+            attributes["defined_metadata_list"] = (
+                self.metadata_taxonomy._to_oci_metadata()
+            )
 
         update_model_details = UpdateModelDetails(**attributes)
         # freeform_tags=self._model.freeform_tags, defined_tags=self._model.defined_tags)
@@ -558,7 +560,7 @@ class Model:
 
         try:
             provenance_response = cls._get_provenance_metadata(ds_client, model_id)
-        except Exception as e:
+        except Exception:
             raise ValueError(
                 f"Unable to fetch model provenance metadata for model {model_id}"
             )
@@ -1071,7 +1073,7 @@ class ModelCatalog:
         None
             Nothing.
         """
-        progress.update(f"Importing model artifacts from model catalog")
+        progress.update("Importing model artifacts from model catalog")
         self._import_model_artifact(model_id=model_id, bucket_uri=bucket_uri)
 
         progress.update("Copying model artifacts to the artifact directory")
@@ -1360,7 +1362,7 @@ class ModelCatalog:
                 raise ValueError("project_id needs to be specified.")
             schema_file = os.path.join(model_artifact.artifact_dir, "schema.json")
             if os.path.exists(schema_file):
-                with open(schema_file, "r") as schema:
+                with open(schema_file) as schema:
                     metadata = json.load(schema)
                     freeform_tags = {"problem_type": metadata["problem_type"]}
 
@@ -1475,7 +1477,7 @@ class ModelCatalog:
         3. Exports artifact from the user's object storage bucket to the system one.
         """
         artifact_zip_path = self._prepare_model_artifact(model_artifact, progress)
-        progress.update(f"Copying model artifact to the Object Storage bucket")
+        progress.update("Copying model artifact to the Object Storage bucket")
 
         try:
             bucket_uri_file_name = os.path.basename(bucket_uri)

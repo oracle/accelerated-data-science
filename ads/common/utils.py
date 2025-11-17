@@ -546,7 +546,7 @@ def print_user_message(
             else:
                 user_message = "{}".format(msg.strip().replace("\n", "<br>"))
 
-            from IPython.core.display import HTML, display
+            from IPython.display import HTML, display
 
             display(
                 HTML(
@@ -827,6 +827,8 @@ def get_sqlalchemy_engine(connection_url, *args, **kwargs):
         The engine from which SqlAlchemny commands can be ran on
     """
     global _engines
+    import sqlalchemy
+
     if connection_url not in _engines:
         #
         # Note: pool_recycle=1 is used here because sqlalchemy is free to drop inactive
@@ -1848,3 +1850,24 @@ def parse_content_disposition(header: str) -> Tuple[str, Dict[str, str]]:
             key, value = part.split("=", 1)
             params[key.strip().lower()] = value.strip().strip('"')
     return disposition, params
+
+
+def get_display():
+    """
+    Return IPython.display.display if available; otherwise a no-op function.
+
+    This centralizes all display imports. Usage:
+        from ads.common.utils import get_display
+        display = get_display()
+        display(obj)
+    """
+    try:
+        from IPython.display import display  # correct import path
+
+        return display
+    except ModuleNotFoundError:
+
+        def _noop(*args, **kwargs):
+            return None
+
+        return _noop
