@@ -93,7 +93,82 @@ class Tuning(DataClassSerializable):
 
 @dataclass(repr=True)
 class ForecastOperatorSpec(DataClassSerializable):
-    """Class representing forecast operator specification."""
+    """
+    Class representing forecast operator specification.
+
+    Attributes
+    ----------
+    name: str
+        The name of the forecast operator.
+    historical_data: InputData
+        The historical data to be used for forecasting.
+    additional_data: InputData
+        Additional data to be used for forecasting.
+    test_data: TestData
+        The test data to be used for evaluating the forecast.
+    output_directory: OutputDirectory
+        The directory where the output files will be saved.
+    report_filename: str
+        The name of the report file. Defaults to "report.html".
+    report_title: str
+        The title of the report.
+    report_theme: str
+        The theme of the report. Can be "light" or "dark". Defaults to "light".
+    metrics_filename: str
+        The name of the metrics file. Defaults to "metrics.csv".
+    test_metrics_filename: str
+        The name of the test metrics file. Defaults to "test_metrics.csv".
+    forecast_filename: str
+        The name of the forecast file. Defaults to "forecast.csv".
+    global_explanation_filename: str
+        The name of the global explanation file. Defaults to "global_explanation.csv".
+    local_explanation_filename: str
+        The name of the local explanation file. Defaults to "local_explanation.csv".
+    target_column: str
+        The name of the target column.
+    preprocessing: DataPreprocessor
+        The data preprocessing settings.
+    datetime_column: DateTimeColumn
+        The datetime column details.
+    target_category_columns: List[str]
+        The list of target category columns.
+    generate_report: bool
+        Whether to generate a report. Defaults to True.
+    generate_forecast_file: bool
+        Whether to generate a forecast file. Defaults to True.
+    generate_metrics: bool
+        Whether to generate metrics. Defaults to True.
+    generate_metrics_file: bool
+        Whether to generate a metrics file. Defaults to True.
+    generate_explanations: bool
+        Whether to generate explanations. Defaults to False.
+    generate_explanation_files: bool
+        Whether to generate explanation files. Defaults to True.
+    explanations_accuracy_mode: str
+        The accuracy mode for explanations. Can be "HIGH_ACCURACY", "BALANCED", "FAST_APPROXIMATE", or "AUTOMLX".
+    horizon: int
+        The forecast horizon.
+    model: str
+        The forecasting model to be used.
+    model_kwargs: Dict
+        The keyword arguments for the model.
+    model_parameters: str
+        The model parameters.
+    previous_output_dir: str
+        The directory of a previous run to be used for forecasting.
+    generate_model_parameters: bool
+        Whether to generate model parameters. Defaults to False.
+    generate_model_pickle: bool
+        Whether to generate a model pickle. Defaults to False.
+g    confidence_interval_width: float
+        The width of the confidence interval. Defaults to 0.80.
+    metric: str
+        The metric to be used for evaluation.
+    tuning: Tuning
+        The tuning settings.
+    what_if_analysis: WhatIfAnalysis
+        The what-if analysis settings.
+    """
 
     name: str = None
     historical_data: InputData = field(default_factory=InputData)
