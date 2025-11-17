@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import warnings
@@ -14,30 +13,29 @@ warnings.warn(
     stacklevel=2,
 )
 
-from ads.catalog.summary import SummaryList
-from ads.common import oci_client, auth
-from ads.common import utils
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
-from ads.config import (
-    OCI_ODSC_SERVICE_ENDPOINT,
-    OCI_IDENTITY_SERVICE_ENDPOINT,
-    NB_SESSION_COMPARTMENT_OCID,
-)
 from collections.abc import Mapping
-from oci.config import from_file
+from types import MethodType
+
 from oci.data_science.models import (
+    CreateProjectDetails,
     Project,
     ProjectSummary,
-    CreateProjectDetails,
     UpdateProjectDetails,
 )
 from oci.exceptions import ServiceError
 from pandas import DataFrame
-from types import MethodType
 
+from ads.catalog.summary import SummaryList
+from ads.common import auth, oci_client, utils
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
+from ads.config import (
+    NB_SESSION_COMPARTMENT_OCID,
+    OCI_IDENTITY_SERVICE_ENDPOINT,
+    OCI_ODSC_SERVICE_ENDPOINT,
+)
 
 create_project_details_attributes = CreateProjectDetails().swagger_types.keys()
 update_project_details_attributes = UpdateProjectDetails().swagger_types.keys()
@@ -229,8 +227,9 @@ class ProjectCatalog(Mapping):
             """
             Describe the project by showing it's properties
             """
-            from IPython.core.display import display
+            from ads.common.utils import get_display
 
+            display = get_display()
             display(project_self)
 
         def _repr_html_(project_self):

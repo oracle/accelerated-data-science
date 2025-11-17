@@ -111,8 +111,8 @@ huggingface = [
   "tf-keras"  # Keras 3 installed in py3.11+, but this is not yet supported in Transformers. Need to install the backwards-compatible tf-keras
 ]
 notebook = [
-  "ipython>=7.23.1, <8.0",
-  "ipywidgets~=7.6.3",
+  "ipython",
+  "ipywidgets",
   "scikit-learn>=1.0,<1.6.0"
 ]
 onnx = [
