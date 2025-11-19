@@ -274,8 +274,7 @@ class TestAquaDeploymentStreamingInferenceHandler(unittest.TestCase):
 
         mock_get_model_deployment_response.assert_called_with(
             "mock-deployment-id",
-            {"prompt": "Hello", "model": "some-model"},
-            "test-route",
+            {"prompt": "Hello", "model": "some-model"}
         )
         self.handler.write.assert_any_call("chunk1")
         self.handler.write.assert_any_call("chunk2")
