@@ -2,6 +2,20 @@
 Release Notes
 =============
 
+2.14.3
+------
+Release date: Nov 17, 2025
+
+* Fixed a bug with IPython.
+
+
+2.14.2
+------
+Release date: Nov 13, 2025
+
+* AI Quick Actions: Added support for custom networking for Model Deployment.
+
+
 2.14.1
 ------
 Release date: Nov 7, 2025
