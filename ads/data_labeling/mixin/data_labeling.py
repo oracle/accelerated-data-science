@@ -1,17 +1,17 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from typing import Dict, List
+
 from ads.common import auth as authutil
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 from ads.data_labeling.reader.dataset_reader import LabeledDatasetReader
 from ads.data_labeling.visualizer import image_visualizer, text_visualizer
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
 
 ROWS_TO_RENDER_LIMIT = 50
 
@@ -227,6 +227,9 @@ class DataLabelingAccessMixin:
         if return_html:
             return result_html
 
-        from IPython.core.display import HTML, Markdown, display
+        from IPython.display import Markdown
 
+        from ads.common.utils import get_display
+
+        display = get_display()
         display(Markdown(result_html))
