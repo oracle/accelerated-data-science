@@ -329,6 +329,21 @@ spec:
               required: false
               default: false
 
+    postprocessing:
+      type: dict
+      required: false
+      schema:
+        set_min_forecast:
+          type: integer
+          required: false
+          meta:
+            description: "This can be used to define the minimum forecast in the output."
+        set_max_forecast:
+          type: integer
+          required: false
+          meta:
+            description: "This can be used to define the maximum forecast in the output."
+
     generate_explanations:
       type: boolean
       required: false

@@ -137,7 +137,7 @@ Below is an example of a ``forecast.yaml`` file with every parameter specified:
      - string
      - No
      - prophet
-     - Model to use. Options: prophet, arima, neuralprophet, automlx, autots, auto-select.
+     - Model to use. Options: prophet, arima, neuralprophet, automlx, autots, auto-select, auto-select-series.
 
    * - model_kwargs
      - dict
@@ -162,6 +162,18 @@ Below is an example of a ``forecast.yaml`` file with every parameter specified:
      - No
      - false
      - Handle outliers.
+
+   * - postprocessing.set_min_forecast
+     - integer
+     - No
+     - 
+     - This can be used to define the minimum forecast in the output.
+
+   * - postprocessing.set_max_forecast
+     - integer
+     - No
+     - 
+     - This can be used to define the maximum forecast in the output.
 
    * - generate_explanations
      - boolean
@@ -266,7 +278,7 @@ Further Description
         * **format**: (Optional) Specify the format for output data (e.g., ``csv``, ``json``, ``excel``).
         * **options**: (Optional) Include any additional arguments, such as connection parameters for storage.
 
-    * **model**: (Optional) The name of the model framework to use. Defaults to ``auto-select``. Available options include ``arima``, ``prophet``, ``neuralprophet``, ``autots``, and ``auto-select``.
+    * **model**: (Optional) The name of the model framework to use. Defaults to ``prophet``. Available options include ``arima``, ``prophet``, ``neuralprophet``, ``automlx``, ``autots``, ``auto-select``, and ``auto-select-series``.
 
     * **model_kwargs**: (Optional) A dictionary of arguments to pass directly to the model framework, allowing for detailed control over modeling.
 
@@ -281,6 +293,10 @@ Further Description
 
     * **preprocessing**: (Optional) Controls preprocessing and feature engineering steps. This can be enabled or disabled using the ``enabled`` flag. The default is ``true``.
         * **steps**: (Optional) Specific preprocessing steps, such as ``missing_value_imputation`` and ``outlier_treatment``, which are enabled by default.
+
+    * **postprocessing**: (Optional) Controls postprocessing steps.
+        * **set_min_forecast**: (Optional) This can be used to define the minimum forecast in the output.
+        * **set_max_forecast**: (Optional) This can be used to define the maximum forecast in the output.
 
     * **metric**: (Optional) The metric to select during model evaluation. Options include ``MAPE``, ``RMSE``, ``MSE``, and ``SMAPE``. The default is ``MAPE``.
 

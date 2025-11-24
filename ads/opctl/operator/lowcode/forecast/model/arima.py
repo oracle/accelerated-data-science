@@ -155,6 +155,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             horizon=self.spec.horizon,
             target_column=self.original_target_column,
             dt_column=self.spec.datetime_column.name,
+            postprocessing=self.spec.postprocessing,
         )
 
         Parallel(n_jobs=-1, require="sharedmem")(

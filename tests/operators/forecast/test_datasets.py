@@ -413,5 +413,42 @@ def run_operator(
 #         generate_train_metrics = True
 
 
+def test_postprocessing_clipping():
+    """Tests the postprocessing clipping of forecast values."""
+    df = pd.DataFrame(
+        {
+            "Date": pd.to_datetime(pd.date_range("2023-01-01", periods=20, freq="D")),
+            "Y": range(0, 40, 2),
+        }
+    )
+
+    min_clip = 40
+
+    max_clip = 42
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        output_data_path = f"{tmpdirname}/results"
+        yaml_i = deepcopy(TEMPLATE_YAML)
+        yaml_i["spec"]["model"] = "prophet"
+        yaml_i["spec"]["historical_data"].pop("url")
+        yaml_i["spec"]["historical_data"]["data"] = df
+        yaml_i["spec"]["target_column"] = "Y"
+        yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COL
+        yaml_i["spec"]["horizon"] = 5
+        yaml_i["spec"]["output_directory"]["url"] = output_data_path
+        yaml_i["spec"]["postprocessing"] = {
+            "set_min_forecast": min_clip,
+            "set_max_forecast": max_clip,
+        }
+
+        operator_config = ForecastOperatorConfig.from_dict(yaml_i)
+        forecast_operate(operator_config)
+
+        forecast_df = pd.read_csv(f"{output_data_path}/forecast.csv")
+
+        assert forecast_df["forecast_value"].min() >= min_clip
+        assert forecast_df["forecast_value"].max() <= max_clip
+
+
 if __name__ == "__main__":
     pass
