@@ -32,7 +32,7 @@ MODELS = [
     "prophet",
     "neuralprophet",
     "autots",
-    # "lgbforecast",
+    "lgbforecast",
     "auto-select",
     "auto-select-series",
 ]

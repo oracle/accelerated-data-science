@@ -41,6 +41,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
         model_kwargs["uppper_quantile"] = uppper_quantile
         return model_kwargs
 
+
     def preprocess(self, df, series_id):
         pass
 
@@ -53,54 +54,64 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
         err_msg="lightgbm is not installed, please install it with 'pip install lightgbm'",
     )
     def _train_model(self, data_train, data_test, model_kwargs):
+        import lightgbm as lgb
+        from mlforecast import MLForecast
+        from mlforecast.lag_transforms import ExpandingMean, RollingMean
+        from mlforecast.target_transforms import Differences
+
+        def set_model_config(freq):
+            seasonal_map = {
+                "H": 24,
+                "D": 7,
+                "W": 52,
+                "M": 12,
+                "Q": 4,
+            }
+            sp = seasonal_map.get(freq.upper(), 7)
+            default_lags = [1, sp, 2 * sp]
+            lags = model_kwargs.get("lags", default_lags)
+
+            default_roll = 2 * sp
+            roll = model_kwargs.get("RollingMean", default_roll)
+
+            diff = model_kwargs.get("Differences", sp)
+
+            return {
+                "target_transforms": [Differences([diff])],
+                "lags": lags,
+                "lag_transforms": {
+                    1: [ExpandingMean()],
+                    sp: [RollingMean(window_size=roll, min_samples=1)]
+                }
+            }
+
         try:
-            import lightgbm as lgb
-            from mlforecast import MLForecast
-            from mlforecast.lag_transforms import ExpandingMean, RollingMean
-            from mlforecast.target_transforms import Differences
 
             lgb_params = {
                 "verbosity": model_kwargs.get("verbosity", -1),
                 "num_leaves": model_kwargs.get("num_leaves", 512),
             }
-            additional_data_params = {}
-            if len(self.datasets.get_additional_data_column_names()) > 0:
-                additional_data_params = {
-                    "target_transforms": [
-                        Differences([model_kwargs.get("Differences", 12)])
-                    ],
-                    "lags": model_kwargs.get("lags", [1, 6, 12]),
-                    "lag_transforms": (
-                        {
-                            1: [ExpandingMean()],
-                            12: [
-                                RollingMean(
-                                    window_size=model_kwargs.get("RollingMean", 24),
-                                    min_samples=1,
-                                )
-                            ],
-                        }
-                    ),
-                }
+
+            data_freq = pd.infer_freq(data_train[self.date_col].drop_duplicates()) \
+                        or pd.infer_freq(data_train[self.date_col].drop_duplicates()[-5:])
+
+            additional_data_params = set_model_config(data_freq)
 
             fcst = MLForecast(
                 models={
                     "forecast": lgb.LGBMRegressor(**lgb_params),
-                    # "p" + str(int(model_kwargs["uppper_quantile"] * 100))
                     "upper": lgb.LGBMRegressor(
                         **lgb_params,
                         objective="quantile",
                         alpha=model_kwargs["uppper_quantile"],
                     ),
-                    # "p" + str(int(model_kwargs["lower_quantile"] * 100))
                     "lower": lgb.LGBMRegressor(
                         **lgb_params,
                         objective="quantile",
                         alpha=model_kwargs["lower_quantile"],
                     ),
                 },
-                freq=pd.infer_freq(data_train[self.date_col].drop_duplicates())
-                or pd.infer_freq(data_train[self.date_col].drop_duplicates()[-5:]),
+                freq=data_freq,
                 **additional_data_params,
             )
 
@@ -158,6 +169,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                 self.model_parameters[s_id] = {
                     "framework": SupportedModels.LGBForecast,
                     **lgb_params,
+                    **fcst.models_['forecast'].get_params(),
                 }
 
             logger.debug("===========Done===========")
@@ -191,31 +203,8 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
         Generates the report for the model
         """
         import report_creator as rc
-        from utilsforecast.plotting import plot_series
 
         logging.getLogger("report_creator").setLevel(logging.WARNING)
-
-        # Section 1: Forecast Overview
-        sec1_text = rc.Block(
-            rc.Heading("Forecast Overview", level=2),
-            rc.Text(
-                "These plots show your forecast in the context of historical data."
-            ),
-        )
-        sec_1 = _select_plot_list(
-            lambda s_id: plot_series(
-                self.datasets.get_all_data_long(include_horizon=False),
-                pd.concat(
-                    [self.fitted_values, self.outputs], axis=0, ignore_index=True
-                ),
-                id_col=ForecastOutputColumns.SERIES,
-                time_col=self.spec.datetime_column.name,
-                target_col=self.original_target_column,
-                seed=42,
-                ids=[s_id],
-            ),
-            self.datasets.list_series_ids(),
-        )
 
         # Section 2: LGBForecast Model Parameters
         sec2_text = rc.Block(
@@ -223,16 +212,12 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
             rc.Text("These are the parameters used for the LGBForecast model."),
         )
 
-        blocks = [
-            rc.Html(
-                str(s_id[1]),
-                label=s_id[0],
-            )
-            for _, s_id in enumerate(self.model_parameters.items())
-        ]
-        sec_2 = rc.Select(blocks=blocks)
+        k, v = next(iter(self.model_parameters.items()))
+        sec_2 = rc.Html(
+            pd.DataFrame(list(v.items())).to_html(index=False, header=False),
+        )
 
-        all_sections = [sec1_text, sec_1, sec2_text, sec_2]
+        all_sections = [sec2_text, sec_2]
         model_description = rc.Text(
             "LGBForecast uses mlforecast framework to perform time series forecasting using machine learning models"
             "with the option to scale to massive amounts of data using remote clusters."
