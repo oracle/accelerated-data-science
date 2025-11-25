@@ -13,7 +13,6 @@ from ads.aqua.common.errors import AquaValueError
 from ads.aqua.common.utils import (
     build_params_string,
     find_restricted_params,
-    get_combined_params,
     get_container_params_type,
     get_params_dict,
 )
@@ -177,26 +176,35 @@ class ModelGroupConfig(Serializable):
             model.model_id, AquaDeploymentConfig()
         ).configuration.get(deployment_details.instance_shape, ConfigurationItem())
 
+        final_model_params = user_params
         params_found = False
-        for item in deployment_config.multi_model_deployment:
-            if model.gpu_count and item.gpu_count and item.gpu_count == model.gpu_count:
-                config_parameters = item.parameters.get(
+
+        # If user DID NOT provide specific params (None or Empty), we look for defaults
+        if not user_params:
+            for item in deployment_config.multi_model_deployment:
+                if (
+                    model.gpu_count
+                    and item.gpu_count
+                    and item.gpu_count == model.gpu_count
+                ):
+                    config_parameters = item.parameters.get(
+                        get_container_params_type(container_type_key), UNKNOWN
+                    )
+                    if config_parameters:
+                        final_model_params = config_parameters
+                    params_found = True
+                    break
+
+            if not params_found and deployment_config.parameters:
+                config_parameters = deployment_config.parameters.get(
                     get_container_params_type(container_type_key), UNKNOWN
                 )
-                params = f"{params} {get_combined_params(config_parameters, user_params)}".strip()
+                if config_parameters:
+                    final_model_params = config_parameters
                 params_found = True
-                break
 
-        if not params_found and deployment_config.parameters:
-            config_parameters = deployment_config.parameters.get(
-                get_container_params_type(container_type_key), UNKNOWN
-            )
-            params = f"{params} {get_combined_params(config_parameters, user_params)}".strip()
-            params_found = True
-
-        # if no config parameters found, append user parameters directly.
-        if not params_found:
-            params = f"{params} {user_params}".strip()
+        # Combine Container System Defaults (params) + Model Params (final_model_params)
+        params = f"{params} {final_model_params}".strip()
 
         return params
 
