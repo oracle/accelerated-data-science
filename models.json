@@ -1,0 +1,18 @@
+[
+  {
+    "model_id": "ocid1.datasciencemodel.oc1.iad.amaaaaaam3xyxziacjn3gsjl4mmvesis5pjeu43lj2vyzjxluoffuqm734da",
+    "gpu_count": 1,
+    "model_name": "llama3-8b-instruct",
+    "fine_tune_weights": [
+      {
+        "model_id": "ocid1.datasciencemodel.oc1.iad.amaaaaaav66vvniabwlacbrsjukmrwk7mmec5ukpumcuefxmclz6suvygywq",
+        "model_name": "my-llama-v3.1-8b-instruct-ft"
+      },
+      {
+        "model_id": "ocid1.datasciencemodel.oc1.iad.amaaaaaav66vvniabxhq42ft6ujro4vb5mwa5kelegkj6lle3g6hpaleomeq",
+        "model_name": "llama-oasst-ft"
+      }
+    ]
+  }
+]
+
