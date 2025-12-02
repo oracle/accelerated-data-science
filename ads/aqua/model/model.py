@@ -660,7 +660,10 @@ class AquaModelApp(AquaApp):
             raise AquaRuntimeError("Only registered unverified models can be edited.")
 
     def convert_fine_tune(
-        self, model_id: str, delete_model: Optional[bool] = True
+        self,
+        model_id: str,
+        delete_model: Optional[bool] = True,
+        model_display_name: Optional[str] = None,
     ) -> DataScienceModel:
         """Converts legacy fine tuned model to fine tuned model v2.
         1. 'fine_tune_model_version' tag will be added as 'v2' to new fine tuned model.
@@ -672,6 +675,8 @@ class AquaModelApp(AquaApp):
             The legacy fine tuned model OCID.
         delete_model: bool
             Flag whether to delete the legacy model or not. Defaults to True.
+        model_display_name: str
+            The name of fine tuned model v2 converted. Legacy model's name will be used if not provided. Defaults to None.
 
         Returns
         -------
@@ -722,7 +727,9 @@ class AquaModelApp(AquaApp):
             .with_model_file_description(
                 json_dict=legacy_fine_tuned_model.model_file_description
             )
-            .with_display_name(legacy_fine_tuned_model.display_name)
+            .with_display_name(
+                model_display_name or legacy_fine_tuned_model.display_name
+            )
             .with_description(legacy_fine_tuned_model.description)
             .with_freeform_tags(**fine_tune_model_v2_tags)
             .with_defined_tags(**(legacy_fine_tuned_model.defined_tags or {}))
