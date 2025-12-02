@@ -189,6 +189,7 @@ class AquaDeploymentApp(AquaApp):
                 freeform_tags (Optional[Dict]): Freeform tags for model deployment.
                 defined_tags (Optional[Dict]): Defined tags for model deployment.
                 deployment_type (Optional[str]): The type of model deployment.
+                subnet_id (Optional[str]): The custom egress for model deployment.
 
         Returns
         -------
@@ -1150,6 +1151,7 @@ class AquaDeploymentApp(AquaApp):
                 log_group_id=create_deployment_details.log_group_id,
                 log_id=create_deployment_details.predict_log_id,
             )
+            .with_subnet_id(create_deployment_details.subnet_id)
         )
         if (
             create_deployment_details.memory_in_gbs
@@ -1209,7 +1211,10 @@ class AquaDeploymentApp(AquaApp):
         progress_thread.start()
 
         # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
-        telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
+        deployment_short_ocid = get_ocid_substring(deployment_id, key_len=8)
+        
+        # Prepare telemetry kwargs
+        telemetry_kwargs = {"ocid": deployment_short_ocid}
 
         if Tags.BASE_MODEL_CUSTOM in tags:
             telemetry_kwargs["custom_base_model"] = True
@@ -1220,6 +1225,11 @@ class AquaDeploymentApp(AquaApp):
             telemetry_kwargs["deployment_type"] = DeploymentType.STACKED
         else:
             telemetry_kwargs["deployment_type"] = DeploymentType.SINGLE
+
+        telemetry_kwargs["container"] = (
+            create_deployment_details.container_family
+            or create_deployment_details.container_image_uri
+        )
 
         # tracks unique deployments that were created in the user compartment
         self.telemetry.record_event_async(
@@ -1234,6 +1244,7 @@ class AquaDeploymentApp(AquaApp):
             action="shape",
             detail=create_deployment_details.instance_shape,
             value=model_name,
+            **{"ocid": deployment_short_ocid},
         )
 
         return AquaDeployment.from_oci_model_deployment(

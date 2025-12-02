@@ -1,38 +1,33 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
-import time
 import sys
+import time
 import warnings
-from abc import ABC, abstractmethod, abstractproperty
-import math
-import pandas as pd
+from abc import ABC, abstractmethod
+
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from sklearn import set_config
 from sklearn.dummy import DummyClassifier, DummyRegressor
 
-import matplotlib.pyplot as plt
-
 import ads
+from ads.common import logger, utils
+from ads.common.decorator.deprecate import deprecated
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 from ads.common.utils import (
+    is_notebook,
     ml_task_types,
     wrap_lines,
-    is_documentation_mode,
-    is_notebook,
 )
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
-from ads.common.decorator.deprecate import deprecated
 from ads.dataset.label_encoder import DataFrameLabelEncoder
-from ads.dataset.helper import is_text_data
-
-from ads.common import logger, utils
 
 
 class AutoMLProvider(ABC):
@@ -141,7 +136,7 @@ class AutoMLProvider(ABC):
         pass
 
 
-class BaselineModel(object):
+class BaselineModel:
     """
     A BaselineModel object that supports fit/predict/predict_proba/transform
     interface. Labels (y) are encoded using DataFrameLabelEncoder.
@@ -156,7 +151,6 @@ class BaselineModel(object):
         self.df_label_encoder = DataFrameLabelEncoder()
 
     def predict(self, X):
-
         """
         Runs the Baselines predict function and returns the result.
 
@@ -174,7 +168,6 @@ class BaselineModel(object):
         return self.est.predict(X)
 
     def predict_proba(self, X):
-
         """
         Runs the Baselines predict_proba function and returns the result.
 
@@ -192,7 +185,6 @@ class BaselineModel(object):
         return self.est.predict_proba(X)
 
     def fit(self, X, y):
-
         """
         Fits the baseline estimator.
 
@@ -213,7 +205,6 @@ class BaselineModel(object):
         return self
 
     def transform(self, X):
-
         """
         Runs the Baselines transform function and returns the result.
 
@@ -304,16 +295,15 @@ class BaselineAutoMLProvider(AutoMLProvider):
         """
         if self.est is not None:
             return self.est
-        else:
-            if self.ml_task_type == ml_task_types.REGRESSION:
-                return BaselineModel(DummyRegressor())
-            elif self.ml_task_type in [
-                ml_task_types.BINARY_CLASSIFICATION,
-                ml_task_types.MULTI_CLASS_CLASSIFICATION,
-                ml_task_types.BINARY_TEXT_CLASSIFICATION,
-                ml_task_types.MULTI_CLASS_TEXT_CLASSIFICATION,
-            ]:
-                return BaselineModel(DummyClassifier())
+        elif self.ml_task_type == ml_task_types.REGRESSION:
+            return BaselineModel(DummyRegressor())
+        elif self.ml_task_type in [
+            ml_task_types.BINARY_CLASSIFICATION,
+            ml_task_types.MULTI_CLASS_CLASSIFICATION,
+            ml_task_types.BINARY_TEXT_CLASSIFICATION,
+            ml_task_types.MULTI_CLASS_TEXT_CLASSIFICATION,
+        ]:
+            return BaselineModel(DummyClassifier())
 
 
 # An installation of oracle labs automl is required only for this class
@@ -483,8 +473,11 @@ class OracleAutoMLProvider(AutoMLProvider, ABC):
                 0, "Rank based on Performance", np.arange(2, len(sorted_summary_df) + 2)
             )
 
-            from IPython.core.display import display, HTML
+            from IPython.display import HTML
 
+            from ads.common.utils import get_display
+
+            display = get_display()
             with pd.option_context(
                 "display.max_colwidth",
                 1000,
@@ -595,9 +588,7 @@ class OracleAutoMLProvider(AutoMLProvider, ABC):
         if (
             self.ml_task_type == ml_task_types.BINARY_CLASSIFICATION
             or self.ml_task_type == ml_task_types.BINARY_TEXT_CLASSIFICATION
-        ):
-            test_model_list = ["LogisticRegression"]
-        elif (
+        ) or (
             self.ml_task_type == ml_task_types.MULTI_CLASS_CLASSIFICATION
             or self.ml_task_type == ml_task_types.MULTI_CLASS_TEXT_CLASSIFICATION
         ):
@@ -712,7 +703,7 @@ class OracleAutoMLProvider(AutoMLProvider, ABC):
         for f in mean_scores_ser.keys():
             se = scipy.stats.sem(scores_ser[f], ddof=1)
             y_error.append(se)
-            if f == "{}_AS".format(self.est.selected_model_):
+            if f == f"{self.est.selected_model_}_AS":
                 colors.append("orange")
             elif mean_scores_ser[f] >= mean_scores_ser.mean():
                 colors.append("teal")
@@ -741,7 +732,7 @@ class OracleAutoMLProvider(AutoMLProvider, ABC):
             _log_visualize_no_trials("adaptive sampling")
             return
         fig, ax = plt.subplots(1, figsize=(6, 3))
-        ax.set_title("Adaptive Sampling ({})".format(trials[0][0]))
+        ax.set_title(f"Adaptive Sampling ({trials[0][0]})")
         ax.set_xlabel("Dataset sample size")
         ax.set_ylabel(r"Predicted model score")
         scores = [
@@ -882,7 +873,7 @@ class OracleAutoMLProvider(AutoMLProvider, ABC):
             plt.show()
 
 
-class AutoMLPreprocessingTransformer(object):  # pragma: no cover
+class AutoMLPreprocessingTransformer:  # pragma: no cover
     @deprecated(
         details="Working with AutoML has moved from within ADS to working directly with the AutoMLx library. AutoMLx are preinstalled in conda pack automlx_p38_cpu_v2 and later, and can now be updated independently of ADS. AutoMLx documentation may be found at https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/v23.1.1/index.html. Notebook examples are in Oracle's samples repository: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples and a migration tutorial can be found at https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/automl/quick_start.html .",
         raise_error=True,
@@ -931,7 +922,7 @@ class AutoMLPreprocessingTransformer(object):  # pragma: no cover
         return self.msg
 
 
-class AutoMLFeatureSelection(object):  # pragma: no cover
+class AutoMLFeatureSelection:  # pragma: no cover
     @deprecated(
         details="Working with AutoML has moved from within ADS to working directly with the AutoMLx library. AutoMLx are preinstalled in conda pack automlx_p38_cpu_v2 and later, and can now be updated independently of ADS. AutoMLx documentation may be found at https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/v23.1.1/index.html. Notebook examples are in Oracle's samples repository: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples and a migration tutorial can be found at https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/automl/quick_start.html .",
         raise_error=True,
