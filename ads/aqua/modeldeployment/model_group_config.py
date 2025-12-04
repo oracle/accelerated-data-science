@@ -178,9 +178,10 @@ class ModelGroupConfig(Serializable):
 
         final_model_params = user_params
         params_found = False
+        user_explicitly_cleared = model.params is not None and not model.params
 
-        # If user DID NOT provide specific params (None or Empty), we look for defaults
-        if not user_params:
+        # Only load defaults if user didn't provide params AND didn't explicitly clear them
+        if not user_params and not user_explicitly_cleared:
             for item in deployment_config.multi_model_deployment:
                 if (
                     model.gpu_count
