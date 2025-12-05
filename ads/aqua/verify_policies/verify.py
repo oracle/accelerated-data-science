@@ -252,13 +252,7 @@ class AquaVerifyPoliciesApp:
         _, get_resource_availability_status = self._execute(self._util.get_resource_availability,
                                                             limit_name=TEST_LIMIT_NAME)
         result.append(get_resource_availability_status.to_dict())
-
-        self.model_id, test_model_register = self._execute(self._util.register_model)
-
-        model_deployment = self._test_model_deployment() if self.model_id else []
-        delete_model_result = self._test_delete_model(**kwargs) if self.model_id else []
-
-        return [*result, *model_deployment, *delete_model_result]
+        return result
 
     def model_register(self, **kwargs):
         """Verifies policies required to register a model, including object storage access.
@@ -283,11 +277,11 @@ class AquaVerifyPoliciesApp:
                 List of result dicts for registration, deployment, and cleanup.
         """
         logger.info("[magenta]Verifying Model Deployment")
-        logger.info("Object, Model, Model deployment will be created.")
+        logger.info("Model, Model deployment will be created.")
         kwargs.pop("consent", None) == True or self._consent()
-        model_save_bucket = kwargs.pop("bucket", None) or self._prompt(
-            "Provide bucket name where model artifacts will be saved")
-        model_register = self._test_model_register(bucket=model_save_bucket)
+
+        self.model_id, test_model_register = self._execute(self._util.register_model)
+        model_register = [test_model_register.to_dict()]
 
         model_deployment = self._test_model_deployment() if self.model_id else []
         delete_model_result = self._test_delete_model(**kwargs) if self.model_id else []
