@@ -15,6 +15,7 @@ from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.modeldeployment import AquaDeploymentApp
 from ads.config import COMPARTMENT_OCID
+from ads.aqua import logger
 
 
 class AquaDeploymentHandler(AquaAPIhandler):
@@ -222,7 +223,36 @@ class AquaDeploymentHandler(AquaAPIhandler):
 
 class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
 
-    def _extract_text_from_choice(self, choice):
+    def _extract_text_from_choice(self, choice: dict) -> str:
+        """
+        Extract text content from a single choice structure.
+
+        Handles both dictionary-based API responses and object-based SDK responses.
+        For dict choices, it checks delta-based streaming fields, message-based
+        non-streaming fields, and finally top-level text/content keys.
+        For object choices, it inspects `.delta`, `.message`, and top-level
+        `.text` or `.content` attributes.
+
+        Parameters
+        ----------
+        choice : dict
+            A choice entry from a model response. It may be:
+                - A dict originating from a JSON API response (streaming or non-streaming).
+                - An SDK-style object with attributes such as `delta`, `message`,
+                `text`, or `content`.
+
+                For dicts, the method checks:
+                    • delta → content/text  
+                    • message → content/text  
+                    • top-level → text/content  
+
+                For objects, the method checks the same fields via attributes.
+
+        Returns
+        -------
+        str | None:
+            The extracted text if present; otherwise None.
+        """
         # choice may be a dict or an object
         if isinstance(choice, dict):
             # streaming chunk: {"delta": {"content": "..."}}
@@ -246,7 +276,31 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
             return getattr(msg, "content", None) or getattr(msg, "text", None)
         return getattr(choice, "text", None) or getattr(choice, "content", None)
 
-    def _extract_text_from_chunk(self, chunk):
+    def _extract_text_from_chunk(self, chunk: dict) -> str :
+        """
+        Extract text content from a model response chunk.
+
+        Supports both dict-form chunks (streaming or non-streaming) and SDK-style
+        object chunks. When choices are present, extraction is delegated to
+        `_extract_text_from_choice`. If no choices exist, top-level text/content
+        fields or attributes are used.
+
+        Parameters
+        ----------
+        chunk : dict
+            A chunk returned from a model stream or full response. It may be:
+            - A dict containing a `choices` list or top-level text/content fields.
+            - An SDK-style object with a `choices` attribute or top-level
+              `text`/`content` attributes.
+
+            If `choices` is present, the method extracts text from the first
+            choice using `_extract_text_from_choice`. Otherwise, it falls back
+            to top-level text/content.
+        Returns
+        -------
+        str
+            The extracted text if present; otherwise None.
+        """
         if chunk : 
             if isinstance(chunk, dict):
                 choices = chunk.get("choices") or []
@@ -311,6 +365,13 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
 
         model_deployment = AquaDeploymentApp().get(model_deployment_id)
         endpoint = model_deployment.endpoint + "/predictWithResponseStream/v1"
+
+        required_keys = ["endpoint_type", "prompt", "model"]
+        missing = [k for k in required_keys if k not in payload]
+
+        if missing:
+            raise HTTPError(400, f"Missing required payload keys: {', '.join(missing)}")
+        
         endpoint_type = payload["endpoint_type"]
         aqua_client = OpenAI(base_url=endpoint)
 
@@ -381,7 +442,7 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
                                     {"type": "text", "text": payload["prompt"]},
                                     {
                                         "type": "image_url",
-                                        "image_url": {"url": f"{self.encoded_image}"},
+                                        "image_url": {"url": f"{encoded_image}"},
                                     },
                                 ],
                             }
@@ -397,7 +458,7 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
 
                     response = aqua_client.chat.completions.create(**api_kwargs)
 
-                elif self.file_type.startswith("audio"):
+                elif file_type.startswith("audio"):
                     api_kwargs = {
                         "model": model,
                         "messages": [
@@ -407,7 +468,7 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
                                     {"type": "text", "text": payload["prompt"]},
                                     {
                                         "type": "audio_url",
-                                        "audio_url": {"url": f"{self.encoded_image}"},
+                                        "audio_url": {"url": f"{encoded_image}"},
                                     },
                                 ],
                             }
@@ -426,7 +487,7 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
                     for chunk in response:
                         piece = self._extract_text_from_chunk(chunk)
                         if piece:
-                            print(piece, end="", flush=True)
+                            yield piece
                 except ExtendedRequestError as ex:
                     raise HTTPError(400, str(ex))
                 except Exception as ex:
@@ -468,6 +529,8 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
                 raise HTTPError(400, str(ex))
             except Exception as ex:
                 raise HTTPError(500, str(ex))
+        else:
+            raise HTTPError(400, f"Unsupported endpoint_type: {endpoint_type}")
 
     @handle_exceptions
     def post(self, model_deployment_id):
@@ -502,12 +565,11 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
         )
         try:
             for chunk in response_gen:
-                print(chunk)
                 self.write(chunk)
                 self.flush()
             self.finish()
         except Exception as ex:
-            self.set_status(ex.status_code)
+            self.set_status(getattr(ex, "status_code", 500))
             self.write({"message": "Error occurred", "reason": str(ex)})
             self.finish()
 
