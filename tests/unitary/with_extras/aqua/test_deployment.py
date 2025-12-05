@@ -556,7 +556,7 @@ class TestDataset:
         "models": [
             {
                 "env_var": {},
-                "params": {},
+                "params": None,
                 "gpu_count": 2,
                 "model_id": "test_model_id_1",
                 "model_name": "test_model_1",
@@ -566,7 +566,7 @@ class TestDataset:
             },
             {
                 "env_var": {},
-                "params": {},
+                "params": None,
                 "gpu_count": 2,
                 "model_id": "test_model_id_2",
                 "model_name": "test_model_2",
@@ -576,7 +576,7 @@ class TestDataset:
             },
             {
                 "env_var": {},
-                "params": {},
+                "params": None,
                 "gpu_count": 2,
                 "model_id": "test_model_id_3",
                 "model_name": "test_model_3",
@@ -1258,9 +1258,7 @@ class TestAquaDeployment(unittest.TestCase):
         mock_get_resource_name.side_effect = lambda param: (
             "log-group-name"
             if param.startswith("ocid1.loggroup")
-            else "log-name"
-            if param.startswith("ocid1.log")
-            else ""
+            else "log-name" if param.startswith("ocid1.log") else ""
         )
 
         result = self.app.get(model_deployment_id=TestDataset.MODEL_DEPLOYMENT_ID)
@@ -1301,9 +1299,7 @@ class TestAquaDeployment(unittest.TestCase):
         mock_get_resource_name.side_effect = lambda param: (
             "log-group-name"
             if param.startswith("ocid1.loggroup")
-            else "log-name"
-            if param.startswith("ocid1.log")
-            else ""
+            else "log-name" if param.startswith("ocid1.log") else ""
         )
 
         aqua_multi_model = os.path.join(
