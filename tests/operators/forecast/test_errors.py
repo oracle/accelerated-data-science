@@ -141,8 +141,8 @@ MODELS = [
     "arima",
     "automlx",
     "prophet",
-    # "neuralprophet",
-    # "autots",
+    "neuralprophet",
+    "autots",
     "lgbforecast",
 ]
 
