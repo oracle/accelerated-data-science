@@ -68,13 +68,18 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                 "Q": 4,
             }
             sp = seasonal_map.get(freq.upper(), 7)
-            default_lags = [1, sp, 2 * sp]
+            series_lengths = data_train.groupby(ForecastOutputColumns.SERIES).size()
+            min_len = series_lengths.min()
+            max_allowed = min_len - sp
+
+            default_lags = [lag for lag in [1, sp, 2 * sp] if lag <= max_allowed]
             lags = model_kwargs.get("lags", default_lags)
 
             default_roll = 2 * sp
             roll = model_kwargs.get("RollingMean", default_roll)
 
-            diff = model_kwargs.get("Differences", sp)
+            default_diff = sp if sp <= max_allowed else None
+            diff = model_kwargs.get("Differences", default_diff)
 
             return {
                 "target_transforms": [Differences([diff])],
@@ -112,6 +117,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                     ),
                 },
                 freq=data_freq,
+                date_features=['year', 'month', 'day', 'dayofweek', 'dayofyear'],
                 **additional_data_params,
             )
 
