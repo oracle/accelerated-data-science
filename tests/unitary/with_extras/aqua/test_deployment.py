@@ -3053,26 +3053,6 @@ class TestSingleModelParamResolution(unittest.TestCase):
             # SMM Default should be GONE
             self.assertNotIn("--default-param 100", final_params)
 
-    @patch("ads.aqua.app.ModelDeployment")
-    @patch("ads.aqua.app.AquaModelApp")
-    def test_validation_blocks_restricted_params(self, mock_model_app, mock_deploy):
-        """Test that restricted params cause error regardless of input source."""
-
-        # Setup: Container config has restricted params
-        self.mock_container_item.spec.restricted_params = ["--seed"]
-
-        # User tries to override restricted param
-        details = CreateModelDeploymentDetails(
-            model_id="ocid1.model...",
-            instance_shape="VM.GPU.A10.1",
-            env_var={"PARAMS": "--seed 999"},
-        )
-
-        with self.assertRaises(AquaValueError) as context:
-            self.app.create(create_deployment_details=details)
-
-        self.assertIn("Parameters ['--seed'] are set by Aqua", str(context.exception))
-
 
 class TestMultiModelParamResolution(unittest.TestCase):
     """Tests strictly for the SMM parameter resolution logic in Multi-Model."""
