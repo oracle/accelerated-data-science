@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Test OCI Data Science Model Deployment Endpoint."""
@@ -12,15 +12,13 @@ from unittest import mock
 
 import pytest
 
-
 if sys.version_info < (3, 9):
     pytest.skip(allow_module_level=True)
 
 from langchain_core.messages import AIMessage, AIMessageChunk
 from requests.exceptions import HTTPError
 
-from ads.llm import ChatOCIModelDeploymentVLLM, ChatOCIModelDeploymentTGI
-
+from ads.llm import ChatOCIModelDeploymentTGI, ChatOCIModelDeploymentVLLM
 
 CONST_MODEL_NAME = "odsc-vllm"
 CONST_ENDPOINT = "https://oci.endpoint/ocid/predict"
@@ -162,7 +160,7 @@ def test_stream_vllm(*args: Any) -> None:
         else:
             output += chunk
         count += 1
-    assert count == 5
+    assert count == 6
     assert output is not None
     if output is not None:
         assert str(output.content).strip() == CONST_COMPLETION

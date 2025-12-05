@@ -218,17 +218,12 @@ def _write_file(local_filename, remote_filename, storage_options, **kwargs):
 
 
 def load_pkl(filepath):
-    return _safe_write(fn=_load_pkl, filepath=filepath)
-
-
-def _load_pkl(filepath):
     storage_options = {}
     if ObjectStorageDetails.is_oci_path(filepath):
         storage_options = default_signer()
 
     with fsspec.open(filepath, "rb", **storage_options) as f:
         return cloudpickle.load(f)
-    return None
 
 
 def write_pkl(obj, filename, output_dir, storage_options):

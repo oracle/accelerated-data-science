@@ -21,7 +21,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads" # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.13.19"
+version = "2.14.3"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -111,8 +111,8 @@ huggingface = [
   "tf-keras"  # Keras 3 installed in py3.11+, but this is not yet supported in Transformers. Need to install the backwards-compatible tf-keras
 ]
 notebook = [
-  "ipython>=7.23.1, <8.0",
-  "ipywidgets~=7.6.3",
+  "ipython",
+  "ipywidgets",
   "scikit-learn>=1.0,<1.6.0"
 ]
 onnx = [
@@ -181,7 +181,8 @@ forecast = [
   "oci-cli",
   "optuna",
   "pmdarima",
-  "prophet",
+  "prophet==1.1.7",
+  "cmdstanpy==1.2.5",
   "shap",
   "sktime",
   "statsmodels",
@@ -229,7 +230,8 @@ aqua = [
   "cachetools",
   "huggingface_hub",
   "python-dotenv",
-  "rich"
+  "rich",
+  "openai==1.109.1"
 ]
 
 # To reduce backtracking (decrese deps install time) during test/dev env setup reducing number of versions pip is
