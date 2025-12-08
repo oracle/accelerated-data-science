@@ -165,6 +165,7 @@ class Framework(ExtendedEnum):
     PYOD = "pyod"
     SPACY = "spacy"
     PROPHET = "prophet"
+    THETA = "theta"
     SKTIME = "sktime"
     STATSMODELS = "statsmodels"
     CUML = "cuml"
