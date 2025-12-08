@@ -1,4 +1,9 @@
+#!/usr/bin/env python
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
 import logging
+import sys
 from functools import wraps
 
 import click
@@ -56,9 +61,7 @@ def with_spinner(func):
         if ignore_spinner:
             return run_func()
         else:
-            with self._rich_ui.console.status(
-                f"Verifying {operation_message['name']}"
-            ) as status:
+            with self._rich_ui.console.status(f"Verifying {operation_message['name']}"):
                 return run_func()
 
     return wrapper
@@ -183,7 +186,7 @@ class AquaVerifyPoliciesApp:
                 ).to_dict()
             ]
 
-    def _test_model_deployment(self, **kwargs):
+    def _test_model_deployment(self, **kwargs):  # noqa: ARG002
         """Verifies policies required to create and delete a model deployment.
 
         Returns:
@@ -201,7 +204,7 @@ class AquaVerifyPoliciesApp:
         )
         return [test_model_deployment.to_dict(), test_delete_md.to_dict()]
 
-    def _test_manage_mvs(self, **kwargs):
+    def _test_manage_mvs(self, **kwargs):  # noqa: ARG002
         """Verifies policies required to create and delete a model version set (MVS).
 
         Returns:
@@ -289,7 +292,7 @@ class AquaVerifyPoliciesApp:
         """
         answer = self._prompt("Do you want to continue?", bool=True)
         if not answer:
-            exit(0)
+            sys.exit(0)
 
     def common_policies(self, **kwargs):
         """Verifies basic read-level policies across various AQUA components
@@ -328,7 +331,7 @@ class AquaVerifyPoliciesApp:
         """
         logger.info("[magenta]Verifying Model Register")
         logger.info("Object and Model will be created.")
-        kwargs.pop("consent", None) == True or self._consent()
+        kwargs.pop("consent", None) or self._consent()
 
         model_save_bucket = kwargs.pop("bucket", None) or self._prompt(
             "Provide bucket name where model artifacts will be saved"
@@ -345,7 +348,7 @@ class AquaVerifyPoliciesApp:
         """
         logger.info("[magenta]Verifying Model Deployment")
         logger.info("Model, Model deployment will be created.")
-        kwargs.pop("consent", None) == True or self._consent()
+        kwargs.pop("consent", None) or self._consent()
 
         self.model_id, test_model_register = self._execute(self._util.register_model)
         model_register = [test_model_register.to_dict()]
@@ -364,7 +367,7 @@ class AquaVerifyPoliciesApp:
         """
         logger.info("[magenta]Verifying Evaluation")
         logger.info("Model Version Set, Model, Object, Job and JobRun will be created.")
-        kwargs.pop("consent", None) == True or self._consent()
+        kwargs.pop("consent", None) or self._consent()
 
         # Create & Delete MVS
         test_manage_mvs = self._test_manage_mvs(**kwargs)
@@ -397,7 +400,7 @@ class AquaVerifyPoliciesApp:
         logger.info(
             "Object, Model Version Set, Job and JobRun will be created. VCN will be used."
         )
-        kwargs.pop("consent", None) == True or self._consent()
+        kwargs.pop("consent", None) or self._consent()
 
         # Manage bucket
         bucket = kwargs.pop("bucket", None) or self._prompt(
