@@ -2954,9 +2954,7 @@ class TestModelGroupConfig(TestAquaDeployment):
         )
 
 
-# ... [Existing code in test_deployment.py] ...
-
-
+@patch("ads.aqua.app.default_signer")
 class TestSingleModelParamResolution(unittest.TestCase):
     """Tests strictly for the SMM parameter resolution logic in Single Model."""
 
@@ -2980,15 +2978,15 @@ class TestSingleModelParamResolution(unittest.TestCase):
         # Mock Container Defaults (The mandatory left-side params)
         self.mock_container_item = MagicMock()
         self.mock_container_item.spec.cli_param = "--mandatory-param 1"
-        # Mock restricted params to empty list to pass validation
+        # Ensure restricted params are empty by default for this mock
         self.mock_container_item.spec.restricted_params = []
         self.app.get_container_config_item = MagicMock(
             return_value=self.mock_container_item
         )
 
-    @patch("ads.aqua.app.ModelDeployment")
-    @patch("ads.aqua.app.AquaModelApp")
-    def test_case_1_none_loads_defaults(self, mock_model_app, mock_deploy):
+    @patch("ads.aqua.modeldeployment.deployment.ModelDeployment")
+    @patch("ads.aqua.modeldeployment.deployment.AquaModelApp")
+    def test_case_1_none_loads_defaults(self, mock_model_app, mock_deploy, mock_signer):
         """Case 1: User input None -> Should load SMM defaults."""
         details = CreateModelDeploymentDetails(
             model_id="ocid1.model...",
@@ -3008,9 +3006,11 @@ class TestSingleModelParamResolution(unittest.TestCase):
             self.assertIn("--mandatory-param 1", final_params)
             self.assertIn("--default-param 100", final_params)
 
-    @patch("ads.aqua.app.ModelDeployment")
-    @patch("ads.aqua.app.AquaModelApp")
-    def test_case_2_empty_clears_defaults(self, mock_model_app, mock_deploy):
+    @patch("ads.aqua.modeldeployment.deployment.ModelDeployment")
+    @patch("ads.aqua.modeldeployment.deployment.AquaModelApp")
+    def test_case_2_empty_clears_defaults(
+        self, mock_model_app, mock_deploy, mock_signer
+    ):
         """Case 2: User input Empty String -> Should clear SMM defaults."""
         details = CreateModelDeploymentDetails(
             model_id="ocid1.model...",
@@ -3030,9 +3030,11 @@ class TestSingleModelParamResolution(unittest.TestCase):
             # SMM Default should be GONE
             self.assertNotIn("--default-param 100", final_params)
 
-    @patch("ads.aqua.app.ModelDeployment")
-    @patch("ads.aqua.app.AquaModelApp")
-    def test_case_3_value_overrides_defaults(self, mock_model_app, mock_deploy):
+    @patch("ads.aqua.modeldeployment.deployment.ModelDeployment")
+    @patch("ads.aqua.modeldeployment.deployment.AquaModelApp")
+    def test_case_3_value_overrides_defaults(
+        self, mock_model_app, mock_deploy, mock_signer
+    ):
         """Case 3: User input Value -> Should use exact value (No Merge)."""
         details = CreateModelDeploymentDetails(
             model_id="ocid1.model...",
@@ -3052,6 +3054,35 @@ class TestSingleModelParamResolution(unittest.TestCase):
             self.assertIn("--user-override 99", final_params)
             # SMM Default should be GONE
             self.assertNotIn("--default-param 100", final_params)
+
+    @patch("ads.aqua.modeldeployment.deployment.ModelDeployment")
+    @patch("ads.aqua.modeldeployment.deployment.AquaModelApp")
+    def test_validation_blocks_restricted_params(
+        self, mock_model_app, mock_deploy, mock_signer
+    ):
+        """Test that restricted params cause error regardless of input source."""
+
+        # Setup: Override the container config for THIS test only
+        # We create a new mock to ensure we don't pollute other tests
+        restricted_mock_item = MagicMock()
+        restricted_mock_item.spec.cli_param = "--mandatory 1"
+        restricted_mock_item.spec.restricted_params = ["--seed"]
+
+        self.app.get_container_config_item = MagicMock(
+            return_value=restricted_mock_item
+        )
+
+        # User tries to override restricted param
+        details = CreateModelDeploymentDetails(
+            model_id="ocid1.model...",
+            instance_shape="VM.GPU.A10.1",
+            env_var={"PARAMS": "--seed 999"},
+        )
+
+        with self.assertRaises(AquaValueError) as context:
+            self.app.create(create_deployment_details=details)
+
+        self.assertIn("Parameters ['--seed'] are set by Aqua", str(context.exception))
 
 
 class TestMultiModelParamResolution(unittest.TestCase):
