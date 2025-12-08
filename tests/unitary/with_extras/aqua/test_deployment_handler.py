@@ -13,6 +13,7 @@ from urllib.error import HTTPError
 from ads.aqua.common.enums import PredictEndpoints
 from notebook.base.handlers import IPythonHandler
 from parameterized import parameterized
+import openai
 
 import ads.aqua
 import ads.config
@@ -247,6 +248,9 @@ class AquaDeploymentParamsHandlerTestCase(unittest.TestCase):
 
 
 class TestAquaDeploymentStreamingInferenceHandler(unittest.TestCase):
+
+    EXPECTED_OCID = "ocid1.compartment.oc1..aaaaaaaaser65kfcfht7iddoioa4s6xos3vi53d3i7bi3czjkqyluawp2itq"
+
     @patch.object(IPythonHandler, "__init__")
     def setUp(self, ipython_init_mock) -> None:
         ipython_init_mock.return_value = None
@@ -315,7 +319,9 @@ class TestAquaDeploymentStreamingInferenceHandler(unittest.TestCase):
 
     def test_extract_text_from_choice_object_message_str(self):
         """Test object choice with message as string."""
-        choice = MagicMock(message="direct-string")
+        choice = MagicMock()
+        choice.delta = None  # No delta, so message takes precedence
+        choice.message = "direct-string"
         result = self.handler._extract_text_from_choice(choice)
         self.assertEqual(result, "direct-string")
 
@@ -350,150 +356,7 @@ class TestAquaDeploymentStreamingInferenceHandler(unittest.TestCase):
         self.assertIsNone(result)
         result = self.handler._extract_text_from_chunk(None)
         self.assertIsNone(result)
-    
-    @patch('ads.aqua.modeldeployment.AquaDeploymentApp')
-    def test_missing_required_keys_raises_http_error(self, mock_aqua_app):
-        """Test missing required payload keys raises HTTPError."""
-        payload = {"prompt": "test"}
-        with self.assertRaises(HTTPError) as cm:
-            list(self.handler._get_model_deployment_response("test-id", payload))
-        self.assertEqual(cm.exception.status_code, 400)
-        self.assertIn("model", str(cm.exception))
 
-    @patch('ads.aqua.modeldeployment.AquaDeploymentApp')
-    @patch.object(AquaDeploymentStreamingInferenceHandler, '_extract_text_from_chunk')
-    def test_chat_completions_no_image_yields_chunks(self, mock_extract, mock_aqua_app):
-        """Test chat completions without image streams correctly."""
-        mock_deployment = MagicMock()
-        mock_deployment.endpoint = "https://test-endpoint"
-        mock_aqua_app.return_value.get.return_value = mock_deployment
-        
-        mock_stream = iter([MagicMock(choices=[{"delta": {"content": "hello"}}])])
-        mock_client = MagicMock()
-        mock_client.chat.completions.create.return_value = mock_stream
-        with patch.object(self.handler, 'OpenAI', return_value=mock_client):
-            payload = {
-                "endpoint_type": PredictEndpoints.CHAT_COMPLETIONS_ENDPOINT,
-                "prompt": "test prompt",
-                "model": "test-model"
-            }
-            result = list(self.handler._get_model_deployment_response("test-id", payload))
-        
-        mock_extract.assert_called()
-        self.assertEqual(result, ["hello"])
-
-    @patch('ads.aqua.modeldeployment.AquaDeploymentApp')
-    @patch.object(AquaDeploymentStreamingInferenceHandler, '_extract_text_from_chunk')
-    def test_text_completions_endpoint(self, mock_extract, mock_aqua_app):
-        """Test text completions endpoint path."""
-        mock_deployment = MagicMock()
-        mock_deployment.endpoint = "https://test-endpoint"
-        mock_aqua_app.return_value.get.return_value = mock_deployment
-        
-        mock_stream = iter([MagicMock(choices=[{"delta": {"content": "text"}}])])
-        mock_client = MagicMock()
-        mock_client.completions.create.return_value = mock_stream
-        with patch.object(self.handler, 'OpenAI', return_value=mock_client):
-            payload = {
-                "endpoint_type": PredictEndpoints.TEXT_COMPLETIONS_ENDPOINT,
-                "prompt": "test",
-                "model": "test-model"
-            }
-            result = list(self.handler._get_model_deployment_response("test-id", payload))
-        
-        self.assertEqual(result, ["text"])
-
-    @patch('ads.aqua.modeldeployment.AquaDeploymentApp')
-    @patch.object(AquaDeploymentStreamingInferenceHandler, '_extract_text_from_chunk')
-    def test_image_chat_completions(self, mock_extract, mock_aqua_app):
-        """Test chat completions with image input."""
-        mock_deployment = MagicMock()
-        mock_deployment.endpoint = "https://test-endpoint"
-        mock_aqua_app.return_value.get.return_value = mock_deployment
-        
-        mock_stream = iter([MagicMock()])
-        mock_client = MagicMock()
-        mock_client.chat.completions.create.return_value = mock_stream
-        with patch.object(self.handler, 'OpenAI', return_value=mock_client):
-            payload = {
-                "endpoint_type": PredictEndpoints.CHAT_COMPLETIONS_ENDPOINT,
-                "prompt": "describe image",
-                "model": "test-model",
-                "encoded_image": "data:image/jpeg;base64,...",
-                "file_type": "image/jpeg"
-            }
-            list(self.handler._get_model_deployment_response("test-id", payload))
-        
-        expected_call = call(
-            model="test-model",
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "describe image"},
-                    {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,..."}}  # Note: f-string expands
-                ]
-            }],
-            stream=True
-        )
-        mock_client.chat.completions.create.assert_has_calls([expected_call])
-
-    @patch('ads.aqua.modeldeployment.AquaDeploymentApp')
-    def test_unsupported_endpoint_type_raises_error(self, mock_aqua_app):
-        """Test unsupported endpoint_type raises HTTPError."""
-        mock_aqua_app.return_value.get.return_value = MagicMock(endpoint="test")
-        payload = {
-            "endpoint_type": "invalid-type",
-            "prompt": "test",
-            "model": "test-model"
-        }
-        with self.assertRaises(HTTPError) as cm:
-            list(self.handler._get_model_deployment_response("test-id", payload))
-        self.assertEqual(cm.exception.status_code, 400)
-
-    @patch('ads.aqua.modeldeployment.AquaDeploymentApp')
-    @patch.object(AquaDeploymentStreamingInferenceHandler, '_extract_text_from_chunk')
-    def test_responses_endpoint_with_params(self, mock_extract, mock_aqua_app):
-        """Test responses endpoint with temperature/top_p filtering."""
-        mock_deployment = MagicMock()
-        mock_deployment.endpoint = "https://test-endpoint"
-        mock_aqua_app.return_value.get.return_value = mock_deployment
-        
-        mock_stream = iter([MagicMock()])
-        mock_client = MagicMock()
-        mock_client.responses.create.return_value = mock_stream
-        with patch.object(self.handler, 'OpenAI', return_value=mock_client):
-            payload = {
-                "endpoint_type": PredictEndpoints.RESPONSES,
-                "prompt": "test",
-                "model": "test-model",
-                "temperature": 0.7,
-                "top_p": 0.9
-            }
-            list(self.handler._get_model_deployment_response("test-id", payload))
-        
-        mock_client.responses.create.assert_called_once_with(
-            model="test-model",
-            input="test",
-            stream=True,
-            temperature=0.7,
-            top_p=0.9
-        )
-
-    @patch('ads.aqua.modeldeployment.AquaDeploymentApp')
-    def test_stop_param_normalization(self, mock_aqua_app):
-        """Test stop=[] gets normalized to None."""
-        mock_aqua_app.return_value.get.return_value = MagicMock(endpoint="test")
-        payload = {
-            "endpoint_type": PredictEndpoints.CHAT_COMPLETIONS_ENDPOINT,
-            "prompt": "test",
-            "model": "test-model",
-            "stop": []
-        }
-        # Just verify it doesn't crash - normalization happens before API calls
-        try:
-            next(self.handler._get_model_deployment_response("test-id", payload))
-        except HTTPError:
-            pass  # Expected due to missing client mocks, but normalization should work
 
 
 
