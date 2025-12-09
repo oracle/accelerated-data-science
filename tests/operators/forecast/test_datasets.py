@@ -32,6 +32,7 @@ MODELS = [
     "prophet",
     "neuralprophet",
     "autots",
+    "theta",
     # "lgbforecast",
     "auto-select",
     "auto-select-series",
@@ -241,7 +242,7 @@ def test_pandas_to_historical(model):
         check_output_for_errors(output_data_path)
 
 
-@pytest.mark.parametrize("model", ["prophet", "neuralprophet"])
+@pytest.mark.parametrize("model", ["prophet", "neuralprophet", "theta"])
 def test_pandas_to_historical_test(model):
     df = pd.read_csv(f"{DATASET_PREFIX}dataset4.csv")
     df_train = df[:-PERIODS]
@@ -268,7 +269,7 @@ def test_pandas_to_historical_test(model):
 
 
 # CostAD
-@pytest.mark.parametrize("model", ["prophet", "neuralprophet"])
+@pytest.mark.parametrize("model", ["prophet", "neuralprophet", "theta"])
 def test_pandas_to_historical_test2(model):
     df = pd.read_csv(f"{DATASET_PREFIX}dataset5.csv")
     df_train = df[:-1]

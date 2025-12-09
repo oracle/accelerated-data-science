@@ -17,6 +17,7 @@ from sktime.split import ExpandingWindowSplitter
 from ads.opctl import logger
 from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorConfig
 from ads.opctl.operator.lowcode.forecast.utils import (_label_encode_dataframe)
+from ads.opctl.operator.lowcode.common.utils import seconds_to_datetime
 
 from ..const import (
     SupportedModels, ForecastOutputColumns, DEFAULT_TRIALS,
@@ -39,6 +40,8 @@ def freq_to_sp(freq: str) -> int | None:
         return 4
     if freq == "A" or freq == "Y":  # Annual
         return 1  # Usually no seasonality
+    if freq.startswith("W"):  # Weekly data (W, W-SUN, W-MON, etc.)
+        return 52
 
     # Weekly data
     if freq == "D":  # Daily
@@ -102,6 +105,8 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
             data_i = self.drop_horizon(data)
             target = self.spec.target_column
             freq = pd.infer_freq(data_i.index)
+            if freq.startswith("W-"):
+                freq = "W"
             data_i = data_i.asfreq(freq)
             y = data_i[target]
 
@@ -244,15 +249,18 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
         import report_creator as rc
         """The method that needs to be implemented on the particular model level."""
         all_sections = []
+        theta_blocks = []
+
         for series_id, sm in self.models.items():
             model = sm["model"]
+
             # ---- Extract details from ThetaModel ----
             fitted_params = model.get_fitted_params()
             alpha = fitted_params.get("initial_level", None)
+            smoothing_level = fitted_params.get("smoothing_level", None)
             sp = model.sp
             deseasonalize_model = model.deseasonalize_model
             desasonalized = model.deseasonalize
-            smoothing_level = fitted_params.get("smoothing_level", None)
             n_obs = len(model._y) if hasattr(model, "_y") else "N/A"
 
             # Date range
@@ -263,7 +271,7 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
                 start_date = ""
                 end_date = ""
 
-            # ---- Build the text block ----
+            # ---- Build the DF ----
             meta_df = pd.DataFrame({
                 "Metric": [
                     "Alpha / Initial Level",
@@ -273,7 +281,7 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
                     "Deseasonalization Method",
                     "Period (sp)",
                     "Sample Start",
-                    "Sample End"
+                    "Sample End",
                 ],
                 "Value": [
                     alpha,
@@ -283,18 +291,31 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
                     deseasonalize_model,
                     sp,
                     start_date,
-                    end_date
-                ]
+                    end_date,
+                ],
             })
 
-            # ---- Add to Report Creator ----
-            theta_section = rc.Block(
-                rc.Heading(f"Theta Model Summary — {series_id}", level=2),
-                rc.Text("This section provides detailed ThetaModel fit diagnostics."),
+            # ---- Create a block (NOT a section directly) ----
+            theta_block = rc.Block(
+                rc.Heading(f"Theta Model Summary", level=3),
                 rc.DataTable(meta_df),
+                label=series_id
             )
 
-            all_sections.append(theta_section)
+            # Add with optional label support
+            theta_blocks.append(
+                theta_block
+            )
+
+        # ---- Combine into final section like ARIMA example ----
+        theta_title = rc.Heading("Theta Model Parameters", level=2)
+
+        if len(theta_blocks) > 1:
+            theta_section = rc.Select(blocks=theta_blocks)
+        else:
+            theta_section = theta_blocks[0]
+
+        all_sections.extend([theta_title, theta_section])
 
         if self.spec.generate_explanations:
             try:
@@ -383,14 +404,19 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
         def _custom_predict(
                 data,
                 model=self.models[series_id]["model"],
+                dt_column_name=self.datasets._datetime_column_name,
                 target_col=self.original_target_column,
         ):
             """
             data: ForecastDatasets.get_data_at_series(s_id)
             """
             data = data.drop([target_col], axis=1)
+            data[dt_column_name] = seconds_to_datetime(
+                data[dt_column_name], dt_format=self.spec.datetime_column.format
+            )
             data = self.preprocess(data, series_id)
-            fh = ForecastingHorizon(pd.to_datetime(data.index), is_relative=False)
+            h = len(data)
+            fh = ForecastingHorizon(np.arange(1, h + 1), is_relative=True)
             return model.predict(fh)
 
         return _custom_predict
