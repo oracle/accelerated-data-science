@@ -63,6 +63,7 @@ def freq_to_sp(freq: str) -> int | None:
     logger.warning("Unable to infer data frequency and sp")
     return None
 
+
 class ThetaOperatorModel(ForecastOperatorBaseModel):
     """Theta operator model"""
 
@@ -78,6 +79,7 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
         model_kwargs = self.spec.model_kwargs
         model_kwargs["alpha"] = self.spec.model_kwargs.get("alpha", None)
         model_kwargs["initial_level"] = self.spec.model_kwargs.get("initial_level", None)
+        model_kwargs["deseasonalize"] = self.spec.model_kwargs.get("deseasonalize", True)
 
         if self.spec.confidence_interval_width is None:
             self.spec.confidence_interval_width = 1 - 0.90 if model_kwargs["alpha"] is None else model_kwargs["alpha"]
@@ -117,9 +119,12 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
             else:
                 if self.perform_tuning:
                     model_kwargs = self.run_tuning(y, model_kwargs)
+            if len(y) < 2 * model_kwargs["sp"]:
+                model_kwargs["deseasonalize"] = False
 
             # Fit ThetaModel using params
             model = ThetaForecaster(initial_level=model_kwargs["initial_level"],
+                                    deseasonalize=model_kwargs["deseasonalize"],
                                     deseasonalize_model=model_kwargs["deseasonalize_model"], sp=model_kwargs["sp"])
             model.fit(y)
 
@@ -129,8 +134,8 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
             forecast_values = model.predict(fh)
             forecast_range = model.predict_interval(fh=fh)
 
-            lower = forecast_range[("y", 0.9, "lower")].rename("yhat_lower")
-            upper = forecast_range[("y", 0.9, "upper")].rename("yhat_upper")
+            lower = forecast_range[(self.original_target_column, 0.9, "lower")].rename("yhat_lower")
+            upper = forecast_range[(self.original_target_column, 0.9, "upper")].rename("yhat_upper")
             point = forecast_values.rename("yhat")
             forecast = pd.DataFrame(
                 pd.concat([point, lower, upper], axis=1)
@@ -205,7 +210,8 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
             model = ThetaForecaster(
                 initial_level=initial_level,
                 sp=sp,
-                deseasonalize_model=deseason
+                deseasonalize_model=deseason,
+                deseasonalize=model_kwargs_i["deseasonalize"],
             )
 
             cv = ExpandingWindowSplitter(
