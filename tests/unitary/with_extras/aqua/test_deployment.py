@@ -2965,7 +2965,9 @@ class TestSingleModelParamResolution(unittest.TestCase):
         # Mock internal helpers to avoid real API calls
         self.app.get_container_config = MagicMock()
         self.app.get_container_image = MagicMock(return_value="docker/image:latest")
-        self.app.list_shapes = MagicMock(return_value=[MagicMock(name="VM.GPU.A10.1")])
+        mock_shape = MagicMock()
+        mock_shape.name = "VM.GPU.A10.1"
+        self.app.list_shapes = MagicMock(return_value=[mock_shape])
 
         # Mock the SMM Defaults (What happens if user sends nothing)
         self.mock_config = MagicMock()
