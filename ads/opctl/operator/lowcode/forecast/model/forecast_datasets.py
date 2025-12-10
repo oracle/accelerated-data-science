@@ -345,6 +345,7 @@ class ForecastOutput:
                 f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             ) from e
 
+        start_idx = output_i.shape[0] - self.horizon - len(fit_val)
         if (output_i.shape[0] - self.horizon) == len(fit_val):
             output_i.loc[output_i.index[
                 : -self.horizon], "fitted_value"] = fit_val  # Note: may need to do len(output_i) - (len(fit_val) + horizon) : -horizon
@@ -352,7 +353,6 @@ class ForecastOutput:
             logger.debug(
                 f"Fitted Values were only generated on a subset ({len(fit_val)}/{(output_i.shape[0] - self.horizon)}) of the data for Series: {series_id}."
             )
-            start_idx = output_i.shape[0] - self.horizon - len(fit_val)
             output_i.loc[output_i.index[start_idx: -self.horizon], "fitted_value"] = fit_val
         else:
             output_i.loc[output_i.index[start_idx: -self.horizon], "fitted_value"] = fit_val[
