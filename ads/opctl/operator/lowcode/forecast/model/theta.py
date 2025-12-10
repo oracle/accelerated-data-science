@@ -16,11 +16,11 @@ from sktime.split import ExpandingWindowSplitter
 
 from ads.opctl import logger
 from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorConfig
-from ads.opctl.operator.lowcode.forecast.utils import (_label_encode_dataframe)
+from ads.opctl.operator.lowcode.forecast.utils import (_label_encode_dataframe, smape)
 from ads.opctl.operator.lowcode.common.utils import seconds_to_datetime
 
 from ..const import (
-    SupportedModels, ForecastOutputColumns, DEFAULT_TRIALS,
+    SupportedModels, ForecastOutputColumns,
 )
 from .base_model import ForecastOperatorBaseModel
 from .forecast_datasets import ForecastDatasets, ForecastOutput
@@ -32,36 +32,42 @@ def freq_to_sp(freq: str) -> int | None:
     """
     Convert pandas freq string to seasonal period (sp).
     """
+    if not freq:
+        return None
+
     freq = freq.upper()
 
-    if freq == "M":  # Monthly
-        return 12
-    if freq == "Q":  # Quarterly
-        return 4
-    if freq == "A" or freq == "Y":  # Annual
-        return 1  # Usually no seasonality
-    if freq.startswith("W"):  # Weekly data (W, W-SUN, W-MON, etc.)
+    # Direct mappings
+    mapping = {
+        "M": 12,
+        "Q": 4,
+        "A": 1,
+        "Y": 1,
+        "W": 52,
+        "D": 7,
+        "H": 24,
+        "T": 1440,
+        "MIN": 1440,
+    }
+    if freq in mapping:
+        return mapping[freq]
+
+    # Weekly variants (W-MON, W-SUN, etc.)
+    if freq.startswith("W"):
         return 52
 
-    # Weekly data
-    if freq == "D":  # Daily
-        return 7  # 7-day seasonality is common
-
-    if freq == "H":  # Hourly
-        return 24  # 24 hours/day
-
-    if freq == "T" or freq == "MIN":  # Minute data
-        return 1440  # minutes/day → auto infer later
-
-    # If freq is something like "5T"
+    # Minute frequencies like "5T" or "15MIN"
     if freq.endswith("T"):
-        minutes = int(freq.replace("T", ""))
-        return int(1440 / minutes)
+        try:
+            return 1440 // int(freq[:-1])
+        except ValueError:
+            pass
 
-    # If freq is something like "15min"
-    if "MIN" in freq:
-        minutes = int(freq.replace("MIN", ""))
-        return int(1440 / minutes)
+    if freq.endswith("MIN"):  # e.g., "15MIN"
+        try:
+            return 1440 // int(freq[:-3])
+        except ValueError:
+            pass
 
     logger.warning("Unable to infer data frequency and sp")
     return None
@@ -83,6 +89,7 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
         model_kwargs["alpha"] = self.spec.model_kwargs.get("alpha", None)
         model_kwargs["initial_level"] = self.spec.model_kwargs.get("initial_level", None)
         model_kwargs["deseasonalize"] = self.spec.model_kwargs.get("deseasonalize", True)
+        model_kwargs["deseasonalize_model"] = self.spec.model_kwargs.get("deseasonalize_model", "additive")
 
         if self.spec.confidence_interval_width is None:
             self.spec.confidence_interval_width = 1 - 0.90 if model_kwargs["alpha"] is None else model_kwargs["alpha"]
@@ -110,7 +117,6 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
             data_i = data_i.asfreq(freq)
             y = data_i[target]
 
-            model_kwargs["deseasonalize_model"] = "additive"
             inferred_sp = freq_to_sp(freq)
             model_kwargs["sp"] = 1 if inferred_sp is None else inferred_sp
 
@@ -205,10 +211,10 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
     def run_tuning(self, y: pd.DataFrame, model_kwargs_i: Dict[str, Any]):
 
         def objective(trial):
-            # Hyperparameters to tune
-            initial_level = trial.suggest_float("initial_level", 0.05, 1.0)
-            sp = trial.suggest_categorical("sp", model_kwargs_i["sp"])
+            initial_level = model_kwargs_i["initial_level"]
+            sp = model_kwargs_i["sp"]
             deseason = trial.suggest_categorical("deseasonalize_model", ["additive", "multiplicative"])
+
             if deseason == "multiplicative" and (y <= 0).any():
                 raise optuna.exceptions.TrialPruned()
 
@@ -225,25 +231,41 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
             )
 
             scores = []
+
             for train, test in cv.split(y):
                 t_data = y.iloc[train]
+                if t_data.isna().any():
+                    continue
                 if len(t_data) < 2 * sp:
                     continue
+
                 model.fit(t_data)
                 fh = ForecastingHorizon(y.index[test], is_relative=False)
                 y_pred = model.predict(fh)
+                y_test = y.iloc[test]
+                if y_test.isna().any():
+                    continue
 
-                score = mean_absolute_percentage_error(
-                    y.iloc[test], y_pred
-                )
+                if self.spec.metric == "mape":
+                    score = mean_absolute_percentage_error(y_test, y_pred)
+                elif self.spec.metric == "rmse":
+                    score = np.sqrt(mean_squared_error(y_test, y_pred))
+                elif self.spec.metric == "mse":
+                    score = mean_squared_error(y_test, y_pred)
+                elif self.spec.metric == "smape":
+                    score = smape(y_test.values, y_pred.values)
+                else:
+                    score = mean_absolute_percentage_error(y_test, y_pred)
+
                 scores.append(score)
 
             return np.mean(scores)
 
         study = optuna.create_study(direction="minimize")
-        trials = DEFAULT_TRIALS if self.spec.tuning.n_trials is None else self.spec.tuning.n_trials
+        trials = 2 if self.spec.tuning.n_trials is None else self.spec.tuning.n_trials
         study.optimize(objective, n_trials=trials)
-        return study.best_params
+        model_kwargs_i["deseasonalize_model"] = study.best_params["deseasonalize_model"]
+        return model_kwargs_i
 
     def _generate_report(self):
         import report_creator as rc
